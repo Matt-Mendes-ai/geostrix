@@ -51,6 +51,15 @@ const PICTURES = {
     <path d="M90 4 L196 4 L196 48 L96 48 L76 26 Z" {...both("accent", 0.25, "accent-dark")} />
     <path d="M140 18 L160 30 M150 24 L146 30" fill="none" {...stroke("text", 1.5)} />
   </>),
+  // TASKS.csv #3952 — regional map units with the fetch area drawn over them (the Macrostrat card)
+  units: () => (<>
+    <path d="M0 0 L70 0 L58 22 L0 30 Z" {...both("accent", 0.35, "accent-dark")} />
+    <path d="M70 0 L140 0 L122 26 L84 34 L58 22 Z" {...both("tier-basic", 0.3, "tier-basic")} />
+    <path d="M140 0 L200 0 L200 36 L150 44 L122 26 Z" {...both("info", 0.3, "info")} />
+    <path d="M0 30 L58 22 L84 34 L96 52 L0 52 Z" {...both("danger-solid", 0.2, "danger-solid")} />
+    <path d="M84 34 L122 26 L150 44 L200 36 L200 52 L96 52 Z" {...both("text-muted", 0.2, "text-muted")} />
+    <rect x={64} y={10} width={74} height={32} fill="none" {...stroke("text", 1.5)} strokeDasharray="4 3" />
+  </>),
 };
 
 // the picture alone, for a drop area that is already the drop box (the Start dialog)

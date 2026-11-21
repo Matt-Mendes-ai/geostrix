@@ -38,7 +38,10 @@ test("#2126 without a trace to go by: the main group of collars; otherwise all o
 test("#2126 the picker and the Spectral areas", () => {
   const m = read("modules/RasterModule.jsx");
   assert.match(m, /fetchAreaBox\(imageryAreaCollars\(collars, survey\)\.collars, surfaceSamples\)/);
-  assert.match(m, /jobs\.push\(\{ id: "all_collars", label: tr\("Every collar \(\{n\}\)"/);
-  assert.match(m, /tr\("Around the traced holes \(\{n\} of \{total\}\)"/);
+  // #3954: the list is lib/fetchAreas.js's, asked for with imagery: true
+  const lib = read("lib/fetchAreas.js");
+  assert.match(lib, /out\.push\(\{ id: "all_collars", kind: "collars", label: tr\("Every collar \(\{n\}\)"/);
+  assert.match(lib, /tr\("Around the traced holes \(\{n\} of \{total\}\)"/);
+  assert.match(m, /\{ imagery: true \}/);
   assert.match(m, /p\.pixelM > 3 \* \(naip \? NAIP_FINEST_M : 10\)/);
 });

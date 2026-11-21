@@ -6,17 +6,20 @@ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8").re
 
 test("#2314 the dialog keeps a drawn area, falls back to the project area, and every fetch uses it", () => {
   const m = read("src/components/MacrostratModal.jsx");
-  assert.match(m, /bboxLonLat: projectBbox \}\) \{/);
-  assert.match(m, /const bboxLonLat = drawn \|\| projectBbox;/);
+  // #3954: the area comes from the shared chooser (AreaChooser / lib/fetchAreas.js); a drawn one is still kept, the project area the fallback
+  assert.match(m, /bboxLonLat: projectBbox, areaOptions = null \}\) \{/);
+  assert.match(m, /areaOptions \|\| \(projectBbox \? \[\{ id: "project", kind: "project", label: tr\("Project area"\), bboxLonLat: projectBbox \}\] : \[\]\)/);
+  assert.match(m, /const area = useFetchArea\("macrostrat", options\);/);
+  assert.match(m, /const bboxLonLat = area\.bboxLonLat;/);
   assert.match(m, /<BasemapView\s+mode="draw"\s+initialBboxLonLat=\{bboxLonLat\}/);
-  assert.match(m, /onConfirm=\{\(b\) => \{ setDrawn\(b\); setUnits\(null\); setMsg\(null\); setPicking\(false\); \}\}/);
+  assert.match(m, /onConfirm=\{\(b\) => \{ area\.setDrawn\(b\); setUnits\(null\); setMsg\(null\); setPicking\(false\); \}\}/);
   // the three fetches read bboxLonLat (or its centre), which is the drawn area when there is one
   assert.match(m, /fetchMacrostratRaster\(\{ bboxLonLat,/);
   assert.match(m, /fetchMacrostratLegend\(\{ bboxLonLat,/);
   assert.match(m, /fetchMacrostratMapLayer\(\{ bboxLonLat,/);
   assert.match(m, /const centre = bboxLonLat \?/);
   // drawing is possible with no project area at all
-  assert.match(m, /disabled=\{!!busy\} onClick=\{\(\) => setPicking\(true\)\}/);
+  assert.match(m, /<AreaChooser options=\{options\} area=\{area\} disabled=\{!!busy\} onDraw=\{\(\) => setPicking\(true\)\} \/>/);
 });
 
 test("#2314 the area size line", async () => {

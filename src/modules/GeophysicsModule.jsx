@@ -18,7 +18,7 @@ import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #143
 import { suspectElevationIds, elevationTrust } from "../lib/collarElevationTrust.js"; // TASKS.csv #2987 (the shared rule, #3004)
 import { logReadingCounts } from "../lib/inversionLogSources.js"; // TASKS.csv #2950
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
-import { fetchAreaBox, modelGapKm, mergeSameBoxOptions } from "../lib/dataExtent.js"; // #1461; modelGapKm: #1427
+import { fetchAreaBox, modelGapKm } from "../lib/dataExtent.js"; // #1461; modelGapKm: #1427
 import { Pencil /* #3319 */, Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale, Crosshair } from "../components/icons.js"; // Crosshair: #2657
 import { requestPlanZoom, polylinesBox } from "../lib/planZoom.js"; // TASKS.csv #2657 // Scale: #1052
 import { lazyModal } from "../lib/lazyModal.jsx";
@@ -119,7 +119,7 @@ import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../l
 import { mineGridOf, mineSourceOf, isMineSource, mineRowsToProject } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { tieOf, fileToLocal, localToWorld } from "../lib/localGridTie.js"; // TASKS.csv #2587 — a tied local grid's way in; localToWorld: #2648
 import { tieTerrainToLocal } from "../lib/terrainTie.js"; // TASKS.csv #2648
-import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
+import { fetchAreaChoices, fetchAreaOptions, optionForBox, clipTerrainToOutline } from "../lib/fetchAreas.js"; // TASKS.csv #3954 — the areas every online fetch offers
 import { collarCentreLonLat } from "../lib/projectCrs.js"; // TASKS.csv #2465
 import { niceContourInterval, terrainRange, MIN_CONTOUR_INTERVAL } from "../lib/contourInterval.js"; // TASKS.csv #2462
 import { vectorToBoundaryPolylines, boundaryCrsTransform, claimsFromVector, closedFeaturesOnly, isAreaBoundary, fileStem, crsLabel } from "../lib/boundaryImport.js"; // crsLabel: #2467; // fileStem: #1767; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
@@ -911,7 +911,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #3287 — the Maps ribbon's 'Geology (Macrostrat)' button: the Web layers pane's 'Macrostrat geology…' item, the same steps
   const openMacrostrat = async () => {
     if (project?.crsSet === false) { if (!(await ensureProjectCrs(project, tr("Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first.")))) return; }
-    setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setMacrostratOpen(true);
+    setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebAreaOptions(await buildFetchAreas()); setMacrostratOpen(true); // #3954
   };
   useModuleAction(["open-macrostrat"], () => { if (forcePane === "web") openMacrostrat(); });
   // TASKS.csv #3932 — an AI app's fetch_terrain (the download was already asked for and allowed in GeoStrix's main process): Copernicus GLO-30 over the area
@@ -1091,32 +1091,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const m = Math.max(1000, 0.1 * Math.max(x1 - x0, y1 - y0));
     return [x0 - m, y0 - m, x1 + m, y1 + m];
   };
-  const buildSrtmAreaOptions = async () => {
-    if (!project?.epsg && !tieOf(project)) return [];
-    const jobs = [];
-    const sb = surfaceSampleBox(); // #845
-    if (sb) jobs.push({ id: "surface_samples", label: tr("Around the surface samples"), xmin: sb[0], ymin: sb[1], xmax: sb[2], ymax: sb[3] });
-    for (const b of boundaries) {
-      if (!isAreaBoundary(b)) continue; // #1466 — contours and other open lines are not an area
-      const xs = [], ys = [];
-      for (const loop of b.polylines || []) for (const p of loop) { xs.push(p.x); ys.push(p.y); }
-      if (!xs.length) continue;
-      jobs.push({ id: `boundary_${b.id}`, label: `Boundary: ${b.name}`, xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) });
-    }
-    for (const r of rasters) {
-      if (!r.bbox) continue;
-      const [xmin, ymin, xmax, ymax] = r.bbox;
-      jobs.push({ id: `raster_${r.id}`, label: `Raster: ${r.name}`, xmin, xmax, ymin, ymax });
-    }
-    const options = await Promise.all(jobs.map(async (j) => {
-      const corners = [[j.xmin, j.ymin], [j.xmax, j.ymin], [j.xmax, j.ymax], [j.xmin, j.ymax]];
-      const lonLats = await Promise.all(corners.map(([x, y]) => lonLatOf(x, y)));
-      if (lonLats.some((ll) => !ll)) return null;
-      const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
-      return { id: j.id, label: farLabel(j.label, farFromCollars([j.xmin, j.ymin, j.xmax, j.ymax], collars)), bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] }; // farLabel: #2590
-    }));
-    return mergeSameBoxOptions(options.filter(Boolean), (n) => tr("+{n} with the same box", { n })); // TASKS.csv #3477 — one line per distinct box
-  };
+  // TASKS.csv #3954 — the areas every online fetch offers (lib/fetchAreas.js): the project area, the terrain, the satellite image, other rasters,
+  // the surface samples, each boundary and claim with a margin (its outline kept for "Clip to the outline"). Was this pane's own copy (#200, #845).
+  const buildFetchAreas = async () => ((!project?.epsg && !tieOf(project)) ? [] : fetchAreaOptions(fetchAreaChoices({ collars, survey, surfaceSamples, terrain, rasters, boundaries, mapLayers }), lonLatOf, collars));
+  const buildSrtmAreaOptions = buildFetchAreas;
+  const [clipTerrain, setClipTerrain] = useState(true); // #3954 — a boundary or claim chosen: the terrain outside its outline left empty
+  const [webAreaOptions, setWebAreaOptions] = useState(null); // #3954 — Macrostrat's and the web layers' areas
 
   // TASKS.csv #615 — terrain is fetched for wherever the project CRS puts the data: a CRS never chosen is asked for
   // first, then the picker re-opens on the next render (its area seeds read the project CRS from this render).
@@ -1178,6 +1158,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         parsed = local;
         tieNote = " " + tr("It was fetched in EPSG:{epsg} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { epsg: targetEpsg });
       }
+      // TASKS.csv #3954 — a boundary or claim chosen in the picker, "Clip to the outline" on: the nodes outside it left empty (the outline is in project
+      // coordinates, as the terrain is; not after a zone relabel, whose outline would be in the old zone)
+      { const o = !ai && !epsgOverride && clipTerrain ? optionForBox(srtmAreaOptions, bboxLonLat) : null; if (o?.outline?.length) parsed = clipTerrainToOutline(parsed, o.outline); }
       // TASKS.csv #614 — collars hundreds of metres off the fetched ground: is the project in the wrong UTM zone?
       const misfit = tie ? null : collarGroundMisfit(collars, parsed); // #2648 — not on a tied grid: its CRS is the tie, not a UTM zone to relabel
       let misfitNote = "";
@@ -2891,8 +2874,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               if (!bbox) return null;
               const p = planTerrainFetch(bbox, terrainDetail, terrainSource), fits = fetchFits(p.memoryMB, ramGB);
               const coarse = p.effectiveM > 1.5 * p.nativeM;
+              const outlined = !!optionForBox(srtmAreaOptions, bbox)?.outline?.length; // #3954
               return (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
+                  {outlined && <label style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={clipTerrain} onChange={(e) => setClipTerrain(e.target.checked)} />{tr("Clip to the outline")}</label>}
                   <span title={tr("Nodes {n} m apart; the source's pixels here {s} m (its finest {f} m){tiles}", { n: p.nodeM.toFixed(1), s: p.sourcePixelM.toFixed(1), f: p.nativeM.toFixed(1), tiles: p.tiles ? tr(", {t} tiles, about {mb} MB to download", { t: p.tiles, mb: p.downloadMB }) : "" })}>
                     {tr("~{m} m ground detail · {mem} MB", { m: p.effectiveM < 10 ? p.effectiveM.toFixed(1) : Math.round(p.effectiveM), mem: p.memoryMB.toLocaleString() })}</span>
                   {/* TASKS.csv #3504 — the spacing of the grid's nodes at the chosen Terrain detail, beside the area's size: '~44 km × 23 km, nodes ~220 m apart at Standard' */}
@@ -3144,6 +3129,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             addMapLayer={addMapLayer}
             projectEpsg={project?.epsg}
             defaultBboxLonLat={webLayerDefaultBbox}
+            areaOptions={webAreaOptions} /* #3954 */
           />
         )}
         <TaskPaneHeader title="Web layers (WMS / WFS)" icon={RGlobe} tone="data" />
@@ -3152,13 +3138,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <button onClick={async () => {
           // #615 — a web map is fetched for wherever the project CRS puts the data: choose it first when it never was
           if (project?.crsSet === false) { if (await ensureProjectCrs(project, tr("Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first."))) setWebLayerModalOpen(true); return; }
-          setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebLayerModalOpen(true);
+          setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebAreaOptions(await buildFetchAreas()); setWebLayerModalOpen(true); // #3954
         }} style={pBtn}>
           <Globe size={14} />{" "}{tr("Add web layer (WMS / WFS)…")}</button>
         {/* TASKS.csv #2005 — Macrostrat's world geologic map (CC BY 4.0) for the project area, and the units at its centre */}
         <button onClick={openMacrostrat /* #3287 — shared with the Maps ribbon's button */} style={pBtn} title={tr("Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps")}>
           <Globe size={14} />{" "}{tr("Macrostrat geology…")}</button>
-        {macrostratOpen && <React.Suspense fallback={null}><MacrostratModal onClose={() => setMacrostratOpen(false)} addRaster={addRaster} addMapLayer={addMapLayer} /* #2012 */ projectEpsg={project?.epsg} bboxLonLat={webLayerDefaultBbox} /></React.Suspense>}
+        {macrostratOpen && <React.Suspense fallback={null}><MacrostratModal onClose={() => setMacrostratOpen(false)} addRaster={addRaster} addMapLayer={addMapLayer} /* #2012 */ projectEpsg={project?.epsg} bboxLonLat={webLayerDefaultBbox} areaOptions={webAreaOptions} /* #3954 */ /></React.Suspense>}
 
         </>)}
         {geoPane === "claims" && (<>

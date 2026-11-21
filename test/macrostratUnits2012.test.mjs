@@ -71,7 +71,7 @@ test("macrostratUnitFeatures: polygons clipped to their tile and the area, holes
 test("the dialog adds the map layer through the store, and Maps passes addMapLayer", () => {
   const m = read("src/components/MacrostratModal.jsx");
   assert.match(m, /addMapLayer\(r\.layer\)/);
-  assert.match(m, /Add the units as a map layer \(for Model it\)/);
+  assert.match(m, /tr\("Add the units as a map layer"\)/); // #3952: the main button, shorter
   assert.match(read("src/modules/GeophysicsModule.jsx"), /<MacrostratModal [^\n]*addMapLayer=\{addMapLayer\}/);
   const f = read("src/lib/macrostratFetch.js");
   assert.match(f, /styleField: "unit", categories/);

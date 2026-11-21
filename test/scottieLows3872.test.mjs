@@ -13,7 +13,7 @@ test("#3872: no stroked halo on the section's text (it printed each string twice
   // every label that lies over the drawing: the float labels (collision pass), the hole names, the ground line, the ghost strings, the contact names, the scale bar
   for (const re of [
     /\{haloBox\(l\.text, l\.x, l\.y, l\.size, l\.anchor, undefined, floatWidth\(l\.text, l\.size\)\)\}<text x=\{l\.x\}/,
-    /\{haloBox\(tr\("Ground surface \(SRTM\)"\)/,
+    /\{haloBox\(groundLabel, /, // #3949: the label names the terrain's source
     /\{haloBox\(c\.unit, sx\(c\.points\[0\]\.l\)/,
     /\{haloBox\(`\$\{m\.toLocaleString\(\)\} m`/,
     /\{haloBox\(`\$\{st\.unit\} — /,

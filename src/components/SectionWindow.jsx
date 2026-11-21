@@ -676,6 +676,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   const autoVERef = useRef(null); // #2363 — this section's opening VE, told to the toolbar once (it keeps it from then on)
   useEffect(() => { if (autoVERef.current != null && vExagIn == null) onAutoVE?.(autoVERef.current); });
   const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [], rlOffset = 0 } = data; // scatter: #1807; rlOffset: #2809
+  const groundLabel = data.groundSource ? tr("Ground surface ({source})", { source: data.groundSource }) : tr("Ground surface"); // TASKS.csv #3949 — the terrain's own source, not always SRTM
   const rlOff = Number.isFinite(rlOffset) ? rlOffset : 0; // TASKS.csv #2809 — the mine grid's RL datum: grid RL = elevation + this; 0: the axis is elevation
   // TASKS.csv #1090 — the margin and the title / axis text positions follow the text size: at 2x (or the print size the
   // exports use) the title and subtitle, and the tick labels and coordinates under the frame, overlapped
@@ -948,15 +949,12 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
       )}
       {elevationProfile && elevationProfile.length > 1 && (
         <g>
-          <polygon
-            points={`${sx(elevationProfile[0].d)},${H - PAD} ${elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")} ${sx(elevationProfile[elevationProfile.length - 1].d)},${H - PAD}`}
-            fill={colors.terrain} fillOpacity="0.55" stroke="none" /* TASKS.csv #3947 — the ground in the terrain's grey, as in 3D and on the Maps plan */
-          />
+          {/* TASKS.csv #3949 — Matt: "Let's make the DEM display as a line only on the cross section, remove the light brown fill, no fill." */}
           <polyline
             points={elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")}
             fill="none" stroke={colors.terrainLine} strokeWidth="1.6"
           />
-          {haloBox(tr("Ground surface (SRTM)"), W - PAD - 4, sz(elevationProfile[elevationProfile.length - 1].z) - 6, fs(9.5), "end")}<text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#55606e" fontSize={fs(9.5)} textAnchor="end">{tr("Ground surface (SRTM)")}</text>
+          {haloBox(groundLabel, W - PAD - 4, sz(elevationProfile[elevationProfile.length - 1].z) - 6, fs(9.5), "end")}<text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#55606e" fontSize={fs(9.5)} textAnchor="end">{groundLabel}</text>
         </g>
       )}
 

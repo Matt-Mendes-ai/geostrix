@@ -3,14 +3,17 @@
 // shown here, kept in the layer's name and provenance. Nothing is requested until a button is pressed.
 // TASKS.csv #2314 (Matt: "I wanna be able to select an area of the map to fetch macrostrat geology") — the area is the project's by
 // default, or one drawn on the map with the picker the WMS and terrain fetches use; all three buttons use it.
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { X, Globe, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, btn } from "../lib/modalStyles.js";
 import BasemapView from "./BasemapView.jsx"; // #2314 — the area picker
+import { DropPicture } from "./DropDiagram.jsx"; // TASKS.csv #3952 — the card's picture
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3952
+import AreaChooser, { useFetchArea } from "./AreaChooser.jsx"; // TASKS.csv #3954
 import { fetchMacrostratRaster, fetchMacrostratUnits, fetchMacrostratLegend, fetchMacrostratMapLayer } from "../lib/macrostratFetch.js"; // legend: #2011; map layer: #2012
-import { MACROSTRAT_CREDIT, MACROSTRAT_TILE_URL } from "../lib/macrostrat.js";
+import { MACROSTRAT_CREDIT, MACROSTRAT_MVT_URL } from "../lib/macrostrat.js";
 import { t as tr } from "../lib/i18n.js";
 import { areaSizeText } from "../lib/areaSize.js"; // TASKS.csv #2314 / #1765
 
@@ -19,10 +22,14 @@ const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-seconda
 // #2314 — an area's size on the ground, for the Area line (lib/areaSize.js since #1765, shared with the fetch-area picker)
 export { areaSizeText };
 
-export default function MacrostratModal({ onClose, addRaster, addMapLayer = null /* #2012 */, projectEpsg, bboxLonLat: projectBbox }) {
-  const [drawn, setDrawn] = useState(null); // #2314 — [lonMin, latMin, lonMax, latMax] drawn on the map, or null for the project area
+export default function MacrostratModal({ onClose, addRaster, addMapLayer = null /* #2012 */, projectEpsg, bboxLonLat: projectBbox, areaOptions = null }) {
+  // TASKS.csv #3954 — the area from the shared chooser (lib/fetchAreas.js): the project area, the terrain, the satellite image, a boundary or claim,
+  // or one drawn on the map (#2314); with no list passed, the project area alone
+  const options = useMemo(() => areaOptions || (projectBbox ? [{ id: "project", kind: "project", label: tr("Project area"), bboxLonLat: projectBbox }] : []), [areaOptions, projectBbox]);
+  const area = useFetchArea("macrostrat", options);
   const [picking, setPicking] = useState(false);
-  const bboxLonLat = drawn || projectBbox;
+  const bboxLonLat = area.bboxLonLat;
+  const atProject = area.option?.kind === "project";
   useEscapeKey(onClose); // a stack: Esc in the picker closes only the picker
   useFocusTrap();
   const [busy, setBusy] = useState(null);
@@ -34,10 +41,11 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
     try {
       const r = await fetchMacrostratRaster({ bboxLonLat, projectEpsg, onProgress: (d, n) => setBusy(tr("Fetching Macrostrat tiles… {d} of {n}", { d, n })) });
       // TASKS.csv #2011 — the legend from the same tiles as vectors; a failure here still adds the drape (the layer offers "Fetch the legend")
-      let legend = null, legendErr = null;
-      try { legend = await fetchMacrostratLegend({ bboxLonLat, onProgress: (d, n) => setBusy(tr("Fetching the legend… {d} of {n}", { d, n })) }); } catch (e) { legendErr = e.message; }
+      // #3952: the image is drawn from those tiles, which give the legend too (r.legend); fetched again only when they did not
+      let legend = r.legend || null, legendErr = null;
+      if (!legend) try { legend = await fetchMacrostratLegend({ bboxLonLat, onProgress: (d, n) => setBusy(tr("Fetching the legend… {d} of {n}", { d, n })) }); } catch (e) { legendErr = e.message; }
       addRaster({ name: "Macrostrat geology (CC BY 4.0)", bbox: r.bbox, dataUrl: r.dataUrl, opacity: 0.7, ...(legend ? { legend } : {}),
-        provenance: { tool: "Macrostrat geologic map tiles", source: MACROSTRAT_TILE_URL("{z}", "{x}", "{y}"), zoom: r.zoom, areaLonLat: bboxLonLat, credit: MACROSTRAT_CREDIT, fetched: new Date().toISOString().slice(0, 10) } });
+        provenance: { tool: "Macrostrat map units (vector tiles), drawn as an image", source: MACROSTRAT_MVT_URL("{z}", "{x}", "{y}"), /* #3952 */ zoom: r.zoom, areaLonLat: bboxLonLat, credit: MACROSTRAT_CREDIT, fetched: new Date().toISOString().slice(0, 10) } });
       setMsg({ ok: !r.failedTiles && !legendErr, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a raster drape: {w} × {h} px, ~{m} m pixels, {n} tiles at zoom {z}. Its eye in GeoTIFF / GXF turns it off.", { w: r.width, h: r.height, m: Math.round(r.pixelM), n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: r.failedTiles, total: r.tiles }) : "")
         + " " + (legend ? tr("Its legend lists {n} map units: open it under the layer, in Maps or in StrixViewer's layer list.", { n: legend.units.length }) : tr("Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.", { message: legendErr })) });
     } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
@@ -60,30 +68,29 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
   };
   return (
     <div style={overlay} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" aria-modal="true" aria-label={tr("Macrostrat geology")} style={{ ...panel, width: 560, maxWidth: "94vw", maxHeight: "86vh", display: "flex", flexDirection: "column" }}>
+      {/* TASKS.csv #3952 (Matt's first-time test: "we should have a nice card here for macrostrat geology. all the writing can go in more") — the dialog had
+          no background: it spread modalStyles' panel, which is a function (panel(sizing)), so the title, text and buttons sat on the dimmed map. Now an
+          opaque card in #3939's kit: the picture, one line of scale, the area, the buttons; what Macrostrat is and its credit behind More. */}
+      <div role="dialog" aria-modal="true" aria-label={tr("Macrostrat geology")} data-macrostrat-card="" style={panel({ width: 520, maxWidth: "94vw", maxHeight: "86vh", boxShadow: "0 6px 24px rgba(0,0,0,0.18)" })}>
         <div style={header}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}><Globe size={16} />{tr("Macrostrat geology")}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}><Globe size={16} />{tr("Macrostrat geology")}</span>
           <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={note}>{tr("Macrostrat compiles geologic maps from many surveys into one world map, at the scale of its sources (often 1:250,000 to 1:1,000,000): context, not mapping at your property's scale.")}</div>
-          <div style={{ ...note, fontSize: "var(--font-size-xs)" }}>{tr("Data CC BY 4.0: credit Macrostrat (Peters et al. 2018, doi:10.1029/2018GC007467; Quinn et al. 2023, doi:10.1002/gdj3.189) and the original maps below in shared figures.")}</div>
-          {/* #2314 — which area the buttons fetch */}
-          <div style={{ ...note, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }} aria-label={tr("Area")}>
-            <span style={{ color: "var(--color-text)" }}>{drawn ? tr("Area: drawn on the map, {size}", { size: areaSizeText(drawn) }) : projectBbox ? tr("Area: the project area, {size}", { size: areaSizeText(projectBbox) }) : tr("Area: none yet")}</span>
-            <button type="button" disabled={!!busy} onClick={() => setPicking(true)} style={{ ...btn(false), width: "auto", padding: "4px 8px" }}>{drawn ? tr("Draw a different area…") : tr("Draw an area…")}</button>
-            {drawn && projectBbox && <button type="button" disabled={!!busy} onClick={() => setDrawn(null)} style={{ ...btn(false), width: "auto", padding: "4px 8px" }}>{tr("Use the project area")}</button>}
-          </div>
-          {!bboxLonLat && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("No project area yet: draw an area on the map, or load holes, samples or a map first.")}</div>}
+          <DropPicture picture="units" />
+          <div style={note}>{tr("Regional geology (1:250,000 to 1:1,000,000), not property-scale mapping.")}</div>
+          {/* #2314 / #3954 — which area the buttons fetch */}
+          <AreaChooser options={options} area={area} disabled={!!busy} onDraw={() => setPicking(true)} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" disabled={!bboxLonLat || !!busy} onClick={addLayer} style={{ ...btn(true), width: "auto", padding: "6px 12px", opacity: bboxLonLat && !busy ? 1 : 0.5 }}>{tr(drawn ? "Add the geology for this area" : "Add the geology for the project area")}</button>
-            {addMapLayer && <button type="button" disabled={!bboxLonLat || !!busy} onClick={addUnits} style={{ ...btn(false), width: "auto", padding: "6px 12px", opacity: bboxLonLat && !busy ? 1 : 0.5 }} title={tr("The picture is Macrostrat's own map with relief shading; the map layer is its units as polygons, for Model it, Identify and the legend.")}>{tr("Add the units as a map layer (for Model it)")}</button>}{/* #2012 */}
-            <button type="button" disabled={!centre || !!busy} onClick={listUnits} style={{ ...btn(false), width: "auto", padding: "6px 12px", opacity: centre && !busy ? 1 : 0.5 }}>{tr(drawn ? "Map units at the centre of this area" : "Map units at the project centre")}</button>
+            {/* #3952 — Matt: "add the units as a map layer should be the default, only as raster should be the optional": the units (sharp, named, for Model it) are the main button; the image is a choice that says it is a picture */}
+            {addMapLayer && <button type="button" disabled={!bboxLonLat || !!busy} onClick={addUnits} style={{ ...btn(true), width: "auto", padding: "6px 12px", opacity: bboxLonLat && !busy ? 1 : 0.5 }} title={tr("Sharp polygons with names: for Model it, Identify and the legend.")}>{tr("Add the units as a map layer")}</button>}{/* #2012 */}
+            <button type="button" disabled={!bboxLonLat || !!busy} onClick={addLayer} style={{ ...btn(!addMapLayer), width: "auto", padding: "6px 12px", opacity: bboxLonLat && !busy ? 1 : 0.5 }} title={tr("A picture only, with no names.")}>{tr("Add as an image only")}</button>
+            <button type="button" disabled={!centre || !!busy} onClick={listUnits} style={{ ...btn(false), width: "auto", padding: "6px 12px", opacity: centre && !busy ? 1 : 0.5 }}>{tr(atProject ? "Map units at the project centre" : "Map units at the centre of this area")}</button>
           </div>
           {busy && <div role="status" style={{ ...note, display: "flex", alignItems: "center", gap: 6 }}><Loader2 size={14} className="spin" />{busy}</div>}
           {msg && <div role="status" style={{ ...note, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-text)" }}>{msg.text}</div>}
           {units && (units.length ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }} aria-label={tr(drawn ? "Map units at the centre of this area" : "Map units at the project centre")}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }} aria-label={tr(atProject ? "Map units at the project centre" : "Map units at the centre of this area")}>
               {units.map((u, i) => (
                 <div key={i} style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", ...note }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, color: "var(--color-text)" }}>
@@ -98,6 +105,10 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
               ))}
             </div>
           ) : <div style={note}>{tr("Macrostrat has no mapped unit at this point.")}</div>)}
+          <MoreFold style={{ marginBottom: 0 }}>
+            <div style={note}>{tr("Macrostrat compiles geologic maps from many surveys into one world map, at the scale of its sources (often 1:250,000 to 1:1,000,000): context, not mapping at your property's scale.")}</div>
+            <div style={{ ...note, fontSize: "var(--font-size-xs)", marginTop: 6 }}>{tr("Data CC BY 4.0: credit Macrostrat (Peters et al. 2018, doi:10.1029/2018GC007467; Quinn et al. 2023, doi:10.1002/gdj3.189) and the original maps below in shared figures.")}</div>
+          </MoreFold>
         </div>
       </div>
       {picking && (
@@ -107,7 +118,8 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
           title={tr("Draw the area to fetch Macrostrat geology for")}
           confirmLabel="Use this area"
           onClose={() => setPicking(false)}
-          onConfirm={(b) => { setDrawn(b); setUnits(null); setMsg(null); setPicking(false); }}
+          areaOptions={options} /* #3954 */
+          onConfirm={(b) => { area.setDrawn(b); setUnits(null); setMsg(null); setPicking(false); }}
         />
       )}
     </div>
