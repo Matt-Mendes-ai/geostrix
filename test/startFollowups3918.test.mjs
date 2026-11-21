@@ -20,8 +20,8 @@ test("#3918 screen 3: after Done a small card (not a dialog) with the data check
   assert.match(d, /if \(card\) return \( \/\/ #3918/);
   assert.match(d, /const \{ runDataQCSliced \} = await import\("\.\.\/lib\/dataQC\.js"\);/);
   assert.match(d, /setCard\(\{ qc: r \? qcLine\(r\.summary\) : null, checking: false \}\);/);
-  assert.match(d, /the green Model button on the StrixViewer ribbon/);
-  assert.match(d, /Layout's Sheets group \(Plan map, Cross-section, Hole log, Intercepts table\)/);
+  assert.match(d, /Model: the green Model button, one step at a time\./); // #3939: three icon lines
+  assert.match(d, /Sheet: Layout > Sheets, in one click\./); // #3939
   assert.match(d, /onClick=\{\(\) => \{ goTo\?\.\("layout"\); onClose\?\.\(\); \}\}/);
   assert.doesNotMatch(d.slice(d.indexOf("if (card) return"), d.indexOf("return (\n    <div data-start-dialog")), /aria-modal/);
 });

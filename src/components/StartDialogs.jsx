@@ -19,12 +19,15 @@ import { tieOf } from "../lib/localGridTie.js";
 import { panel, rowBtn } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3887 — the First steps guide
+import { DropPicture } from "./DropDiagram.jsx"; // TASKS.csv #3939 — pictures first
+import { Rotate3d, Boxes, FileText } from "lucide-react"; // TASKS.csv #3939 — the card's three lines
 
 const Z = 55; // under every other dialog (60; the import's column matching 62): they open over this one
 const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
+const cardLine = { display: "flex", gap: 8, alignItems: "flex-start" }, cardIcon = { flex: "0 0 auto", marginTop: 1, color: "var(--color-tier-basic)" }; // TASKS.csv #3939
 const link = { background: "none", border: "none", padding: 0, color: "var(--color-primary)", cursor: "pointer", font: "inherit", textDecoration: "underline" };
 
-function DropArea({ onFiles, multiple, accept, label, busy }) {
+function DropArea({ onFiles, multiple, accept, label, busy, picture }) {
   const input = useRef(null);
   const [over, setOver] = useState(false);
   const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
@@ -32,6 +35,7 @@ function DropArea({ onFiles, multiple, accept, label, busy }) {
     <div data-start-drop="" onDragOver={(e) => { stop(e); setOver(true); }} onDragLeave={() => setOver(false)}
       onDrop={(e) => { stop(e); setOver(false); const f = Array.from(e.dataTransfer?.files || []); if (f.length) onFiles(f); }}
       style={{ border: `2px dashed ${over ? "var(--color-primary)" : "var(--color-border)"}`, borderRadius: 8, padding: "22px 16px", textAlign: "center", background: over ? "var(--color-selected-bg)" : "var(--color-bg-subtle)" }}>
+      {picture && <div style={{ maxWidth: 240, margin: "0 auto 8px" }}><DropPicture picture={picture} /></div>}{/* TASKS.csv #3939 */}
       <div style={{ marginBottom: 10 }}>{label}</div>
       <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => input.current?.click()}>{busy ? tr("Reading…") : tr("Browse…")}</button>
       <input ref={input} type="file" hidden multiple={multiple} accept={accept} onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ""; if (f.length) onFiles(f); }} />
@@ -169,9 +173,10 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       </div>
       {card.checking && <div style={small}>{tr("Checking your data…")}</div>}
       {card.qc && <div data-start-qc="">{card.qc}</div>}
-      <div style={small}>{tr("Look around: drag to turn, wheel to zoom.")}</div>
-      {!noDrill && <div>{tr("Build a model: the green Model button on the StrixViewer ribbon takes you through it one step at a time.")} <button type="button" style={link} onClick={() => { goTo?.("viewer"); onClose?.(); }}>{tr("Show me")}</button></div>}
-      <div>{tr("Make a sheet: Layout's Sheets group (Plan map, Cross-section, Hole log, Intercepts table) lays out a page in one click.")} <button type="button" style={link} onClick={() => { goTo?.("layout"); onClose?.(); }}>{tr("Open Layout")}</button></div>
+      {/* TASKS.csv #3939 — three icon lines */}
+      <div style={cardLine}><Rotate3d size={16} aria-hidden="true" style={cardIcon} /><span>{tr("Look around: drag to turn, wheel to zoom.")}</span></div>
+      {!noDrill && <div style={cardLine}><Boxes size={16} aria-hidden="true" style={cardIcon} /><span>{tr("Model: the green Model button, one step at a time.")} <button type="button" style={link} onClick={() => { goTo?.("viewer"); onClose?.(); }}>{tr("Show me")}</button></span></div>}
+      <div style={cardLine}><FileText size={16} aria-hidden="true" style={cardIcon} /><span>{tr("Sheet: Layout > Sheets, in one click.")} <button type="button" style={link} onClick={() => { goTo?.("layout"); onClose?.(); }}>{tr("Open Layout")}</button></span></div>
       <div>{tr("New here? First steps shows the everyday path in six screens.")} <button type="button" style={link} data-start-guide="" onClick={() => openHelp("first-steps")}>{tr("First steps")}</button></div>{/* TASKS.csv #3887 */}
     </div>
   );
@@ -187,12 +192,12 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
         <div style={{ ...small, margin: "4px 0 12px" }}>{title}</div>
 
         {step === 1 && (<>
-          <DropArea busy={busy} accept=".tif,.tiff,.csv,.txt,.xlsx,.xls,.zip,.gpkg,.shp" onFiles={onGroundFiles}
-            label={tr("Drop your terrain file here (a DEM). It is the shape of the ground your project sits on.")} />
+          <DropArea busy={busy} accept=".tif,.tiff,.csv,.txt,.xlsx,.xls,.zip,.gpkg,.shp" onFiles={onGroundFiles} picture="terrain"
+            label={tr("Drop your terrain (DEM) here.")} />
           {noteLine(note)}
           {picker && (
             <div data-start-crs="" style={{ marginTop: 8, padding: 10, border: "1px solid var(--color-border)", borderRadius: 6 }}>
-              <div>{tr("This file does not say where on Earth it is. Which coordinate system are its numbers in?")}</div>
+              <div>{tr("Which coordinate system is this file in?")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
                 {epsg && <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => pickCrs(Number(epsg))}>{tr("The project's: {crs}", { crs: crsName(epsg) || `EPSG:${epsg}` })}</button>}
                 <label style={small}>{epsg ? tr("Another, by its EPSG code:") : tr("Its EPSG code:")} <input value={picker.typed} onChange={(e) => setPicker((p) => ({ ...p, typed: e.target.value, error: null }))} placeholder="32609" style={{ width: 90 }} /></label>
@@ -203,13 +208,13 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
           )}
           <div style={{ marginTop: 12 }}>
             <button type="button" style={rowBtn(ground === "make")} aria-pressed={ground === "make"} onClick={() => { setGround("make"); setNote({ text: tr("OK. GeoStrix will make it once it knows where your project is, in the next step.") }); }}>
-              {tr("I don't have one: make one for me.")}
+              {tr("Make one for me")}
             </button>
           </div>
           <div style={{ ...small, marginTop: 10, display: "flex", gap: 14, flexWrap: "wrap" }}>
-            <button type="button" style={link} onClick={() => { setGround("skip"); next(); }}>{tr("Skip the ground for now")}</button>
-            <button type="button" style={link} onClick={() => { onClose?.(); goTo?.("viewer"); }}>{tr("Try it with an example")}</button>
-            {onOpenProject && <button type="button" style={link} onClick={() => { onClose?.(); onOpenProject(); }}>{tr("Open a project I saved")}</button>}
+            <button type="button" style={link} onClick={() => { setGround("skip"); next(); }}>{tr("Skip for now")}</button>
+            <button type="button" style={link} onClick={() => { onClose?.(); goTo?.("viewer"); }}>{tr("Try an example")}</button>
+            {onOpenProject && <button type="button" style={link} onClick={() => { onClose?.(); onOpenProject(); }}>{tr("Open a saved project")}</button>}
           </div>
           <label style={{ display: "block", marginTop: 12 }}><input type="checkbox" checked={noDrill} onChange={(e) => setNoDrill(e.target.checked)} /> {tr("I'm not using drill hole data.")}</label>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
@@ -218,9 +223,9 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
         </>)}
 
         {step === 2 && (<>
-          <DropArea busy={false} multiple onFiles={importFiles}
+          <DropArea busy={false} multiple onFiles={importFiles} picture={noDrill ? "map" : "holes"}
             label={noDrill ? tr("Drop your maps, samples, pictures or geophysics here, all at once. GeoStrix works out which is which.") : tr("Drop all your files here at once. GeoStrix works out which is which.")} />
-          <div style={{ ...small, marginTop: 6 }}>{tr("If GeoStrix is unsure about a file, it asks about its columns or its coordinate system in a window over this one.")}</div>
+          <div style={{ ...small, marginTop: 6 }}>{tr("If a file is unclear, GeoStrix asks about it.")}</div>
           {unplaced.map((u) => (
             <div key={u.file.name + u.file.size} data-start-unplaced="" style={{ marginTop: 8, padding: 8, border: "1px solid var(--color-warn-border)", borderRadius: 6 }}>
               <b>{tr("What is this?")}</b> <span style={small}>{u.text}</span>
@@ -235,7 +240,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
             {rows.map((r) => (
               <li key={r.key} data-row={r.key} data-done={r.done ? "1" : "0"} style={{ display: "flex", gap: 8, padding: "5px 0", borderBottom: "1px solid var(--color-border-subtle)" }}>
                 <span aria-hidden="true" style={{ width: 16, color: r.done ? "var(--color-success-text)" : "var(--color-text-faint)" }}>{r.done ? "✓" : "○"}</span>
-                <span style={{ flex: 1 }}><b>{r.label}</b> <span style={small}>({r.what})</span>{r.detail && <div style={small}>{r.detail}</div>}</span>
+                <span style={{ flex: 1 }}><b title={r.what}>{r.label}</b>{r.detail && <div style={small}>{r.detail}</div>}</span>{/* #3939: what each row is, as its tooltip */}
               </li>
             ))}
           </ul>
