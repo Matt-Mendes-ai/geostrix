@@ -53,7 +53,7 @@ export function changedKeys(a, b) {
 export const stepName = (keys) => [...new Set((keys || []).map(labelOf))].join(", ");
 // the Undo / Redo button's tooltip: what the next press will take (peek: the store's peekUndo() / peekRedo(), null with nothing to undo), then the standing list
 export function undoTooltip(kind, peek, list) {
-  const what = stepName(peek?.keys) || tr("the last step");
+  const what = (kind === "undo" && peek?.label) || stepName(peek?.keys) || tr("the last step"); // #3932 — a step an AI app made is named by what it did
   const head = kind === "undo" ? tr("Undo (Ctrl/Cmd+Z)") : tr("Redo (Ctrl/Cmd+Shift+Z)");
   const next = !peek ? (kind === "undo" ? tr("nothing to undo. Undo covers this session only: a project opened from its file starts with no history.") /* #3719 (c) */ : tr("nothing to redo."))
     : kind === "undo" && peek.viewFirst ? tr("the last thing done was a view change (colours, checked holes, layers shown), which is not undone: press once to be told, again to undo: {what}.", { what })

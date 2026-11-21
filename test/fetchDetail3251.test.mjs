@@ -47,14 +47,14 @@ test("the centre of the drawn area at full resolution: a square of the side aske
 test("wired: the Full detail, the refusals before a fetch, the picker's plan and its smaller-area button, the card, the mesh budget", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(g, /<option value=\{2049\}>\{tr\("Full \(2,049 nodes\)"\)\}<\/option>/);
-  assert.match(g, /const plan = planTerrainFetch\(bboxLonLat, terrainDetail, terrainSource\);\n\s*if \(!fetchFits\(plan\.memoryMB, ramGB\)\)/);
+  assert.match(g, /const plan = planTerrainFetch\(bboxLonLat, terrainDetail, src\);\n\s*if \(!fetchFits\(plan\.memoryMB, ramGB\)\)/);
   assert.match(g, /extraControls=\{\(bbox, \{ setArea \}\) => \{/);
   assert.match(g, /onClick=\{\(\) => setArea\(centreBox\(bbox, p\.fullSideKm \* 1000\)\)\}/);
   assert.match(g, /terrain\.source\?\.nodeM \? ` · \$\{/);
   assert.match(readFileSync(new URL("../src/components/BasemapView.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"), /extraControls\(bbox, \{ setArea: pickAreaFromLayer/);
   assert.match(readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"), /const adaptiveBudget = \(gridW, gridH\) => \(gridW \* gridH > 1100 \* 1100 \? 480000 : 160000\);/); // #3588 (8): one budget for the synchronous build and the worker's);
   const r = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(r, /const w = satWorst\(bboxLonLat\); if \(!fetchFits\(w\.memoryMB, ramGB\)\)/);
+  assert.match(r, /const w = satWorst\(bboxLonLat, src\); if \(!fetchFits\(w\.memoryMB, ramGB\)\)/);
   assert.match(r, /onClick=\{\(\) => setArea\(centreBox\(bbox, p\.fullSideM\)\)\}/);
   assert.match(readFileSync(new URL("../src/lib/srtmFetch.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"), /const zoom = pickZoom\(lonMin, latMin, lonMax, latMax, tileBudget\(gridMax\)\);/);
 });

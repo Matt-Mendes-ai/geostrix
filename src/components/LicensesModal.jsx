@@ -37,7 +37,7 @@ export default function LicensesModal({ onClose }) {
         {isOpen && (
           <div style={{ padding: "0 4px 8px" }}>
             {p.url && <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4, wordBreak: "break-all", color: "var(--color-text-secondary)" }}>{p.url}</div>}
-            <pre style={{ whiteSpace: "pre-wrap", fontSize: 11, lineHeight: 1.4, maxHeight: 260, overflow: "auto", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: 8, margin: 0 }}>{p.text || tr("No licence file was included with this package; its licence is the one named above.")}</pre>
+            <pre style={{ whiteSpace: "pre-wrap", fontSize: "var(--font-size-sm)", lineHeight: 1.4, maxHeight: 260, overflow: "auto", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: 8, margin: 0 }}>{p.text || tr("No licence file was included with this package; its licence is the one named above.")}</pre>
           </div>
         )}
       </div>

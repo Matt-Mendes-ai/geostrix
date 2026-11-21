@@ -78,7 +78,7 @@ test("the strip log window's geometry is the one this mirrors", () => {
   const s = readFileSync(new URL("../src/components/StripLog.jsx", import.meta.url), "utf8");
   assert.match(s, /const PAD_TOP = 40;/);
   assert.match(s, /const sy = \(d\) => PAD_TOP \+ \(d - d0\) \* pxPerMeter;/);
-  assert.match(s, /const H = sy\(d1\) \+ 30;/);
+  assert.match(s, /const H = sy\(d1\) \+ 34;/); // #3900: the captions at 10 px
   assert.match(s, /depthHeightAtCaptureM: fh \/ pxPerMeter/);
   const x = readFileSync(new URL("../src/lib/svgExport.js", import.meta.url), "utf8");
   assert.match(x, /if \(atTop\) y0 -= band\.height;/);

@@ -103,7 +103,7 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Blank: the 2nd-98th percentile; the data run {a} to {b}.", { a: String(+ramp.dataMin.toPrecision(4)), b: String(+ramp.dataMax.toPrecision(4)) })}</div>
                 <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Scale")}
                   <select value={style?.rampScale || ""} onChange={(e) => onChange({ rampScale: e.target.value || null })} aria-label={tr("Colour scale")} style={{ padding: "2px 4px" }}>
-                    <option value="">{tr("auto (log over a decade)")}</option><option value="linear">{tr("linear")}</option><option value="log">{tr("log")}</option>
+                    <option value="">{customLayer?.defaultRampScale ? tr("as the model: {scale}", { scale: customLayer.defaultRampScale === "log" ? tr("log") : tr("linear") }) : tr("auto (log over a decade)")}</option>{/* #3813 — an evaluated layer starts on its model's scale */}<option value="linear">{tr("linear")}</option><option value="log">{tr("log")}</option>
                   </select>
                   {tr("Classes")}<NumberInput allowEmpty min="0" max="12" step="1" value={style?.classes ?? null} placeholder={tr("none")} onChange={numIn("classes")} aria-label={tr("Number of colour classes")} style={{ width: 64, padding: "2px 4px" }} />{/* #3280 (6) — 50 px cut "none" to "non" */}
                 </label>

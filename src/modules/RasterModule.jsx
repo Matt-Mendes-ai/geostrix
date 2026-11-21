@@ -83,8 +83,8 @@ function SpectrumPanel({ spectrum, onSplit }) {
         {k.map((v, i) => <circle key={i} cx={X(v)} cy={Y(y[i])} r="1.4" fill="var(--color-text-muted)" />)}
         <g stroke="var(--color-danger-fg)">{line(fit?.deep)}</g>
         <g stroke="var(--color-info)">{line(fit?.shallow)}</g>
-        <text x={(L + W) / 2} y={H - 5} textAnchor="middle" fontSize="9" fill="var(--color-text-muted)">{tr("wavenumber (rad/km)")}</text>
-        <text x={9} y={(H - B) / 2} textAnchor="middle" fontSize="9" fill="var(--color-text-muted)" transform={`rotate(-90 9 ${(H - B) / 2})`}>ln P</text>
+        <text x={(L + W) / 2} y={H - 4} textAnchor="middle" fontSize="11" fill="var(--color-text-muted)">{tr("wavenumber (rad/km)")}</text>{/* #3900: the 10 px floor (260 units in about 256 px) */}
+        <text x={10} y={(H - B) / 2} textAnchor="middle" fontSize="11" fill="var(--color-text-muted)" transform={`rotate(-90 10 ${(H - B) / 2})`}>ln P</text>
       </svg>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginTop: 4 }}>
         {!fit ? tr("The spectrum does not fall with wavenumber: no depth can be read from it.")
@@ -268,6 +268,23 @@ export default function RasterModule({ embedded = false } = {}) {
     if (advised.length && !rest.length) setError({ info: true, text: advised.join(" ") });
     else if (rest.length) setError({ info: true, text: [...advised, tr("Dropped on the map: rasters (.tif, .gxf, .grd), CSV tables and shapefile / GeoJSON / KML layers are read here. {names}: not read here. An X Y Z point table (.xyz, .tx) goes to Geophysics › Point survey, or save it as .csv with a header line to add it here as points; Boundaries, Terrain, Web layers or Geological Mapping take the other formats.", { names: rest.slice(0, 3).join(", ") + (rest.length > 3 ? "…" : "") })].join(" ") });
   });
+  // TASKS.csv #3932 — an AI app's fetch_satellite_image (the download was already asked for and allowed in GeoStrix's main process): the latest clear Sentinel-2
+  // scene over the terrain when one is loaded (Matt: 'a sat image matching the current terrain'), else around the drillholes, as the picker's own areas
+  useModuleAction(["mcp-satellite-run"], async (_a, p) => {
+    const reply = (r) => { try { p?.reply?.(r); } catch { /* gone */ } };
+    if ((project?.crsSet === false || !project?.epsg) && !tieOf(project)) return reply({ ok: false, error: "The project has no coordinate system yet: set it in GeoStrix (Maps › Coordinate system) first." });
+    if (satBusy) return reply({ ok: false, error: "A satellite image is already being fetched in GeoStrix." });
+    let box = null;
+    if (p?.area !== "holes" && terrain?.bbox) {
+      const [x0, y0, x1, y1] = terrain.bbox, ll = await Promise.all([[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => lonLatOf(x, y)));
+      if (ll.every(Boolean)) box = [arrMin(ll.map((q) => q.lon)), arrMin(ll.map((q) => q.lat)), arrMax(ll.map((q) => q.lon)), arrMax(ll.map((q) => q.lat))];
+    }
+    if (!box) box = await defaultSatBboxLonLat();
+    if (!box) return reply({ ok: false, error: "There is no area to fetch an image for: the project has no drillholes or terrain in a known coordinate system." });
+    let answered = false;
+    await runSatFetch(box, { maxTileCloud: Number.isFinite(p?.maxCloud) ? p.maxCloud : undefined, done: (r) => { answered = true; reply({ ...r, over: p?.area !== "holes" && terrain?.bbox ? "terrain" : "holes" }); } });
+    if (!answered) reply({ ok: false, error: "The image could not be fetched." });
+  });
   useModuleAction(["raster-satellite", "raster-georeference", "raster-spectral"], (a) => (a === "raster-satellite" ? openSatPickerRef.current?.() : a === "raster-spectral" ? openSpectralRef.current?.() : setGeorefOpen(true))); // #749 — the Maps tab's ribbon; spectral: #783
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
 
@@ -289,7 +306,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const setSatLevel = (v) => { setSatLevelState(v); try { localStorage.setItem("geostrix_sat_level", v); } catch { /* private window: session only */ } };
   const ramGB = useMachineMemoryGB(); // #3251 — what a Full fetch may take on this computer
   // #3251 — the most a fetch can take: NAIP planned at 0.3 m (some states since 2022; the fetch learns the real one from the catalogue)
-  const satWorst = (bbox) => planLatestFetch(bbox, satLevel, satSource === "naip" ? NAIP_FINEST_M / 2 : undefined, { naip: satSource === "naip" });
+  const satWorst = (bbox, src = satSource) => planLatestFetch(bbox, satLevel, src === "naip" ? NAIP_FINEST_M / 2 : undefined, { naip: src === "naip" }); // src: #3932
   // TASKS.csv #838 — where the image comes from: Sentinel-2 everywhere, NAIP's much finer aerial imagery in the USA
   const [satSource, setSatSourceState] = useState(() => { try { return localStorage.getItem("geostrix_sat_source") === "naip" ? "naip" : "sentinel2"; } catch { return "sentinel2"; } });
   const setSatSource = (v) => { setSatSourceState(v); try { localStorage.setItem("geostrix_sat_source", v); } catch { /* private window: session only */ } };
@@ -393,18 +410,21 @@ export default function RasterModule({ embedded = false } = {}) {
   };
   openSpectralRef.current = openSpectral;
 
-  const runSatFetch = async (bboxLonLat) => {
+  // TASKS.csv #3932 — `ai` (an AI app's fetch_satellite_image, lib/mcpActions.js): Sentinel-2 whatever the pane's own choice, its cloud limit, and `done(result)` told how it ended
+  const runSatFetch = async (bboxLonLat, ai = null) => {
+    const src = ai ? "sentinel2" : satSource;
+    const said = (r) => { try { ai?.done?.(r); } catch { /* the app has gone */ } };
     // #1474 — no catalogue search for an area NAIP cannot cover
-    if (satSource === "naip" && naipCoverage(bboxLonLat) === "outside") { setError({ info: false, text: tr("This area is outside the contiguous USA, where NAIP is flown: choose Sentinel-2 (worldwide) instead.") }); return; }
-    { const w = satWorst(bboxLonLat); if (!fetchFits(w.memoryMB, ramGB)) { setError({ info: false, text: tr("This imagery could take about {mb} MB of memory, over the {max} MB a fetch may use on this computer (a quarter of its memory). Choose a lower resolution or a smaller area.", { mb: w.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; } } // #3251
+    if (src === "naip" && naipCoverage(bboxLonLat) === "outside") { setError({ info: false, text: tr("This area is outside the contiguous USA, where NAIP is flown: choose Sentinel-2 (worldwide) instead.") }); return; }
+    { const w = satWorst(bboxLonLat, src); if (!fetchFits(w.memoryMB, ramGB)) { said({ ok: false, error: "This imagery would take more memory than a fetch may use on this computer: choose a lower resolution in GeoStrix (Maps › Satellite image)." }); setError({ info: false, text: tr("This imagery could take about {mb} MB of memory, over the {max} MB a fetch may use on this computer (a quarter of its memory). Choose a lower resolution or a smaller area.", { mb: w.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; } } // #3251
     setSatPickerOpen(false);
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
     try { // TASKS.csv #816 / #837 — the latest clear Sentinel-2 scene (Copernicus: free and open, any use with attribution)
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
       // #3251 — Full: NAIP at the imagery's own pixels, in up to 2 x 2 pictures (r.parts)
-      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, full: satLevel === "full", onProgress: (done, total) => setSatProgress({ done, total }) };
-      const r = satSource === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
+      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, full: satLevel === "full", onProgress: (done, total) => setSatProgress({ done, total }), ...(Number.isFinite(ai?.maxTileCloud) ? { maxTileCloud: ai.maxTileCloud } : {}) };
+      const r = src === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
       let tieNote = "";
       const parts = [];
       for (const part of r.parts || [r]) {
@@ -418,9 +438,12 @@ export default function RasterModule({ embedded = false } = {}) {
         parts.push(p);
       }
       // TASKS.csv #3252 — the source's description (r.lod), for the Maps plan's detail tiles; not through a local grid's tie (the tiles are read in the project CRS)
-      for (const p of parts) addRaster({ name: p.name, bbox: p.bbox, dataUrl: p.dataUrl, elevation: defaultElevation, ...(p.pixelM ? { pixelM: p.pixelM, gridW: p.gridW, gridH: p.gridH } : {}) /* #3251 — said on the card */, ...(r.lod && !tie ? { lod: r.lod } : {}) });
-      setError({ info: satSource === "naip" ? !r.partial : r.areaCloud <= 0.1, text: (parts.length > 1 ? tr("Fetched and imported {n} pictures of \"{name}\" ({gridW} × {gridH} px each at most).", { n: parts.length, name: r.name.replace(/, part 1 of \d+$/, ""), gridW: arrMax(parts.map((p) => p.gridW)), gridH: arrMax(parts.map((p) => p.gridH)) }) : tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH })) + r.note + tieNote });
+      const addedIds = [];
+      for (const p of parts) addedIds.push(addRaster({ name: p.name, bbox: p.bbox, dataUrl: p.dataUrl, elevation: defaultElevation, ...(p.pixelM ? { pixelM: p.pixelM, gridW: p.gridW, gridH: p.gridH } : {}) /* #3251 — said on the card */, ...(r.lod && !tie ? { lod: r.lod } : {}) }));
+      said({ ok: true, name: r.name.replace(/, part 1 of \d+$/, ""), ids: addedIds, pictures: parts.length, area_cloud_percent: Number.isFinite(r.areaCloud) ? Math.round(r.areaCloud * 1000) / 10 : null }); // #3932
+      setError({ info: src === "naip" ? !r.partial : r.areaCloud <= 0.1, text: (parts.length > 1 ? tr("Fetched and imported {n} pictures of \"{name}\" ({gridW} × {gridH} px each at most).", { n: parts.length, name: r.name.replace(/, part 1 of \d+$/, ""), gridW: arrMax(parts.map((p) => p.gridW)), gridH: arrMax(parts.map((p) => p.gridH)) }) : tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH })) + r.note + tieNote });
     } catch (err) {
+      said({ ok: false, error: String(err?.message || "The image could not be fetched.") }); // #3932
       setError({ info: false, text: err.message });
     } finally {
       setSatBusy(false);

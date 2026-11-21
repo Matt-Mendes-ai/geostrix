@@ -28,7 +28,7 @@ test("one axis for all pages: the barren hole's bars are short against the rich 
 test("below detection is a hollow tick, and a track all below detection says so", () => {
   const svg = buildStripLogSvgMarkup({ holeId: "B", collars, layers: {}, assays, assaySymbols: ["Ta"], elementUnits: eu }).svg;
   assert.equal(barWidths(svg).length, 0, "no full bars");
-  assert.match(svg, /all below detection/);
+  assert.match(svg, /all below<\/tspan><tspan[^>]*>detection/); // #3900: at 10 px the caption wraps onto two lines
   assert.match(svg, /fill="none" stroke="#8a95a3"/);
   const m = readFileSync(new URL("../src/components/GenerateAtlasModal.jsx", import.meta.url), "utf8");
   assert.match(m, /assayRanges: Object\.fromEntries\(syms\.map\(\(s\) => \[s, assayTrackRange\(rows,/);

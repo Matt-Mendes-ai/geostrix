@@ -238,6 +238,9 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   on rAF (focus trap, the render loop, the splash) must be checked in a visible window.
 - Vite occasionally caches an EMPTY module if it reads a big file mid-write (symptom: "does not provide
   an export named 'default'"); `touch` the file and reload.
+- Vite's watcher does not see edits inside `.claude/worktrees/` (and misses some on this OneDrive path): after editing
+  in a worktree, restart vite with `--force` before a live check, and confirm with `curl localhost:5173/<file>` that it
+  serves the new code (found by sides 2, 3 and 4, 2026-11-21).
 
 ## Suggestions for getting the most out of Claude Code here (Matt asked for these)
 

@@ -38,6 +38,8 @@
 // resolve `var(--color-*)` against, so those colors would render unstyled. Those files therefore
 // keep literal hex on purpose and were deliberately excluded from the var() migration. If you ever
 // need a token there, inline the resolved value (form 2) — never a `var()` reference.
+// TASKS.csv #3900 T2 — inside the exported <svg>. Their window furniture (ordinary HTML around the figure) takes the font-size tokens since
+// #3900, so it follows the text size setting; nothing of it is serialized.
 // Electron's printToPDF / window.print() paths (LayoutModule, the cross-section pop-out) are NOT
 // affected: those print the live document, where :root is present.
 // TASKS.csv #1090 — the exclusion is about var() ONLY. It is not a reason to keep screen-sized text in an exported

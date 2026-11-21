@@ -33,8 +33,16 @@ const TIES = [{ v: 0, label: "None: each sounding alone" }, { v: 0.3, label: "We
 let LAST = null; // the panel's state between visits
 
 // conductivity against depth for the line's stations that have a model, the depth of investigation dashed
+// TASKS.csv #3900 T2 — the 10 px floor: both plots are drawn in the side panel at about 0.85 of 300 units, so their labels are 12 units (10.2 px).
+// The section's caption, longer than the plot is wide at that size, wraps onto a second line under it (the plot keeps its 150 units of height).
+const CAP = 12;
+function capLines(text, maxW) {
+  const lines = [];
+  for (const w of String(text).split(" ")) { const cur = lines[lines.length - 1]; if (cur != null && (cur + " " + w).length * CAP * 0.55 <= maxW) lines[lines.length - 1] = cur + " " + w; else lines.push(w); }
+  return lines.length > 2 ? [lines[0], lines.slice(1).join(" ")] : lines;
+}
 function Section({ stations, result, bottom, onPick, sel, fadeSd = 0 }) {
-  const W = 300, H = 170, pl = 30, pb = 16, pt = 4;
+  const W = 300, H = 184, pl = 36, pb = 30, pt = 4;
   const ref = useRef(null);
   const tops = useMemo(() => { const t = [0]; for (const d of result.thick) t.push(t[t.length - 1] + d); return t; }, [result.thick]);
   const withM = stations.filter((s) => result.condMs[s.j]);
@@ -73,9 +81,9 @@ function Section({ stations, result, bottom, onPick, sel, fadeSd = 0 }) {
     <div style={{ position: "relative" }}>
       <canvas ref={ref} width={W} height={H} onClick={pick} style={{ width: "100%", cursor: "crosshair", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4 }} role="img" aria-label={tr("The TEM models along the line: conductivity against depth, the depth of investigation dashed")} />
       <svg viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
-        {[0, 0.25, 0.5, 0.75, 1].map((f) => <text key={f} x={pl - 3} y={sy(f * bottom) + 3} fontSize={8} textAnchor="end" fill="var(--color-text-muted)">{Math.round(f * bottom)}</text>)}
+        {[0, 0.25, 0.5, 0.75, 1].map((f) => <text key={f} x={pl - 3} y={sy(f * bottom) + 4} fontSize={CAP} textAnchor="end" fill="var(--color-text-muted)">{Math.round(f * bottom)}</text>)}
         {s && <line x1={sx(s.d)} x2={sx(s.d)} y1={pt} y2={H - pb} stroke="var(--color-text)" strokeWidth={0.8} strokeDasharray="2 2" />}
-        <text x={W - 2} y={H - 3} fontSize={8} textAnchor="end" fill="var(--color-text-muted)">{tr("{lo} to {hi} mS/m, log scale; depth in m", { lo: fmt(10 ** lo), hi: fmt(10 ** hi) })}</text>
+        {capLines(tr("{lo} to {hi} mS/m, log scale; depth in m", { lo: fmt(10 ** lo), hi: fmt(10 ** hi) }), W - 2 - pl).map((l, k, all) => <text key={k} x={W - 2} y={H - 4 - (all.length - 1 - k) * (CAP + 1)} fontSize={CAP} textAnchor="end" fill="var(--color-text-muted)">{l}</text>)}
       </svg>
     </div>
   );
@@ -83,7 +91,7 @@ function Section({ stations, result, bottom, onPick, sel, fadeSd = 0 }) {
 
 // a station's readings (dots) and its model's response (line), every moment, log-log
 function Fit({ times, obs, pred }) {
-  const W = 300, H = 130, pl = 34, pb = 16, pt = 4;
+  const W = 300, H = 134, pl = 40, pb = 20, pt = 4; // #3900: 12-unit labels
   const pts = times.map((t, k) => [t, obs[k], pred[k]]).filter(([t]) => t > 0);
   const vals = pts.flatMap(([, o, p]) => [o, p]).filter((v) => v > 0);
   if (pts.length < 2 || !vals.length) return null;
@@ -95,8 +103,8 @@ function Fit({ times, obs, pred }) {
   order.forEach(([[t, , p]], k) => { if (p > 0) path += `${path ? "L" : "M"}${sx(Math.log10(t)).toFixed(1)},${sy(Math.log10(p)).toFixed(1)}`; void k; });
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4 }} role="img" aria-label={tr("The station's readings (dots) and its model's response (line)")}>
-      {Array.from({ length: y1 - y0 + 1 }, (_, i) => y0 + i).map((l) => <text key={`y${l}`} x={pl - 3} y={sy(l) + 3} fontSize={8} textAnchor="end" fill="var(--color-text-muted)">{`1e${l}`}</text>)}
-      {Array.from({ length: x1 - x0 + 1 }, (_, i) => x0 + i).map((l) => <text key={`x${l}`} x={sx(l)} y={H - 4} fontSize={8} textAnchor="middle" fill="var(--color-text-muted)">{`${10 ** l} ms`}</text>)}
+      {Array.from({ length: y1 - y0 + 1 }, (_, i) => y0 + i).map((l) => <text key={`y${l}`} x={pl - 3} y={sy(l) + 4} fontSize={CAP} textAnchor="end" fill="var(--color-text-muted)">{`1e${l}`}</text>)}
+      {Array.from({ length: x1 - x0 + 1 }, (_, i) => x0 + i).map((l, i, all) => <text key={`x${l}`} x={sx(l)} y={H - 4} fontSize={CAP} textAnchor={i === 0 ? "start" : i === all.length - 1 ? "end" : "middle"} fill="var(--color-text-muted)">{`${10 ** l} ms`}</text>)}{/* #3900: the end labels inside */}
       {pts.map(([t, o], k) => (o > 0 ? <circle key={k} cx={sx(Math.log10(t))} cy={sy(Math.log10(o))} r={2.2} fill="#444" /> : null))}
       {path && <path d={path} fill="none" stroke="#b2182b" strokeWidth={1.3} />}
     </svg>

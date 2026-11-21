@@ -226,7 +226,7 @@ export default function App() {
   const [aiAccessOpen, setAiAccessOpen] = useState(false); // TASKS.csv #3190
   // TASKS.csv #3190 — an AI app's question about the open project (only ever sent while AI App Access is on) is answered from a snapshot of the store by src/lib/mcpTools.js, loaded on the first one
   const storeNow = useRef(store); storeNow.current = store;
-  useEffect(() => onMcpRequest(() => { const s = storeNow.current; return { project: s.project, collars: s.collars, survey: s.survey, layers: s.layers, assays: s.assays, assayElements: s.assayElements, sections: s.sections, codeDictionary: s.codeDictionary, desurveyMethod: s.desurveyMethod }; }), []);
+  useEffect(() => onMcpRequest(() => { const s = storeNow.current; return { project: s.project, collars: s.collars, survey: s.survey, layers: s.layers, assays: s.assays, assayElements: s.assayElements, sections: s.sections, codeDictionary: s.codeDictionary, desurveyMethod: s.desurveyMethod }; }, () => storeNow.current /* #3932 — change tools: the live store */), []);
   const [lastExitUnclean, setLastExitUnclean] = useState(false);
   const openReportProblem = async (crashed = false) => {
     let screenshot = null;
@@ -850,8 +850,8 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
         <span aria-hidden="true" style={{ border: "1px solid var(--color-border-light)", borderRadius: "50%", width: 16, height: 16, lineHeight: "14px", textAlign: "center", fontSize: "var(--font-size-sm)" }}>?</span>
       </button>
       {/* TASKS.csv #391 — a button now: opens Help › Python features (was a hover-only README pointer) */}
-      {ai?.enabled && (() => { const names = (ai.clients || []).map((c) => c.name).join(", "), label = names ? tr("AI app: {names}", { names }) : tr("AI app access: on"); return (
-        <button type="button" onClick={() => onAiAccess?.()} title={tr("An AI app can read this project (read-only). Click to see what it asked for, or to stop it.")} aria-label={label}
+      {ai?.enabled && (() => { const names = (ai.clients || []).map((c) => c.name).join(", "), label = ai.changes ? (names ? tr("AI app: {names}, can make changes", { names }) : tr("AI app access: on, can make changes")) : names ? tr("AI app: {names}", { names }) : tr("AI app access: on"); return ( // #3932 — says so while changes are allowed
+        <button type="button" onClick={() => onAiAccess?.()} title={ai.changes ? tr("An AI app can read this project and make changes in it. Click to see what it asked for, or to stop it.") : tr("An AI app can read this project (read-only). Click to see what it asked for, or to stop it.")} aria-label={label}
           style={{ background: "none", border: "none", color: "var(--color-warn-text)", padding: 0, font: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
           <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--color-warn-text)", display: "inline-block" }} />{label}
         </button>); })()}

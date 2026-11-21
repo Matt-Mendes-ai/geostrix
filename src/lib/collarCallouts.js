@@ -115,7 +115,7 @@ export function placeLabels(labels, index, h = 13, dx = 5, gap = 4) { // gap: ro
 // colourOf(c) -> a colour, null (no value: a grey ring) or undefined (no colouring: no swatch); dotR: the dot radius; more(n) -> '+n more'.
 // Pads get a callout, single holes their id; a pad whose callout has no room, a short label 'first id +n'. -> { pads, callouts, labels }
 // keepClear (TASKS.csv #3405): rectangles { x0, y0, x1, y1 } in pixels that no callout box or label may take (the Collars chip, the grid's edge labels)
-export function drawCallouts(ctx, collars, X, Y, view, { colourOf, dotR = 3, mPerPx, more = (n) => `+${n} more`, keepClear = [], report = null } = {}) { // report: TASKS.csv #3505 — { pads, callouts, labels, leftOut } as drawn
+export function drawCallouts(ctx, collars, X, Y, view, { colourOf, dotR = 3, mPerPx, more = (n) => `+${n} more`, keepClear = [], report = null, fontPx = 10 } = {}) { // fontPx: TASKS.csv #3900 T2 — the text size on screen, 10 in a capture // report: TASKS.csv #3505 — { pads, callouts, labels, leftOut } as drawn
   const world = [], screen = [], rows = [];
   for (const c of collars || []) {
     if (!Number.isFinite(c?.x) || !Number.isFinite(c?.y)) continue;
@@ -130,8 +130,8 @@ export function drawCallouts(ctx, collars, X, Y, view, { colourOf, dotR = 3, mPe
   const multi = pads.filter((p) => p.members.length > 1);
   const id = (i) => String(rows[i].hole_id ?? "");
   const swatches = typeof colourOf === "function" && rows.some((c) => colourOf(c) !== undefined);
-  ctx.font = "10px sans-serif"; ctx.textBaseline = "middle";
-  const ROW = 12, PADX = 4, SW = swatches ? 11 : 0;
+  ctx.font = `${fontPx}px sans-serif`; ctx.textBaseline = "middle";
+  const ROW = fontPx + 2, PADX = 4, SW = swatches ? 11 : 0;
   const callouts = multi.length <= MAX_CALLOUTS ? multi.map((p) => {
     const list = p.members.length > MAX_LISTED ? p.members.slice(0, MAX_LISTED - 1) : p.members;
     const lines = list.map(id), extra = p.members.length - list.length;
