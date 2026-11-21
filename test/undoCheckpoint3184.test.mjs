@@ -9,7 +9,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\
 
 test("the store commits a burst in one place, from the quiet-period timer and from undoCheckpoint", () => {
   const s = read("../src/lib/store.jsx");
-  assert.match(s, /const commitUndoBurst = useLatestCallback\(\(\) => \{/);
+  assert.match(s, /const commitUndoBurst = useLatestCallback\(\(label\) => \{/); // #3932 — an optional label (what an AI app did)
   assert.match(s, /undoDebounceTimer\.current = setTimeout\(commitUndoBurst, UNDO_DEBOUNCE_MS\)/);
   assert.match(s, /undoCheckpoint: commitUndoBurst/);
   const body = s.slice(s.indexOf("const commitUndoBurst"), s.indexOf("useLayoutEffect(() => {", s.indexOf("const commitUndoBurst")));

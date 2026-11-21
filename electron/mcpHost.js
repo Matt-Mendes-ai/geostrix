@@ -35,14 +35,14 @@ function createHost({ userDataDir, getWindow, askAllow, readPrefs, writePrefs, o
   };
 
   // a call into the window, answered through respond()
-  function callTool(name, args) {
+  function callTool(name, args, meta = {}) { // meta: the app's (cleaned) name and whether it is a change tool (#3932: the window sends those to lib/mcpActions.js)
     const win = getWindow();
     if (!win || win.isDestroyed?.()) return Promise.resolve({ ok: false, error: "GeoStrix has no open window to read the project from." });
     return new Promise((resolve) => {
       const id = ++seq;
       const timer = setTimeout(() => { pending.delete(id); resolve({ ok: false, error: "GeoStrix did not answer in time (it may be busy). Try again." }); }, CALL_TIMEOUT_MS);
       pending.set(id, (r) => { clearTimeout(timer); resolve(r); });
-      try { win.webContents.send("mcp-request", { id, name, args }); } catch { clearTimeout(timer); pending.delete(id); resolve({ ok: false, error: "GeoStrix could not be reached." }); }
+      try { win.webContents.send("mcp-request", { id, name, args, ...(meta.client ? { client: meta.client } : {}), ...(meta.change ? { change: true } : {}) }); } catch { clearTimeout(timer); pending.delete(id); resolve({ ok: false, error: "GeoStrix could not be reached." }); }
     });
   }
   function respond(id, payload) { const f = pending.get(id); if (!f) return false; pending.delete(id); f(payload && typeof payload === "object" ? { ok: !!payload.ok, data: payload.data, rows: payload.rows, error: payload.error } : { ok: false, error: "No answer." }); return true; }

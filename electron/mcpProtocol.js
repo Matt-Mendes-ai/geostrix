@@ -124,7 +124,7 @@ function createChangeLock() {
   };
 }
 
-// One connection. callTool(name, args) -> Promise<{ ok, data } | { ok: false, error }> (the open project's side);
+// One connection. callTool(name, args, { client, change }) -> Promise<{ ok, data } | { ok: false, error }> (the open project's side);
 // askAllow(clientName, { changes, again }) -> Promise<'once' | 'always' | 'refuse' | { answer, changes }> ('changes': the question said the app may also make changes;
 // 'again': an app already reading asks for changes; the object form says whether a remembered app is also remembered for changes);
 // changesAllowed() -> whether 'Allow AI apps to make changes' is on (#3932); onActivity(entry) is told of each call (tool, ok, bytes, refused) and of the client that connected.
@@ -179,7 +179,7 @@ function createSession({ callTool, askAllow, changesAllowed = () => false, chang
         changeStamps.push(t);
       }
       stamps.push(t);
-      const run = async () => { try { return await callTool(name, params?.arguments || {}); } catch { return { ok: false, error: change ? "The change could not be made." : "The tool could not read the project." }; } }; // what failed inside the app (a stack, a path) is not passed on
+      const run = async () => { try { return await callTool(name, params?.arguments || {}, change ? { client, change } : { client }); } catch { return { ok: false, error: change ? "The change could not be made." : "The tool could not read the project." }; } }; // what failed inside the app (a stack, a path) is not passed on
       let r;
       if (change) { const out = await changeLock.run(run, L.changeWaitMs); if (out.waited) return refuse("busy", "Another change is still running in GeoStrix. Try again in a moment."); r = out.value; }
       else r = await run();

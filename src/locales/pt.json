@@ -14480,5 +14480,6 @@
   " (change)": " (alteração)",
   "AI app: {names}, can make changes": "App de IA: {names}, pode fazer alterações",
   "AI app access: on, can make changes": "Acesso de IA: ligado, pode fazer alterações",
-  "An AI app can read this project and make changes in it. Click to see what it asked for, or to stop it.": "Um aplicativo de IA pode ler este projeto e fazer alterações nele. Clique para ver o que pediu ou para interrompê-lo."
+  "An AI app can read this project and make changes in it. Click to see what it asked for, or to stop it.": "Um aplicativo de IA pode ler este projeto e fazer alterações nele. Clique para ver o que pediu ou para interrompê-lo.",
+  "{client}: {what}": "{client}: {what}"
 }

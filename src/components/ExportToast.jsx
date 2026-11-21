@@ -15,7 +15,7 @@ export default function ExportToast() {
     const on = (e) => {
       const d = e.detail || {}, id = ++n;
       setItems((L) => [...L.slice(-2), { id, ...d }]);
-      if (d.ok) setTimeout(() => setItems((L) => L.filter((x) => x.id !== id)), d.message ? 3500 : 6000);
+      if (d.ok) setTimeout(() => setItems((L) => L.filter((x) => x.id !== id)), d.undo ? 12000 : d.message ? 3500 : 6000); // #3932 — a change an AI app made stays longer, with its Undo
     };
     window.addEventListener(EXPORT_RESULT_EVENT, on);
     return () => window.removeEventListener(EXPORT_RESULT_EVENT, on);
@@ -29,6 +29,7 @@ export default function ExportToast() {
           <span style={{ flex: 1 }}>{x.message ? x.message /* #1087 — a plain message (undo / redo) */ : x.ok
             ? tr("Saved {file} to {folder}.", { file: baseOf(x.filePath) || x.name, folder: folderOf(x.filePath) || tr("the chosen folder") })
             : tr("{file} was not saved: {error}", { file: baseOf(x.filePath) || x.name || tr("The file"), error: x.error })}</span>
+          {typeof x.undo === "function" && <button type="button" onClick={() => { setItems((L) => L.filter((y) => y.id !== x.id)); x.undo(); }} style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer", color: "inherit", font: "inherit", padding: "0 8px" }}>{tr("Undo")}</button>}
           <button type="button" onClick={() => setItems((L) => L.filter((y) => y.id !== x.id))} aria-label={tr("Dismiss")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-lg)", lineHeight: 1, padding: 0 }}>×</button>
         </div>
       ))}

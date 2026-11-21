@@ -14480,5 +14480,6 @@
   " (change)": " (تغيير)",
   "AI app: {names}, can make changes": "تطبيق ذكاء اصطناعي: {names}، يمكنه إجراء تغييرات",
   "AI app access: on, can make changes": "وصول الذكاء الاصطناعي: مفعّل، ويمكنه إجراء تغييرات",
-  "An AI app can read this project and make changes in it. Click to see what it asked for, or to stop it.": "يمكن لتطبيق ذكاء اصطناعي قراءة هذا المشروع وإجراء تغييرات فيه. انقر لرؤية ما طلبه أو لإيقافه."
+  "An AI app can read this project and make changes in it. Click to see what it asked for, or to stop it.": "يمكن لتطبيق ذكاء اصطناعي قراءة هذا المشروع وإجراء تغييرات فيه. انقر لرؤية ما طلبه أو لإيقافه.",
+  "{client}: {what}": "{client}: {what}"
 }
