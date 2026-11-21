@@ -137,6 +137,7 @@ import { collarBenches, pickBenchGround, surfaceMisfit, BENCH_DZ_M, BENCH_R_M } 
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { pointsAlongOneLine, surveyLabel } from "../lib/rasterMethod.js"; // TASKS.csv #2557; surveyLabel: #2559
 import { collarTerrainOffsets, collarTerrainSide } from "../lib/dataQC.js"; // TASKS.csv #3807
+import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 const APPARENT_METHODS = new Set(["ip_app", "res_app"]); // TASKS.csv #3808 — a DC / IP survey's apparent values at pseudo-depths
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
@@ -2368,7 +2369,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 <option value="">{tr("(no quality column)")}</option>
                 {xyzPending.columns.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-              {xyzPending.sqCol && <label style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>{tr("drop under")}<input type="number" min="0" max="99" step="1" value={xyzPending.minQuality ?? 50} aria-label={tr("Drop readings with signal quality under")} onChange={(e) => setXyzPending((p) => ({ ...p, minQuality: Math.max(0, Math.min(99, Number(e.target.value) || 0)) }))} style={{ ...numInput, width: 56 }} /></label>}
+              {xyzPending.sqCol && <label style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>{tr("drop under")}<NumberInput min={0} max={99} step={1} value={xyzPending.minQuality ?? 50} aria-label={tr("Drop readings with signal quality under")} onChange={(v) => setXyzPending((p) => ({ ...p, minQuality: v }))} style={{ ...numInput, width: 56 }} /></label>}
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, cursor: "pointer" }} title={tr("Each reading is compared with the median of the 11 readings around it on its line; one more than 6 MAD (and at least 20 nT) away is dropped as a spike. A real anomaly over tens of readings moves the running median with it and stays.")}>
               <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Despike")}</span>
@@ -2526,11 +2527,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("\"{key}\" along each hole: at every step down the hole, the value of the nearest point within the distance (or the inverse-distance mean of the points within it). Steps farther than that from every point are left empty.", { key: legendKey })}</div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Distance (m)")}</span>
-                    <input type="number" min="0.1" step="any" value={holeOpts.dist} placeholder={holeSuggest ? String(holeSuggest.maxDist) : "25"} onChange={(e) => setHoleOpts((o) => ({ ...o, dist: e.target.value }))} style={numInput} aria-label={tr("Search distance from the hole")} />
+                    <NumberInput allowEmpty min={0.1} value={holeOpts.dist} placeholder={holeSuggest ? String(holeSuggest.maxDist) : "25"} onChange={(v) => setHoleOpts((o) => ({ ...o, dist: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Search distance from the hole")} />
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Step (m)")}</span>
-                    <input type="number" min="0.1" step="any" value={holeOpts.step} placeholder={holeSuggest ? String(holeSuggest.step) : "5"} onChange={(e) => setHoleOpts((o) => ({ ...o, step: e.target.value }))} style={numInput} aria-label={tr("Step down the hole")} />
+                    <NumberInput allowEmpty min={0.1} value={holeOpts.step} placeholder={holeSuggest ? String(holeSuggest.step) : "5"} onChange={(v) => setHoleOpts((o) => ({ ...o, step: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Step down the hole")} />
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Value")}</span>
@@ -2560,9 +2561,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     <div style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 4 }}>{tr("This is a 3D point cloud, not a surface survey: {n} points from {lo} to {hi} m elevation (within a plan cell their elevations spread {k}× the cell). A raster flattens every depth into one value per cell, so grid one depth slice at a time.", { n: idwShape.n.toLocaleString(), lo: Math.round(idwShape.zMin).toLocaleString(), hi: Math.round(idwShape.zMax).toLocaleString(), k: idwShape.spread.toFixed(0) })}</div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Slice z (m)")}</span>
-                      <input type="number" step="any" value={idwZ.lo} placeholder={String(idwZAuto ? idwSliceProp.lo : Math.round(idwShape.zMin))} onChange={(e) => setIdwZ((z) => ({ ...z, lo: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Lowest elevation of the slice")} />
+                      <NumberInput allowEmpty value={idwZ.lo} placeholder={String(idwZAuto ? idwSliceProp.lo : Math.round(idwShape.zMin))} onChange={(v) => setIdwZ((z) => ({ ...z, lo: (v == null ? "" : String(v)) }))} style={{ ...numInput, width: 80 }} aria-label={tr("Lowest elevation of the slice")} />
                       <span style={{ color: "var(--color-text-muted)" }}>{tr("to")}</span>
-                      <input type="number" step="any" value={idwZ.hi} placeholder={String(idwZAuto ? idwSliceProp.hi : Math.round(idwShape.zMax))} onChange={(e) => setIdwZ((z) => ({ ...z, hi: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Highest elevation of the slice")} />
+                      <NumberInput allowEmpty value={idwZ.hi} placeholder={String(idwZAuto ? idwSliceProp.hi : Math.round(idwShape.zMax))} onChange={(v) => setIdwZ((z) => ({ ...z, hi: (v == null ? "" : String(v)) }))} style={{ ...numInput, width: 80 }} aria-label={tr("Highest elevation of the slice")} />
                       <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("{n} points in the slice", { n: idwSlice.length.toLocaleString() })}</span>
                     </div>
                     {idwZAuto && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginTop: 4 }}>{/* #3322 */}{idwSliceProp.layered ? tr("Proposed: the level at {z} m, the one with the most points ({n}); the levels are {g} m apart. Type other elevations to grid another slice.", { z: idwSliceProp.z.toLocaleString(), n: idwSliceProp.n.toLocaleString(), g: +idwSliceProp.gap.toFixed(2) }) : tr("Proposed: the {t} m band with the most points. Type other elevations to grid another slice.", { t: idwSliceProp.thickness.toLocaleString() })}</div>}
@@ -2570,16 +2571,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 )}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Cell size")}</span>
-                  <input type="number" min="0.1" step="any" value={idwCellText} placeholder={String(idwAutoCell)} onChange={(e) => setIdwCellText(e.target.value)} style={numInput} aria-label={tr("Cell size")} />
+                  <NumberInput allowEmpty min={0.1} value={idwCellText} placeholder={String(idwAutoCell)} onChange={(v) => setIdwCellText((v == null ? "" : String(v)))} style={numInput} aria-label={tr("Cell size")} />
                 </div>
                 {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwSuggest.capped ? tr("Cell {c} m by default: the smallest round cell that keeps the grid under 4 million cells ({s} m, a quarter of the median spacing, would make it too large).", { c: idwAutoCell, s: idwSuggest.spacingCell }) /* #3322 */ : idwSuggest.basis === "plan density" ? tr("Cell {c} m by default: about the slice's spacing in plan, {s} m ({n} points over {a} km²). The points are stacked in depth, so their nearest neighbours say nothing of the spacing in plan.", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1), n: idwSuggest.n.toLocaleString(), a: +(idwSuggest.areaM2 / 1e6).toPrecision(2) }) /* #3810 */ : tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
                 {idwMethod === "idw" && <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("How sharply influence falls off with distance — higher means nearer points dominate more.")}>{tr("Power")}</span>
-                  <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
+                  <NumberInput min={0.5} step={0.5} value={idwPower} onChange={(v) => setIdwPower(v)} style={numInput} />
                 </div>}
                 {idwMethod === "mincurv" && <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>{/* #2846 */}
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("0 is pure minimum curvature (smoothest; overshoots most between stations), 1 a membrane (no overshoot, tent-shaped between stations).")}>{tr("Tension")}</span>
-                  <input type="number" min="0" max="1" step="0.05" value={idwTension} onChange={(e) => setIdwTension(Math.min(1, Math.max(0, Number(e.target.value) || 0)))} style={numInput} aria-label={tr("Tension")} />
+                  <NumberInput min={0} max={1} step={0.05} value={idwTension} onChange={(v) => setIdwTension(v)} style={numInput} aria-label={tr("Tension")} />
                 </div>}
                 {/* TASKS.csv #538 — which survey, and how far from the data a cell may be */}
                 {measuredList.length > 1 && (
@@ -2592,7 +2593,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 )}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }} title={tr("Cells farther than this from every point are left empty (transparent) instead of extrapolated. Default: 1.5x the median spacing between lines (2x the station spacing for scattered stations). 0 = fill everything.")}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Blank > (m)")}</span>
-                  <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwAutoBlank)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label={tr("Blanking distance")} />
+                  <NumberInput allowEmpty min={0} value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwAutoBlank)) : "none"} onChange={(v) => setIdwBlank((v == null ? "" : String(v)))} style={numInput} aria-label={tr("Blanking distance")} />
                 </div>
                 {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwAutoBlank > idwSuggest.distance + 1e-9 ? tr("Default {v} m: 1.5 cells of {c} m (the spacing alone would give {d} m, which leaves most cells empty at this cell size).", { v: Math.round(idwAutoBlank), c: idwCellSize, d: Math.round(idwSuggest.distance) }) /* #3322 */ : idwSuggest.linesEstimated ? tr("Default {v} m: 1.5 times the spacing between lines, about {spacing} m (estimated: the file has no line column, and its stations are {along} m apart along the lines).", { v: Math.round(idwAutoBlank), spacing: Math.round(idwSuggest.spacing), along: +idwSuggest.alongSpacing.toFixed(1) }) /* #3322 */ : idwSuggest.basis === "plan density" ? tr("Default {v} m: twice the slice's spacing in plan, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) /* #3810 */ : idwSuggest.basis === "line spacing" ? tr("Default {v} m: 1.5 times the median line spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) : tr("Default {v} m: twice the median station spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) })}</div>}
                 {/* TASKS.csv #372 — colour stretch */}
@@ -2694,11 +2695,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     <div style={{ color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Or a grid for every level of the cloud: one IDW grid per window, at this cell size and blanking.")}</div>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
                       <span style={{ color: "var(--color-text-faint)" }}>{tr("Every")}</span>
-                      <input type="number" min="0.1" step="any" value={levelSet.step} placeholder={levelStepAuto != null ? String(+levelStepAuto.toFixed(2)) : ""} onChange={(e) => setLevelSet((v) => ({ ...v, step: e.target.value }))} style={{ ...numInput, width: 64 }} aria-label={tr("Level thickness")} />
+                      <NumberInput allowEmpty min={0.1} value={levelSet.step} placeholder={levelStepAuto != null ? String(+levelStepAuto.toFixed(2)) : ""} onChange={(v) => setLevelSet((v) => ({ ...v, step: (v == null ? "" : String(v)) }))} style={{ ...numInput, width: 64 }} aria-label={tr("Level thickness")} />
                       <span style={{ color: "var(--color-text-faint)" }}>{tr("m, from")}</span>
-                      <input type="number" step="any" value={levelSet.lo} placeholder={String(Math.round(idwShape.zMin))} onChange={(e) => setLevelSet((v) => ({ ...v, lo: e.target.value }))} style={{ ...numInput, width: 70 }} aria-label={tr("Lowest elevation of the levels")} />
+                      <NumberInput allowEmpty value={levelSet.lo} placeholder={String(Math.round(idwShape.zMin))} onChange={(v) => setLevelSet((v) => ({ ...v, lo: (v == null ? "" : String(v)) }))} style={{ ...numInput, width: 70 }} aria-label={tr("Lowest elevation of the levels")} />
                       <span style={{ color: "var(--color-text-faint)" }}>{tr("to")}</span>
-                      <input type="number" step="any" value={levelSet.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(e) => setLevelSet((v) => ({ ...v, hi: e.target.value }))} style={{ ...numInput, width: 70 }} aria-label={tr("Highest elevation of the levels")} />
+                      <NumberInput allowEmpty value={levelSet.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(v) => setLevelSet((v) => ({ ...v, hi: (v == null ? "" : String(v)) }))} style={{ ...numInput, width: 70 }} aria-label={tr("Highest elevation of the levels")} />
                     </div>
                     <button type="button" disabled={!!idwBusy} onClick={makeLevelGrids} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Generate a grid per level")}</button>
                   </div>
@@ -2734,7 +2735,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         />
         {(collars || []).length > 0 && (
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Reads only the part of each DEM tile around the drillholes, at a resolution that suits the 200 x 200 terrain grid — much less memory than decoding whole tiles, and much finer cells. Untick to import whole tiles.")}>
-            <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} />{" "}{tr("Crop to the drillholes +")}<input type="number" min="1000" step="500" value={demCropBuffer} onChange={(e) => setDemCropBuffer(e.target.value)} style={{ ...numInput, width: 70, flex: "none" }} aria-label={tr("Crop buffer in metres")} /> m
+            <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} />{" "}{tr("Crop to the drillholes +")}<NumberInput allowEmpty min={1000} step={500} value={demCropBuffer} onChange={(v) => setDemCropBuffer((v == null ? "" : String(v)))} style={{ ...numInput, width: 70, flex: "none" }} aria-label={tr("Crop buffer in metres")} /> m
           </label>
         )}
         {/* TASKS.csv #814 — online elevation model */}
@@ -2815,7 +2816,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}
             title={tr("Grid cells further than this from every sample or collar are left without ground. Blank: five times their typical spacing, and at least 500 m.")}>
             {tr("Ground reaches at most")}
-            <input type="number" min="0" step="50" value={reachText} placeholder={tr("auto")} onChange={(e) => setReachText(e.target.value)} aria-label={tr("Ground reaches at most (m from a sample or collar)")} style={{ ...numInput, flex: "0 0 80px" }} />
+            <NumberInput allowEmpty min={0} step={50} value={reachText} placeholder={tr("auto")} onChange={(v) => setReachText((v == null ? "" : String(v)))} aria-label={tr("Ground reaches at most (m from a sample or collar)")} style={{ ...numInput, flex: "0 0 80px" }} />
             {tr("m from a point")}
           </label>
         )}
@@ -2933,11 +2934,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 }[derivKind])}</div>
                 {derivKind === "hillshade" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Compass direction the light comes FROM (0=N, 90=E, 180=S, 270=W).")}>{tr("Sun azimuth")}</span>
-                  <input type="number" min="0" max="360" value={hillshadeAzimuth} onChange={(e) => setHillshadeAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={numInput} />
+                  <NumberInput value={hillshadeAzimuth} onChange={(v) => setHillshadeAzimuth((v % 360 + 360) % 360) /* #3926 — wrapped to 0-359 as before, not refused */} style={numInput} />
                 </div>}
                 {(derivKind === "hillshade" || derivKind === "multi") && <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Height of the sun above the horizon, in degrees.")}>{tr("Sun altitude")}</span>
-                  <input type="number" min="1" max="90" value={hillshadeAltitude} onChange={(e) => setHillshadeAltitude(Math.max(1, Math.min(90, Number(e.target.value) || 45)))} style={numInput} />
+                  <NumberInput min={1} max={90} value={hillshadeAltitude} onChange={(v) => setHillshadeAltitude(v)} style={numInput} />
                 </div>}
                 <button
                   onClick={() => {
@@ -2979,7 +2980,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Vertical spacing between contour lines, in the DEM's own elevation units (metres).")}>{tr("Interval (m)")}</span>
-                  <input type="number" min={MIN_CONTOUR_INTERVAL} step="any" value={contourInterval} onChange={(e) => { const v = Number(e.target.value); setContourTyped(true); if (e.target.value === "" || !Number.isFinite(v)) return; setContourClamped(v < MIN_CONTOUR_INTERVAL ? v : null); setContourInterval(Math.max(MIN_CONTOUR_INTERVAL, v)); }} style={numInput} />
+                  <NumberInput value={contourInterval} onChange={(v) => { setContourTyped(true); setContourClamped(v < MIN_CONTOUR_INTERVAL ? v : null); setContourInterval(Math.max(MIN_CONTOUR_INTERVAL, v)); } /* #3926 — still raised to the smallest interval, with its note (#2462) */} style={numInput} />
                 </div>
                 {contourClamped != null && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", margin: "-2px 0 6px" }}>{tr("{v} m was raised to {min} m, the smallest interval.", { v: contourClamped, min: MIN_CONTOUR_INTERVAL })}</div>}{/* #2462 */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -3082,7 +3083,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: b.drapeMode === "terrain" ? 0.4 : 1 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Elev.")}</span>
-              <input type="number" value={Math.round(b.elevation)} disabled={b.drapeMode === "terrain"} onChange={(e) => updateBoundary(b.id, { elevation: Number(e.target.value) })} style={numInput} />
+              <NumberInput value={Math.round(b.elevation)} disabled={b.drapeMode === "terrain"} onChange={(v) => updateBoundary(b.id, { elevation: v })} style={numInput} />
             </div>
             </>)}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
@@ -3201,7 +3202,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: c.drapeMode === "terrain" ? 0.4 : 1 }}>
               <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Elev.")}</span>
-              <input type="number" value={Math.round(c.elevation)} disabled={c.drapeMode === "terrain"} onChange={(e) => updateBoundary(c.id, { elevation: Number(e.target.value) })} style={{ ...numInput, flex: 1 }} />
+              <NumberInput value={Math.round(c.elevation)} disabled={c.drapeMode === "terrain"} onChange={(v) => updateBoundary(c.id, { elevation: v })} style={{ ...numInput, flex: 1 }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
               <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Colour")}</span>
@@ -3247,11 +3248,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) and more memory: about 0.4 GB per million cells, so it stops at {max} cells, above which GeoStrix can run out of memory. Only affects new imports, not models already in the project. Remembered on this computer.", { max: MAX_BLOCK_MODEL_BUDGET.toLocaleString() })} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-          <input
-            type="number" min={MIN_CELL_BUDGET} max={MAX_BLOCK_MODEL_BUDGET} step={10000}
+          <NumberInput
+            allowEmpty min={MIN_CELL_BUDGET} max={MAX_BLOCK_MODEL_BUDGET} step={10000}
             value={voxelCellBudget ?? MAX_CELLS}
-            onChange={(e) => { const v = Number(e.target.value); setVoxelCellBudget(Number.isFinite(v) && v > 0 ? v : null); }}
-            onBlur={() => setVoxelCellBudget(clampCellBudget(voxelCellBudget))} // #1074 — clamped once typing ends (and on use)
+            onChange={(v) => setVoxelCellBudget(v)} // #3926 — empty: the default, as before; outside the limits: refused with a plain line (was clamped silently on leaving the box, #1074)
             style={{ ...numInput, width: 100 }}
           />
           <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("cells (default {MAX_CELLS})", { MAX_CELLS: MAX_CELLS.toLocaleString() })}</span>
@@ -3272,7 +3272,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           title={tr("A block model larger than the cell budget is coarsened (its blocks merged) to fit. Cropping it first to the drilled area keeps its own cell size there, instead of merged blocks over the whole model.")}>
           <input type="checkbox" checked={omfCrop.on && collars.length > 0} disabled={!collars.length} onChange={(e) => setOmfCrop((p) => ({ ...p, on: e.target.checked }))} />
           {tr("Crop block models to the drillholes +")}
-          <input type="number" min="0" step="100" value={omfCrop.buffer} onChange={(e) => setOmfCrop((p) => ({ ...p, buffer: e.target.value }))} style={{ width: 64 }} aria-label={tr("Crop buffer around the drillholes (m)")} disabled={!collars.length} /> m
+          <NumberInput allowEmpty min={0} step={100} value={omfCrop.buffer} onChange={(v) => setOmfCrop((p) => ({ ...p, buffer: (v == null ? "" : String(v)) }))} style={{ width: 64 }} aria-label={tr("Crop buffer around the drillholes (m)")} disabled={!collars.length} /> m
         </label>
         <button onClick={() => omfInput.current.click()} style={pBtn} disabled={omfBusy}>
           {omfBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {omfBusy ? tr("Reading…") : tr("Import OMF (.omf)…")}
@@ -3751,7 +3751,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
                 right default for the clustered background + anomalous tail real survey data has. */}
             <option value="jenks">{tr("Natural breaks (Jenks)")}</option>
           </select>
-          <input type="number" min={2} max={64} value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} style={{ ...numInput, width: 44, flex: "none" }} /* #1433 */ />
+          <NumberInput min={2} max={64} step={1} value={classCount} onChange={(v) => setClassCount(Math.round(v))} style={{ ...numInput, width: 44, flex: "none" }} /* #1433 */ />
           <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Apply")}</button>
         </div>
         {classNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 3 }}>{classNote}</div>} {/* #1430 */}

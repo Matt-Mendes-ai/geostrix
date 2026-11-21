@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 
 const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 // files whose number boxes are all G4 (none left as <input type="number">)
-const DONE = ["components/InversionPanel.jsx", "components/TemInvertPanel.jsx"];
+const DONE = ["components/InversionPanel.jsx", "components/TemInvertPanel.jsx", "modules/GeophysicsModule.jsx"];
 const imp = (f) => (f.startsWith("modules/") ? /import NumberInput from "\.\.\/components\/NumberInput\.jsx";/ : /import NumberInput from "\.\/NumberInput\.jsx";/);
 
 test("#3926 G4 every number box in these files is a NumberInput", () => {
@@ -28,4 +28,16 @@ test("#3926 G4 text kept in state stays text, an empty box stays empty (the [k, 
   const tem = read("components/TemInvertPanel.jsx");
   assert.match(tem, /<NumberInput min=\{0\.01\} value=\{st\.wave\[k\]\.onMs\} onChange=\{\(v\) => setWave\(k, \{ onMs: v \}\)\}/, "parsed at once: the number, its min kept (an empty entry no longer stores 0)");
   assert.match(tem, /<NumberInput min=\{0\} value=\{st\.wave\[k\]\.rampUs\} onChange=\{\(v\) => setWave\(k, \{ rampUs: v \}\)\}/);
+});
+
+test("#3926 G4 GeophysicsModule: silent clamps are min / max with the plain line; the azimuth still wraps; the contour interval still says its raise", () => {
+  const g = read("modules/GeophysicsModule.jsx");
+  assert.match(g, /<NumberInput min=\{0\.5\} step=\{0\.5\} value=\{idwPower\} onChange=\{\(v\) => setIdwPower\(v\)\}/, "Number(x) || 2 -> v, with a min that blocks 0");
+  assert.match(g, /<NumberInput min=\{0\} max=\{1\} step=\{0\.05\} value=\{idwTension\}/);
+  assert.match(g, /<NumberInput min=\{1\} max=\{90\} value=\{hillshadeAltitude\}/);
+  assert.match(g, /onChange=\{\(v\) => setHillshadeAzimuth\(\(v % 360 \+ 360\) % 360\)/);
+  assert.match(g, /<NumberInput min=\{0\} max=\{99\} step=\{1\} value=\{xyzPending\.minQuality \?\? 50\}/);
+  assert.match(g, /allowEmpty min=\{MIN_CELL_BUDGET\} max=\{MAX_BLOCK_MODEL_BUDGET\} step=\{10000\}\n\s+value=\{voxelCellBudget \?\? MAX_CELLS\}\n\s+onChange=\{\(v\) => setVoxelCellBudget\(v\)\}/, "empty: the default, as before");
+  assert.match(g, /const effectiveMaxCells = clampCellBudget\(voxelCellBudget\) \|\| MAX_CELLS;/, "still clamped on use");
+  assert.match(g, /<NumberInput min=\{2\} max=\{64\} step=\{1\} value=\{classCount\} onChange=\{\(v\) => setClassCount\(Math\.round\(v\)\)\}/);
 });

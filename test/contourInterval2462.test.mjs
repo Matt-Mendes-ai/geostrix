@@ -20,7 +20,7 @@ test("the terrain's range leaves out the no-data fill", () => {
 test("the form: opens on the relief's step, takes decimals and says a raise, replaces a repeat", () => {
   const s = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(s, /if \(!contourOpen && !contourTyped\) \{ const r = terrainRange\(terrain\); if \(r\) setContourInterval\(niceContourInterval\(r\[0\], r\[1\]\)\);/);
-  assert.match(s, /min=\{MIN_CONTOUR_INTERVAL\} step="any"/);
+  assert.match(s, /<NumberInput value=\{contourInterval\} onChange=\{\(v\) => \{ setContourTyped\(true\); setContourClamped\(v < MIN_CONTOUR_INTERVAL \? v : null\); setContourInterval\(Math\.max\(MIN_CONTOUR_INTERVAL, v\)\); \}/); // #3926 G4: decimals with a comma too; still raised with its note
   assert.match(s, /was raised to \{min\} m, the smallest interval/);
   assert.match(s, /b\.contourInterval === contourInterval && b\.contourTerrain === terrain\.name/);
 });
