@@ -6,6 +6,7 @@
 import { SYMBOLS, FAMILIES, familyFor, projectSymbolChoices, symbolSvg, typeKey } from "./structureSymbols.js"; // TASKS.csv #3066
 import { lineScaleOf } from "./structureSymbols.js"; // TASKS.csv #3091
 import { fieldRamp, fieldRampLegend } from "./customColour.js"; // TASKS.csv #3941
+import { widthScale, widthLegendGroup } from "./widthBy.js"; // TASKS.csv #3942
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
@@ -67,7 +68,7 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
     if (singleColor[key]) { groups.push({ key, label: LAYER_META[key].label, items: [["all (one colour)", singleColor[key]]] }); return; }
     // TASKS.csv #3941 — coloured by a number field (Total sulphides): its ramp
     const byField = styles?.[key]?.colourBy ? fieldRamp(rows, styles[key].colourBy, styles[key]) : null;
-    if (byField) { groups.push(fieldRampLegend(key, `${LAYER_META[key].label} · ${styles[key].colourBy}`, byField.scale)); return; }
+    if (byField) { groups.push(fieldRampLegend(key, `${LAYER_META[key].label} · ${styles[key].colourBy}`, byField.scale)); const ws0 = styles[key].widthBy ? widthScale(rows, styles[key]) : null; if (ws0) groups.push(widthLegendGroup(key, LAYER_META[key].label, ws0)); return; } // ws0: #3942
     const h = hidden[key];
     const isHidden = h instanceof Set ? (v) => h.has(v) : Array.isArray(h) ? ((s) => (v) => s.has(v))(new Set(h)) : () => false;
     const seen = new Map(); // value -> its row in `items` (#1633: and how many intervals carry it)
@@ -87,6 +88,8 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
     if (ranged) items.forEach((it, i) => { if (lo[i] !== undefined) it.push({ value: lo[i] === hi[i] ? fmtLegendValue(lo[i]) : `${fmtLegendValue(lo[i])}–${fmtLegendValue(hi[i])}` }); });
     const order = items.map((_, i) => i).sort((a, b) => String(items[a][0]).localeCompare(String(items[b][0])));
     if (items.length) groups.push({ key, label: LAYER_META[key].label, items: order.map((i) => items[i]), counts: order.map((i) => counts[i]), ...(isFiltered(h) ? { filtered: true } : {}) }); // filtered: #2044
+    const ws = styles?.[key]?.widthBy ? widthScale(rows, styles[key]) : null; // TASKS.csv #3942 — Width by: its three sizes
+    if (ws) groups.push(widthLegendGroup(key, LAYER_META[key].label, ws));
   });
   return groups;
 }

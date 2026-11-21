@@ -3,6 +3,8 @@
 // project with no holes, the layer batches and the passes that follow a rebuild. ViewerModule's effect calls buildDrillholeScene with
 // the values and refs the body used to close over, on the same dependency list. The comments below are the effect's own.
 import { fieldStyler } from "../../lib/totalSulphides.js"; // TASKS.csv #3941
+import { widthScale } from "../../lib/widthBy.js"; // TASKS.csv #3942
+import { setTubeBaseRadius } from "../../lib/viewer/tubeShader.js"; // TASKS.csv #3942
 import { unsurveyedSpans } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5); #3761: every stretch with no survey station, not only the tail
 const sleeveToken = new WeakMap(); // TASKS.csv #3761 — the sleeves' code (lib/viewer/assumedSleeve.js) loads when a hole has an unsurveyed stretch: the latest build's token
 import * as THREE from "three";
@@ -477,6 +479,8 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
   const byField = (k) => { if (!byFieldCache.has(k)) byFieldCache.set(k, LAYER_META[k]?.numeric ? fieldColourer(numericSymbology?.[k], layers[k]) : null); return byFieldCache.get(k); };
   // TASKS.csv #3941 — a coded layer coloured by one of its number fields (Mineralization by Total sulphides) and / or shown from a lowest total
   const rampByCache = new Map();
+  const widthCache = new Map(); // #3942 — Width by: the radius factor per row
+  const widthOf = (k) => { if (!widthCache.has(k)) widthCache.set(k, LAYER_META[k]?.numeric ? null : widthScale(layers[k], layerStyles[k])); return widthCache.get(k); };
   const rampBy = (k) => { if (!rampByCache.has(k)) rampByCache.set(k, LAYER_META[k]?.numeric ? null : fieldStyler(layers[k], layerStyles[k])); return rampByCache.get(k); };
   const buildErrors = [];
   const traceHoles = []; // #2176 step 3 — { holeId, pts, dashed } for addTraceChunks
@@ -554,9 +558,11 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
       const meta = { ...LAYER_META[groupKey], ...(opt.meta || {}) };
       const st = resolveLayerStyle(layerStyles[groupKey], "interval", { opacity: meta.opacity }); // TASKS.csv #635
       const radius = meta.radius * st.size, bf = byField(groupKey), rb = rampBy(groupKey); // rb: #3941
+      const ws = widthOf(groupKey); setTubeBaseRadius(groupKey, ws ? radius : 0); // #3942 — the tube size choice sizes this radius, the factors stay
       (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!opt.filter || opt.filter(r)) && (!bf || bf.shown(r)) && (!rb || rb.shown(r))).forEach((row) => { // bf: #3553
        try {
         if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
+        const rr = ws ? radius * ws.w(row) : radius; // #3942
         const p1 = look.at(row.from), p2 = look.at(row.to);
         const mid = look.between(row.from, row.to);
         // TASKS.csv #209 — CatmullRomCurve3 + TubeGeometry was 89% of a 24,000-interval build (~0.42 ms each), and is needed only
@@ -590,7 +596,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
           geo = intervalProto(st.shape, (layers?.[groupKey] || []).length); // #3620: a prism in light drawing, crossed ribbons for a big layer
           const color = st.color || (rb?.colourOf ? rb.colourOf(row) : bf ? bf.colourOf(row) : meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
           mesh_ = new PickStandIn(geo, { color, transparent: st.opacity < 1, opacity: st.opacity, side: geo === PROTO_CROSS ? THREE.DoubleSide : THREE.FrontSide }); // #1500; the ribbons are seen from both sides (#3620) — never drawn itself (its batch is)
-          mesh_.scale.set(radius, len, radius);
+          mesh_.scale.set(rr, len, rr);
           mesh_.position.set(p1.x, p1.y, p1.z);
           mesh_.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(dx / len, dy / len, dz / len)); // #1500 — shared vectors
         } else {
@@ -598,7 +604,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
           // each), all made again when a Desurvey switch moved the stations: 211 ms of a 539 ms build on WA gold (35,385 members). Now
           // straight pieces between its own trace points on the shared prototype, batched with the straight intervals; the inner joints
           // overlap by half a radius so a bend shows no wedge, the ends stay on the interval's own depths.
-          const pts = [p1, ...mid, p2], last = pts.length - 2, ext = radius * 0.5;
+          const pts = [p1, ...mid, p2], last = pts.length - 2, ext = rr * 0.5;
           const color = st.color || (rb?.colourOf ? rb.colourOf(row) : bf ? bf.colourOf(row) : meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
           pieces = [];
           for (let i = 0; i <= last; i++) {
@@ -606,7 +612,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
             if (len < 1e-6) continue;
             const e0 = i > 0 ? ext : 0, e1 = i < last ? ext : 0, ux = dx / len, uy = dy / len, uz = dz / len;
             const m = new PickStandIn(intervalProto(st.shape), { color, transparent: st.opacity < 1, opacity: st.opacity });
-            m.scale.set(radius, len + e0 + e1, radius);
+            m.scale.set(rr, len + e0 + e1, rr);
             m.position.set(a.x - ux * e0, a.y - uy * e0, a.z - uz * e0);
             m.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(ux, uy, uz));
             pieces.push(m);

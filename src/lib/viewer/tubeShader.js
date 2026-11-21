@@ -7,9 +7,11 @@
 // keeps one width on screen along its length. The viewport height is the collar markers' uniform (one source, kept by ViewportFigureOverlay).
 import { COLLAR_MARKER_UNIFORMS } from "./collarMarkerShader.js";
 
-export const TUBE_UNIFORMS = { uTubeMinPx: { value: 1.5 }, uTubeMaxPx: { value: 1e9 }, uViewportH: COLLAR_MARKER_UNIFORMS.uViewportH };
+// uTubeBaseR (TASKS.csv #3942): a layer drawn with Width by keeps its base radius here (metres; 0: none), so the floor / cap / fixed width size the base
+// and each tube keeps its factor (its instance radius / the base); without it every tube is sized on its own, as before
+export const TUBE_UNIFORMS = { uTubeMinPx: { value: 1.5 }, uTubeMaxPx: { value: 1e9 }, uTubeBaseR: { value: 0 }, uViewportH: COLLAR_MARKER_UNIFORMS.uViewportH };
 
-const DECL = "uniform float uTubeMinPx;\nuniform float uTubeMaxPx;\nuniform float uViewportH;\n";
+const DECL = "uniform float uTubeMinPx;\nuniform float uTubeMaxPx;\nuniform float uTubeBaseR;\nuniform float uViewportH;\n";
 const BODY = `
 #ifdef USE_INSTANCING
   mat4 gsInst = instanceMatrix;
@@ -19,9 +21,11 @@ const BODY = `
 float gsR = length((modelMatrix * gsInst * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
 vec4 gsMv0 = modelViewMatrix * gsInst * vec4(transformed, 1.0);
 float gsD = projectionMatrix[3][3] == 1.0 ? 1.0 : max(1e-6, -gsMv0.z);
-float gsPx = gsR * projectionMatrix[1][1] * 0.5 * uViewportH / gsD;
+float gsW = uTubeBaseR > 0.0 ? max(1e-3, length((gsInst * vec4(1.0, 0.0, 0.0, 0.0)).xyz) / uTubeBaseR) : 1.0;
+float gsPx = gsR * projectionMatrix[1][1] * 0.5 * uViewportH / gsD / gsW;
 float gsK = gsPx > 1e-9 ? clamp(uTubeMinPx / gsPx, 1.0, 1e4) : 1.0;
 if (gsPx > uTubeMaxPx) gsK = uTubeMaxPx / gsPx;
+if (gsW != 1.0 && uTubeMinPx > 0.0 && gsPx * gsW * gsK < 1.0 && gsPx > 1e-9) gsK = 1.0 / (gsPx * gsW);
 vec3 gsLocal = transformed; gsLocal.xz *= gsK;
 vec4 mvPosition = modelViewMatrix * gsInst * vec4(gsLocal, 1.0);
 gl_Position = projectionMatrix * mvPosition;
@@ -35,10 +39,12 @@ export function tubeVertex(src) {
 
 // the factor the shader applies to a tube's cross-section: radiusM metres at depth (view-space distance; null: orthographic), a camera
 // whose projectionMatrix[1][1] is proj11 (1 / tan(fov / 2)), a viewport viewportH pixels high. Same arithmetic as the shader (tested).
-export function tubeFactor(radiusM, depth, proj11, viewportH, minPx = TUBE_UNIFORMS.uTubeMinPx.value, maxPx = TUBE_UNIFORMS.uTubeMaxPx.value) {
-  const px = (radiusM * proj11 * 0.5 * viewportH) / (depth == null ? 1 : Math.max(1e-6, depth));
+// w (#3942): the tube's Width by factor (its radius / the layer's base radius); the floor and cap then apply to the base, a thin one never under a pixel
+export function tubeFactor(radiusM, depth, proj11, viewportH, minPx = TUBE_UNIFORMS.uTubeMinPx.value, maxPx = TUBE_UNIFORMS.uTubeMaxPx.value, w = 1) {
+  const px = (radiusM * proj11 * 0.5 * viewportH) / (depth == null ? 1 : Math.max(1e-6, depth)) / w;
   let k = px > 1e-9 ? Math.min(1e4, Math.max(1, minPx / px)) : 1;
   if (px > maxPx) k = maxPx / px;
+  if (w !== 1 && minPx > 0 && px * w * k < 1 && px > 1e-9) k = 1 / (px * w);
   return k;
 }
 
@@ -67,9 +73,11 @@ const valuesFor = (layer) => tubeSizeUniforms(lastSetting?.byLayer?.[layer] || l
 export function tubeUniformsFor(layer) {
   if (!layer) return TUBE_UNIFORMS;
   let u = LAYER_UNIFORMS.get(layer);
-  if (!u) { const v = valuesFor(layer); u = { uTubeMinPx: { value: v.min }, uTubeMaxPx: { value: v.max }, uViewportH: COLLAR_MARKER_UNIFORMS.uViewportH }; LAYER_UNIFORMS.set(layer, u); }
+  if (!u) { const v = valuesFor(layer); u = { uTubeMinPx: { value: v.min }, uTubeMaxPx: { value: v.max }, uTubeBaseR: { value: 0 }, uViewportH: COLLAR_MARKER_UNIFORMS.uViewportH }; LAYER_UNIFORMS.set(layer, u); }
   return u;
 }
+// TASKS.csv #3942 — a layer's base radius while it is drawn with Width by (0: none); set by the scene build
+export function setTubeBaseRadius(layer, r) { const u = tubeUniformsFor(layer); u.uTubeBaseR.value = r > 0 ? r : 0; }
 // the view's setting into every layer's uniforms (and the one for all)
 export function setTubeSizes(setting) {
   lastSetting = setting || null;
