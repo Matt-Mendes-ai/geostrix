@@ -49,7 +49,7 @@ test("the field names are the dialogs' own labels, word for word", () => {
 
 test("the page's numbers are the app's: the dogleg rule and the plausible density range", async () => {
   const { DOGLEG_MIN_DEG, DOGLEG_ERROR_MIN_DEG, DOGLEG_ERROR_DEFAULT } = await import("../src/lib/dataQC.js");
-  const t = pageById("data-qc").fields.find((f) => f.name === "Dogleg over").what;
+  const f0 = pageById("data-qc").fields.find((f) => f.name === "Dogleg over"), t = `${f0.what} ${f0.more || ""}`; // #3899: the detail is behind "More"
   assert.ok(t.includes(`under ${DOGLEG_MIN_DEG}°`) && t.includes(`${DOGLEG_ERROR_DEFAULT}° per 30 m or more, over at least ${DOGLEG_ERROR_MIN_DEG}°`), t);
 });
 
