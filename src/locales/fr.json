@@ -14502,5 +14502,20 @@
   "It can list holes, assays, logs and sections and compute grade statistics and best intercepts. It changes nothing unless you also tick 'Allow AI apps to make changes' below, and it cannot open files or use any password. It works over a private connection on this computer only (no network port), and each AI app is asked about once.": "Elle peut lister les sondages, les analyses, les logs et les coupes, et calculer des statistiques de teneur et les meilleures intersections. Elle ne modifie rien sauf si vous cochez aussi « Autoriser les applications d'IA à apporter des modifications » ci-dessous, et elle ne peut ni ouvrir des fichiers ni utiliser un mot de passe. Elle passe par une connexion privée sur cet ordinateur uniquement (aucun port réseau), et chaque application d'IA est demandée une fois.",
   "Changes made by AI apps": "Modifications faites par des applications d'IA",
   "Undone": "Annulé",
-  "Undo this change": "Annuler cette modification"
+  "Undo this change": "Annuler cette modification",
+  "Check it": "Les vérifier",
+  "Look in 3D": "Voir en 3D",
+  "Sections and logs": "Coupes et logs",
+  "Lay out a page": "Mettre en page",
+  "A log layer": "Une couche de log",
+  "Geochem assays": "Analyses en Géochimie",
+  "Density layer": "Couche de densité",
+  "one line": "une ligne",
+  "Fence": "Coupes en série",
+  "several lines": "plusieurs lignes",
+  "one hole": "un sondage",
+  "Everyday work": "Travail courant",
+  "Specialist tools": "Outils spécialisés",
+  "A view": "Une vue",
+  "More": "Plus"
 }

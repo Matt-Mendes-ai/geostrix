@@ -14502,5 +14502,20 @@
   "It can list holes, assays, logs and sections and compute grade statistics and best intercepts. It changes nothing unless you also tick 'Allow AI apps to make changes' below, and it cannot open files or use any password. It works over a private connection on this computer only (no network port), and each AI app is asked about once.": "يمكنه سرد الثقوب والتحاليل والسجلات والمقاطع وحساب إحصاءات العيار وأفضل التقاطعات. لا يغيّر شيئًا ما لم تحدّد أيضًا 'السماح لتطبيقات الذكاء الاصطناعي بإجراء تغييرات' أدناه، ولا يمكنه فتح الملفات أو استخدام أي كلمة مرور. يعمل عبر اتصال خاص على هذا الحاسوب فقط (بلا منفذ شبكة)، ويُسأل عن كل تطبيق ذكاء اصطناعي مرة واحدة.",
   "Changes made by AI apps": "التغييرات التي أجرتها تطبيقات الذكاء الاصطناعي",
   "Undone": "تم التراجع",
-  "Undo this change": "التراجع عن هذا التغيير"
+  "Undo this change": "التراجع عن هذا التغيير",
+  "Check it": "تحقق منها",
+  "Look in 3D": "اعرضها ثلاثياً",
+  "Sections and logs": "مقاطع وسجلات",
+  "Lay out a page": "صمّم صفحة",
+  "A log layer": "طبقة سجل",
+  "Geochem assays": "تحاليل الجيوكيمياء",
+  "Density layer": "طبقة الكثافة",
+  "one line": "خط واحد",
+  "Fence": "سياج",
+  "several lines": "عدة خطوط",
+  "one hole": "ثقب واحد",
+  "Everyday work": "العمل اليومي",
+  "Specialist tools": "أدوات متخصصة",
+  "A view": "عرض",
+  "More": "المزيد"
 }

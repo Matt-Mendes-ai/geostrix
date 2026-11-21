@@ -6,9 +6,15 @@ import { X, Search } from "./icons.js";
 import { t as tr, currentLanguage } from "../lib/i18n.js";
 import { HELP_AREAS, openShortcuts } from "../lib/help.js"; // openShortcuts: TASKS.csv #3534
 import { PAGES, pageById, searchPages } from "../help/content.js";
+import { DIAGRAMS } from "../help/diagrams/index.jsx"; // TASKS.csv #3899 — loaded with Help, never at startup
 
 const sectionHead = { fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)", margin: "14px 0 6px" };
 const muted = { color: "var(--color-text-muted)" };
+// TASKS.csv #3899 — detail kept behind a closed "More" (a page's, a field's or a warning's `more`); search still reads it
+function More({ text }) {
+  if (!text) return null;
+  return <details style={{ marginTop: 3 }}><summary style={{ cursor: "pointer", color: "var(--color-info)", fontSize: "var(--font-size-xs)" }}>{tr("More")}</summary><div style={{ marginTop: 2 }}>{text}</div></details>;
+}
 const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", textAlign: "left", fontSize: "inherit", font: "inherit" };
 
 export default function HelpPane({ initialId = null, area = null, onClose }) { // area: the tab the user is on (#3693: its pages rank first in a search)
@@ -92,6 +98,8 @@ function Page({ page, onOpen, onBack, backLabel }) {
       <h2 style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", margin: "0 0 2px" }}>{tr(page.title)}</h2>
       <div style={{ ...muted, fontSize: "var(--font-size-xs)", marginBottom: 8 }}>{tr(page.area)}</div>
       <p style={{ margin: 0, color: "var(--color-text)" }}>{page.summary}</p>
+      {page.diagram && DIAGRAMS[page.diagram.id] && (() => { const D = DIAGRAMS[page.diagram.id]; return <figure role="img" aria-label={page.diagram.alt} style={{ margin: "10px 0 0" }}><D /></figure>; })()}{/* #3899 */}
+      <More text={page.more} />
       {page.notFor?.length > 0 && (<>
         <div style={sectionHead}>{tr("What it is not")}</div>
         <ul style={{ margin: 0, paddingLeft: 16 }}>{page.notFor.map((s, i) => <li key={i} style={{ marginBottom: 4 }}>{s}</li>)}</ul>
@@ -102,7 +110,7 @@ function Page({ page, onOpen, onBack, backLabel }) {
           {page.fields.map((f, i) => (
             <div key={i} style={{ marginBottom: 8 }}>
               <dt style={{ fontWeight: 600, color: "var(--color-text)" }}>{f.name}</dt>
-              <dd style={{ margin: "1px 0 0 0" }}>{f.what}{f.choose && <div style={{ marginTop: 2 }}><span style={{ fontWeight: 600 }}>{tr("How to choose:")}</span> {f.choose}</div>}</dd>
+              <dd style={{ margin: "1px 0 0 0" }}>{f.what}{f.choose && <div style={{ marginTop: 2 }}><span style={{ fontWeight: 600 }}>{tr("How to choose:")}</span> {f.choose}</div>}<More text={f.more} /></dd>
             </div>
           ))}
         </dl>
@@ -115,6 +123,7 @@ function Page({ page, onOpen, onBack, backLabel }) {
             <div style={{ color: "var(--color-text)", fontStyle: "italic" }}>“{w.says}”</div>
             {w.means && <div>{w.means}</div>}
             {w.do && <div><span style={{ fontWeight: 600 }}>{tr("What to do:")}</span> {w.do}</div>}
+            <More text={w.more} />
           </div>
         ))}
       </>)}
