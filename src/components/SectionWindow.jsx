@@ -950,13 +950,13 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
         <g>
           <polygon
             points={`${sx(elevationProfile[0].d)},${H - PAD} ${elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")} ${sx(elevationProfile[elevationProfile.length - 1].d)},${H - PAD}`}
-            fill="#e8dfc8" fillOpacity="0.55" stroke="none"
+            fill={colors.terrain} fillOpacity="0.55" stroke="none" /* TASKS.csv #3947 — the ground in the terrain's grey, as in 3D and on the Maps plan */
           />
           <polyline
             points={elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")}
-            fill="none" stroke="#a9873f" strokeWidth="1.6"
+            fill="none" stroke={colors.terrainLine} strokeWidth="1.6"
           />
-          {haloBox(tr("Ground surface (SRTM)"), W - PAD - 4, sz(elevationProfile[elevationProfile.length - 1].z) - 6, fs(9.5), "end")}<text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#8a6a1f" fontSize={fs(9.5)} textAnchor="end">{tr("Ground surface (SRTM)")}</text>
+          {haloBox(tr("Ground surface (SRTM)"), W - PAD - 4, sz(elevationProfile[elevationProfile.length - 1].z) - 6, fs(9.5), "end")}<text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#55606e" fontSize={fs(9.5)} textAnchor="end">{tr("Ground surface (SRTM)")}</text>
         </g>
       )}
 

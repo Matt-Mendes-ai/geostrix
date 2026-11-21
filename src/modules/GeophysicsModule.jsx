@@ -49,6 +49,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone, planTerrainFetch, MISFIT_ZONE_M } from "../lib/srtmFetch.js"; // planTerrainFetch: #3251; MISFIT_ZONE_M: #3918 (shared with the start dialog)
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
+import { terrainColour } from "../lib/terrainColour.js"; // TASKS.csv #3947
 import { savedTerrainSource, TERRAIN_SOURCE_KEY } from "../lib/terrainSource.js"; // TASKS.csv #3882 — Copernicus GLO-30 is the default online source
 import { toLonLat, reprojectXY, crsName, pointTransform, getProj4Def, isMetricProjectedEpsg, isGeographicCrs } from "../lib/reproject.js";
 import { guessEpsgFromPrjWkt } from "../lib/reprojectMore.js"; // TASKS.csv #3590 // guessEpsgFromPrjWkt: #2901; isMetricProjectedEpsg: #2127; isGeographicCrs: #2832
@@ -2930,7 +2931,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Colour")}</span>
-              <input type="color" value={terrain.color || "#8a7f68"} onChange={(e) => updateTerrain({ color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
+              <input type="color" value={terrainColour(terrain)} onChange={(e) => updateTerrain({ color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>

@@ -6,6 +6,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { iconAction, activateOnKey } from "../../lib/a11y.js";
 import DetailTilesToggle from "./DetailTilesToggle.jsx"; // TASKS.csv #3252
 import { tiledTerrain } from "./useLodTiles.js";
+import { terrainColour, TERRAIN_GREY } from "../../lib/terrainColour.js"; // TASKS.csv #3947
 
 export default function TerrainCard({ terrain, updateTerrain, openRowMenu, zoomTo, goToModule, lodTiles = null }) { // lodTiles: #3252 (the 'Detail tiles' switch)
   return (<>
@@ -16,7 +17,8 @@ export default function TerrainCard({ terrain, updateTerrain, openRowMenu, zoomT
       <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
         {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
       </div>
-      <Mountain size={14} style={{ color: terrain.color || "var(--color-text-secondary)", flexShrink: 0 }} />
+      {/* TASKS.csv #3947 — the colour picked; the default grey as its darker line, which reads on the panel (the grey itself is 2:1 on white) */}
+      <Mountain size={14} style={{ color: terrainColour(terrain) === TERRAIN_GREY ? "var(--color-terrain-line)" : terrainColour(terrain), flexShrink: 0 }} />
       <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</span>
       <input
         type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1}

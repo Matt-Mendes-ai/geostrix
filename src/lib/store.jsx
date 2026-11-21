@@ -579,7 +579,7 @@ export function StoreProvider({ children }) {
   terrainRef.current = terrain; // TASKS.csv #1761 — read by addRaster
   const addTerrain = useCallback((t) => {
     const id = `terrain_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setTerrain({ visible: true, opacity: 1, color: "#8a7f68", ...t, id });
+    setTerrain({ visible: true, opacity: 1, ...t, id }); // TASKS.csv #3947 — no colour: drawn in the default (lib/terrainColour.js), which can follow the app
     return id;
   }, []);
   const updateTerrain = useCallback((patch) => setTerrain((p) => (p ? { ...p, ...patch } : p)), []);

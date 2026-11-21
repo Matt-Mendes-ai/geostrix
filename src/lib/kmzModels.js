@@ -9,6 +9,7 @@
 import { voxelCellShown } from "./viewer/geomath.js";
 import { rectilinearGrid, buildExposedFaces, srgbToLinear } from "./voxelFaces.js";
 import { makeVoxelColorResolverRGB } from "./layers.js";
+import { terrainColour, TERRAIN_GREY } from "./terrainColour.js"; // TASKS.csv #3947 — the 3D View's terrain colour
 
 export const MODEL_MAX_TRIANGLES = 2_000_000; // per model: above this a model is left out (and said so) rather than writing a file Google Earth chokes on
 export const TERRAIN_MAX_SIDE = 400; // the terrain is thinned to at most this many nodes a side (about 320,000 triangles)
@@ -155,7 +156,7 @@ export function terrainMesh(t, maxSide = TERRAIN_MAX_SIDE) {
     if (sw >= 0 && ne >= 0 && nw >= 0) idx.push(sw, ne, nw);
   }
   if (!idx.length) return null;
-  return { xyz: Float64Array.from(xyz), indices: Uint32Array.from(idx), color: hexColour(t.color) || "#8a7f68", alpha: fin(t.opacity) ? t.opacity : 1, doubleSided: true, thinnedBy: step };
+  return { xyz: Float64Array.from(xyz), indices: Uint32Array.from(idx), color: hexColour(terrainColour(t)) || TERRAIN_GREY, alpha: fin(t.opacity) ? t.opacity : 1, doubleSided: true, thinnedBy: step };
 }
 
 // a voxel / block model -> { parts: one per colour, cells, faces } | null. The cells the 3D View shows (voxelCellShown), coloured as it colours
