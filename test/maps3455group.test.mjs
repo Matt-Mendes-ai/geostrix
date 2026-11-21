@@ -9,7 +9,7 @@ test("a claim is listed as 'Claim:' in Maps > A layer", () => {
 test("a first-over-threshold grid with the box empty says what to type, and editing it clears the old notice", () => {
   const h = read("components/HoleValueGridPanel.jsx");
   assert.match(h, /st === "firstOver" && threshold === "" && <div role="note"/);
-  assert.match(h, /onChange=\{\(e\) => \{ setThreshold\(e\.target\.value\); setMsg\(null\); \}\}/);
+  assert.match(h, /onChange=\{\(v\) => \{ setThreshold\(v == null \? "" : String\(v\)\); setMsg\(null\); \}\}/); // #3926: NumberInput
 });
 test("the Collars panel folds, and the callouts re-measure it", () => {
   const p = read("components/MapsPlanView.jsx");
