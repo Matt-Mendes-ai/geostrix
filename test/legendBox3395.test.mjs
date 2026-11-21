@@ -57,7 +57,7 @@ test("wired: the element, its handles, the sidebar, the pre-flight", () => {
   assert.match(m, /legend: \["e", "w", "s", "se"\]/);
   assert.match(m, /widthOnly: WIDTH_ONLY\.has\(el\.type\) && !\(el\.type === "legend" && handle\.includes\("s"\)\)/);
   assert.match(m, /columnFill: boxH \? "auto" : "balance"/);
-  assert.match(m, /<div key=\{ix\[0\]\} style=\{\{ breakInside: "avoid" \}\}>/);
+  assert.match(m, /<div key=\{ix\[0\]\} style=\{\{ breakInside: "avoid"(, \.\.\.\(startsColumn\(legendItems\[ix\[0\]\]\) \? \{ breakBefore: "column" \} : \{\}\) \/\* #3959 \*\/)? \}\}>/);
   assert.match(m, /aria-label=\{tr\("Legend height \(mm\)"\)\}/);
   assert.match(m, /aria-label=\{tr\("Legend columns"\)\}/);
   assert.match(m, /perGroup: perGroup \?\? legend\.codesPerLayer \?\? \(isLegendBox\(legend\) \? "all" : 12\)/);
