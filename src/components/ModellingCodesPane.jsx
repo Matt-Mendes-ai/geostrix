@@ -294,8 +294,8 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
   };
   return (
     <div style={{ fontSize: "var(--font-size-sm)" }}>
-      {focus === "correlate" ? <div style={{ ...small, marginBottom: 8 }}>{tr("Hole-to-hole correlation: pick an interval and connect it to the same unit in the next hole, number alternating flows, or match a swarm of sheets between holes. The codes, their order and roles, and closed bodies are in Modelling codes.")}</div> /* TASKS.csv #2054 */ : (
-        <div style={{ ...small, marginBottom: 8 }}>{tr("Each logged interval has a")}{" "}<b>{tr("modelling code")}</b>{tr(": its logged code (or lithology group) unless you change it. Give alternating flows their own codes (DAC1, AND1, DAC2…) and connect them between holes. Contacts are taken where the code changes down-hole, and only below a younger stratigraphic unit — never below casing, an intrusion, a gap or at a hole start. Codes you create appear in the Implicit surface and Strat. stack pickers.")}</div>
+      {focus === "correlate" ? <div style={{ ...small, marginBottom: 8 }}>{tr("Hole-to-hole correlation: connect intervals of one unit, number alternating flows, or match sheet swarms. Codes, roles and closed bodies are in Modelling codes.")}</div> /* TASKS.csv #2054 */ : (
+        <div style={{ ...small, marginBottom: 8 }}>{tr("Each logged interval has a")}{" "}<b>{tr("modelling code")}</b>{tr(": its logged code (or lithology group) unless you change it. Give alternating flows their own codes (DAC1, AND1, DAC2…). A contact is taken where the code changes down-hole below a younger stratigraphic unit, never at a hole start or below casing, an intrusion or a gap. New codes appear in the Implicit surface and Strat. stack pickers.")}</div>
       )}
 
       <div className="ge-section-label">{tr("Pick intervals in the 3D view")}</div>
@@ -305,7 +305,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       <button onClick={() => { setPickMode(false); setConnectFrom(null); setBoxOn(!boxOn); }} aria-pressed={boxOn} style={{ ...pBtn, marginTop: 4, background: boxOn ? "var(--color-selected-bg)" : undefined }}>
         <Square size={14} /> {boxOn ? tr("Drag a box in the 3D view. Shift adds, Ctrl removes (click here to stop)") : tr("Select intervals with a box")}
       </button>
-      {boxOn && !boxRows.length && !boxResult && <div style={{ ...small, marginTop: 4 }}>{tr("Every drawn interval the box touches is selected, at any depth. Hide units in the legend first to leave them out. Right-drag still moves the view.")}</div>}
+      {boxOn && !boxRows.length && !boxResult && <div style={{ ...small, marginTop: 4 }}>{tr("Selects every drawn interval the box touches, at any depth; hide units in the legend first to leave them out. Right-drag still moves the view.")}</div>}
       {boxRows.length > 0 && (
         <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -346,7 +346,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           <b>{tr("{n} interval(s) in {holes} hole(s) are now {code}.", boxResult)}</b>
           {boxResult.total > boxResult.n && <div style={{ ...small, marginTop: 3 }}>{tr("{code} now holds {total} interval(s) in {totalHoles} hole(s) in all.", boxResult)}</div>}
-          {boxResult.repeats > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("{repeats} hole(s) have {code} in more than one separate run. A closed body treats them as one unit; an implicit surface would use the top of every run.", boxResult)}</div>}
+          {boxResult.repeats > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("{repeats} hole(s) have {code} in more than one run: a closed body treats them as one unit, an implicit surface uses the top of every run.", boxResult)}</div>}
           {onBuildBody && <button onClick={() => onBuildBody(boxResult.code)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }}><Layers3 size={14} /> {tr("Build a closed body from {code}", boxResult)}</button>}
         </div>
       )}
@@ -378,7 +378,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
             <option value="">{tr("Choose a code…")}</option>
             {codes.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
-          <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("How much of the nearby samples' weight must be inside the unit for a point to count as inside it. 0.5 stops about halfway to the nearest other interval. Lower values join separate bodies and grow the volume past what was logged.")}>{tr("Inside at")}
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("How much nearby-sample weight must be in the unit for a point to count as inside. 0.5 stops about halfway to the next interval; lower values join bodies and grow the volume past the logs.")}>{tr("Inside at")}
             <select value={unitBody.iso} onChange={(e) => setUnitBody((b) => ({ ...b, iso: Number(e.target.value) }))} style={inputStyle} aria-label={tr("Threshold of the closed body")}>
               {[0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
@@ -388,10 +388,10 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Search (m)")}<NumberInput min={0} step={50} allowEmpty value={unitBody.search || null} placeholder={tr("auto")} onChange={(n) => setUnitBody((b) => ({ ...b, search: n ?? 0 }))} style={{ ...inputStyle, width: 64 }} /></label>
           <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Cell size (m)")}<NumberInput min={0} step={5} allowEmpty value={unitBody.cell || null} placeholder={tr("auto")} onChange={(n) => setUnitBody((b) => ({ ...b, cell: n ?? 0 }))} style={{ ...inputStyle, width: 64 }} /></label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={unitBody.largest} onChange={(e) => setUnitBody((b) => ({ ...b, largest: e.target.checked }))} />{tr("Keep only the largest body")}</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Drilled metres with no rock code (and holes with no log) count as outside the unit instead of unknown: right for grade-control holes logged only where the unit is")}><input type="checkbox" checked={!!unitBody.unloggedOutside} onChange={(e) => setUnitBody((b) => ({ ...b, unloggedOutside: e.target.checked }))} />{tr("Treat unlogged metres as outside")}</label>{/* #2531 */}
+          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Drilled metres with no rock code (and unlogged holes) count as outside the unit, not unknown: for grade-control holes logged only where the unit is")}><input type="checkbox" checked={!!unitBody.unloggedOutside} onChange={(e) => setUnitBody((b) => ({ ...b, unloggedOutside: e.target.checked }))} />{tr("Treat unlogged metres as outside")}</label>{/* #2531 */}
         </div>
         {assayElements.length > 0 && ( /* TASKS.csv #2634 — where the log is blank, an assay cut-off decides (no default cut-off: the user types it) */
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }} title={tr("Where a hole has no rock code but is assayed for this element, the assay decides: at or above the cut-off is inside the unit, below it outside. The blank metres with no assay follow the box above. Leave the element empty to read the log only.")}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }} title={tr("Where the log is blank, an assay at or above the cut-off is inside the unit, below it outside; unassayed blank metres follow the box above. Leave the element empty to use the log only.")}>
             <span>{tr("Blank log read from an assay")}</span>
             <select value={unitBody.assaySymbol || ""} onChange={(e) => setUnitBody((b) => ({ ...b, assaySymbol: e.target.value }))} style={inputStyle} aria-label={tr("Element that decides where the log is blank")}>
               <option value="">{tr("none")}</option>
@@ -401,7 +401,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
               <NumberInput min={0} allowEmpty value={unitBody.assayCutoff === "" || unitBody.assayCutoff == null ? null : unitBody.assayCutoff} placeholder={tr("cut-off")} onChange={(n) => setUnitBody((b) => ({ ...b, assayCutoff: n == null ? "" : n }))} style={{ ...inputStyle, width: 70 }} aria-label={tr("Cut-off where the log is blank")} /></label>)}
           </div>
         )}
-        <div style={{ ...small, marginTop: 3 }}>{tr("Inside: the code's intervals. Outside: every other logged lithology interval (and, when ticked, the unlogged metres). It follows the geology trend in Model settings. A lower Inside at joins separate bodies; a larger search rarely does.")}</div>
+        <div style={{ ...small, marginTop: 3 }}>{tr("Inside: the code's intervals. Outside: all other logged lithology (and, if ticked, unlogged metres). Follows the geology trend in Model settings. A lower Inside at joins bodies; a larger search rarely does.")}</div>
         <button onClick={() => onBuildBody(bodyCode)} disabled={!bodyCode} style={{ ...pBtn, marginTop: 5, marginBottom: 0, opacity: bodyCode ? 1 : 0.5 }}><Layers3 size={14} /> {bodyCode ? tr("Build a closed body from {code}", { code: bodyCode }) : tr("Build a closed body")}</button>
       </>)}
 
@@ -409,10 +409,10 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Codes (youngest at the top)")}</div>
       <div style={small}>{tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")}</div>
       {codes.length > 1 && <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>{/* #2926 */}
-        <button type="button" onClick={applyHolesOrder} title={tr("Down each hole the unit that starts higher is the younger; counted over the holes that log both, pair by pair (the Strat. stack's own check).")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
+        <button type="button" onClick={applyHolesOrder} title={tr("In each hole the unit that starts higher is younger, counted pair by pair over the holes that log both (the Strat. stack's check).")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
         {holesNote && <span role="status" style={small}>{holesNote}</span>}
       </div>}
-      <div style={small}>{tr("Roles are suggested from each code's name and, when the import kept a notes column, from what its intervals say (dyke, lost core, monzonite ...). A code nothing recognises is assumed stratigraphic: check the roles before modelling.")}{" "}{tr("A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.")}</div>{/* #2046; cover: #3147 */}
+      <div style={small}>{tr("Roles are suggested from code names and, when imported, the intervals' notes (dyke, lost core, monzonite ...). An unrecognized code is assumed stratigraphic: check the roles before modelling.")}{" "}{tr("A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.")}</div>{/* #2046; cover: #3147 */}
       {codes.map((c, i) => (
         <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
           <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
@@ -428,7 +428,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       </>)}
 
       <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Auto-number alternations (optional)")}</div>
-      <div style={small}>{tr("Numbers each repeated logged unit top-down in every hole (DAC → DAC1, DAC2…) as a starting point. The numbers are per hole, so a flow that pinches out needs fixing by connecting intervals.")}</div>
+      <div style={small}>{tr("Numbers each repeated unit top-down in every hole (DAC → DAC1, DAC2…) as a start. Numbers are per hole: fix a flow that pinches out by connecting intervals.")}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
         {loggedCodes.map((c) => (
           <label key={c} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}>
@@ -450,7 +450,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       {numberMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{numberMsg}</div>}{/* #2533 */}
       {positionAt && (<>{/* TASKS.csv #2625 / #2635 — a sheet swarm: the runs matched between holes along an attitude, not counted per hole */}
         <div className="ge-section-label" style={{ marginTop: 10 }}>{tr("Correlate sheets between holes (optional)")}</div>
-        <div style={small}>{tr("For a swarm of parallel sheets (pegmatites, dykes, stacked reefs): the runs of each code ticked above are matched between holes along an attitude instead of counted per hole, and numbered from the top (P → P1, P2…), so the Vein tool can model each sheet. Sheets that split or cross need connecting by hand.")}</div>
+        <div style={small}>{tr("For parallel sheets (pegmatites, dykes, stacked reefs): runs of the codes ticked above are matched between holes along an attitude and numbered from the top (P → P1, P2…) for the Vein tool. Connect sheets that split or cross by hand.")}</div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
           <select value={sheetAtt.mode} onChange={(e) => setSheetAtt((a) => ({ ...a, mode: e.target.value }))} style={inputStyle} aria-label={tr("Attitude of the sheets")}>
             <option value="fitted">{tr("Attitude fitted to the runs")}</option>
@@ -474,7 +474,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           const r = computeSheets();
           setSheetPreview(r.preview); setSheetMsg(r.msgs.join(" "));
         }} style={{ ...pBtn, marginTop: 4, opacity: numberCodes.length ? 1 : 0.5, background: sheetPreview ? "var(--color-selected-bg)" : undefined }}
-          title={tr("Draws the runs matched into each sheet in its own colour on the holes, without writing any code: a wrong match can be seen, and the gap or the attitude changed, first.")}>{sheetPreview ? tr("Previewing the sheets in 3D (click to stop)") : tr("Preview the sheets in 3D")}</button>}{/* #2722 */}
+          title={tr("Colours each sheet's matched runs on the holes without writing codes: check the matches, and change the gap or attitude, first.")}>{sheetPreview ? tr("Previewing the sheets in 3D (click to stop)") : tr("Preview the sheets in 3D")}</button>}{/* #2722 */}
         {sheetPreview && sheetPreview.length > 0 && <div style={{ ...small, display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>{[...new Map(sheetPreview.map((q) => [`${q.code}${q.sheet}`, q])).values()].map((q) => <span key={`${q.code}${q.sheet}`} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: sheetColour(q.sheet) }} />{`${q.code}${q.sheet}`}</span>)}</div>}
         {sheetMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{sheetMsg}</div>}
       </>)}

@@ -71,7 +71,7 @@ export default function UnsampledChoice({ u, style = null, selStyle = null }) {
   const sel = selStyle || { fontSize: "var(--font-size-sm)" };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", ...(style || {}) }}>
-      <label style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }} title={tr("A geologist often leaves core unsampled because it looked barren. Read as not known, those metres are left out and the estimate carries the grade of the samples around them into that core. Holes with no sample of the element are filled only when you tick it under \"barren\".")}>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }} title={tr("Core is often left unsampled because it looked barren. Read as not known, those metres are left out and nearby grades carry into them. Holes with no sample of the element are filled only if ticked under \"barren\".")}>
         {tr("Unsampled metres inside a sampled hole")}
         <select aria-label={tr("Unsampled metres inside a sampled hole")} value={mode} onChange={(e) => set({ mode: e.target.value })} style={sel}>
           {mode === "" && <option value="">{tr("— choose —")}</option>}
@@ -81,7 +81,7 @@ export default function UnsampledChoice({ u, style = null, selStyle = null }) {
         </select>
         {mode === "barren" && <NumberInput allowEmpty min="0" aria-label={tr("Value of the unsampled metres ({unit})", { unit })} placeholder={unit} value={value} onChange={(v) => set({ value: v == null ? "" : String(v) })} style={{ ...sel, width: 80 }} />}
       </label>
-      {mode === "barren" && unassayed.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={tr("Holes with no sample of the element, to their collar length or else to their deepest logged interval: off by default, because a hole may not have been assayed for reasons other than looking barren.")}><input type="checkbox" checked={alsoUnassayed} onChange={(e) => set({ alsoUnassayed: e.target.checked })} />{tr("Also the {n} hole(s) drilled but never assayed for {symbol}, over their whole length", { n: unassayed.length, symbol })}</label>}{/* #2736 */}
+      {mode === "barren" && unassayed.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={tr("Holes with no sample of the element, to their collar length or else their deepest logged interval: off by default, since a hole may be unassayed for reasons other than looking barren.")}><input type="checkbox" checked={alsoUnassayed} onChange={(e) => set({ alsoUnassayed: e.target.checked })} />{tr("Also the {n} hole(s) drilled but never assayed for {symbol}, over their whole length", { n: unassayed.length, symbol })}</label>}{/* #2736 */}
       {mode === "log" && (<div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>{/* TASKS.csv #2721 */}
         <select aria-label={tr("Downhole log that fills the unsampled metres")} value={logKey} onChange={(e) => set({ logKey: e.target.value, factor: "" })} style={sel}>
           <option value="">{tr("— pick a log —")}</option>

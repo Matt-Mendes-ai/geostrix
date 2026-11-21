@@ -41,5 +41,5 @@ test("note rules: half of a code's noted rows decide; a passing mention does not
 
 test("the store registers them from the lithology layer, and Modelling codes says the roles are guesses", () => {
   assert.match(read("src/lib/store.jsx"), /useMemo\(\(\) => setLithologyNoteRoles\(lithologyNoteRoles\(layers\.litho\)\), \[layers\.litho\]\);/);
-  assert.match(read("src/components/ModellingCodesPane.jsx"), /A code nothing recognises is assumed stratigraphic: check the roles before modelling\./);
+  assert.match(read("src/components/ModellingCodesPane.jsx"), /An unrecognized code is assumed stratigraphic: check the roles before modelling\./ /* #3899 */);
 });
