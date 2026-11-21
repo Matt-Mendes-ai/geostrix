@@ -55,6 +55,35 @@ export function boundaryFeatures(b) {
   return { features: [{ geometry: lines[0], parts: lines, attributes }], geomType: "polyline", dxfLayerOf };
 }
 
+// TASKS.csv #3883 (#3836) — the project KMZ's placemarks for a boundary: one per feature of the file it came from (featureOf / attributes, kept since #3478),
+// each carrying that feature's own attributes (a tenure file's columns, a district's name); a claim also carries its tenure number, status, good-to date and
+// area (hectares, holes taken away, given by the caller: a projected metric CRS only). A boundary without per-feature attributes, or a contour set, is one
+// placemark as before (boundaryFeatures), with the claim's fields. -> { features: [{ parts, attributes, name }], geomType, description(f) }
+export function boundaryPlacemarkFeatures(b, { areaHa = null } = {}) {
+  const built = boundaryFeatures(b);
+  const claim = b.kind === "claim" ? { tenure_number: b.tenureNumber || "", status: b.status || "", expiry_date: b.expiryDate || "", ...(Number.isFinite(areaHa) ? { area_ha: Math.round(areaHa * 100) / 100 } : {}) } : {};
+  const keep = (a) => Object.fromEntries(Object.entries(a || {}).filter(([k, v]) => k && v != null && v !== "" && (typeof v !== "object" || v instanceof Date)).map(([k, v]) => [k, v instanceof Date ? v.toISOString().slice(0, 10) : v]));
+  const description = (f) => (b.kind === "claim"
+    ? [f.attributes.tenure_number ? `Tenure ${f.attributes.tenure_number}` : "", f.attributes.status ? `status ${f.attributes.status}` : "", f.attributes.expiry_date ? `good to ${f.attributes.expiry_date}` : "", Number.isFinite(f.attributes.area_ha) ? `${f.attributes.area_ha.toLocaleString("en-US")} ha` : ""].filter(Boolean).join(" · ")
+    : "");
+  const fo = b.featureOf, at = b.attributes, pls = b.polylines || [];
+  const perFeature = built.geomType !== "polyline" || !(b.useVertexZ || (b.contourLevels || []).length);
+  if (!perFeature || !Array.isArray(fo) || fo.length !== pls.length || !Array.isArray(at) || !at.length) {
+    return { ...built, features: built.features.map((f) => ({ ...f, name: f.attributes?.level != null ? String(f.attributes.level) : b.name || "", attributes: { ...f.attributes, ...claim } })), description };
+  }
+  const groups = new Map();
+  pls.forEach((pl, i) => {
+    const line = (pl || []).map((p) => [num(p.x), num(p.y), num(b.elevation) || 0]).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+    if (line.length < 2) return;
+    if (!groups.has(fo[i])) groups.set(fo[i], { parts: [], first: i });
+    groups.get(fo[i]).parts.push(line);
+  });
+  const features = [...groups].map(([fi, g]) => ({ geometry: g.parts[0], parts: g.parts, name: b.partNames?.[g.first] || b.name || "",
+    attributes: { ...keep(at[fi]), name: b.name || "", kind: b.kind || "boundary", ...claim } }));
+  const geomType = built.geomType === "polygon" && features.every((f) => f.parts.every((p) => p.length >= 3)) ? "polygon" : "polyline";
+  return { features, geomType, dxfLayerOf: built.dxfLayerOf, description };
+}
+
 // ---------- surface samples ----------
 // samples: store.surfaceSamples ({ sample_id, x, y, z, medium, values: { sym: value in its unit }, bdl, nd, attrs });
 // elements: store.surfaceElements ([{ symbol, unit }]); anomaly (optional): { result, drawn } from the 3D view, so each
