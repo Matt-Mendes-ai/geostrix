@@ -5,6 +5,7 @@ import { minMax, classifyBreaks, paletteColorsHex, PALETTES, paletteShortName /*
 import StopValueInput from "./StopValueInput.jsx"; // TASKS.csv #1422
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 
 // TASKS.csv #237 sub-item (3) — graduated/classed symbology editor for the numeric layers. Rendered
@@ -46,8 +47,7 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 5 }}>{tr("Symbology — {values} {v}{v2}", { values: values.length.toLocaleString(), v: tr(values.length === 1 ? "value" : "values"), v2: values.length > 0 && ` (${min.toLocaleString(undefined, { maximumFractionDigits: 2 })} – ${max.toLocaleString(undefined, { maximumFractionDigits: 2 })})` })}
       </div>
       <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 5, flexWrap: "wrap" }}>
-        <input type="number" min="2" max="12" value={classCount} onChange={(e) => setClassCount(Math.max(2, Math.min(12, Number(e.target.value) || 5)))}
-          title={tr("Number of classes")} style={{ width: 40, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} />
+        <NumberInput min="2" max="12" value={classCount} onChange={(v) => setClassCount(Math.max(2, Math.min(12, v ?? 5)))} title={tr("Number of classes")} style={{ width: 40, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} />
         <select value={method} onChange={(e) => setMethod(e.target.value)} title={tr("How the class breaks are computed")}
           style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
           <option value="equal">{tr("Linear (equal interval)")}</option>
