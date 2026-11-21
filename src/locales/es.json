@@ -14655,5 +14655,6 @@
   "{label} cancelled: another project was opened in its tab.": "{label} cancelado: se abrió otro proyecto en su pestaña.",
   "{label} cancelled: its project was closed.": "{label} cancelado: su proyecto se cerró.",
   "{label} was not added: its project is no longer open.": "{label} no se agregó: su proyecto ya no está abierto.",
-  "This estimate was made in another project. Show that project to add it, or run it again here.": "Esta estimación se hizo en otro proyecto. Muestra ese proyecto para agregarla, o vuelve a ejecutarla aquí."
+  "This estimate was made in another project. Show that project to add it, or run it again here.": "Esta estimación se hizo en otro proyecto. Muestra ese proyecto para agregarla, o vuelve a ejecutarla aquí.",
+  "White (default)": "Blanco (predeterminado)"
 }

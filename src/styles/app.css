@@ -14,6 +14,9 @@
   --color-bg-subtle: #f4f5f7;
   --color-bg-subtlest: #fafbfc;
   --color-bg-inset: #fbfbfc;
+  /* TASKS.csv #3966 — Matt: "the default background in all viewports to be white. Also layout paper has to be white." */
+  --color-view-bg: #ffffff;
+  --color-paper: #ffffff;
   --color-border: #d9dce1;
   --color-border-light: #c7ccd3;
   --color-divider: #dde1e6;
@@ -411,7 +414,7 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
 }
 /* TASKS.csv #908 — the print root exists only while exporting and is never shown on screen */
 .ge-print-root { display: none; }
-.ge-print-page { position: relative; overflow: hidden; background: #fff; break-after: page; page-break-after: always; break-inside: avoid; }
+.ge-print-page { position: relative; overflow: hidden; background: var(--color-paper); /* #3966 */ break-after: page; page-break-after: always; break-inside: avoid; }
 .ge-print-page:last-child { break-after: auto; page-break-after: auto; }
 
 /* Cross-section pop-out's own "Export PDF" button (TASKS.csv #14) reuses the same generic

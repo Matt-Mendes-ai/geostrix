@@ -14655,5 +14655,6 @@
   "{label} cancelled: another project was opened in its tab.": "أُلغي {label}: فُتح مشروع آخر في علامة تبويبه.",
   "{label} cancelled: its project was closed.": "أُلغي {label}: أُغلق مشروعه.",
   "{label} was not added: its project is no longer open.": "لم يُضف {label}: مشروعه لم يعد مفتوحًا.",
-  "This estimate was made in another project. Show that project to add it, or run it again here.": "أُجري هذا التقدير في مشروع آخر. اعرض ذلك المشروع لإضافته، أو شغّله مرة أخرى هنا."
+  "This estimate was made in another project. Show that project to add it, or run it again here.": "أُجري هذا التقدير في مشروع آخر. اعرض ذلك المشروع لإضافته، أو شغّله مرة أخرى هنا.",
+  "White (default)": "أبيض (الافتراضي)"
 }

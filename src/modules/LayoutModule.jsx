@@ -2155,7 +2155,7 @@ export default function LayoutModule() {
             ref={pageRef}
             className="ge-layout-page"
             style={{
-              width: A4.w, height: A4.h, background: "#fbfbf8", position: "relative", boxShadow: "0 4px 30px rgba(0,0,0,0.5)",
+              width: A4.w, height: A4.h, background: "var(--color-paper)" /* #3966: white, as printed (was #fbfbf8) */, position: "relative", boxShadow: "0 4px 30px rgba(0,0,0,0.5)",
               cursor: freehandTool ? "crosshair" : "default",
               outline: dragOverPage ? "2px dashed var(--color-info)" : "none", outlineOffset: 2,
               backgroundImage: showGrid
@@ -2950,7 +2950,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       <div style={wrap} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <svg width={px + 4} height={el.viewPlane || el.horizontalVe > 1 ? 44 : 34} style={{ overflow: "visible" }}>
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
-          <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
+          <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill={colors.paper} /* #3966 */ stroke="#1a2028" />
           <rect x="2" y="4" width={px} height="10" fill="none" stroke="#1a2028" />
           <text x="2" y="28" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily={FONT}>0</text>
           <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily={FONT}>{scaleBarLabel(el.meters || 100) /* #2140 — '5 km', not '5000 m' */}</text>

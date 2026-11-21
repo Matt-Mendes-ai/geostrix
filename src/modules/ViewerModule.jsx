@@ -58,6 +58,7 @@ import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS
 import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
 import { TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
 const ModeRibbons = lazyPart(() => import("./viewer/ModeRibbons.jsx")); // TASKS.csv #3904; #3961: Modelling / Mine design / Targeting only, loaded after the first frame
+const BackgroundColourBox = lazyPart(() => import("./viewer/BackgroundColourBox.jsx")); // TASKS.csv #3966 — Edit > Background colour...
 import { Rows3, Crosshair, Target, SquareSplitVertical } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #3186
@@ -111,7 +112,7 @@ const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.j
 const SolidToolsModal = React.lazy(() => import("../components/SolidToolsModal.jsx")); // TASKS.csv #1950 / #1951 — clip a solid by a surface, combine two solids
 const TrendsPanel = React.lazy(() => import("../components/TrendsPanel.jsx")); // TASKS.csv #650
 import { cleanTrend, trendBasis, trendScales, describeTrend, trendRatioText } from "../lib/trend.js"; // TASKS.csv #650; trendRatioText: #2423
-import { colors } from "../lib/theme.js"; // TASKS.csv #700 — the trend preview's UI colours
+import { colors, viewBgOf } from "../lib/theme.js"; // TASKS.csv #700 — the trend preview's UI colours; viewBgOf: #3966
 import { mergeSurfaceStyle, applySurfaceStyle, surfaceBaseLook } from "../lib/surfaceStyle.js"; // TASKS.csv #636
 const PredictivePanel = React.lazy(() => import("../components/PredictivePanel.jsx")); // TASKS.csv #638
 const BoundaryInterceptsModal = lazyModal(() => import("../components/BoundaryInterceptsModal.jsx"));  // TASKS.csv #301
@@ -372,7 +373,7 @@ const DEFAULT_FIGURE_OVERLAY = { enabled: true, title: true, legend: true, scale
 // referenced because a three.js scene background is a JS colour value, not CSS — see theme.js's
 // CSS-vs-JS boundary header. Same "default only" caveat as DEFAULT_GRID above (bgColor is persisted
 // per project and has its own picker in the viewport right-click menu).
-const DEFAULT_BG_COLOR = "#f4f5f7";
+const DEFAULT_BG_COLOR = colors.viewBg; // TASKS.csv #3966: white (was #f4f5f7; the view keeps an edge with a thin outline instead)
 // collarColorFor (#378), voxelFitCorners (#1569) and isIntervalRow (#684): viewer/drillholeScene.js (TASKS.csv #2176)
 // Multi-element assay display — a fixed, distinct-hue-per-slot palette (not a value-driven gradient
 // like magColor) so simultaneously-shown elements stay visually distinguishable from each other; each
@@ -1576,7 +1577,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     setAssayStyle(s.assayStyle || {});
     setAssaySource(s.assaySource || "lab"); // #1695
     setGridConfig({ ...DEFAULT_GRID, ...(s.gridConfig || {}) });
-    setBgColor(s.bgColor || DEFAULT_BG_COLOR);
+    setBgColor(viewBgOf(s.bgColor)); // #3966: the old grey default reads as not picked
     setHoleLabelMode(s.holeLabelMode || "none");
     // TASKS.csv #311 — spread over the defaults (not replaced by them) so a project saved before this
     // row existed opens with the overlay on, same as a new one, rather than silently missing it.
@@ -2592,7 +2593,7 @@ ${describeTrend(t)}` };
       assayStyle: s?.assayStyle || {},
       assaySource: s?.assaySource || "lab", // #1695
       gridConfig: { ...DEFAULT_GRID, ...(s?.gridConfig || {}) },
-      bgColor: s?.bgColor || DEFAULT_BG_COLOR, holeLabelMode: s?.holeLabelMode || "none", figureOverlay: { ...DEFAULT_FIGURE_OVERLAY, ...(s?.figureOverlay || {}) }, layerStyles: s?.layerStyles || {}, // #1288
+      bgColor: viewBgOf(s?.bgColor) /* #3966 */, holeLabelMode: s?.holeLabelMode || "none", figureOverlay: { ...DEFAULT_FIGURE_OVERLAY, ...(s?.figureOverlay || {}) }, layerStyles: s?.layerStyles || {}, // #1288
       // #52 (b) — read from the live scene, not from viewerUiState (surfaces aren't mirrored there), so
       // a Layout-viewport render that applies a theme hiding a surface puts it back afterwards.
       ...surfaceVisibilityBundle(),
@@ -2627,7 +2628,7 @@ ${describeTrend(t)}` };
     setAssaySource(theme.assaySource || "lab"); // #1695
     setGridConfig({ ...DEFAULT_GRID, ...(theme.gridConfig || {}) });
     // TASKS.csv #1288 — a theme saved before these existed leaves them as they are. layerStyles rebuilds every drillhole, so an equal value keeps its identity.
-    if (theme.bgColor) setBgColor(theme.bgColor);
+    if (theme.bgColor) setBgColor(viewBgOf(theme.bgColor)); // #3966
     if (theme.holeLabelMode) setHoleLabelMode(theme.holeLabelMode);
     if (theme.figureOverlay) setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY, ...theme.figureOverlay });
     if (theme.layerStyles) setLayerStyles((p) => (JSON.stringify(p) === JSON.stringify(theme.layerStyles) ? p : theme.layerStyles));
@@ -7328,7 +7329,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
       <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); if (!pickHoleMode) identify.handleViewClick(e) /* TASKS.csv #3824 (8) — Pick on view on a drilled trace also fired Identify, whose callout stayed on the view */; }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
-        <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+        <div ref={mountRef} style={{ width: "100%", height: "100%", outline: "1px solid var(--color-border)", outlineOffset: -1 /* #3966 — a white view keeps its edge */ }} />
+        <BackgroundColourBox visible={visible} bgColor={bgColor} setBgColor={setBgColor} />{/* #3966 — Edit > Background colour... */}
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is
             never covered by a title card describing an empty project. Pointer-transparent throughout

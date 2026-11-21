@@ -4,7 +4,7 @@
 // layers, boundaries, collars and surface samples; wheel to zoom, drag to pan, Fit, the cursor's E / N and a scale bar. Pictures are
 // decoded once and map layers drawn once per style into a cached bitmap, so a pan redraws bitmaps; the 3D scene is not touched.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { fontSizes, uiFontPx } from "../lib/theme.js"; // TASKS.csv #3900 T2
+import { fontSizes, uiFontPx, colors } from "../lib/theme.js"; // TASKS.csv #3900 T2; colors: #3966
 import { useTextSize } from "../lib/useTextSize.js";
 import { useKept, planScope } from "../lib/planKept.js"; // TASKS.csv #3604
 import { useHoleVisibility, hiddenIn, checkedOnly } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3605
@@ -242,14 +242,14 @@ export default function MapsPlanView() {
     if (drag.current && snap && snap.mPerPx === v.mPerPx && snap.w === cv.width && snap.h === cv.height) {
       const c2 = cv.getContext("2d");
       c2.setTransform(1, 0, 0, 1, 0, 0);
-      c2.fillStyle = "#f4f5f2"; c2.fillRect(0, 0, cv.width, cv.height);
+      c2.fillStyle = colors.viewBg; c2.fillRect(0, 0, cv.width, cv.height); // #3966: white (was #f4f5f2)
       c2.drawImage(snap.canvas, Math.round(((snap.cx - v.cx) / v.mPerPx) * dpr), Math.round(((v.cy - snap.cy) / v.mPerPx) * dpr));
       return;
     }
     cv.width = Math.round(size.w * dpr); cv.height = Math.round(size.h * dpr);
     const ctx = cv.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "#f4f5f2"; ctx.fillRect(0, 0, size.w, size.h);
+    ctx.fillStyle = colors.viewBg; ctx.fillRect(0, 0, size.w, size.h); // #3966: white (was #f4f5f2)
     const left = v.cx - (size.w / 2) * v.mPerPx, top = v.cy + (size.h / 2) * v.mPerPx;
     const X = (x) => (x - left) / v.mPerPx, Y = (y) => (top - y) / v.mPerPx;
     const drawAt = (img, b, alpha = 1) => { if (!img) return; ctx.globalAlpha = alpha; ctx.drawImage(img, X(b[0]), Y(b[3]), (b[2] - b[0]) / v.mPerPx, (b[3] - b[1]) / v.mPerPx); ctx.globalAlpha = 1; };
