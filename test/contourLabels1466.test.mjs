@@ -70,7 +70,7 @@ test("syncBoundaries draws in-between contours faint and labels the index ones, 
   const viewer = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(viewer, /filter\(\(c\) => !c\.userData\?\.contourLabels\)/);
   assert.match(viewer, /fitContourLabels\(boundaryGroupRef\.current, camera/);
-  assert.match(viewer, /fitContourLabels\(boundaryGroupRef\.current, renderCamera, outW, outH, false\)/);
+  assert.match(viewer, /fitContourLabels\(boundaryGroupRef\.current, renderCamera, outW, outH, false(, LABEL_PX)?\)/);
 });
 
 test("terrain contours keep their interval; the boundary row has the toggle", () => {
