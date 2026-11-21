@@ -17,5 +17,5 @@ test("true / magnetic north and another CRS's grid are left as they are while th
 
 test("the Grid-of default and the local-grid help say the CRS is not chosen yet", () => {
   assert.ok(modal.includes('defaultText={crsUnset ? tr("The project CRS — not chosen yet")'));
-  assert.ok(modal.includes("(crsUnset ? tr(\"— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in the project CRS, which isn't chosen yet"));
+  assert.ok(modal.includes("(crsUnset ? tr(\"— choose the project CRS first (status bar): each point is one place on both grids")); // #3899: the action first
 });

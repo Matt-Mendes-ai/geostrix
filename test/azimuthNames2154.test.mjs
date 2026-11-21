@@ -41,5 +41,5 @@ test("#2154 / #2187 wiring", () => {
   assert.match(p, /const up = rows\.filter\(\(r\) => r\.dip < 0\)/);
   assert.match(p, /hole\(s\) still have no survey/);
   assert.match(p, /target === "survey" \? surveyMethodFields\(headers, data\)/);
-  assert.match(read("src/components/ImportMappingModal.jsx"), /This file has more than one azimuth column/);
+  assert.match(read("src/components/ImportMappingModal.jsx"), /is read of the azimuth columns \{list\}/); // #3899: shorter wording, the same point
 });

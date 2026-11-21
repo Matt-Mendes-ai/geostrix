@@ -42,5 +42,5 @@ test("wiring: the import converts through the tie, an untied grid says so, the n
   assert.match(u, /res\.crsUnset \? tr\(ref === "true" \? "true north, left as in the file"/);
   const m = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   assert.match(m, /crsUnset && \(modal\.azimuthRef === "true" \|\| modal\.azimuthRef === "magnetic"\)/);
-  assert.match(m, /This project is on a local grid with no tie to a coordinate system, so its north is not known/);
+  assert.match(m, /Tie the local grid first \(Maps > Coordinates\): its north is not known/); // #3899: the action first
 });
