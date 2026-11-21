@@ -4,7 +4,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { widthChoices, widthScale, widthLegendGroup, WIDTH_MIN, WIDTH_MAX, CODE_PREFIX } from "../src/lib/widthBy.js";
+import { widthScale, widthLegendGroup, WIDTH_MIN, WIDTH_MAX, CODE_PREFIX } from "../src/lib/widthBy.js";
+import { widthChoices } from "../src/lib/totalSulphides.js";
 import { withTotalSulphides, TOTAL_SULPHIDES_FIELD } from "../src/lib/totalSulphides.js";
 import { cleanLayerStyle } from "../src/lib/layerStyle.js";
 import { tubeFactor, tubeVertex, setTubeBaseRadius, tubeUniformsFor } from "../src/lib/viewer/tubeShader.js";

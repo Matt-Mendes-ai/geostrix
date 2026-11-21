@@ -2,7 +2,7 @@
 // every hole's trace, collar marker, interval tubes, point markers, structure discs and custom-layer rows, the camera anchor of a
 // project with no holes, the layer batches and the passes that follow a rebuild. ViewerModule's effect calls buildDrillholeScene with
 // the values and refs the body used to close over, on the same dependency list. The comments below are the effect's own.
-import { fieldStyler } from "../../lib/totalSulphides.js"; // TASKS.csv #3941
+import { fieldStyler } from "../../lib/mineralFields.js"; // TASKS.csv #3941
 import { widthScale } from "../../lib/widthBy.js"; // TASKS.csv #3942
 import { setTubeBaseRadius } from "../../lib/viewer/tubeShader.js"; // TASKS.csv #3942
 import { unsurveyedSpans } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5); #3761: every stretch with no survey station, not only the tail

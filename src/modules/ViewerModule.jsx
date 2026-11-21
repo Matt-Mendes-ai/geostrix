@@ -250,6 +250,9 @@ const isImportedSurface = (s) => s?.type === "imported", surfaceHex = (m) => (m?
 import { sectionTopView, viewCentreEN } from "./viewer/sectionView.js"; // TASKS.csv #3574
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
+import { useTraceBars } from "../lib/viewer/useTraceBars.js"; // TASKS.csv #3943
+import AssayBarsToggle from "../components/AssayBarsToggle.jsx"; // TASKS.csv #3943
+import { mineralBarColour } from "../lib/traceBarsData.js"; // TASKS.csv #3943
 import { isAreaBoundary } from "../lib/areaBoundary.js"; // TASKS.csv #1466; #3159: not boundaryImport.js (the vector / CRS import code)
 import { loadGpkg, groupShapefileParts, codeList } from "../lib/viewer/importHelpersCore.js"; // TASKS.csv #445 step 3; groupShapefileParts #600; codeList #1650
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
@@ -1655,7 +1658,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const groups = [
       // TASKS.csv #3296 — the codes in one order with the inspector: the project's set order (#3130) first, then by count (the figure's cut keeps the commonest)
       ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, styles: layerStyles, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
-      ...assayLegendGroups({ withNote: true /* #3588 (2) */, assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
+      ...assayLegendGroups({ withNote: true /* #3588 (2) */, bars: !!layerStyles.assay?.bars /* #3943 */, assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
       ...importedSurfaceLegendGroups(implicitSurfaces, (id) => surfaceHex(implicitMeshesRef.current[id])), // #3762
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }), // #1398 — the RQD / recovery / SG / mag susc ramps
@@ -4154,14 +4157,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // after the big effect already built with the same inputs).
   const sameInputs = (a, b) => !!a && a.length === b.length && a.every((v, i) => v === b[i]);
   const clearGroup = (g) => { if (!g) return; while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); } };
-  const assayInputs = [assays, assayDisplayElements, assayStyle, assayElements, assayVisible, collars, assaySource]; // assaySource: #1695
+  const assayInputs = [assays, assayDisplayElements, assayStyle, assayElements, assayVisible, collars, assaySource, layerStyles.assay]; // assaySource: #1695; layerStyles.assay: #3943 bars
+  useTraceBars({ groupsRef: layerGroupsRef, tracesRef, tracesSeq, mnlgy: layers.mnlgy, mnlgyStyle: layerStyles.mnlgy, mnlgyOn: layerVisible.mnlgy, mnlgyColour: (id, i) => mineralBarColour(id, i, (v) => effectiveColor("mnlgy", v)), assays, assaySyms: assayDisplayElements, assayStyle: layerStyles.assay, assayOn: assayVisible, assayShown: (a) => !isMarkedQcRow(a) && assayRowShown(a), assayElements }); // TASKS.csv #3943
   const assayBuiltRef = useRef(null);
   const assayKeptRef = useRef(new Map()); // #3117 — each element's markers, kept while its inputs are the same
   const buildAssaySpheres = () => {
     const g = layerGroupsRef.current.assay;
     if (!g) return;
     assayBuiltRef.current = assayInputs;
-    if (!assayVisible || !assayDisplayElements.length || !collars.length) { clearGroup(g); assayKeptRef.current.clear(); return; }
+    if (!assayVisible || !assayDisplayElements.length || !collars.length || layerStyles.assay?.bars /* #3943 */) { clearGroup(g); assayKeptRef.current.clear(); return; }
     const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
     let byHole = null; // #3117 — only when an element is built
     const holesOf = () => { if (!byHole) { byHole = new Map(); assays.forEach((a) => { if (!a.hole_id || isMarkedQcRow(a) || !assayRowShown(a)) return; let arr = byHole.get(a.hole_id); if (!arr) byHole.set(a.hole_id, (arr = [])); arr.push(a); }); } return byHole; }; // #601 — a standard's grade is not the rock's; assayRowShown: #1695
@@ -6459,6 +6463,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {assayElements.length > 0 && (
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Assays")}</div>
+            <AssayBarsToggle style={layerStyles.assay} onStyle={(p) => setLayerStyle("assay", "point", p)} count={assayDisplayElements.length} />{/* TASKS.csv #3943 */}
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px 4px" }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? tr("Hide all assay elements") : tr("Show assay elements")} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
               <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
