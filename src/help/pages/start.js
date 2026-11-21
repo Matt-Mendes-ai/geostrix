@@ -23,8 +23,8 @@ export default [
     fields: [
       { name: "? in a tool's header", what: "Opens that tool's page beside it." },
       { name: "Help > GeoStrix Help (F1)", what: "Opens the list of pages, grouped by tab." },
-      { name: "Search", what: "Finds the pages that hold every word you type, best first.", choose: "Type the word as it reads on screen." },
-      { name: "Basic tools / All tools (top right of the ribbon)", what: "Basic tools shows the everyday tools; All tools shows every one.", choose: "If a page names a tool you cannot see, switch to All tools." },
+      { name: "Search", what: "Finds the pages that hold every word you type, best first.", more: "How to choose: Type the word as it reads on screen." },
+      { name: "Basic tools / All tools (top right of the ribbon)", what: "Basic tools shows the everyday tools; All tools shows every one.", more: "How to choose: If a page names a tool you cannot see, switch to All tools." },
     ],
     warnings: [],
     howto: {
