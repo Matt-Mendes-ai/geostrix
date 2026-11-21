@@ -60,3 +60,16 @@ test("blank keeps its meaning only where a pane gives it one; elsewhere an empti
   // a typed fixed plot scale still rescales the viewport when it is committed (#1007)
   assert.match(L, /onChange=\{\(v\) => \{ const n = v \|\| 0; if \(n > 0 && sel\.capturedFixedScale !== n\) onRescale\(n\);/);
 });
+
+test("a full-row box (style width 100%) fills its row again: the wrapper becomes a full-width block; any other box stays inline; wrapStyle still wins", () => {
+  const n = rd("components/NumberInput.jsx");
+  assert.match(n, /const fullRow = style\?\.width === "100%";/);
+  // the wrapper's style as NumberInput builds it, evaluated for the three cases
+  const expr = n.match(/<span style=\{(\{ display: fullRow[^\n]*?\})\}>/)[1];
+  const wrap = (style, wrapStyle = null) => new Function("style", "wrapStyle", `const fullRow = style?.width === "100%"; return (${expr});`)(style, wrapStyle);
+  assert.deepEqual(wrap({ width: "100%" }), { display: "flex", flexDirection: "column", gap: 2, width: "100%" });
+  assert.deepEqual(wrap({ width: 46 }), { display: "inline-flex", flexDirection: "column", gap: 2 });
+  assert.deepEqual(wrap({ width: "100%" }, { flex: 1, width: "auto" }), { display: "flex", flexDirection: "column", gap: 2, width: "auto", flex: 1 });
+  // Layout's full-row boxes use that style
+  assert.match(rd("modules/LayoutModule.jsx"), /^const inp = \{ width: "100%",/m);
+});

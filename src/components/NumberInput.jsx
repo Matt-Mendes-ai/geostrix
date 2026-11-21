@@ -18,8 +18,11 @@ export default function NumberInput({ value, onChange, min = null, max = null, s
     setError(null); setText(decimalText(r.value)); onChange?.(r.value);
   };
   const nudge = (dir) => { const r = parseDecimal(text), base = r.ok && !r.empty ? r.value : Number(value) || 0, s = step || 1, v = +(base + dir * s).toPrecision(12); commit(String(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, v)))); };
+  // #3926 G6 — a box styled width: 100% (Layout's and the dialogs' full-row boxes) took its own line at full width; inside an inline wrapper it shrank
+  // beside its label, so the wrapper fills the row then. wrapStyle still has the last word.
+  const fullRow = style?.width === "100%";
   return (
-    <span style={{ display: "inline-flex", flexDirection: "column", gap: 2, ...(wrapStyle || {}) }}>
+    <span style={{ display: fullRow ? "flex" : "inline-flex", flexDirection: "column", gap: 2, ...(fullRow ? { width: "100%" } : {}), ...(wrapStyle || {}) }}>
       <input id={id} type="text" inputMode="decimal" value={text} placeholder={placeholder} disabled={disabled} title={title} aria-label={ariaLabel} aria-invalid={error ? true : undefined}
         onChange={(e) => { editing.current = true; setText(e.target.value); if (error) setError(null); }} onBlur={(e) => commit(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(e.currentTarget.value); } else if (e.key === "ArrowUp") { e.preventDefault(); nudge(1); } else if (e.key === "ArrowDown") { e.preventDefault(); nudge(-1); } }}
