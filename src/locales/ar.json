@@ -14561,5 +14561,8 @@
   "The green tabs hold everyday work: StrixViewer, Maps and Layout. The blue tabs hold the specialist tools, such as geophysics and modelling. All tools shows them when you need them.": "التبويبات الخضراء للعمل اليومي: StrixViewer والخرائط والتخطيط. والزرقاء للأدوات المتخصصة، كالجيوفيزياء والنمذجة. يُظهرها «كل الأدوات» عند الحاجة.",
   "Make a sheet": "اصنع ورقة",
   "A Layout page: a view, the legend, north arrow and scale bar beside it, the title block along the foot.": "صفحة تخطيط: عرض، وبجانبه وسيلة الإيضاح وسهم الشمال وشريط المقياس، وجدول العنوان في الأسفل.",
-  "Layout puts a view, its legend, a north arrow and a scale bar on a page with a title block. The Sheets group lays one out in a click; export it as a PDF.": "يضع التخطيط عرضاً ووسيلة إيضاحه وسهم شمال وشريط مقياس على صفحة بجدول عنوان. تُعدّ مجموعة «اللوحات» واحدة بنقرة؛ صدّرها بصيغة PDF."
+  "Layout puts a view, its legend, a north arrow and a scale bar on a page with a title block. The Sheets group lays one out in a click; export it as a PDF.": "يضع التخطيط عرضاً ووسيلة إيضاحه وسهم شمال وشريط مقياس على صفحة بجدول عنوان. تُعدّ مجموعة «اللوحات» واحدة بنقرة؛ صدّرها بصيغة PDF.",
+  "around grades": "حول المحتويات",
+  "on contacts": "على التماسات",
+  "per block": "لكل كتلة"
 }

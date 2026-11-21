@@ -14561,5 +14561,8 @@
   "The green tabs hold everyday work: StrixViewer, Maps and Layout. The blue tabs hold the specialist tools, such as geophysics and modelling. All tools shows them when you need them.": "As abas verdes têm o trabalho do dia a dia: StrixViewer, Mapas e Prancha. As azuis têm as ferramentas especializadas, como geofísica e modelagem. Todas as ferramentas as mostra quando precisar.",
   "Make a sheet": "Fazer uma prancha",
   "A Layout page: a view, the legend, north arrow and scale bar beside it, the title block along the foot.": "Uma prancha: uma vista, com a legenda, a seta norte e a barra de escala ao lado, e o carimbo embaixo.",
-  "Layout puts a view, its legend, a north arrow and a scale bar on a page with a title block. The Sheets group lays one out in a click; export it as a PDF.": "Prancha põe uma vista, sua legenda, uma seta norte e uma barra de escala numa página com carimbo. O grupo Folhas monta uma num clique; exporte-a como PDF."
+  "Layout puts a view, its legend, a north arrow and a scale bar on a page with a title block. The Sheets group lays one out in a click; export it as a PDF.": "Prancha põe uma vista, sua legenda, uma seta norte e uma barra de escala numa página com carimbo. O grupo Folhas monta uma num clique; exporte-a como PDF.",
+  "around grades": "em volta dos teores",
+  "on contacts": "nos contatos",
+  "per block": "por bloco"
 }

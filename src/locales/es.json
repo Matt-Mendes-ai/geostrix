@@ -14561,5 +14561,8 @@
   "The green tabs hold everyday work: StrixViewer, Maps and Layout. The blue tabs hold the specialist tools, such as geophysics and modelling. All tools shows them when you need them.": "Las pestañas verdes tienen el trabajo diario: StrixViewer, Mapas y Lámina. Las azules tienen las herramientas especializadas, como geofísica y modelado. Todas las herramientas las muestra cuando las necesite.",
   "Make a sheet": "Hacer una lámina",
   "A Layout page: a view, the legend, north arrow and scale bar beside it, the title block along the foot.": "Una lámina: una vista, con la leyenda, la flecha norte y la barra de escala al lado, y el cajetín abajo.",
-  "Layout puts a view, its legend, a north arrow and a scale bar on a page with a title block. The Sheets group lays one out in a click; export it as a PDF.": "Lámina pone una vista, su leyenda, una flecha norte y una barra de escala en una página con cajetín. El grupo Hojas compone una con un clic; expórtela como PDF."
+  "Layout puts a view, its legend, a north arrow and a scale bar on a page with a title block. The Sheets group lays one out in a click; export it as a PDF.": "Lámina pone una vista, su leyenda, una flecha norte y una barra de escala en una página con cajetín. El grupo Hojas compone una con un clic; expórtela como PDF.",
+  "around grades": "alrededor de las leyes",
+  "on contacts": "en los contactos",
+  "per block": "por bloque"
 }

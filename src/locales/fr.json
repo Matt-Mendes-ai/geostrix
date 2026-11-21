@@ -14561,5 +14561,8 @@
   "The green tabs hold everyday work: StrixViewer, Maps and Layout. The blue tabs hold the specialist tools, such as geophysics and modelling. All tools shows them when you need them.": "Les onglets verts portent le travail courant : StrixViewer, Cartes et Mise en page. Les bleus portent les outils spécialisés, comme la géophysique et la modélisation. Tous les outils les affiche au besoin.",
   "Make a sheet": "Faire une feuille",
   "A Layout page: a view, the legend, north arrow and scale bar beside it, the title block along the foot.": "Une page de mise en page : une vue, la légende, la flèche du nord et la barre d'échelle à côté, le cartouche en bas.",
-  "Layout puts a view, its legend, a north arrow and a scale bar on a page with a title block. The Sheets group lays one out in a click; export it as a PDF.": "Mise en page place une vue, sa légende, une flèche du nord et une barre d'échelle sur une page avec cartouche. Le groupe Planches en compose une en un clic ; exportez-la en PDF."
+  "Layout puts a view, its legend, a north arrow and a scale bar on a page with a title block. The Sheets group lays one out in a click; export it as a PDF.": "Mise en page place une vue, sa légende, une flèche du nord et une barre d'échelle sur une page avec cartouche. Le groupe Planches en compose une en un clic ; exportez-la en PDF.",
+  "around grades": "autour des teneurs",
+  "on contacts": "sur les contacts",
+  "per block": "par bloc"
 }
