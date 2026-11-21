@@ -6575,6 +6575,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: im.visible === false ? "Show" : "Hide", onClick: () => updateSectionImage(im.id, { visible: im.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(sectionImageMeshesRef.current[im.id]) },
             { label: tr("Match to terrain…"), onClick: () => setSectionVerticalId(im.id) }, // TASKS.csv #3880
+            { label: tr("Move to another line…"), onClick: () => setSectionGeorefOpen({ moveId: im.id }) }, // TASKS.csv #3924
             { label: tr("Opaque"), onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
             { label: tr("Half transparent"), onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
             "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
@@ -7670,7 +7671,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} onZoomHole={(id) => { zoomToHole(id); setQcModalOpen(false); } /* TASKS.csv #3569 */} />}
       {sectionGeorefOpen && (
         <Suspense fallback={null}>
-          <SectionGeorefModal sections={sections} rlOffset={rlOffsetOf(project)} onClose={() => setSectionGeorefOpen(false)}
+          <SectionGeorefModal sections={sections} rlOffset={rlOffsetOf(project)} onClose={() => setSectionGeorefOpen(false)} collars={collars} images={sectionImages} /* #3924 */
+            moveImage={sectionImages.find((i) => i.id === sectionGeorefOpen?.moveId) || null} onMove={(patch) => { const im = sectionImages.find((i) => i.id === sectionGeorefOpen.moveId); updateSectionImage(sectionGeorefOpen.moveId, patch); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: moved to its new section line.", { name: im?.name || "" })]); }}
             onImport={(img) => { addSectionImage(img); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: placed in 3D on its section line{v} — listed under Section images.", { name: img.name, v: img.rmse != null ? tr(" (fit error {rmse} m)", { rmse: img.rmse.toFixed(1) }) : "" })]); }} />
         </Suspense>
       )}
