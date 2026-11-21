@@ -1,4 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
+import { useLatestCallback } from "../lib/useLatestCallback.js"; // TASKS.csv #3931
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3286 (3)
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { exportCrs, terrainToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #2322 — a tied local grid's exports through its tie
@@ -2131,7 +2132,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
 
   // TASKS.csv #2848 (GSC review B15) — files dropped on this tab: on its sidebar, and (since #2848) on the 3D viewport it shows beside the sidebar
   // once data is loaded (ViewerModule, bare, forwards its drops as 'geophysics-drop'), where a drop did nothing and said nothing
-  const dropFiles = async (files) => { // async: #1994 reads the first bytes of a .las (the files are taken before the first await)
+  // TASKS.csv #3931 — a drop while a project is coming forward (a tab switch expanding its tables) waits for it, then goes into that project (dropFilesNow: the latest render's)
+  const { projectLoading: geoLoading, whenProjectLoaded: geoWhenLoaded } = useStore();
+  const dropFiles = async (files) => { if (geoLoading && geoWhenLoaded) await geoWhenLoaded(); return dropFilesNow(files); };
+  const dropFilesNow = useLatestCallback(async (files) => { // async: #1994 reads the first bytes of a .las (the files are taken before the first await)
         // Bug-hunt pass: this used to pick only the FIRST csv and FIRST tif via .find(), silently
         // dropping every other file in a multi-file drag (e.g. several GeoTIFFs at once) with no
         // notice — process every matching file instead. Only one terrain is supported at a time (see
@@ -2191,7 +2195,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           importXYZFile(xyzs[0]);
           if (xyzs.length > 1) setXyzError({ info: true, text: tr("Opened the column picker for \"{name}\". Import it, then drop the other {v} file(s) one at a time — .xyz files need their columns picked individually.", { name: xyzs[0].name, v: xyzs.length - 1 }) });
         }
-  };
+  });
   useModuleAction(["geophysics-drop"], (_a, p) => { if (p?.files?.length) dropFiles(p.files); }); // #2848
   useModuleAction(["geophysics-ubc"], (_a, p) => { if (p?.files?.length) { setGeoPane("voxel"); importUBC(p.files); } }); // TASKS.csv #3756 (2) — a UBC mesh and its model dropped on the 3D View: Block models reads them together
   const show3d = !embedded && !!onMain3d && !hasResults && (collars.length > 0 || rows.length > 0 || rasters.length > 0 || !!terrain || boundaries.length > 0 || voxelModels.length > 0 || dcipLines.length > 0 || (surfaceSamples || []).length > 0); // #1979

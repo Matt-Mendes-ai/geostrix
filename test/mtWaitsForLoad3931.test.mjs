@@ -37,3 +37,17 @@ test("the waiters' rule: resolved at once with no load; queued and released toge
   await Promise.all([a, b]);
   assert.deepEqual(order, ["a", "b"]);
 });
+
+test("every drop entry waits too: the import pipeline's shared run, the Geophysics, Maps and Geochem tabs' drops (latest-callbacks after the wait)", () => {
+  const pl = read("modules/viewer/useImportPipeline.js");
+  assert.match(pl, /const run = \(fn\) => waitLoad\(\)\.then\(\(\) => loadImportPipeline\(\)\)\.then\(\(m\) => fn\(m\.makeImportPipeline\(env\.current\.ctx, env\.current\.h\)\)/); // env.current read after the wait
+  assert.match(pl, /notice\("The project is still loading: the files are read when it has loaded\."\)/);
+  const g = read("modules/GeophysicsModule.jsx");
+  assert.match(g, /const dropFiles = async \(files\) => \{ if \(geoLoading && geoWhenLoaded\) await geoWhenLoaded\(\); return dropFilesNow\(files\); \};/);
+  assert.match(g, /const dropFilesNow = useLatestCallback\(async \(files\) => \{/);
+  const m = read("modules/MapsModule.jsx");
+  assert.match(m, /const dropped = Array\.from\(e\.dataTransfer\?\.files \|\| \[\]\);\s+if \(mapsLoading && mapsWhenLoaded\) await mapsWhenLoaded\(\);\s+return mapDropNow\(dropped\);/);
+  assert.match(m, /const mapDropNow = useLatestCallback\(async \(dropped\) => \{/);
+  const c = read("modules/GeochemModule.jsx");
+  assert.match(c, /if \(store\.projectLoading && store\.whenProjectLoaded\) \{ [^\n]*store\.whenProjectLoaded\(\)\.then\(\(\) => enqueueLatest\(files\)\); return; \}/);
+});

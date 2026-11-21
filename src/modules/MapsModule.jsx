@@ -4,6 +4,7 @@
 // their modules (RasterModule, GeophysicsModule's map panes, CartographyModule), shown here "embedded": this tab owns the ribbon,
 // each button picks the pane (and, for an import, asks the module to start it through a module action, #565).
 import React, { useMemo, useState } from "react";
+import { useLatestCallback } from "../lib/useLatestCallback.js"; // TASKS.csv #3931
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx";
 import { Image, Satellite, Mountain, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, Layers3, FileSpreadsheet, Rainbow } from "../components/icons.js"; // Layers3: #3287
@@ -43,14 +44,11 @@ export default function MapsModule() {
   // TASKS.csv #1507 (review #1497, Lawyers) — a GeoTIFF dropped on the map (or the 'Nothing on the map yet' card) did nothing: only
   // the raster sidebar took drops. The map takes them now: rasters go to the raster pane's import, other files are named there.
   const [mapDrag, setMapDrag] = useState(false);
-  const mapDrop = {
-    onDragOver: (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); setMapDrag(true); } },
-    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setMapDrag(false); },
-    onDrop: async (e) => {
-      e.preventDefault(); setMapDrag(false);
+  const { projectLoading: mapsLoading, whenProjectLoaded: mapsWhenLoaded } = useStore(); // #3931
+  const mapDropNow = useLatestCallback(async (dropped) => {
       // TASKS.csv #2019 (review #2013, Import) — only rasters imported here ('use Boundaries, Terrain or Web layers above') while the 3D view
       // took the same shapefile: lines / polygons now become Map layers here; points, tables and multi-layer files open the 3D view's import
-      const grouped0 = groupShapefileParts(Array.from(e.dataTransfer?.files || []));
+      const grouped0 = groupShapefileParts(dropped);
       // TASKS.csv #2857 — a .prj / .xml with no shapefile may be a raster's (mapsDropRoutes pairs it by name); the rest stay unmatched
       const side = grouped0.unmatched.filter((f) => /\.(prj|xml)$/i.test(f.name)), grouped = { files: [...grouped0.files, ...side], unmatched: grouped0.unmatched.filter((f) => !side.includes(f)) };
       const all = grouped.files;
@@ -103,6 +101,15 @@ export default function MapsModule() {
       }
       setPane("raster");
       requestModuleAction("import-raster-files", { files, others, notes });
+    }); // #3931 — the map drop's body, with the latest render's values
+  const mapDrop = {
+    onDragOver: (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); setMapDrag(true); } },
+    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setMapDrag(false); },
+    onDrop: async (e) => { // TASKS.csv #3931 — a drop while a project is coming forward (a tab switch expanding its tables) waits for it, then goes into that project
+      e.preventDefault(); setMapDrag(false);
+      const dropped = Array.from(e.dataTransfer?.files || []);
+      if (mapsLoading && mapsWhenLoaded) await mapsWhenLoaded();
+      return mapDropNow(dropped);
     },
   };
   const dropOutline = mapDrag ? { outline: "2px dashed var(--color-accent)", outlineOffset: -6 } : null;
