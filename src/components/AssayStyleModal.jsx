@@ -145,7 +145,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
             {local.breaks.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>{/* #2519 */}
                 <button type="button" onClick={roundAll} style={smallBtn} title={tr("Round every class limit to two significant figures")}>{tr("Round the limits")}</button>
-                <input type="number" step="any" value={cutoff} onChange={(e) => setCutoff(e.target.value)} placeholder={tr("Cut-off ({unit})", { unit: unitLbl })} aria-label={tr("Cut-off to add as a class limit")} style={{ width: 110, fontSize: "var(--font-size-sm)", padding: "3px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" }} />
+                <NumberInput allowEmpty value={cutoff} onChange={(v) => setCutoff(v == null ? "" : String(v))} placeholder={tr("Cut-off ({unit})", { unit: unitLbl })} aria-label={tr("Cut-off to add as a class limit")} style={{ width: 110, fontSize: "var(--font-size-sm)", padding: "3px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" }} />
                 <button type="button" onClick={addCutoff} disabled={cutoff === ""} style={smallBtn} title={tr("Split the class holding this grade there, so the economic cut-off is a class limit")}>{tr("Add as a class limit")}</button>
               </div>
             )}
@@ -162,13 +162,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                       style={{ ...inp, width: 90 }}
                     />
                     <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>≤</span>
-                    <input
-                      type="number" step="any"
-                      value={b.max}
-                      aria-label={tr("Class {v} upper limit ({unit}), up to and including", { v: i + 1, unit: unitLbl })}
-                      onChange={(e) => updateBreak(i, { max: Number(e.target.value) || 0 })}
-                      style={{ ...inp, width: 90 }}
-                    />
+                    <NumberInput value={b.max} aria-label={tr("Class {v} upper limit ({unit}), up to and including", { v: i + 1, unit: unitLbl })} onChange={(v) => updateBreak(i, { max: v ?? 0 })} style={{ ...inp, width: 90 }} />
                     <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{unitLbl}</span>
                     <Trash2 aria-label={tr("Remove this grade class")} title={tr("Remove this grade class")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)", marginLeft: "auto" }} onClick={() => removeBreak(i)} />
                   </div>

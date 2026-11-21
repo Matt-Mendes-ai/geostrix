@@ -8,6 +8,7 @@ import { holesEndingAbove } from "../lib/evidenceSources.js";
 import { checkableHoleLengths } from "../lib/dataQC.js";
 import { valueIn } from "../lib/geochem.js";
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const SHOWN = 12;
 // TASKS.csv #3435 — the element and cut-off outlive the pane, as the overlay's cards and result do (EvidenceOverlayPane keptResult, #2706): a hand-over
@@ -33,7 +34,7 @@ export default function EndInOreList({ assays, elements, units, traces, collars,
       <summary style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Holes that stopped in ore")}</summary>
       <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
         <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={sel} aria-label={tr("Element")}>{(elements || []).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}</select>
-        {tr("last sample ≥")}<input type="number" step="any" value={cut} onChange={(e) => setCut(e.target.value)} style={{ ...sel, width: 70 }} aria-label={tr("Cut-off of the last sample")} />
+        {tr("last sample ≥")}<NumberInput allowEmpty value={cut} onChange={(v) => setCut(v == null ? "" : String(v))} style={{ ...sel, width: 70 }} aria-label={tr("Cut-off of the last sample")} />
       </div>
       {list == null ? <div style={note}>{tr("Type a cut-off: the holes whose last sample of the element is at or above it are listed.")}</div>
         : !list.length ? <div style={note}>{tr("No hole ends with its last {el} sample at or above {c} {u}.", { el: symbol, c: num(c), u: uLabel })}</div>

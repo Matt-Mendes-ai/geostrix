@@ -10,6 +10,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { mineSourceOf, isMineSource, mineChoiceToProject, mineChoiceFromProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2684
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 // TASKS.csv #129 — QGIS-specialist audit finding: "there's no way to georeference an ungeoreferenced
 // scanned map ... the way QGIS's Georeferencer does with manual control points." This is that tool:
@@ -219,8 +220,8 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
                             {holes.map((h) => <option key={h.hole_id} value={String(h.hole_id)}>{h.hole_id}</option>)}
                           </select></td>
                         )}
-                        <td style={td}><input type="number" value={p.x} onChange={(e) => updatePoint(p.id, { x: e.target.value, hole: "" })} style={numInput} /></td>
-                        <td style={td}><input type="number" value={p.y} onChange={(e) => updatePoint(p.id, { y: e.target.value, hole: "" })} style={numInput} /></td>
+                        <td style={td}><NumberInput allowEmpty value={p.x === "" ? null : p.x} onChange={(v) => updatePoint(p.id, { x: v == null ? "" : String(v), hole: "" })} style={numInput} aria-label={tr("Easting")} /></td>
+                        <td style={td}><NumberInput allowEmpty value={p.y === "" ? null : p.y} onChange={(v) => updatePoint(p.id, { y: v == null ? "" : String(v), hole: "" })} style={numInput} aria-label={tr("Northing")} /></td>
                         <td style={{ ...td, color: r && r.error > (rmse || 0) * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r && fitResiduals.length > 3 ? r.error.toFixed(2) : "—" /* #1628 — no error to show with three points */}</td>
                         <td style={td}><Trash2 aria-label={tr("Remove this control point")} title={tr("Remove this control point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => removePoint(p.id)} /></td>
                       </tr>

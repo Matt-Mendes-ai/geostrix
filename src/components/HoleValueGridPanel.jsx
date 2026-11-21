@@ -13,6 +13,7 @@ import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #2991 — a built-in
 import { rasterColourFields } from "../lib/rasterColour.js";
 import { f32ToB64 } from "../lib/inversion.js";
 import { defaultDrapeElevation } from "../lib/drapeElevation.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const KEY = "value";
 
@@ -128,15 +129,15 @@ export default function HoleValueGridPanel() {
           {isDepth && <label style={lbl}>{tr("Depth")}<select value={depthAs} onChange={(e) => setDepthAs(e.target.value)} aria-label={tr("How the depth is measured")} style={inp}>
             <option value="along">{tr("Down the hole (from the collar)")}</option><option value="vertical">{tr("Vertical, below the collar")}</option>
           </select></label>}
-          {st === "firstOver" && <label style={lbl}>{tr("Threshold ({unit})", { unit: source.unit || tr("as logged") })}<input type="number" value={threshold} onChange={(e) => { setThreshold(e.target.value); setMsg(null); }} aria-label={tr("Threshold")} style={inp} /></label>}
+          {st === "firstOver" && <label style={lbl}>{tr("Threshold ({unit})", { unit: source.unit || tr("as logged") })}<NumberInput allowEmpty value={threshold} onChange={(v) => { setThreshold(v == null ? "" : String(v)); setMsg(null); }} aria-label={tr("Threshold")} style={inp} /></label>}
           {st === "firstOver" && threshold === "" && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("Type the threshold the depth is measured to: Grid to raster stays off until it is typed.")}</div>}{/* TASKS.csv #3459 */}
           {st !== "firstOver" && !coded && <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", cursor: "pointer" }}><input type="checkbox" checked={log} onChange={(e) => setLogChoice(e.target.checked)} />{tr("Interpolate log10 of the values")}</label>}
           <div style={{ display: "flex", gap: 5 }}>
             <label style={lbl}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} aria-label={tr("Gridding method")} style={inp}>
               <option value="idw">{tr("IDW")}</option><option value="mincurv">{tr("Minimum curvature")}</option><option value="natneigh">{tr("Natural neighbour")}</option>
             </select></label>
-            <label style={lbl}>{tr("Cell (m)")}<input type="number" min="1" value={cell} placeholder={suggestion ? String(suggestion.cellM) : ""} onChange={(e) => setCell(e.target.value)} style={inp} /></label>
-            <label style={lbl}>{tr("Blank beyond (m)")}<input type="number" min="0" value={blank} placeholder={suggestion ? String(suggestion.blankM) : ""} onChange={(e) => setBlank(e.target.value)} style={inp} /></label>
+            <label style={lbl}>{tr("Cell (m)")}<NumberInput allowEmpty min="1" value={cell} placeholder={suggestion ? String(suggestion.cellM) : ""} onChange={(v) => setCell(v == null ? "" : String(v))} style={inp} /></label>
+            <label style={lbl}>{tr("Blank beyond (m)")}<NumberInput allowEmpty min="0" value={blank} placeholder={suggestion ? String(suggestion.blankM) : ""} onChange={(v) => setBlank(v == null ? "" : String(v))} style={inp} /></label>
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{placeAt === "intercept" ? tr("{n} of {total} holes have a value. Each is placed at the middle of its interval down the desurveyed hole.", { n: samples.length.toLocaleString(), total: collars.length.toLocaleString() }) + (placed.atCollar ? " " + tr("{m} of them have no trace to place it on and stay at the collar.", { m: placed.atCollar.toLocaleString() }) : "") : tr("{n} of {total} holes have a value. Each is placed at its collar, not at the intercept.", { n: samples.length.toLocaleString(), total: collars.length.toLocaleString() })}</div>
           {advice && advice.padHoles > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: placeAt === "collar" && advice.apart > 0 ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{placeAt === "intercept" ? (placeAtChoice ? "" : tr("{n} of the {total} holes share {k} collar points, and their values part by more than a cell down the holes, so each is placed at its intercept. Choose the collar to place them there.", { n: advice.padHoles.toLocaleString(), total: advice.holes.toLocaleString(), k: advice.pads.toLocaleString() })) : tr("{n} of the {total} holes share {k} collar points: their values are combined there, one cell for each pad.", { n: advice.padHoles.toLocaleString(), total: advice.holes.toLocaleString(), k: advice.pads.toLocaleString() })}</div>}{/* TASKS.csv #3826 */}

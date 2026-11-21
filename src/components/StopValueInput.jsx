@@ -2,13 +2,9 @@
 // apart ('0.128', not '0.12831663191540246'); what the user types is kept as typed while they type. `shown` is the rounded value
 // for display (readableValues over the whole stop list); `value` is the stored one. A change from outside (Classify, Recolour,
 // another stop) resets the text to the rounded value; the stored values are not rounded until the user edits one.
-import React, { useEffect, useState } from "react";
+import React from "react";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05'; the stop is committed when the box is left or Enter is pressed
 
 export default function StopValueInput({ value, shown, onCommit, style, title, ariaLabel }) {
-  const [text, setText] = useState(String(shown ?? value));
-  useEffect(() => { setText((t) => (t !== "" && Number(t) === value ? t : String(shown ?? value))); }, [value, shown]);
-  return (
-    <input type="number" value={text} title={title} aria-label={ariaLabel} style={style}
-      onChange={(e) => { const t = e.target.value; setText(t); const v = Number(t); if (t.trim() !== "" && Number.isFinite(v)) onCommit(v); }} />
-  );
+  return <NumberInput value={shown ?? value} onChange={(v) => { if (v != null) onCommit(v); }} style={style} title={title} aria-label={ariaLabel} />;
 }

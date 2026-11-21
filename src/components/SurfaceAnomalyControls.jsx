@@ -11,6 +11,7 @@ import { t as tr } from "../lib/i18n.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped; crsCell: #1064
 import { anomalyClassRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 import { useStore } from "../lib/store.jsx";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSamples, surfaceElements, mapLayers, thresholds = [], result, drawn = [] }) {
   const cfg = { ...DEFAULT_ANOMALY, ...(cfg0 || {}) };
@@ -68,7 +69,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
                   {surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
                 </select>
               </label>
-              <label style={row}>{tr("Neighbours within (m)")}<input type="number" min="1" step="10" value={cfg.hotRadius} onChange={(e) => set({ hotRadius: Math.max(1, Number(e.target.value) || 250) })} style={{ ...selStyle, width: 70 }} /></label>
+              <label style={row}>{tr("Neighbours within (m)")}<NumberInput min="1" step="10" value={cfg.hotRadius} onChange={(v) => set({ hotRadius: Math.max(1, v ?? 250) })} style={{ ...selStyle, width: 70 }} /></label>
               <div style={{ color: "var(--color-text-muted)" }}>{tr("A hot spot is a sample whose neighbours are high with it; a lone spike among background is not one. Use a radius that reaches a few neighbours.")}</div>
             </>
           )}
@@ -102,8 +103,8 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
           </label>}
           {cfg.mode !== "hotspot" && cfg.coherence && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", color: "var(--color-text-secondary)" }}>
-              {tr("at least")}<input type="number" min="1" step="1" value={cfg.minNeighbours} onChange={(e) => set({ minNeighbours: Math.max(1, Number(e.target.value) || 1) })} style={{ ...selStyle, width: 46 }} />
-              {tr("anomalous neighbours within")}<input type="number" min="1" step="10" value={cfg.radius} onChange={(e) => set({ radius: Math.max(1, Number(e.target.value) || 100) })} style={{ ...selStyle, width: 64 }} />m
+              {tr("at least")}<NumberInput min="1" step="1" value={cfg.minNeighbours} onChange={(v) => set({ minNeighbours: Math.max(1, v ?? 1) })} style={{ ...selStyle, width: 46 }} />
+              {tr("anomalous neighbours within")}<NumberInput min="1" step="10" value={cfg.radius} onChange={(v) => set({ radius: Math.max(1, v ?? 100) })} style={{ ...selStyle, width: 64 }} />m
             </div>
           )}
         </div>

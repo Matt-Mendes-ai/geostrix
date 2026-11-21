@@ -16,6 +16,7 @@ import { codeDescriptions } from "../lib/codeDescriptions.js"; // TASKS.csv #177
 import CodeDictionaryTable from "./CodeDictionaryTable.jsx"; // TASKS.csv #2163
 import { entriesInCodeOrder } from "../lib/legendCodeOrder.js"; // TASKS.csv #3296
 import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3563
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -115,9 +116,9 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
                   <div style={{ marginBottom: 8, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Only render rows with value in range:")}</div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input type="number" value={numericRange.min} onChange={(e) => onSetRange({ ...numericRange, min: Number(e.target.value) })} style={numInp} />
+                    <NumberInput value={numericRange.min} onChange={(v) => onSetRange({ ...numericRange, min: v ?? numericRange.min })} style={numInp} />
                     <span style={{ color: "var(--color-text-muted)" }}>–</span>
-                    <input type="number" value={numericRange.max} onChange={(e) => onSetRange({ ...numericRange, max: Number(e.target.value) })} style={numInp} />
+                    <NumberInput value={numericRange.max} onChange={(v) => onSetRange({ ...numericRange, max: v ?? numericRange.max })} style={numInp} />
                   </div>
                 </div>
               )

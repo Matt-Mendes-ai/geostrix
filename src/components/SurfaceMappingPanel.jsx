@@ -52,6 +52,7 @@ import { structureIconSet, lineScaleOf } from "../lib/structureKmzIcons.js"; // 
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts, surfaceFlatElevation, noTerrainGround } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; import { mapLayerOnCollars } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753; noTerrainGround, mapLayerOnCollars: #3368
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 // TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
 export function skipReasons(w = {}, names = {}) { // names: the rows skipped for no direction (#2958)
@@ -664,7 +665,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {collars.length > 0 && (layers.litho || []).length > 0 && ( /* TASKS.csv #2956 — or the unit at a depth down each hole */
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
           <span>{tr("Unit at")}</span>
-          <input type="number" min={0} value={subDepth} onChange={(e) => setSubDepth(e.target.value)} placeholder={tr("under cover")} aria-label={tr("Depth below the collar for the subcrop, m (blank: the first unit under the cover)")} style={{ ...numInput, width: 90 }} />
+          <NumberInput allowEmpty min={0} value={subDepth === "" ? null : subDepth} onChange={(v) => setSubDepth(v == null ? "" : String(v))} placeholder={tr("under cover")} aria-label={tr("Depth below the collar for the subcrop, m (blank: the first unit under the cover)")} style={{ ...numInput, width: 90 }} />
           <span>{tr("m down each hole")}</span>
         </div>
       )}
@@ -699,7 +700,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
               <span>{tr("Outline the units out to")}</span>
-              <input type="number" min={1} value={subcropCard.reach} onChange={(e) => setSubcropCard((c) => ({ ...c, reach: e.target.value }))} aria-label={tr("Outline distance from the holes, m")} style={{ ...numInput, width: 70 }} />
+              <NumberInput min={1} value={subcropCard.reach === "" ? null : subcropCard.reach} onChange={(v) => setSubcropCard((c) => ({ ...c, reach: String(v) }))} aria-label={tr("Outline distance from the holes, m")} style={{ ...numInput, width: 70 }} />
               <span>{tr("m from a hole")}</span>
               <button onClick={outlineSubcrop} title={tr("A polygon map: each hole's nearest-hole area, cut back to this distance from the hole, with the unit of its point. Its borders are not mapped contacts.")} style={{ ...pBtn, marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
             </div>
@@ -739,7 +740,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             {!(l.drapeMode === "terrain" && terrain) && l.drapeMode !== "file" && !mapLayerOnCollars(l, terrain, collars) && (
               <div style={row}>
                 <span style={lbl}>{tr("Elev.")}</span>
-                <input type="number" value={Math.round(l.elevation || 0)} onChange={(e) => updateMapLayer(l.id, { elevation: Number(e.target.value) })} style={numInput} />
+                <NumberInput value={Math.round(l.elevation || 0)} onChange={(v) => updateMapLayer(l.id, { elevation: v })} style={numInput} aria-label={tr("Elev.")} />
               </div>
             )}
             <div style={row}>
@@ -842,13 +843,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {typing && (
         <div style={card}>
               <div key="station" style={row}><span style={lbl}>{tr("Station")}</span><input type="text" value={typing.station ?? ""} onChange={(e) => setTyping((p) => ({ ...p, station: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Station")} style={select} /></div>
-              <div key="x" style={row}><span style={lbl}>{tr("Easting")}</span><input type="number" value={typing.x ?? ""} onChange={(e) => setTyping((p) => ({ ...p, x: e.target.value }))} placeholder={""} aria-label={tr("Easting")} style={select} /></div>
-              <div key="y" style={row}><span style={lbl}>{tr("Northing")}</span><input type="number" value={typing.y ?? ""} onChange={(e) => setTyping((p) => ({ ...p, y: e.target.value }))} placeholder={""} aria-label={tr("Northing")} style={select} /></div>
-              <div key="z" style={row}><span style={lbl}>{tr("Elevation")}</span><input type="number" value={typing.z ?? ""} onChange={(e) => setTyping((p) => ({ ...p, z: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Elevation")} style={select} /></div>
+              <div key="x" style={row}><span style={lbl}>{tr("Easting")}</span><NumberInput allowEmpty value={typing.x === "" ? null : typing.x ?? null} onChange={(v) => setTyping((p) => ({ ...p, x: v == null ? "" : String(v) }))} placeholder={""} aria-label={tr("Easting")} style={{ ...select, width: "100%", boxSizing: "border-box" }} wrapStyle={{ flex: 1, minWidth: 0 }} /></div>
+              <div key="y" style={row}><span style={lbl}>{tr("Northing")}</span><NumberInput allowEmpty value={typing.y === "" ? null : typing.y ?? null} onChange={(v) => setTyping((p) => ({ ...p, y: v == null ? "" : String(v) }))} placeholder={""} aria-label={tr("Northing")} style={{ ...select, width: "100%", boxSizing: "border-box" }} wrapStyle={{ flex: 1, minWidth: 0 }} /></div>
+              <div key="z" style={row}><span style={lbl}>{tr("Elevation")}</span><NumberInput allowEmpty value={typing.z === "" ? null : typing.z ?? null} onChange={(v) => setTyping((p) => ({ ...p, z: v == null ? "" : String(v) }))} placeholder={tr("optional")} aria-label={tr("Elevation")} style={{ ...select, width: "100%", boxSizing: "border-box" }} wrapStyle={{ flex: 1, minWidth: 0 }} /></div>
               <div key="type" style={row}><span style={lbl}>{tr("Type")}</span><input type="text" value={typing.type ?? ""} onChange={(e) => setTyping((p) => ({ ...p, type: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Type")} style={select} /></div>
-              <div key="dip" style={row}><span style={lbl}>{tr("Dip")}</span><input type="number" value={typing.dip ?? ""} onChange={(e) => setTyping((p) => ({ ...p, dip: e.target.value }))} placeholder={""} aria-label={tr("Dip")} style={select} /></div>
-              <div key="dipDir" style={row}><span style={lbl}>{tr("Dip direction")}</span><input type="number" value={typing.dipDir ?? ""} onChange={(e) => setTyping((p) => ({ ...p, dipDir: e.target.value }))} placeholder={""} aria-label={tr("Dip direction")} style={select} /></div>
-              <div key="strike" style={row}><span style={lbl}>{tr("Strike")}</span><input type="number" value={typing.strike ?? ""} onChange={(e) => setTyping((p) => ({ ...p, strike: e.target.value }))} placeholder={tr("or the strike (right-hand rule)")} aria-label={tr("Strike (right-hand rule: the dip is 90° clockwise of it)")} style={select} /></div>{/* TASKS.csv #3847 - a notebook in strike and dip */}
+              <div key="dip" style={row}><span style={lbl}>{tr("Dip")}</span><NumberInput allowEmpty value={typing.dip === "" ? null : typing.dip ?? null} onChange={(v) => setTyping((p) => ({ ...p, dip: v == null ? "" : String(v) }))} placeholder={""} aria-label={tr("Dip")} style={{ ...select, width: "100%", boxSizing: "border-box" }} wrapStyle={{ flex: 1, minWidth: 0 }} /></div>
+              <div key="dipDir" style={row}><span style={lbl}>{tr("Dip direction")}</span><NumberInput allowEmpty value={typing.dipDir === "" ? null : typing.dipDir ?? null} onChange={(v) => setTyping((p) => ({ ...p, dipDir: v == null ? "" : String(v) }))} placeholder={""} aria-label={tr("Dip direction")} style={{ ...select, width: "100%", boxSizing: "border-box" }} wrapStyle={{ flex: 1, minWidth: 0 }} /></div>
+              <div key="strike" style={row}><span style={lbl}>{tr("Strike")}</span><NumberInput allowEmpty value={typing.strike === "" ? null : typing.strike ?? null} onChange={(v) => setTyping((p) => ({ ...p, strike: v == null ? "" : String(v) }))} placeholder={tr("or the strike (right-hand rule)")} aria-label={tr("Strike (right-hand rule: the dip is 90° clockwise of it)")} style={{ ...select, width: "100%", boxSizing: "border-box" }} wrapStyle={{ flex: 1, minWidth: 0 }} /></div>{/* TASKS.csv #3847 - a notebook in strike and dip */}
               <div key="comment" style={row}><span style={lbl}>{tr("Comments")}</span><input type="text" value={typing.comment ?? ""} onChange={(e) => setTyping((p) => ({ ...p, comment: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Comments")} style={select} /></div>
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
             <button onClick={() => {

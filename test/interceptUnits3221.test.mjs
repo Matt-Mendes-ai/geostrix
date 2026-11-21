@@ -17,9 +17,9 @@ test("typed in % and stored in ppm, the box showing what was typed", () => {
 });
 
 test("wiring: both boxes, their headings, the equivalent and the element's own column", () => {
-  assert.match(s, /value=\{shownBox\(cutoff\)\} onChange=\{\(e\) => \{ setCutoff\(toStored\(Number\(e\.target\.value\) \|\| 0\)\)/);
-  assert.match(s, /value=\{includeCutoff === "" \? "" : shownBox\(Number\(includeCutoff\)\)\}/);
-  assert.match(s, /setIncludeCutoff\(e\.target\.value === "" \? "" : String\(toStored\(Number\(e\.target\.value\)\)\)\)/);
+  assert.match(s, /value=\{shownBox\(cutoff\)\} onChange=\{\(v\) => \{ setCutoff\(toStored\(v \?\? 0\)\)/); // #3926: NumberInput
+  assert.match(s, /value=\{includeCutoff === "" \? null : shownBox\(Number\(includeCutoff\)\)\}/); // #3926
+  assert.match(s, /setIncludeCutoff\(v == null \? "" : String\(toStored\(v\)\)\)/); // #3926: NumberInput
   assert.match(s, /tr\("\{symbol\}Eq \(\{unit\}\)", \{ symbol, unit: dispUnit/);
   assert.match(s, /\+dg\(v\)\.toPrecision\(4\)/);
   assert.match(s, /s === symbol && pct \? dispUnit : gradeUnitLabel\(s, elementUnits\[s\] \|\| \"ppm\"\)/);

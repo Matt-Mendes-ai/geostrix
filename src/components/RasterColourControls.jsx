@@ -8,6 +8,7 @@ import { rasterUnitOf } from "../lib/rasterMethod.js"; // TASKS.csv #1858
 import { averagedInfo, averagedRangeText } from "../lib/gridMeans.js"; // TASKS.csv #2831
 import { guessRasterMethod } from "../lib/rasterMethod.js"; // TASKS.csv #2835 / #2842
 import { SURVEY_METHODS, SURVEY_METHOD_GROUPS } from "../lib/geophysSurveys.js"; // TASKS.csv #2835 / #2842
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 // TASKS.csv #1236 — ramp, stretch, typed range and inverted ramp for a raster that kept its values, and a bar with the value range
 const fmt = rangeValueText; // #2866 — 4 significant figures (was cut to 3 decimals)
@@ -16,7 +17,6 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
   const values = useMemo(() => b64ToF32(r.grid.values), [r.grid.values]);
   const range = r.colourRange || (() => { const { lo, hi } = rasterRange(values, style); return [lo, hi]; })();
   const avg = useMemo(() => averagedInfo(r.grid, values), [r.grid, values]); // #2831 — 'min-max' and the bar are of block means: said, with the source's range
-  const [typed, setTyped] = useState({ min: "", max: "" });
   // TASKS.csv #1630 (review #1497, Lawyers) — 'Typed range' filled the boxes with float32 noise (0.0005000000237487257, 1.1027064323425293)
   const sig4 = (v) => (Number.isFinite(v) && v !== 0 ? Number(v.toPrecision(4)) : v);
   const apply = (patch) => {
@@ -25,9 +25,8 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
   };
   const row = { display: "flex", alignItems: "center", gap: 6, marginTop: 5 };
   const lbl = { color: "var(--color-text-faint)", width: 46, flexShrink: 0 };
-  const commit = (key, text) => {
-    const v = Number(text);
-    if (text === "" || !Number.isFinite(v)) return;
+  const commit = (key, v) => { // v: the number NumberInput has committed (TASKS.csv #3926)
+    if (!Number.isFinite(v)) return;
     const min = key === "min" ? v : style.min ?? range[0], max = key === "max" ? v : style.max ?? range[1];
     if (max > min) apply({ stretch: "custom", min, max });
   };
@@ -95,8 +94,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
         <div style={row}>
           <span style={lbl}>{tr("Range")}</span>
           {["min", "max"].map((k) => (
-            <input key={`${k}${style[k]}`} type="number" step="any" aria-label={k === "min" ? tr("Lowest value of the ramp") : tr("Highest value of the ramp")} defaultValue={style[k] ?? ""} onChange={(e) => setTyped((p) => ({ ...p, [k]: e.target.value }))}
-              onBlur={() => commit(k, typed[k])} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...inputStyle, minWidth: 0 }} />
+            <NumberInput allowEmpty aria-label={k === "min" ? tr("Lowest value of the ramp") : tr("Highest value of the ramp")} value={style[k] ?? null} onChange={(v) => { if (v != null) commit(k, v); }} style={{ ...inputStyle, minWidth: 0 }} />
           ))}
         </div>
       )}
@@ -104,7 +102,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
       <div style={row}>
         <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}><input type="checkbox" checked={!!style.shade} onChange={(e) => apply({ shade: e.target.checked ? { ...SHADE_DEFAULT } : null })} />{tr("Shaded relief")}</label>
         {style.shade && [["azimuthDeg", tr("Sun azimuth (°)")], ["altitudeDeg", tr("Sun altitude (°)")], ["exaggeration", tr("Relief ×")]].map(([k, lab]) => (
-          <input key={`${k}${style.shade[k]}`} type="number" step="any" defaultValue={style.shade[k]} aria-label={lab} title={lab} placeholder={lab} onBlur={(e) => { const v = Number(e.target.value); if (e.target.value !== "" && Number.isFinite(v) && v !== style.shade[k] && (k !== "exaggeration" || v > 0)) apply({ shade: { ...style.shade, [k]: v } }); }} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...inputStyle, minWidth: 0, width: 54 }} />
+          <NumberInput value={style.shade[k]} onChange={(v) => { if (v !== style.shade[k] && (k !== "exaggeration" || v > 0)) apply({ shade: { ...style.shade, [k]: v } }); }} aria-label={lab} title={lab} placeholder={lab} style={{ ...inputStyle, minWidth: 0, width: 54 }} />
         ))}
       </div>
       {stops.length > 1 && (

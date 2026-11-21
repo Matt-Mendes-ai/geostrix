@@ -23,5 +23,5 @@ test("wired in Best intercepts, with the note beside the box", () => {
   const b = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.match(b, /cutoffOnElementChange\(\{ cutoff, typed: suggested == null \|\| cutoff !== suggested, fromUnit: elementUnits\[symbol\], toUnit: elementUnits\[sym\]/);
   assert.match(b, /Cut-off \{v\} kept from \{from\} \(the same unit\)\./);
-  assert.match(b, /setCutoff\((toStored\()?Number\(e\.target\.value\) \|\| 0\)?\); setSuggested\(null\); setCutoffNote\(null\);/); // #3221: toStored (typed in % when shown in %)
+  assert.match(b, /setCutoff\(toStored\(v \?\? 0\)\); setSuggested\(null\); setCutoffNote\(null\);/); // #3221: toStored (typed in % when shown in %); #3926: NumberInput gives the number (v)
 });

@@ -24,6 +24,7 @@ import { gradeText } from "../lib/gradeText.js"; // TASKS.csv #2515
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3573 — g/t for a precious metal stored in ppm in the top-grade labels
 import { sectionIntercepts, gradeBarAxis, gradeBarFrac } from "../lib/sectionIntercepts.js"; // TASKS.csv #3860
 import { defaultSectionVE, plotAspect, MAX_SECTION_VE } from "../lib/sectionVE.js"; // TASKS.csv #2363; plotAspect: #2933
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 // TASKS.csv #2933 / #2387 — the VE of the section a step (‹ ›) was taken from, for the section that step opens in the next tab of this
 // window (the tabs share this module): a parallel section keeps the user's 8x instead of opening at its own automatic 3x
 let stepVE = null;
@@ -141,7 +142,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     loadPatternTiles(patternCodes).then((t) => { if (live) setPatternTiles(t); });
     return () => { live = false; };
   }, [patternsOn, patternCodes]);
-  const [bufferDraft, setBufferDraft] = useState("");
+  // TASKS.csv #3926 — the Buffer box is a NumberInput: it commits on blur / Enter itself (the typed draft it kept here is gone)
   // TASKS.csv #1129 — "text font should also be editable": the section's font and text size (per user; the SVG / PNG /
   // PDF exports and the Layout snapshot carry them)
   const [textFont, setTextFontState] = useState(() => { try { const v = localStorage.getItem("geostrix.sectionFont"); return SECTION_FONTS.some((f) => f.stack === v) ? v : SECTION_FONTS[0].stack; } catch { return SECTION_FONTS[0].stack; } });
@@ -487,9 +488,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           <button onClick={() => stepTo({ id: data.id, step: 1, by: "buffer" })} title={tr("Move the section {v} m to the left (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>+{data.section?.corridor} m</button>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.")}>
             {tr("Buffer ±")}
-            <input type="number" min="1" step="5" value={bufferDraft === "" ? (data.section?.corridor ?? "") : bufferDraft} onChange={(e) => setBufferDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && Number(bufferDraft) > 0) { sendSectionContacts({ id: data.id, corridor: Number(bufferDraft) }); setBufferDraft(""); } }}
-              onBlur={() => { if (Number(bufferDraft) > 0 && Number(bufferDraft) !== data.section?.corridor) sendSectionContacts({ id: data.id, corridor: Number(bufferDraft) }); setBufferDraft(""); }}
+            <NumberInput min={1} step={5} value={data.section?.corridor ?? null}
+              onChange={(v) => { if (v > 0 && v !== data.section?.corridor) sendSectionContacts({ id: data.id, corridor: v }); }}
               style={{ width: 52, fontSize: 11 }} aria-label={tr("Buffer ±")} />{" m"}
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Font and size of the text on the section (and in its exports)")}>
@@ -519,11 +519,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
               <option value="samples">{tr("Highest samples")}</option>
               <option value="intercepts">{tr("Best intercepts (m @ grade)")}</option>
             </select>
-            {gradeLabelMode === "intercepts" && [...new Set((data?.points || []).filter((r) => r.assay && !r.assay.pxrf).map((r) => r.assay.sym))].map((sym) => <input key={sym} type="number" min="0" step="any" value={interceptCutoffs[sym] ?? ""} placeholder={tr("{sym} cut-off (P90)", { sym })} onChange={(e) => setInterceptCutoffs((c) => ({ ...c, [sym]: e.target.value }))} style={{ width: 92, fontSize: 11 }} aria-label={tr("{sym} cut-off", { sym })} />)}
+            {gradeLabelMode === "intercepts" && [...new Set((data?.points || []).filter((r) => r.assay && !r.assay.pxrf).map((r) => r.assay.sym))].map((sym) => <NumberInput key={sym} allowEmpty min={0} value={interceptCutoffs[sym] === "" ? null : interceptCutoffs[sym] ?? null} placeholder={tr("{sym} cut-off (P90)", { sym })} onChange={(v) => setInterceptCutoffs((c) => ({ ...c, [sym]: v == null ? "" : String(v) }))} style={{ width: 92, fontSize: 11 }} aria-label={tr("{sym} cut-off", { sym })} />)}
           </label>}{/* TASKS.csv #3860 */}
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Width of the drillhole interval ribbons on the section, in pixels")}>
             {tr("Hole width")}
-            <input type="number" min="1" max="20" step="1" value={holeWidth} onChange={(e) => setHoleWidth(e.target.value)} style={{ width: 40, fontSize: 11 }} aria-label={tr("Hole width")} />
+            <NumberInput min={1} max={20} step={1} value={holeWidth} onChange={(v) => setHoleWidth(v)} style={{ width: 40, fontSize: 11 }} aria-label={tr("Hole width")} />
           </label>
           {patternCodes.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("FGDC lithology patterns over the lithology ribbon, each code's pattern as in its strip log (chosen there). They read from a hole width of about 10 px.")}>
             <input type="checkbox" checked={patternsOn} onChange={(e) => setPatternsOn(e.target.checked)} />{tr("Patterns")}
@@ -543,7 +543,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}", { v: data.sectionImages.map((i) => i.name).join(", ") })}>
               <input type="checkbox" checked={showSectionImages} onChange={(e) => setShowSectionImages(e.target.checked)} />{" "}{tr("Section image")}</label>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag ?? ""} onChange={(e) => setVExag(Math.min(MAX_SECTION_VE, Math.max(0.1, Number(e.target.value) || 1)))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<NumberInput min={0.1} max={MAX_SECTION_VE} step={0.5} value={vExag ?? null} onChange={(v) => setVExag(v)} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
@@ -567,7 +567,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             {planSolution && (
               <>
                 <span style={{ color: "#1a2028" }}>{tr("Az")}{" "}<b>{planSolution.azimuth.toFixed(1)}°</b>{" "}{tr("· dip")}{" "}<b>{planSolution.dip.toFixed(1)}°</b> · <b>{Math.round(planSolution.length)} m</b>{" "}{tr("to target")}</span>
-                <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#55606e" }}>{tr("+ past target")}{" "}<input type="number" min="0" step="10" value={planPast} onChange={(e) => setPlanPast(e.target.value)} style={{ width: 52, ...selectStyle, padding: "3px 5px" }} aria-label={tr("Metres past target")} /> m</label>
+                <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#55606e" }}>{tr("+ past target")}{" "}<NumberInput min={0} step={10} value={planPast} onChange={(v) => setPlanPast(String(v))} style={{ width: 52, ...selectStyle, padding: "3px 5px" }} aria-label={tr("Metres past target")} /> m</label>
                 <input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder={tr("Name (optional)")} style={{ ...selectStyle, width: 120 }} aria-label={tr("Planned hole name")} />
                 <button onClick={addPlannedHole} style={btnStyle(true)}><Check size={14} />{" "}{tr("Add planned hole")}</button>
               </>

@@ -6,6 +6,7 @@ import React, { useMemo } from "react";
 import { perMineralOffer, perMineralChoice, sumLayerName, mineralCode, componentCode, labColumnsLeftOut } from "../lib/perMineralColumns.js"; // componentCode: #3052; labColumnsLeftOut: #3727
 import { LAYER_META } from "../lib/layers.js";
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 
@@ -52,7 +53,7 @@ export default function MineralPercentBox({ modal, onChange, sel = {} }) {
       {comp ? (single && ( /* #3052 — the purity threshold: under it an interval is MIXED */
         <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8, fontSize: "var(--font-size-sm)" }}>
           {tr("MIXED where the largest share is under")}
-          <input type="number" min={0} max={100} step="any" value={modal.mixedBelow ?? mixedBelow} onChange={(e) => onChange({ ...modal, mixedBelow: e.target.value })} style={{ ...sel, width: 60 }} aria-label={tr("Share under which an interval is MIXED, %")} />%
+          <NumberInput allowEmpty min={0} max={100} value={modal.mixedBelow ?? mixedBelow} onChange={(v) => onChange({ ...modal, mixedBelow: v == null ? "" : String(v) })} style={{ ...sel, width: 60 }} aria-label={tr("Share under which an interval is MIXED, %")} />%
         </label>
       )) : single ? (
         <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8, fontSize: "var(--font-size-sm)" }}>

@@ -10,6 +10,7 @@ import AzimuthRefPicker from "./AzimuthRefPicker.jsx"; // TASKS.csv #547
 import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js";
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 // User request: "we need to find a way to calculate the beta angle for non-oriented drilling based on
 // field structural measurements." Core-logging reality: alpha (the acute angle between the core axis
@@ -173,11 +174,11 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
                 <option value="">{tr("Manual entry (no hole)")}</option>
                 {shownHoles.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}{/* #2051 — holes with a known attitude; filtered: #2540 */}
               </select>
-              <input type="number" placeholder={tr("Depth (m)")} value={depth} onChange={(e) => { setDepth(e.target.value); if (holeId) autoFillFromHole(holeId, e.target.value); }} style={{ ...num, width: 90 }} />
+              <NumberInput allowEmpty placeholder={tr("Depth (m)")} value={depth === "" ? null : depth} onChange={(v) => { const s = v == null ? "" : String(v); setDepth(s); if (holeId) autoFillFromHole(holeId, s); }} style={numFill} wrapStyle={{ flex: "1 1 90px", minWidth: 0 }} />
             </div>
             <div style={row}>
-              <input type="number" placeholder={tr("Hole azimuth (°)")} value={azimuth} onChange={(e) => setAzimuth(e.target.value)} style={num} />
-              <input type="number" placeholder={tr("Hole dip below horiz. (0-90°)")} value={dip} onChange={(e) => setDip(e.target.value)} style={num} />
+              <NumberInput allowEmpty placeholder={tr("Hole azimuth (°)")} value={azimuth === "" ? null : azimuth} onChange={(v) => { const s = v == null ? "" : String(v); setAzimuth(s); }} style={numFill} wrapStyle={numWrap} />
+              <NumberInput allowEmpty placeholder={tr("Hole dip below horiz. (0-90°)")} value={dip === "" ? null : dip} onChange={(v) => { const s = v == null ? "" : String(v); setDip(s); }} style={numFill} wrapStyle={numWrap} />
             </div>
             {holeNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 4 }}>{holeNote}</div>}
             {leftOut > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(leftOut === 1 ? "1 collar with no survey and no azimuth / dip is not listed: use Manual entry for it." : "{n} collars with no survey and no azimuth / dip are not listed: use Manual entry for them.", { n: leftOut.toLocaleString() })}</div>}
@@ -193,12 +194,12 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
               </select>
             </div>
             <div style={row}>
-              <input type="number" placeholder={tr("Known dip-dir (°)")} value={knownDipDir} onChange={(e) => { setKnownDipDir(e.target.value); setSelectedRefId(""); }} style={num} />
-              <input type="number" placeholder={tr("Known dip (°)")} value={knownDip} onChange={(e) => { setKnownDip(e.target.value); setSelectedRefId(""); }} style={num} />
+              <NumberInput allowEmpty placeholder={tr("Known dip-dir (°)")} value={knownDipDir === "" ? null : knownDipDir} onChange={(v) => { const s = v == null ? "" : String(v); setKnownDipDir(s); setSelectedRefId(""); }} style={numFill} wrapStyle={numWrap} />
+              <NumberInput allowEmpty placeholder={tr("Known dip (°)")} value={knownDip === "" ? null : knownDip} onChange={(v) => { const s = v == null ? "" : String(v); setKnownDip(s); setSelectedRefId(""); }} style={numFill} wrapStyle={numWrap} />
             </div>
             <div style={row}>
-              <input type="number" placeholder={tr("Measured alpha (°)")} value={refAlpha} onChange={(e) => setRefAlpha(e.target.value)} style={num} />
-              <input type="number" placeholder={tr("Measured beta (°)")} value={refBeta} onChange={(e) => setRefBeta(e.target.value)} style={num} />
+              <NumberInput allowEmpty placeholder={tr("Measured alpha (°)")} value={refAlpha === "" ? null : refAlpha} onChange={(v) => { const s = v == null ? "" : String(v); setRefAlpha(s); }} style={numFill} wrapStyle={numWrap} />
+              <NumberInput allowEmpty placeholder={tr("Measured beta (°)")} value={refBeta === "" ? null : refBeta} onChange={(v) => { const s = v == null ? "" : String(v); setRefBeta(s); }} style={numFill} wrapStyle={numWrap} />
             </div>
 
             <div className="ge-section-label" style={{ marginTop: 14 }}>{tr("Unknown structure")}</div>
@@ -206,8 +207,8 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
               <input placeholder={tr("Label (e.g. Vein, Fault)")} value={unkLabel} onChange={(e) => setUnkLabel(e.target.value)} style={sel} />
             </div>
             <div style={row}>
-              <input type="number" placeholder={tr("Measured alpha (°)")} value={unkAlpha} onChange={(e) => setUnkAlpha(e.target.value)} style={num} />
-              <input type="number" placeholder={tr("Measured beta (°)")} value={unkBeta} onChange={(e) => setUnkBeta(e.target.value)} style={num} />
+              <NumberInput allowEmpty placeholder={tr("Measured alpha (°)")} value={unkAlpha === "" ? null : unkAlpha} onChange={(v) => { const s = v == null ? "" : String(v); setUnkAlpha(s); }} style={numFill} wrapStyle={numWrap} />
+              <NumberInput allowEmpty placeholder={tr("Measured beta (°)")} value={unkBeta === "" ? null : unkBeta} onChange={(v) => { const s = v == null ? "" : String(v); setUnkBeta(s); }} style={numFill} wrapStyle={numWrap} />
             </div>
           </div>
 
@@ -244,8 +245,8 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
               <input placeholder={tr("Label (e.g. Regional bedding)")} value={newRefLabel} onChange={(e) => setNewRefLabel(e.target.value)} style={sel} />
             </div>
             <div style={row}>
-              <input type="number" placeholder={tr("Dip-dir (°)")} value={newRefDipDir} onChange={(e) => setNewRefDipDir(e.target.value)} style={num} />
-              <input type="number" placeholder={tr("Dip (°)")} value={newRefDip} onChange={(e) => setNewRefDip(e.target.value)} style={num} />
+              <NumberInput allowEmpty placeholder={tr("Dip-dir (°)")} value={newRefDipDir === "" ? null : newRefDipDir} onChange={(v) => { const s = v == null ? "" : String(v); setNewRefDipDir(s); }} style={numFill} wrapStyle={numWrap} />
+              <NumberInput allowEmpty placeholder={tr("Dip (°)")} value={newRefDip === "" ? null : newRefDip} onChange={(v) => { const s = v == null ? "" : String(v); setNewRefDip(s); }} style={numFill} wrapStyle={numWrap} />
               <button onClick={addReference} title={tr("Add to the library")} aria-label={tr("Add field reference")} style={{ ...saveBtn, padding: "6px 8px" }}><Plus size={12} /></button>
             </div>
             <AzimuthRefPicker value={newRefNorth} onChange={setNewRefNorth} selectStyle={sel} labelStyle={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 80, flexShrink: 0, alignSelf: "center" }} rowStyle={row} />
@@ -263,4 +264,6 @@ const row = { display: "flex", gap: 6, marginBottom: 6 };
 const o_sign = (v) => `${v >= 0 ? "+" : ""}${v}°`;
 const sel = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" };
 const num = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" };
+// TASKS.csv #3926 — a NumberInput's wrapper takes the row's share (flex 1), its input the wrapper's width
+const numWrap = { flex: 1, minWidth: 0 }, numFill = { ...num, width: "100%", boxSizing: "border-box" };
 const saveBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, fontSize: "var(--font-size-sm)", padding: "6px 10px" };

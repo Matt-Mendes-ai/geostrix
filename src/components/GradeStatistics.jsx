@@ -46,6 +46,7 @@ import { overlapMeans, aboveCutoffRows, parseCutoffs, defaultCutoffs, gradeStats
 import { interceptCutoffFor } from "../lib/interceptCutoff.js"; // TASKS.csv #3069
 import { drillThresholdOffers, sortedThresholdOffers } from "../lib/thresholds.js"; // TASKS.csv #3069 — the saved drill thresholds, offered as in Best intercepts; sorted: #3160
 import { fileCensoring, fileCeiling, markCeiling } from "../lib/qaqc.js"; // fileCeiling, markCeiling: #3729; // TASKS.csv #2913 — Thresholds' censoring rule; #3083: found on the file's results, as Thresholds does
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -461,7 +462,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
                   <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: capText(prob.p975), b: capText(prob.p99), unit: dispLabel })}</span>
                   {brkAsCap && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} style={{ ...sel, cursor: "pointer" }} title={tr("The bend between two populations that the two-line fit finds in the high tail (Sinclair 1976), as Thresholds suggests it. Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: dispLabel })}</button>}{/* #2675 */}
-                  <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<NumberInput allowEmpty min="0" value={capTest} onChange={(v) => setCapTest(v == null ? "" : String(v))} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
                 </div>
                 {/* TASKS.csv #3746 — the metal the top samples carry, where a cap is tested; a cap there says its loss before it is typed */}

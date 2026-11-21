@@ -30,5 +30,5 @@ test("three collars picked on a scan fit it exactly", () => {
 test("the table offers the collars and clears the pick when X / Y are typed", () => {
   const src = readFileSync(new URL("../src/components/GeoreferencerModal.jsx", import.meta.url), "utf8");
   assert.match(src, /collarControlXY\(c, \{ cpEpsg, projectEpsg, reproject: reprojectXY, geographic: isGeographicCp \}\)/);
-  assert.match(src, /updatePoint\(p\.id, \{ x: e\.target\.value, hole: "" \}\)/);
+  assert.match(src, /updatePoint\(p\.id, \{ x: (e\.target\.value|v == null \? "" : String\(v\)), hole: "" \}\)/); // #3926: a NumberInput
 });

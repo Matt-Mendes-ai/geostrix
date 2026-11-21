@@ -6,6 +6,9 @@ import React, { useMemo, useState } from "react";
 import { t as tr } from "../../lib/i18n.js";
 import { useStore } from "../../lib/store.jsx";
 import { LAYER_META } from "../../lib/layers.js";
+import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 export default function TubeSizeControl({ figureOverlay, setFigureOverlay }) {
   const all = figureOverlay.tubeSize || { mode: "auto" };
@@ -36,7 +39,7 @@ export default function TubeSizeControl({ figureOverlay, setFigureOverlay }) {
         {layer && <option value="same">{tr("Same as all layers")}</option>}
         <option value="auto">{tr("Auto")}</option><option value="true">{tr("True radius")}</option><option value="atLeast">{tr("At least (px)")}</option><option value="fixed">{tr("Fixed (px)")}</option>
       </select>
-      {needsPx && <input type="number" min={0.5} step={0.5} aria-label={tr("Tube width in pixels")} value={ts.px} onChange={(e) => { const v = Number(e.target.value); if (v > 0) set({ mode: ts.mode, px: v }); }} style={{ width: 56, fontSize: "var(--font-size-sm)" }} />}
+      {needsPx && <NumberInput min={0.5} step={0.5} aria-label={tr("Tube width in pixels")} value={ts.px} onChange={asEvent((e) => { const v = Number(e.target.value); if (v > 0) set({ mode: ts.mode, px: v }); })} style={{ width: 56, fontSize: "var(--font-size-sm)" }} />}
     </label>
   );
 }

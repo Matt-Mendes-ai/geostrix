@@ -29,6 +29,7 @@ import { gradeUnitLabel, elementOptionLabel } from "../lib/geochem.js"; // eleme
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { qaqcStandardRows, qaqcBlankRows, qaqcDuplicateRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 import { pxrfVsLab, sampleTypesSeen } from "../lib/pxrfVsLab.js"; // TASKS.csv #1675
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
@@ -151,7 +152,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               </select>
             </label>
             {/* TASKS.csv #534 — the element's detection limit, saved with the project */}
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit ({unit})", { unit: unitL })}<input key={`${symbol}|${dl}`} type="number" min={0} step="any" defaultValue={dl ?? ""} placeholder={tr("not set")} onBlur={(e) => setDetectionLimit(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit ({unit})", { unit: unitL })}<NumberInput allowEmpty min={0} onChange={(v) => setDetectionLimit(v ?? 0)} value={dl ?? null} placeholder={tr("not set")} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
             </label>
             {dlSuggestion.limit != null && dlSuggestion.limit !== dl && (
               <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) /* #2503 */ ? tr("{n} result(s) are '<' at {limit}: not a round figure, so it was converted at import (from another unit or an oxide); the lab's own limit is the round figure in the source file", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) }) : tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) })) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
@@ -227,18 +228,18 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             <>
               {dl ? (
                 <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination limit: multiple of the detection limit ({dl} {unit})", { dl: formatLimit(dl), unit: unitL }) /* #2503 */}<span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                    <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 70 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />{tr("× DL =")}{" "}<b>{Number((blankMult * dl).toPrecision(4))} {unit}</b>
+                    <NumberInput min={1} value={blankMult} onChange={(v) => setBlankMult(Math.max(1, v ?? 5))} style={{ ...sel, width: 70 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />{tr("× DL =")}{" "}<b>{Number((blankMult * dl).toPrecision(4))} {unit}</b>
                   </span>
                 </label>
               ) : (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)", { unit: unitL })}<input type="number" step="any" value={blankThreshold ?? ""} placeholder={tr("none")} onChange={(e) => setBlankThreshold(e.target.value === "" || !Number.isFinite(Number(e.target.value)) ? null : Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)", { unit: unitL })}<NumberInput allowEmpty value={blankThreshold ?? null} placeholder={tr("none")} onChange={(v) => setBlankThreshold(v)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
                 </label>
               )}
               {methodsDiffer && ( /* TASKS.csv #2772 */
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "6px 0" }}>
                   <input type="checkbox" checked={perMethod} onChange={(e) => setPerMethod(e.target.checked)} style={{ marginTop: 2 }} />
                   <span>{tr("Judge each blank against its own method's limit: {mult} × {list}", { mult: blankMult, list: methodLimits.map((m) => `${m.method ?? tr("main column")} ${m.limit == null ? "—" : formatLimit(m.limit)}`).join(", ") })}</span>
-                  {perMethod && !dl && <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 60 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />}
+                  {perMethod && !dl && <NumberInput min={1} value={blankMult} onChange={(v) => setBlankMult(Math.max(1, v ?? 5))} style={{ ...sel, width: 60 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />}
                 </label>
               )}
               {methodsDiffer && perMethod && ( /* TASKS.csv #2881 — each method column's limit, typed (saved with the element) or read from its '<' results */
@@ -246,7 +247,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                   {methodLimits.map((m) => (
                     <label key={m.method ?? ""} style={{ display: "flex", alignItems: "center", gap: 4 }} title={m.typed ? tr("Typed; read from the '<' results: {v}", { v: m.read == null ? "—" : formatLimit(m.read) }) : tr("Read from the '<' results; type the lab's limit for this method to replace it")}>
                       {m.method ?? tr("main column")}
-                      <input key={`${symbol}|${m.method ?? ""}|${m.limit}`} type="number" min={0} step="any" defaultValue={m.typed ? m.limit : ""} placeholder={m.limit == null ? tr("not set") : formatLimit(m.limit)} onBlur={(e) => setMethodLimit(m.method, Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, width: 80 }} aria-label={tr("Detection limit of {method}", { method: m.method ?? tr("main column") })} />
+                      <NumberInput allowEmpty min={0} onChange={(v) => setMethodLimit(m.method, v ?? 0)} value={m.typed ? m.limit : null} placeholder={m.limit == null ? tr("not set") : formatLimit(m.limit)} style={{ ...sel, width: 80 }} aria-label={tr("Detection limit of {method}", { method: m.method ?? tr("main column") })} />
                     </label>
                   ))}
                 </div>
@@ -295,7 +296,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               <>
                 <div style={label}>{tr("Relative % difference (RPD) — {symbol}, {dups} {v}", { symbol, dups: dups.length, v: tr(dups.length === 1 ? "pair" : "pairs") })}</div>
                 <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.")}>{tr("Ignore pairs with a mean below ({unit}){v}", { unit: unitL, v: dl ? tr(" — default 10 × DL = {v}", { v: Number((10 * dl).toPrecision(4)) }) : tr(", e.g. 10× detection limit") })}
-                  <input type="number" min={0} step="any" value={dupMin} placeholder={dl ? String(Number((10 * dl).toPrecision(4))) : "0"} onChange={(e) => setDupMin(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Minimum pair mean")} />
+                  <NumberInput allowEmpty min={0} value={dupMin} placeholder={dl ? String(Number((10 * dl).toPrecision(4))) : "0"} onChange={(v) => setDupMin(v == null ? "" : String(v))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Minimum pair mean")} />
                 </label>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
                   {dupSummary.used ? tr("{within} of {used} counted pairs ({pctWithin}%) within their limit", { within: dupSummary.within, used: dupSummary.used, pctWithin: dupSummary.pctWithin.toFixed(0) }) : tr("No pairs above the limit")}{dupSummary.below ? tr(" · {below} below the limit, not counted", { below: dupSummary.below }) : ""}.
@@ -341,8 +342,8 @@ function CertInputs({ cert, unit, onSave }) {
   const ok = mean !== "" && Number.isFinite(Number(mean)) && Number(sd) > 0;
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 8, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-      <label>{tr("Certified mean ({unit})", { unit })}<input type="number" step="any" value={mean} onChange={(e) => setMean(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified mean")} /></label>
-      <label>{tr("Certified 1 SD")}<input type="number" step="any" min={0} value={sd} onChange={(e) => setSd(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified standard deviation")} /></label>
+      <label>{tr("Certified mean ({unit})", { unit })}<NumberInput allowEmpty value={mean} onChange={(v) => setMean(v == null ? "" : String(v))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified mean")} /></label>
+      <label>{tr("Certified 1 SD")}<NumberInput allowEmpty min={0} value={sd} onChange={(v) => setSd(v == null ? "" : String(v))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified standard deviation")} /></label>
       <button type="button" disabled={!ok} onClick={() => onSave({ mean: Number(mean), sd: Number(sd) })} style={{ ...tabBtn, opacity: ok ? 1 : 0.5 }}>{tr("Use certificate")}</button>
       {cert && <button type="button" onClick={() => { setMean(""); setSd(""); onSave(null); }} style={tabBtn}>{tr("Clear")}</button>}
     </div>

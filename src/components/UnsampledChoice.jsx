@@ -11,6 +11,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #3116 — the built-in
 import { excludeQAQC } from "../lib/qaqc.js";
 
 import { getUnsampledChoice, setUnsampledChoice, subscribe, getVersion, lastUnknown } from "../lib/unsampledChoices.js"; // TASKS.csv #3920 — moved to a lib
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 export { getUnsampledChoice, setUnsampledChoice };
 
 // the run-time side, also used outside React (modellingRuns): -> { info, mode, value, ready, apply(assays) -> { assays, filledM, holesFilled }, params }
@@ -78,7 +79,7 @@ export default function UnsampledChoice({ u, style = null, selStyle = null }) {
           <option value="barren">{tr("barren: a value I type")}</option>
           {logChoices.length > 0 && <option value="log">{tr("from a downhole log I pick")}</option>}{/* #2721 */}
         </select>
-        {mode === "barren" && <input type="number" min="0" step="any" aria-label={tr("Value of the unsampled metres ({unit})", { unit })} placeholder={unit} value={value} onChange={(e) => set({ value: e.target.value })} style={{ ...sel, width: 80 }} />}
+        {mode === "barren" && <NumberInput allowEmpty min="0" aria-label={tr("Value of the unsampled metres ({unit})", { unit })} placeholder={unit} value={value} onChange={(v) => set({ value: v == null ? "" : String(v) })} style={{ ...sel, width: 80 }} />}
       </label>
       {mode === "barren" && unassayed.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={tr("Holes with no sample of the element, to their collar length or else to their deepest logged interval: off by default, because a hole may not have been assayed for reasons other than looking barren.")}><input type="checkbox" checked={alsoUnassayed} onChange={(e) => set({ alsoUnassayed: e.target.checked })} />{tr("Also the {n} hole(s) drilled but never assayed for {symbol}, over their whole length", { n: unassayed.length, symbol })}</label>}{/* #2736 */}
       {mode === "log" && (<div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>{/* TASKS.csv #2721 */}
@@ -86,7 +87,7 @@ export default function UnsampledChoice({ u, style = null, selStyle = null }) {
           <option value="">{tr("— pick a log —")}</option>
           {logChoices.map((c) => <option key={c.key} value={c.key}>{String(c.label).endsWith(`(${c.unit})`) ? c.label : `${c.label} (${c.unitLabel || c.unit})`}</option>)}
         </select>
-        {logSource && <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("{symbol} ({unit}) = reading ×", { symbol, unit: gradeUnitLabel(symbol, unit) })}<input type="number" min="0" step="any" aria-label={tr("Factor from the log to {symbol}", { symbol })} value={logFactor} onChange={(e) => set({ factor: e.target.value })} style={{ ...sel, width: 70 }} /></label>}
+        {logSource && <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("{symbol} ({unit}) = reading ×", { symbol, unit: gradeUnitLabel(symbol, unit) })}<NumberInput allowEmpty min="0" aria-label={tr("Factor from the log to {symbol}", { symbol })} value={logFactor} onChange={(v) => set({ factor: v == null ? "" : String(v) })} style={{ ...sel, width: 70 }} /></label>}
         {offer && Number(logFactor) !== offer.factor && <button type="button" onClick={() => set({ factor: String(offer.factor) })} style={sel}>{offer.ratio ? tr("Use × {f} ({from} to {to}: U3O8 = U × {r})", { f: offer.factor, from: offer.from, to: offer.to, r: offer.ratio }) : tr("Use × {f} ({from} read as {to})", { f: offer.factor, from: offer.from, to: offer.to })}</button>}
       </div>)}
       <div style={{ color: low ? "var(--color-warn-text)" : "var(--color-text-muted)", lineHeight: 1.5 }}>

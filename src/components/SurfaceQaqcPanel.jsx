@@ -20,6 +20,7 @@ import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { surfaceQaqcRows } from "../lib/tableExports.js"; // TASKS.csv #1083
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const TABS = [["batches", "Batches"], ["standards", "Standards"], ["blanks", "Blanks"], ["duplicates", "Duplicates"], ["limits", "Detection & methods"]];
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : v.toPrecision(3));
@@ -127,16 +128,16 @@ export default function SurfaceQaqcPanel({ onClose }) {
                 </select></label>
                 {["standard", "blank", "duplicate"].map((k) => (
                   <label key={k} style={ctl}>{tr({ standard: "Standards: one in", blank: "Blanks: one in", duplicate: "Duplicates: one in" }[k])}
-                    <input type="number" min="2" step="1" value={settings.targets[k] ?? ""} placeholder={tr("no target")} onChange={(e) => setSettings({ targets: { ...settings.targets, [k]: e.target.value === "" ? null : Math.max(2, Number(e.target.value)) } })} style={{ ...sel, width: 80, marginLeft: 6 }} />
+                    <NumberInput allowEmpty min="2" step="1" value={settings.targets[k] ?? null} placeholder={tr("no target")} onChange={(v) => setSettings({ targets: { ...settings.targets, [k]: v == null ? null : Math.max(2, v) } })} style={{ ...sel, width: 80, marginLeft: 6 }} />
                   </label>
                 ))}
               </div>
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-                <label style={ctl}>{tr("Blank fails above")}<input type="number" min="1" step="1" value={settings.blankMultiple} onChange={(e) => setSettings({ blankMultiple: Math.max(1, Number(e.target.value) || 5) })} style={{ ...sel, width: 60, margin: "0 6px" }} />{tr("× detection limit")}</label>
+                <label style={ctl}>{tr("Blank fails above")}<NumberInput min="1" step="1" value={settings.blankMultiple} onChange={(v) => setSettings({ blankMultiple: Math.max(1, v ?? 5) })} style={{ ...sel, width: 60, margin: "0 6px" }} />{tr("× detection limit")}</label>
                 {[["field", "Field duplicates"], ["lab", "Lab duplicates"], ["unknown", "Type not stated"]].map(([k, l]) => (
-                  <label key={k} style={ctl}>{tr(l)} ≤<input type="number" min="1" step="1" value={settings.rpd[k]} onChange={(e) => setSettings({ rpd: { ...settings.rpd, [k]: Math.max(1, Number(e.target.value) || 20) } })} style={{ ...sel, width: 60, margin: "0 4px" }} />% RPD</label>
+                  <label key={k} style={ctl}>{tr(l)} ≤<NumberInput min="1" step="1" value={settings.rpd[k]} onChange={(v) => setSettings({ rpd: { ...settings.rpd, [k]: Math.max(1, v ?? 20) } })} style={{ ...sel, width: 60, margin: "0 4px" }} />% RPD</label>
                 ))}
-                <label style={ctl}>{tr("Count pairs above")}<input type="number" min="0" step="1" value={settings.pairFloorMultiple} onChange={(e) => setSettings({ pairFloorMultiple: Math.max(0, Number(e.target.value) || 0) })} style={{ ...sel, width: 60, margin: "0 6px" }} />{tr("× detection limit")}</label>
+                <label style={ctl}>{tr("Count pairs above")}<NumberInput min="0" step="1" value={settings.pairFloorMultiple} onChange={(v) => setSettings({ pairFloorMultiple: Math.max(0, v ?? 0) })} style={{ ...sel, width: 60, margin: "0 6px" }} />{tr("× detection limit")}</label>
               </div>
             </div>
           )}
@@ -167,8 +168,8 @@ export default function SurfaceQaqcPanel({ onClose }) {
                 <label style={ctl}>{tr("Standard")}<select value={std?.code || ""} onChange={(e) => setStdCode(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                   {stds.map((g) => <option key={g.code} value={g.code}>{g.code} (n {g.n}{g.fails ? `, ${g.fails} > 3 SD` : ""})</option>)}
                 </select></label>
-                <label style={ctl}>{tr("Certified value")}<input type="number" step="any" value={cert?.mean ?? ""} placeholder={tr("from the certificate")} onChange={(e) => setCrmCertificate(std.code, symbol, { ...(cert || {}), mean: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...sel, display: "block", marginTop: 4, width: 130 }} /></label>
-                <label style={ctl}>{tr("Certified SD")}<input type="number" step="any" value={cert?.sd ?? ""} onChange={(e) => setCrmCertificate(std.code, symbol, { ...(cert || {}), sd: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...sel, display: "block", marginTop: 4, width: 110 }} /></label>
+                <label style={ctl}>{tr("Certified value")}<NumberInput allowEmpty value={cert?.mean ?? null} placeholder={tr("from the certificate")} onChange={(v) => setCrmCertificate(std.code, symbol, { ...(cert || {}), mean: v })} style={{ ...sel, display: "block", marginTop: 4, width: 130 }} /></label>
+                <label style={ctl}>{tr("Certified SD")}<NumberInput allowEmpty value={cert?.sd ?? null} onChange={(v) => setCrmCertificate(std.code, symbol, { ...(cert || {}), sd: v })} style={{ ...sel, display: "block", marginTop: 4, width: 110 }} /></label>
               </div>
               <div style={note}>
                 {std.limits?.certified

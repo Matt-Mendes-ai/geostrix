@@ -19,6 +19,9 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { median } from "../lib/arrayStats.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -39,8 +42,9 @@ const nearestZ = (pts, x, y) => pts.reduce((b, k) => (Number.isFinite(k.z) && (!
 // refuses the number, and the cell goes back to the stored value instead of showing what was refused (#1363)
 function Cell({ value, onCommit, width = 54, ariaLabel, placeholder }) {
   const [reset, setReset] = useState(0);
-  return <input type="number" step="any" key={`${value}|${reset}`} defaultValue={value ?? ""} placeholder={placeholder} aria-label={ariaLabel} style={{ ...smallSel, width }}
-    onBlur={(e) => { const v = num0(e.target.value); if (v !== (value ?? null) && onCommit(v) === false) setReset((k) => k + 1); }} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />;
+  // TASKS.csv #3926 — NumberInput reads '0,05' as well as '0.05' and commits on leaving or Enter, as this cell did; null when emptied
+  return <NumberInput allowEmpty key={`${value}|${reset}`} value={value} placeholder={placeholder} aria-label={ariaLabel} style={{ ...smallSel, width }}
+    onChange={(v) => { if (v !== (value ?? null) && onCommit(v) === false) setReset((k) => k + 1); }} />;
 }
 
 // view: { scene, camera, renderer, activity, dragHook, origin } (refs)
@@ -299,8 +303,8 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
 
         <div style={label}>{tr("Next segment")}</div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-          <label style={{ ...row, marginTop: 0 }}>{tr("Grade (%)")}<input type="number" step="any" value={grade} onChange={(e) => setGrade(e.target.value)} style={num} aria-label={tr("Grade of the next segment")} title={tr("Rise over run in the direction of travel: 1 climbs, -2 goes down.")} /></label>
-          <label style={{ ...row, marginTop: 0 }}>{tr("Radius (m)")}<input type="number" min={0} step="any" value={radius} onChange={(e) => setRadius(e.target.value)} placeholder={tr("sharp")} style={num} aria-label={tr("Curve radius of the next segment")} title={tr("The turning radius in plan. When drawing, each click curves off the line's heading at this radius, then runs straight to the point. Blank: a sharp corner.")} /></label>
+          <label style={{ ...row, marginTop: 0 }}>{tr("Grade (%)")}<NumberInput allowEmpty value={grade} onChange={asEvent((e) => setGrade(e.target.value))} style={num} aria-label={tr("Grade of the next segment")} title={tr("Rise over run in the direction of travel: 1 climbs, -2 goes down.")} /></label>
+          <label style={{ ...row, marginTop: 0 }}>{tr("Radius (m)")}<NumberInput allowEmpty min={0} value={radius} onChange={asEvent((e) => setRadius(e.target.value))} placeholder={tr("sharp")} style={num} aria-label={tr("Curve radius of the next segment")} title={tr("The turning radius in plan. When drawing, each click curves off the line's heading at this radius, then runs straight to the point. Blank: a sharp corner.")} /></label>
         </div>
         {gradeRatio(Number(grade)) && <div style={{ ...note, marginTop: 2 }}>{tr("{ratio} {dir}", { ratio: gradeRatio(Number(grade)), dir: Number(grade) > 0 ? tr("up") : tr("down") })}</div>}
         <button onClick={() => setDrawing((d) => !d)} disabled={!canDraw} aria-pressed={drawing} style={{ ...pBtn, marginTop: 6, background: drawing ? "var(--color-selected-bg)" : undefined, opacity: canDraw ? 1 : 0.5 }}>
@@ -336,8 +340,8 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
           </div>
           {plannedHoles.length > 0 && <label style={row}>{tr("Or a planned hole's toe")}<select value={tgt.holeId} onChange={(e) => setTgt((t) => ({ ...t, holeId: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Planned hole whose toe is the target")}><option value="">{tr("— none —")}</option>{plannedHoles.map((h) => <option key={h.id} value={h.id}>{h.name || h.id}</option>)}</select></label>}
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <label style={{ ...row, marginTop: 0 }}>{tr("Max grade (%)")}<input type="number" min={0} step="any" value={tgt.maxGrade} onChange={(e) => { toTargetDefaults.maxGrade = e.target.value; setTgt((t) => ({ ...t, maxGrade: e.target.value })); }} style={num} aria-label={tr("Maximum grade to the target")} /></label>
-            <label style={{ ...row, marginTop: 0 }}>{tr("Min radius (m)")}<input type="number" min={0} step="any" value={tgt.minRadius} onChange={(e) => { toTargetDefaults.minRadius = e.target.value; setTgt((t) => ({ ...t, minRadius: e.target.value })); }} style={num} aria-label={tr("Minimum curve radius to the target")} /></label>
+            <label style={{ ...row, marginTop: 0 }}>{tr("Max grade (%)")}<NumberInput allowEmpty min={0} value={tgt.maxGrade} onChange={asEvent((e) => { toTargetDefaults.maxGrade = e.target.value; setTgt((t) => ({ ...t, maxGrade: e.target.value })); })} style={num} aria-label={tr("Maximum grade to the target")} /></label>
+            <label style={{ ...row, marginTop: 0 }}>{tr("Min radius (m)")}<NumberInput allowEmpty min={0} value={tgt.minRadius} onChange={asEvent((e) => { toTargetDefaults.minRadius = e.target.value; setTgt((t) => ({ ...t, minRadius: e.target.value })); })} style={num} aria-label={tr("Minimum curve radius to the target")} /></label>
           </div>
           {pickedOn?.miss && <div style={note}>{tr("Nothing under the cursor there: the target was not changed.")}</div>}{/* #1921 */}
           {pickedOn && !pickedOn.miss && !tgt.holeId && <div style={note}>{pickedOn.on ? tr("Picked on {name} at Z {z}: set the Z by hand if that is not the elevation you mean.", { name: pickedOn.on, z: m1(pickedOn.z) }) : tr("Picked on the flat reference plane (nothing drawn under the cursor): set the Z by hand.")}</div>}{/* #1891 */}
@@ -386,8 +390,8 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
           {line.profile?.width > 0 && line.profile?.height > 0 && onAdd && <div style={{ marginTop: 4 }}><button onClick={addOpening} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }} title={tr("The swept profile as a closed solid in Generated surfaces: export it, query it against the holes, take it out of a stope.")}>{tr("Add the opening as a solid")}</button></div>}{/* #1954 */}
           {line.profile?.width > 0 && line.profile?.height > 0 && <div style={note}>{tr("{a} m² section, {v} m³ along this line{t}. The profile is drawn in the view.", { a: m2(profileArea(line.profile)), v: Math.round(profileArea(line.profile) * c.length).toLocaleString(), t: num0(density) > 0 ? tr(", {t} t at {d} t/m³", { t: Math.round(profileArea(line.profile) * c.length * num0(density)).toLocaleString(), d: num0(density) }) : "" })}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <label style={{ ...row, marginTop: 0 }}>{tr("Density (t/m³)")}<input type="number" min={0} step="any" value={density} onChange={(e) => setDensity(e.target.value)} style={num} aria-label={tr("Rock density for the excavation tonnes")} /></label>
-            <label style={{ ...row, marginTop: 0 }} title={tr("The rock to keep between this line and any other line or drillhole; a pass closer than it is flagged.")}>{tr("Pillar (m)")}<input type="number" min={0} step="any" value={pillar} onChange={(e) => setPillar(e.target.value)} style={num} aria-label={tr("Pillar to keep")} /></label>
+            <label style={{ ...row, marginTop: 0 }}>{tr("Density (t/m³)")}<NumberInput allowEmpty min={0} value={density} onChange={asEvent((e) => setDensity(e.target.value))} style={num} aria-label={tr("Rock density for the excavation tonnes")} /></label>
+            <label style={{ ...row, marginTop: 0 }} title={tr("The rock to keep between this line and any other line or drillhole; a pass closer than it is flagged.")}>{tr("Pillar (m)")}<NumberInput allowEmpty min={0} value={pillar} onChange={asEvent((e) => setPillar(e.target.value))} style={num} aria-label={tr("Pillar to keep")} /></label>
           </div>
         </>)}
         {devRows.length > 0 && (

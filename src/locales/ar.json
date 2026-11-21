@@ -14459,5 +14459,12 @@
   "Move to another line…": "نقل إلى خط آخر…",
   "{name}: moved to its new section line.": "{name}: نُقل إلى خط مقطعه الجديد.",
   "This figure has no position to move.": "لا موضع لهذا الشكل لنقله.",
-  "The section's start and end points are the same — give two different points.": "بداية المقطع ونهايته نقطة واحدة: أعطِ نقطتين مختلفتين."
+  "The section's start and end points are the same — give two different points.": "بداية المقطع ونهايته نقطة واحدة: أعطِ نقطتين مختلفتين.",
+  "Colour samples by": "تلوين العينات حسب",
+  "their medium": "وسطها",
+  "Size by value": "الحجم حسب القيمة",
+  "Sample ids": "معرّفات العينات",
+  "Sample legend": "مفتاح العينات",
+  "A grey ring: no value ({n}).": "حلقة رمادية: بلا قيمة ({n}).",
+  "Other: {n} values ({count} samples)": "أخرى: {n} قيم ({count} عينات)"
 }

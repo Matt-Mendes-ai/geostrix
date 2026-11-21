@@ -22,6 +22,7 @@ import { toCsv, FORMULA_LEAD } from "../lib/tabular.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #3016 — open on the lead commodity
 import { useLeadCommodity } from "../lib/useLeadCommodity.js";
 import { showGtOnPlan, gtContourLayer } from "../lib/planGt.js"; // TASKS.csv #2755 — the totals on the Maps plan, the contour as a map layer
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 const LongSectionGT = lazy(() => import("./LongSectionGT.jsx")); // TASKS.csv #3089 — the long-section view, loaded when chosen
 
 // TASKS.csv #2820 — a kriging standard deviation grid as a PNG, one pixel per node (north up), for an <image> under the plan; sdPixels
@@ -179,9 +180,9 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label style={field}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setCutoff(""); setGtCut(""); setAsOxide(false); }} style={inp} aria-label={tr("Element")}>{symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, (assayElements || []).find((e) => e.symbol === s)?.unit)})</option>)}</select></label>
           {offer && <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }}><input type="checkbox" checked={asOxide} onChange={(e) => { setAsOxide(e.target.checked); setCutoff(""); setGtCut(""); }} />{tr("Report as {oxide} (× {f})", { oxide: offer.oxide, f: offer.factor })}</label>}
-          <label style={field}>{tr("Intercept cut-off ({unit})", { unit: shownGrade })}<input type="number" min="0" step="any" value={cutoff} placeholder={tr("cut-off")} onChange={(e) => setCutoff(e.target.value)} style={inp} aria-label={tr("Intercept cut-off")} /></label>
-          <label style={field}>{tr("Minimum length (m)")}<input type="number" min="0" step="any" value={minLength} onChange={(e) => setMinLength(e.target.value)} style={inp} /></label>
-          <label style={field}>{tr("Max internal dilution (m)")}<input type="number" min="0" step="any" value={dilution} onChange={(e) => setDilution(e.target.value)} style={inp} /></label>
+          <label style={field}>{tr("Intercept cut-off ({unit})", { unit: shownGrade })}<NumberInput allowEmpty min="0" value={cutoff} placeholder={tr("cut-off")} onChange={(v) => setCutoff(v == null ? "" : String(v))} style={inp} aria-label={tr("Intercept cut-off")} /></label>
+          <label style={field}>{tr("Minimum length (m)")}<NumberInput allowEmpty min="0" value={minLength} onChange={(v) => setMinLength(v == null ? "" : String(v))} style={inp} /></label>
+          <label style={field}>{tr("Max internal dilution (m)")}<NumberInput allowEmpty min="0" value={dilution} onChange={(v) => setDilution(v == null ? "" : String(v))} style={inp} /></label>
           {codes.length > 0 && <label style={field}>{tr("Within a logged unit")}<select value={unitCode} onChange={(e) => setUnitCode(e.target.value)} style={inp} aria-label={tr("Within a logged unit")}><option value="">{tr("(any)")}</option>{codes.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>}
         </div>
         {!Number.isFinite(cut) && <div style={note}>{tr("Type the intercepts' cut-off: none is chosen for you.")}</div>}
@@ -218,11 +219,11 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
             {planMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{planMsg}</div>}
             <div className="ge-section-label" style={{ marginTop: 4 }}>{tr("Estimate in plan")}</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <label style={field}>{tr("Cell (m)")}<input type="number" min="0" step="any" value={cell} placeholder={cellM ? String(cellM) : ""} onChange={(e) => setCell(e.target.value)} style={inp} aria-label={tr("Plan cell (m)")} /></label>
-              <label style={field} title={tr("No hole within this distance of a node leaves it unestimated (not barren). Blank = 2.5 times the typical hole spacing.")}>{tr("Search radius (m)")}<input type="number" min="0" step="any" value={radius} placeholder={radiusM ? String(radiusM) : ""} onChange={(e) => setRadius(e.target.value)} style={inp} aria-label={tr("Plan search radius (m)")} /></label>
-              <label style={field}>{tr("GT cut-off ({u})", { u: gtLabel })}<input type="number" min="0" step="any" value={gtCut} placeholder={tr("cut-off")} onChange={(e) => setGtCut(e.target.value)} style={inp} aria-label={tr("GT cut-off")} /></label>
-              <label style={field}>{tr("Density (t/m³)")}<input type="number" min="0" step="any" value={density} onChange={(e) => setDensity(e.target.value)} style={inp} aria-label={tr("Density (t/m³)")} /></label>
-              <label style={field} title={tr("Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.")}>{tr("Panel side (m)")}<input type="number" min="0" step="any" value={panelText} placeholder={tr("optional")} onChange={(e) => setPanelText(e.target.value)} style={inp} aria-label={tr("Panel side (m)")} /></label>{/* #2650 */}
+              <label style={field}>{tr("Cell (m)")}<NumberInput allowEmpty min="0" value={cell} placeholder={cellM ? String(cellM) : ""} onChange={(v) => setCell(v == null ? "" : String(v))} style={inp} aria-label={tr("Plan cell (m)")} /></label>
+              <label style={field} title={tr("No hole within this distance of a node leaves it unestimated (not barren). Blank = 2.5 times the typical hole spacing.")}>{tr("Search radius (m)")}<NumberInput allowEmpty min="0" value={radius} placeholder={radiusM ? String(radiusM) : ""} onChange={(v) => setRadius(v == null ? "" : String(v))} style={inp} aria-label={tr("Plan search radius (m)")} /></label>
+              <label style={field}>{tr("GT cut-off ({u})", { u: gtLabel })}<NumberInput allowEmpty min="0" value={gtCut} placeholder={tr("cut-off")} onChange={(v) => setGtCut(v == null ? "" : String(v))} style={inp} aria-label={tr("GT cut-off")} /></label>
+              <label style={field}>{tr("Density (t/m³)")}<NumberInput allowEmpty min="0" value={density} onChange={(v) => setDensity(v == null ? "" : String(v))} style={inp} aria-label={tr("Density (t/m³)")} /></label>
+              <label style={field} title={tr("Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.")}>{tr("Panel side (m)")}<NumberInput allowEmpty min="0" value={panelText} placeholder={tr("optional")} onChange={(v) => setPanelText(v == null ? "" : String(v))} style={inp} aria-label={tr("Panel side (m)")} /></label>{/* #2650 */}
               <label style={field} title={tr("Ordinary kriging fits a 2D variogram to the holes' GT, and another to their thickness, and weighs the nearest holes by it; inverse distance weighs them by distance alone. Both estimate the same nodes.")}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Plan estimation method")}>
                 <option value="idw">{tr("Inverse distance (squared)")}</option>
                 <option value="ok">{tr("Ordinary kriging (a 2D variogram of each)")}</option>

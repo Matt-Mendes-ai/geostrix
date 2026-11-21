@@ -52,6 +52,7 @@ import { recoveryColumns } from "../lib/recoveryCalc.js"; // TASKS.csv #2891
 import { codeOverlap, otherCodeSystem } from "../lib/codeOverlap.js"; // TASKS.csv #2893
 import { densityUnitDoubt } from "../lib/densityNote.js"; // TASKS.csv #3529
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
@@ -374,7 +375,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 {modal.target === "collars" && (
                   <div style={{ marginTop: 10 }}>
                     {/* TASKS.csv #2497 — the shift on its own: a project kept on its mine grid, or MGA X / Y with the mine RL, says "RL is +1000" without control points */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-base)" }}>{tr("Elevation shift")}{" "}<input type="number" value={modal.zShift ?? ""} onChange={(e) => onChange({ ...modal, zShift: e.target.value })} style={{ ...sel, width: 90 }} aria-label={tr("Elevation shift in metres")} /> m <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("added to every collar elevation (e.g. -1000 for a mine datum)")}</span></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-base)" }}>{tr("Elevation shift")}{" "}<NumberInput allowEmpty value={modal.zShift === "" ? null : modal.zShift ?? null} onChange={(v) => onChange({ ...modal, zShift: v == null ? "" : String(v) })} style={{ ...sel, width: 90 }} aria-label={tr("Elevation shift in metres")} /> m <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("added to every collar elevation (e.g. -1000 for a mine datum)")}</span></div>
                     <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "var(--font-size-base)" }}>
                       <input type="checkbox" checked={!!modal.localGridOn} onChange={(e) => onChange({ ...modal, localGridOn: e.target.checked })} />{" "}{tr("X/Y are on a local mine grid")}</label>
                     {modal.localGridOn && (

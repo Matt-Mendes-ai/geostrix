@@ -13,7 +13,7 @@ test("#1216 the SG layer's mean is length-weighted, and leaves out what is not a
   assert.equal(sgSummary([{ from: 0, to: 1, value: -99 }]), null);
   const m = read("src/components/GradeTonnageModal.jsx");
   assert.match(m, /length-weighted mean of \$\{sgLayer\.n\} Specific gravity rows/); // the CSV says where the density came from
-  assert.match(m, /setDensity\(e\.target\.value\); setFromSg\(false\)/); // typing over it is then "entered by the user"
+  assert.match(m, /setDensity\(v == null \? "" : String\(v\)\); setFromSg\(false\)/); // #3926: NumberInput // typing over it is then "entered by the user"
 });
 test("#1212 plot data columns are named after the axes, for a diagram with an explanation in the label and one without", () => {
   const assays = [{ hole_id: "H", from: 0, to: 1, values: { K: 3, Mg: 2, Na: 1, Ca: 1, Fe: 5, Si: 30 } }];

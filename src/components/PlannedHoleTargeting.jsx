@@ -6,6 +6,7 @@ import CollarPicker from "./CollarPicker.jsx"; // TASKS.csv #2104
 import { surveyDeviation } from "../lib/surveyDeviation.js"; // TASKS.csv #1733
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 // TASKS.csv #119 — the two planning tools #188 did not build, rendered inside an expanded planned-hole
 // row in the Targeting sidebar. Deliberately a SEPARATE component file rather than more code inside
@@ -32,9 +33,9 @@ function TargetField({ label, value, onChange }) {
   return (
     <label style={fieldWrap}>
       {label}
-      <input
-        type="number" value={value ?? ""} placeholder="—"
-        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+      <NumberInput
+        allowEmpty value={value ?? null} placeholder="—" /* #3926 — '0,05' read as 0.05 */
+        onChange={(v) => onChange(v)}
         style={inputStyle}
       />
     </label>
