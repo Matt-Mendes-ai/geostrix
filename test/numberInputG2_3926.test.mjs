@@ -57,6 +57,18 @@ test("a box that filled its row still does (wrapStyle), and the survey grid's az
   assert.match(sp, /<NumberInput min=\{5\} value=\{grid\.lineSpacing\}/);
 });
 
+test("StrixViewer: the grid, the section buffer and ViewerModule's seven boxes (section, slice, series, offset)", () => {
+  const vp = read("modules/viewer/ViewerParts.jsx"), vm = read("modules/ViewerModule.jsx");
+  assert.match(vp, /import NumberInput from "\.\.\/\.\.\/components\/NumberInput\.jsx";/);
+  assert.match(vm, /import NumberInput from "\.\.\/components\/NumberInput\.jsx";/);
+  for (const [f, s] of [["ViewerParts", vp], ["ViewerModule", vm]]) assert.doesNotMatch(s, /<input[^>]*type="number"/, f);
+  assert.equal((vp.match(/<NumberInput /g) || []).length, 3);
+  assert.equal((vm.match(/<NumberInput /g) || []).length, 7);
+  // the slice and series azimuths still wrap (no min / max to refuse 200 or 400)
+  assert.match(vm, /<NumberInput value=\{slice3d\.azimuth\} onChange=\{\(v\) => setSlice3d\(\(s\) => \(\{ \.\.\.s, azimuth: \(\(v % 180\) \+ 180\) % 180 \}\)\)\}/);
+  assert.match(vm, /<NumberInput step=\{1\} value=\{sliceSeriesAzimuth\} onChange=\{\(v\) => setSliceSeriesAzimuth\(\(v % 360 \+ 360\) % 360\)\}/);
+});
+
 test("NumberInput takes a wrapper style (a box that fills a row), and nothing else changes", () => {
   const n = read("components/NumberInput.jsx");
   assert.match(n, /wrapStyle = null/);
