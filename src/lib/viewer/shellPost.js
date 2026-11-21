@@ -21,7 +21,7 @@ import { samplesInsideShell } from "../shellSupport.js";
 import { farFromSamples } from "../haloSupport.js";
 import { gridShape } from "../blockReach.js";
 import { reachCutField } from "./shellPlane.js"; // TASKS.csv #3655
-import { holeRuns, bodyHoles } from "./shellBodies.js"; // TASKS.csv #3785
+import { holeRuns, bodyHoles, trimOneHoleBodies } from "./shellBodies.js"; // TASKS.csv #3785; trimOneHoleBodies: #3876
 import { cleanField, coarsenFactor, coarsenField, taubinSmooth } from "./shellEnvelope.js"; // TASKS.csv #3673
 import { meshInsideMask, meshInsideTester, signedDistance, priorField, blendWithPrior, updateReport } from "./domainUpdate.js"; // TASKS.csv #3673 phase 2
 
@@ -39,7 +39,10 @@ export function shellPost(grid, post) {
   const cut = post.ground ? capFieldAtColumns(reached.values, nx, ny, nz, origin, cellSize, iso, post.ground) : { values: reached.values, capped: 0 };
   const env = post.envelope || null;
   // #3673 — the envelope's clean-up (parts dropped, voids filled) after the ground cut, before the surface
-  const cleaned = env?.clean ? cleanField(cut.values, grid, iso, env.clean) : null, field = cleaned ? cleaned.values : cut.values;
+  const cleaned = env?.clean ? cleanField(cut.values, grid, iso, env.clean) : null;
+  // TASKS.csv #3876 (#3785) — a Tight shell's bodies that one hole holds kept within post.bodies.oneHoleReachM of the composites at the cut-off
+  const trim = !env && post.bodies?.oneHoleReachM > 0 ? trimOneHoleBodies(cleaned ? cleaned.values : cut.values, grid, iso, post.bodies.atPoints, post.bodies.oneHoleReachM) : null;
+  const field = trim ? trim.values : cleaned ? cleaned.values : cut.values;
   const noData = post.closeOutside ? "outside" : "skip";
   let mc = marchingCubes(field, nx, ny, nz, iso, { origin, spacing: cellSize, noData });
   const trianglesFine = mc.faces.length, coarsen = env?.targetTriangles ? coarsenFactor(trianglesFine, env.targetTriangles) : 1;
@@ -59,7 +62,7 @@ export function shellPost(grid, post) {
   const far = post.farPoints && post.farDist > 0 ? farFromSamples(field, nx, ny, nz, origin, cellSize, iso, post.farPoints, post.farDist, {}) : null;
   // TASKS.csv #3785 — the runs along the holes, the bodies held by one hole, and the share far from the composites AT the cut-off
   const B = post.bodies;
-  const bodies = B ? { runs: holeRuns(B.runPoints, grid, field, iso, B.cutoff), parts: bodyHoles(field, grid, iso, B.atPoints), farAt: B.farDist > 0 && B.atPoints?.length ? farFromSamples(field, nx, ny, nz, origin, cellSize, iso, B.atPoints, B.farDist, {}) : null } : null;
+  const bodies = B ? { trim: trim ? { nodes: trim.nodes, bodies: trim.bodies } : null, runs: holeRuns(B.runPoints, grid, field, iso, B.cutoff), parts: bodyHoles(field, grid, iso, B.atPoints), farAt: B.farDist > 0 && B.atPoints?.length ? farFromSamples(field, nx, ny, nz, origin, cellSize, iso, B.atPoints, B.farDist, {}) : null } : null;
   const { sum, n } = sumInsideShell(base, field, iso);
   // #3673 phase 2 — what changed, against the old domain
   let update = null;

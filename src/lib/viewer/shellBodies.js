@@ -39,6 +39,56 @@ export function holeRuns(points, grid, field, iso, cutoff) {
 // The bodies: 6-connected parts of the nodes at or above iso; each takes the holes of the composites at the cut-off on its nodes.
 // atPts: [{ x, y, z, hole_id }] (the grid's frame). -> { bodies, nodes, oneHole: { bodies, nodes }, largestOneHole: { nodes, hole } | null }
 export function bodyHoles(field, grid, iso, atPts) {
+  const { sizes, holes, nodes } = labelBodies(field, grid, iso, atPts), nb = sizes.length;
+  let oneB = 0, oneN = 0, largest = null;
+  for (let b = 0; b < nb; b++) {
+    if (holes[b].size > 1) continue;
+    oneB++; oneN += sizes[b];
+    if (!largest || sizes[b] > largest.nodes) largest = { nodes: sizes[b], hole: holes[b].size ? [...holes[b]][0] : null };
+  }
+  return { bodies: nb, nodes, oneHole: { bodies: oneB, nodes: oneN }, largestOneHole: largest };
+}
+
+// TASKS.csv #3876 (#3785's open point: "shorten the reach for one-hole bodies") — a body whose composites at the cut-off all come from one hole (or
+// none) is the estimate carried outward from one intercept: on the narrow-vein review three composites in one hole made a body 153 m long, the
+// search along the composites' plane reaching that far with nothing to stop it. Such a body is kept within reachM of the composites at the cut-off
+// (the caller: half the hole spacing, the distance at which a neighbouring hole would take over, never under 1.5 cells nor beyond the search);
+// its nodes further away are lowered as the reach cut lowers them (shellPlane.js reachCutField: iso + s * (reach - d)), so the surface closes there.
+// Bodies two or more holes hold are untouched. -> { values (a copy when anything changed), nodes (lowered), bodies (bodies trimmed) }
+export function trimOneHoleBodies(field, grid, iso, atPts, reachM) {
+  const R = Number(reachM), P = atPts || [];
+  if (!(R > 0) || !P.length) return { values: field, nodes: 0, bodies: 0 };
+  const { lab, sizes, holes } = labelBodies(field, grid, iso, P);
+  const one = new Uint8Array(sizes.length);
+  let any = false;
+  for (let b = 0; b < sizes.length; b++) if (holes[b].size <= 1) { one[b] = 1; any = true; }
+  if (!any) return { values: field, nodes: 0, bodies: 0 };
+  const { origin, cellSize: cs, nx, ny, nz } = grid, key = (i, j, k) => `${i},${j},${k}`, buckets = new Map();
+  for (const p of P) { const k = key(Math.floor(p.x / R), Math.floor(p.y / R), Math.floor(p.z / R)); (buckets.get(k) || buckets.set(k, []).get(k)).push(p); }
+  let vmax = -Infinity;
+  for (let i = 0; i < field.length; i++) if (field[i] > vmax) vmax = field[i];
+  const cellMax = Math.max(cs.dx, cs.dy, cs.dz), s = Math.max(vmax - iso, Math.abs(iso) * 0.01, 1e-9) / cellMax, R2 = R * R;
+  let out = null, nodes = 0;
+  const trimmed = new Set();
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const at = i + nx * (j + ny * k), b = lab[at];
+    if (b < 0 || !one[b]) continue;
+    const x = origin.x + i * cs.dx, y = origin.y + j * cs.dy, z = origin.z + k * cs.dz, bx = Math.floor(x / R), by = Math.floor(y / R), bz = Math.floor(z / R);
+    let d2 = Infinity;
+    for (let a = -1; a <= 1 && d2 > R2; a++) for (let c = -1; c <= 1 && d2 > R2; c++) for (let e = -1; e <= 1 && d2 > R2; e++) {
+      const l = buckets.get(key(bx + a, by + c, bz + e));
+      if (l) for (const p of l) { const dd = (x - p.x) ** 2 + (y - p.y) ** 2 + (z - p.z) ** 2; if (dd < d2) d2 = dd; }
+    }
+    if (d2 <= R2) continue;
+    const d = Number.isFinite(d2) ? Math.sqrt(d2) : R + cellMax;
+    if (!out) out = Float64Array.from(field);
+    out[at] = iso + s * (R - Math.min(d, R + cellMax)); nodes++; trimmed.add(b);
+  }
+  return { values: out || field, nodes, bodies: trimmed.size };
+}
+
+// the 6-connected parts of the nodes at or above iso (lab: the part of each node, -1 below), their sizes, and the holes of the points on each
+function labelBodies(field, grid, iso, atPts) {
   const { origin, cellSize: cs, nx, ny, nz } = grid, N = nx * ny * nz, NXY = nx * ny;
   const lab = new Int32Array(N).fill(-1), sizes = [];
   const stack = new Int32Array(N);
@@ -65,13 +115,7 @@ export function bodyHoles(field, grid, iso, atPts) {
     const b = lab[i + nx * (j + ny * k)];
     if (b >= 0) holes[b].add(p.hole_id);
   }
-  let oneB = 0, oneN = 0, largest = null;
-  for (let b = 0; b < nb; b++) {
-    if (holes[b].size > 1) continue;
-    oneB++; oneN += sizes[b];
-    if (!largest || sizes[b] > largest.nodes) largest = { nodes: sizes[b], hole: holes[b].size ? [...holes[b]][0] : null };
-  }
-  return { bodies: nb, nodes, oneHole: { bodies: oneB, nodes: oneN }, largestOneHole: largest };
+  return { lab, sizes, holes, nodes };
 }
 
 export const medianOf = (arrs) => {

@@ -3432,6 +3432,8 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  " One body that only one hole's composites at the cut-off hold was kept within {r} m of them (half the hole spacing): {v} m³ less.": " جسم واحد لا تسنده إلا مركّبات ثقب واحد فوق حد القطع أُبقي ضمن {r} م منها (نصف التباعد بين الثقوب): أقل بمقدار {v} م³.",
+  " {k} bodies that only one hole's composites at the cut-off hold were kept within {r} m of them (half the hole spacing): {v} m³ less.": " {k} أجسام لا تسندها إلا مركّبات ثقب واحد فوق حد القطع أُبقيت ضمن {r} م منها (نصف التباعد بين الثقوب): أقل بمقدار {v} م³.",
   "Cells {c} x {c} m and a {r} m search: GeoStrix's standard grade-shell settings, because your data didn't give a clear drill spacing (fewer than three drill sites with grades). Change them in the grade shell pane.": "خلايا {c} × {c} م وبحث {r} م: إعدادات GeoStrix القياسية لغلاف المحتوى، لأن بياناتك لم تعطِ تباعدًا واضحًا بين ثقوب الحفر (أقل من ثلاثة مواقع حفر فيها محتويات). غيّرها في لوحة غلاف المحتوى.",
   "Cells {c} x {c} m: half your {s} m drill spacing ({w} m) would need more blocks than the {b}-block budget here, so the cells are the finest that fit.": "خلايا {c} × {c} م: نصف تباعد ثقوب الحفر لديك البالغ {s} م ({w} م) يحتاج هنا إلى كتل أكثر من ميزانية {b} كتلة، لذا فالخلايا هي الأدق التي تتسع لها الميزانية.",
   "Cells {c} x {c} m: about half your {s} m drill spacing (the median distance between the drill sites that carry grades), so the shell bends between holes, not only at them.": "خلايا {c} × {c} م: نحو نصف تباعد ثقوب الحفر لديك البالغ {s} م (المسافة الوسيطة بين مواقع الحفر التي فيها محتويات)، حتى ينحني الغلاف بين الثقوب لا عندها فقط.",
