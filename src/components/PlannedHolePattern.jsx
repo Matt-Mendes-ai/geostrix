@@ -6,12 +6,15 @@ import { t as tr } from "../lib/i18n.js";
 import { useStore } from "../lib/store.jsx";
 import { holeSeries } from "../lib/holeSeries.js"; // TASKS.csv #3433
 import { holePattern, nextPatternNumber, MAX_PATTERN_HOLES } from "../lib/plannedPattern.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const inp = { width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 5px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" };
 const Field = ({ label, value, onChange, type = "number", placeholder }) => (
   <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", color: "var(--color-text-faint)", minWidth: 0 }}>
-    {label}<input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} style={inp} />
+    {label}{type === "number" /* #3926 — '0,05' read as 0.05; empty stays 'not set' (the state is text) */
+      ? <NumberInput allowEmpty value={value === "" ? null : value} placeholder={placeholder} onChange={(v) => onChange(v == null ? "" : String(v))} style={inp} aria-label={typeof label === "string" ? label : undefined} />
+      : <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} style={inp} />}
   </label>
 );
 

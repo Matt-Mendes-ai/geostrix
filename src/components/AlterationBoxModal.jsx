@@ -8,6 +8,7 @@ import React, { useMemo, useState } from "react";
 import { PROTOLITHS, PROVISIONAL_ALTERATION_BOXES, guessProtolith, FITTED_PROTOLITH, guessTrendRole } from "../lib/geochemDiagrams.js"; // fitted: #2028; trend: #2145
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -97,7 +98,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], m
                 <td style={{ paddingRight: 10 }}>{p}</td>
                 {[["ai", 0], ["ai", 1], ["ccpi", 0], ["ccpi", 1]].map(([axis, i]) => (
                   <td key={`${axis}${i}`} style={{ padding: "2px 3px" }}>
-                    <input type="number" min={0} max={100} value={boxes[p][axis][i]} onChange={(e) => setLimit(p, axis, i, e.target.value)} aria-label={`${p} ${axis.toUpperCase()} ${i ? "max" : "min"}`} style={num} />
+                    <NumberInput min={0} max={100} value={boxes[p][axis][i]} onChange={(v) => setLimit(p, axis, i, v)} aria-label={`${p} ${axis.toUpperCase()} ${i ? "max" : "min"}`} style={num} />
                   </td>
                 ))}
               </tr>

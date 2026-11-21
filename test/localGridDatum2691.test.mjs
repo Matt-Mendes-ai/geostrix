@@ -32,8 +32,8 @@ test("the store's setter, the panel's fields and the import's true-north convers
   const s = fs.readFileSync("src/lib/store.jsx", "utf8");
   assert.match(s, /const setLocalGridDatum = useCallback\(\(patch\) => setProject\(\(p\) => \(p\.localGrid \? \{ \.\.\.p, localGrid: \{ \.\.\.p\.localGrid, \.\.\.datumPatch\(patch\) \} \} : p\)\), \[\]\);/);
   const p = fs.readFileSync("src/components/LocalGridPanel.jsx", "utf8");
-  assert.match(p, /onBlur=\{\(\) => setLocalGridDatum\(\{ rlOffset: rl \}\)\}/);
-  assert.match(p, /disabled=\{!!saved\} onChange=\{\(e\) => setNorth\(e\.target\.value\)\} onBlur=\{\(\) => setLocalGridDatum\(\{ northDeg: north \}\)\}/);
+  assert.match(p, /onBlur=\{\(\) => setLocalGridDatum\(\{ rlOffset: rl \}\)\}|setRl\(s\); setLocalGridDatum\(\{ rlOffset: s \}\);/); // #3926: saved when the NumberInput commits (blur / Enter)
+  assert.match(p, /disabled=\{!!saved\} onChange=\{\(e\) => setNorth\(e\.target\.value\)\} onBlur=\{\(\) => setLocalGridDatum\(\{ northDeg: north \}\)\}|disabled=\{!!saved\} onChange=\{\(v\) => \{ const s = v == null \? \"\" : String\(v\); setNorth\(s\); setLocalGridDatum\(\{ northDeg: s \}\); \}\}/); // #3926
   const i = fs.readFileSync("src/modules/viewer/importPipelineImpl.js", "utf8");
   assert.match(i, /const typedNorth = !tie \? untiedNorthOf\(live\) : null;/);
   assert.match(i, /azimuth: trueToUntiedGrid\(r\.azimuth, typedNorth\)/);

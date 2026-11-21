@@ -5,6 +5,7 @@ import { t as tr } from "../lib/i18n.js";
 import { slabPosThrough } from "../lib/viewer/slicePlace.js";
 import { sortHoleIds } from "../lib/holeIdList.js";
 import { useHoleVisibility } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3775 (9) — the checked holes (#3605)
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
 
@@ -29,10 +30,10 @@ export default function SlicePlaceRow({ slice3d, setSlice3d, ext, origin, collar
       {ids.length < all.length && <div>{tr("The {n} checked holes of {all}.", { n: ids.length, all: all.length })}</div>}
       <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
         {horizontal ? (
-          <input type="number" step="any" value={rl} placeholder={tr("RL (m)")} onChange={(ev) => setRl(ev.target.value)} style={{ ...inp, width: 90 }} aria-label={tr("Slice elevation (m RL)")} />
+          <NumberInput allowEmpty value={rl === "" ? null : rl} placeholder={tr("RL (m)")} onChange={(v) => setRl(v == null ? "" : String(v))} style={{ ...inp, width: 90 }} aria-label={tr("Slice elevation (m RL)")} />
         ) : (<>
-          <input type="number" step="any" value={e} placeholder="E" onChange={(ev) => setE(ev.target.value)} style={{ ...inp, width: 90 }} aria-label={tr("Slice through E")} />
-          <input type="number" step="any" value={n} placeholder="N" onChange={(ev) => setN(ev.target.value)} style={{ ...inp, width: 90 }} aria-label={tr("Slice through N")} />
+          <NumberInput allowEmpty value={e === "" ? null : e} placeholder="E" onChange={(v) => setE(v == null ? "" : String(v))} style={{ ...inp, width: 90 }} aria-label={tr("Slice through E")} />
+          <NumberInput allowEmpty value={n === "" ? null : n} placeholder="N" onChange={(v) => setN(v == null ? "" : String(v))} style={{ ...inp, width: 90 }} aria-label={tr("Slice through N")} />
         </>)}
         <button type="button" disabled={horizontal ? rl === "" : e === "" || n === ""} onClick={() => (horizontal ? place(NaN, NaN, Number(rl), tr("That elevation")) : place(Number(e), Number(n), NaN, tr("That point")))} style={{ ...inp, cursor: "pointer" }}>{tr("Place")}</button>
       </div>
