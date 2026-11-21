@@ -98,12 +98,17 @@
 //     channel and are almost certainly the same intent, but merging them is a (tiny) visual change
 //     and so is out of scope for a refactor pass.
 import { textBump } from "./textSize.js"; // TASKS.csv #3900 — uiFontPx
+// TASKS.csv #3966 — a view's stored background: one equal to the old grey default was never picked (old projects turn white); a picked one stays
+export const viewBgOf = (c) => (typeof c === "string" && c && c.toLowerCase() !== colors.viewBgOld ? c : colors.viewBg);
 export const colors = {
   // Core surfaces
   bg: "#ffffff",
   bgSubtle: "#f4f5f7", // input fields, hover backgrounds, subtle panels
   bgSubtlest: "#fafbfc", // sub-toolbar background
   bgInset: "#fbfbfc", // chart/plot backdrop, inset note boxes
+  viewBg: "#ffffff", // TASKS.csv #3966 — every view's default background (3D view, Maps plan, captures); --color-view-bg
+  viewBgOld: "#f4f5f7", // #3966 — the 3D view's old default: a stored bgColor equal to it reads as 'not picked'
+  paper: "#ffffff", // #3966 — the Layout paper, on screen and in every export; --color-paper
 
   // Borders
   border: "#d9dce1", // the standard border color — by far the most common single value in the app

@@ -14658,5 +14658,6 @@
   "This estimate was made in another project. Show that project to add it, or run it again here.": "Esta estimación se hizo en otro proyecto. Muestra ese proyecto para agregarla, o vuelve a ejecutarla aquí.",
   "Start a new column here": "Empezar una columna nueva aquí",
   "Join this row to the column before": "Unir esta fila a la columna anterior",
-  "Clear column breaks": "Quitar los saltos de columna"
+  "Clear column breaks": "Quitar los saltos de columna",
+  "White (default)": "Blanco (predeterminado)"
 }

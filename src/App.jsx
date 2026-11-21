@@ -516,6 +516,8 @@ export default function App() {
       else if (typeof action === "string" && action.startsWith("sample:")) { const which = action.slice(7); openSample(which); } // #1120; a BC sample not on this computer asks to download it first: #3100
       else if (action === "undo") undoSay();
       else if (action === "redo") redoSay();
+      // TASKS.csv #3966 — Edit > Background colour...: the 3D view on screen, else StrixViewer's
+      else if (action === "background-colour") { if (!["viewer", "modelling", "targeting", "minedesign"].includes(activeRef.current)) setActive("viewer"); requestModuleAction("background-colour"); }
     });
     return off;
   }, [doNew, doOpen, doSave, doExportPdf, doExportKmz, runGeoh5Export, runOmfExport, undoSay, redoSay, requestSampleProject]);
