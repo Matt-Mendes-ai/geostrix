@@ -9,7 +9,7 @@ import { legendGroupsToItems, mapLayerLegendGroups, boundaryLegendGroups, raster
 // (metres per CSS pixel); size: { w, h } (CSS pixels); the layers drawn; collarLegend: [{ label, colour }] when the collars are coloured.
 // -> addLayoutImage's payload
 // collars / samples: how many the plan draws in its plain colours (a row each when the collars are not coloured by a value)
-export function mapSnapshotPayload({ src, pxW, pxH, view, size, mapLayers = [], boundaries = [], rasters = [], collarLegend = null, collarTitle = "", collars = 0, samples = 0, label = "Map view" }) {
+export function mapSnapshotPayload({ src, pxW, pxH, view, size, mapLayers = [], boundaries = [], rasters = [], collarLegend = null, collarTitle = "", collars = 0, samples = 0, sampleLegend = null, sampleTitle = "", sampleNoValue = 0, label = "Map view" }) {
   const widthM = size.w * view.mPerPx, heightM = size.h * view.mPerPx;
   const groups = [
     ...rasterLegendGroups((rasters || []).filter((r) => r.visible !== false)),
@@ -18,7 +18,9 @@ export function mapSnapshotPayload({ src, pxW, pxH, view, size, mapLayers = [], 
     ...(collarLegend?.length ? [{ key: "collars", label: collarTitle || "Collars", items: collarLegend.map((l) => [l.label, l.colour, { kind: "point" }]) }] : []),
     // the plan's plain marks (MapsPlanView: collars #1a2028, surface samples grey)
     ...(!collarLegend?.length && collars > 0 ? [{ key: "holes", label: "Drillholes", items: [[`Collars (${collars.toLocaleString("en-US")})`, "#1a2028", { kind: "point" }]] }] : []),
-    ...(samples > 0 ? [{ key: "samples", label: "Surface samples", items: [[`Samples (${samples.toLocaleString("en-US")})`, "#5a6068", { kind: "point" }]] }] : []),
+    // TASKS.csv #3883 (#3830) — samples coloured by an element or a field on the plan: their classes, as the collars' (and the grey ring of no value)
+    ...(sampleLegend?.length ? [{ key: "samples", label: sampleTitle || "Surface samples", items: [...sampleLegend.map((l) => [l.label, l.colour, { kind: "point" }]), ...(sampleNoValue > 0 ? [[`No value (${sampleNoValue.toLocaleString("en-US")})`, "#8a929c", { kind: "point" }]] : [])] }] : []),
+    ...(!sampleLegend?.length && samples > 0 ? [{ key: "samples", label: "Surface samples", items: [[`Samples (${samples.toLocaleString("en-US")})`, "#5a6068", { kind: "point" }]] }] : []),
   ];
   return {
     label, src, naturalW: pxW, naturalH: pxH,

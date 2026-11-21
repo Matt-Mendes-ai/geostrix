@@ -14352,5 +14352,6 @@
   "Size by value": "الحجم حسب القيمة",
   "Sample ids": "معرّفات العينات",
   "Sample legend": "مفتاح العينات",
-  "A grey ring: no value ({n}).": "حلقة رمادية: بلا قيمة ({n})."
+  "A grey ring: no value ({n}).": "حلقة رمادية: بلا قيمة ({n}).",
+  "Other: {n} values ({count} samples)": "أخرى: {n} قيم ({count} عينات)"
 }

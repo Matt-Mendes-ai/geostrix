@@ -37,3 +37,18 @@ test("#3830 the plan: the choice, size and ids kept for the session; drawn with 
   assert.match(m, /<div aria-label=\{tr\("Sample legend"\)\}/);
   assert.match(m, /sampleCol, sampleSized, sampleIds \/\* #3883 \(#3830\) \*\//, "the plan redraws when they change");
 });
+
+test("#3830 a snapshot to Layout carries the samples' legend as the collars' (their classes, the grey ring of no value); samples switched off are left out", async () => {
+  const { mapSnapshotPayload } = await import("../src/lib/mapSnapshot.js");
+  const base = { src: "x", pxW: 10, pxH: 10, view: { cx: 0, cy: 0, mPerPx: 1 }, size: { w: 10, h: 10 } };
+  const au = sampleColouring(samples, "el:Au");
+  const items = mapSnapshotPayload({ ...base, samples: 30, sampleLegend: au.legend, sampleTitle: "Au", sampleNoValue: au.noValue }).legendItems.map((i) => [i[0], i[1]]);
+  for (const l of au.legend) assert.ok(items.some(([lab, c]) => lab === l.label && c === l.colour), l.label);
+  assert.ok(items.some(([lab]) => lab === "No value (2)"));
+  assert.ok(!items.some(([lab]) => /^Samples \(/.test(lab)), "the classes replace the plain row");
+  assert.ok(mapSnapshotPayload({ ...base, samples: 30 }).legendItems.some((i) => i[0] === "Samples (30)"), "no colouring: the plain row as before");
+  assert.ok(!mapSnapshotPayload({ ...base, samples: 0 }).legendItems.some((i) => /Samples/.test(i[0])));
+  const m = readFileSync(new URL("../src/components/MapsPlanView.jsx", import.meta.url), "utf8");
+  assert.ok(m.includes("samples: samplesOn ? surfaceSamples.filter((s) => Number.isFinite(s.x)).length : 0,"));
+  assert.ok(m.includes("sampleLegend: samplesOn && sampleCol ? sampleCol.legend.map("));
+});

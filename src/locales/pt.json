@@ -14352,5 +14352,6 @@
   "Size by value": "Tamanho pelo valor",
   "Sample ids": "IDs das amostras",
   "Sample legend": "Legenda das amostras",
-  "A grey ring: no value ({n}).": "Um anel cinza: sem valor ({n})."
+  "A grey ring: no value ({n}).": "Um anel cinza: sem valor ({n}).",
+  "Other: {n} values ({count} samples)": "Outros: {n} valores ({count} amostras)"
 }

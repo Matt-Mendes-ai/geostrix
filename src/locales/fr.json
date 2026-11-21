@@ -14352,5 +14352,6 @@
   "Size by value": "Taille selon la valeur",
   "Sample ids": "Identifiants des échantillons",
   "Sample legend": "Légende des échantillons",
-  "A grey ring: no value ({n}).": "Un anneau gris : sans valeur ({n})."
+  "A grey ring: no value ({n}).": "Un anneau gris : sans valeur ({n}).",
+  "Other: {n} values ({count} samples)": "Autres : {n} valeurs ({count} échantillons)"
 }
