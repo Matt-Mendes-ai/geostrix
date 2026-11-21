@@ -31,6 +31,7 @@ import ViewerModule from "./modules/ViewerModule.jsx";
 const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
 import TitleCards from "./components/TitleCards.jsx"; // TASKS.csv #3940 — the info card for every button that has only a native title
+import CollarZFromTerrain from "./components/CollarZFromTerrain.jsx"; // TASKS.csv #3955 — collar elevations from the terrain: the action and the offer
 import { undoMessage, undoTooltip } from "./lib/undoLabels.js"; // TASKS.csv #1087; undoTooltip: #3616
 import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 import { timeAgo } from "./lib/timeAgo.js"; // TASKS.csv #1274
@@ -744,6 +745,7 @@ export default function App() {
         </div>
       )}
       <TitleCards />
+      <CollarZFromTerrain />
       {startDialog && <Suspense fallback={null}><StartDialogs reason={startDialog.reason} onClose={() => setStartDialog(null)} goTo={setActive} onOpenProject={doOpen} /></Suspense>}{/* TASKS.csv #3888 */}
       {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
