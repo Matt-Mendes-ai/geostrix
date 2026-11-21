@@ -14350,5 +14350,7 @@
   "Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)": "Seulement les mesures dont le collet ou le point d'affleurement est dans la fenêtre de la vue 3D (un point du sol au niveau de la scène)",
   "Inside a boundary": "Dans une limite",
   "Boundary the readings are inside": "Limite dans laquelle se trouvent les mesures",
-  "Anywhere": "N'importe où"
+  "Anywhere": "N'importe où",
+  "Dip tick (type not given)": "Trait de pendage (type non précisé)",
+  "Breccia (small cross)": "Brèche (petite croix)"
 }

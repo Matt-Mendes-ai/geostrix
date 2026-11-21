@@ -14350,5 +14350,7 @@
   "Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)": "Solo las lecturas cuyo collar o punto de afloramiento está ahora en la ventana de la vista 3D (un punto del terreno al nivel de la escena)",
   "Inside a boundary": "Dentro de un límite",
   "Boundary the readings are inside": "Límite dentro del cual están las lecturas",
-  "Anywhere": "En cualquier lugar"
+  "Anywhere": "En cualquier lugar",
+  "Dip tick (type not given)": "Marca de buzamiento (tipo no indicado)",
+  "Breccia (small cross)": "Brecha (cruz pequeña)"
 }

@@ -14350,5 +14350,7 @@
   "Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)": "فقط القراءات التي تقع فوهتها أو نقطة تكشفها في نافذة العرض ثلاثي الأبعاد الآن (نقطة أرضية عند مستوى المشهد)",
   "Inside a boundary": "داخل حدّ",
   "Boundary the readings are inside": "الحدّ الذي تقع القراءات داخله",
-  "Anywhere": "في أي مكان"
+  "Anywhere": "في أي مكان",
+  "Dip tick (type not given)": "علامة الميل (النوع غير محدد)",
+  "Breccia (small cross)": "بريشيا (صليب صغير)"
 }
