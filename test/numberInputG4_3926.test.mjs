@@ -8,7 +8,8 @@ import { readFileSync } from "node:fs";
 const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 // files whose number boxes are all G4 (none left as <input type="number">)
 const DONE = ["components/InversionPanel.jsx", "components/TemInvertPanel.jsx", "modules/GeophysicsModule.jsx",
-  "components/DcipPanel.jsx", "components/Dcip3dArrayPanel.jsx", "components/Dcip3dPanel.jsx", "components/DcipMergePanel.jsx"];
+  "components/DcipPanel.jsx", "components/Dcip3dArrayPanel.jsx", "components/Dcip3dPanel.jsx", "components/DcipMergePanel.jsx",
+  "components/FdemPane.jsx", "components/TemPane.jsx", "modules/RasterModule.jsx", "components/EqsGridBox.jsx", "components/GravityReductionBox.jsx", "components/LevellingPanel.jsx"];
 const imp = (f) => (f.startsWith("modules/") ? /import NumberInput from "\.\.\/components\/NumberInput\.jsx";/ : /import NumberInput from "\.\/NumberInput\.jsx";/);
 
 test("#3926 G4 every number box in these files is a NumberInput", () => {
@@ -41,4 +42,16 @@ test("#3926 G4 GeophysicsModule: silent clamps are min / max with the plain line
   assert.match(g, /allowEmpty min=\{MIN_CELL_BUDGET\} max=\{MAX_BLOCK_MODEL_BUDGET\} step=\{10000\}\n\s+value=\{voxelCellBudget \?\? MAX_CELLS\}\n\s+onChange=\{\(v\) => setVoxelCellBudget\(v\)\}/, "empty: the default, as before");
   assert.match(g, /const effectiveMaxCells = clampCellBudget\(voxelCellBudget\) \|\| MAX_CELLS;/, "still clamped on use");
   assert.match(g, /<NumberInput min=\{2\} max=\{64\} step=\{1\} value=\{classCount\} onChange=\{\(v\) => setClassCount\(Math\.round\(v\)\)\}/);
+});
+
+test("#3926 G4 the last files: Number(x) || d became v only behind a min that blocks 0", () => {
+  assert.match(read("components/FdemPane.jsx"), /<NumberInput style=\{num\} min=\{1\} step=\{1\} value=\{s\.every\}[^\n]*onChange=\{\(v\) => set\(\{ every: Math\.round\(v\) \}\)\}/);
+  assert.match(read("components/LevellingPanel.jsx"), /<NumberInput min=\{1\} step=\{5\} value=\{radiusM\} onChange=\{\(v\) => setRadiusM\(v\)\}/);
+  assert.match(read("modules/RasterModule.jsx"), /<NumberInput value=\{Math\.round\(r\.elevation\)\}[^\n]*onChange=\{\(v\) => updateRaster\(r\.id, \{ elevation: v \}\)\}/);
+});
+
+test("#3926 G4 a handler whose updater names its own `v` takes the typed value under another name (the level set's step, from and to)", () => {
+  const g = read("modules/GeophysicsModule.jsx");
+  for (const k of ["step", "lo", "hi"]) assert.ok(g.includes(`onChange={(t) => setLevelSet((v) => ({ ...v, ${k}: (t == null ? "" : String(t)) }))}`), k);
+  assert.ok(!/onChange=\{\(v\) => set[A-Za-z]+\(\(v\) =>/.test(g), "no handler parameter shadowed by its updater's");
 });

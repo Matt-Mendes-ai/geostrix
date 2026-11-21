@@ -9,6 +9,7 @@ import { terrainGrid, looksAbsoluteGravity, alreadyBouguer, grs67FreeAir } from 
 import { surveyKey } from "../lib/geophysSurveys.js";
 import { replaceSurveyPoints } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 4 };
 const lbl = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: "var(--font-size-sm)", marginTop: 5 };
@@ -89,7 +90,7 @@ export default function GravityReductionBox({ survey, rows, epsg, terrain, setLa
           <option value="plate">{tr("Bouguer plate")}</option>
           <option value="topo" disabled={!terrain}>{tr("the terrain's prisms (complete)")}</option>
         </select></label>
-      {correction !== "none" && <label style={lbl}>{tr("Density (kg/m³)")}<input type="number" min="1000" max="4000" step="10" value={density} onChange={(e) => setDensity(e.target.value)} style={{ ...numInput, width: 70 }} aria-label={tr("Density (kg/m³)")} /></label>}
+      {correction !== "none" && <label style={lbl}>{tr("Density (kg/m³)")}<NumberInput allowEmpty min={1000} max={4000} step={10} value={density} onChange={(v) => setDensity((v == null ? "" : String(v)))} style={{ ...numInput, width: 70 }} aria-label={tr("Density (kg/m³)")} /></label>}
       <div style={note}>{tr("2,670 kg/m³ is the conventional crustal density; use the rocks' own where they are known. The terrain's prisms run from sea level to the ground over the terrain's extent, rock above sea level and water against rock below.")}</div>
       {twice && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("This survey is labelled a Bouguer anomaly: a Bouguer correction would take the plate off a second time. If the readings are a free-air anomaly, change the survey's method above, or tick below.")}</div>}
       {twice && <label style={{ ...lbl, justifyContent: "flex-start" }}><input type="checkbox" checked={anyway} onChange={(e) => setAnyway(e.target.checked)} />{tr("These readings are a free-air anomaly: reduce them")}</label>}

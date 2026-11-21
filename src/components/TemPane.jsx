@@ -14,6 +14,7 @@ import { smallSel, pBtn } from "../lib/sidebarStyles.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // no Math.min / max spread (#371)
 import TemInvertPanel from "./TemInvertPanel.jsx"; // TASKS.csv #3440 step 3 — the 1D inversion
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const rowS = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
@@ -194,11 +195,11 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         {/* TASKS.csv #3441 — readings in the noise left out of the decay-constant fit */}
         <div style={{ ...rowS, flexWrap: "wrap" }}>
           <span>{tr("Noise floor")}</span>
-          <input type="number" min="0" step="any" value={st.floor ?? ""} placeholder={tr("none")} onChange={(e) => save({ ...st, floor: e.target.value })} style={{ ...smallSel, width: 90 }} aria-label={tr("Readings under this size are left out of the decay fit (the data's units)")} title={tr("Readings under this size are left out of the decay fit (the data's units)")} />
+          <NumberInput allowEmpty min={0} value={st.floor ?? ""} placeholder={tr("none")} onChange={(v) => save({ ...st, floor: (v == null ? "" : String(v)) })} style={{ ...smallSel, width: 90 }} aria-label={tr("Readings under this size are left out of the decay fit (the data's units)")} title={tr("Readings under this size are left out of the decay fit (the data's units)")} />
         </div>
         {noiseMat && <div style={{ ...rowS, flexWrap: "wrap", justifyContent: "flex-start" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.useStd} onChange={(e) => save({ ...st, useStd: e.target.checked })} />{tr("Leave out readings with an uncertainty over")}</label>
-          <input type="number" min="1" max="1000" step="1" value={st.maxUnc ?? 33} onChange={(e) => save({ ...st, maxUnc: e.target.value })} style={{ ...smallSel, width: 52 }} aria-label={tr("Largest uncertainty kept, in per cent")} />
+          <NumberInput allowEmpty min={1} max={1000} step={1} value={st.maxUnc ?? 33} onChange={(v) => save({ ...st, maxUnc: (v == null ? "" : String(v)) })} style={{ ...smallSel, width: 52 }} aria-label={tr("Largest uncertainty kept, in per cent")} />
           <span>%</span>
           <select value={st.stdKind || stdGuess} onChange={(e) => save({ ...st, stdKind: e.target.value })} style={smallSel} aria-label={tr("What the uncertainty columns hold")}>
             <option value="relative">{tr("STD is a fraction of the reading")}</option><option value="absolute">{tr("STD is in the data's units")}</option>

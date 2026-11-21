@@ -10,6 +10,7 @@ import { b64ToF32 } from "../lib/inversion.js";
 import { surveyKey } from "../lib/geophysSurveys.js";
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #3321 — a 3D cloud is not a field measured on one surface
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 4 };
 
@@ -90,11 +91,11 @@ export default function EqsGridBox({ survey, rows, units = "", method = null /* 
     <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", fontSize: "var(--font-size-sm)" }}>
       {!method && <div style={{ ...note, marginTop: 0, marginBottom: 6 }}>{tr("This survey has no method: equivalent sources assume it is a magnetic or gravity field measured on or above the ground.")}</div>}{/* #3321 */}
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 6px", alignItems: "center" }}>
-        <span>{tr("Cell (m)")}</span><input type="number" min="0" value={cell} placeholder={String(cellM)} aria-label={tr("Equivalent-source cell size")} onChange={(e) => setCell(e.target.value)} style={numInput} />
-        <span>{tr("Grid at elevation (m)")}</span><input type="number" value={elev} placeholder={draped ? tr("the readings' surface") : Number.isFinite(elevM) ? String(elevM) : ""} aria-label={tr("Elevation to grid at")} onChange={(e) => setElev(e.target.value)} style={numInput} />
-        {noZ && <><span>{tr("Readings taken at (m)")}</span><input type="number" value={flatZ} aria-label={tr("Elevation of the readings")} onChange={(e) => setFlatZ(e.target.value)} style={numInput} /></>}
-        <span>{tr("Source depth (m)")}</span><input type="number" min="0" value={depth} placeholder={String(depthDefault)} aria-label={tr("Equivalent-source depth below the readings")} title={tr("How far below the readings the sources sit: shallower fits short anomalies, deeper smooths. Blank: 1.2 × the station spacing ({s} m), or the cell if that is larger; sources much shallower than the spacing between readings make a lumpy grid between them.", { s: sug?.spacingM != null ? Math.round(sug.spacingM) : "?" })} onChange={(e) => setDepth(e.target.value)} style={numInput} />
-        <span>{tr("Blank beyond (m)")}</span><input type="number" min="0" value={blank} placeholder={String(sug?.blankM ?? 3 * cellM)} aria-label={tr("Equivalent-source blanking distance")} onChange={(e) => setBlank(e.target.value)} style={numInput} />
+        <span>{tr("Cell (m)")}</span><NumberInput allowEmpty min={0} value={cell} placeholder={String(cellM)} aria-label={tr("Equivalent-source cell size")} onChange={(v) => setCell((v == null ? "" : String(v)))} style={numInput} />
+        <span>{tr("Grid at elevation (m)")}</span><NumberInput allowEmpty value={elev} placeholder={draped ? tr("the readings' surface") : Number.isFinite(elevM) ? String(elevM) : ""} aria-label={tr("Elevation to grid at")} onChange={(v) => setElev((v == null ? "" : String(v)))} style={numInput} />
+        {noZ && <><span>{tr("Readings taken at (m)")}</span><NumberInput allowEmpty value={flatZ} aria-label={tr("Elevation of the readings")} onChange={(v) => setFlatZ((v == null ? "" : String(v)))} style={numInput} /></>}
+        <span>{tr("Source depth (m)")}</span><NumberInput allowEmpty min={0} value={depth} placeholder={String(depthDefault)} aria-label={tr("Equivalent-source depth below the readings")} title={tr("How far below the readings the sources sit: shallower fits short anomalies, deeper smooths. Blank: 1.2 × the station spacing ({s} m), or the cell if that is larger; sources much shallower than the spacing between readings make a lumpy grid between them.", { s: sug?.spacingM != null ? Math.round(sug.spacingM) : "?" })} onChange={(v) => setDepth((v == null ? "" : String(v)))} style={numInput} />
+        <span>{tr("Blank beyond (m)")}</span><NumberInput allowEmpty min={0} value={blank} placeholder={String(sug?.blankM ?? 3 * cellM)} aria-label={tr("Equivalent-source blanking distance")} onChange={(v) => setBlank((v == null ? "" : String(v)))} style={numInput} />
       </div>
       <div style={note}>{noZ ? tr("{n} of the readings have no elevation, so all are taken at one height and the grid is a continuation from it.", { n: (pts.length - withZ).toLocaleString() }) : tr("Blank elevation: the grid follows the readings' own surface (their heights interpolated between them), so it passes through a ground survey where it was measured. A typed elevation makes a level grid continued to that height: above the highest reading ({z} m) it is smoother and deeper sources stand out.", { z: Number.isFinite(zMax) ? Math.ceil(zMax) : "?" })}</div>
       {busy ? (

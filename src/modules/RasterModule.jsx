@@ -53,6 +53,7 @@ import { rasterMethodOf, filterBlockedBy, ternaryChoices, fieldFilterNeedsMethod
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #2557 — the method's label
 import MiddleName from "../components/MiddleName.jsx"; // TASKS.csv #2852
 import { defaultFilterKind, magneticsFromName /* #2862 */ } from "../lib/filterDefault.js"; // TASKS.csv #1863
+import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -707,8 +708,8 @@ export default function RasterModule({ embedded = false } = {}) {
                 {filt.kind === "rtp" && magneticsFromName(r, rasterMethodOf(r, geophysSurveys)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("Opened on RTP: taken as magnetics from its name. Choose another filter above if it is not.")}</div>}{/* #2862 */}
                 {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <input type="number" placeholder={tr("Inclination °")} value={filt.inclination} onChange={(e) => setFilt((p) => ({ ...p, inclination: e.target.value, igrfSource: null }))} style={numInput} aria-label={tr("Field inclination")} />
-                    <input type="number" placeholder={tr("Declination ° (true)")} value={filt.declination} onChange={(e) => setFilt((p) => ({ ...p, declination: e.target.value, igrfSource: null }))} style={numInput} aria-label={tr("Field declination, true north")} />
+                    <NumberInput allowEmpty placeholder={tr("Inclination °")} value={filt.inclination} onChange={(v) => setFilt((p) => ({ ...p, inclination: (v == null ? "" : String(v)), igrfSource: null }))} style={numInput} aria-label={tr("Field inclination")} />
+                    <NumberInput allowEmpty placeholder={tr("Declination ° (true)")} value={filt.declination} onChange={(v) => setFilt((p) => ({ ...p, declination: (v == null ? "" : String(v)), igrfSource: null }))} style={numInput} aria-label={tr("Field declination, true north")} />
                   </div>
                 )}
                 {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && ( /* TASKS.csv #2561 — I and D from IGRF-14 for the survey date */
@@ -720,7 +721,7 @@ export default function RasterModule({ embedded = false } = {}) {
                 )}
                 {filt.kind === "rtpa" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <input type="number" min={0} max={90} placeholder={tr("Amplitude inclination ° (blank: 20° or the field's own if steeper)")} value={filt.amplitudeInclination} onChange={(e) => setFilt((p) => ({ ...p, amplitudeInclination: e.target.value }))} style={numInput} aria-label={tr("Amplitude-correction inclination")} />
+                    <NumberInput allowEmpty min={0} max={90} placeholder={tr("Amplitude inclination ° (blank: 20° or the field's own if steeper)")} value={filt.amplitudeInclination} onChange={(v) => setFilt((p) => ({ ...p, amplitudeInclination: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Amplitude-correction inclination")} />
                   </div>
                 )}
                 {filt.kind === "euler" && (
@@ -731,7 +732,7 @@ export default function RasterModule({ embedded = false } = {}) {
                       <option value="2">{tr("SI 2: magnetic pipe; gravity sphere")}</option>
                       <option value="3">{tr("SI 3: magnetic sphere (dipole)")}</option>
                     </select>
-                    <input type="number" min="0" placeholder={tr("Window (m)")} value={filt.window} onChange={(e) => setFilt((p) => ({ ...p, window: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Euler window size")} />
+                    <NumberInput allowEmpty min={0} placeholder={tr("Window (m)")} value={filt.window} onChange={(v) => setFilt((p) => ({ ...p, window: (v == null ? "" : String(v)) }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Euler window size")} />
                   </div>
                 )}
                 {filt.kind === "worms" && (
@@ -750,7 +751,7 @@ export default function RasterModule({ embedded = false } = {}) {
                 )}
                 {filt.kind === "upward" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <input type="number" min={1} placeholder={tr("Height (m)")} value={filt.height} onChange={(e) => setFilt((p) => ({ ...p, height: e.target.value }))} style={numInput} aria-label={tr("Upward continuation height")} />
+                    <NumberInput allowEmpty min={1} placeholder={tr("Height (m)")} value={filt.height} onChange={(v) => setFilt((p) => ({ ...p, height: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Upward continuation height")} />
                   </div>
                 )}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>
@@ -788,7 +789,7 @@ export default function RasterModule({ embedded = false } = {}) {
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: r.drapeMode === "terrain" || r.drapeMode === "collars" ? 0.4 : 1 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Elev.")}</span>
-              <input type="number" value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain" || r.drapeMode === "collars"} onChange={(e) => updateRaster(r.id, { elevation: Number(e.target.value) })} style={numInput} />
+              <NumberInput value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain" || r.drapeMode === "collars"} onChange={(v) => updateRaster(r.id, { elevation: v })} style={numInput} />
             </div>
             {r.grid && !r.ternary && <RasterColourControls raster={r} onUpdate={updateRaster} inputStyle={numInput} />}{/* #1236 */}
             {r.grid && <GridContourControls raster={r} inputStyle={numInput} />}{/* #1622 — contours of a geochemistry grid; #2398 — of any raster that keeps its grid (a TMI, an eU grid) */}

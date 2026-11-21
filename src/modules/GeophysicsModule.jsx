@@ -2695,11 +2695,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     <div style={{ color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Or a grid for every level of the cloud: one IDW grid per window, at this cell size and blanking.")}</div>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
                       <span style={{ color: "var(--color-text-faint)" }}>{tr("Every")}</span>
-                      <NumberInput allowEmpty min={0.1} value={levelSet.step} placeholder={levelStepAuto != null ? String(+levelStepAuto.toFixed(2)) : ""} onChange={(v) => setLevelSet((v) => ({ ...v, step: (v == null ? "" : String(v)) }))} style={{ ...numInput, width: 64 }} aria-label={tr("Level thickness")} />
+                      <NumberInput allowEmpty min={0.1} value={levelSet.step} placeholder={levelStepAuto != null ? String(+levelStepAuto.toFixed(2)) : ""} onChange={(t) => setLevelSet((v) => ({ ...v, step: (t == null ? "" : String(t)) }))} style={{ ...numInput, width: 64 }} aria-label={tr("Level thickness")} />
                       <span style={{ color: "var(--color-text-faint)" }}>{tr("m, from")}</span>
-                      <NumberInput allowEmpty value={levelSet.lo} placeholder={String(Math.round(idwShape.zMin))} onChange={(v) => setLevelSet((v) => ({ ...v, lo: (v == null ? "" : String(v)) }))} style={{ ...numInput, width: 70 }} aria-label={tr("Lowest elevation of the levels")} />
+                      <NumberInput allowEmpty value={levelSet.lo} placeholder={String(Math.round(idwShape.zMin))} onChange={(t) => setLevelSet((v) => ({ ...v, lo: (t == null ? "" : String(t)) }))} style={{ ...numInput, width: 70 }} aria-label={tr("Lowest elevation of the levels")} />
                       <span style={{ color: "var(--color-text-faint)" }}>{tr("to")}</span>
-                      <NumberInput allowEmpty value={levelSet.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(v) => setLevelSet((v) => ({ ...v, hi: (v == null ? "" : String(v)) }))} style={{ ...numInput, width: 70 }} aria-label={tr("Highest elevation of the levels")} />
+                      <NumberInput allowEmpty value={levelSet.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(t) => setLevelSet((v) => ({ ...v, hi: (t == null ? "" : String(t)) }))} style={{ ...numInput, width: 70 }} aria-label={tr("Highest elevation of the levels")} />
                     </div>
                     <button type="button" disabled={!!idwBusy} onClick={makeLevelGrids} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Generate a grid per level")}</button>
                   </div>

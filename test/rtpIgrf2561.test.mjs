@@ -17,6 +17,6 @@ test("#2561 the filter box: date, button, source line, recorded source; typing c
   assert.match(m, /const g = r\.grid, cx = g\.x0 \+ \(g\.dx \* \(g\.nx - 1\)\) \/ 2, cy = g\.yTop - \(g\.dy \* \(g\.ny - 1\)\) \/ 2;/);
   assert.match(m, /zM = rasterLevelM\(r\) \?\? \(Number\(r\.elevation\) \|\| 0\)/);
   assert.match(m, /fieldSource: filt\.igrfSource \|\| "typed by the user"/);
-  assert.match(m, /inclination: e\.target\.value, igrfSource: null/);
+  assert.match(m, /inclination: \(v == null \? "" : String\(v\)\), igrfSource: null/); // #3926 G4: a NumberInput, still text in state; typing still clears the source
   assert.match(m, /if \(project\?\.crsSet === false && !tieOf\(project\)\)/);
 });
