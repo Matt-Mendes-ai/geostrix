@@ -330,13 +330,15 @@ export default [
     summary: "Builds a closed halo envelope for one alteration assemblage from the logged intervals, interpolated as altered or not. It runs in-app, with no Python engine.",
     more: "Every logged alteration interval becomes a 0 / 1 \"altered?\" sample down its hole, the samples are interpolated onto a grid, and the envelope is the 0.5 level. It makes no assumption about which way is up, and honours the model domain and the trend chosen for alteration halos. Intervals with no alteration logged are neither inside nor outside, so log fresh rock too. A large search joins holes whether or not the alteration does.",
     notFor: [
-      "Outside is only rock logged as another assemblage: a log of altered zones alone gives the envelope nothing to stop against.",
+      "Outside is rock logged as another assemblage, or Lithology rock between the rows when Count logged rock with no alteration row as unaltered is ticked; with neither, the envelope has nothing to stop against.",
       "Between distant holes the envelope is the interpolator's shape, not the halo's.",
       "Not a grade shell: it models a logged assemblage, not assays.",
     ],
     fields: [
       { name: "Assemblage (Choose an assemblage…)", what: "A value of the alteration layer; intervals with none logged (for example Unknown) are not offered.", choose: "Choose one logged consistently across the holes." },
       { name: "Run button (beside the list)", what: "Builds a closed alteration-halo envelope from the logged intervals." },
+      { name: "Count logged rock with no alteration row as unaltered", what: "For a log that records alteration only where seen: rock logged in Lithology between its rows counts as unaltered, closing the halo there.", choose: "Tick it when the log records altered zones only; off, that rock is unknown." },
+      { name: "Only where … At least", what: "Only the intervals whose field is at or above this value become altered samples; the rest count as unaltered.", choose: "Set the intensity you call altered; (no filter) uses every logged interval." },
       { name: "Cell size (m)", what: "Grid cell size for the interpolation; 0 is automatic (about 1/8 of the search radius).", choose: "Keep it below the thinnest altered interval you need to see." },
       { name: "Search (m)", what: "Search radius, and how far past the last altered sample the envelope may close; 0 is automatic.", choose: "Enough to join neighbouring holes that both log the halo, no more.", more: "Automatic is about 1.2 times the median hole spacing. A long search fills the gaps between distant holes." },
       { name: "Export", what: "Right-click the envelope under Generated surfaces to export it as OBJ, DXF, GOCAD TSurf or OMF.", choose: "Pick the format by the program that will read it; see the page Export: what goes where.", more: "Each file carries a stamp naming the tool, its version and the settings used, and the coordinates are the project's." },
