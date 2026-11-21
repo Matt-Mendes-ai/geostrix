@@ -74,6 +74,7 @@ import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv 
 import { geophysLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #2878
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, pageFont, withPageFont } from "../lib/layoutFonts.js"; // TASKS.csv #2144
+import { useDismiss } from "../lib/useDismiss.js"; // TASKS.csv #3969
 import { toggleColumnBreak, clearColumnBreaks, hasColumnBreaks, startsColumn, carryColumnBreaks, legendGroupsOf, keepGroups, splitLegendByGroup, joinLegends } from "../lib/legendColumns.js"; // TASKS.csv #3959 (split / join: part B)
 import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLegendBox } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869; a sized box: #3395
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
@@ -964,7 +965,9 @@ export default function LayoutModule() {
   // Samples table in its menu with All tools
   const basicToolsOn = useUiMode()?.mode === "simple";
   const [addMenu, setAddMenu] = useState(null); // the Add button's box while its menu is open
-  useEffect(() => { if (!addMenu) return undefined; const off = (e) => { if (!e.target.closest?.("[data-add-menu]")) setAddMenu(null); }, esc = (e) => { if (e.key === "Escape") setAddMenu(null); }; window.addEventListener("mousedown", off); window.addEventListener("keydown", esc); return () => { window.removeEventListener("mousedown", off); window.removeEventListener("keydown", esc); }; }, [addMenu]);
+  // TASKS.csv #3969 — the Add menu closes on a press elsewhere, on Escape and when a dialog opens (it closed on the first two only); its own
+  // button counts as inside, so pressing it again closes it
+  useDismiss(!!addMenu, (n) => !!n?.closest?.('[data-add-menu], [aria-expanded="true"]'), () => setAddMenu(null));
   const addItems = [["text", "Text"], ["north", "North arrow"], ["scale", "Scale bar"], ["legend", "Legend"], ["titleblock", "Title block"], ["table", "Collar table"], ...(basicToolsOn ? [] : [["logo", "Logo"], ...((surfaceSamples || []).length ? [["samplestable", "Samples table"]] : [])])];
 
   // TASKS.csv #19 — freehand pen. Toggled on from the palette; the next mousedown-drag on the page

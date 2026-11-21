@@ -1,5 +1,6 @@
 import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3563
+import { useDismiss } from "../lib/useDismiss.js"; // TASKS.csv #3969
 import { correlationDefaults, bestPartner, BULK_COMMODITIES } from "../lib/preferredElement.js"; // BULK_COMMODITIES: #2911; // TASKS.csv #2512; bestPartner: #2741
 import { orderElements } from "../lib/elementOrder.js"; // TASKS.csv #2032
 import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2032
@@ -204,6 +205,7 @@ export default function GeochemModule() {
   const qcInSource = useMemo(() => keptMemo([sourceAll], "qcIn", () => sourceAll.filter((a) => classifyQAQCRow(a) !== "regular").length), [sourceAll]);
   const sourceRows = useMemo(() => keptMemo([sourceAll], `rows|${plotQc}|${qcInSource}`, () => (plotQc || !qcInSource ? sourceAll : sourceAll.filter((a) => classifyQAQCRow(a) === "regular"))), [sourceAll, plotQc, qcInSource]);
   const [lithMenuOpen, setLithMenuOpen] = useState(false);
+  useDismiss(lithMenuOpen, (n) => !!n?.closest?.("[data-lith-menu]"), () => setLithMenuOpen(false)); // TASKS.csv #3969 — also when a dialog opens
   const [colorElement, setColorElement] = useKeptState(keptScope, "geochem.colorElement", null);
   // TASKS.csv #1091 — the element to colour by: the one chosen, else Au, else the first. colorElement is set only when an
   // assay file is imported here, so an opened project or a sample showed "by element" with every point the uniform blue
@@ -1669,7 +1671,7 @@ export default function GeochemModule() {
             {colorMode === "hole" && plottedHoles.length > KEY_MAX && <span style={{ fontSize: "var(--font-size-xs)", color: "#55606e" }}>{tr("{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)", { n: plottedHoles.length })}</span>}
           </div>
           {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
-          <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
+          <div data-lith-menu="" style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
               title={hasLithLog ? tr("Plot only samples from the chosen logged lithologies") : tr("Load a lithology log in StrixViewer to filter by it")}
               style={{ ...selectStyle, padding: "5px 8px", cursor: hasLithLog ? "pointer" : "not-allowed", opacity: hasLithLog ? 1 : 0.55 }}>
               {!hasLithLog ? tr("no log loaded") : !lithFilter ? tr("all ({lithCounts})", { lithCounts: lithCounts.length }) : tr("{size} of {lithCounts} selected", { size: lithFilter.size, lithCounts: lithCounts.length })} ▾
