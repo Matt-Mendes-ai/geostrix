@@ -14,6 +14,7 @@ import { gridDims, finishTerrain } from "./terrainGrid.js";
 import { nodeGrid, readInto } from "./nrcanDem.js";
 import { readCopernicusGrid } from "./copernicusDem.js";
 import { fillWithDelta, seamJump } from "./gapFill.js"; // TASKS.csv #3871
+import { smoothSteps as smoothGemSteps } from "./stepSmooth.js"; // TASKS.csv #3950 — optional; this module is itself loaded on demand
 import { pointTransform } from "./reproject.js";
 import { t as tr } from "./i18n.js";
 
@@ -82,7 +83,7 @@ export async function readGemGrid(box, gridW, gridH, { band = "dtm", onProgress,
 }
 
 // Same result shape as copernicusDem.fetchCopernicusTerrain / nrcanDem.fetchNrcanTerrain. band: "dtm" | "dsm".
-export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200, source = "gem15", gapFill = "delta" }) { // gapFill "plain": GLO-30 as it is (the fill before #3871), for measuring
+export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200, source = "gem15", gapFill = "delta", smoothSteps = false }) { // smoothSteps: #3950, off by default // gapFill "plain": GLO-30 as it is (the fill before #3871), for measuring
   if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error(tr("Invalid area — check the coordinates."));
   const band = source === "gem15dsm" ? "dsm" : "dtm";
   const box = { lonMin, latMin, lonMax, latMax };
@@ -93,6 +94,10 @@ export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEp
   if (!r.read && r.failed.length) throw new Error(tr("Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.", { v: r.failed[0] }));
   const out = r.elevations, total = out.length;
   const own = out.reduce((n, v) => n + (Number.isNaN(v) ? 0 : 1), 0);
+  const latMid0 = ((latMin + latMax) / 2) * (Math.PI / 180), nodeM0 = Math.max(((lonMax - lonMin) * 111320 * Math.cos(latMid0)) / Math.max(1, gridW - 1), ((latMax - latMin) * 110574) / Math.max(1, gridH - 1));
+  // TASKS.csv #3950 — chosen: GEM-15's own straight steps on flat ground feathered, on its own nodes, before the gaps are filled (the fill's seam is #3871's)
+  let stepSmooth = null;
+  if (smoothSteps && own) { const sm = smoothGemSteps(out, gridW, gridH, { nodeM: nodeM0 }); out.set(sm.out); stepSmooth = { changed: sm.changed, maxM: +sm.maxM.toFixed(2), medianM: +sm.medianM.toFixed(2), steps: sm.steps }; }
   // the nodes GEM-15 masks (water, snow and ice, low texture, cells far from GLO-30) and the cells it does not have: from Copernicus GLO-30, counted
   let filled = 0, copFailed = null, seam = null;
   if (own < total) {
@@ -119,7 +124,7 @@ export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEp
     reprojectedTo: fin.reprojectedTo, reprojectNote: fin.reprojectNote, tileCount: r.read,
     source: {
       service: band === "dtm" ? "Google GEM-15 (15 m bare-earth terrain model)" : "Google GEM-15 (15 m surface model)", zoom: null, sourcePixelM: 15, nodeM, bareEarth: band === "dtm", fetched: new Date().toISOString().slice(0, 10),
-      gapFilledNodes: filled, gapNodes: total - own, totalNodes: total, gapFilledFrom: filled ? (seam?.deltaFilled ? "Copernicus GLO-30 plus the interpolated GEM-15 - GLO-30 difference" : "Copernicus GLO-30") : null, ...(seam ? { gapSeam: seam } : {}), ...(copFailed ? { gapFillFailed: copFailed } : {}),
+      gapFilledNodes: filled, gapNodes: total - own, totalNodes: total, ...(stepSmooth ? { stepSmooth } : {}), gapFilledFrom: filled ? (seam?.deltaFilled ? "Copernicus GLO-30 plus the interpolated GEM-15 - GLO-30 difference" : "Copernicus GLO-30") : null, ...(seam ? { gapSeam: seam } : {}), ...(copFailed ? { gapFillFailed: copFailed } : {}),
     },
     noDataMask: fin.noDataMask, noDataNote: fin.noDataNote,
     failedTiles: r.failed.length,

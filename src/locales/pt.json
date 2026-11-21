@@ -14619,5 +14619,12 @@
   "Same as the satellite image": "Igual à imagem de satélite",
   "Same as the satellite image: {name}": "Igual à imagem de satélite: {name}",
   "Claim: {name}": "Concessão: {name}",
-  "Margin (m)": "Margem (m)"
+  "Margin (m)": "Margem (m)",
+  "Smooth GEM-15's steps on flat ground": "Suavizar os degraus do GEM-15 em terreno plano",
+  "Undo smoothing": "Desfazer a suavização",
+  "Smooth its steps": "Suavizar seus degraus",
+  "Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.": "Suaviza os degraus retos em terreno plano. Encostas, cristas e penhascos ficam.",
+  "Smoothing undone.": "Suavização desfeita.",
+  "No steps found: nothing changed.": "Nenhum degrau encontrado: nada mudou.",
+  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "Degraus suavizados: {n} nós alterados, até {max} m (mediana {med} m)."
 }

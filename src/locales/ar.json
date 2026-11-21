@@ -14619,5 +14619,12 @@
   "Same as the satellite image": "مثل صورة القمر الصناعي",
   "Same as the satellite image: {name}": "مثل صورة القمر الصناعي: {name}",
   "Claim: {name}": "امتياز: {name}",
-  "Margin (m)": "الهامش (م)"
+  "Margin (m)": "الهامش (م)",
+  "Smooth GEM-15's steps on flat ground": "تنعيم درجات GEM-15 على الأرض المستوية",
+  "Undo smoothing": "تراجع عن التنعيم",
+  "Smooth its steps": "نعّم درجاته",
+  "Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.": "ينعّم الدرجات المستقيمة على الأرض المستوية. وتبقى المنحدرات والحواف والجروف.",
+  "Smoothing undone.": "أُلغي التنعيم.",
+  "No steps found: nothing changed.": "لم يُعثر على درجات: لم يتغير شيء.",
+  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "نُعّمت الدرجات: تغيّرت {n} عقدة، بما يصل إلى {max} م (الوسيط {med} م)."
 }

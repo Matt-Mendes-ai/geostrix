@@ -309,6 +309,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #814 — which online elevation model the terrain fetch reads (a per-computer preference, like the detail)
   // TASKS.csv #3882 — GLO-30 unless another was chosen (and remembered) before; the saved terrain of a project keeps the service it came from
   const [terrainSource, setTerrainSourceState] = useState(() => savedTerrainSource(localStorage));
+  const [gemSmooth, setGemSmooth] = useState(false); // TASKS.csv #3950 — smooth GEM-15's steps at the fetch (off by default)
+  const gemOriginal = useRef(new Map()); // #3950 — a terrain's heights before "Smooth its steps", for Undo (this session)
   const setTerrainSource = (v) => { setTerrainSourceState(v); try { localStorage.setItem(TERRAIN_SOURCE_KEY, v); } catch { /* private window */ } };
   const [srtmPickerOpen, setSrtmPickerOpen] = useState(false);
   // TASKS.csv #3095 (Matt's pick B) — Terrain from samples and collars over a drawn area: on a field wider than the grid can resolve (6,000 holes
@@ -1149,7 +1151,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       let parsed = await fetcher({
         lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
         onProgress: (done, total) => setSrtmProgress({ done, total }),
-        source: src,
+        source: src, smoothSteps: gem && gemSmooth, // #3950
       });
       let tieNote = "";
       if (tie) { // #2648
@@ -1203,6 +1205,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         : tr(" {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.", { n: parsed.source.gapNodes.toLocaleString(), total: parsed.source.totalNodes.toLocaleString() });
       // TASKS.csv #3871 — the fill is GLO-30 plus the GEM-15 - GLO-30 difference interpolated in from the nodes GEM-15 has: said, with the jump across the seam it left
       if (parsed.source?.gapSeam?.deltaFilled && parsed.source.gapSeam.after && parsed.source.gapSeam.before) msg += tr(" The fill is GLO-30 adjusted to meet GEM-15 at the edge: nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m).", { after: +parsed.source.gapSeam.after.median.toFixed(1), before: +parsed.source.gapSeam.before.median.toFixed(1) });
+      if (parsed.source?.stepSmooth) msg += stepSmoothNote(parsed.source.stepSmooth); // TASKS.csv #3950 — the source data was changed: said
       // TASKS.csv #814 — cones in the AWS tiles that Copernicus GLO-30 does not have: reported, not changed
       if (parsed.suspectCones?.length) {
         const fmt = (c) => (Number.isFinite(c.x) ? `${Math.round(c.x).toLocaleString()} E ${Math.round(c.y).toLocaleString()} N` : `${c.lon.toFixed(4)}, ${c.lat.toFixed(4)}`) + tr(" ({v} m high{v2})", { v: Math.round(c.riseM), v2: c.copRiseM == null ? "" : tr("; Copernicus {v} m", { v: Math.round(c.copRiseM) }) });
@@ -2767,6 +2770,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </select>
         </div>
         {terrainSource === "gem15dsm" && <div data-gem-surface-note="" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 6px", lineHeight: 1.4 }}>{tr("Trees, buildings, cut blocks and flat snow or ice show as steps. GEM-15 bare earth has the same 15 m.")}</div>}{/* TASKS.csv #3946 */}
+        {(terrainSource === "gem15" || terrainSource === "gem15dsm") && ( /* TASKS.csv #3950 — off by default */
+          <label data-gem-smooth="" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.")}>
+            <input type="checkbox" checked={gemSmooth} onChange={(e) => setGemSmooth(e.target.checked)} />{tr("Smooth GEM-15's steps on flat ground")}
+          </label>
+        )}
         {/* TASKS.csv #796 — terrain detail */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flexShrink: 0 }}>{tr("Terrain detail")}</span>
@@ -2923,6 +2931,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>
               <input type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1} onChange={(e) => updateTerrain({ opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
+            {/GEM-15/.test(String(terrain.source?.service || "")) && ( /* TASKS.csv #3950 — for a GEM-15 terrain already fetched; Undo restores the heights (this session) */
+              gemOriginal.current.has(terrain.id)
+                ? <button data-gem-smooth-undo="" onClick={() => { const orig = gemOriginal.current.get(terrain.id); gemOriginal.current.delete(terrain.id); const { stepSmooth: _drop, ...src } = terrain.source || {}; updateTerrain({ elevations: orig, source: src }); setTerrainError({ info: true, text: tr("Smoothing undone.") }); }} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }}>{tr("Undo smoothing")}</button>
+                : !terrain.source?.stepSmooth && <button data-gem-smooth-run="" onClick={async () => {
+                    const { smoothSteps } = await import("../lib/stepSmooth.js");
+                    const r = smoothSteps(terrain.elevations, terrain.gridW, terrain.gridH, { nodeM: terrain.source?.nodeM || 15 });
+                    if (!r.changed) { setTerrainError({ info: true, text: tr("No steps found: nothing changed.") }); return; }
+                    const sm = { changed: r.changed, maxM: +r.maxM.toFixed(2), medianM: +r.medianM.toFixed(2), steps: r.steps };
+                    gemOriginal.current.set(terrain.id, terrain.elevations);
+                    updateTerrain({ elevations: r.out, source: { ...terrain.source, stepSmooth: sm } });
+                    setTerrainError({ info: true, text: stepSmoothNote(sm).trim() });
+                  }} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title={tr("Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.")}>{tr("Smooth its steps")}</button>
+            )}
             <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title={tr("Export the merged/processed terrain's elevation grid as a single-band GeoTIFF")}>
               <Download size={14} />{" "}{tr("Export to GeoTIFF…")}</button>
             {/* TASKS.csv #237 — raster derivative: hillshade from the terrain's own elevation grid,
@@ -3795,3 +3816,8 @@ function projAreaBox(area, epsg) {
   return [xs.reduce((m, v) => (v < m ? v : m)), ys.reduce((m, v) => (v < m ? v : m)), xs.reduce((m, v) => (v > m ? v : m)), ys.reduce((m, v) => (v > m ? v : m))]; // four corners: no spread (#371)
 }
 const numInput = { flex: 1, minWidth: 0 /* #1433 */, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 6px" };
+
+// TASKS.csv #3950 — what the step smoothing changed, said with the terrain (the source data was changed)
+function stepSmoothNote(sm) {
+  return " " + tr("Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).", { n: sm.changed.toLocaleString(), max: sm.maxM, med: sm.medianM });
+}
