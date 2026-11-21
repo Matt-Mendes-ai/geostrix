@@ -629,7 +629,7 @@ function RoseDiagram({ svgRef, rose, size, pad }) {
       {/* Ring labels in COUNTS, not radius fractions — the radius is √-scaled, so a ring at half the
           radius is a quarter of the peak count and reading it as "half" would be wrong. */}
       {rose && [0.5, 1].map((f) => (
-        <text key={`rl_${f}`} x={pt(15, R * f).x + 3} y={pt(15, R * f).y - 2} fontSize={9} fill="#65717e">{/* #1444 — clear of the N */}
+        <text key={`rl_${f}`} x={pt(15, R * f).x + 3} y={pt(15, R * f).y - 2} fontSize={10} fill="#65717e">{/* #1444 — clear of the N */}
           {(rose.maxCount * f * f).toFixed(rose.maxCount * f * f % 1 ? 1 : 0)}
         </text>
       ))}
