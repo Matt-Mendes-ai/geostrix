@@ -65,7 +65,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
   const keepLocal = () => { setLocalGrid(gridName); const d = { rlOffset: gridRl, ...(project.localGrid?.tie ? {} : { northDeg: gridNorth }) }; if ((gridRl !== "" || project.localGrid?.rlOffset != null) || (gridNorth !== "" || project.localGrid?.northDeg != null)) setLocalGridDatum?.(d); onDone(null); }; // #3495 — the datum and north with the name // #2180 — no CRS: callers place the coordinates as they are
 
   return (
-    <div style={overlay}>
+    <div style={{ ...overlay, zIndex: 64 /* TASKS.csv #3951 — in front of the import's column matching (62, #3688), which asks this question while it is still open: it sat behind that dialog until Matt closed it */ }}>
       <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Project coordinate system")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
