@@ -9,7 +9,7 @@ const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.met
 test("no planned .grd reader; the voxel note names the import that exists", () => {
   assert.ok(!g.includes("Surfer 6 / 7 binary grids (.grd) — read as a raster drape"));
   assert.ok(!g.includes('tr("Also planned:")'));
-  assert.match(g, /Export the voxel from Oasis montaj as a CSV and use \\"Import block model CSV…\\" above\./);
+  assert.match(g, /Export it from Oasis montaj as a CSV and use \\"Import block model CSV…\\" above\./);
 });
 
 test("the empty state matches the pane: no point importer on DC / IP", () => {

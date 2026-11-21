@@ -2442,7 +2442,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             )}
             {!geophysSourceEpsg && !xyzPending.headerEpsg && project?.crsSet !== false && !!project?.epsg && !isGeographicCrs(project.epsg) && xyLookLikeDegrees(xyzPending.rows, xyzPending.xCol, xyzPending.yCol) && ( /* TASKS.csv #2832 */
               <div style={{ marginTop: 8, padding: "6px 8px", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>
-                {tr("{x} and {y} are all within ±180 / ±90: longitude and latitude, not metres. They will be read as WGS 84 and reprojected into the project CRS; set the Source CRS above if they are in another datum (NAD83, NAD27…).", { x: xyzPending.xCol, y: xyzPending.yCol })}
+                {tr("{x} and {y} are all within ±180 / ±90: longitude and latitude, not metres. Read as WGS 84 and reprojected; set the Source CRS above for another datum.", { x: xyzPending.xCol, y: xyzPending.yCol })}
               </div>
             )}
             {xyzPending.headerEpsg && !geophysSourceEpsg && ( /* TASKS.csv #2832 — said before Import, not only after */
@@ -2450,7 +2450,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             )}
             {!xyzPending.batch?.gpsFiles.length && !xyzPending.grid && looksLikeLocalGrid(xyzPending.rows, xyzPending.xCol, xyzPending.yCol) && (
               <div style={{ marginTop: 8, padding: "6px 8px", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>
-                {tr("These look like local grid coordinates, not map coordinates: without placing them they land far from your other data. The survey's GPS file, with stations named like \"9000N 4650E\", can place them.")}
+                {tr("Local grid coordinates: unplaced, they land far from your other data. Place them with the survey's GPS file (stations named like \"9000N 4650E\").")}
                 <button type="button" onClick={() => gridGpsInput.current?.click()} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Load the GPS file…")}</button>
                 <input ref={gridGpsInput} type="file" accept=".txt,.csv,.dat,.gpx,.wpt" style={{ display: "none" }} onChange={(e) => { placeLocalGrid(e.target.files[0]); e.target.value = ""; }} />
               </div>
@@ -2494,7 +2494,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             {(manySurveys ? legendRange.min : min) !== null && (
               <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Value range: {min} – {max}", { min: (manySurveys ? legendRange.min : min).toLocaleString(), max: (manySurveys ? legendRange.max : max).toLocaleString() })}{manySurveys && geophysSurveys[legendKey]?.units ? ` ${geophysSurveys[legendKey].units}` : ""}</div>
             )}
-            {min !== null && (ownLegend ? legendMeta?.min == null && legendMeta?.max == null : geophysPtsMin == null && geophysPtsMax == null) && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginTop: 2, lineHeight: 1.4 }}>{tr("Colours use the 2–98 percentile of the values, so a few extreme readings do not wash out the map. Edit a limit to change it.")}</div>/* #1177 */}
+            {min !== null && (ownLegend ? legendMeta?.min == null && legendMeta?.max == null : geophysPtsMin == null && geophysPtsMax == null) && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginTop: 2, lineHeight: 1.4 }}>{tr("Colours span the 2–98 percentile, so a few extreme readings don't wash out the map. Edit a limit to change it.")}</div>/* #1177 */}
             {/* TASKS.csv #122 — same graduated/classed symbology (user-defined class breaks, adjustable
                 palette) voxel models already have, reused directly: geophysPtsModel below is shaped
                 exactly like a real voxel model ({min,max,colorMode,stops,cells}) so VoxelLegendEditor
@@ -2543,12 +2543,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <button onClick={() => setSpatialOpen(true)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center" }}>
               <Triangle size={14} />{" "}{tr("Spatial analysis (Voronoi / declustering)…")}</button>
             {/* TASKS.csv #3324 — the survey's value along the holes, as a downhole layer */}
-            <button onClick={() => setHoleOpen((v) => !v)} title={tr("The survey's value along each drillhole (the nearest point, or an inverse-distance mean, within a distance), as a downhole layer that Downhole logs and the strip logs read.")} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: holeOpen ? "var(--color-selected-bg)" : undefined }}>
+            <button onClick={() => setHoleOpen((v) => !v)} title={tr("The survey's value along each drillhole (nearest point or inverse-distance mean, within a distance), as a downhole layer for Downhole logs and strip logs.")} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: holeOpen ? "var(--color-selected-bg)" : undefined }}>
               <Waypoints size={14} />{" "}{tr("Sample along the drillholes…")}</button>
             {holeOpen && (
               <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
-                {!holeShape?.is3D ? <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", lineHeight: 1.5 }}>{tr("\"{key}\" is a surface survey: its points lie on the ground, so only the top of a hole passes near them. Sampling along the holes is for a 3D point cloud (an inversion model or a pseudo-section imported as points).", { key: legendKey })}</div> : <>
-                  <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("\"{key}\" along each hole: at every step down the hole, the value of the nearest point within the distance (or the inverse-distance mean of the points within it). Steps farther than that from every point are left empty.", { key: legendKey })}</div>
+                {!holeShape?.is3D ? <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", lineHeight: 1.5 }}>{tr("\"{key}\" is a surface survey: only a hole's top passes near it. Sampling along holes is for 3D clouds (inversion models, pseudo-sections as points).", { key: legendKey })}</div> : <>
+                  <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("\"{key}\" along each hole: at every step, the nearest point's value within the distance (or the inverse-distance mean). Steps beyond every point stay empty.", { key: legendKey })}</div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Distance (m)")}</span>
                     <NumberInput allowEmpty min={0.1} value={holeOpts.dist} placeholder={holeSuggest ? String(holeSuggest.maxDist) : "25"} onChange={(v) => setHoleOpts((o) => ({ ...o, dist: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Search distance from the hole")} />
@@ -2563,7 +2563,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       <option value="nearest">{tr("Nearest point")}</option><option value="idw">{tr("Inverse-distance mean")}</option>
                     </select>
                   </div>
-                  {holeSuggest && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{holeSuggest.sectionSpacing ? tr("Defaults from the cloud's spacing: its points lie on sections about {l} m apart, so the distance is three quarters of that, which reaches the nearer section from a hole between two; the step is a quarter of the {s} m point spacing.", { l: Math.round(holeSuggest.sectionSpacing), s: +holeSuggest.spacing.toFixed(1) }) : tr("Defaults from the cloud's spacing ({s} m): a distance of 1.5 spacings and a step of a quarter spacing.", { s: +holeSuggest.spacing.toFixed(1) })}</div>}
+                  {holeSuggest && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{holeSuggest.sectionSpacing ? tr("Defaults from the cloud: sections about {l} m apart, so the distance is three quarters of that; the step, a quarter of the {s} m spacing.", { l: Math.round(holeSuggest.sectionSpacing), s: +holeSuggest.spacing.toFixed(1) }) : tr("Defaults from the cloud's spacing ({s} m): a distance of 1.5 spacings and a step of a quarter spacing.", { s: +holeSuggest.spacing.toFixed(1) })}</div>}
                   <button disabled={holeBusy} onClick={() => sampleSurveyAlongHoles(legendKey)} style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center" }}>{holeBusy ? tr("Sampling…") : tr("Add as a downhole layer")}</button>
                 </>}
               </div>
@@ -2579,10 +2579,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     <option value="idw">{tr("IDW")}</option><option value="mincurv">{tr("Minimum curvature")}</option><option value="spline">{tr("Spline (Python engine)")}</option>
                   </select>
                 </div>
-                <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{idwMethod === "mincurv" ? tr("A tensioned minimum-curvature surface through the stations, the usual gridder for gravity and magnetic stations: smooth between them, so its derivatives show the geology rather than the station pattern. Tension 0.25 is the usual choice for potential fields.") : idwMethod === "spline" ? tr("Verde's biharmonic spline on block medians of the stations, its damping chosen by cross-validation, in the Python engine: smooth, and slower than minimum curvature on a large survey.") : tr("Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.")}</div>
+                <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{idwMethod === "mincurv" ? tr("Tensioned minimum curvature, the usual gridder for gravity and magnetic stations: smooth between them, so derivatives show geology, not station pattern. Tension 0.25 is usual.") : idwMethod === "spline" ? tr("Verde's biharmonic spline on block medians, damping chosen by cross-validation, in the Python engine: smooth, slower than minimum curvature on a large survey.") : tr("Inverse-distance grid over the cloud's extent: a quick look at trend and coverage, not a geostatistical grid (no kriging) and not for resource estimation.")}</div>
                 {idwShape?.is3D && ( // #1783
                   <div style={{ marginBottom: 8 }}>
-                    <div style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 4 }}>{tr("This is a 3D point cloud, not a surface survey: {n} points from {lo} to {hi} m elevation (within a plan cell their elevations spread {k}× the cell). A raster flattens every depth into one value per cell, so grid one depth slice at a time.", { n: idwShape.n.toLocaleString(), lo: Math.round(idwShape.zMin).toLocaleString(), hi: Math.round(idwShape.zMax).toLocaleString(), k: idwShape.spread.toFixed(0) })}</div>
+                    <div style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 4 }}>{tr("A 3D point cloud: {n} points from {lo} to {hi} m (spread {k}× the cell). A raster flattens depth, so grid one depth slice at a time.", { n: idwShape.n.toLocaleString(), lo: Math.round(idwShape.zMin).toLocaleString(), hi: Math.round(idwShape.zMax).toLocaleString(), k: idwShape.spread.toFixed(0) })}</div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Slice z (m)")}</span>
                       <NumberInput allowEmpty value={idwZ.lo} placeholder={String(idwZAuto ? idwSliceProp.lo : Math.round(idwShape.zMin))} onChange={(v) => setIdwZ((z) => ({ ...z, lo: (v == null ? "" : String(v)) }))} style={{ ...numInput, width: 80 }} aria-label={tr("Lowest elevation of the slice")} />
@@ -2597,7 +2597,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Cell size")}</span>
                   <NumberInput allowEmpty min={0.1} value={idwCellText} placeholder={String(idwAutoCell)} onChange={(v) => setIdwCellText((v == null ? "" : String(v)))} style={numInput} aria-label={tr("Cell size")} />
                 </div>
-                {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwSuggest.capped ? tr("Cell {c} m by default: the smallest round cell that keeps the grid under 4 million cells ({s} m, a quarter of the median spacing, would make it too large).", { c: idwAutoCell, s: idwSuggest.spacingCell }) /* #3322 */ : idwSuggest.basis === "plan density" ? tr("Cell {c} m by default: about the slice's spacing in plan, {s} m ({n} points over {a} km²). The points are stacked in depth, so their nearest neighbours say nothing of the spacing in plan.", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1), n: idwSuggest.n.toLocaleString(), a: +(idwSuggest.areaM2 / 1e6).toPrecision(2) }) /* #3810 */ : tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
+                {idwSuggest && idwCellText === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwSuggest.capped ? tr("Cell {c} m by default: the smallest round cell under 4 million cells ({s} m, a quarter of the median spacing, would be too many).", { c: idwAutoCell, s: idwSuggest.spacingCell }) /* #3322 */ : idwSuggest.basis === "plan density" ? tr("Cell {c} m by default: about the slice's spacing in plan, {s} m ({n} points over {a} km²). The points are stacked in depth, so neighbours don't give it.", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1), n: idwSuggest.n.toLocaleString(), a: +(idwSuggest.areaM2 / 1e6).toPrecision(2) }) /* #3810 */ : tr("Cell {c} m by default: a quarter to a half of the median spacing ({s} m).", { c: idwAutoCell, s: idwSuggest.spacing.toFixed(1) })}</div>}{/* #2562 */}
                 {idwMethod === "idw" && <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("How sharply influence falls off with distance — higher means nearer points dominate more.")}>{tr("Power")}</span>
                   <NumberInput min={0.5} step={0.5} value={idwPower} onChange={(v) => setIdwPower(v)} style={numInput} />
@@ -2615,13 +2615,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     </select>
                   </div>
                 )}
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }} title={tr("Cells farther than this from every point are left empty (transparent) instead of extrapolated. Default: 1.5x the median spacing between lines (2x the station spacing for scattered stations). 0 = fill everything.")}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }} title={tr("Cells farther than this from every point stay empty, not extrapolated. Default: 1.5× the line spacing (2× station spacing if scattered). 0 = fill all.")}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Blank > (m)")}</span>
                   <NumberInput allowEmpty min={0} value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwAutoBlank)) : "none"} onChange={(v) => setIdwBlank((v == null ? "" : String(v)))} style={numInput} aria-label={tr("Blanking distance")} />
                 </div>
-                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwAutoBlank > idwSuggest.distance + 1e-9 ? tr("Default {v} m: 1.5 cells of {c} m (the spacing alone would give {d} m, which leaves most cells empty at this cell size).", { v: Math.round(idwAutoBlank), c: idwCellSize, d: Math.round(idwSuggest.distance) }) /* #3322 */ : idwSuggest.linesEstimated ? tr("Default {v} m: 1.5 times the spacing between lines, about {spacing} m (estimated: the file has no line column, and its stations are {along} m apart along the lines).", { v: Math.round(idwAutoBlank), spacing: Math.round(idwSuggest.spacing), along: +idwSuggest.alongSpacing.toFixed(1) }) /* #3322 */ : idwSuggest.basis === "plan density" ? tr("Default {v} m: twice the slice's spacing in plan, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) /* #3810 */ : idwSuggest.basis === "line spacing" ? tr("Default {v} m: 1.5 times the median line spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) : tr("Default {v} m: twice the median station spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) })}</div>}
+                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{idwAutoBlank > idwSuggest.distance + 1e-9 ? tr("Default {v} m: 1.5 cells of {c} m (the spacing alone would give {d} m, which leaves most cells empty at this cell size).", { v: Math.round(idwAutoBlank), c: idwCellSize, d: Math.round(idwSuggest.distance) }) /* #3322 */ : idwSuggest.linesEstimated ? tr("Default {v} m: 1.5 × the line spacing, about {spacing} m (estimated from stations {along} m apart: the file has no line column).", { v: Math.round(idwAutoBlank), spacing: Math.round(idwSuggest.spacing), along: +idwSuggest.alongSpacing.toFixed(1) }) /* #3322 */ : idwSuggest.basis === "plan density" ? tr("Default {v} m: twice the slice's spacing in plan, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) /* #3810 */ : idwSuggest.basis === "line spacing" ? tr("Default {v} m: 1.5 times the median line spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) }) : tr("Default {v} m: twice the median station spacing, {spacing} m.", { v: Math.round(idwAutoBlank), spacing: idwSuggest.spacing.toFixed(1) })}</div>}
                 {/* TASKS.csv #372 — colour stretch */}
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title={tr("Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalize: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).")}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title={tr("Percentile clip (default): 2nd-98th percentile, extremes saturate. Equalize: each colour covers as many cells (texture, not value). Linear: min to max.")}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Colours")}</span>
                   <select value={idwStretch} onChange={(e) => setIdwStretch(e.target.value)} style={{ ...numInput, flex: 1 }} aria-label={tr("Colour stretch")}>
                     <option value="p2-98">{tr("2-98% percentile clip")}</option>
@@ -2636,7 +2636,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const pts = idwSlice; // #1783 — a 3D cloud: the chosen depth slice
                     if (!pts.length) { setError(tr("No points in that elevation slice.")); return; }
                     // TASKS.csv #2557 — a single traverse became an 80 x 1 'grid' that RTP then filtered as a map
-                    if (pointsAlongOneLine(pts, idwCellSize)) { setError(tr("The {n} points lie along one line: a grid of them is a single row of cells, which the map filters (RTP, derivatives…) would treat as a map. Plot the line as a profile instead.", { n: pts.length.toLocaleString() })); return; }
+                    if (pointsAlongOneLine(pts, idwCellSize)) { setError(tr("Plot these {n} points as a profile: they lie on one line, and the map filters (RTP, derivatives…) would treat a one-row grid as a map.", { n: pts.length.toLocaleString() })); return; }
                     const sliceTag = idwShape?.is3D ? ` z ${Number.isFinite(idwZLo) ? +idwZLo.toFixed(2) : Math.round(idwShape.zMin)}–${Number.isFinite(idwZHi) ? +idwZHi.toFixed(2) : Math.round(idwShape.zMax)} m` : ""; // #3322 — the proposed slice too
                     const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
                     const { xmin, xmax, ymin, ymax } = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize); // #2872 — nodes on multiples of the cell, every station inside
@@ -2696,13 +2696,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const cells = raster.grid.nx * raster.grid.ny;
                     // TASKS.csv #2075 (review #2013, Geophysics) — where the raster is drawn: Woodjam's n = 1 grid went flat at 965 m (the collars' median,
                     // 10 km away) while its ground is 1,062-1,116 m, and nothing said so
-                    const where = terrain ? tr(" Draped on the terrain.") : ptsZ != null ? tr(" Drawn flat at {z} m, the stations' median elevation (there is no terrain to drape it on).", { z: Math.round(ptsZ).toLocaleString() }) : tr(" Drawn flat at {z} m ({basis}), not on the ground: there is no terrain. Add one (Maps > Terrain) to drape it, or set its elevation on its card.", { z: Math.round(defaultElevation).toLocaleString(), basis: drapeAt.source === "collars" ? tr("the collars' median elevation") : drapeAt.source === "model" ? tr("the top of {model}", { model: drapeAt.model }) : drapeAt.source === "samples" ? tr("the surface samples' median elevation") : tr("no elevation known") });
+                    const where = terrain ? tr(" Draped on the terrain.") : ptsZ != null ? tr(" Drawn flat at {z} m, the stations' median elevation (there is no terrain to drape it on).", { z: Math.round(ptsZ).toLocaleString() }) : tr(" Drawn flat at {z} m ({basis}), not on the ground: there is no terrain. Add one (Maps > Terrain), or set its elevation on its card.", { z: Math.round(defaultElevation).toLocaleString(), basis: drapeAt.source === "collars" ? tr("the collars' median elevation") : drapeAt.source === "model" ? tr("the top of {model}", { model: drapeAt.model }) : drapeAt.source === "samples" ? tr("the surface samples' median elevation") : tr("no elevation known") });
                     const idwArgs = { idwKey, pts: pts.length.toLocaleString(), idwCellSize, valid: raster.grid.valid.toLocaleString(), cells: cells.toLocaleString(), v: Number.isFinite(blank) ? tr("; cells more than {v} m from any point are left empty", { v: Math.round(blank) }) : "" };
                     // TASKS.csv #2557 — the map filters are for magnetic and gravity grids; a radiometric / EM grid is not told they work on it
                     const group = SURVEY_METHODS[geophysSurveys?.[idwKey]?.method]?.group;
                     const potential = ["mag", "grav"].includes(group) || !geophysSurveys?.[idwKey]?.method;
                     // TASKS.csv #2870 — a gravity grid is not offered RTP (filterBlockedBy): the line names the filters that do work on it
-                    const kept = !potential ? tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept for its colours and the ternary image; the map filters are for magnetic and gravity grids.", idwArgs)
+                    const kept = !potential ? tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The map filters are for magnetic and gravity grids.", idwArgs)
                       : group === "grav" ? tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (derivatives, continuation…) work on it.", idwArgs)
                       : tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.", idwArgs);
                     // TASKS.csv #2846 — what the method was, and (IDW) what its derivatives show
@@ -2749,16 +2749,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </>)}
         {geoPane === "terrain" && (<>
         <TaskPaneHeader title="Terrain (SRTM / DEM)" icon={RMountain} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Terrain (SRTM/DEM)")}<InfoButton title={tr("Terrain (SRTM/DEM)")} text={tr("Import a georeferenced elevation GeoTIFF (SRTM or any other DEM) to build real terrain geometry in the 3D view, instead of a flat ground plane — raster drapes above can then optionally conform to it (\"Drape on terrain\" per raster) instead of sitting at a fixed elevation. Select multiple adjacent tiles at once (e.g. two neighbouring SRTM tiles) to merge them into one terrain surface. A geographic (lon/lat) source is automatically reprojected into the project’s own EPSG if possible, so it lines up with the rest of the project. Downsampled to a modest mesh resolution regardless of source size. Only one terrain surface per project.")} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Terrain (SRTM/DEM)")}<InfoButton title={tr("Terrain (SRTM/DEM)")} text={tr("Import an elevation GeoTIFF (SRTM or any DEM) as the terrain in 3D: rasters can drape on it. Select adjacent tiles to merge them; lon/lat is reprojected. One terrain per project.")} />
         </div>
         {/* TASKS.csv #419 — for a DEM with no CRS tag or a wrong one */}
         <SourceCrsField
           label={tr("DEM source CRS")} value={demSourceEpsg} onChange={(c) => setDemSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
           defaultText={tr("From the file's own CRS tag")}
-          title={tr("Leave it on the file's own tag. Change it when the DEM has no tag or a wrong one (e.g. NAD83 / BC Albers for a BC TRIM DEM, NAD83(CSRS) longitude/latitude for NRCan CDEM).")}
+          title={tr("Leave it on the file's tag; change it for a DEM with none or a wrong one (BC TRIM: BC Albers; CDEM: NAD83(CSRS) lon/lat).")}
         />
         {(collars || []).length > 0 && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Reads only the part of each DEM tile around the drillholes, at a resolution that suits the 200 x 200 terrain grid — much less memory than decoding whole tiles, and much finer cells. Untick to import whole tiles.")}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Reads only each DEM tile's part around the drillholes, at the terrain grid's resolution: less memory, finer cells. Untick to import whole tiles.")}>
             <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} />{" "}{tr("Crop to the drillholes +")}<NumberInput allowEmpty min={1000} step={500} value={demCropBuffer} onChange={(v) => setDemCropBuffer((v == null ? "" : String(v)))} style={{ ...numInput, width: 70, flex: "none" }} aria-label={tr("Crop buffer in metres")} /> m
           </label>
         )}
@@ -2766,7 +2766,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flexShrink: 0 }}>{tr("Online source")}</span>
           <select value={terrainSource} onChange={(e) => setTerrainSource(e.target.value)} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Online source")}
-            title={tr("Copernicus GLO-30 (the default): one consistent global model, ~30 m, a surface model (forest adds some metres); open ocean has no cells and stays no data. AWS Terrain Tiles: SRTM blended with national models (CDEM in Canada), up to ~5 m pixels; the fetch checks it for isolated cones against Copernicus and warns. NRCan MRDEM-30 (Canada only): 30 m bare-earth terrain, using lidar where it exists. NRCan HRDEM: 1 m lidar terrain where a survey has been flown, MRDEM-30 elsewhere. A terrain already in the project keeps the source it was fetched from.")}>
+            title={tr("Copernicus GLO-30 (default): global ~30 m, with forest. AWS Terrain Tiles: to ~5 m, checked for cones. NRCan MRDEM-30: bare earth; HRDEM: 1 m lidar.")}>
             <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>{/* TASKS.csv #3882 — the default, so first */}
             <option value="aws">{tr("AWS Terrain Tiles (SRTM / CDEM blend)")}</option>
             <option value="mrdem" disabled={outsideCanada && terrainSource !== "mrdem"}>{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815; disabled outside Canada: #2465 */}
@@ -2779,14 +2779,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flexShrink: 0 }}>{tr("Terrain detail")}</span>
           <select value={terrainDetail} onChange={(e) => setTerrainDetail(Number(e.target.value))} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Terrain detail")}
-            title={tr("Nodes along the terrain's longer side, for the next fetch or import. High and Very high are drawn as an adaptive mesh: many triangles where the ground is rough, few where it is smooth, about 110,000 to 160,000 in all.")}>
+            title={tr("Nodes along the terrain's longer side, for the next fetch or import. High and Very high are adaptive: more triangles where the ground is rough.")}>
             <option value={200}>{tr("Standard (200 nodes)")}</option>
             <option value={513}>{tr("High (513 nodes)")}</option>
             <option value={1025}>{tr("Very high (1,025 nodes)")}</option>
             <option value={2049}>{tr("Full (2,049 nodes)")}</option>{/* TASKS.csv #3251 — the fetch reads tiles to match (srtmFetch tileBudget) */}
           </select>
         </div>
-        {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, and up to a second to build the mesh.", { mb: terrainDetail > 1500 ? 40 : terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 1500 ? 22 : terrainDetail > 600 ? 6 : 1.5 })}</div>}
+        {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, up to a second to build.", { mb: terrainDetail > 1500 ? 40 : terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 1500 ? 22 : terrainDetail > 600 ? 6 : 1.5 })}</div>}
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => terrainInput.current.click()} style={{ ...pBtn, flex: 1 }} disabled={terrainBusy}>
             {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? tr("Reading…") : terrain ? tr("Replace terrain…") : tr("Import SRTM/DEM…")}
@@ -2801,7 +2801,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </button>
         </div>
         <button onClick={() => pointsTerrainInput.current.click()} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy}
-          title={tr("Survey points (CSV, TXT or XYZ with X, Y and elevation) or contour lines and spot heights in a DXF: triangulated into a terrain, for a property with no elevation model")}>
+          title={tr("Survey points (CSV, TXT or XYZ: X, Y, elevation) or DXF contours and spot heights, triangulated into a terrain where there is no elevation model")}>
           <Triangle size={14} /> {tr("Terrain from points or contours…")}
         </button>{/* TASKS.csv #894 */}
         <button onClick={() => lidarInput.current.click()} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy || lidarBusy}
@@ -2812,14 +2812,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {lidarPending && <LidarImportBox key={lidarPending.file.name + lidarPending.file.size} pending={lidarPending} projectEpsg={lidarPending.epsg} busy={lidarBusy} onImport={confirmLidar} onCancel={() => setLidarPending(null)} btn={pBtn} />}
         {projectZPoints.points.length >= 3 && (
           <button onClick={terrainFromProject} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy || zCount < 3}
-            title={tr("Triangulates the elevations the project's surface samples and drill collars already carry: offline, no file needed. Only as good as those elevations (GPS heights are rough).")}>
+            title={tr("Triangulates the elevations of the project's surface samples and collars, offline. Only as good as those elevations (GPS heights are rough).")}>
             <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: zCount.toLocaleString() })}
           </button>
         )}{/* TASKS.csv #1599 */}
         {projectZPoints.points.length >= 3 && ( /* TASKS.csv #3095 — the points inside a drawn area only */
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexWrap: "wrap" }}>
             <button type="button" onClick={async () => { const seed = await defaultSrtmBboxLonLat(); setSrtmSeedBbox(projArea || seed); setSrtmSeedLonLat(seed ? { lon: (seed[0] + seed[2]) / 2, lat: (seed[1] + seed[3]) / 2 } : null); setSrtmAreaOptions(await buildSrtmAreaOptions()); setProjAreaPicker(true); }}
-              style={{ ...pBtn, flex: "0 0 auto" }} title={tr("Build the terrain from the samples and collars inside an area you draw, so the grid follows them: for a field wider than one grid can resolve")}>{tr("Limit to a drawn area…")}</button>
+              style={{ ...pBtn, flex: "0 0 auto" }} title={tr("Build the terrain from the samples and collars inside an area you draw: for a field wider than one grid can resolve")}>{tr("Limit to a drawn area…")}</button>
             {projArea && <span>{tr("Inside {w} × {h} km", { w: ((projArea[2] - projArea[0]) * 111.32 * Math.cos(((projArea[1] + projArea[3]) / 2) * Math.PI / 180)).toFixed(1), h: ((projArea[3] - projArea[1]) * 110.57).toFixed(1) })} <button type="button" onClick={() => setProjArea(null)} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "var(--font-size-sm)" }}>{tr("Clear")}</button></span>}
           </div>
         )}
@@ -2859,7 +2859,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           <label style={{ display: "block", marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
             {tr("Where collars stack ({n} collars share a spot with one {dz} m or more higher or lower, up to {max} m)", { n: benches.n.toLocaleString(), dz: BENCH_DZ_M, max: benches.maxDz.toFixed(1) })}
             {/* TASKS.csv #3654 (2) — the choices name no pit (Macpass's stacked collars are mine levels and a hillside); why, in the tooltip */}
-            <select value={benchMode} onChange={(e) => setBenchMode(e.target.value)} style={{ ...numInput, width: "100%", marginTop: 3 }} title={tr("Where collars stack, the lowest is the latest floor of a pit or the lowest level, the highest is nearest the original ground. Keep them all when they are mine levels or a steep hillside.")}>
+            <select value={benchMode} onChange={(e) => setBenchMode(e.target.value)} style={{ ...numInput, width: "100%", marginTop: 3 }} title={tr("Where collars stack, the lowest is the latest pit floor, the highest nearest the original ground. Keep all for mine levels or steep hillsides.")}>
               <option value="all">{tr("Keep them all")}</option>
               <option value="lowest">{tr("Keep the lowest")}</option>
               <option value="highest">{tr("Keep the highest")}</option>
@@ -2867,7 +2867,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </label>
         )}
         <input ref={pointsTerrainInput} type="file" accept=".csv,.txt,.xyz,.dxf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importPointsTerrain(f); e.target.value = ""; }} />
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("\"Fetch terrain for this area\" opens a map to draw the exact area you want — pre-filled around your drillholes, or your terrain or map layers if there are none; pan or redraw to widen or shift it. Public elevation data from the online source chosen above, no account and no manual download needed.")}</div>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("\"Fetch terrain for this area\" opens a map to draw the area, pre-filled around your data. Public elevation data, no account needed.")}</div>
         {srtmPickerOpen && (
           <BasemapView
             mode="draw"
@@ -2979,9 +2979,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     earlier.forEach((x) => updateRaster(x.id, { visible: false }));
                     addRaster({ ...r, elevation: defaultElevation, drapeMode: "terrain", terrainDerivative: { kind: derivKind, terrainId: terrain.id ?? null, terrainName: terrain.name || "", unit } });
                     const hid = earlier.length ? " " + tr("{n} earlier derivative(s) of this terrain were hidden so this one shows: {names}. Tick them in the GeoTIFF / GXF list to show them again.", { n: earlier.length, names: earlier.map((x) => x.name).join(", ") }) : "";
-                    if (shade && zf > 1) setTerrainError({ info: true, text: tr("Hillshade with a vertical exaggeration of {z}x, chosen from this terrain's slopes (its steepest 2 % shown near 30°): on low relief a true-scale hillshade is one flat grey.", { z: zf }) }); // #2460
+                    if (shade && zf > 1) setTerrainError({ info: true, text: tr("Hillshade at {z}× vertical exaggeration, set from this terrain's slopes (its steepest 2 % near 30°): on low relief a true-scale hillshade is flat grey.", { z: zf }) }); // #2460
                     else if (scale) setTerrainError({ info: true, text: derivKind === "slope" ? tr("Slope draped on the terrain: white {min}° or flatter, darkest grey {max}° or steeper (this terrain's 2-98 % range).", { min: +scale.min.toPrecision(2), max: +scale.max.toPrecision(2) }) /* #2460 */ : tr("Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).", { max: +scale.max.toPrecision(2) }) + (r.grid ? " " + tr("Its values are kept: export them, restyle them, or use them as targeting evidence from the raster's card.") : "") });
-                    else setTerrainError(derivKind === "aspect" ? { info: true, text: tr("Aspect draped on the terrain: the direction each slope faces, in degrees clockwise from grid north (red north, yellow-green east, cyan south, blue-magenta west; grey flat). Its values are kept.") } : null); // #1626 — the previous product's message was left showing
+                    else setTerrainError(derivKind === "aspect" ? { info: true, text: tr("Aspect on the terrain: the direction each slope faces, clockwise from grid north (red north, yellow-green east, cyan south, blue-magenta west; grey flat).") } : null); // #1626 — the previous product's message was left showing
                     if (hid) setTerrainError((prev) => ({ info: true, text: (prev?.text ? prev.text + " " : "") + hid.trim() })); // #1764
                     setHillshadeOpen(false);
                   }}
@@ -3046,12 +3046,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </>)}
         {geoPane === "boundaries" && (<>
         <TaskPaneHeader title="Boundaries" icon={RShapes} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Boundaries (.ply / DXF / shapefile / GeoPackage)")}<InfoButton title={tr("Boundaries")} text={tr("Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), a GeoPackage (.gpkg), KML/KMZ, GPX or GeoJSON — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile: every feature in the file becomes its own part of the same boundary. GeoPackage: each table with lines or polygons becomes its own boundary. Shapefile and GeoPackage are reprojected from their own CRS to the project's EPSG ({v}); KML/KMZ, GPX and GeoJSON from WGS 84. .ply and DXF files are taken to be in the project's EPSG already. A shapefile or GeoPackage that states no CRS is taken to be in the project's EPSG, and the import message says so: check where it lies.", { v: project?.crsSet === false ? tr("not chosen yet") : project?.epsg ?? "?" } /* #2289 */)} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Boundaries (.ply / DXF / shapefile / GeoPackage)")}<InfoButton title={tr("Boundaries")} text={tr("Import boundaries (property lines, claims, grid extents) as 3D polylines: .ply, DXF, shapefile, GeoPackage, KML/KMZ, GPX, GeoJSON. A stated CRS is reprojected to the project's ({v}); none (or .ply, DXF) is taken as the project's: check where it lies.", { v: project?.crsSet === false ? tr("not chosen yet") : project?.epsg ?? "?" } /* #2289 */)} />
         </div>
         <SourceCrsField /* TASKS.csv #2684 — over the file's own CRS (.prj / GeoPackage); places a .ply / .dxf, which states none */
           value={boundarySource} onChange={(c) => setBoundarySource(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project)}
           defaultText={tr("From the file (.prj / GeoPackage), else the project CRS")}
-          title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one, or for a .ply / .dxf on a mine grid or in another CRS. KML, GPX and GeoJSON are always longitude / latitude.")}
+          title={tr("Change it only for a missing or wrong .prj, or a .ply / .dxf on a mine grid. KML, GPX and GeoJSON are lon/lat.")}
         />
         <button onClick={() => boundaryInput.current.click()} style={pBtn}>
           <Waypoints size={14} />{" "}{tr("Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
@@ -3116,7 +3116,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
             {(b.contourLevels || []).length > 0 && ( /* TASKS.csv #1466 / #1622 — a contour layer's labels in the 3D View */
               <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: "pointer" }}
-                title={tr("Writes the level on the index contours in StrixViewer and on the Maps plan (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter in StrixViewer.")}>
+                title={tr("Labels the index contours in StrixViewer and on the Maps plan (every fifth of a regular series, every chosen level); the others are drawn fainter.")}>
                 <input type="checkbox" checked={b.contourLabels !== false} onChange={(e) => updateBoundary(b.id, { contourLabels: e.target.checked })} />
                 <span style={{ color: "var(--color-text-caption)" }}>{tr("Label index contours")}</span>
               </label>
@@ -3138,7 +3138,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           />
         )}
         <TaskPaneHeader title="Web layers (WMS / WFS)" icon={RGlobe} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Web layers (WMS / WFS)")}<InfoButton title={tr("Web layers")} text={tr("Add a layer directly from a government/company OGC service URL — the same kind of WMS (provincial bedrock geology, airborne mag) or WFS (claim-tenure) layer you'd add in QGIS. A WMS layer imports as a raster drape for a chosen area; a WFS layer imports as a Map layer that keeps its attributes, or as boundary lines if you choose.")} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Web layers (WMS / WFS)")}<InfoButton title={tr("Web layers")} text={tr("Add a layer from an OGC service URL, as in QGIS: a WMS layer (bedrock geology, airborne mag) as a raster drape, a WFS layer (claims) as a Map layer or boundary lines.")} />
         </div>
         <button onClick={async () => {
           // #615 — a web map is fetched for wherever the project CRS puts the data: choose it first when it never was
@@ -3154,12 +3154,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </>)}
         {geoPane === "claims" && (<>
         <TaskPaneHeader title="Mineral claims / tenure" icon={RFlag} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Mineral claims / tenure")}<InfoButton title={tr("Mineral claims / tenure")} text={tr("Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg), KML/KMZ, GPX or GeoJSON, the same formats as the Boundaries pane (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares, holes taken away). A shapefile or GeoPackage with several features (up to 300) becomes one claim per feature, its tenure number, name and good-to date read from attribute columns named that way. Status sets a default colour (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Shapefile and GeoPackage are reprojected from their own CRS to the project's EPSG; KML/KMZ, GPX and GeoJSON from WGS 84; .ply and DXF files are taken to be in the project's EPSG already. A shapefile or GeoPackage that states no CRS is taken to be in the project's EPSG, and the import message says so: check where it lies.")} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Mineral claims / tenure")}<InfoButton title={tr("Mineral claims / tenure")} text={tr("Import claims (.ply, DXF, shapefile, GeoPackage, KML/KMZ, GPX, GeoJSON), one per feature: tenure number, status, expiry, area; status sets the colour. A stated CRS is reprojected; none (or .ply, DXF) is taken as the project's: check where it lies.")} />
         </div>
         <SourceCrsField /* TASKS.csv #2684 — over the file's own CRS (.prj / GeoPackage); places a .ply / .dxf, which states none */
           value={boundarySource} onChange={(c) => setBoundarySource(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project)}
           defaultText={tr("From the file (.prj / GeoPackage), else the project CRS")}
-          title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one, or for a .ply / .dxf on a mine grid or in another CRS. KML, GPX and GeoJSON are always longitude / latitude.")}
+          title={tr("Change it only for a missing or wrong .prj, or a .ply / .dxf on a mine grid. KML, GPX and GeoJSON are lon/lat.")}
         />
         <button onClick={() => claimInput.current.click()} style={pBtn}>
           <Flag size={14} />{" "}{tr("Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
@@ -3249,7 +3249,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           <TaskPaneHeader title="Electromagnetic surveys (EM)" icon={Radio} tone="data" onClose={() => setGeoPane(null)} />
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>{tr("EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Pick the kind of survey:")}</div>
           {[
-            { label: tr("TEM line data: channels, decays, decay constant…"), text: tr("Time-domain EM along lines (SkyTEM, a Workbench or Geosoft .xyz, a CSV with a column per gate): every channel stacked along a line, the decay at a station, and the decay constant mapped."), go: () => setGeoPane("tem"), help: "tem-lines" }, // #1986 step 1
+            { label: tr("TEM line data: channels, decays, decay constant…"), text: tr("Time-domain EM along lines (SkyTEM, Workbench or Geosoft .xyz, a CSV with a column per gate): channels stacked, a station's decay, the decay constant mapped."), go: () => setGeoPane("tem"), help: "tem-lines" }, // #1986 step 1
             { label: tr("FDEM 1D: ground loop-loop (DUALEM, GEM-2)…"), text: tr("Frequency-domain readings along lines: conductivity against depth under each sounding, a 1D inversion."), go: () => setGeoPane("fdem"), help: "fdem-1d" },
             { label: tr("TEM: one channel as points…"), text: tr("One channel already in a table (dB/dt, B-field or a decay constant) imported as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
           ].map((o) => (
@@ -3269,7 +3269,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {geoPane === "budget" && (<>
         <TaskPaneHeader title="3D view cell budget" icon={RSettings2} tone="view" />
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginTop: 10 }}>{tr("This limits block models only (OMF and UBC imports). Point surveys and rasters are not cut down by it.")}</div>{/* TASKS.csv #3442 (7) */}
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) and more memory: about 0.4 GB per million cells, so it stops at {max} cells, above which GeoStrix can run out of memory. Only affects new imports, not models already in the project. Remembered on this computer.", { max: MAX_BLOCK_MODEL_BUDGET.toLocaleString() })} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF / UBC block model is averaged down to this many cells for the 3D view. Higher: more detail, slower, about 0.4 GB per million cells (up to {max}). New imports only; kept on this computer.", { max: MAX_BLOCK_MODEL_BUDGET.toLocaleString() })} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
           <NumberInput
@@ -3284,16 +3284,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           )}
         </div>
         {/* TASKS.csv #2969 — what the number costs and what it does, where it is set (the pane said only 'cells (default 100,000)') */}
-        <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", lineHeight: 1.45, marginBottom: 12 }}>{tr("A model of {cells} cells takes about {gb} GB of memory while it is open. A UBC mesh, OMF volume or block-model CSV with more cells is merged into bigger blocks on import, and the import message says by how much.", { cells: clampCellBudget(voxelCellBudget ?? MAX_CELLS).toLocaleString(), gb: (clampCellBudget(voxelCellBudget ?? MAX_CELLS) * 0.4e-6).toFixed(2) })}</div>
+        <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", lineHeight: 1.45, marginBottom: 12 }}>{tr("A model of {cells} cells takes about {gb} GB while open. Larger models are merged into bigger blocks on import; the message says how much.", { cells: clampCellBudget(voxelCellBudget ?? MAX_CELLS).toLocaleString(), gb: (clampCellBudget(voxelCellBudget ?? MAX_CELLS) * 0.4e-6).toFixed(2) })}</div>
 
         </>)}
         {geoPane === "omf" && (<>
         <TaskPaneHeader title="Open Mining Format (.omf)" icon={RPackage} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Open Mining Format (.omf)")}<InfoButton title={tr("Open Mining Format (.omf)")} text={tr("Import an .omf project — exported from Oasis montaj/Geosoft, Leapfrog, or any other tool that supports the format. A single file can carry point sets, line sets (veins/faults/traces), triangulated surfaces (contacts/wireframes), and block models all together; each is routed to the right renderer automatically. Only OMF v1 is supported so far (the version most exporters, including Oasis montaj/Leapfrog, still actually produce) — v2 files are detected and reported rather than silently mishandled. Grid-based (non-triangulated) surfaces aren't implemented yet.")} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Open Mining Format (.omf)")}<InfoButton title={tr("Open Mining Format (.omf)")} text={tr("Import an .omf project (Geosoft, Leapfrog and others): point sets, line sets, surfaces and block models, each shown its own way. OMF v1 only; v2 files are reported.")} />
         </div>
         {/* TASKS.csv #1596 — keep the native cells where the holes are instead of coarsening the whole district */}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6, flexWrap: "wrap", color: collars.length ? "var(--color-text)" : "var(--color-text-muted)" }}
-          title={tr("A block model larger than the cell budget is coarsened (its blocks merged) to fit. Cropping it first to the drilled area keeps its own cell size there, instead of merged blocks over the whole model.")}>
+          title={tr("A block model over the cell budget is coarsened to fit. Cropping it to the drilled area first keeps its own cell size there.")}>
           <input type="checkbox" checked={omfCrop.on && collars.length > 0} disabled={!collars.length} onChange={(e) => setOmfCrop((p) => ({ ...p, on: e.target.checked }))} />
           {tr("Crop block models to the drillholes +")}
           <NumberInput allowEmpty min={0} step={100} value={omfCrop.buffer} onChange={(v) => setOmfCrop((p) => ({ ...p, buffer: (v == null ? "" : String(v)) }))} style={{ width: 64 }} aria-label={tr("Crop buffer around the drillholes (m)")} disabled={!collars.length} /> m
@@ -3349,7 +3349,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </>)}
         {geoPane === "voxel" && (<>
         <TaskPaneHeader title="Voxel / block models" icon={RBox} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Block models")}<InfoButton title={tr("Voxel / block models")} text={tr("Import a UBC-GIF tensor mesh (select the .msh mesh file together with its matching model file, e.g. .mod/.con/.den, in one dialog), or a block-model CSV export (x/y/z centroid, cell size, and a value column; the common exchange format from Datamine, Micromine, Surpac, Vulcan, Leapfrog and similar). Geosoft's own proprietary voxel format isn't supported — no public spec to implement against, same reasoning as .grd elsewhere — the CSV path covers the same underlying need. Rendered as coloured 3D blocks with an adjustable value cutoff.")} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Block models")}<InfoButton title={tr("Voxel / block models")} text={tr("Import a UBC-GIF tensor mesh (the .msh with its .mod / .con / .den, together) or a block-model CSV (centroid, cell size, value: Datamine, Micromine, Surpac, Vulcan, Leapfrog). Shown as coloured blocks with a cut-off.")} />
         </div>
         <button onClick={() => ubcInput.current.click()} style={pBtn} disabled={voxelBusy}>
           {voxelBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {voxelBusy ? (voxelProgress ? tr("Reading… {voxelProgress} values", { voxelProgress: voxelProgress.toLocaleString() }) : tr("Reading…")) : tr("Import UBC mesh + model…")}
@@ -3396,7 +3396,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </label>
         )}
         {voxelModels.length > 0 && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The export's parameters and its not-a-resource statement: as # lines above the CSV header, or in a separate text file saved with it in a .zip (Micromine, Datamine and Vulcan do not skip # lines).")}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The export's parameters and not-a-resource statement, as # lines above the CSV header or a text file in a .zip (Micromine, Datamine, Vulcan don't skip # lines).")}>
             {tr("Provenance notes")}
             <select value={bmStamp} onChange={(e) => setBmStamp(e.target.value)} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }} aria-label={tr("Provenance notes")}>
               <option value="auto">{tr("automatic (beside the CSV for Micromine names)")}</option>
@@ -3406,7 +3406,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </label>
         )}
         {voxelModels.some((m) => m.params?.set) && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("A model estimated with other elements in one run (a set) is exported with their values as extra columns on the same blocks: CSV columns, VTK and OMF arrays")}>{/* #3014 part c */}
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("A model estimated with other elements in one run exports their values as extra columns on the same blocks (CSV columns, VTK and OMF arrays)")}>{/* #3014 part c */}
             <input type="checkbox" checked={bmWithSet} onChange={(e) => setBmWithSet(e.target.checked)} />{tr("Exports carry the other elements of a model's set")}
           </label>
         )}
@@ -3417,7 +3417,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
           {/* #1434 — the .grd bullet went: Geosoft and Surfer .grd grids are read since v0.1.99 (Raster tab) */}
           <div style={{ color: "var(--color-text)", marginBottom: 6 }}>{tr("Not read yet:")}</div>
-          <div>{tr("• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.")}</div>
+          <div>{tr("• Geosoft voxel (.geosoft_voxel): proprietary, no public spec. Export it from Oasis montaj as a CSV and use \"Import block model CSV…\" above.")}</div>
         </div>
         </>)}
       </div>
@@ -3566,9 +3566,9 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
         <span title={paramsTitle} style={{ color: "var(--color-text-muted)", flexShrink: 0, cursor: paramsTitle ? "help" : undefined }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
         <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title={tr("Edit colour legend / range / classification")} aria-label={tr("Edit colour legend / range / classification")} aria-expanded={legendOpen} /* #2969 */ />
         {/* TASKS.csv #323 — the model's value along every drillhole, as a downhole layer (strip log, 3D, CSV) */}
-        {onEvaluate && <ArrowDownToLine role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Evaluate block model \"{name}\" onto the drillholes", { name: model.name })} title={tr("Evaluate onto drillholes — the model's value in every cell each hole passes through, as a downhole layer to compare with the logs in the strip log")} onClick={() => onEvaluate(model)} />}
+        {onEvaluate && <ArrowDownToLine role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Evaluate block model \"{name}\" onto the drillholes", { name: model.name })} title={tr("Evaluate onto drillholes: the model's value in every cell each hole crosses, as a downhole layer to compare with the logs")} onClick={() => onEvaluate(model)} />}
         {/* TASKS.csv #328 — UBC mesh/model, .obs data, GeoTIFF depth slices and provenance.txt in one zip */}
-        {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" for other software", { name: model.name })} title={tr("Export for other software (zip): UBC mesh + model, an .omf of the block model (for Leapfrog, Micromine and Datamine), .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt")} onClick={() => onExportPackage(model)} />}
+        {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" for other software", { name: model.name })} title={tr("Export for other software (zip): UBC mesh + model, .omf (Leapfrog, Micromine, Datamine), .obs observed / predicted data, GeoTIFF depth slices, provenance.txt")} onClick={() => onExportPackage(model)} />}
         {/* TASKS.csv #1052 — grade-tonnage table / curve at cutoffs and an entered density */}
         {/* #1201 — a tonnage of conductivity is not a resource figure: not offered on a physical-property model */}
         {offersGradeTonnage(model, { categorical, geophysProperty: (p) => VOXEL_PROPERTIES.includes(p) }) /* #1577, #1592 — lib/gradeTonnage.js */ && <Scale role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} title={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} onClick={() => setGtOpen(true)} />}
@@ -3590,7 +3590,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
               if (v === "__other") { askPrompt(tr("What are the values (property and unit)?"), model.property || "", (other) => { if (other && other.trim()) onUpdate(model.id, { property: other.trim(), propertyChosen: true }); }); return; }
               // TASKS.csv #3809 (Scottie Gold) — 'Resistivity' on a conductivity model (a .con, 0.0000086 to 11.1 S/m) only renamed it: asked first, with the 1 / x copy named
               const flip = (/^Conductivity/.test(model.property || "") && /^Resistivity/.test(v)) || (/^Resistivity/.test(model.property || "") && /^Conductivity/.test(v));
-              if (flip && !window.confirm(tr("These values are {from}. Choosing {to} only renames them: no value changes. To see them as {to}, use 'As {to2} (1 / x)' beside this list, which makes a copy at 1 / x. Rename anyway?", { from: model.property, to: v, to2: /^Resistivity/.test(v) ? tr("resistivity") : tr("conductivity") }))) return;
+              if (flip && !window.confirm(tr("These values are {from}; choosing {to} only renames them. To convert, use 'As {to2} (1 / x)' beside this list, which makes a copy. Rename anyway?", { from: model.property, to: v, to2: /^Resistivity/.test(v) ? tr("resistivity") : tr("conductivity") }))) return;
               onUpdate(model.id, { property: v || null, propertyChosen: true }); }}
             style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
             {/* TASKS.csv #2067 (review #2013) — an estimate knows its element and unit (params): said here, not set as property, which would
@@ -3600,7 +3600,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
             <option value="__grade">{model.params?.declaredGrade ? tr("{el} ({unit}), a grade", { el: model.params.element, unit: model.params.unit }) : tr("A grade (element, unit)…")}</option>{/* #2667 */}
             <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : tr("Other…")}</option>
           </select>
-          {onReciprocal && /^(Conductivity|Resistivity)/.test(model.property || "") && <button type="button" onClick={() => onReciprocal(model)} style={{ fontSize: "var(--font-size-sm)", padding: "1px 6px", cursor: "pointer", flexShrink: 0 }} title={tr("Adds a copy of this model with every value at 1 / x (a conductivity in S/m becomes a resistivity in ohm·m, and back); the model itself is not changed.")}>{/^Conductivity/.test(model.property) ? tr("As resistivity (1 / x)") : tr("As conductivity (1 / x)")}</button>}{/* TASKS.csv #3809 */}
+          {onReciprocal && /^(Conductivity|Resistivity)/.test(model.property || "") && <button type="button" onClick={() => onReciprocal(model)} style={{ fontSize: "var(--font-size-sm)", padding: "1px 6px", cursor: "pointer", flexShrink: 0 }} title={tr("Adds a copy of this model at 1 / x (S/m conductivity to ohm·m resistivity, and back); the model itself is unchanged.")}>{/^Conductivity/.test(model.property) ? tr("As resistivity (1 / x)") : tr("As conductivity (1 / x)")}</button>}{/* TASKS.csv #3809 */}
         </div>
       )}
       {/* TASKS.csv #1780 (review #1646, Kodiak) — the one-sided "value >= cutoff" slider could only hide the conductors on a resistivity
@@ -3611,7 +3611,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
       {/* TASKS.csv #1806 (review #1646, Kodiak) — an inversion mesh carries the topography as its air / ground boundary: a terrain from it,
           offline, for the samples with no elevation, the sections' profile and the clip at topography */}
       {onTerrain && (model.source === "ubc" || model.source === "omf" || model.source === "simpeg") && (
-        <button type="button" onClick={() => onTerrain(model)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, fontSize: "var(--font-size-sm)" }} title={tr("The uppermost cell of every column of this model is the ground there (the air cells above it are no-data), so the model's top is a terrain: samples with no elevation sit on it, sections get its profile, and surfaces can be cut at it. No download. It is only as fine as the mesh's columns, and only where the mesh is.")}>{tr("Terrain from the model's top (offline)")}</button>
+        <button type="button" onClick={() => onTerrain(model)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, fontSize: "var(--font-size-sm)" }} title={tr("Uses each column's top cell as a terrain, as fine as the mesh: samples without elevation sit on it and sections follow it.")}>{tr("Terrain from the model's top (offline)")}</button>
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Opacity")}</span>

@@ -53,7 +53,7 @@ test("the Range boxes read at the Stretch's precision; the ordinal is gone; the 
   assert.match(g, /return readableValues\(\[model\.min, model\.max\], Math\.max\(3, m >= 1 \? Math\.floor\(Math\.log10\(m\)\) \+ 1 : 3\)\);/);
   assert.match(g, /aria-label=\{tr\("Show or hide \{name\}", \{ name: model\.name \}\)\} aria-pressed=\{model\.visible !== false\}/);
   assert.match(g, /title=\{tr\("Edit colour legend \/ range \/ classification"\)\} aria-label=\{tr\("Edit colour legend \/ range \/ classification"\)\}/);
-  assert.match(g, /tr\("A model of \{cells\} cells takes about \{gb\} GB of memory while it is open\./);
+  assert.match(g, /tr\("A model of \{cells\} cells takes about \{gb\} GB while open\./);
   const d = read("components/DownholeLogsPane.jsx");
   assert.match(d, /pairs drawn \(one in every \{s\}, and the extremes\)/);
   assert.doesNotMatch(d, /every \{s\}th/);
