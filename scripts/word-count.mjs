@@ -10,7 +10,8 @@
 //  - Help, src/help/pages/*.js, by field: title, summary, notFor, a setting's name / what / choose, a warning's says / means / do, the walk-through steps.
 //    "Seen first" is everything except a field called `more` (on a page, a setting or a warning) and a walk-through marked `folded`: the text kept behind the Help pane's "More" fold, which
 //    search still reads. Until a page has a `more` field, seen first = all.
-//  - Every tr() string outside Help (the interface's own words; a tr is any call of the i18n.js export `t`, whatever it is imported as), in ONE of:
+//  - Every tr() string outside Help (the interface's own words; a tr is any call of the i18n.js export `t`, whatever it is imported as), and every tx()
+//    string (lib/i18nRich.js: one translated sentence with bold / code parts in its {slots}; TASKS.csv #3939), in ONE of:
 //      tooltips      a title={…} attribute (not InfoButton's)
 //      info pop-ups  an InfoButton's text and title
 //      notices       a message position: say / errorNotice / notify / alert / confirm / pushIssue arguments, new Error(…), .push(…) onto notes / warnings /
@@ -123,20 +124,21 @@ function listFiles(dir) {
 // the tr() strings of one file: [{ cat, text }] (cat: tooltip | info | notice | interface); [] for a file with no i18n import
 export function trStringsOf(file) {
   const text = fs.readFileSync(file, "utf8");
-  if (!/i18n(\.js)?["']/.test(text)) return [];
+  if (!/i18n(Rich)?(\.js)?["']/.test(text)) return [];
   let ast;
   try { ast = parse(text, { sourceType: "module", plugins: ["jsx"] }); } catch { return []; }
-  const names = new Set();
+  const names = new Set(), richNames = new Set();
   for (const n of ast.program.body) {
     if (n.type === "ImportDeclaration" && /\/i18n(\.js)?$/.test(n.source.value)) for (const s of n.specifiers) if (s.type === "ImportSpecifier" && s.imported.name === "t") names.add(s.local.name);
+    if (n.type === "ImportDeclaration" && /\/i18nRich(\.js)?$/.test(n.source.value)) for (const s of n.specifiers) if (s.type === "ImportSpecifier" && s.imported.name === "tx") richNames.add(s.local.name); // #3939
   }
   const out = [];
-  if (!names.size) return out;
+  if (!names.size && !richNames.size) return out;
   if ([...names].some((x) => x !== "t" && x !== "tr")) names.add("tr"); // PitShellPane / PitDesignPane import it as trRaw and define tr = (k, v) => withCurrency(trRaw(k, v), …) (#3797)
   traverse(ast, {
     CallExpression(p) {
       const c = p.node.callee;
-      if (c.type !== "Identifier" || !names.has(c.name)) return;
+      if (c.type !== "Identifier" || !(names.has(c.name) || richNames.has(c.name))) return;
       const cat = categoryOf(p);
       for (const s of stringsOf(p.node.arguments[0])) out.push({ cat, text: s });
     },
