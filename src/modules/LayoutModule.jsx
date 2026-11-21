@@ -74,7 +74,7 @@ import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv 
 import { geophysLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #2878
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, pageFont, withPageFont } from "../lib/layoutFonts.js"; // TASKS.csv #2144
-import { toggleColumnBreak, clearColumnBreaks, hasColumnBreaks, startsColumn, carryColumnBreaks } from "../lib/legendColumns.js"; // TASKS.csv #3959
+import { toggleColumnBreak, clearColumnBreaks, hasColumnBreaks, startsColumn, carryColumnBreaks, legendGroupsOf, keepGroups, splitLegendByGroup, joinLegends } from "../lib/legendColumns.js"; // TASKS.csv #3959 (split / join: part B)
 import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLegendBox } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869; a sized box: #3395
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
@@ -1081,6 +1081,25 @@ export default function LayoutModule() {
     setElements((els) => els.map((x) => (x.id === el.id ? { ...x, legendCols: v } : x)));
     if (!was && v && el.codesPerLayer == null && elements.some((e) => e.id === el.boundViewportId && e.type === "viewport")) syncLegendFromView(el.id, { perGroup: "all" });
   };
+  // TASKS.csv #3959 part B — 'Split into one legend per group': each group its own legend, bound to the same view, side by side (one undo step);
+  // 'Join legends': the legends bound to the same view on this page become one again, in reading order
+  const splitSelectedLegend = () => {
+    const el = elements.find((e) => e.id === selected);
+    const parts = el && splitLegendByGroup(el, { pageW: pagePx(pageFormat).w, pageH: pagePx(pageFormat).h, size: legendBoxSize, newId: (i) => `legend_${Date.now()}_${i}` });
+    if (!parts) return;
+    setElements((els) => els.flatMap((x) => (x.id === el.id ? parts : [x])));
+    setSyncNotice(tr("Split into {n} legends, one per group: each one is moved, sized and loaded from its view on its own.", { n: parts.length }));
+  };
+  const joinSelectedLegend = () => {
+    const el = elements.find((e) => e.id === selected);
+    const kin = el?.boundViewportId ? elements.filter((e) => e.type === "legend" && e.boundViewportId === el.boundViewportId) : [];
+    const r = joinLegends(kin);
+    if (!r) return;
+    const gone = new Set(r.removed);
+    setElements((els) => els.filter((x) => !gone.has(x.id)).map((x) => (x.id === r.joined.id ? r.joined : x)));
+    setSelected(r.joined.id);
+    setSyncNotice(tr("Joined {n} legends into one.", { n: kin.length }));
+  };
   const keptOrder = (legend, items) => (legend?.loadedGroups?.length ? { codeOrder: { ...(legend.codeOrder || {}), ...groupOrdersFromItems(items, legend.loadedGroups.length === 1 ? legend.loadedGroups[0] : null) } } : {});
   // Deleting a viewport/section also drops any scale bar bound to it (an orphaned bar with no view to
   // describe would just be confusing) and un-binds any legend that was reading lithologies from it
@@ -1317,7 +1336,8 @@ export default function LayoutModule() {
     if (!legend.boundViewportId) { say(tr("Pick a bound viewport or cross-section above first.")); return; }
     const vp = elements.find((el) => el.id === legend.boundViewportId);
     if (!vp) { say(tr("That viewport/section no longer exists on this page — pick a different one.")); return; }
-    const stamp = (items) => ({ items: carryColumnBreaks(legend?.items, items) /* #3959 — the column breaks stay */, loadedItems: items, loadedCapturedAt: vp.capturedAt || null, autoReloaded: auto }); // autoReloaded: said in the viewport's sidebar
+    // #3959 — the column breaks stay; a legend split from another (part B) is refilled with its own group(s) only
+    const stamp = (all) => { const items = keepGroups(all, legend?.groupsShown); return { items: carryColumnBreaks(legend?.items, items), loadedItems: items, loadedCapturedAt: vp.capturedAt || null, autoReloaded: auto }; }; // autoReloaded: said in the viewport's sidebar
 
     // Cross-section snapshots (type "image") carry their own pre-computed legendItems — the exact
     // {label,color} pairs drawn in that section (litho/alt/vein/structure), built once in
@@ -1781,6 +1801,17 @@ export default function LayoutModule() {
                   </div>
                 ))}
                 {sel.type === "legend" && hasColumnBreaks(sel.items) && <button type="button" onClick={() => updateSelected({ items: clearColumnBreaks(sel.items) })} style={{ ...smallBtn, marginBottom: 4 }}>{tr("Clear column breaks")}</button>}{/* #3959 */}
+                {sel.type === "legend" && (() => { /* TASKS.csv #3959 part B — split into one legend per group, and join them again */
+                  const canSplit = legendGroupsOf(sel.items).length >= 2;
+                  const kin = sel.boundViewportId ? elements.filter((e) => e.type === "legend" && e.boundViewportId === sel.boundViewportId).length : 0;
+                  if (!canSplit && kin < 2) return null;
+                  return (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                      {canSplit && <button type="button" data-legend-split="" onClick={splitSelectedLegend} style={smallBtn} title={tr("Each group (Lithology, Alteration, ...) becomes a legend of its own, bound to the same view")}>{tr("Split into one legend per group")}</button>}
+                      {kin >= 2 && <button type="button" data-legend-join="" onClick={joinSelectedLegend} style={smallBtn} title={tr("The legends bound to this view on this page become one again")}>{tr("Join legends")}</button>}
+                    </div>
+                  );
+                })()}
                 <button onClick={() => updateSelected({ items: [...sel.items, ["Item", "#55606e"]] })} style={{ ...pBtn, marginTop: 2 }}>
                   <Plus size={12} />{" "}{tr("Add row")}</button>
               </div>

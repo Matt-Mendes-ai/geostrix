@@ -14658,5 +14658,11 @@
   "This estimate was made in another project. Show that project to add it, or run it again here.": "Cette estimation a été faite dans un autre projet. Affichez ce projet pour l'ajouter, ou relancez-la ici.",
   "Start a new column here": "Commencer une nouvelle colonne ici",
   "Join this row to the column before": "Rattacher cette ligne à la colonne précédente",
-  "Clear column breaks": "Supprimer les sauts de colonne"
+  "Clear column breaks": "Supprimer les sauts de colonne",
+  "Split into one legend per group": "Diviser en une légende par groupe",
+  "Join legends": "Fusionner les légendes",
+  "Each group (Lithology, Alteration, ...) becomes a legend of its own, bound to the same view": "Chaque groupe (Lithologie, Altération, ...) devient une légende à part, liée à la même vue",
+  "The legends bound to this view on this page become one again": "Les légendes liées à cette vue sur cette page redeviennent une seule",
+  "Split into {n} legends, one per group: each one is moved, sized and loaded from its view on its own.": "Divisée en {n} légendes, une par groupe : chacune se déplace, se dimensionne et se charge depuis sa vue séparément.",
+  "Joined {n} legends into one.": "{n} légendes fusionnées en une."
 }
