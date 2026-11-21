@@ -4,6 +4,7 @@
 import { rowKey } from "./modellingCodes.js"; // TASKS.csv #2533 — the vein sources read the modelling codes' assign map
 import { voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1812
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { shortMeaning } from "./codeDictionary.js"; // TASKS.csv #3945
 
 // Bug found during the UBC-mesh-coarsening perf fix (real repro: a 432,000-value array crashed with
 // "Maximum call stack size exceeded"): `Math.min(...arr)`/`Math.max(...arr)` spreads the WHOLE array
@@ -329,14 +330,21 @@ export function setLithologyNoteRoles(map) { noteRoles = map && map.size ? map :
 // where the file says 'gouge' and bare codes for the rest; the overburden / casing roles never saw a dictionary that says 'overburden' / 'casing' for OVBN / CSG.
 // Set by the store (as the note roles are); a code with no entry keeps the built-in name.
 let lithoMeanings = null; // lower-cased code -> description
+let lithoNames = null; // #3945 — lower-cased code -> the short rock name the legend shows (codeDictionary.js shortMeaning)
 export function setLithologyMeanings(dict) {
-  const m = new Map();
-  for (const [k, e] of Object.entries(dict || {})) { const d = String(e?.desc ?? "").trim(); if (d) m.set(String(k).trim().toLowerCase(), d); }
+  const m = new Map(), n = new Map();
+  for (const [k, e] of Object.entries(dict || {})) {
+    const key = String(k).trim().toLowerCase(), d = String(e?.desc ?? "").trim(), s = shortMeaning(e);
+    if (d) m.set(key, d);
+    if (s) n.set(key, s);
+  }
   lithoMeanings = m.size ? m : null;
+  lithoNames = n.size ? n : null;
 }
 // TASKS.csv #3840 follow-up — the code dictionary's own words for a code (no 'CODE — ' prefix), or null
 export function lithoMeaningText(u) { return lithoMeanings?.get(String(u ?? "").trim().toLowerCase()) || null; }
-export function lithoMeaning(u) { const d = lithoMeanings?.get(String(u ?? "").trim().toLowerCase()); return d ? `${u} — ${d}` : null; }
+// #3945 — 'CODE — rock name' for the legend, the pills, the figure overlay and the section key (not the whole description)
+export function lithoMeaning(u) { const d = lithoNames?.get(String(u ?? "").trim().toLowerCase()); return d ? `${u} — ${d}` : null; }
 // TASKS.csv #3840 — a description is read by its first words too: 'Overburden (till)', 'overburden and casing', 'glacial till', 'no core recovery' are cover or no recovery; only the HEAD of the
 // text counts ('Tricone through overburden' and 'sandstone under overburden' are not cover)
 const MEANING_HEAD = [[/^\W*(overburden|casing|casing and overburden|(glacial |basal )?(till|drift)|topsoil)\b/, "overburden"], [/^\W*(no (core )?recovery|lost core|core loss)\b/, "no recovery"]];

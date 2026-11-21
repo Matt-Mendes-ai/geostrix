@@ -14614,5 +14614,6 @@
   "Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.": "Arrastre los tiradores para redimensionar (Mayús mantiene la forma, Alt ignora las guías); las flechas mueven 1 mm, Mayús+flecha 10 mm.",
   "A sheet in one click": "Una hoja en un clic",
   "Or start from the 3D view:": "O empiece desde la vista 3D:",
-  "The sheet is empty: pick a sheet on the page.": "La lámina está vacía: elija una hoja en la página."
+  "The sheet is empty: pick a sheet on the page.": "La lámina está vacía: elija una hoja en la página.",
+  "Rock name (optional)": "Nombre de la roca (opcional)"
 }
