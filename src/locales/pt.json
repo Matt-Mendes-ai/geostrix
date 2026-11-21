@@ -14346,5 +14346,11 @@
   "of all samples": "de todas as amostras",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} m desses furos não tinham nenhum ponto a menos de {d} m e ficaram vazios.",
   "Import as a block model": "Importar como modelo de blocos",
-  "nothing under the view centre": "nada sob o centro da vista"
+  "nothing under the view centre": "nada sob o centro da vista",
+  "Colour samples by": "Colorir amostras por",
+  "their medium": "seu meio",
+  "Size by value": "Tamanho pelo valor",
+  "Sample ids": "IDs das amostras",
+  "Sample legend": "Legenda das amostras",
+  "A grey ring: no value ({n}).": "Um anel cinza: sem valor ({n})."
 }

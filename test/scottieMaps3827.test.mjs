@@ -79,7 +79,7 @@ test("#3830 samples far from the drilling do not set Fit; they are counted for t
   assert.equal(far.length, 1); assert.equal(far[0].kind, "surface samples"); assert.match(far[0].name, /^3 of 8 surface samples$/);
   assert.deepEqual(planFarLayers({ collars, surfaceSamples: samples.slice(0, 5) }), []);
   const m = read("../src/components/MapsPlanView.jsx");
-  assert.match(m, /ctx\.arc\(px, py, 2\.5, 0, 6\.2832\)/); assert.doesNotMatch(m, /ctx\.fillRect\(X\(s\.x\) - 1, Y\(s\.y\) - 1, 2, 2\)/);
+  assert.match(m, /ctx\.arc\(px, py, r, 0, 6\.2832\)/); assert.match(readFileSync(new URL("../src/lib/sampleMapStyle.js", import.meta.url), "utf8"), /: 2\.5\);/); /* #3883 (#3830): the radius from sampleDotRadius, 2.5 px unless sized */ assert.doesNotMatch(m, /ctx\.fillRect\(X\(s\.x\) - 1, Y\(s\.y\) - 1, 2, 2\)/);
   assert.match(m, /if \(samplesOn\) surfaceSamples\.forEach/); assert.match(m, /aria-label=\{tr\("Show the surface samples on the plan"\)\}/);
   hasKeys(["{far} of {n} surface samples", "Show the surface samples on the plan", "Surface samples ({n})", "Classed by element or field in Geochem › Plan map."]);
 });

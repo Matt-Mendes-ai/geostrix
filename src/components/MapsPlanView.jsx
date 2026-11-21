@@ -17,7 +17,8 @@ import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayer
 import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent, planFarLayers } from "../lib/mapsPlan.js"; // planFarLayers: TASKS.csv #2125
 import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
-import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring, parseBreaks, collarShapeFields, collarShapes } from "../lib/collarMapStyle.js"; // TASKS.csv #2459; left out: #3340
+import { collarColourFields, collarFieldsLeftOut, perHoleAssay, collarColouring, parseBreaks, collarShapeFields, collarShapes, declutterLabels } from "../lib/collarMapStyle.js"; // TASKS.csv #2459; left out: #3340; declutterLabels: #3883 (#3830)
+import { sampleColourChoices, sampleColouring, sampleDotRadius } from "../lib/sampleMapStyle.js"; // TASKS.csv #3883 (#3830) — the samples coloured / sized, with ids and a legend
 import { planTraces, highestAt, drawTraces } from "../lib/planTraces.js"; // TASKS.csv #3337 — the holes' traces in plan
 import { surveysOnPlan, surveyOutlineBoundary, ringArea } from "../lib/planSurveys.js"; // TASKS.csv #3342 — the point surveys on the plan
 import { drawCallouts } from "../lib/collarCallouts.js"; // TASKS.csv #3397 — holes from one pad: one ring and a callout listing them
@@ -83,7 +84,7 @@ const lonLatText = (T, c) => {
 // TASKS.csv #2853 — the top visible grid's value at the cursor, after the E / N
 const cursorValueText = (rasters, c) => { const t = topRasterValueAt(rasters, c.x, c.y); return t ? `  ·  ${t.name.length > 28 ? `…${t.name.slice(-27)}` : t.name}: ${t.value.toLocaleString(undefined, { maximumSignificantDigits: 4 })}${t.unit ? ` ${t.unit}` : ""}` : ""; };
 export default function MapsPlanView() {
-  const { voxelModels = [], generatedSurfaces = [], rasters = [], terrain, mapLayers = [], boundaries = [], collars: allCollars = [], surfaceSamples = [], assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, mapLayoutPagesElements /* #3491 */, setNotices /* #3491 */, addBoundary, updateRaster, updateTerrain } = useStore(); // updateRaster, updateTerrain: #3463 // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
+  const { voxelModels = [], generatedSurfaces = [], rasters = [], terrain, mapLayers = [], boundaries = [], collars: allCollars = [], surfaceSamples = [], surfaceElements = [] /* #3883 (#3830) */, assays = [], assayElements = [], layers = {}, customLayers = [], project, survey = [], desurveyMethod, addLayoutImage, goToModule, mapLayoutPagesElements /* #3491 */, setNotices /* #3491 */, addBoundary, updateRaster, updateTerrain } = useStore(); // updateRaster, updateTerrain: #3463 // addBoundary: #3342 // addLayoutImage / goToModule: #3194 // assays: #2459; layers, customLayers: #2658; project: #2128; survey, desurveyMethod: #2991 (a coded RL figure)
   const scope = planScope(project, allCollars); // TASKS.csv #3604 — the set-up kept for the session
   // TASKS.csv #3605 — the plan follows the holes checked in the 3D View (a switch below says so and shows them all)
   const vis = useHoleVisibility(), hiddenN = hiddenIn(allCollars, vis), [onlyChecked, setOnlyChecked] = useKept(scope, "onlyChecked", true);
@@ -122,6 +123,12 @@ export default function MapsPlanView() {
   const surveys = useMemo(() => surveysOnPlan(layers.geophys_pts), [layers.geophys_pts]);
   const [surveysHidden, setSurveysHidden] = useState(() => new Set());
   const [samplesOn, setSamplesOn] = useState(true); // TASKS.csv #3830 — the plan's surface samples, on or off
+  // TASKS.csv #3883 (#3830) — the samples coloured or sized by an element or a field (a Zone), their ids, a legend: the Collars panel's treatment for samples
+  const [sampleBy, setSampleBy] = useKept(scope, "sampleBy", "");
+  const [sampleSized, setSampleSized] = useKept(scope, "sampleSized", false);
+  const [sampleIds, setSampleIds] = useKept(scope, "sampleIds", false);
+  const sampleChoices = useMemo(() => sampleColourChoices(surfaceSamples, surfaceElements), [surfaceSamples, surfaceElements]);
+  const sampleCol = useMemo(() => (sampleChoices.some((c) => c.key === sampleBy) ? sampleColouring(surfaceSamples, sampleBy) : null), [surfaceSamples, sampleBy, sampleChoices]);
   const [outlineNote, setOutlineNote] = useState("");
   const extent = useMemo(() => planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys }), [rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys]);
   const farLayers = useMemo(() => planFarLayers({ rasters, terrain, mapLayers, boundaries, collars, surveys, surfaceSamples }), [rasters, terrain, mapLayers, boundaries, collars, surveys, surfaceSamples]); // #2125; surfaceSamples: #3830
@@ -350,7 +357,20 @@ export default function MapsPlanView() {
       for (let k = 0; k < xy.length; k += 2) { const px = X(xy[k]), py = Y(xy[k + 1]); if (px >= -3 && py >= -3 && px <= size.w + 3 && py <= size.h + 3) ctx.fillRect(px - 1.5, py - 1.5, 3, 3); }
     });
     // TASKS.csv #3830 — 266 rock samples were 2 x 2 px grey squares: a 5 px disc in the colour of its medium (as the 3D view draws it), on an eye of its own in 'Layers on the plan'
-    if (samplesOn) surfaceSamples.forEach((s) => { if (!Number.isFinite(s.x)) return; const px = X(s.x), py = Y(s.y); if (px < -4 || py < -4 || px > size.w + 4 || py > size.h + 4) return; ctx.fillStyle = colorForMedium(s.medium); ctx.beginPath(); ctx.arc(px, py, 2.5, 0, 6.2832); ctx.fill(); ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.stroke(); });
+    // #3883 (#3830) — coloured by the chosen element or field (no value: a grey ring), sized by the value's class when asked, the ids decluttered
+    const sampleLabels = [];
+    if (samplesOn) surfaceSamples.forEach((s, i) => {
+      if (!Number.isFinite(s.x)) return; const px = X(s.x), py = Y(s.y); if (px < -8 || py < -8 || px > size.w + 8 || py > size.h + 8) return;
+      const col = sampleCol ? sampleCol.colourOfIndex(i) : colorForMedium(s.medium), r = sampleDotRadius(sampleCol ? sampleCol.classOfIndex(i) : -1, sampleSized && sampleCol?.kind === "number");
+      ctx.beginPath(); ctx.arc(px, py, r, 0, 6.2832);
+      if (col) { ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(255,255,255,0.85)"; } else { ctx.lineWidth = 1.2; ctx.strokeStyle = "#8a929c"; }
+      ctx.stroke();
+      if (sampleIds && s.sample_id != null && s.sample_id !== "") sampleLabels.push({ x: px + r + 2, y: py - 6, text: String(s.sample_id) });
+    });
+    if (sampleLabels.length) {
+      ctx.font = "10px 'Exo 2', system-ui, sans-serif"; ctx.textBaseline = "top"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
+      for (const { i } of declutterLabels(sampleLabels, 64, 12)) { const l = sampleLabels[i]; ctx.strokeText(l.text, l.x, l.y); ctx.fillText(l.text, l.x, l.y); }
+    }
     if (figure) {
       ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(20,24,30,0.85)";
       const rad = Math.max(2.2, Math.min(4.5, 3 * Math.sqrt(30 / Math.max(1, v.mPerPx)))); // smaller when zoomed out
@@ -395,7 +415,7 @@ export default function MapsPlanView() {
     }
     gridDrawn.current = showGrid; // #3194 — what the canvas holds now
     drawnDpr.current = dpr; // #3228
-  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, captureDpr /* #3228 */, chipOpen /* #3458: its size changes the callouts */, samplesOn /* #3830 */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, captureDpr /* #3228 */, chipOpen /* #3458: its size changes the callouts */, samplesOn /* #3830 */, sampleCol, sampleSized, sampleIds /* #3883 (#3830) */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
 
   // TASKS.csv #3252 — once the view has settled (250 ms), ask for the detail tiles it shows; each one that arrives redraws the plan
   useEffect(() => {
@@ -624,7 +644,23 @@ export default function MapsPlanView() {
         <details style={{ ...chip, right: 10, bottom: 40, maxWidth: 260, maxHeight: 220, overflowY: "auto", fontSize: "var(--font-size-xs)" }} onMouseDown={(e) => e.stopPropagation()}>
           <summary style={{ cursor: "pointer", fontWeight: 600 }}>{tr("Layers on the plan")}</summary>
           {terrain && <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={terrain.visible !== false} onChange={(e) => updateTerrain({ visible: e.target.checked })} aria-label={tr("Show the terrain on the plan")} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={terrain.name}>{tr("Terrain: {name}", { name: terrain.name || tr("hillshade") })}</span></label>}
-          {surfaceSamples.length > 0 && <><label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={samplesOn} onChange={(e) => setSamplesOn(e.target.checked)} aria-label={tr("Show the surface samples on the plan")} />{tr("Surface samples ({n})", { n: surfaceSamples.length.toLocaleString() })}</label><div style={{ opacity: 0.7, marginLeft: 20 }}>{tr("Classed by element or field in Geochem › Plan map.")}</div></>}{/* TASKS.csv #3830 */}
+          {surfaceSamples.length > 0 && <><label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={samplesOn} onChange={(e) => setSamplesOn(e.target.checked)} aria-label={tr("Show the surface samples on the plan")} />{tr("Surface samples ({n})", { n: surfaceSamples.length.toLocaleString() })}</label>{samplesOn && sampleChoices.length > 0 && ( /* TASKS.csv #3883 (#3830) */
+            <div data-sample-style="" style={{ marginLeft: 20, display: "flex", flexDirection: "column", gap: 3, marginTop: 2 }}>
+              <label>{tr("Colour samples by")} <select value={sampleCol ? sampleBy : ""} onChange={(e) => setSampleBy(e.target.value)} style={{ fontSize: "var(--font-size-xs)", maxWidth: 140 }}>
+                <option value="">{tr("their medium")}</option>
+                {sampleChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select></label>
+              {sampleCol?.kind === "number" && <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={!!sampleSized} onChange={(e) => setSampleSized(e.target.checked)} />{tr("Size by value")}</label>}
+              <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={!!sampleIds} onChange={(e) => setSampleIds(e.target.checked)} />{tr("Sample ids")}</label>
+              {sampleCol && (
+                <div aria-label={tr("Sample legend")} style={{ display: "flex", flexDirection: "column", gap: 2, fontVariantNumeric: "tabular-nums" }}>
+                  <span style={{ fontWeight: 600 }}>{sampleChoices.find((c) => c.key === sampleBy)?.label}</span>
+                  {sampleCol.legend.map((l, li) => <span key={l.label} title={l.other ? l.other.join(", ") : undefined} style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 2 * sampleDotRadius(li, sampleSized && sampleCol.kind === "number"), height: 2 * sampleDotRadius(li, sampleSized && sampleCol.kind === "number"), borderRadius: "50%", background: l.colour, flex: "none" }} />{l.label}</span>)}
+                  {sampleCol.noValue > 0 && <span>{tr("A grey ring: no value ({n}).", { n: sampleCol.noValue.toLocaleString() })}</span>}
+                </div>
+              )}
+            </div>
+          )}</>}{/* TASKS.csv #3830 */}
           {rasters.map((r) => <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}><input type="checkbox" checked={r.visible !== false} onChange={(e) => updateRaster(r.id, { visible: e.target.checked })} aria-label={tr("Show {name} on the plan", { name: r.name })} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>{r.name}</span></label>)}
         <PlanModelsList />
         </details>

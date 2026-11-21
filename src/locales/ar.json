@@ -14346,5 +14346,11 @@
   "of all samples": "من كل العينات",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} م من تلك الثقوب لم تكن فيها أي نقطة ضمن {d} م فتُركت فارغة.",
   "Import as a block model": "استيراد كنموذج كتل",
-  "nothing under the view centre": "لا شيء تحت مركز العرض"
+  "nothing under the view centre": "لا شيء تحت مركز العرض",
+  "Colour samples by": "تلوين العينات حسب",
+  "their medium": "وسطها",
+  "Size by value": "الحجم حسب القيمة",
+  "Sample ids": "معرّفات العينات",
+  "Sample legend": "مفتاح العينات",
+  "A grey ring: no value ({n}).": "حلقة رمادية: بلا قيمة ({n})."
 }

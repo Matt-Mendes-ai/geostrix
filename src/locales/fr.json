@@ -14346,5 +14346,11 @@
   "of all samples": "de tous les échantillons",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de ces sondages n'avaient aucun point à moins de {d} m et sont restés vides.",
   "Import as a block model": "Importer comme modèle de blocs",
-  "nothing under the view centre": "rien sous le centre de la vue"
+  "nothing under the view centre": "rien sous le centre de la vue",
+  "Colour samples by": "Colorer les échantillons selon",
+  "their medium": "leur milieu",
+  "Size by value": "Taille selon la valeur",
+  "Sample ids": "Identifiants des échantillons",
+  "Sample legend": "Légende des échantillons",
+  "A grey ring: no value ({n}).": "Un anneau gris : sans valeur ({n})."
 }
