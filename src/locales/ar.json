@@ -14659,5 +14659,11 @@
   "Start a new column here": "ابدأ عمودًا جديدًا هنا",
   "Join this row to the column before": "ضمّ هذا الصف إلى العمود السابق",
   "Clear column breaks": "إزالة فواصل الأعمدة",
-  "White (default)": "أبيض (الافتراضي)"
+  "White (default)": "أبيض (الافتراضي)",
+  "Split into one legend per group": "التقسيم إلى مفتاح لكل مجموعة",
+  "Join legends": "دمج المفاتيح",
+  "Each group (Lithology, Alteration, ...) becomes a legend of its own, bound to the same view": "تصبح كل مجموعة (الصخارة، التحوّل، ...) مفتاحًا مستقلًا مرتبطًا بالعرض نفسه",
+  "The legends bound to this view on this page become one again": "تعود المفاتيح المرتبطة بهذا العرض في هذه الصفحة مفتاحًا واحدًا",
+  "Split into {n} legends, one per group: each one is moved, sized and loaded from its view on its own.": "قُسّم إلى {n} مفاتيح، واحد لكل مجموعة: يُنقل كل منها ويُحدَّد حجمه ويُحمَّل من عرضه على حدة.",
+  "Joined {n} legends into one.": "دُمجت {n} مفاتيح في مفتاح واحد."
 }

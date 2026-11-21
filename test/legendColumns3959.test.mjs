@@ -69,6 +69,7 @@ test("wired: the column buttons (sidebar and sheet), the break toggle on each ro
   assert.match(l, /updateSelected\(\{ items: clearColumnBreaks\(sel\.items\) \}\)/);
   assert.match(l, /startsColumn\(legendItems\[ix\[0\]\]\) \? <div key=\{ix\[0\]\} style=\{\{ breakBefore: "column" \}\}>/);
   assert.match(l, /items: carryColumnBreaks\(legend\?\.items, items\)/);
+  assert.match(l, /const items = keepGroups\(all, legend\?\.groupsShown\);/, "part B: a split legend refilled with its own groups");
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const loc = JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
     for (const k of ["Start a new column here", "Join this row to the column before", "Clear column breaks"]) assert.ok(loc[k], `${lang}: ${k}`);
