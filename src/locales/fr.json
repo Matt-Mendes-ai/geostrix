@@ -7019,7 +7019,6 @@
   "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "Exporter en CSV de modèle de blocs (EAST, NORTH, RL, _EAST, _NORTH, _RL, valeur : noms Micromine)",
   "Vector inversion: fixed 10 + 20 iterations, default smoothness and amplitude bounds of 0 to 10; the iteration, smoothness and bounds settings don't apply.": "Inversion vectorielle : 10 + 20 itérations fixes, lissage par défaut et bornes d'amplitude de 0 à 10 ; les réglages d'itérations, de lissage et de bornes ne s'appliquent pas.",
   "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "Le mode compact fait au moins 60 itérations quelle que soit la valeur ci-dessus : la repondération parcimonieuse a besoin des siennes après l'étape lisse.",
-  "The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.": "La planche est vide : ajoutez une vue de la scène 3D (Vue actuelle), puis un titre, une flèche du nord, une barre d'échelle et une légende depuis Insérer.",
   "{type} element": "Élément : {type}",
   "Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.": "Les cellules sous la plus profonde dont le support (0-1) atteint cette valeur sont exclues des modèles de blocs : en dessous, les valeurs sont extrapolées, pas des données.",
   "Reflectance 0-1": "Réflectance 0-1",
@@ -13709,7 +13708,6 @@
   "The picture is on a new page, \"{name}\": on this one it would cover the title block, legend, scale bar or text.": "L'image est sur une nouvelle page, « {name} » : sur celle-ci, elle couvrirait le cartouche, la légende, la barre d'échelle ou le texte.",
   "Rebind this viewport to a theme in its panel, or resave the theme, then sync again: its saved theme is gone (renamed or deleted).": "Reliez ce viewport à un thème dans son panneau, ou réenregistrez le thème, puis synchronisez à nouveau : son thème enregistré a disparu (renommé ou supprimé).",
   "Printed as {project} on every sheet (title and title block) and as the PDF's title. Blank: the file's name; saving or renaming the file does not change it.": "Imprimé comme {project} sur chaque feuille (titre et cartouche) et comme titre du PDF. Vide : le nom du fichier ; enregistrer ou renommer le fichier ne le change pas.",
-  "Click an element to edit it, Ctrl+click for several. Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.": "Cliquez un élément pour le modifier, Ctrl+clic pour plusieurs. Glissez les poignées pour redimensionner (Maj garde la forme, Alt ignore les repères) ; les flèches décalent de 1 mm, Maj+flèche 10 mm.",
   "Filled in on show and print: project name, date, page number and name, page count, viewport scale, CRS, data credits, the maps' north and the grid-to-true angle.": "Remplis à l'affichage et à l'impression : nom du projet, date, numéro et nom de page, nombre de pages, échelle du viewport, SCR, crédits des données, le nord des cartes et l'angle du quadrillage au nord vrai.",
   "Rows read down the left column, then the right; the row limit doubles at the same height, so a long list takes half the pages.": "Les lignes se lisent dans la colonne de gauche, puis de droite ; la limite de lignes double à hauteur égale, une longue liste prend donc moitié moins de pages.",
   "Drop a column, or keep one and let the rest carry on to the next page: two halves with these columns do not fit even at 5 pt.": "Retirez une colonne, ou gardez-en une et laissez le reste passer à la page suivante : deux moitiés avec ces colonnes ne tiennent pas même à 5 pt.",
@@ -14611,5 +14609,10 @@
   "Open a saved project": "Ouvrir un projet enregistré",
   "If a file is unclear, GeoStrix asks about it.": "Si un fichier n'est pas clair, GeoStrix vous pose la question.",
   "Model: the green Model button, one step at a time.": "Modèle : le bouton vert Modèle, étape par étape.",
-  "Sheet: Layout > Sheets, in one click.": "Planche : Mise en page > Planches, en un clic."
+  "Sheet: Layout > Sheets, in one click.": "Planche : Mise en page > Planches, en un clic.",
+  "Click an element to edit it, Ctrl+click for several.": "Cliquez un élément pour le modifier, Ctrl+clic pour plusieurs.",
+  "Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.": "Glissez les poignées pour redimensionner (Maj garde la forme, Alt ignore les repères) ; les flèches décalent de 1 mm, Maj+flèche 10 mm.",
+  "A sheet in one click": "Une planche en un clic",
+  "Or start from the 3D view:": "Ou partez de la vue 3D :",
+  "The sheet is empty: pick a sheet on the page.": "La planche est vide : choisissez une planche sur la page."
 }

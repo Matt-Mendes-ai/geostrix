@@ -7019,7 +7019,6 @@
   "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "Exportar como CSV de modelo de blocos (EAST, NORTH, RL, _EAST, _NORTH, _RL, valor: nomes do Micromine)",
   "Vector inversion: fixed 10 + 20 iterations, default smoothness and amplitude bounds of 0 to 10; the iteration, smoothness and bounds settings don't apply.": "Inversão vetorial: 10 + 20 iterações fixas, suavidade padrão e limites de amplitude de 0 a 10; as configurações de iterações, suavidade e limites não se aplicam.",
   "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "O modo compacto roda pelo menos 60 iterações, seja qual for o valor acima: a reponderação esparsa precisa das suas após a etapa suave.",
-  "The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.": "A prancha está vazia: adicione uma vista da cena 3D (Vista atual) e depois um título, seta norte, barra de escala e legenda em Inserir.",
   "{type} element": "Elemento: {type}",
   "Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.": "As células abaixo da mais profunda cujo suporte (0-1) atinge este valor ficam fora dos modelos de blocos: abaixo dela os valores são extrapolados, não dados.",
   "Reflectance 0-1": "Refletância 0-1",
@@ -13709,7 +13708,6 @@
   "The picture is on a new page, \"{name}\": on this one it would cover the title block, legend, scale bar or text.": "A imagem está numa prancha nova, \"{name}\": nesta ela cobriria o carimbo, a legenda, a barra de escala ou o texto.",
   "Rebind this viewport to a theme in its panel, or resave the theme, then sync again: its saved theme is gone (renamed or deleted).": "Ligue de novo este viewport a um tema no painel dele, ou salve o tema de novo, e sincronize outra vez: o tema salvo sumiu (renomeado ou apagado).",
   "Printed as {project} on every sheet (title and title block) and as the PDF's title. Blank: the file's name; saving or renaming the file does not change it.": "Impresso como {project} em cada prancha (título e carimbo) e como título do PDF. Vazio: o nome do arquivo; salvar ou renomear o arquivo não o muda.",
-  "Click an element to edit it, Ctrl+click for several. Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.": "Clique num elemento para editá-lo, Ctrl+clique para vários. Arraste as alças para redimensionar (Shift mantém a forma, Alt ignora as guias); as setas movem 1 mm, Shift+seta 10 mm.",
   "Filled in on show and print: project name, date, page number and name, page count, viewport scale, CRS, data credits, the maps' north and the grid-to-true angle.": "Preenchidos ao mostrar e imprimir: nome do projeto, data, número e nome da prancha, total de pranchas, escala do viewport, CRS, créditos de dados, o norte dos mapas e o ângulo de quadrícula a verdadeiro.",
   "Rows read down the left column, then the right; the row limit doubles at the same height, so a long list takes half the pages.": "As linhas descem pela coluna esquerda e depois pela direita; o limite de linhas dobra na mesma altura, então uma lista longa ocupa metade das pranchas.",
   "Drop a column, or keep one and let the rest carry on to the next page: two halves with these columns do not fit even at 5 pt.": "Tire uma coluna, ou fique com uma e deixe o resto seguir na próxima prancha: duas metades com estas colunas não cabem nem a 5 pt.",
@@ -14611,5 +14609,10 @@
   "Open a saved project": "Abrir um projeto salvo",
   "If a file is unclear, GeoStrix asks about it.": "Se um arquivo não estiver claro, o GeoStrix pergunta.",
   "Model: the green Model button, one step at a time.": "Modelo: o botão verde Modelo, passo a passo.",
-  "Sheet: Layout > Sheets, in one click.": "Folha: Prancha > Folhas, com um clique."
+  "Sheet: Layout > Sheets, in one click.": "Folha: Prancha > Folhas, com um clique.",
+  "Click an element to edit it, Ctrl+click for several.": "Clique num elemento para editá-lo, Ctrl+clique para vários.",
+  "Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.": "Arraste as alças para redimensionar (Shift mantém a forma, Alt ignora as guias); as setas movem 1 mm, Shift+seta 10 mm.",
+  "A sheet in one click": "Uma folha com um clique",
+  "Or start from the 3D view:": "Ou comece pela vista 3D:",
+  "The sheet is empty: pick a sheet on the page.": "A prancha está vazia: escolha uma folha na página."
 }

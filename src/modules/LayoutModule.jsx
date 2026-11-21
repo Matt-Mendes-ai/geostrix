@@ -64,6 +64,8 @@ import { printPt, printPx, colors } from "../lib/theme.js"; // TASKS.csv #585 �
 const INK = colors.text;
 const PX_PER_PT = 96 / 72;
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
+import LayoutStartCard from "../components/LayoutStartCard.jsx"; // TASKS.csv #3939 — the first screen, pictures first
+import MoreFold from "../components/MoreFold.jsx"; // TASKS.csv #3939
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #947
 import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
@@ -137,6 +139,9 @@ const starterFor = (format, creditText = "") => { // TASKS.csv #3657 — the cre
 };
 const ELEMENT_KIND_NAMES = { title: "Title" /* #3374 */, text: "Text", rect: "Rectangle", north: "North arrow", scale: "Scale bar", legend: "Legend", viewport: "Viewport", image: "Image", table: "Collar table", statictable: "Table" /* #3028 (3) */, titleblock: "Title block", drillplan: "Drill plan", logo: "Logo", arrow: "Arrow", callout: "Callout" };
 
+// TASKS.csv #3939 — a page holding only these (a new page's starter elements, lib/projectFields.js) shows the sheets card
+const LAYOUT_STARTER_IDS = new Set(["title", "north", "scale", "credits"]);
+
 export default function LayoutModule() {
   const {
     pendingLayoutImages, consumeLayoutImage,
@@ -186,6 +191,7 @@ export default function LayoutModule() {
   const setTaskProgress = useSetTaskProgress();
   useEffect(() => { if (viewportBatchDone) setTaskProgress?.(null); }, [viewportBatchDone, setTaskProgress]);
   const [selected, setSelected] = useState(null);
+  const [startCardClosed, setStartCardClosed] = useState(false); // TASKS.csv #3939 — the sheets card, closed for this session
   // TASKS.csv #398 — the active page's paper size in screen px (96 dpi); named A4 for the existing uses.
   const activePage = layoutPages.find((pg) => pg.id === activeLayoutPageId);
   const pageFormat = pageFormatOf(activePage);
@@ -1460,7 +1466,7 @@ export default function LayoutModule() {
         </label>
         {!sel && multiSelected.size <= 1 && ( /* TASKS.csv #993 — the page's interactions, said once where they are used */
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 14 }}>
-            {elements.length ? tr("Click an element to edit it, Ctrl+click for several. Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.") : tr("The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.")}
+            {elements.length ? (<>{tr("Click an element to edit it, Ctrl+click for several.")}<MoreFold style={{ marginTop: 2, marginBottom: 0 }}>{tr("Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.")}</MoreFold></>) : tr("The sheet is empty: pick a sheet on the page.")}{/* #3939 */}
           </div>
         )}
         {multiSelected.size > 1 && ( /* TASKS.csv #909 — align / distribute the multi-selection */
@@ -2128,6 +2134,18 @@ export default function LayoutModule() {
         )}
         {/* TASKS.csv #788 — the sheet is physical paper (rulers from the left, x in mm): it stays left-to-right in Arabic, or an RTL scroll would open on the page's right edge */}
         <div dir="ltr" ref={areaRef} style={{ overflow: "auto", padding: 30, flex: 1 }}>
+        {!startCardClosed && elements.every((el) => LAYOUT_STARTER_IDS.has(el.id)) && ( /* TASKS.csv #3939 — the first screen: a sheet in one click, over the page */
+          <div style={{ position: "sticky", top: 0, left: 0, height: 0, zIndex: 6, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+            <div dir="auto" style={{ marginTop: 110, display: "flex", justifyContent: "center", width: "100%" }}>
+              <LayoutStartCard onClose={() => setStartCardClosed(true)} onMake={(k) => makeSheet(k)} onCurrentView={() => startViewportRender(null, "new")} sheets={[ // the ribbon's Sheets group, same conditions and words
+                { kind: "plan", label: "Plan map", disabled: !collars.length && !(plannedHoles || []).length, reason: "Import collars or plan a hole first", title: "A new page with a drill plan of every hole at a round scale, plus key, north arrow, scale bar, title and data credit." },
+                { kind: "section", label: "Cross-section", disabled: !sheetSrc.section, reason: "Send a section to Layout first (Snapshot in the section window)", title: "A new page with the newest section sent to Layout at a round scale, plus legend, north arrow, scale bar, title and data credit." },
+                { kind: "log", label: "Hole log", disabled: !sheetSrc.log, reason: "Send a strip log to Layout first (Add to Layout in the strip log)", title: "A new portrait page: the newest strip log sent to Layout at the page's height, with its legend, a title and the data credit" },
+                { kind: "intercepts", label: "Intercepts table", disabled: !sheetSrc.intercepts, reason: "Put a Best intercepts table on a page first (Best intercepts in StrixViewer)", title: "A new page: the newest Best intercepts table, with a title and the data credit" },
+              ]} />
+            </div>
+          </div>
+        )}
         <div style={{ width: (18 + A4.w) * zoom, height: (18 + A4.h) * zoom, margin: "0 auto" }}>{/* TASKS.csv #909 — the scaled sheet's footprint, so the area scrolls to it */}
         <div style={{ display: "inline-grid", gridTemplateColumns: "18px auto", gridTemplateRows: "18px auto", transform: `scale(${zoom})`, transformOrigin: "top left", "--lz": zoom }}>{/* --lz: TASKS.csv #965 — the editing chrome divides by it to keep its screen size */}
           <div />
