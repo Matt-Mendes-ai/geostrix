@@ -85,6 +85,8 @@ const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceMod
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
+import DropDiagram from "../components/DropDiagram.jsx"; // TASKS.csv #3939
+import MoreFold from "../components/MoreFold.jsx"; // TASKS.csv #3939
 import { symbolPresent } from "../lib/calcUndo.js"; // TASKS.csv #3110
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
@@ -1728,10 +1730,13 @@ export default function GeochemModule() {
                   </button>
                 </>
               }
-              footnote={tr("An assay CSV needs a hole ID, from/to depths and one column per element; a table with x/y and no from/to opens as surface samples.")}
+              footnote={tr("A table with x/y and no from/to opens as surface samples.")}
             >
-              <div style={{ marginBottom: 12 }}>{tr("Ternary, bivariate and REE-spider diagrams, alteration indices, correlation, QAQC and compositing for your assay or pXRF data. Import a file to start.")}</div>
-              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above use your surface samples; StrixViewer and the Maps tab draw them.")}</div>}{/* #1086 */}
+              {/* TASKS.csv #3939 — pictures first: what an assay file becomes here and the columns it needs; the tools in one line */}
+              <DropDiagram picture="plot" data-empty-diagram="plot" drop={tr("Drop your assay file here")} caption={tr("Your file needs a hole ID, from, to and one column per element")} cells={[tr("Hole ID"), tr("From"), tr("To"), "Au, Cu…"]}
+                label={tr("An assay file dropped here becomes geochemical diagrams. It needs a hole ID, from and to depths, and one column per element.")} tooltip={tr("Drag your assay file here to start.")} />
+              <div style={{ marginBottom: 8 }}>{tr("Diagrams, alteration indices, correlation, QAQC and compositing, for assays or pXRF.")}</div>
+              {surfaceSamples.length > 0 && <MoreFold>{tr("Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above use your surface samples; StrixViewer and the Maps tab draw them.")}</MoreFold>}{/* #1086 */}
             </EmptyState>
           </div>
         ) : (

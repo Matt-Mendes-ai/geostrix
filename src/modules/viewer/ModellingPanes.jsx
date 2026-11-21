@@ -31,6 +31,7 @@ import { t as tr } from "../../lib/i18n.js";
 import GeochemCompositingNote from "../../components/GeochemCompositingNote.jsx"; // TASKS.csv #2224
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
+import MoreFold from "../../components/MoreFold.jsx"; // TASKS.csv #3939
 import { betaReferenceCounts } from "../../lib/coreOrientation.js"; // TASKS.csv #2055
 import { holeClusters, onlyTheseHoles } from "../../lib/holeClusters.js"; // TASKS.csv #2056
 import { groupOverlaps, groupOfCode, caseVariantGroups, subdivisionGroups } from "../../lib/lithoGroups.js"; // TASKS.csv #1685; caseVariantGroups: #2386; subdivisionGroups: #2928
@@ -1281,12 +1282,14 @@ export default function ModellingPanes(props) {
             TASKS.csv #674 — it said "no anisotropy", untrue since #650 lets the shell follow a structural trend. */}
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
           <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("An interpolated envelope to visualize and target mineralization, with no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC; do not report it publicly as one.")}</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a wireframe of everything at or above a cutoff grade: interpolation onto a grid (by the method chosen below), then an iso-surface at the cutoff. Runs in-app, no Python engine.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Builds a wireframe of everything at or above a cutoff grade.")}</div>
+        {/* TASKS.csv #3939 — the method and what it honours, behind a closed More */}
+        <MoreFold style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Interpolation onto a grid (by the method chosen below), then an iso-surface at the cutoff. Runs in-app, no Python engine.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
               shared search-ellipsoid/anisotropy/domain machinery. The domain and the anisotropy trend
               are now threaded through it (see runNumericModel); the search ellipsoid's minimum-neighbour
               filter deliberately still isn't, and the panel says so instead of leaving the difference
               for the user to discover. */}
-          {" "}{tx("It honours the model domain and the structural trend chosen for grade shells (Model settings → Structural trends). It does {not} apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported contact picks, and dropping isolated assays would delete grade rather than improve the shell.", { not: <strong>{tr("not")}</strong> })}</div>
+          {" "}{tx("It honours the model domain and the structural trend chosen for grade shells (Model settings → Structural trends). It does {not} apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported contact picks, and dropping isolated assays would delete grade rather than improve the shell.", { not: <strong>{tr("not")}</strong> })}</MoreFold>
         {(() => {
           const symbols = shellSymbols; // #1744 — lab elements only
           const numSrc = findNumericSource(numericSymbol, { layers, customLayers: customLayersAll }); // #1741 — a downhole log or a numeric layer field

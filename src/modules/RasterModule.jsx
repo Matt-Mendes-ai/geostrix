@@ -26,6 +26,8 @@ import GeoreferencerModal from "../components/GeoreferencerModal.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
+import DropDiagram from "../components/DropDiagram.jsx"; // TASKS.csv #3939
+import { tx } from "../lib/i18nRich.js"; // TASKS.csv #3939
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
@@ -855,9 +857,12 @@ export default function RasterModule({ embedded = false } = {}) {
           onAction={() => fileInput.current.click()}
           actionDisabled={busy}
           actionTitle={tr("Pick a georeferenced raster — a GeoTIFF, a Geosoft .gxf grid or a Geosoft / Surfer .grd grid")}
-          footnote={tr("Or drag a file straight onto this pane. Anything imported here is reprojected to the project CRS if its own CRS differs.")}
+          footnote={tr("Reprojected to the project CRS on import.")}
         >
-          <div style={{ marginBottom: 12 }}>{tr("Georeferenced image and grid layers — orthophotos, satellite imagery, geology maps, geophysical grids — draped over the terrain. Rasters render in the")}{" "}<b>{tr("StrixViewer")}</b>{tr(", so switch tabs after importing to see them.")}</div>
+          {/* TASKS.csv #3939 — pictures first: an image or grid becomes a draped layer */}
+          <DropDiagram picture="grid" data-empty-diagram="grid" drop={tr("Drop a GeoTIFF or grid here")} caption={tr("A georeferenced image or grid")} cells={["GeoTIFF", ".gxf", ".grd"]}
+            label={tr("A GeoTIFF or a grid dropped here is draped over the terrain.")} tooltip={tr("Drag your GeoTIFF or grid here to start.")} />
+          <div style={{ marginBottom: 8 }}>{tx("Imagery, geology maps and geophysical grids, draped over the terrain in {sv}.", { sv: <b>{tr("StrixViewer")}</b> })}</div>
         </EmptyState>
         {dragOver && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed var(--color-accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>

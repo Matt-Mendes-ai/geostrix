@@ -17,6 +17,7 @@ import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps, sel, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
@@ -194,7 +195,8 @@ export default function SurveyPlannerPanel({ onClose }) {
                 <button type="button" style={dl} onClick={() => save("html", (_ll, epsg, t) => planFieldSheet(rows, plan.sites, { title: t, crs: `${crsName(epsg) || ""} (EPSG:${epsg})` }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
               </div>
               {msg && <div style={note}>{msg}</div>}
-              <div style={note}>{tr("GPX and KML are WGS 84, for a handheld GPS or phone. A soil grid's KML shows the lines (stations in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. The CSV and field sheet list QC inserts in sample order; duplicates are taken at the site of the sample they follow.")}</div>
+              <div style={note}>{tr("GPX and KML are WGS 84, for a handheld GPS or phone.")}</div>
+              <MoreFold style={{ ...note, marginBottom: 0 }}>{tr("A soil grid's KML shows the lines (stations in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. The CSV and field sheet list QC inserts in sample order; duplicates are taken at the site of the sample they follow.")}</MoreFold>{/* #3939 */}
             </>
           )}
         </div>

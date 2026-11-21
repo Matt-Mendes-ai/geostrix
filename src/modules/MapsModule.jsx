@@ -12,6 +12,8 @@ import { requestModuleAction, useModuleAction } from "../lib/menuRequests.js";
 import { useStore } from "../lib/store.jsx";
 import { crsName } from "../lib/reproject.js";
 import EmptyState from "../components/EmptyState.jsx";
+import DropDiagram from "../components/DropDiagram.jsx"; // TASKS.csv #3939
+import { tx } from "../lib/i18nRich.js"; // TASKS.csv #3939
 import MapsPlanView from "../components/MapsPlanView.jsx"; // TASKS.csv #1625
 import { planDataExtent } from "../lib/mapsPlan.js";
 import { surveysOnPlan } from "../lib/planSurveys.js"; // TASKS.csv #3342
@@ -161,7 +163,10 @@ export default function MapsModule() {
               return parts.length ? tr("Loaded: {list}", { list: parts.join(", ") }) : tr("Nothing on the map yet");
             })()}
           >
-            <div style={{ marginBottom: 8 }}>{tr("Imagery, terrain, map layers and boundaries all lie under your drillholes in the")}{" "}<b>{tr("StrixViewer")}</b>{" "}{tr("— switch tabs to see them. Everything is placed in the project CRS{v}.", { v: project?.crsSet === false ? tr(" (not chosen yet: Project CRS above)") : `, ${crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg })}` })}</div>
+            {/* TASKS.csv #3939 — pictures first: what a dropped image, grid or map layer becomes; one sentence, no longer glued from three fragments */}
+            <DropDiagram picture="grid" data-empty-diagram="maps" drop={tr("Drop a GeoTIFF, grid or map layer here")} caption={tr("Imagery, grids and map layers")} cells={["GeoTIFF", ".gxf", "SHP", "KML"]}
+              label={tr("A GeoTIFF, a grid or a map layer dropped here is drawn on this plan and under your drill holes in 3D.")} tooltip={tr("Drag a GeoTIFF, grid or map layer here to start.")} />
+            <div style={{ marginBottom: 8 }}>{tx("They lie under your drill holes in {sv}, placed in the project CRS{v}.", { sv: <b>{tr("StrixViewer")}</b>, v: project?.crsSet === false ? tr(" (not chosen yet: Project CRS above)") : `, ${crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg })}` })}</div>
             {surfaceSamples.length > 0 && <div style={{ marginBottom: 8 }}>{tr("Surface samples in plan, classed by a saved threshold and over a block-model level: Geochem > Plan map.")}</div>}{/* #1792 */}
           </EmptyState>
         </div>

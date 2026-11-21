@@ -25,6 +25,7 @@ const TABS = ["standards", "blanks", "duplicates"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr, fmtNum } from "../lib/i18n.js"; // TASKS.csv #786
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import { gradeUnitLabel, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914 — // TASKS.csv #2192 — g/t for a precious metal stored in ppm (#1680)
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { qaqcStandardRows, qaqcBlankRows, qaqcDuplicateRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
@@ -320,7 +321,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             )
           )}
 
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>{tr("QC samples are read from a sample-type column (standards grouped by a CRM / standard-name column if present), else from the hole_id (\"std\"/\"crm\"/\"oreas\"…, \"blank\"/\"blk\", \"dup\"); a collar-table hole is never QC. Duplicates pair by parent sample id, else hole and interval, else name. Certified limits are those you enter from each CRM's certificate.")}</div>
+          <MoreFold summary={tr("How QC samples are found")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>{tr("QC samples are read from a sample-type column (standards grouped by a CRM / standard-name column if present), else from the hole_id (\"std\"/\"crm\"/\"oreas\"…, \"blank\"/\"blk\", \"dup\"); a collar-table hole is never QC. Duplicates pair by parent sample id, else hole and interval, else name. Certified limits are those you enter from each CRM's certificate.")}</MoreFold>{/* #3939 — the rules, behind their heading */}
 
           {/* TASKS.csv #617 — with nothing in the current view, Export used to do nothing at all when clicked */}
           <button onClick={exportCSV} disabled={!exportCount} title={exportCount ? tr("Export the {exportCount} row(s) in this view", { exportCount }) : tr("Nothing to export: this view has no {v}", { v: tab === "standards" ? tr("standard results") : tab })} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: exportCount ? 1 : 0.5, cursor: exportCount ? "pointer" : "not-allowed" }}>

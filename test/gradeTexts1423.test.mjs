@@ -16,7 +16,7 @@ test("the texts say what the tools do now", () => {
   assert.match(g, /Kriged with the \{model\} variogram/); // #2429: 'the fitted ... fitted to' said it twice
   assert.ok(!/Kriged with a \{model\}/.test(g));
   const m = src("../src/modules/viewer/ModellingPanes.jsx");
-  assert.match(m, /interpolation onto a grid \(by the method chosen below\)/);
+  assert.match(m, /[Ii]nterpolation onto a grid \(by the method chosen below\)/); // #3939: it now opens the sentence behind More
   assert.match(m, /its progress and Cancel are in the status bar/);
   assert.ok(!/window will be unresponsive/.test(m) && !/window will be unresponsive/.test(src("../src/help/pages/modelling.js")));
   const r = src("../src/modules/viewer/modellingRuns.js");

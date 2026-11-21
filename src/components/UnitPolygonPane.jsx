@@ -10,6 +10,7 @@ import { NEW_LAYER, uniqueLayerName, isDrawnGeologyLayer, geologyPolygonLayer, a
 import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
 import { mapLayerOnCollars } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #3368
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #2572 — the logs' colour for a logged code
@@ -95,7 +96,8 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
     <>
       <TaskPaneHeader title={tr("Unit polygons")} helpId="unit-polygons" icon={Shapes} tone="data" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        <div style={note}>{tr("Click the corners of a map unit's outline in the 3D view (Top view works best); a click on the first corner, a double-click or Finish closes it. The polygons form a geology map layer: draped on the terrain, exported as Shapefile or GeoPackage, in the Layout legend, and used by Model it.")}</div>
+        <div style={note}>{tr("Click the corners of a map unit's outline in the 3D view (Top view works best); a click on the first corner, a double-click or Finish closes it.")}</div>
+        <MoreFold style={{ ...note, marginBottom: 0 }}>{tr("The polygons form a geology map layer: draped on the terrain, exported as Shapefile or GeoPackage, in the Layout legend, and used by Model it.")}</MoreFold>{/* #3939 */}
         {/* TASKS.csv #3368 — with no terrain the polygons lie on the surface through the collars, as the interpretation lines do (#2768) */}
         {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the polygons are draped on the ground between the collars (a surface through the collar elevations), as the interpretation lines are.")}</div>}
         {plan && layer && (onCollars || layer.drapeMode === "flat") && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
