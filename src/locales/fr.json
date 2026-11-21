@@ -3391,6 +3391,7 @@
   "CV": "CV",
   "Top cut": "Écrêtage",
   "Top cut for {el}": "Écrêtage de {el}",
+  "The project is still loading: the EDI files are read when it has loaded.": "Le projet est encore en cours de chargement : les fichiers EDI seront lus une fois qu'il sera chargé.",
   "Cut down for GemPy: {m} merged, {o} left out (listed under the order). Their roles can be changed there.": "Réduit pour GemPy : {m} fusionnées, {o} laissées de côté (listées sous l'ordre). Leurs rôles peuvent y être changés.",
   "Undo the cut": "Annuler la réduction",
   "GemPy takes at most {max} units in one model, and this order has {n}. GeoStrix can cut it down to {k}:": "GemPy accepte au plus {max} unités par modèle, et cet ordre en a {n}. GeoStrix peut le réduire à {k} :",

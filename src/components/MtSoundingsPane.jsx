@@ -6,6 +6,8 @@ import { TaskPaneHeader } from "./Ribbon.jsx";
 import { Waves, Upload } from "./icons.js";
 import { parseEdi, ediStations, bostickPoints, mtSurveyName, mergeStations, lineOrder, sortLines } from "../lib/edi.js";
 import { reprojectXY, crsName } from "../lib/reproject.js";
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #3931 — projectLoading / whenProjectLoaded
+import { useLatestCallback } from "../lib/useLatestCallback.js"; // TASKS.csv #3931
 import { askAdoptCrs } from "../lib/adoptCrs.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { smallSel, pBtn } from "../lib/sidebarStyles.js";
@@ -112,7 +114,21 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
   const [comp, setComp] = useState("det");
   const [quantity, setQuantity] = useState("rho");
 
+  // TASKS.csv #3931 — files given while a project is coming forward (a tab switch expanding its tables) wait for it, then are read into THAT project
+  // with its own CRS and contents (the import that did not wait saw an empty project and asked a blocking CRS question); the latest render's props
+  // are used after the wait (importNow is a latest-callback)
+  const { projectLoading, whenProjectLoaded } = useStore() || {};
   const importEdi = async (fileList) => {
+    if (projectLoading && whenProjectLoaded) {
+      const held = Array.from(fileList || []);
+      setBusy(true); setMsg({ info: true, text: tr("The project is still loading: the EDI files are read when it has loaded.") });
+      await whenProjectLoaded();
+      setBusy(false);
+      return importNow(held);
+    }
+    return importNow(fileList);
+  };
+  const importNow = useLatestCallback(async (fileList) => {
     const all = Array.from(fileList || []), files = all.filter((f) => /\.edi$/i.test(f.name));
     // TASKS.csv #2078 (review #2013, Woodjam) — a file that is not .edi was dropped without a word (the reviewer's 3050E.dat then reached the
     // drillhole importer): it is named, and a DC / IP .dat is sent to DC / IP
@@ -158,7 +174,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
     } finally {
       setBusy(false);
     }
-  };
+  });
   // files dropped on the Geophysics tab arrive here once
   const seen = useRef(null);
   useEffect(() => {

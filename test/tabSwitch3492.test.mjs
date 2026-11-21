@@ -108,7 +108,7 @@ test("a small project's tab switches at once, as before (no waiting)", { timeout
 
 test("wiring: switchToTab bumps the sequence first, expands before switching, and switchNow checks the stashed payload is the one expanded", () => {
   const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(s, /const seq = \+\+switchSeqRef\.current; \/\/ first: a click back on the active tab also cancels a switch still expanding\n    if \(tabId === activeTabId\) return;/);
-  assert.match(s, /expandPayloadSliced\(stashed\)\.then\(\(expanded\) => \{ if \(seq === switchSeqRef\.current && activeTabIdRef\.current === from\) switchNow\(tabId, stashed, expanded\); \}\);/);
+  assert.match(s, /const seq = \+\+switchSeqRef\.current; \/\/ first: a click back on the active tab also cancels a switch still expanding\r?\n    if \(tabId === activeTabId\) \{ endProjectLoad\(\); return; \}/ /* #3931: and ends the load's wait */);
+  assert.match(s, /expandPayloadSliced\(stashed\)\.then\(\(expanded\) => \{ if \(seq === switchSeqRef\.current && activeTabIdRef\.current === from\) switchNow\(tabId, stashed, expanded\); \}\)/);
   assert.match(s, /loadProjectPayload\(expanded && target\.payload === stashed \? expanded : target\.payload, target\.name\);/);
 });

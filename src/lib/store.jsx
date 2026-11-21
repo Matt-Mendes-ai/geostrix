@@ -1359,15 +1359,26 @@ export function StoreProvider({ children }) {
   // click, a close or an open came meanwhile (the sequence number, the tab that was active at the click, and the stashed payload being the one
   // that was expanded). The stashed payload itself stays compact; a small one switches at once, as before.
   const switchSeqRef = useRef(0);
+  // TASKS.csv #3931 (side 1: the dev app hung on an MT import while the WA uranium sample's stored project was coming forward) — while a tab switch
+  // expands its tables in slices, the OLD tab is still the active one: an import then saw an empty project, asked the blocking 'this project is
+  // empty' CRS question (a native confirm: the window, and the expansion, stopped until it was answered) and put its data in the tab being left.
+  // projectLoading says a project is coming forward; whenProjectLoaded() resolves once it has (at once when none is), so an import can wait.
+  const [projectLoading, setProjectLoading] = useState(false);
+  const projectLoadingRef = useRef(false), loadWaitersRef = useRef([]);
+  const startProjectLoad = () => { projectLoadingRef.current = true; setProjectLoading(true); };
+  const endProjectLoad = () => { if (!projectLoadingRef.current) return; projectLoadingRef.current = false; setProjectLoading(false); const w = loadWaitersRef.current; loadWaitersRef.current = []; for (const f of w) f(); };
+  const whenProjectLoaded = useLatestCallback(() => (projectLoadingRef.current ? new Promise((ok) => { loadWaitersRef.current.push(ok); }) : Promise.resolve()));
   const switchToTab = useLatestCallback((tabId) => {
     const seq = ++switchSeqRef.current; // first: a click back on the active tab also cancels a switch still expanding
-    if (tabId === activeTabId) return;
+    if (tabId === activeTabId) { endProjectLoad(); return; } // #3931: a click back on the active tab cancels a switch still expanding
     const target = workspaceTabs.find((t) => t.id === tabId);
-    if (!target) return;
-    if (!sectionWindowsMayClose()) return; // #2620
-    if (!payloadHasTables(target.payload)) { switchNow(tabId, null, null); return; }
+    if (!target) { endProjectLoad(); return; }
+    if (!sectionWindowsMayClose()) { endProjectLoad(); return; } // #2620
+    if (!payloadHasTables(target.payload)) { switchNow(tabId, null, null); endProjectLoad(); return; }
     const from = activeTabIdRef.current, stashed = target.payload;
-    expandPayloadSliced(stashed).then((expanded) => { if (seq === switchSeqRef.current && activeTabIdRef.current === from) switchNow(tabId, stashed, expanded); });
+    startProjectLoad(); // #3931
+    expandPayloadSliced(stashed).then((expanded) => { if (seq === switchSeqRef.current && activeTabIdRef.current === from) switchNow(tabId, stashed, expanded); })
+      .finally(() => { if (seq === switchSeqRef.current) setTimeout(endProjectLoad, 0); }); // #3931 — the latest switch ends it (after its state lands); a newer one ends its own
   });
   const switchNow = useLatestCallback((tabId, stashed, expanded) => {
     const target = workspaceTabs.find((t) => t.id === tabId);
@@ -2028,7 +2039,7 @@ export function StoreProvider({ children }) {
     stripLogRequest, requestStripLogRedraw, clearStripLogRequest, // TASKS.csv #3873 (a)
     layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908
     newProject, saveProject, openProject,
-    workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
+    workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, projectLoading, whenProjectLoaded /* #3931 */,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     saveChoice, answerSaveChoice, // #3638 — the 'save over the recovered file?' question App draws
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
