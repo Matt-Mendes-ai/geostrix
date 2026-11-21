@@ -14444,5 +14444,12 @@
   "Move to another line…": "Déplacer sur une autre ligne…",
   "{name}: moved to its new section line.": "{name} : déplacée sur sa nouvelle ligne de coupe.",
   "This figure has no position to move.": "Cette figure n'a pas de position à déplacer.",
-  "The section's start and end points are the same — give two different points.": "Le début et la fin de la coupe sont le même point : donnez deux points différents."
+  "The section's start and end points are the same — give two different points.": "Le début et la fin de la coupe sont le même point : donnez deux points différents.",
+  "Colour samples by": "Colorer les échantillons selon",
+  "their medium": "leur milieu",
+  "Size by value": "Taille selon la valeur",
+  "Sample ids": "Identifiants des échantillons",
+  "Sample legend": "Légende des échantillons",
+  "A grey ring: no value ({n}).": "Un anneau gris : sans valeur ({n}).",
+  "Other: {n} values ({count} samples)": "Autres : {n} valeurs ({count} échantillons)"
 }
