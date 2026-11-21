@@ -316,7 +316,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
               <span>{tr("Front gate (µs)")}</span><NumberInput allowEmpty value={st.wave[k].frontUs} placeholder={tr("end of turn-off")} onChange={(v) => setWave(k, { frontUs: (v == null ? "" : String(v)) })} style={{ ...num, width: 90 }} aria-label={tr("Front gate of {m} (µs)", { m: g.prefix })} />
               <span>{tr("Gate widths (µs, one a gate)")}</span><input type="text" value={st.wave[k].widthsUs} placeholder={tr("none")} onChange={(e) => setWave(k, { widthsUs: e.target.value })} style={{ ...num, width: 90 }} aria-label={tr("Gate widths of {m} (µs)", { m: g.prefix })} />
             </div>
-            <div style={{ ...note, marginTop: 4 }}>{tr("The base frequency adds the earlier half-periods' pulses (a bipolar transmitter). The shift corrects the file's gate times (raw to calibrated, as the report lists them). Gates before the front gate, in the file's time, are left out; blank keeps those after the end of the turn-off.")}</div>
+            <div style={{ ...note, marginTop: 4 }}>{tr("The base frequency adds earlier half-periods' pulses (bipolar transmitter); the shift corrects the gate times. Gates before the front gate are left out.")}</div>
           </details>
         </div>
       ))}
@@ -352,10 +352,10 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           {TIES.map((t) => <option key={t.v} value={t.v}>{tr(t.label)}</option>)}
         </select>
       </div>
-      {Number(st.lateral) > 0 && <div style={{ ...note, marginBottom: 6 }}>{tr("A tie reaches neighbours up to three stations away, at most 500 m, so a sparse first look ties nothing. It smooths the section; on a real SkyTEM survey a weak tie left the fit as it was and a medium one made it worse. It takes about twice as long.")}</div>}
+      {Number(st.lateral) > 0 && <div style={{ ...note, marginBottom: 6 }}>{tr("Ties each sounding to neighbours up to three stations (500 m) away, smoothing the section. About twice as long, and it can worsen the fit.")}</div>}
       <details open={!!(st.priorText || st.freeH || st.freeRz)} style={{ marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
         <summary style={{ cursor: "pointer" }}>{tr("Reference model and geometry (priors)")}</summary>
-        <div style={{ ...note, margin: "4px 0" }}>{tr("A reference model, one line a depth: depth from (m), resistivity (ohm m) and its uncertainty in decades (0.3 is a factor of 2). Each line holds down to the next. The layers are pulled toward it as far as that uncertainty allows; leave it empty for none.")}</div>
+        <div style={{ ...note, margin: "4px 0" }}>{tr("A reference model, a line per depth: from (m), resistivity (ohm m), uncertainty in decades (0.3 = factor 2). Layers are pulled toward it. Empty: none.")}</div>
         <textarea value={st.priorText || ""} onChange={(e) => set({ priorText: e.target.value })} rows={3} spellCheck={false} style={{ ...smallSel, width: "100%", fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-xs)", boxSizing: "border-box" }}
           aria-label={tr("Reference model: depth, resistivity, uncertainty")} placeholder={tr("depth (m), resistivity (ohm m), uncertainty (decades)")} />
         <div role={priorParsed.error ? "alert" : undefined} style={{ ...note, color: priorParsed.error ? "var(--color-warn-text)" : note.color }}>{priorParsed.error ? tr(priorParsed.error) : priorParsed.rows.length ? (priorParsed.rows.length === 1 ? tr("One row read.") : tr("{n} rows read.", { n: priorParsed.rows.length })) : ""}</div>
@@ -367,7 +367,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.freeRz} onChange={(e) => set({ freeRz: e.target.checked })} />{tr("Solve for the receiver's height above the loop")}</label>
           <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", whiteSpace: "nowrap", flexShrink: 0 }}>{tr("± (m)")}<NumberInput allowEmpty min={0.01} max={50} value={st.rzSd ?? 0.5} disabled={!st.freeRz} onChange={(v) => set({ rzSd: (v == null ? "" : String(v)) })} style={{ ...num, width: 52 }} aria-label={tr("Uncertainty of the receiver's height above the loop (m)")} /></span>
         </div>}
-        <div style={note}>{tr("The file's height (and the receiver's) is the starting value, held to it by the uncertainty you type; each one solved for adds a forward model an iteration (about 40 % longer). With the model free, the height trades off against the shallow conductivities: on a real SkyTEM survey the fit was no better with the height solved for, and at ±3 m the height sat about 4 m above the altimeter (held to the contractor's own model it stayed within 0.2 m), so the default is ±1 m. The uncertainties shown and exported are linearised at the solution and depend on the regularisation: on that survey they were about a quarter of the contractor's.")}</div>
+        <div style={note}>{tr("Starts from the file's height, held by your uncertainty; each one solved adds 40 % run time. Trades off with shallow conductivity: default ±1 m.")}</div>
       </details>
       <div style={rowS}><span>{tr("Stations")}</span>
         <select value={st.every} onChange={(e) => set({ every: Number(e.target.value) })} style={smallSel} aria-label={tr("Every Nth station")}>
@@ -391,7 +391,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
             {[0.1, 0.2, 0.3, 0.5].map((v) => <option key={v} value={v}>{tr("{v} decades", { v })}</option>)}
           </select>
         </div>}
-        <div style={{ ...note, margin: "3px 0 6px" }}>{tr("Conductive red, resistive blue; below the dashed line (the depth of investigation) the model is the inversion's guess, not the data's. A 1D model is wrong under a 3D conductor (a plate, a pipe).")}</div>
+        <div style={{ ...note, margin: "3px 0 6px" }}>{tr("Red conductive, blue resistive; below the dashed depth of investigation the model is a guess, not data. 1D is wrong under a 3D conductor.")}</div>
         {fit && <>
           <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>{tr("Station {i}: misfit (chi) {c}, depth of investigation {d} m", { i: fit.station + 1, c: fmt(R.chi[sel]), d: fmt(R.doi[sel]) })}</div>
           {stationExtra && <div style={{ ...note, marginBottom: 4 }}>{stationExtra}</div>}

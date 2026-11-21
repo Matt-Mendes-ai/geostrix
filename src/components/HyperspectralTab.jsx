@@ -88,7 +88,7 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
         });
         made.push({ raster: { ...raster, spectralIndex: { hyperspectral: true, feature, product: kind, bands: win.length, window: [Math.round(wlSel[0]), Math.round(wlSel[wlSel.length - 1])], minDepth: md } }, msg });
       }
-      const note = tr(" Continuum removed over {lo}-{hi} nm ({n} bands): depth = 1 - the lowest continuum-removed value; the wavelength is blank where the depth is under {min} ({none} of {valid} pixels). {what} A feature map is a surface signal: vegetation, water, shadow and the sensor's 60 m pixel all shape it.", { lo: Math.round(wlSel[0]), hi: Math.round(wlSel[wlSel.length - 1]), n: win.length, min: md, none: (stats?.noFeature || 0).toLocaleString(), valid: (stats?.valid || 0).toLocaleString(), what: tr(f.what) });
+      const note = tr(" Continuum removed over {lo}-{hi} nm ({n} bands): depth = 1 - the lowest value; no wavelength under {min} ({none} of {valid} pixels). {what} Vegetation, water, shadow and 60 m pixels shape it.", { lo: Math.round(wlSel[0]), hi: Math.round(wlSel[wlSel.length - 1]), n: win.length, min: md, none: (stats?.noFeature || 0).toLocaleString(), valid: (stats?.valid || 0).toLocaleString(), what: tr(f.what) });
       onImport(made.map((m) => m.raster), made.map((m) => m.msg).join(" ") + note);
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
@@ -100,7 +100,7 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
         <button onClick={() => fileInput.current.click()} style={{ ...btn(false), padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} /> {file ? tr("Choose another file…") : tr("Choose a file…")}</button>
         <input ref={fileInput} type="file" accept=".tif,.tiff" style={{ display: "none" }} onChange={(e) => { const x = e.target.files?.[0]; if (x) pickFile(x); e.target.value = ""; }} />
         {file && <div style={{ ...small, marginTop: 6 }}>{tr("{name}: {bands} bands, {width} × {height} px.", { name: file.file.name, bands: file.bands, width: file.width.toLocaleString(), height: file.height.toLocaleString() })}</div>}
-        <div style={{ ...small, marginTop: 6 }}>{tr("NASA EMIT L2A surface reflectance (free with an Earthdata login), cut to your area and saved as a multiband GeoTIFF with NASA's EMIT tools or QGIS / GDAL. Keep it small: a few hundred pixels across is plenty at EMIT's 60 m.")}</div>
+        <div style={{ ...small, marginTop: 6 }}>{tr("NASA EMIT L2A surface reflectance (free with an Earthdata login), cut to your area as a multiband GeoTIFF. A few hundred pixels across is plenty.")}</div>
       </div>
       {file && (
         <div>
@@ -137,7 +137,7 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
             </select>
             {refName && <div style={{ ...small, marginTop: 2 }}>{refName} · {tr("USGS Spectral Library Version 7, public domain (Kokaly et al., 2017).")}</div>}
             <textarea value={refText} onChange={(e) => { setRefText(e.target.value); setRefName(""); }} rows={4} style={{ ...sel, width: "100%", fontFamily: "monospace", marginTop: 6 }} aria-label={tr("Reference spectrum")} placeholder={"wavelength, reflectance\n2.20, 0.31\n2.25, 0.28"} />
-            <div style={{ ...small, marginTop: 4 }}>{tr("Paste the spectrum as lines of wavelength and reflectance (micrometres or nm), as a library export gives it (USGS, ASTER, ECOSTRESS). It is interpolated to the file's bands.")}</div>
+            <div style={{ ...small, marginTop: 4 }}>{tr("Paste wavelength and reflectance lines (µm or nm), as a USGS, ASTER or ECOSTRESS library gives them; they are fitted to the file's bands.")}</div>
             {refText.trim() && !ref && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Fewer than three wavelength and reflectance pairs found.")}</div>}
             {ref && wl && <div style={{ ...small, color: refAt.covered >= 0.8 ? undefined : "var(--color-danger-fg)" }}>{refAt.covered >= 0.8 ? tr("{n} pairs, {lo}-{hi} nm, covering {pct} % of the file's bands.", { n: ref.wl.length, lo: Math.round(ref.wl[0]), hi: Math.round(ref.wl[ref.wl.length - 1]), pct: Math.round(refAt.covered * 100) }) : tr("The spectrum covers only {pct} % of the file's bands (at least 80 % is needed).", { pct: Math.round(refAt.covered * 100) })}</div>}
           </>}

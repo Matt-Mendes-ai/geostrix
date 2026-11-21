@@ -65,7 +65,7 @@ export default function GravityReductionBox({ survey, rows, epsg, terrain, setLa
       input === "observed" ? (grs ? tr("Free-air anomaly (observed less GRS67 normal gravity, plus 0.3086 mGal/m × the station's height): {r} mGal (2-98 %), the survey \"{name}\".", { r: stat(d.freeAir), name: faName })
         : tr("Free-air anomaly (observed less WGS84 normal gravity at each station's height): {r} mGal (2-98 %), the survey \"{name}\".", { r: stat(d.freeAir), name: faName })) : "",
       d.bouguer ? tr("Bouguer anomaly, density {d} kg/m³, {how}: {r} mGal (2-98 %), the survey \"{name}\".", { d: dens, how: correction === "topo" ? tr("less the gravity of the terrain's prisms") : tr("less the Bouguer plate"), r: stat(d.bouguer), name: bName }) : "",
-      correction === "topo" && Number.isFinite(d.nearestEdgeM) ? tr("The terrain reaches {near} km past the nearest station ({med} km for half of them): masses beyond it are not in the correction, so widen the terrain if that is close.", { near: (d.nearestEdgeM / 1000).toFixed(1), med: (d.medianEdgeM / 1000).toFixed(1) }) : "",
+      correction === "topo" && Number.isFinite(d.nearestEdgeM) ? tr("The terrain reaches {near} km past the nearest station ({med} km for half): masses beyond it are left out, so widen the terrain if that is close.", { near: (d.nearestEdgeM / 1000).toFixed(1), med: (d.medianEdgeM / 1000).toFixed(1) }) : "",
       pts.length > withZ.length ? tr("{n} reading(s) with no elevation were left out.", { n: (pts.length - withZ.length).toLocaleString() }) : "",
       tr("Heights are the readings' elevations (above sea level): with heights above the ellipsoid the free-air result is the gravity disturbance instead."),
     ].filter(Boolean).join(" ") });
@@ -82,7 +82,7 @@ export default function GravityReductionBox({ survey, rows, epsg, terrain, setLa
           <option value="wgs84">{tr("WGS84, at each station's height")}</option>
           <option value="grs67">{tr("GRS67 and 0.3086 mGal/m (Canadian gravity database)")}</option>
         </select></label>}
-      {input === "observed" && <div style={note}>{tr("Public surveys are reduced with their own convention: the Geological Survey of Canada's use GRS67 and 0.3086 mGal/m, which gives anomalies 0.8-0.9 mGal higher than WGS84. Match it before comparing or merging levels.")}</div>}
+      {input === "observed" && <div style={note}>{tr("Match a public survey's convention before comparing or merging: the Geological Survey of Canada uses GRS67 and 0.3086 mGal/m, 0.8-0.9 mGal above WGS84.")}</div>}
       {input === "observed" && !looksAbsolute && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("These values (median {m}) do not look like absolute gravity, which is about 978,000-983,000 mGal.", { m: Math.round(median).toLocaleString() })}</div>}
       <label style={lbl}>{tr("Bouguer correction")}
         <select value={correction} onChange={(e) => setCorrection(e.target.value)} style={{ ...numInput, width: "auto" }} aria-label={tr("Bouguer correction")}>
@@ -91,8 +91,8 @@ export default function GravityReductionBox({ survey, rows, epsg, terrain, setLa
           <option value="topo" disabled={!terrain}>{tr("the terrain's prisms (complete)")}</option>
         </select></label>
       {correction !== "none" && <label style={lbl}>{tr("Density (kg/m³)")}<NumberInput allowEmpty min={1000} max={4000} step={10} value={density} onChange={(v) => setDensity((v == null ? "" : String(v)))} style={{ ...numInput, width: 70 }} aria-label={tr("Density (kg/m³)")} /></label>}
-      <div style={note}>{tr("2,670 kg/m³ is the conventional crustal density; use the rocks' own where they are known. The terrain's prisms run from sea level to the ground over the terrain's extent, rock above sea level and water against rock below.")}</div>
-      {twice && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("This survey is labelled a Bouguer anomaly: a Bouguer correction would take the plate off a second time. If the readings are a free-air anomaly, change the survey's method above, or tick below.")}</div>}
+      <div style={note}>{tr("2,670 kg/m³ is the conventional crustal density; use the rocks' own where known. The terrain prisms run from sea level to the ground.")}</div>
+      {twice && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Labelled a Bouguer anomaly: a Bouguer correction would remove the plate twice. If it is free-air, change the survey's method above, or tick below.")}</div>}
       {twice && <label style={{ ...lbl, justifyContent: "flex-start" }}><input type="checkbox" checked={anyway} onChange={(e) => setAnyway(e.target.checked)} />{tr("These readings are a free-air anomaly: reduce them")}</label>}
       {!busy ? <button type="button" onClick={run} disabled={twice && !anyway} style={{ ...pBtn, marginTop: 6, marginBottom: 0, opacity: twice && !anyway ? 0.5 : 1 }}>{tr("Reduce")}</button>
         : <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}><span style={{ ...note, marginTop: 0, flex: 1 }}>{busy}</span><button type="button" onClick={() => abort.current?.abort()} style={{ ...pBtn, width: "auto", marginTop: 0, marginBottom: 0 }}>{tr("Cancel")}</button></div>}

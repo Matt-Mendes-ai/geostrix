@@ -117,7 +117,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
     // TASKS.csv #2078 (review #2013, Woodjam) — a file that is not .edi was dropped without a word (the reviewer's 3050E.dat then reached the
     // drillhole importer): it is named, and a DC / IP .dat is sent to DC / IP
     const others = all.filter((f) => !/\.edi$/i.test(f.name));
-    const othersNote = others.length ? tr("Not EDI files, not read here: {names}. MT / AMT reads .edi soundings. A DC / IP line table (.csv, .dat, .txt) can be tried in the DC / IP pane, which lets you map its columns.", { names: others.slice(0, 4).map((f) => f.name).join(", ") + (others.length > 4 ? " …" : "") }) : "";
+    const othersNote = others.length ? tr("Not EDI files, not read here: {names}. MT / AMT reads .edi soundings; try a DC / IP line table in the DC / IP pane.", { names: others.slice(0, 4).map((f) => f.name).join(", ") + (others.length > 4 ? " …" : "") }) : "";
     if (!files.length) { if (othersNote) setMsg({ info: false, text: othersNote }); return; }
     setBusy(true);
     setMsg({ info: true, text: tr("Reading {n} EDI file(s)…", { n: files.length }) });
@@ -171,7 +171,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
   return (
     <>
       <TaskPaneHeader title={tr("MT / AMT soundings (.edi)")} helpId="mt-soundings" icon={Waves} tone="data" onClose={onClose} />
-      <div style={{ ...note, marginBottom: 8 }}>{tr("Magnetotelluric and audio-MT soundings from EDI files: apparent resistivity and phase per station, a pseudosection per line, and Niblett–Bostick depths under the stations in 3D. Drop the .edi files on this tab, or pick them.")}</div>
+      <div style={{ ...note, marginBottom: 8 }}>{tr("Drop MT or AMT .edi files here, or pick them: apparent resistivity and phase per station, a pseudosection per line, Niblett–Bostick depths in 3D.")}</div>
       <button type="button" style={pBtn} disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{busy ? tr("Reading…") : tr("Import EDI files…")}</button>
       <input ref={fileRef} type="file" accept=".edi" multiple style={{ display: "none" }} onChange={(e) => { importEdi(e.target.files); e.target.value = ""; }} />
       {msg && <div role="status" style={{ marginBottom: 10, padding: "8px 10px", background: msg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${msg.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-sm)", color: msg.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>{msg.text}</div>}
@@ -200,7 +200,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
           <label style={row}>{tr("Station")}<select style={smallSel} value={station?.id || ""} aria-label={tr("MT station")} onChange={(e) => setStationId(e.target.value)}>{(ordered.length ? ordered.map((o) => o.s) : stations).map((s) => <option key={s.id} value={s.id}>{s.id}</option>)}</select></label>
           {station && <SoundingPlot s={station} />}
           {station && <div style={{ ...note, marginTop: 4 }}>{tr("Elevation {z} m, {n} frequencies. Phases are folded into 0 to 180°: a uniform half-space reads 45°, above 45° the ground gets more conductive with depth.", { z: Number.isFinite(station.z) ? Math.round(station.z).toLocaleString() : "?", n: station.freqs.length })}</div>}
-          <div style={{ ...note, marginTop: 8 }}>{tr("The depths in 3D are a Niblett–Bostick transform of the determinant: each frequency's apparent resistivity and phase turned into a resistivity at an approximate depth. It is a 1D estimate, wrong under a 3D body; the contractor's 2D / 3D inversion (Block models) is the model to interpret.")}</div>
+          <div style={{ ...note, marginTop: 8 }}>{tr("The 3D depths are a Niblett–Bostick transform: a 1D estimate, wrong under a 3D body. Interpret the contractor's 2D / 3D inversion (Block models) instead.")}</div>
         </>
       )}
     </>

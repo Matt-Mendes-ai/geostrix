@@ -47,5 +47,5 @@ test("wiring: the panel offers the Huber line when there is one", () => {
   const s = readFileSync(new URL("../src/components/LevellingPanel.jsx", import.meta.url), "utf8");
   assert.match(s, /const canHuber = !!fit\?\.ties\?\.huber;/);
   assert.match(s, /methodPick === "huber" && canHuber \? "huber"/);
-  assert.match(s, /tr\("Fit a line through the ties instead \(Huber regression on log values, after Main & Champion 2022\)/);
+  assert.match(s, /tr\("Fit a line through the ties \(Huber regression on logs, Main & Champion 2022\)/);
 });

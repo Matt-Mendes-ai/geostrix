@@ -66,7 +66,7 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
     <div style={overlay} {...backdropProps(onClose)}>
       <div role="dialog" aria-modal="true" aria-label={tr("Multivariate anomaly score")} onClick={(e) => e.stopPropagation()} style={{ width: "min(640px, 94vw)", maxHeight: "88vh", overflow: "auto", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}>{tr("Multivariate anomaly score")}</div>
-        <div style={{ ...lbl, lineHeight: 1.45 }}>{tr("How far each sample's whole composition lies from the bulk of the data: the robust Mahalanobis distance on log ratios of the chosen elements, with the centre and spread from the Minimum Covariance Determinant (Filzmoser, Garrett & Reimann 2005), so up to a quarter of the samples can be unusual without hiding each other. It is a ranking, not a probability of mineralization.")}</div>
+        <div style={{ ...lbl, lineHeight: 1.45 }}>{tr("Ranks how far each sample's composition lies from the bulk (robust Mahalanobis distance on log ratios, Filzmoser 2005): a ranking, not a probability of mineralization.")}</div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label style={lbl}>{tr("Samples")}<select value={source} onChange={(e) => { setSource(e.target.value); setPicked(null); reset(); }} style={{ ...sel, display: "block", marginTop: 3 }}>
             {assays.length > 0 && <option value="assays">{tr("Drill assays (lab rows)")}</option>}
@@ -94,7 +94,7 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
         </div>
         {err && <div role="alert" style={{ ...lbl, color: "var(--color-danger-text)" }}>{err}</div>}
         {res && (<>
-          <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>{tr("{used} of {n} sample(s) scored on {d} elements ({p} log-ratio coordinates; a sample missing one of them has no score). {k} lie above the 97.5 % chi-square line, a distance of {cut}; with no anomalies about 2.5 % would.", { used: res.used.toLocaleString(), n: pool.length.toLocaleString(), d: chosen.length, p: res.p, k: res.flagged.toLocaleString(), cut: res.cutoff.toFixed(2) })}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>{tr("{used} of {n} sample(s) scored on {d} elements ({p} log-ratio coordinates). {k} lie above the 97.5 % chi-square line ({cut}); with no anomalies, about 2.5 % would.", { used: res.used.toLocaleString(), n: pool.length.toLocaleString(), d: chosen.length, p: res.p, k: res.flagged.toLocaleString(), cut: res.cutoff.toFixed(2) })}</div>
           {top.length > 0 && <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", alignSelf: "flex-start" }}>
             <thead><tr><th style={{ textAlign: "start", padding: "2px 8px" }}>{tr("Most unusual")}</th><th style={{ textAlign: "end", padding: "2px 8px" }}>{tr("Score")}</th></tr></thead>
             <tbody>{top.map(([r, v], i) => <tr key={i}><td style={{ padding: "2px 8px" }}>{where(r)}</td><td style={{ textAlign: "end", padding: "2px 8px", fontVariantNumeric: "tabular-nums" }}>{v.toFixed(2)}</td></tr>)}</tbody>
