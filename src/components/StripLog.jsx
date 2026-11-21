@@ -176,7 +176,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const d1 = rangeTo === "" || !Number.isFinite(Number(rangeTo)) ? maxDepth : Math.max(d0 + 1, Math.min(maxDepth, Number(rangeTo)));
   const ranged = d0 > 0 || d1 < maxDepth;
   const sy = (d) => PAD_TOP + (d - d0) * pxPerMeter;
-  const H = sy(d1) + 30;
+  const H = sy(d1) + 34; // TASKS.csv #3900 T2 — the captions under the tracks at 10 px (the figure-text floor), was + 30
   // TASKS.csv #3559 (Fireweed rehearsal) — a 1,000 m hole at 6 px/m was ten screens of mostly empty tracks, with no way under 1 px/m: Fit, the sampled stretch, the whole hole, and the log opens fitted
   const paneH = () => scrollRef.current?.clientHeight || 560;
   const fit = () => setPxPerMeter(fitPxPerMetre(d1 - d0, paneH()));
@@ -201,7 +201,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     ...modelledLayers.filter((ml) => !ml.rows?.[0]?.numeric).map((ml, i, arr) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); const col = Object.fromEntries(rows.map((r) => [r.value, r.modelColor])); return { key: `modelled_${ml.id}`, label: arr.length > 1 ? `Model ${i + 1}` : "Modelled", title: ml.name, rows, kind: "fill", colorFn: (v) => col[v] || "#d9dce1", nameFn: (v) => v }; }).filter((t) => t.rows.length),
     // TASKS.csv #323 — logged susceptibility / SG and a numeric model evaluated onto the hole, side by side
     ...[["magsusc", "Mag. susc."], ["sg", "Density (t/m³)"]].map(([k, label]) => { const rows = filterLogRows((layers[k] || []).filter((r) => r.hole_id === holeId), stripProject?.logValidRange?.[k]).rows /* #3288 — range and despike, as Downhole logs and Estimation read it */.filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => (Number.isFinite(r.depth) && !Number.isFinite(r.to) ? { ...r, from: r.depth - 0.25, to: r.depth + 0.25 } : r)).sort((a, b) => a.from - b.from); const vmax = rows.reduce((m, r) => Math.max(m, Number(r.value)), 0); return { key: `log_${k}`, label, title: `${label} as logged`, rows, kind: "bar", max: vmax, scaleLabel: true, ...(k === "magsusc" ? { logOk: true, minPos: valueRange(rows).minPos } : { lo: densityLo(rows.map((r) => r.value)) /* TASKS.csv #3558 — from the data's low end, not 0 */, unit: LAYER_META.sg.unit, methodOf: (r) => (typeof r.method === "string" ? r.method.trim() : "") }) }; }).filter((t) => t.rows.length), // logOk: #1400 — mag susc follows the Log scale box
-    ...modelledLayers.filter((ml) => ml.rows?.[0]?.numeric).map((ml) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); return { key: `modelledN_${ml.id}`, label: "Model", title: `${ml.name}${ml.unit ? ` (${ml.unit})` : ""}`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, r.value), 0), scaleLabel: true, colorOf: (r) => r.modelColor }; }).filter((t) => t.rows.length),
+    ...modelledLayers.filter((ml) => ml.rows?.[0]?.numeric).map((ml) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); const pos = rows.map((r) => Number(r.value)).filter((v) => v > 0); return { key: `modelledN_${ml.id}`, label: "Model", title: `${ml.name}${ml.unit ? ` (${ml.unit})` : ""}`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, r.value), 0), scaleLabel: true, colorOf: (r) => r.modelColor, ...(ml.defaultRampScale === "log" && pos.length ? { logOk: true, minPos: pos.reduce((a, b) => Math.min(a, b)) } : {}) }; }).filter((t) => t.rows.length), // #3813 — on the model's scale (a log model: a log bar; the 'Log scale' box turns it off)
     // TASKS.csv #3141 — a built-in track only when this hole has rows (an iron hole drew empty Alt. / Vein / Rec.% columns on every log)
     ...(alt.length ? [{ key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null }] : []),
     ...(vein.length ? [{ key: "vein", label: "Vein", rows: vein, kind: "tick", colorFn: (v) => fill("vein", colorForVein, v), nameFn: nameOf("vein") }] : []), // #1289 — renamed categories on every track
@@ -228,7 +228,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const calcBars = tracks.filter((t) => t.kind === "bar" && t.methodOf), hasCalc = calcBars.some((t) => t.rows.some((r) => isCalculatedMethod(t.methodOf(r)))), hasMeasured = calcBars.some((t) => t.rows.some((r) => !isCalculatedMethod(t.methodOf(r))));
   // TASKS.csv #3713 — each assay bar's colour classes, as the 3D View's legend words them: 'Au (ppm): ≤ 0.1 | 0.1–0.5 | > 0.5', one key row per element, in the figure
   const classKeys = (assayClasses ? tracks.filter((t) => t.kind === "assaybar" && t.sym) : []).flatMap((t) => { const br = assayClasses(t.sym); if (!br?.length) return []; const u = elementUnits[t.sym] || "ppm"; return [{ sym: t.sym, label: `${t.sym} (${u})`, classes: br.map((b, i) => ({ color: b.color, text: i === 0 ? `≤ ${fmtLegendValue(b.max)}` : i === br.length - 1 ? `> ${fmtLegendValue(br[i - 1].max)}` : `${fmtLegendValue(br[i - 1].max)}–${fmtLegendValue(b.max)}` })) }]; });
-  const keyH = (hasCalc ? 34 : 0) + classKeys.length * 14;
+  const keyH = (hasCalc ? 38 : 0) + classKeys.length * 16; // #3900: the key rows at 10 px
   // a bar track's scale caption: its own range, or the log range
   const barCaption = (t) => (t.lo != null ? `${sigText(t.lo, 4)}–${sigText(t.max, 4)}` : t.logOk && logOn && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: sigText(t.minPos, 2), max: sigText(t.max, 3) }) : `0–${sigText(t.max, 3)}`);
 
@@ -269,10 +269,10 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     const pt = ptAt(fh), pt1 = ptAt(fh - (d1 - d0) * (pxPerMeter - 1)); // the same log drawn at 1 px/m
     const wide = 700 * (fh / fw) <= 794 - 160; // Layout's 700 px width, not the sheet height, sets its size: many tracks
     const advice = (pt == null || pt >= 6 ? "" : wide
-      ? tr("Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.", { pt: pt.toFixed(1) })
+      ? tr("Sent to Layout. Drag its corner larger on the page, or draw fewer tracks: its labels print at about {pt} pt.", { pt: pt.toFixed(1) })
       : pt1 >= 6
       ? tr("Sent to Layout. Its labels print at about {pt} pt there: lower the vertical scale (px/m) and send it again for a readable log.", { pt: pt.toFixed(1) })
-      : tr("Sent to Layout. A {m} m log is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): set a shorter depth range, or use the SVG or PNG for a full-size log.", { m: Math.round(d1 - d0), pt: pt.toFixed(1), pt1: pt1.toFixed(1) }));
+      : tr("Sent to Layout. Set a shorter depth range, or use the SVG or PNG: a {m} m log prints its labels at about {pt} pt ({pt1} pt at 1 px/m).", { m: Math.round(d1 - d0), pt: pt.toFixed(1), pt1: pt1.toFixed(1) }));
     // #1641 — the window closes after a send (it stayed open behind Layout and was still there on the next visit to the 3D View); the
     // advice about the printed text size goes with the image to Layout, as a notice there
     onAdvice?.(advice);
@@ -290,7 +290,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     if (!svg || !dims) return;
     const { markup: xml0, width: fw, height: fh } = exportSvgMarkup(svg, { furniture: furniture() });
     const { scale, reduced } = pngScaleFor(fw, fh); // #1048 — under the canvas size limit
-    setPngNote(reduced ? tr("This log is too tall for a full-resolution PNG: it was saved at {s}× instead of 2× (use SVG for full detail, or lower the vertical scale).", { s: scale.toFixed(2) }) : "");
+    setPngNote(reduced ? tr("Saved at {s}× instead of 2×, as the log is too tall for a full PNG: use SVG for full detail, or lower the vertical scale.", { s: scale.toFixed(2) }) : "");
     embedFigureFont(xml0).catch(() => xml0).then((xml) => { // #2610
     const img = new Image();
     const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
@@ -315,19 +315,19 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>{tr("Strip log — {holeId}", { holeId })}</div>
-            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: +maxDepth.toFixed(1) })}{rlNote && <span style={{ color: "#8a6a1f" }}>{" · "}{tr("collar RL {rl} m: {note}", { rl: Number(collar.z).toFixed(1), note: rlNote })}</span>}</div>{/* #3131 */}
-            {attrLine.text && <div style={{ fontSize: 11, color: "#65717e", marginTop: 1, maxWidth: 520, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={attrLine.all}>{attrLine.text}</div>}{/* TASKS.csv #3408 — the per-hole values joined onto this hole */}
+            <div style={{ fontSize: "var(--font-size-lg)", color: "#8a6a1f", fontWeight: 600 }}>{tr("Strip log — {holeId}", { holeId })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: +maxDepth.toFixed(1) })}{rlNote && <span style={{ color: "#8a6a1f" }}>{" · "}{tr("collar RL {rl} m: {note}", { rl: Number(collar.z).toFixed(1), note: rlNote })}</span>}</div>{/* #3131 */}
+            {attrLine.text && <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", marginTop: 1, maxWidth: 520, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={attrLine.all}>{attrLine.text}</div>}{/* TASKS.csv #3408 — the per-hole values joined onto this hole */}
           </div>
           <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button type="button" onClick={() => setSideBySide(true)} title={tr("Draw this hole's log beside other holes' on one depth scale, from their own 0 m or from their collar elevations.")} style={{ padding: "4px 10px", background: "#f4f6f8", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{tr("Side by side…")}</button>{/* TASKS.csv #3560 A1 */}
-            {onOpenFence && <button type="button" onClick={onOpenFence} title={tr("Several holes side by side: the Fence diagram puts the holes of a drill line in columns on one depth scale, with correlation bands.")} style={{ padding: "4px 10px", background: "#f4f6f8", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{tr("Several holes: Fence diagram")}</button>}{/* TASKS.csv #3560 A0 */}
+            <button type="button" onClick={() => setSideBySide(true)} title={tr("Draw this hole's log beside other holes' on one depth scale, from their own 0 m or from their collar elevations.")} style={{ padding: "4px 10px", background: "#f4f6f8", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit" }}>{tr("Side by side…")}</button>{/* TASKS.csv #3560 A1 */}
+            {onOpenFence && <button type="button" onClick={onOpenFence} title={tr("Several holes side by side: the Fence diagram puts the holes of a drill line in columns on one depth scale, with correlation bands.")} style={{ padding: "4px 10px", background: "#f4f6f8", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit" }}>{tr("Several holes: Fence diagram")}</button>}{/* TASKS.csv #3560 A0 */}
             <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
           </span>
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 16px", borderBottom: "1px solid #d9dce1", flexWrap: "wrap" }}>
-          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Assay element")}<select value={assaySymbol} onChange={(e) => setAssaySymbol(e.target.value)} style={selStyle}>
+          <label style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Assay element")}<select value={assaySymbol} onChange={(e) => setAssaySymbol(e.target.value)} style={selStyle}>
               <option value="">{tr("— none —")}</option>
               {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
             </select>
@@ -342,25 +342,25 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             <option value="">{tr("+ track")}</option>
             {customChoices.filter((c) => !customTracks.includes(c.key)).map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
           </select>}
-          {customTracks.map((k) => { const c = customChoices.find((x) => x.key === k); return c ? <span key={k} style={{ fontSize: 11, color: "#55606e", display: "inline-flex", alignItems: "center", gap: 3, border: "1px solid #d9dce1", borderRadius: 4, padding: "2px 6px" }}>{c.label}<X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove track {v}", { v: c.label })} size={11} style={{ cursor: "pointer" }} onClick={() => setCustomTracks((p) => p.filter((x) => x !== k))} /></span> : null; })}
-          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.")}>
+          {customTracks.map((k) => { const c = customChoices.find((x) => x.key === k); return c ? <span key={k} style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "inline-flex", alignItems: "center", gap: 3, border: "1px solid #d9dce1", borderRadius: 4, padding: "2px 6px" }}>{c.label}<X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove track {v}", { v: c.label })} size={11} style={{ cursor: "pointer" }} onClick={() => setCustomTracks((p) => p.filter((x) => x !== k))} /></span> : null; })}
+          <label style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.")}>
             <input type="checkbox" checked={logScale ?? shownSymbols.some((s) => !axisOf(s).linear)} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale")}</label>
-          {logScale == null && (() => { const lin = shownSymbols.filter((s) => axisOf(s).linear), lg = shownSymbols.filter((s) => !axisOf(s).linear); return lin.length && lg.length ? <span role="note" style={{ fontSize: 10.5, color: "#8a6a1f" }}>{tr("Automatic: {lin} on a linear axis (their values span under two decades), {log} on a log axis.", { lin: lin.join(", "), log: lg.join(", ") })}</span> : null; })() /* TASKS.csv #3775 (7) */}
-          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 4 }} title={tr("Draw only these depths (blank: the whole hole); the exports and Add to Layout follow")}>{tr("Depth (m)")}<NumberInput allowEmpty min={0} value={rangeFrom === "" ? null : rangeFrom} placeholder="0" onChange={(v) => setRangeFrom(v == null ? "" : String(v))} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range from (m)")} />–<NumberInput allowEmpty min={0} value={rangeTo === "" ? null : rangeTo} placeholder={String(+maxDepth.toFixed(1))} onChange={(v) => setRangeTo(v == null ? "" : String(v))} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range to (m)")} /></label>
-          {litho.length > 0 && <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("FGDC lithology patterns over the lithology colours, as on printed logs")}>
+          {logScale == null && (() => { const lin = shownSymbols.filter((s) => axisOf(s).linear), lg = shownSymbols.filter((s) => !axisOf(s).linear); return lin.length && lg.length ? <span role="note" style={{ fontSize: "var(--font-size-xs)", color: "#8a6a1f" }}>{tr("Automatic: {lin} on a linear axis (their values span under two decades), {log} on a log axis.", { lin: lin.join(", "), log: lg.join(", ") })}</span> : null; })() /* TASKS.csv #3775 (7) */}
+          <label style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", alignItems: "center", gap: 4 }} title={tr("Draw only these depths (blank: the whole hole); the exports and Add to Layout follow")}>{tr("Depth (m)")}<NumberInput allowEmpty min={0} value={rangeFrom === "" ? null : rangeFrom} placeholder="0" onChange={(v) => setRangeFrom(v == null ? "" : String(v))} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range from (m)")} />–<NumberInput allowEmpty min={0} value={rangeTo === "" ? null : rangeTo} placeholder={String(+maxDepth.toFixed(1))} onChange={(v) => setRangeTo(v == null ? "" : String(v))} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range to (m)")} /></label>
+          {litho.length > 0 && <label style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("FGDC lithology patterns over the lithology colours, as on printed logs")}>
             <input type="checkbox" checked={patternsOn} onChange={(e) => setPatterns(e.target.checked)} />{" "}{tr("Patterns")}</label>}{/* TASKS.csv #1995 */}
-          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Vertical scale (px/m)")}<NumberInput min={FIT_MIN_PX} max={FIT_MAX_PX} value={pxPerMeter} onChange={(v) => setPxPerMeter(v)} style={{ ...selStyle, width: 60 }} />
+          <label style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Vertical scale (px/m)")}<NumberInput min={FIT_MIN_PX} max={FIT_MAX_PX} value={pxPerMeter} onChange={(v) => setPxPerMeter(v)} style={{ ...selStyle, width: 60 }} />
           </label>
-          <button type="button" onClick={fit} style={{ ...btn(false), padding: "4px 8px", fontSize: 11 }} title={tr("Scale the depths drawn to fit this window")}>{tr("Fit")}</button>{/* TASKS.csv #3559 */}
-          {sampled && <button type="button" onClick={showSampled} style={{ ...btn(false), padding: "4px 8px", fontSize: 11 }} title={tr("Draw the sampled depths ({from}–{to} m) only, fitted", { from: +sampled.from.toFixed(1), to: +sampled.to.toFixed(1) })}>{tr("Sampled")}</button>}
-          {ranged && <button type="button" onClick={wholeHole} style={{ ...btn(false), padding: "4px 8px", fontSize: 11 }} title={tr("Draw the whole hole, fitted")}>{tr("Whole hole")}</button>}
+          <button type="button" onClick={fit} style={{ ...btn(false), padding: "4px 8px", fontSize: "var(--font-size-sm)" }} title={tr("Scale the depths drawn to fit this window")}>{tr("Fit")}</button>{/* TASKS.csv #3559 */}
+          {sampled && <button type="button" onClick={showSampled} style={{ ...btn(false), padding: "4px 8px", fontSize: "var(--font-size-sm)" }} title={tr("Draw the sampled depths ({from}–{to} m) only, fitted", { from: +sampled.from.toFixed(1), to: +sampled.to.toFixed(1) })}>{tr("Sampled")}</button>}
+          {ranged && <button type="button" onClick={wholeHole} style={{ ...btn(false), padding: "4px 8px", fontSize: "var(--font-size-sm)" }} title={tr("Draw the whole hole, fitted")}>{tr("Whole hole")}</button>}
           <div style={{ flex: 1 }} />
           <button onClick={exportSVG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("SVG")}</button>
           <button onClick={exportPNG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
           {onAddToLayout && <button onClick={addToLayout} style={{ ...btn(false), padding: "6px 10px" }} title={tr("The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend")}>{tr("Add to Layout")}</button>}
         </div>
         {patternsOn && litho.length > 0 && ( /* TASKS.csv #1995 — each code's pattern, and a way to change it (saved with the project's legend) */
-          <details style={{ padding: "4px 16px", borderBottom: "1px solid #d9dce1", fontSize: 11, color: "#55606e" }}>
+          <details style={{ padding: "4px 16px", borderBottom: "1px solid #d9dce1", fontSize: "var(--font-size-sm)", color: "#55606e" }}>
             <summary style={{ cursor: "pointer" }}>{tr("Lithology patterns (FGDC): which pattern each code gets")}</summary>
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 8px", alignItems: "center", margin: "6px 0" }}>
               {[...new Set(litho.map((r) => r.value))].map((v) => {
@@ -378,13 +378,13 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 );
               })}
             </div>
-            <div>{tr("Patterns follow the FGDC geologic map standard (public domain). Automatic picks one from the code, its name or its logged description; a choice here is saved with the project and used by Atlas too.")}</div>
+            <div>{tr("FGDC patterns (public domain). Automatic picks one from the code, name or description; a choice here is saved with the project and used by Atlas.")}</div>
           </details>
         )}
-        {pngNote && <div role="status" style={{ padding: "6px 16px", fontSize: 11, color: "#7a4a1f", background: "#fdf4e6", borderBottom: "1px solid #edd9b7" }}>{pngNote}</div>}
+        {pngNote && <div role="status" style={{ padding: "6px 16px", fontSize: "var(--font-size-sm)", color: "#7a4a1f", background: "#fdf4e6", borderBottom: "1px solid #edd9b7" }}>{pngNote}</div>}
 
         <div ref={scrollRef} style={{ flex: 1, overflow: "auto", padding: 16 }}>
-          {noData && <div style={{ fontSize: 12, color: "#65717e", marginBottom: 12 }}>{tr("{holeId} has no samples and no logs ({length} m).", { holeId, length: +maxDepth.toFixed(1) }) /* TASKS.csv #3557 — said plainly, at the top */}</div>}
+          {noData && <div style={{ fontSize: "var(--font-size-base)", color: "#65717e", marginBottom: 12 }}>{tr("{holeId} has no samples and no logs ({length} m).", { holeId, length: +maxDepth.toFixed(1) }) /* TASKS.csv #3557 — said plainly, at the top */}</div>}
           {!noData && <svg ref={svgRef} viewBox={`0 0 ${DEPTH_COL_W + tracks.length * TRACK_W + 40} ${H + keyH}`} width={DEPTH_COL_W + tracks.length * TRACK_W + 40} height={H + keyH} style={{ background: "#ffffff" }}>
             {patternsOn && Object.keys(tiles).length > 0 && <defs dangerouslySetInnerHTML={{ __html: patternDefs(tiles) }} />}{/* #1995 — shapes only (lithoPatterns.sanitizeTile) */}
             <defs><pattern id="sl-calc-hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="#4a9be0" strokeWidth="1" /></pattern></defs>{/* TASKS.csv #3558 follow-up — the hatch of a calculated density bar: a colour-blind and black-and-white print reads it, not only the paler fill */}
@@ -392,7 +392,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             {depthTicks(d0, d1, pxPerMeter).map((d, i) => (
               <g key={i}>
                 <line x1={DEPTH_COL_W - 4} y1={sy(d)} x2={DEPTH_COL_W} y2={sy(d)} stroke="#94a1b0" strokeWidth="1" />
-                <text x={DEPTH_COL_W - 7} y={sy(d) + 3} fontSize="9" textAnchor="end" fill="#55606e">{d}</text>
+                <text x={DEPTH_COL_W - 7} y={sy(d) + 3.5} fontSize="10" textAnchor="end" fill="#55606e">{d}</text>
               </g>
             ))}
             <line x1={DEPTH_COL_W} y1={sy(d0)} x2={DEPTH_COL_W} y2={sy(d1)} stroke="#94a1b0" strokeWidth="1" />
@@ -403,7 +403,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 <g key={t.key}>
                   {(() => { const hl = headerLines(t.label, TRACK_W - 8), hs = headerSize(hl.reduce((p, l) => (l.length > p.length ? l : p))) /* the longer line sets the size */; return <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14 - (hl.length - 1) * (hs + 1)} fontSize={hs} fontWeight="600" textAnchor="middle" fill="#1a2028">{hl.map((l, k) => <tspan key={k} x={x0 + TRACK_W / 2} dy={k ? hs + 1 : 0}>{l}</tspan>)}<title>{t.title || t.label}</title></text>; })() /* two lines: #2481 */}{/* #3141 — sized to its track (a 14-letter custom name ran under the next header) */}
                   <rect x={x0} y={sy(d0)} width={TRACK_W - 6} height={sy(d1) - sy(d0)} fill="none" stroke="#dde1e6" />
-                  {t.kind === "bar" && t.scaleLabel && t.max > 0 && <text x={x0 + TRACK_W / 2} y={PAD_TOP - 3} fontSize="7" textAnchor="middle" fill="#65717e">{barCaption(t)}</text> /* TASKS.csv #3558 — the scale where the track starts, not only 3,000 px down */}
+                  {t.kind === "bar" && t.scaleLabel && t.max > 0 && <text x={x0 + TRACK_W / 2} y={PAD_TOP - 3} fontSize="10" textAnchor="middle" fill="#65717e">{barCaption(t)}</text> /* TASKS.csv #3558 — the scale where the track starts, not only 3,000 px down */}
                   {t.kind === "fill" && (() => { // #1254 — rows on the same depths side by side, with their percent where the log gives one
                     const { rows, lanes } = t.key === "mnlgy" ? fillLanes(t.rows) : { rows: t.rows, lanes: 1 };
                     const w = (TRACK_W - 6) / lanes;
@@ -442,7 +442,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     return <g pointerEvents="none"><clipPath id={cid}>{calcRows.map((r, i) => { const w = wOf(r); return w > 0 ? <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} /> : null; })}</clipPath><rect x={x0 + 2} y={sy(d0)} width={TRACK_W - 8} height={sy(d1) - sy(d0)} fill="url(#sl-calc-hatch)" opacity="0.6" clipPath={`url(#${cid})`} /></g>;
                   })()}
                   {t.kind === "bar" && t.scaleLabel && t.max > 0 && ( // #323 — each bar track's own full-scale value
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{barCaption(t)}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 15} fontSize="10" textAnchor="middle" fill="#65717e">{barCaption(t)}</text>
                   )}
                   {t.kind === "struct" && t.rows.map((s, i) => { // #1400
                     const cx = x0 + (TRACK_W - 6) / 2, y = sy(s.depth), tk = alphaTick(s.alpha, (TRACK_W - 6) / 2 - 4), c = t.colorFn(s.value);
@@ -461,34 +461,34 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     if (!(w > 0)) return null;
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={assayColor ? assayColor(t.sym, v) : "#c9863d"} opacity="0.85"><title>{`${r.from}-${r.to} m: ${v} ${gradeUnitLabel(t.sym, elementUnits[t.sym])}`}</title></rect>;
                   })}
-                  {t.kind === "assaybar" && t.sym && peakValueLabels(t.rows.map((r) => { const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits); return v == null || !Number.isFinite(v) ? null : { v, y: (sy(r.from) + sy(r.to)) / 2, f: barFrac(t.sym, v) }; }).filter(Boolean)).map((pk) => { const txt = sigText(pk.v, 3), tw = txt.length * 8 * 0.55 + 4, tx = x0 + TRACK_W - 7; return <g key={`pk${pk.y}`} pointerEvents="none"><rect x={tx - tw} y={pk.y - 5.5} width={tw} height={10} fill="#ffffff" fillOpacity="0.85" /><text x={tx - 2} y={pk.y + 3} fontSize="8" textAnchor="end" fill="#1a2028">{txt}</text></g>; })}{/* TASKS.csv #3859 — the highest values written at their bars */}
+                  {t.kind === "assaybar" && t.sym && peakValueLabels(t.rows.map((r) => { const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits); return v == null || !Number.isFinite(v) ? null : { v, y: (sy(r.from) + sy(r.to)) / 2, f: barFrac(t.sym, v) }; }).filter(Boolean), { gapPx: 13 }).map((pk) => { const txt = sigText(pk.v, 3), tw = txt.length * 10 * 0.55 + 4, tx = x0 + TRACK_W - 7; return <g key={`pk${pk.y}`} pointerEvents="none"><rect x={tx - tw} y={pk.y - 7} width={tw} height={12} fill="#ffffff" fillOpacity="0.85" /><text x={tx - 2} y={pk.y + 3.5} fontSize="10" textAnchor="end" fill="#1a2028">{txt}</text></g>; })}{/* TASKS.csv #3859 — the highest values written at their bars */}
                   {t.kind === "pxrfdots" && t.sym && t.rows.map((r, i) => { // #1695 — a pXRF reading: a dot at its depth, scaled to the pXRF readings' own maximum
                     const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);
                     if (v == null || !Number.isFinite(v) || !(pxrfRange[t.sym] > 0)) return null;
                     return <circle key={i} cx={x0 + 2 + Math.max(0, Math.min(1, v / pxrfRange[t.sym])) * (TRACK_W - 8)} cy={sy(r.from)} r="2" fill="#6b4fa0" opacity="0.9"><title>{`${r.from} m: ${v} ${elementUnits[t.sym] || "ppm"} (pXRF)`}</title></circle>;
                   })}
                   {t.kind === "pxrfdots" && t.sym && pxrfRange[t.sym] > 0 && (
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{`pXRF 0–${sigText(pxrfRange[t.sym], 3)}`}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 15} fontSize="10" textAnchor="middle" fill="#65717e">{`pXRF 0–${sigText(pxrfRange[t.sym], 3)}`}</text>
                   )}
                   {t.kind === "assaybar" && t.sym && assayRange[t.sym]?.max > 0 && (() => { const ax = axisOf(t.sym); return ax.ticks // #3141 — a linear axis: its round ticks under the track
-                    ? ax.ticks.map((tk, k) => (k % tickStride(ax.ticks) === 0 || k === ax.ticks.length - 1) && <text key={`t${tk}`} x={x0 + 2 + (tk / ax.max) * (TRACK_W - 8)} y={sy(d1) + 12} fontSize="8" textAnchor={k === 0 ? "start" : k === ax.ticks.length - 1 ? "end" : "middle"} fill="#65717e">{tk}</text>) /* the end ticks inside the track: "80" and the next track's "0" read "800" */
-                    : !ax.linear ? <>{logAxisTicks(assayRange[t.sym].minPos, assayRange[t.sym].max, { widthPx: TRACK_W - 8, fontPx: 8 }).filter((tk) => tk.label).map((tk) => <text key={`lt${tk.v}`} x={x0 + 2 + tk.f * (TRACK_W - 8)} y={sy(d1) + 11} fontSize="8" textAnchor={tk.anchor} fill="#65717e">{tk.label}</text>)}{/* TASKS.csv #3859 — the decades, then the axis's ends under them */}
-                      <text x={x0 + TRACK_W / 2} y={sy(d1) + 21} fontSize="7" textAnchor="middle" fill="#65717e">{tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) })}</text></>
-                    : <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{!ax.linear ? tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) }) : `0–${sigText(assayRange[t.sym].max, 3)}`}</text>; })()}
+                    ? ax.ticks.map((tk, k) => (k % tickStride(ax.ticks) === 0 || k === ax.ticks.length - 1) && <text key={`t${tk}`} x={x0 + 2 + (tk / ax.max) * (TRACK_W - 8)} y={sy(d1) + 13} fontSize="10" textAnchor={k === 0 ? "start" : k === ax.ticks.length - 1 ? "end" : "middle"} fill="#65717e">{tk}</text>) /* the end ticks inside the track: "80" and the next track's "0" read "800" */
+                    : !ax.linear ? <>{logAxisTicks(assayRange[t.sym].minPos, assayRange[t.sym].max, { widthPx: TRACK_W - 8, fontPx: 10 }).filter((tk) => tk.label).map((tk) => <text key={`lt${tk.v}`} x={x0 + 2 + tk.f * (TRACK_W - 8)} y={sy(d1) + 13} fontSize="10" textAnchor={tk.anchor} fill="#65717e">{tk.label}</text>)}{/* TASKS.csv #3859 — the decades, then the axis's ends under them */}
+                      <text x={x0 + TRACK_W / 2} y={sy(d1) + 26} fontSize="10" textAnchor="middle" fill="#65717e">{tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) })}</text></>
+                    : <text x={x0 + TRACK_W / 2} y={sy(d1) + 15} fontSize="10" textAnchor="middle" fill="#65717e">{!ax.linear ? tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) }) : `0–${sigText(assayRange[t.sym].max, 3)}`}</text>; })()}
                 </g>
               );
             })}
-            {classKeys.map((k, ki) => { const y0 = sy(d1) + 26 + (hasCalc ? 34 : 0) + ki * 14; let x = DEPTH_COL_W + 2 + 60; return ( /* TASKS.csv #3713 — the colour classes of an assay bar */
+            {classKeys.map((k, ki) => { const y0 = sy(d1) + 30 + (hasCalc ? 38 : 0) + ki * 16; /* #3900: 10 px rows */ let x = DEPTH_COL_W + 2 + 60; return ( /* TASKS.csv #3713 — the colour classes of an assay bar */
               <g key={`ck${k.sym}`}>
-                <text x={DEPTH_COL_W + 2} y={y0 + 7} fontSize="8" fill="#55606e">{k.label}</text>
-                {k.classes.map((c, ci) => { const w = 14 + 4 + c.text.length * 4.6 + 8, x0 = x; x += w; return <g key={ci}><rect x={x0} y={y0} width={10} height={8} fill={c.color} opacity="0.85" stroke="#8a929c" strokeWidth="0.4" /><text x={x0 + 14} y={y0 + 7} fontSize="8" fill="#55606e">{c.text}</text></g>; })}
+                <text x={DEPTH_COL_W + 2} y={y0 + 9} fontSize="10" fill="#55606e">{k.label}</text>
+                {k.classes.map((c, ci) => { const w = 16 + 4 + c.text.length * 5.6 + 8, x0 = x; x += w; return <g key={ci}><rect x={x0} y={y0} width={12} height={10} fill={c.color} opacity="0.85" stroke="#8a929c" strokeWidth="0.4" /><text x={x0 + 16} y={y0 + 9} fontSize="10" fill="#55606e">{c.text}</text></g>; })}
               </g>
             ); })}
-            {hasCalc && (() => { const y0 = sy(d1) + 26, x0 = DEPTH_COL_W + 2; return ( /* TASKS.csv #3713 — the key of the hatch */
+            {hasCalc && (() => { const y0 = sy(d1) + 30, x0 = DEPTH_COL_W + 2; return ( /* TASKS.csv #3713 — the key of the hatch */
               <g>
-                <rect x={x0} y={y0} width={14} height={8} fill="#4a9be0" opacity="0.3" stroke="#4a9be0" strokeDasharray="2 1.5" strokeWidth="0.8" /><rect x={x0} y={y0} width={14} height={8} fill="url(#sl-calc-hatch)" />
-                <text x={x0 + 19} y={y0 + 7} fontSize="8" fill="#55606e">{tr("hatched = calculated (regression)")}</text>
-                {hasMeasured && <><rect x={x0} y={y0 + 13} width={14} height={8} fill="#4a9be0" opacity="0.75" /><text x={x0 + 19} y={y0 + 20} fontSize="8" fill="#55606e">{tr("solid = measured")}</text></>}
+                <rect x={x0} y={y0} width={14} height={10} fill="#4a9be0" opacity="0.3" stroke="#4a9be0" strokeDasharray="2 1.5" strokeWidth="0.8" /><rect x={x0} y={y0} width={14} height={10} fill="url(#sl-calc-hatch)" />
+                <text x={x0 + 19} y={y0 + 9} fontSize="10" fill="#55606e">{tr("hatched = calculated (regression)")}</text>
+                {hasMeasured && <><rect x={x0} y={y0 + 16} width={14} height={10} fill="#4a9be0" opacity="0.75" /><text x={x0 + 19} y={y0 + 25} fontSize="10" fill="#55606e">{tr("solid = measured")}</text></>}
               </g>
             ); })()}
           </svg>}
@@ -515,5 +515,5 @@ function depthTicks(from, to, pxPerMeter) { // from / to: #1480
 
 const panel = { width: "min(760px, 95vw)", height: "min(820px, 92vh)", minWidth: 480, minHeight: 360, maxWidth: "98vw", maxHeight: "98vh", resize: "both" /* TASKS.csv #3559 — the log can be made as big as the window */, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
-const selStyle = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 7px", color: "#1a2028", fontSize: 11.5, fontFamily: "inherit" };
-const btn = (primary) => ({ borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const selStyle = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 7px", color: "#1a2028", fontSize: "var(--font-size-sm)", fontFamily: "inherit" };
+const btn = (primary) => ({ borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });

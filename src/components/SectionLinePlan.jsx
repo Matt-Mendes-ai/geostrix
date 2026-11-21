@@ -41,7 +41,7 @@ export default function SectionLinePlan({ collars = [], sections = [], images = 
           <title>{tr("Saved section: {name}", { name: s.name })}</title>
           <line x1={sx(s.ax)} y1={sy(s.ay)} x2={sx(s.bx)} y2={sy(s.by)} strokeWidth={12} style={{ stroke: "transparent" }} />
           <line x1={sx(s.ax)} y1={sy(s.ay)} x2={sx(s.bx)} y2={sy(s.by)} strokeWidth={picked ? 0 : 1.6} style={{ stroke: "var(--color-text-muted)" }} />
-          <text x={(sx(s.ax) + sx(s.bx)) / 2} y={(sy(s.ay) + sy(s.by)) / 2 - 4} fontSize={9} textAnchor="middle" style={{ fill: "var(--color-text-muted)" }}>{s.name}</text>
+          <text x={(sx(s.ax) + sx(s.bx)) / 2} y={(sy(s.ay) + sy(s.by)) / 2 - 4} fontSize={10} textAnchor="middle" style={{ fill: "var(--color-text-muted)" }}>{s.name}</text>
         </g>); })}
       {ok && <g pointerEvents="none">
         <line x1={sx(line.a.x)} y1={sy(line.a.y)} x2={sx(line.b.x)} y2={sy(line.b.y)} strokeWidth={3} style={{ stroke: "var(--color-accent)" }} />

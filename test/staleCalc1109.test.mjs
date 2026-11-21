@@ -19,5 +19,5 @@ test("#1109 ordinary picks (no hole attitude stored) are ignored, and Data QC re
   const survey = [{ hole_id: "DH1", depth: 0, azimuth: 45, dip: 60 }];
   assert.equal(staleCalculatorPicks(collars, survey, [{ hole_id: "DH1", depth: 100, dip: 50, azimuth: 120 }]).length, 0);
   const res = runDataQC({ project: {}, collars, survey, layers: { structure: [pick(30.2, 60)] }, boundaries: [], assays: [] });
-  assert.ok(res.issues.some((i) => /calibrated with the hole at azimuth 30\.2/.test(i.message)), res.issues.map((i) => i.message).join("\n"));
+  assert.ok(res.issues.some((i) => /it was set with the hole at 30\.2°/.test(i.message)), res.issues.map((i) => i.message).join("\n"));
 });

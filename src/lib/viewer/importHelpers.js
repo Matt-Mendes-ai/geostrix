@@ -297,7 +297,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       if (!features.length) { onDone(null, "No placemarks with coordinates found in this KML."); return; }
       const { rows, headers } = kmlFeaturesToRows(features);
       const nPts = features.filter((f) => f.geomType === "point").length;
-      let note = tr(" KML: {nPts} point(s), {v} line/polygon(s) (one row per vertex, with part/vertex numbers). Coordinates are WGS84 longitude/latitude — Source CRS set to EPSG:4326 so they are reprojected to the project CRS.", { nPts, v: features.length - nPts });
+      let note = tr(" KML: {nPts} point(s), {v} line/polygon(s), one row per vertex; read as WGS84 (EPSG:4326) and reprojected to the project CRS.", { nPts, v: features.length - nPts });
       if (skipped) note += tr(" {skipped} placemark(s) without Point/LineString/Polygon geometry were skipped.", { skipped });
       if (badTuples) note += tr(" {badTuples} coordinate(s) were not a valid longitude,latitude[,altitude] and were left out.", { badTuples });
       onDone(rows, null, { headers, note, detectedEpsg: 4326 });
@@ -361,7 +361,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       if (parsed.skippedCount) note += tr(" {skippedCount} feature(s) with an unsupported shape type were skipped.", { skippedCount: parsed.skippedCount });
       if (parsed.deletedCount) note += tr(" {deletedCount} record(s) flagged deleted in the .dbf were left out.", { deletedCount: parsed.deletedCount });
       if (parsed.zipMembers) note += zipOthersNote(file.name, parsed.layerName, parsed.zipMembers); // #2025
-      if (parsed.hasAttributes === false) note += tr(" No .dbf attribute table came with the .shp — only coordinates came through. Select or drop the .shp together with its .dbf and .prj (or a .zip of them).");
+      if (parsed.hasAttributes === false) note += tr(" Drop the .shp with its .dbf and .prj (or a .zip of them): without the .dbf only the coordinates came through.");
       // TASKS.csv #223 — read the .prj sidecar's declared CRS instead of silently ignoring it. Only
       // ever SUGGESTS a Source CRS for the user to confirm (prefills the import modal's field, doesn't
       // reproject unasked) — guessEpsgFromPrjWkt returns null for anything it can't confidently
@@ -371,7 +371,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
         detectedEpsg = guessEpsgFromPrjWkt(parsed.prjWkt);
         note += detectedEpsg
           ? tr(" Detected source CRS EPSG:{detectedEpsg} from the bundled .prj file — pre-filled below, double-check it's correct.", { detectedEpsg })
-          : tr(" This shapefile includes a .prj file, but its CRS wasn't one GeoStrix recognizes automatically — set Source CRS manually below if it's not already in the project's EPSG.");
+          : tr(" Set Source CRS below if the data is not in the project's: this .prj names a CRS GeoStrix does not recognize.");
       }
       onDone(rows, null, { headers, note, detectedEpsg, vector: parsed }); // vector: #609 (lines / polygons -> Map layers)
     }).catch((err) => onDone(null, err.message));

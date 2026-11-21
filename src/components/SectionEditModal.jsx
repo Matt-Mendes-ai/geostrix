@@ -61,7 +61,7 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Choose what {v} actually {v2} when reopened — by default every section shows everything currently visible in the 3D view, which can pull in unrelated content (e.g. a large terrain profile behind a section meant to show one voxel model).", { v: sectionCount === 1 ? tr("this section") : tr("these sections"), v2: sectionCount === 1 ? tr("shows") : tr("show") })}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Choose what {v} {v2} when reopened: by default a section shows everything visible in the 3D view, unrelated content included.", { v: sectionCount === 1 ? tr("this section") : tr("these sections"), v2: sectionCount === 1 ? tr("shows") : tr("show") })}</div>
 
           <div>
             <label style={{ ...field, marginBottom: 6 }}>{tr("Corridor width (m)")}{" "}{sectionCount > 1 && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("— leave blank to keep each section's own width")}</span>}

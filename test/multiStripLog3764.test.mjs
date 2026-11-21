@@ -12,7 +12,7 @@ const collars = [hole("A", 305, 850), hole("B", 142, 852), hole("C", 90, 830)];
 const lith = (id, len) => Array.from({ length: Math.floor(len / 10) }, (_, i) => ({ hole_id: id, from: i * 10, to: i * 10 + 10, value: i % 2 ? "ANDS" : "TUFF" }));
 const layers = { litho: [...lith("A", 305), ...lith("B", 142), ...lith("C", 90)] };
 const opts = { collars, layers, assays: [], assaySymbols: [], elementUnits: {} };
-const ticks = (svg) => { const out = []; for (const m of svg.matchAll(/<svg x="(\d+)" y="\d+"[^>]*>([\s\S]*?)<\/svg>/g)) out.push([...m[2].matchAll(/<text x="4" y="[\d.]+" font-size="9" fill="#5a6472">(\d+)<\/text>/g)].map((t) => +t[1])); return out; };
+const ticks = (svg) => { const out = []; for (const m of svg.matchAll(/<svg x="(\d+)" y="\d+"[^>]*>([\s\S]*?)<\/svg>/g)) out.push([...m[2].matchAll(/<text x="4" y="[\d.]+" font-size="10" fill="#5a6472">(\d+)<\/text>/g)].map((t) => +t[1])); return out; };
 
 test("one depth tick step for every column (each took its own hole's length)", () => {
   const { svg } = composeStripLogs(["A", "B", "C"], opts, { align: "depth" });

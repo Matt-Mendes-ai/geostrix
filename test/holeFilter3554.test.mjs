@@ -46,7 +46,7 @@ test("what the box cannot read lists nothing and says what it knows: an unknown 
   assert.deepEqual(r.hint, { kind: "set", names: ["nothing"] });
   assert.equal(ids("year>=abc").length, 0, "no number: it is read as a hole id");
   const src = read("../src/modules/viewer/HoleFilterBar.jsx");
-  assert.match(src, /No hole matches\. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017\.\.2023, and has:assays or no:assays\./);
+  assert.match(src, /No hole matches\. Type part of a hole id, field=value, a test such as year>=2017, length>300 or year=2017\.\.2023, or has:assays \/ no:assays\./);
   assert.match(src, /No data called \{name\} here: has:assays, no:assays, or the name of a layer of this project\./);
   assert.match(src, /By what holes have…/);
 });

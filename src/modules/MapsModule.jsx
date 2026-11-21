@@ -34,7 +34,10 @@ export default function MapsModule() {
   const hasPlan = !!planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys }); // #1625 — a plan of it, else the card
   useModuleAction(["maps-crs"], () => setPane("crs")); // the Set project CRS menu item
   useModuleAction(["maps-plan"], () => setPane((p) => (CRS_PANES.has(p) ? "raster" : p))); // TASKS.csv #3491 — Layout asks the plan for a fresh capture: it must be on screen
-  useModuleAction(["maps-terrain"], () => setPane("terrain")); // TASKS.csv #1429 — the inversion pane's 'Go to Maps › Terrain'
+  useModuleAction(["maps-terrain"], () => setPane("terrain"));
+  // TASKS.csv #3932 — an AI app's fetch_terrain / fetch_satellite_image: the pane that fetches comes forward and is asked (it answers the app through the payload's reply)
+  useModuleAction(["mcp-fetch-terrain"], (_a, p) => { setPane("terrain"); requestModuleAction("mcp-terrain-run", p); });
+  useModuleAction(["mcp-fetch-satellite"], (_a, p) => { setPane("raster"); requestModuleAction("mcp-satellite-run", p); }); // TASKS.csv #1429 — the inversion pane's 'Go to Maps › Terrain'
   // TASKS.csv #1994 — a lidar file dropped on the 3D View or the Geophysics tab: the Terrain pane, which opens it
   useModuleAction(["maps-lidar"], (_a, p) => { setPane("terrain"); requestModuleAction("open-lidar", p); });
   // TASKS.csv #1507 (review #1497, Lawyers) — a GeoTIFF dropped on the map (or the 'Nothing on the map yet' card) did nothing: only

@@ -15,6 +15,6 @@ test("#2300 — {crs} and the grid caption say local grid; the checkbox is not '
 });
 
 test("#2299 — the north diagram refuses before the placeholder's convergence and declination", () => {
-  const i = s.indexOf('if (project?.crsSet === false) { updateSelected({ decl: null, declError: tr("This project has no coordinate system set'), j = s.indexOf('azimuthToGridOffset("magnetic", at.x, at.y, project.epsg, date)');
+  const i = s.indexOf('if (project?.crsSet === false) { updateSelected({ decl: null, declError: tr("Set the CRS in the status bar to compute true and magnetic north'), /* #3899 */ j = s.indexOf('azimuthToGridOffset("magnetic", at.x, at.y, project.epsg, date)');
   assert.ok(i > 0 && i < j);
 });

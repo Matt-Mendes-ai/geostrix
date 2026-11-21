@@ -138,6 +138,7 @@ import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 
 import { pointsAlongOneLine, surveyLabel } from "../lib/rasterMethod.js"; // TASKS.csv #2557; surveyLabel: #2559
 import { collarTerrainOffsets, collarTerrainSide } from "../lib/dataQC.js"; // TASKS.csv #3807
 import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import { stopsAreLogSpaced } from "../lib/legendScale.js"; // TASKS.csv #3813 — the model's own scale for its on-hole layer
 const APPARENT_METHODS = new Set(["ip_app", "res_app"]); // TASKS.csv #3808 — a DC / IP survey's apparent values at pseudo-depths
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
@@ -262,8 +263,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const out = rows.map((r) => ({ ...r, value: discrete ? labelOf(r.value) : r.value, modelled: true, ...(discrete ? {} : { numeric: true }), modelColor: colorForVoxelValue(model, r.value) }));
     // TASKS.csv #3813 — a second evaluation of the same model replaces its layer (same id: its style and the axis lists keep it) instead of adding a second layer of the same name
     const prevLayer = (customLayers || []).find((l) => l.sourceModel === model.id && /^On holes: /.test(String(l.name)));
+    // TASKS.csv #3813 (Matt's decision, 2026-11-21) — the layer starts on the model's own scale: log when its colours are log-spaced, else linear (switchable in the layer's Style)
+    const scale = discrete ? undefined : stopsAreLogSpaced(model.stops) ? "log" : "linear";
     const id = prevLayer?.id || `custom_${Date.now()}`;
-    setCustomLayers((p) => (p.some((l) => l.id === id) ? p.map((l) => (l.id === id ? { ...l, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null } : l)) : [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null }]));
+    setCustomLayers((p) => (p.some((l) => l.id === id) ? p.map((l) => (l.id === id ? { ...l, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null, defaultRampScale: scale } : l)) : [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null, defaultRampScale: scale }]));
     setVoxelError({ info: true, text: tr("Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs.{routes}", { name: model.name, routes: onHolesRoutes(assays, layers), rows: rows.length.toLocaleString(), holes }) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
   };
   // User question after the MAX_CELLS coarsening budget was lowered (perf investigation done in this
@@ -906,6 +909,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setMacrostratOpen(true);
   };
   useModuleAction(["open-macrostrat"], () => { if (forcePane === "web") openMacrostrat(); });
+  // TASKS.csv #3932 — an AI app's fetch_terrain (the download was already asked for and allowed in GeoStrix's main process): Copernicus GLO-30 over the area
+  // the picker would open on; refused when a terrain is loaded (no overwrite)
+  useModuleAction(["mcp-terrain-run"], async (_a, p) => {
+    if (forcePane !== "terrain") return;
+    const reply = (r) => { try { p?.reply?.(r); } catch { /* gone */ } };
+    if (terrain) return reply({ ok: false, error: "A terrain is already loaded: remove it in GeoStrix first." });
+    if ((project?.crsSet === false || !project?.epsg) && !tieOf(project)) return reply({ ok: false, error: "The project has no coordinate system yet: set it in GeoStrix (Maps › Coordinate system) first." });
+    if (terrainBusy) return reply({ ok: false, error: "A terrain is already being fetched in GeoStrix." });
+    const seed = await defaultSrtmBboxLonLat();
+    if (!seed) return reply({ ok: false, error: "There is no area to fetch terrain for: the project has no drillholes or map layers in a known coordinate system." });
+    let answered = false;
+    await runSrtmFetch(seed, null, { done: (r) => { answered = true; reply(r); } });
+    if (!answered) reply({ ok: false, error: "The terrain could not be fetched." });
+  });
   const openLidar = async (file) => {
     if (!file) return;
     setTerrainError(null);
@@ -1123,7 +1140,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   openSrtmPickerRef.current = openSrtmPicker;
 
   const relabelNote = useRef(""); // #614
-  const runSrtmFetch = async (bboxLonLat, epsgOverride = null) => {
+  // TASKS.csv #3932 — `ai` (an AI app's fetch_terrain, lib/mcpActions.js): Copernicus GLO-30 whatever the pane's own source, the misfit check said but the project's CRS
+  // never relabelled (an AI app does not change settings), and `done(result)` told how it ended
+  const runSrtmFetch = async (bboxLonLat, epsgOverride = null, ai = null) => {
+    const src = ai ? "copernicus" : terrainSource;
+    const said = (r) => { try { ai?.done?.(r); } catch { /* the app has gone */ } };
     const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
     const tie = epsgOverride ? null : tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
     const targetEpsg = epsgOverride || (tie ? Number(tie.epsg) : project.epsg); // #614 — a zone fix re-fetches before the new label reaches this closure
@@ -1131,19 +1152,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       return;
     }
     // TASKS.csv #3251 — over a quarter of this computer's memory: refused with the figures, before anything is fetched
-    const plan = planTerrainFetch(bboxLonLat, terrainDetail, terrainSource);
-    if (!fetchFits(plan.memoryMB, ramGB)) { setTerrainError({ info: false, text: tr("This terrain would take about {mb} MB of memory, over the {max} MB a fetch may use on this computer (a quarter of its memory). Choose a lower Terrain detail or a smaller area.", { mb: plan.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; }
+    const plan = planTerrainFetch(bboxLonLat, terrainDetail, src);
+    if (!fetchFits(plan.memoryMB, ramGB)) { said({ ok: false, error: "This terrain would take more memory than a fetch may use on this computer: choose a lower Terrain detail in GeoStrix (Maps › Terrain)." }); setTerrainError({ info: false, text: tr("This terrain would take about {mb} MB of memory, over the {max} MB a fetch may use on this computer (a quarter of its memory). Choose a lower Terrain detail or a smaller area.", { mb: plan.memoryMB.toLocaleString(), max: fetchBudgetMB(ramGB).toLocaleString() }) }); return; }
     setSrtmPickerOpen(false);
     setTerrainBusy(true);
     setSrtmProgress({ done: 0, total: 1 });
     try {
-      const nrcan = terrainSource === "mrdem" || terrainSource === "hrdem"; // TASKS.csv #815
-      const gem = terrainSource === "gem15" || terrainSource === "gem15dsm"; // TASKS.csv #3721
-      const fetcher = gem ? (await import("../lib/gem15Dem.js")).fetchGemTerrain : nrcan ? (await import("../lib/nrcanDem.js")).fetchNrcanTerrain : terrainSource === "copernicus" ? fetchCopernicusTerrain : fetchSRTMTerrain; // #814
+      const nrcan = src === "mrdem" || src === "hrdem"; // TASKS.csv #815
+      const gem = src === "gem15" || src === "gem15dsm"; // TASKS.csv #3721
+      const fetcher = gem ? (await import("../lib/gem15Dem.js")).fetchGemTerrain : nrcan ? (await import("../lib/nrcanDem.js")).fetchNrcanTerrain : src === "copernicus" ? fetchCopernicusTerrain : fetchSRTMTerrain; // #814
       let parsed = await fetcher({
         lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
         onProgress: (done, total) => setSrtmProgress({ done, total }),
-        source: terrainSource,
+        source: src,
       });
       let tieNote = "";
       if (tie) { // #2648
@@ -1164,7 +1185,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         setSrtmProgress(null);
         setTerrainError({ info: true, text: tr("The collars sit a median {v} m off this terrain — checking whether the project's CRS is one UTM zone off…", { v: Math.round(misfit.medianDz) }) });
         const better = await findBetterUtmZone(collars, targetEpsg, misfit);
-        if (better && window.confirm(tr("The {n} collars sit a median {v} m above or below the terrain fetched for {v2}, but read as {name} they sit within {v3} m of the ground.\n\nThe project CRS is probably the wrong UTM zone (new projects start as EPSG:3156, zone 9N; a collar CSV carries no CRS).\n\nOK — relabel the project as {name} (EPSG:{code}; no coordinates change) and fetch the terrain there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code }))) {
+        if (ai) ai.misfit = { collar_misfit_m: Math.round(misfit.medianDz), ...(better ? { a_better_fit: `${better.name} (EPSG:${better.code}), within ${Math.round(better.medianDz)} m` } : {}) }; // #3932 — said, not relabelled
+        if (better && !ai && window.confirm(tr("The {n} collars sit a median {v} m above or below the terrain fetched for {v2}, but read as {name} they sit within {v3} m of the ground.\n\nThe project CRS is probably the wrong UTM zone (new projects start as EPSG:3156, zone 9N; a collar CSV carries no CRS).\n\nOK — relabel the project as {name} (EPSG:{code}; no coordinates change) and fetch the terrain there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code }))) {
           setEpsg(better.code);
           const T = pointTransform(better.code, 4326);
           const [bx0, by0, bx1, by1] = parsed.bbox;
@@ -1176,7 +1198,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           ? tr(" The collars sit a median {v} m off this terrain (in {name} they would sit within {v2} m) — kept as you chose.", { v: Math.round(misfit.medianDz), name: better.name, v2: Math.round(better.medianDz) })
           : tr(" The collars sit a median {v} m off this terrain, and no neighbouring UTM zone fits better: check the project CRS and the collar elevations (feet? a local datum?).", { v: Math.round(misfit.medianDz) });
       }
-      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null }); // noDataMask: #421; source: #726
+      const terrainId = addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null }); // noDataMask: #421; source: #726
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
       let msg = (tie ? Math.abs((tie.scale || 1) - 1) < 0.01 : isMetricProjectedEpsg(project?.epsg)) // #2127 — metres on a metric project; a tied grid in metres: #2648
         ? tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v} × {v2} m for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: Math.round(txmax - txmin).toLocaleString(), v2: Math.round(tymax - tymin).toLocaleString() })
@@ -1207,7 +1229,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       { const cluster = collarClusterAbove(collars, parsed, { nodeM: parsed.source?.nodeM }); if (cluster) misfitNote += " " + collarClusterNote(cluster, parsed); } // TASKS.csv #3882 follow-up — a compact cluster far above the ground (a pit), named whatever the median
       msg += tieNote + misfitNote + relabelNote.current; relabelNote.current = ""; // #614; tieNote: #2648
       setTerrainError({ info: true, text: msg });
+      said({ ok: true, name: parsed.name, id: terrainId, grid: `${parsed.gridW} x ${parsed.gridH}`, ...(ai?.misfit || {}) }); // #3932
     } catch (err) {
+      said({ ok: false, error: String(err?.message || "The terrain could not be fetched.") }); // #3932
       setTerrainError({ info: false, text: err.message });
     } finally {
       setTerrainBusy(false);

@@ -10,7 +10,7 @@ const s = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta
 test("#1694 the empty Generated surfaces list: one instruction; the 'saved with the project' sentence is its tooltip", () => {
   assert.ok(!s.includes("Binding a surface to a saved theme is still a follow-up"));
   assert.ok(!s.includes("Generated surfaces now save with the project"));
-  assert.match(s, /title=\{tr\("Generated surfaces save with the project \(mesh, type, declared relationships and the parameters that produced them\), so a reported volume or tonnage can be reproduced after a restart\."\)\}>\{tr\("None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid\."\)\}/);
+  assert.match(s, /title=\{tr\("Generated surfaces save with the project \(mesh, type, relationships, parameters\), so a reported volume or tonnage can be reproduced after a restart\."\)\}>\{tr\("None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid\."\)\}/);
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
     assert.ok(!Object.keys(d).some((k) => k.includes("Binding a surface to a saved theme")), `${lang}: the old key is gone`);

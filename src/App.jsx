@@ -226,7 +226,7 @@ export default function App() {
   const [aiAccessOpen, setAiAccessOpen] = useState(false); // TASKS.csv #3190
   // TASKS.csv #3190 — an AI app's question about the open project (only ever sent while AI App Access is on) is answered from a snapshot of the store by src/lib/mcpTools.js, loaded on the first one
   const storeNow = useRef(store); storeNow.current = store;
-  useEffect(() => onMcpRequest(() => { const s = storeNow.current; return { project: s.project, collars: s.collars, survey: s.survey, layers: s.layers, assays: s.assays, assayElements: s.assayElements, sections: s.sections, codeDictionary: s.codeDictionary, desurveyMethod: s.desurveyMethod }; }), []);
+  useEffect(() => onMcpRequest(() => { const s = storeNow.current; return { project: s.project, collars: s.collars, survey: s.survey, layers: s.layers, assays: s.assays, assayElements: s.assayElements, sections: s.sections, codeDictionary: s.codeDictionary, desurveyMethod: s.desurveyMethod }; }, () => storeNow.current /* #3932 — change tools: the live store */), []);
   const [lastExitUnclean, setLastExitUnclean] = useState(false);
   const openReportProblem = async (crashed = false) => {
     let screenshot = null;
@@ -356,11 +356,11 @@ export default function App() {
     const res = await saveProject(opts); // #553 — opts.saveAs for Save As
     if (res.ok) { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800); }
     // TASKS.csv #467 — say so when the file could not be written; the project stays open and unchanged.
-    else if (res.error) window.alert(tr("The project could not be saved:\n\n{error}\n\nYour work is still open. Try saving to a different folder (a full disk, a read-only or synced folder, or antivirus can block the write).", { error: res.error }));
+    else if (res.error) window.alert(tr("Save to another folder: the project could not be saved here.\n\n{error}\n\nYour work is still open. A full disk, a synced folder or antivirus can block a save.", { error: res.error }));
   }, [saveProject]);
   // TASKS.csv #1262 — a file whose fields had the wrong shape opened with those fields empty: say which, before the user
   // saves it back over the original
-  const warnDropped = (res) => { if (res?.dropped?.length) window.alert(tr("This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.", { list: res.dropped.join(", ") })); };
+  const warnDropped = (res) => { if (res?.dropped?.length) window.alert(tr("Save under another name to keep the original: this file's {list} had the wrong form and were left empty; everything else was read.", { list: res.dropped.join(", ") })); };
   const doOpen = useCallback(async () => {
     const res = await openProject();
     if (res.ok) { setActive("viewer"); warnDropped(res); }
@@ -667,7 +667,7 @@ export default function App() {
         <button className="ge-tool-btn" onClick={doOpen} title={tr("Open project")} aria-label={tr("Open project")}><FolderOpen size={14} /> <span className="ge-tool-label-opt">{tr("Open")}</span></button>
         <button className="ge-tool-btn" onClick={() => doSave()} title={tr("Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)")} aria-label={tr("Save project")}><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? tr("Saved ✓") : tr("Save")}</span></button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={undoTooltip("undo", peekUndo?.(), tr("The history holds collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, map layers and interpretation lines, Layout pages ... Rasters, terrain, block models, generated surfaces and view changes are not undoable."))} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
+        <button className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={undoTooltip("undo", peekUndo?.(), tr("Undoable: data edits, sections, map layers, interpretation lines and Layout pages. Not undoable: rasters, terrain, block models, generated surfaces and view changes."))} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
         <button className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={undoTooltip("redo", peekRedo?.(), "")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
         <button className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Export PDF")}</span></button>
@@ -819,7 +819,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
   return (
     <div className="ge-status">
       <span className="ge-status-name" title={project.name || undefined}>{!project.name || project.name === "Untitled project" ? tr("Untitled project") : project.name}</span>{/* #1448; the class: #3661 */}
-      {autosavedAt && <span title={tr("The unsaved work of this window was written to the recovery copy at {time}: after a crash GeoStrix offers it back. Save the project to put it in its file.", { time: new Date(autosavedAt).toLocaleTimeString() })} style={{ color: "var(--color-text-muted)" }}>{tr("Autosaved {time}", { time: new Date(autosavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) })}</span> /* TASKS.csv #3619 */}
+      {autosavedAt && <span title={tr("Save the project to keep it: the unsaved work was copied for recovery at {time}, offered back after a crash.", { time: new Date(autosavedAt).toLocaleTimeString() })} style={{ color: "var(--color-text-muted)" }}>{tr("Autosaved {time}", { time: new Date(autosavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) })}</span> /* TASKS.csv #3619 */}
       {project.dataCredit && <span className="ge-credit" title={project.dataCredit}>{project.dataCredit}</span> /* TASKS.csv #3527 — the data owner's credit stays on the open project (saved with it), not only in the notice that opens the sample */}
       <span>{tr("Holes:")} <span className="val">{collars.length}</span></span>
       <span>E <span className="val">{fmt(cursor.x)}</span></span>
@@ -850,8 +850,8 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
         <span aria-hidden="true" style={{ border: "1px solid var(--color-border-light)", borderRadius: "50%", width: 16, height: 16, lineHeight: "14px", textAlign: "center", fontSize: "var(--font-size-sm)" }}>?</span>
       </button>
       {/* TASKS.csv #391 — a button now: opens Help › Python features (was a hover-only README pointer) */}
-      {ai?.enabled && (() => { const names = (ai.clients || []).map((c) => c.name).join(", "), label = names ? tr("AI app: {names}", { names }) : tr("AI app access: on"); return (
-        <button type="button" onClick={() => onAiAccess?.()} title={tr("An AI app can read this project (read-only). Click to see what it asked for, or to stop it.")} aria-label={label}
+      {ai?.enabled && (() => { const names = (ai.clients || []).map((c) => c.name).join(", "), label = ai.changes ? (names ? tr("AI app: {names}, can make changes", { names }) : tr("AI app access: on, can make changes")) : names ? tr("AI app: {names}", { names }) : tr("AI app access: on"); return ( // #3932 — says so while changes are allowed
+        <button type="button" onClick={() => onAiAccess?.()} title={ai.changes ? tr("An AI app can read this project and make changes in it. Click to see what it asked for, or to stop it.") : tr("An AI app can read this project (read-only). Click to see what it asked for, or to stop it.")} aria-label={label}
           style={{ background: "none", border: "none", color: "var(--color-warn-text)", padding: 0, font: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
           <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--color-warn-text)", display: "inline-block" }} />{label}
         </button>); })()}

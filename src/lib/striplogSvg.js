@@ -28,8 +28,16 @@ import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill } from "./l
 
 const TRACK_W = 90;
 const DEPTH_COL_W = 50;
-const PAD_TOP = 36;
-const PAD_BOTTOM = 30; // #3024 — room for an assay track's tick labels and its "same axis on all pages" line (was 20)
+export const PAD_TOP = 36; // exported: multiStripLog reads a hole's depth back from the figure's height (#3900)
+export const PAD_BOTTOM = 42; // #3024 — room for an assay track's tick labels and its "same axis on all pages" line (was 20); #3900: 10 px text, a caption on two lines
+// TASKS.csv #3900 T2 (Matt: a 10 px floor for figure text, on screen and in the export alike) — the captions under a track were 7 and 8 px. At 10 px a
+// long one ("same axis on all pages", "log 0.004–150, all pages") is wider than the track: it wraps onto a second line (tspans), never into the next track.
+const CAPTION_PX = 10;
+function captionText(cx, y, text, maxW) {
+  const words = String(text).split(" "), lines = [];
+  for (const w of words) { const cur = lines[lines.length - 1]; if (cur != null && (cur + " " + w).length * CAPTION_PX * 0.55 <= maxW) lines[lines.length - 1] = cur + " " + w; else lines.push(w); }
+  return `<text x="${cx}" y="${y}" font-size="${CAPTION_PX}" text-anchor="middle" fill="#65717e">${lines.slice(0, 2).map((l, k) => `<tspan x="${cx}" dy="${k ? CAPTION_PX + 1 : 0}">${esc(l)}</tspan>`).join("")}</text>`;
+}
 
 function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
@@ -67,26 +75,26 @@ export function assayTrackRange(rows, sym, unit, elementUnits) {
 }
 function assayTrack(rows, x, sy, sym, unit, elementUnits, bottom, range = null) {
   const vals = rows.map((r) => valueIn(r, sym, unit, elementUnits)).filter((v) => v != null && Number.isFinite(v));
-  if (!vals.length) return `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(tr("no {sym} assays", { sym }))}</text>`;
+  if (!vals.length) return captionText(x + (TRACK_W - 6) / 2, bottom + 14, tr("no {sym} assays", { sym }), TRACK_W - 8);
   const own = assayTrackRange(rows, sym, unit, elementUnits);
   const ticks = rows.filter((r) => isBelowDetection(r, sym) && valueIn(r, sym, unit, elementUnits) != null).map((r) => `<rect x="${x + 2}" y="${sy(r.from)}" width="3" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="none" stroke="#8a95a3" stroke-width="0.6"><title>${r.from}-${r.to} m: ${esc(tr("below detection"))}</title></rect>`).join("");
-  if (!own && !range) return ticks + `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(tr("all below detection"))}</text>`;
+  if (!own && !range) return ticks + captionText(x + (TRACK_W - 6) / 2, bottom + 14, tr("all below detection"), TRACK_W - 8);
   const { lo, hi } = range || own;
   // TASKS.csv #3024 (review #2876, WA iron) — Fe in per cent (14-59) was drawn on a log axis with only 'log 14-58.9' under it: 55 % could not
   // be read off a bar. Values spanning under two decades take a linear axis from 0 with labelled ticks (0 / 20 / 40 / 60); wider, log as before
   const axis = assayAxis(lo, hi);
   const frac = axis.linear ? (v) => (!(v > 0) ? 0 : Math.max(0.03, Math.min(1, v / axis.max))) : (v) => (!(v > 0) ? 0 : hi > lo ? Math.max(0.03, Math.min(1, (Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)))) : 1);
-  const tickMarks = axis.linear ? axis.ticks.map((t) => { const tx = x + 2 + (t / axis.max) * (TRACK_W - 10); return `<line x1="${tx}" y1="${PAD_TOP - 2}" x2="${tx}" y2="${bottom}" stroke="#e1e4e8" stroke-width="0.6"/><text x="${tx}" y="${bottom + 13}" font-size="7" text-anchor="middle" fill="#65717e">${t}</text>`; }).join("")
-    : logAxisTicks(lo, hi, { widthPx: TRACK_W - 10, fontPx: 7 }).map((t) => { const tx = x + 2 + t.f * (TRACK_W - 10); return `<line x1="${tx}" y1="${PAD_TOP - 2}" x2="${tx}" y2="${bottom}" stroke="#e1e4e8" stroke-width="0.6"/>${t.label ? `<text x="${tx}" y="${bottom + 13}" font-size="7" text-anchor="${t.anchor}" fill="#65717e">${esc(t.label)}</text>` : ""}`; }).join(""); // #3859 — the decades
+  const tickMarks = axis.linear ? axis.ticks.map((t) => { const tx = x + 2 + (t / axis.max) * (TRACK_W - 10); return `<line x1="${tx}" y1="${PAD_TOP - 2}" x2="${tx}" y2="${bottom}" stroke="#e1e4e8" stroke-width="0.6"/><text x="${tx}" y="${bottom + 14}" font-size="10" text-anchor="middle" fill="#65717e">${t}</text>`; }).join("")
+    : logAxisTicks(lo, hi, { widthPx: TRACK_W - 10, fontPx: 10 }).map((t) => { const tx = x + 2 + t.f * (TRACK_W - 10); return `<line x1="${tx}" y1="${PAD_TOP - 2}" x2="${tx}" y2="${bottom}" stroke="#e1e4e8" stroke-width="0.6"/>${t.label ? `<text x="${tx}" y="${bottom + 14}" font-size="10" text-anchor="${t.anchor}" fill="#65717e">${esc(t.label)}</text>` : ""}`; }).join(""); // #3859 — the decades
   // TASKS.csv #3859 — the highest values written at their bars
-  const peaks = peakValueLabels(rows.map((r) => { const v = valueIn(r, sym, unit, elementUnits); return v == null || !Number.isFinite(v) || isBelowDetection(r, sym) ? null : { v, y: (sy(r.from) + sy(r.to)) / 2, f: frac(v) }; }).filter(Boolean)).map((pk) => { const t = sigText(pk.v, 3), tw = t.length * 7 * 0.55 + 4, tx = x + TRACK_W - 9; return `<rect x="${tx - tw}" y="${pk.y - 5}" width="${tw}" height="9" fill="#ffffff" fill-opacity="0.85"/><text x="${tx - 2}" y="${pk.y + 2.5}" font-size="7" text-anchor="end" fill="#1a2028">${esc(t)}</text>`; }).join("");
+  const peaks = peakValueLabels(rows.map((r) => { const v = valueIn(r, sym, unit, elementUnits); return v == null || !Number.isFinite(v) || isBelowDetection(r, sym) ? null : { v, y: (sy(r.from) + sy(r.to)) / 2, f: frac(v) }; }).filter(Boolean), { gapPx: 13 } /* #3900: 12 px labels */).map((pk) => { const t = sigText(pk.v, 3), tw = t.length * 10 * 0.55 + 4, tx = x + TRACK_W - 9; return `<rect x="${tx - tw}" y="${pk.y - 7}" width="${tw}" height="12" fill="#ffffff" fill-opacity="0.85"/><text x="${tx - 2}" y="${pk.y + 3.5}" font-size="10" text-anchor="end" fill="#1a2028">${esc(t)}</text>`; }).join("");
   return ticks + tickMarks + rows.map((r) => { // #3024 — the gridlines under the bars
     const v = valueIn(r, sym, unit, elementUnits);
     if (v == null || !Number.isFinite(v) || isBelowDetection(r, sym)) return "";
     const w = frac(v) * (TRACK_W - 10);
     if (!(w > 0)) return "";
     return `<rect x="${x + 2}" y="${sy(r.from)}" width="${w}" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="#c9863d" opacity="0.85"><title>${r.from}-${r.to} m: ${esc(String(v))} ${esc(unit)}</title></rect>`;
-  }).join("") + peaks + (axis.linear ? (range ? `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(tr("same axis on all pages"))}</text>` : "") : `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 23}" font-size="7" text-anchor="middle" fill="#65717e">${esc(range ? tr("log {minPos}–{max}, all pages", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) : tr("log {minPos}–{max}", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) /* no exponents: #2481 */)}</text>`);
+  }).join("") + peaks + (axis.linear ? (range ? captionText(x + (TRACK_W - 6) / 2, bottom + 26, tr("same axis on all pages"), TRACK_W - 8) : "") : captionText(x + (TRACK_W - 6) / 2, bottom + 26, range ? tr("log {minPos}–{max}, all pages", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) : tr("log {minPos}–{max}", { minPos: sigText(lo, 2), max: sigText(hi, 2) }) /* no exponents: #2481 */, TRACK_W - 8));
 }
 // TASKS.csv #3859 (Scottie Gold review) — a log assay track was captioned with its two ends only ('log 0.004–150', 5.6 pt): no tick or grid line, so a
 // bar halfway across (0.5 g/t) or three quarters (8 g/t) could not be read. The decades between lo and hi (with 2 and 5 between them when fewer than
@@ -207,7 +215,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
   for (let d = 0; d <= maxDepth; d += depthStep) {
     const y = sy(d);
     body += `<line x1="${DEPTH_COL_W}" y1="${y}" x2="${W - 6}" y2="${y}" stroke="#e6e8eb" stroke-width="1"/>`;
-    body += `<text x="4" y="${y + 3}" font-size="9" fill="#5a6472">${d}</text>`;
+    body += `<text x="4" y="${y + 3.5}" font-size="10" fill="#5a6472">${d}</text>`; // #3900: 10 px
   }
   let x = DEPTH_COL_W;
   tracks.forEach((t) => {

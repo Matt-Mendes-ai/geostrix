@@ -494,13 +494,21 @@ const NO_MCP = { ok: false, error: "AI App Access needs the desktop app." };
 export const mcpStatus = async () => (d?.mcpStatus ? d.mcpStatus() : null);
 export const mcpSetEnabled = async (on, remember) => (d?.mcpSetEnabled ? d.mcpSetEnabled(on, remember) : NO_MCP);
 export const mcpStop = async () => (d?.mcpStop ? d.mcpStop() : NO_MCP);
+export const mcpSetChanges = async (on) => (d?.mcpSetChanges ? d.mcpSetChanges(on) : NO_MCP); // TASKS.csv #3932 — 'Allow AI apps to make changes'
 export const mcpForgetClients = async () => (d?.mcpForgetClients ? d.mcpForgetClients() : NO_MCP);
 export const mcpConfig = async () => (d?.mcpConfig ? d.mcpConfig() : null);
 export const onMcpStatus = (cb) => (d?.onMcpStatus ? d.onMcpStatus(cb) : () => {});
-// each tool call of an AI app arrives here, is answered from the open project by src/lib/mcpTools.js (loaded on the first call) and goes back
-export function onMcpRequest(getSnapshot) {
+// each tool call of an AI app arrives here, is answered from the open project by src/lib/mcpTools.js (loaded on the first call) and goes back.
+// TASKS.csv #3932 — a change tool (main has already checked 'Allow AI apps to make changes') goes to src/lib/mcpActions.js instead, with the live store (getStore)
+// and the toast (EXPORT_RESULT_EVENT, with an Undo button); it never reaches this file's IPC wrappers.
+export function onMcpRequest(getSnapshot, getStore) {
   if (!d?.onMcpRequest) return () => {};
   return d.onMcpRequest(async (req) => {
+    if (req?.change) {
+      try { const { runChange } = await import("./mcpActions.js"); d.mcpRespond(req.id, await runChange(req.name, req.args, { getStore, client: req.client, toast: announce })); }
+      catch { d.mcpRespond(req.id, { ok: false, error: "The change could not be made." }); }
+      return;
+    }
     try { const { runTool } = await import("./mcpTools.js"); d.mcpRespond(req.id, runTool(req.name, req.args, getSnapshot())); }
     catch { d.mcpRespond(req.id, { ok: false, error: "The tool could not read the project." }); }
   });

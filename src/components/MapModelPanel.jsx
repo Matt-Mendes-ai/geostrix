@@ -3,7 +3,7 @@
 // lib/pileOrder.js (bedding younging across each contact + each contact's own dip fitted from its trace on the terrain,
 // faulted contacts left out) and shown WITH its evidence; the geologist reorders units, changes roles, sets each fault's
 // dip, then runs the ordinary GemPy stack (modellingRuns.runMapModel).
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { deepestUnitIntercept } from "../lib/holeMapContacts.js"; // TASKS.csv #2568
 import { contactOrientationNear } from "../lib/sheetFromContacts.js"; // TASKS.csv #2642
 import { fitSheetToLogs } from "../lib/sheetLogCheck.js"; // TASKS.csv #2724
@@ -16,6 +16,9 @@ import { suggestPileOrder, mapRoleFromLog } from "../lib/pileOrder.js"; // mapRo
 import { roleWithCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #3369 — the logs' role of a code (Modelling codes first)
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M, contactsAgainstOrder } from "../lib/holeMapContacts.js"; // TASKS.csv #1718; contactsAgainstOrder: #2408
+import { plainLith } from "../lib/lithText.js"; // TASKS.csv #3936: a Macrostrat unit name's lithology block in words (shown; the run keeps the value)
+import { cutMapOrder, mergeUnits } from "../lib/mapOrderCut.js"; // TASKS.csv #3936 — the order cut down to GemPy's limit, offered
+import { GEMPY_MAX_SURFACES } from "../lib/gempyLimits.js"; // TASKS.csv #3936
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
@@ -73,10 +76,15 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const logRoleOf = useMemo(() => { if (!nearestHole) return null; const r = roleWithCodes(mcodes); return (u) => mapRoleFromLog(r(u)); }, [nearestHole, mcodes]);
   // TASKS.csv #3391 — on the outlines the units ARE the logged codes: their contacts down the holes (shallower = younger) give the order
   const loggedContacts = useMemo(() => (nearestHole && lithoRows?.length ? holeContacts(lithoRows, Object.fromEntries(loggedCodes(lithoRows).map((c) => [c.code, String(c.code)]))).contacts : null), [nearestHole, lithoRows]);
+  // TASKS.csv #3936 — a cut of the order taken from the offer (below the order): the merged units under their merged name (a copy of the layer, for the
+  // suggestion and the run) and the units set aside as 'other (left out)'
+  const [cut, setCut] = useState(null); // { merge: { unit: merged name }, out: [unit] }
+  useEffect(() => { setCut(null); }, [layer?.id, unitField]);
+  const effLayer = useMemo(() => (cut ? mergeUnits(layer, unitField, cut.merge) : layer), [layer, unitField, cut]);
   const suggestion = useMemo(() => {
-    if (!layer || !unitField) return null;
-    try { return suggestPileOrder({ layer, field: unitField, descField: desc || null, bedding, faults: faults.filter((f) => f.on).map((f) => f.line), groundAt, nearestHole, roleOf: logRoleOf, loggedContacts }); } catch { return null; }
-  }, [layer, unitField, desc, bedding, faults, groundAt, nearestHole, logRoleOf, loggedContacts]);
+    if (!effLayer || !unitField) return null;
+    try { return suggestPileOrder({ layer: effLayer, field: unitField, descField: desc || null, bedding, faults: faults.filter((f) => f.on).map((f) => f.line), groundAt, nearestHole, roleOf: logRoleOf, loggedContacts }); } catch { return null; }
+  }, [effLayer, unitField, desc, bedding, faults, groundAt, nearestHole, logRoleOf, loggedContacts]);
   const [order, setOrder] = useState([]);
   const [roles, setRoles] = useState({});
   // TASKS.csv #2408 — an order set by hand is kept when the suggestion is recomputed (unticking an orientation class put Basement back on top
@@ -84,7 +92,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const [orderByHand, setOrderByHand] = useState(false);
   useEffect(() => {
     if (!suggestion) return;
-    if (!orderByHand) { setOrder(suggestion.order); setRoles(suggestion.roles); return; }
+    if (!orderByHand) { const out = new Set(cut?.out || []); setOrder(suggestion.order.filter((u) => !out.has(u))); setRoles(out.size ? { ...suggestion.roles, ...Object.fromEntries([...out].filter((u) => u in suggestion.roles).map((u) => [u, "other"])) } : suggestion.roles); return; } // cut: #3936
     setOrder((p) => [...p.filter((u) => suggestion.order.includes(u)), ...suggestion.order.filter((u) => !p.includes(u))]);
   }, [suggestion]); // orderByHand is read, not a trigger
   const move = (i, d) => { setOrderByHand(true); setOrder((p) => { const q = p.slice(); const j = i + d; if (j < 0 || j >= q.length) return p; [q[i], q[j]] = [q[j], q[i]]; return q; }); };
@@ -174,6 +182,18 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const noOrient = outcropNone && !holeFit;
   // TASKS.csv #2973 (WA iron review) — the count was field-wide (9,013 contacts in 4,935 holes for a 2 km map on a 21 km field): how many
   // are in holes collared inside the map layer's area is said beside it
+  // TASKS.csv #3936 — over GemPy's limit: the cut offered before the run, each choice with its reason (lib/mapOrderCut.js)
+  const plan = useMemo(() => (!cut && !nearestHole && suggestion && order.length > GEMPY_MAX_SURFACES
+    ? cutMapOrder({ layer: effLayer, field: unitField, ageField: fieldsOf(layer).find((f) => /^age$/i.test(f)) || null, order, units: suggestion.units, pairs: suggestion.pairs, collars: storeCollars, max: GEMPY_MAX_SURFACES })
+    : null), [cut, nearestHole, suggestion, order, effLayer, unitField, layer, storeCollars]);
+  const roleListRef = useRef(null);
+  const takeCut = (thenEdit) => {
+    if (!plan) return;
+    const out = new Set(plan.leftOut.map((x) => x.unit));
+    setOrderByHand(false); setCut({ merge: plan.merge, out: [...out] });
+    setOrder((p) => p.filter((u) => !out.has(u))); setRoles((r) => ({ ...r, ...Object.fromEntries([...out].map((u) => [u, "other"])) }));
+    if (thenEdit) setTimeout(() => roleListRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }), 50);
+  };
   const inArea = useMemo(() => (holePreview?.contacts?.length && layer?.bbox ? contactsInArea(holePreview.contacts, storeCollars, layer.bbox) : null), [holePreview, storeCollars, layer]);
   const orderCheck = useMemo(() => (holePreview?.contacts?.length ? contactsAgainstOrder(holePreview.contacts, order) : null), [holePreview, order]); // #2408
   // TASKS.csv #1718 (review #1645, Copley) — on a drilled prospect, say that the holes are not used here and where they are
@@ -213,15 +233,17 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           </select>
         </div>
       ))}
-      <div style={{ margin: "8px 0 4px", color: "var(--color-text)" }}>{tr("Stratigraphic order (youngest at the top)")}</div>
+      {plan && <CutOffer plan={plan} onTake={() => takeCut(false)} onChange={() => takeCut(true)} />}
+      {cut && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Cut down for GemPy: {m} merged, {o} left out (listed under the order). Their roles can be changed there.", { m: Object.keys(cut.merge).length, o: cut.out.length })}{" "}<button type="button" onClick={() => { setCut(null); setOrderByHand(false); }} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "inherit" }}>{tr("Undo the cut")}</button></div>}
+      <div ref={roleListRef} style={{ margin: "8px 0 4px", color: "var(--color-text)" }}>{tr("Stratigraphic order (youngest at the top)")}</div>
       {!groundAt && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one in Maps > Terrain from points or contours, from the project's samples and collars, or from a block model's top (Geophysics > Block models).") /* #1824 — the offline route; #1599 points, samples and collars */}</div>}
       {order.map((u, i) => (
         <React.Fragment key={u}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, marginBottom: 3, fontSize: "var(--font-size-xs)" }}>
           <button onClick={() => move(i, -1)} disabled={!i} aria-label={tr("Move up")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i ? 1 : 0.3 }}><ChevronUp size={13} /></button>
           <button onClick={() => move(i, 1)} disabled={i === order.length - 1} aria-label={tr("Move down")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i < order.length - 1 ? 1 : 0.3 }}><ChevronDown size={13} /></button>
-          <span style={{ fontWeight: 600 }}>{u}</span>
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-muted)" }} title={unitInfo.get(u)?.description || ""}>{unitInfo.get(u)?.description || ""} · {why(u)}</span>
+          <span style={{ fontWeight: 600 }}>{plainLith(u)}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-muted)" }} title={plainLith(unitInfo.get(u)?.description || "")}>{plainLith(unitInfo.get(u)?.description || "")} · {why(u)}</span>
           <select value={roles[u] || "stratigraphic"} onChange={(e) => setRole(u, e.target.value)} style={{ ...smallSel, width: 96 }} aria-label={tr("Role of {u}", { u })}>{ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select>
         </div>
         {i < order.length - 1 && (
@@ -237,7 +259,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         <div style={{ fontSize: "var(--font-size-xs)", marginTop: 4, marginBottom: 6 }}>
           {tr("Left out of the stack:")}{" "}
           {leftOut.map((u) => (
-            <span key={u} style={{ marginRight: 6, whiteSpace: "nowrap" }}>{u} <select value={roles[u]} onChange={(e) => setRole(u, e.target.value)} style={{ ...smallSel, width: 90 }} aria-label={tr("Role of {u}", { u })}>{ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select></span>
+            <span key={u} style={{ marginRight: 6, whiteSpace: "nowrap" }}>{plainLith(u)} <select value={roles[u]} onChange={(e) => setRole(u, e.target.value)} style={{ ...smallSel, width: 90 }} aria-label={tr("Role of {u}", { u })}>{ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select></span>
           ))}
         </div>
       )}
@@ -263,7 +285,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
                 <div key={code} style={{ ...row, marginBottom: 3, fontSize: "var(--font-size-xs)" }}>
                   <span style={{ width: 90, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr("{n} interval(s)", { n })}>{code} ({n})</span>
                   <select value={codeUnit[code] || ""} onChange={(e) => setCodeEdit((p) => ({ ...p, [code]: e.target.value }))} style={sel} aria-label={tr("Map unit for {code}", { code })}>
-                    <option value="">{tr("not used")}</option>{mapUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+                    <option value="">{tr("not used")}</option>{mapUnits.map((u) => <option key={u} value={u}>{plainLith(u)}</option>)}
                   </select>
                 </div>
               ))}
@@ -290,7 +312,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           {tr("Terrain under the inputs: {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest will be placed at the map layer's elevation{z} and the surfaces cut there; a terrain over the whole map (Maps > Terrain) puts them on the ground.", { a: groundCount.pointsOnGround, n: groundCount.points, b: groundCount.measurementsOnGround, m: groundCount.measurements, z: Number.isFinite(Number(layer?.elevation)) ? tr(" (RL {z})", { z: Math.round(Number(layer.elevation)) }) : "" })}
         </div>
       )}
-      <button onClick={() => onRun({ layer, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
+      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
         disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
@@ -310,7 +332,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginBottom: 6 }}>
             {intrusive.map((u) => (
               <label key={u} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
-                <input type="checkbox" checked={!bodyOff[u]} onChange={(e) => setBodyOff((q) => ({ ...q, [u]: !e.target.checked }))} />{u}
+                <input type="checkbox" checked={!bodyOff[u]} onChange={(e) => setBodyOff((q) => ({ ...q, [u]: !e.target.checked }))} />{plainLith(u)}
               </label>
             ))}
           </div>
@@ -348,6 +370,26 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
             {bodyMsg.gapFilled && <div style={{ color: "var(--color-text-muted)" }}>{tr("{k} of {n} outline point(s) fell in gaps of the terrain (cells it has no ground for) and took the ground of the nearest outline point that has some.", bodyMsg.gapFilled)}</div>}
           </div>}
         </>)}
+      </div>
+    </div>
+  );
+}
+
+// TASKS.csv #3936 — the offer: what the cut would do and why, before the run
+function CutOffer({ plan, onTake, onChange }) {
+  const names = (list) => list.map((x) => plainLith(x)).join(", ");
+  const outside = plan.leftOut.filter((x) => x.why === "outside"), ranked = plan.leftOut.filter((x) => x.why === "rank");
+  const line = { margin: "3px 0", lineHeight: 1.4 };
+  return (
+    <div role="status" style={{ fontSize: "var(--font-size-xs)", border: "1px solid var(--color-warn-text)", borderRadius: 6, padding: "6px 8px", margin: "8px 0" }}>
+      <div style={{ ...line, fontWeight: 600 }}>{tr("GemPy takes at most {max} units in one model, and this order has {n}. GeoStrix can cut it down to {k}:", { max: GEMPY_MAX_SURFACES, n: plan.before, k: plan.after })}</div>
+      {outside.length > 0 && <div style={line}>{tr("Left out, mapped only outside the drilled area (the holes and {m} m round them): {list}.", { m: plan.marginM.toLocaleString(), list: names(outside.map((x) => x.unit)) })}</div>}
+      {plan.merged.map((m) => <div key={m.name} style={line}>{m.why === "group" ? tr("Merged into {name}, one group or formation next to each other in the order: {list}.", { name: plainLith(m.name), list: names(m.members) }) : tr("Merged into {name}, the same mapped age ({age}) next to each other in the order: {list}.", { name: plainLith(m.name), age: m.key, list: names(m.members) })}</div>)}
+      {ranked.length > 0 && <div style={line}>{tr("Left out, with the least mapped area in the drilled area and the shortest contacts with other units: {list}.", { list: ranked.map((x) => tr("{unit} ({a} km², {c} km of contact)", { unit: plainLith(x.unit), a: x.areaKm2 >= 0.01 ? x.areaKm2 : "< 0.01", c: x.contactKm })).join(", ") })}</div>}
+      <div style={{ ...line, color: "var(--color-text-muted)" }}>{tr("Left-out units are kept on the map as 'other (left out)'; nothing is deleted.")}</div>
+      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+        <button type="button" onClick={onTake} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", cursor: "pointer" }}>{tr("Cut the order down for me")}</button>
+        <button type="button" onClick={onChange} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", cursor: "pointer" }} title={tr("Take the cut and go to the order and roles to change it")}>{tr("Change these")}</button>
       </div>
     </div>
   );

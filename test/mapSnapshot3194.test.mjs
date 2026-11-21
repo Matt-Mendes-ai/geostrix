@@ -49,5 +49,5 @@ test("wiring: Maps loads the payload on use; Layout keeps the fields, draws the 
   assert.match(l, /\.\.\.\(img\.planView && img\.targetWorld && img\.worldHeightAtTarget \? \{ mapsView: !!img\.mapsView, planView: true, trueScale: true, targetWorld: img\.targetWorld, worldHeightAtTarget: img\.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img\.utmGrid, \.\.\.\(img\.mapsCapture \? \{ mapsCapture: img\.mapsCapture \} : \{\}\) \/\* #3491 \*\/ \} : \{\}\)/); // #3491 — keeps the plan scale
   assert.match(l, /\{el\.utmGrid && utmGridReady\(el\) && <div style=\{\{ position: "absolute", inset: 0 \}\}><UtmGridOverlay el=\{el\} crs=\{ctx\?\.crs \|\| ""\} \/><\/div>\}/);
   assert.match(l, /\{sel\.planView && \(/);
-  assert.match(l, /sel\.mapsView \? tr\("A view of the Maps tab, drawn as it was when sent/);
+  assert.match(l, /sel\.mapsView \? tr\("A Maps view as it was when sent/);
 });

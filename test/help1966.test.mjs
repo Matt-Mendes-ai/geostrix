@@ -33,13 +33,13 @@ test("#1966 pages are well formed: unique ids, a known area, the pane's own titl
   const titleOf = Object.fromEntries(Object.entries(PANE_HELP).map(([t, id]) => [id, t]));
   for (const p of PAGES) {
     assert.ok(HELP_AREAS.includes(p.area), `${p.id}: area ${p.area}`);
-    if (p.id !== "help-start") assert.equal(p.title, titleOf[p.id], `${p.id}: the title is the pane's own title`);
+    if (p.id !== "help-start" && !p.guide /* #3887: the First steps guide is no pane */) assert.equal(p.title, titleOf[p.id], `${p.id}: the title is the pane's own title`);
     assert.ok(typeof p.summary === "string" && p.summary.length > 60, `${p.id}: a summary`);
     for (const k of ["notFor", "fields", "warnings", "related"]) assert.ok(Array.isArray(p[k]), `${p.id}: ${k} is a list`);
-    assert.ok(p.fields.length >= 1 || p.id === "help-start", `${p.id}: fields`);
+    assert.ok(p.fields.length >= 1 || p.id === "help-start" || p.guide, `${p.id}: fields`);
     for (const f of p.fields) assert.ok(f.name && f.what, `${p.id}: a field needs a name and what it means`);
     for (const w of p.warnings) assert.ok(w.says && (w.means || w.do), `${p.id}: a message needs its text and what it means or what to do`);
-    assert.ok(Array.isArray(p.howto?.steps) && p.howto.steps.length >= 2, `${p.id}: a how-to`);
+    assert.ok(p.guide || (Array.isArray(p.howto?.steps) && p.howto.steps.length >= 2), `${p.id}: a how-to`); // #3887: the guide is its own walk-through
     for (const r of p.related) assert.ok(pageById(r), `${p.id}: related page ${r} exists`);
   }
 });

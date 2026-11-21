@@ -23,8 +23,18 @@ node scripts/samples/build-wa-zinc-copper.mjs "<path to the report's csv folder>
 (the review in `docs/ideas/wa-drillhole-database-review.md` streams a report's tables out of the State's export; its per-report
 CSVs, with the company's own column names, are this script's input).
 
-Coordinates: **GDA94 / MGA zone 50 (EPSG:28350)**, as the company reported them for every hole and sample here; elevations are the
-company's RL. The collars carry an `epsg` column with that code. The surface samples have no elevation in the source.
+Coordinates: **GDA94 / MGA zone 50 (EPSG:28350)**, as the company reported them for every hole and sample here. The collars carry an
+`epsg` column with that code. A hole's x / y are the company's MGA easting and northing (`MGAE` / `MGAN`), which the State keeps in its
+core collar-coordinate table; the report's per-file collar table also has `AMGE` / `AMGN`, and those are the same points on the older
+AGD84 / AMG zone 50 grid, about 210 m south-west in MGA terms. Versions of this sample before November 2026 used `AMGE` / `AMGN` as
+if they were MGA, so every hole sat about 210 m south-west of its true place and of its own soils. The surface samples have no
+elevation in the source.
+
+**Elevations.** z is the company's RL, unchanged. The report states its vertical datum as AHD, but the company's collar RLs (stated
+as AHD) sit about 15-25 m below the public terrain, and the source does not say why: at the State's own collar positions the SRTM
+elevation the State records for each hole is a median 18 m above the RL (25 m for the 17 holes surveyed by GPS, `RG0.05`; 16 m for
+the 15 whose RL came from a 2005 terrain model, `2005 Fugro DTM1`), and the 49 older holes left out show the same. A terrain fetched
+under these holes will float above the collars by about that much.
 
 ## Files
 

@@ -14,7 +14,7 @@ export default function SaveRecoveredModal({ file, onAnswer }) {
     <div style={overlay} {...backdropProps(() => onAnswer("cancel"))}>
       <div role="dialog" aria-modal="true" aria-label={tr("Save recovered work")} onClick={(e) => e.stopPropagation()} style={{ width: 420, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" }}>
         <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", fontWeight: 600, marginBottom: 10 }}>{tr("Save recovered work")}</div>
-        <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("This is work recovered from a previous session. It was open from \"{file}\", which holds the version you last saved. Save over that file, or keep both and save this as a new file?", { file })}</div>
+        <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Save this recovered work over \"{file}\" (which holds your last save), or keep both and save it as a new file?", { file })}</div>
         <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end", flexWrap: "wrap" }}>
           <button type="button" data-testid="save-recovered-cancel" onClick={() => onAnswer("cancel")} style={btn}>{tr("Cancel")}</button>
           <button type="button" data-testid="save-recovered-new" onClick={() => onAnswer("new")} style={btn}>{tr("Save as a new file…")}</button>

@@ -63,7 +63,7 @@ export default function ProjectKmzDialog({ store, onExport, onClose }) {
           <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={16} /></button>
         </div>
         <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={note}>{tr("The parts of the project to put in the KMZ, each in its own folder with StrixViewer's colours and classes. Hidden layers are included, unticked in Google Earth.")}</div>
+          <div style={note}>{tr("The parts of the project to put in the KMZ, each in a folder with StrixViewer's colours; hidden layers come unticked in Google Earth.")}</div>
           {KMZ_PARTS.map((p) => (
             <label key={p.key} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-sm)", color: present[p.key] ? "var(--color-text)" : "var(--color-text-muted)" }}>
               <input type="checkbox" checked={picked.has(p.key) && present[p.key]} disabled={!present[p.key]} onChange={() => toggle(p.key)} aria-label={tr(p.label)} />
@@ -71,7 +71,7 @@ export default function ProjectKmzDialog({ store, onExport, onClose }) {
             </label>
           ))}
           {picked.has("rasters") && present.rasters && lodChoices.length > 0 && (
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} title={tr("Imagery fetched with a source (NAIP) is written finer than it was fetched: its detail tiles at this pixel size, read now from this computer or the source. One picture of at most 8,192 px a side per raster.")}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} title={tr("Imagery with a source (NAIP) is written finer, at this pixel size, from this computer or the source: one picture of at most 8,192 px a side per raster.")}>
               {tr("Imagery pixel size")}
               <select value={lodPx} onChange={(e) => setLodPx(e.target.value)} aria-label={tr("Imagery pixel size")}>
                 <option value="">{tr("As fetched")}</option>

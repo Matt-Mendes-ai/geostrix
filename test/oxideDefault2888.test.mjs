@@ -31,6 +31,6 @@ test("one control switches every oxide column; the clash line says where the bas
   assert.match(m, /unitClashes\.some\(\(e\) => oxideOfHeader\(e\.header\)\) && " " \+ tr\("To store an element as its oxide/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
-    for (const k of ["All as reported (oxides)", "All as elements", "To store an element as its oxide (or as the element) in this project, change its basis in Geochem under Imported files & elements: the assays already in the project are converted with it."]) assert.ok(d[k], `${l}: ${k}`);
+    for (const k of ["All as reported (oxides)", "All as elements", "To store an element as its oxide (or back), change its basis in Geochem > Imported files & elements; the project's assays convert with it." /* #3899 */]) assert.ok(d[k], `${l}: ${k}`);
   }
 });

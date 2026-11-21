@@ -33,6 +33,6 @@ test("#3665 point density readings: the dialog is told (file named for density, 
   assert.equal(pointDensityFile(sg, "Specific Gravity.csv", []), false);
   const m = fs.readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8"), p = fs.readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(m, /modal\.pointDensity && \(/); assert.match(m, /give each reading a From–To interval/); assert.match(p, /pointDensityFile\(headers, file\.name, data\) \? \{ pointDensity: true \}/);
-  const key = "This looks like a table of point density readings: From equals To on every row, so it opens as a Custom layer. A zero-length density reading cannot be length-weighted, so the density summary and the tonnage would leave it out. To use it as Specific gravity, give each reading a From–To interval and import it again; or keep it as a Custom layer to view.";
+  const key = "To use these as Specific gravity, give each reading a From–To interval: point readings (From = To) cannot be length-weighted, so they open as a Custom layer."; // #3899
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(fs.readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))[key], l);
 });

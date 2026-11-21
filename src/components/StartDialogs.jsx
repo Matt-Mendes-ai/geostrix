@@ -18,6 +18,7 @@ import { fetchAreaBox } from "../lib/dataExtent.js";
 import { tieOf } from "../lib/localGridTie.js";
 import { panel, rowBtn } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3887 — the First steps guide
 
 const Z = 55; // under every other dialog (60; the import's column matching 62): they open over this one
 const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -143,7 +144,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
         const better = await findBetterUtmZone(collars, useEpsg, misfit);
         if (better) { setZoneAsk({ better, misfit, parsed }); return; }
       }
-      keepGround(parsed, misfit && misfit.medianDz > MISFIT_ZONE_M ? tr(" The collars sit a median {v} m off this terrain, and no neighbouring UTM zone fits better: check the project CRS and the collar elevations (feet? a local datum?).", { v: Math.round(misfit.medianDz) }) : "");
+      keepGround(parsed, misfit && misfit.medianDz > MISFIT_ZONE_M ? tr(" Check the project CRS and the collar elevations (feet? a local datum?): the collars sit a median {v} m off this terrain.", { v: Math.round(misfit.medianDz) }) : "");
     } catch (e) {
       if (typeof navigator !== "undefined" && navigator.onLine === false) offline();
       else setStripDone({ text: tr("The ground could not be downloaded ({error}): using the collar heights for now. Add a terrain later with Add data.", { error: String(e?.message || e) }), warn: true });
@@ -153,7 +154,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   const keepGround = (parsed, extra = "") => {
     addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null });
     setZoneAsk(null);
-    setStripDone({ text: [terrainSummary(parsed)?.text, tr("Copernicus GLO-30 shows the ground as it was in 2011-2015: ground mined since then reads lower than in older terrain, and older collars can sit above it."), extra.trim()].filter(Boolean).join(" "), warn: !!extra });
+    setStripDone({ text: [terrainSummary(parsed)?.text, tr("Copernicus GLO-30 shows the ground of 2011–2015: ground mined since reads lower, and older collars can sit above it."), extra.trim()].filter(Boolean).join(" "), warn: !!extra });
   };
 
   const rows = step === 2 ? startChecklist(store, { noDrill }) : [];
@@ -171,6 +172,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       <div style={small}>{tr("Look around: drag to turn, wheel to zoom.")}</div>
       {!noDrill && <div>{tr("Build a model: the green Model button on the StrixViewer ribbon takes you through it one step at a time.")} <button type="button" style={link} onClick={() => { goTo?.("viewer"); onClose?.(); }}>{tr("Show me")}</button></div>}
       <div>{tr("Make a sheet: Layout's Sheets group (Plan map, Cross-section, Hole log, Intercepts table) lays out a page in one click.")} <button type="button" style={link} onClick={() => { goTo?.("layout"); onClose?.(); }}>{tr("Open Layout")}</button></div>
+      <div>{tr("New here? First steps shows the everyday path in six screens.")} <button type="button" style={link} data-start-guide="" onClick={() => openHelp("first-steps")}>{tr("First steps")}</button></div>{/* TASKS.csv #3887 */}
     </div>
   );
 
@@ -240,7 +242,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
           {strip && strip.state !== "ready" && !stripDone && <div style={{ ...small, marginTop: 10 }}>{strip.text}</div>}
           {zoneAsk && (
             <div data-start-zone="" style={{ marginTop: 12, padding: 10, border: "1px solid var(--color-warn-border)", borderRadius: 6 }}>
-              <div>{tr("Your collars sit a median {v} m above or below this ground, but read as {name} they sit within {v2} m of it: the project is probably in the wrong UTM zone.", { v: Math.round(zoneAsk.misfit.medianDz), name: zoneAsk.better.name, v2: Math.round(zoneAsk.better.medianDz) })}</div>
+              <div>{tr("Check the UTM zone: your collars sit a median {v} m off this ground, but within {v2} m of it read as {name}.", { v: Math.round(zoneAsk.misfit.medianDz), name: zoneAsk.better.name, v2: Math.round(zoneAsk.better.medianDz) })}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                 <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => { const code = zoneAsk.better.code; setEpsg(code); setZoneAsk(null); makeGround(code); }}>{tr("Use {name} and download again", { name: zoneAsk.better.name })}</button>
                 <button type="button" style={rowBtn(false)} disabled={busy} onClick={() => keepGround(zoneAsk.parsed, tr(" The collars sit a median {v} m off this terrain (in {name} they would sit within {v2} m) — kept as you chose.", { v: Math.round(zoneAsk.misfit.medianDz), name: zoneAsk.better.name, v2: Math.round(zoneAsk.better.medianDz) }))}>{tr("Keep this ground")}</button>

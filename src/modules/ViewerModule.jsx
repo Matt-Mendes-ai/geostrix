@@ -8,7 +8,7 @@ import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // 
 import { markZoomedHole } from "./viewer/zoomMark.js"; // #3570
 import { useShowOnLoad } from "./viewer/useShowOnLoad.js"; // #3588 (1)
 import { azimuthNorthText } from "../lib/azimuthNorthText.js"; // #3588 (6)
-import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
+import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import { useMcpViewActions } from "./viewer/useMcpViewActions.js"; /* #3932 */ import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
 import { holesForFilter, holeSetsOf, fenceTracesOf } from "../lib/holeFilter.js"; // #1504; #1703; #3554; #3561
 import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
@@ -3146,7 +3146,7 @@ ${describeTrend(t)}` };
       // TASKS.csv #860 — the linked mesh must be a valid solid before it is offered for volumes and estimation
       const { validateSolid, isValidSolid } = await import("../lib/meshValidate.js"); // on demand: not in the startup bundle
       const vs = validateSolid(w.positions, w.indices);
-      if (!isValidSolid(vs)) throw new Error(tr("The linked outlines do not make a valid solid ({open} open edges, {pairs} self-crossing triangle pairs, {wind} edges facing both ways). Check the outlines' shapes and order, then link again.", { open: vs.openEdges, pairs: vs.selfIntersectingPairs, wind: vs.windingConflicts }) + offPlaneText(outlines)); // #3768
+      if (!isValidSolid(vs)) throw new Error(tr("Check the outlines' shapes and order, then link again: they do not make a valid solid ({open} open edges, {pairs} self-crossing triangle pairs, {wind} edges facing both ways).", { open: vs.openEdges, pairs: vs.selfIntersectingPairs, wind: vs.windingConflicts }) + offPlaneText(outlines)); // #3768
       const o = originRef.current, scene = new Float32Array(w.positions.length);
       for (let i = 0; i < w.positions.length; i += 3) { scene[i] = w.positions[i] - o.x; scene[i + 1] = w.positions[i + 2] - o.z; scene[i + 2] = o.y - w.positions[i + 1]; }
       const geo = new THREE.BufferGeometry();
@@ -3285,7 +3285,7 @@ ${describeTrend(t)}` };
   const unitCellCount = (lb) => { let n = 0; const ids = lb?.block?.ids || []; for (let i = 0; i < ids.length; i++) if (ids[i] && lb.block.labels[ids[i] - 1] != null) n++; return n; };
   const addLithBlockModel = () => {
     const lb = lastLithBlock; if (!lb) return;
-    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !window.confirm(tr("The last model has {n} unit blocks. As a block model they take roughly {mb} MB of memory, which a modest computer may not have to spare; a larger block size keeps it light. Add them anyway?", { n: n.toLocaleString(), mb: Math.round((n * 210) / 1e6) }))) return; } // #891
+    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !window.confirm(tr("The last model has {n} unit blocks, about {mb} MB of memory, which a modest computer may not spare; a larger block size keeps it light. Add them anyway?", { n: n.toLocaleString(), mb: Math.round((n * 210) / 1e6) }))) return; } // #891
     const cells = blockToCells(lb.block, lb.origin);
     if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return; }
     const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
@@ -3333,7 +3333,7 @@ ${describeTrend(t)}` };
         id, name: ot ? ot.name : `${label} volume (${lb.title.replace(/^stack /, "")}, ${lb.when})`, visible: true, vertexCount: nVerts, faceCount: nTris,
         type: "unit_volume", relationships: [], closure: "closed",
         params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, ...(ot ? { openBelow: ot.where } : {}), builtAt: lb.builtAtIso || lb.when, ...(lb.source ? { sourceKey: lb.source.key, sourceIds: lb.source.ids, sourceRecipe: lb.source.recipe } : {}), /* builtAtIso / source: #878 */ cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol),
-          ...(ust.units[label] ? { volumeBandM3: Math.round(ust.units[label].bandM3), blockSizeM: ust.blockM.map((v) => +v.toFixed(2)), cutByBox: ust.units[label].box } : {}), /* TASKS.csv #877 */ note: lb.block.resampledFromTrend ? tr("Built from the trend model resampled onto a real-space grid, so the shell follows that grid's steps; the exact unit volume is the one in the Model check message. Cut at the model box: a unit that continues beyond it is closed there.") : tr("Cut at the model box: a unit that continues beyond it is closed there.") },
+          ...(ust.units[label] ? { volumeBandM3: Math.round(ust.units[label].bandM3), blockSizeM: ust.blockM.map((v) => +v.toFixed(2)), cutByBox: ust.units[label].box } : {}), /* TASKS.csv #877 */ note: lb.block.resampledFromTrend ? tr("Built from the trend model resampled onto a grid, so the shell follows its steps; the exact volume is in the Model check message. A unit beyond the model box is closed there.") : tr("Cut at the model box: a unit that continues beyond it is closed there.") },
       });
       lines.push(ot ? tr("{label} {v} Mm³ ({where})", { label, v: (vol / 1e6).toFixed(2), where: whereTr }) : tr("{label} {v} Mm³", { label, v: (vol / 1e6).toFixed(2) }));
     });
@@ -3536,7 +3536,7 @@ ${describeTrend(t)}` };
       const layered = solid.parts.length > 1;
       // #483: the saved size is the compact form (compactSurfaces.js, ~10 MB per million triangles measured); an
       // upper estimate here, at ~3 bytes per coordinate and ~2 per index, base64
-      if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(tr("\"{name}\" has {triangleCount} triangles{v}. That can make the 3D view slow to move on a modest computer, and it adds up to about {v2} MB to the saved project. Import it anyway?", { name: file.name, triangleCount: solid.triangleCount.toLocaleString(), v: layered ? tr(" in {parts} layers", { parts: solid.parts.length }) : "", v2: Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6) }))) {
+      if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(tr("\"{name}\" has {triangleCount} triangles{v}: it can slow the 3D view and add about {v2} MB to the project. Import it anyway?", { name: file.name, triangleCount: solid.triangleCount.toLocaleString(), v: layered ? tr(" in {parts} layers", { parts: solid.parts.length }) : "", v2: Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6) }))) {
         setNotices((p) => [...p, notice("{name}: import cancelled ({triangleCount} triangles).", { name: file.name, triangleCount: solid.triangleCount.toLocaleString() })]);
         return;
       }
@@ -3545,14 +3545,14 @@ ${describeTrend(t)}` };
       let viaTie = false;
       if (gridTie) {
         const g = (await import("../lib/solidTie.js")).solidTieGuess(solid.parts, gridTie, importStateRef.current?.collars);
-        viaTie = window.confirm(tr("The project's local grid is tied to EPSG:{epsg}. Are the coordinates in \"{name}\" in EPSG:{epsg}?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.", { epsg: gridTie.epsg, name: file.name, hint: g.suggest === "tie" ? tr("\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString(), epsg: gridTie.epsg }) : g.suggest === "local" ? tr("\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString() }) : "" }));
+        viaTie = window.confirm(tr("Are the coordinates in \"{name}\" in EPSG:{epsg}, the CRS the local grid is tied to?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.", { epsg: gridTie.epsg, name: file.name, hint: g.suggest === "tie" ? tr("\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString(), epsg: gridTie.epsg }) : g.suggest === "local" ? tr("\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString() }) : "" }));
         if (viaTie) solid.parts = (await import("../lib/solidTie.js")).solidPartsToLocal(solid.parts, gridTie);
       }
       const bounds = solidBounds(solid.parts);
       // TASKS.csv #3428 — more than 100 km from the holes froze the view for about a minute (fitted, with a scene origin that far): asked first, and
       // when imported anyway the view stays where it is
       const farSolid = (await import("../lib/solidFar.js")).solidFarFromHoles(bounds, importStateRef.current?.collars);
-      if (farSolid?.far && !window.confirm(tr("\"{name}\" lies about {km} km from your holes (E {e}, N {n}): its coordinates look like another coordinate system, or a local grid read as real coordinates. A solid that far can freeze the 3D view. Import it anyway? OK: import it and leave the view where it is. Cancel: don't import it.", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString(), e: Math.round(farSolid.solid[0]).toLocaleString(), n: Math.round(farSolid.solid[1]).toLocaleString() }))) {
+      if (farSolid?.far && !window.confirm(tr("\"{name}\" lies about {km} km from your holes (E {e}, N {n}): probably another coordinate system or a local grid. A solid that far can freeze the 3D view. Import it anyway? OK: import it and leave the view where it is. Cancel: don't import it.", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString(), e: Math.round(farSolid.solid[0]).toLocaleString(), n: Math.round(farSolid.solid[1]).toLocaleString() }))) {
         setNotices((p) => [...p, notice("{name}: import cancelled (it lies about {km} km from the holes).", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString() })]);
         return;
       }
@@ -5466,6 +5466,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [addUndrilledSolid]);
   const voxelModelsForShell = useRef(voxelModels); voxelModelsForShell.current = voxelModels;
   useModuleAction(["voxel-shell"], (a, payload) => { makeVoxelShell(payload?.model || (voxelModelsForShell.current || []).find((x) => x.id === payload?.id), { largestOnly: !!payload?.largestOnly }); }); // payload.model: the card's own, current copy (this module's render can lag a store change made in another tab)
+  useMcpViewActions(() => ({ collars, layers, assayElements, terrain, updateTerrain, sections, holeColourBy, setHoleColourBy, layerVisible, setLayerVisible, assayVisible, setAssayVisible, assayDisplayElements, setAssayDisplayElements, toggleAssayElement, camState, cameraRef, fitButton, zoomToHole, reopenSection })); // TASKS.csv #3932 — an AI app's view tools
   // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modelling tab: select it, or — when
   // "connect" is armed — give it the first interval's code and draw the tie. Uses the same pick index as the
   // hover tooltip; the lithology layer must be visible to be picked.
@@ -6181,7 +6182,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<NumberInput allowEmpty min={0} max={360} value={typedSection.azimuth === "" ? null : typedSection.azimuth} onChange={(v) => setTypedSection((s) => ({ ...s, azimuth: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<NumberInput allowEmpty min={10} step={50} value={typedSection.length === "" ? null : typedSection.length} onChange={(v) => setTypedSection((s) => ({ ...s, length: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
         </div>
-        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={tr("Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer ({sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.", { sectionCorridor })}><Scissors size={14} />{" "}{tr("Open section")}</button>
+        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={tr("Open a vertical section along the azimuth, centred on the point, with the section Buffer ({sectionCorridor} m). The scissors in the Holes list cut one through a hole.", { sectionCorridor })}><Scissors size={14} />{" "}{tr("Open section")}</button>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.", { sectionCorridor })}</div>
 
         </>)}
@@ -6216,7 +6217,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}
         {toolPane === "fence" && (<>
         {paneHeader("Slice series (fence sections)", Rows3, "section")}{lineNote && <div style={miniField}>{lineNote}</div>}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Cuts the drilling into equal-width parallel sections at a fixed azimuth (the visible voxel / block models too when \"Also cover the visible block models\" is ticked, or when there are no drillholes) — each one added to the list below, ready to open individually. Includes the geophysics voxel slice automatically, same as any other section.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Cut the drilling into equal-width parallel sections at a fixed azimuth, each added to the list below (the visible block models too when \"Also cover the visible block models\" is ticked, or when there are no drillholes).")}</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{/* #1258 */}
           <label style={{ ...miniField, flex: 1 }}>{tr("Azimuth (°)")}<NumberInput step={1} value={sliceSeriesAzimuth} onChange={(v) => setSliceSeriesAzimuth((v % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
@@ -6404,7 +6405,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={v.opacity ?? 1}
                   onChange={(e) => updateVoxelModel(v.id, { opacity: Number(e.target.value) })}
-                  style={{ width: 46, flexShrink: 0 }} title={(v.cells?.length || 0) > TRANSPARENT_BOX_LIMIT ? tr("Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.", { n: TRANSPARENT_BOX_LIMIT.toLocaleString() }) : tr("Opacity")} /* #904 */
+                  style={{ width: 46, flexShrink: 0 }} title={(v.cells?.length || 0) > TRANSPARENT_BOX_LIMIT ? tr("Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and unit contacts) to stay fast; use the cutoff or a 3D slice to look inside.", { n: TRANSPARENT_BOX_LIMIT.toLocaleString() }) : tr("Opacity")} /* #904 */
                 />
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToObject(voxelMeshesRef.current[v.id]), tr("Zoom to \"{name}\"", { name: v.name }))} />{/* #2080 */}
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { goToModule("geophysics"); requestModuleAction("edit-block-model", { id: v.id }); }, tr("Edit legend / classify / palette for this model in the Geophysics tab"))} />
@@ -6465,7 +6466,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               )}
             </div>
             {hasPxrf && ( /* TASKS.csv #1695 — lab assays by default; the pXRF readings on request, as cubes that say pXRF */
-              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 10px 4px", fontSize: "var(--font-size-sm)" }} title={tr("The project holds portable XRF readings beside the lab assays. They are screening numbers (zero-length points, 'not detected' zeros), so the markers, their size range and the default classes come from the lab assays unless you choose otherwise; a pXRF marker is a cube and its tooltip says pXRF.")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 10px 4px", fontSize: "var(--font-size-sm)" }} title={tr("pXRF readings sit beside the lab assays: as screening numbers, the markers, sizes and default classes come from the lab assays unless you choose them. A pXRF marker is a cube.")}>
                 <span style={{ color: "var(--color-text-caption)" }}>{tr("Source")}</span>
                 <select value={assaySource} onChange={(e) => setAssaySource(e.target.value)} aria-label={tr("Assay source")} style={{ ...smallSel, flex: 1, minWidth: 0 }}>
                   <option value="lab">{tr("Lab assays")}</option>
@@ -6720,9 +6721,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 6, opacity: isStaleStamp(lastLithBlock.lithoStamp, lithoNow) ? 0.55 : 1 }}>{isStaleStamp(lastLithBlock.lithoStamp, lithoNow) && tr("Built from a lithology log that has changed since:") + " "}{lastLithBlock.matchedPct != null ? tr("Last model ({title}, {when}) reproduces {pct}% of the logged metres.", { title: lastLithBlock.title, when: lastLithBlock.when, pct: lastLithBlock.matchedPct }) : tr("Last model ({title}, {when}).", { title: lastLithBlock.title, when: lastLithBlock.when })}</div>
             {!lastLithBlock.structural && <>{/* #1554 */}
-            <button onClick={addUnitVolumes} style={{ ...pBtn, marginBottom: 4 }} title={tr("Each modelled unit as a closed solid (its cells, closed at the model box): export as DXF / OBJ, volume / tonnage, cut on sections and plans, and a domain for grade estimation")}><Box size={14} />{" "}{tr("Add unit volumes (closed)")}</button>
-            <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title={tr("The model's units as a block model: 3D view, slice/cutoff controls and cross-sections, like any other block model. The space above every modelled top is left out.")}><Box size={14} />{" "}{tr("Add as block model")}</button>
-            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title={tr("An interval layer with the unit the model puts at each logged litho interval — shown next to the logged litho in the strip log, and on the holes in 3D / sections.")}><Layers3 size={14} />{" "}{tr("Add \"modelled unit\" layer to holes")}</button></>}
+            <button onClick={addUnitVolumes} style={{ ...pBtn, marginBottom: 4 }} title={tr("Each modelled unit as a closed solid (closed at the model box): export as DXF / OBJ, volume / tonnage, cut on sections and plans, and a grade-estimation domain")}><Box size={14} />{" "}{tr("Add unit volumes (closed)")}</button>
+            <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title={tr("The model's units as a block model, with the 3D view, slice, cutoff and section tools of any block model. The space above every modelled top is left out.")}><Box size={14} />{" "}{tr("Add as block model")}</button>
+            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title={tr("An interval layer of the modelled unit at each logged litho interval, shown beside the logged litho in the strip log and on the holes in 3D and sections.")}><Layers3 size={14} />{" "}{tr("Add \"modelled unit\" layer to holes")}</button></>}
           </div>
         )}
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Generated surfaces")}</div>
@@ -6742,7 +6743,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <button
           onClick={() => importSolidRef.current?.click()}
           style={{ ...pBtn, marginBottom: 8 }}
-          title={tr("Import a DXF (3DFACE / polyface mesh), OBJ or Leapfrog .msh solid — pit shell, stope design, or a wireframe from another package — and overlay it on the drillholes. Coordinates are used as-is, in the project CRS.")}
+          title={tr("Import a DXF (3DFACE / polyface mesh), OBJ or Leapfrog .msh solid (pit shell, stope, wireframe) over the drillholes, its coordinates as-is in the project CRS.")}
         ><Box size={14} />{" "}{tr("Import solid (DXF / OBJ / MSH)…")}</button>
         {/* TASKS.csv #802 — solid blocks (unit volumes / a block model) from the surfaces in this list */}
         <button
@@ -6750,7 +6751,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           disabled={!implicitSurfaces.length}
           aria-expanded={surfaceSolidsOpen}
           style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
-          title={implicitSurfaces.length ? tr("Fill a grid of blocks with the units these surfaces bound (open surfaces are unit tops, closed ones are solids), then add the units as closed solids or as a block model") : tr("Build or import a surface first: an explicit surface, an implicit model or an imported solid.") /* TASKS.csv #863 */}
+          title={implicitSurfaces.length ? tr("Fill a grid of blocks with the units these surfaces bound (open: unit tops; closed: solids), then add them as closed solids or a block model") : tr("Build or import a surface first: an explicit surface, an implicit model or an imported solid.") /* TASKS.csv #863 */}
         ><Box size={14} />{" "}{tr("Solid blocks from surfaces…")}</button>
         {/* TASKS.csv #570 — explicit wireframe from outlines drawn on sections */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8, alignItems: "center" }} title={tr("Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.")}>
@@ -6758,7 +6759,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <option value="">{outlineNames.length ? tr("Section outlines…") : tr("No section outlines yet")}</option>
             {outlineNames.map((o) => <option key={o.name} value={o.name} disabled={!!o.single}>{outlineOptionText(o)}</option>)}
           </select>
-          <select value={wireframeEnds} onChange={(e) => setWireframeEnds(e.target.value)} style={{ ...smallSel, width: 92, flexShrink: 0 }} aria-label={tr("Ends of the solid")} title={tr("How the solid ends beyond the first and last outline: flat at them, extended half a section spacing, or pinched out to a point half a spacing beyond")}>{/* TASKS.csv #894 */}
+          <select value={wireframeEnds} onChange={(e) => setWireframeEnds(e.target.value)} style={{ ...smallSel, width: 92, flexShrink: 0 }} aria-label={tr("Ends of the solid")} title={tr("How the solid ends past the first and last outline: flat, extended half a section spacing, or pinched out half a spacing beyond")}>{/* TASKS.csv #894 */}
             <option value="flat">{tr("Flat ends")}</option><option value="extend">{tr("Extend ½ spacing")}</option><option value="pinch">{tr("Pinch out")}</option>
           </select>
           <button onClick={() => linkWireframe(wireframeName)} disabled={!linkableOutline(outlineNames, wireframeName)} title={linkDisabledReason(outlineNames, wireframeName) || undefined} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: linkableOutline(outlineNames, wireframeName) ? 1 : 0.5 }}>{tr("Link into a solid")}</button>
@@ -6799,10 +6800,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onClick={runTopologyCheck}
           disabled={!implicitSurfaces.length || topologyBusy}
           style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length && !topologyBusy ? 1 : 0.5, cursor: implicitSurfaces.length && !topologyBusy ? "pointer" : "default" }}
-          title={tr("Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves.")}
+          title={tr("Check the generated surfaces against their declared relationships (expand a row to declare one): wrong crossings, the wrong side of a surface, contacts folding over themselves.")}
         ><ShieldAlert size={14} /> {topologyBusy ? tr("Checking relationships…") : tr("Check relationships")}</button>
         {implicitSurfaces.length === 0 && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }} title={tr("Generated surfaces save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart.")}>{tr("None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.")}{/* #1694 — an instruction, not changelog notes */}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }} title={tr("Generated surfaces save with the project (mesh, type, relationships, parameters), so a reported volume or tonnage can be reproduced after a restart.")}>{tr("None yet: build one with Implicit surface, Explicit surface or Grade shell above, or link section outlines into a solid.")}{/* #1694 — an instruction, not changelog notes */}</div>
         )}
         <StopeRunRows stopes={stopeSurfaces} onShow={showSurfaces} onOpen={() => { goToModule("minedesign"); setToolPane("stopes"); }} />{/* #1968 — one row per stope run */}
         {implicitSurfaces.filter((s) => s.type !== "stope").map((s) => {
@@ -6863,7 +6864,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           </span>
                         ))}
                       </div>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("Counted over this surface's own vertices. Green means the composites that produced that part of the surface bracket it on all three axes from at least two holes. A geometric data-support measure — not a confidence interval or a kriging variance.")}</div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("Counted over this surface's vertices. Green: its composites bracket it on all three axes from at least two holes. A data-support measure, not a confidence interval or kriging variance.")}</div>
                     </div>
                   )}
                   <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Type")}<select value={s.type || "other"} onChange={(e) => setSurfaceType(s.id, e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
@@ -6873,8 +6874,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {/* TASKS.csv #804 — Matt: "I change the type of mineralization but it doesn't do anything". Say what it does. */}
                   <div style={{ fontSize: "var(--font-size-xs)", color: SOLID_SURFACE_TYPES.has(s.type) && expandedSurfaceVolume && !expandedSurfaceVolume.watertight ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: -2, marginBottom: 8, lineHeight: 1.45 }}>
                     {SOLID_SURFACE_TYPES.has(s.type) && expandedSurfaceVolume && !expandedSurfaceVolume.watertight
-                      ? tr("This surface is open ({n} open edges), so it has no inside: a type cannot turn it into a solid. To get solid bodies from contact surfaces, use \"Solid blocks from surfaces…\" above, then \"Add unit volumes (closed)\".", { n: expandedSurfaceVolume.openEdgeCount.toLocaleString() })
-                      : tr("The type is a label: it does not change the mesh. It is read by \"Check relationships\", it decides whether a closed surface is offered in Grade estimation's \"Restrict to a modelled volume\" (bodies: envelopes, vein / dyke solids, breccias, unit volumes, imported solids), and it sets the role \"Solid blocks from surfaces\" proposes.")}
+                      ? tr("To get solids from contact surfaces, use \"Solid blocks from surfaces…\" above, then \"Add unit volumes (closed)\": this surface is open ({n} open edges), so it has no inside.", { n: expandedSurfaceVolume.openEdgeCount.toLocaleString() })
+                      : tr("The type is a label, not a change to the mesh: \"Check relationships\" reads it, it decides which closed surfaces Grade estimation can restrict to, and it sets the role \"Solid blocks from surfaces\" proposes.")}
                   </div>
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Relationships to other surfaces")}</div>
                   {(s.relationships || []).length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("None declared.")}</div>}
@@ -6925,7 +6926,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "4px 8px", opacity: !cutterDraft || crossCutBusy ? 0.5 : 1, cursor: !cutterDraft || crossCutBusy ? "default" : "pointer" }}
                         >{crossCutBusy ? tr("Cutting…") : tr("Apply")}</button>
                       </div>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("A closed body (a vein/dyke solid, a shell) removes the part of this surface inside it and leaves a clean truncation. An open surface (a fault) divides this one into two fault blocks instead — geometry only, with no displacement applied. If the cutting body doesn't reach this surface, nothing changes and it says so. Regenerating either surface undoes the cut; what was cut is recorded below under Parameters used.")}</div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("A closed body (vein or dyke solid, shell) removes the part of this surface inside it; an open one (a fault) splits it into two fault blocks, with no displacement. Regenerating either undoes the cut.")}</div>
                     </>
                   ) : (
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Model a dyke, vein or fault to cut this surface with it.")}</div>
@@ -6948,12 +6949,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           never reached here. */}
                       {isMetricProjectedEpsg(project?.epsg) !== true ? (
                         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon-strong)", lineHeight: 1.45, marginBottom: 6 }}>
-                          {tr("{v} Volume and tonnage assume the coordinates are in metres, so nothing here can be reported in m³ or tonnes until a projected, metre-based CRS is set (Project settings). The mesh itself is unaffected.", { v: project?.epsg
+                          {tr("{v} Set a projected, metre-based CRS (Project settings) to report m³ or tonnes: volume and tonnage assume metres. The mesh is unaffected.", { v: project?.epsg
                             ? tr("This project's CRS (EPSG:{epsg}) isn't a projected, metre-based system — or isn't one GeoStrix can confirm as one.", { epsg: project.epsg })
                             : tr("No CRS is set for this project.") })}</div>
                       ) : s.params?.volumeWithheld ? ( /* TASKS.csv #1683 — a unit body that does not contain the intervals it was built from */
                         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon-strong)", lineHeight: 1.45, marginBottom: 6 }}>
-                          {tr("No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.", { n: s.params.samplesInside?.inside ?? 0, m: s.params.samplesInside?.of ?? 0, code: s.params.target })}</div>
+                          {tr("Rebuild this body with a smaller cell and a search near the logged intervals: it holds only {n} of the {m} {code} sample points it was built from, so no volume or tonnage.", { n: s.params.samplesInside?.inside ?? 0, m: s.params.samplesInside?.of ?? 0, code: s.params.target })}</div>
                       ) : (
                       <>
                       {expandedSurfaceVolume.watertight && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Volume:")}{" "}<strong title={`${Math.round(expandedSurfaceVolume.volumeM3).toLocaleString()} m³`}>{Number(expandedSurfaceVolume.volumeM3.toPrecision(3)).toLocaleString()} m³</strong>{/* title: #3284 */}
@@ -6969,7 +6970,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>{expandedSurfaceVolume.watertight ? tx("This shell is {bodies} totalling {vol} m³, not one continuous body.", { bodies: <strong>{tr("{n} separate bodies", { n: expandedSurfaceVolume.componentCount })}</strong>, vol: <span title={`${Math.round(expandedSurfaceVolume.volumeM3).toLocaleString()} m³`}>{Number(expandedSurfaceVolume.volumeM3.toPrecision(3)).toLocaleString()}</span> }) /* #3284 — the Volume line's figure */ : tr("This shell is {n} separate pieces, not one continuous body.", { n: expandedSurfaceVolume.componentCount }) /* #2219 */}</div>
                       )}
                       {!expandedSurfaceVolume.watertight && (
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr("{v} That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; or the shell reaches the edge of the estimated region (the shell is only closed there when \"Close shell artificially\" is ticked). So no enclosed volume is given.", { v: tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount }) })}</div>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr("{v} It may be a single contact or fault sheet, clipped to a modelling domain, or a shell reaching the estimated region's edge (closed there only with \"Close shell artificially\"). So no enclosed volume is given.", { v: tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount }) })}</div>
                       )}
                       {/* TASKS.csv #270 (LOW-2) — a tonnage with no grade beside it invites quoting the
                           CUTOFF as the grade. Report the interpolated mean inside the shell instead. */}
@@ -7032,7 +7033,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 6 }}>{tr("Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.")}</div>
                     : <SculptPanel surface={s} sculpt={sculpt} pBtn={pBtn} smallSel={smallSel} />}
                   {s.closure !== "closed" && !["unit_volume", "vein_solid", "explicit_wireframe"].includes(s.type) && ( // TASKS.csv #895 — an offset copy (open surfaces; an imported sheet too)
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }} title={tr("A copy of this surface moved by a distance: along its normal (a true thickness, positive = its upper side) or vertically. For example a hangingwall from a footwall plus the vein's width.")}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }} title={tr("A copy of this surface moved along its normal (a true thickness, positive = its upper side) or vertically, e.g. a hangingwall from a footwall plus the vein's width.")}>
                       <span style={{ flexShrink: 0 }}>{tr("Offset copy")}</span>
                       <NumberInput allowEmpty step={1} value={offsetIn[s.id]?.d === "" ? null : offsetIn[s.id]?.d ?? null} placeholder="m" onChange={(v) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], d: v == null ? "" : String(v) } }))} style={{ ...smallSel, width: 56 }} aria-label={tr("Offset distance (m)")} />
                       <select value={offsetIn[s.id]?.mode || "normal"} onChange={(e) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], mode: e.target.value } }))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Offset direction")}>
@@ -7042,7 +7043,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     </div>
                   )}
                   {(boundaries || []).length > 0 && ( // TASKS.csv #895 — a copy cut to a project boundary
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }} title={tr("A copy of this surface cut to the inside of a project boundary, seen from above; the edge is cut exactly at the boundary. The original is unchanged.")}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }} title={tr("A copy of this surface cut to the inside of a project boundary in plan, exactly at the boundary. The original is unchanged.")}>
                       <span style={{ flexShrink: 0 }}>{tr("Clip to")}</span>
                       <select value={clipIn[s.id] || ""} onChange={(e) => setClipIn((p) => ({ ...p, [s.id]: e.target.value }))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Boundary to clip to")}>
                         <option value="">{tr("Boundary…")}</option>
@@ -7088,11 +7089,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           <button
                             onClick={() => acceptSurfaceVersion(s.id)}
                             style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }}
-                            title={tr("Mark this run as the version you are working from. Hides the other versions of this surface — it does not delete them, and it is not a check that this run is correct.")}
+                            title={tr("Mark this run as the version you work from. The other versions are hidden, not deleted; it is not a check that this run is correct.")}
                           ><Check size={12} /> {s.accepted ? tr("Accepted") : tr("Accept this version")}</button>
                         </div>
                         {chain.length > 1 && (
-                          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("Every version keeps its own mesh and its own parameter block, so nothing is overwritten and nothing is dropped on save — which also means each one costs its own space in the project file. Delete a version you no longer want with the × on its row; GeoStrix will not do it for you.")}</div>
+                          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("Each version keeps its own mesh and parameters, so nothing is overwritten, and each costs space in the project file. Delete one with the × on its row; GeoStrix will not do it for you.")}</div>
                         )}
                       </>
                     );
@@ -7110,7 +7111,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     <button onClick={() => exportImplicitSurface(s.id, "ts")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("GOCAD TSurf (.ts) — Leapfrog, SKUA-GOCAD and most 3D geology software import it")}>{tr("TSurf")}</button>{/* #3149 */}
                   </div>
                   {s.params?.inputs && ( /* TASKS.csv #1101 */
-                    <button onClick={() => exportImplicitSurface(s.id, "inputs")} style={{ ...pBtn, marginTop: 4, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("The interface points and orientations this GemPy run used, for every surface of the run, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog")}>{tr("Model inputs (GemPy CSV)")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "inputs")} style={{ ...pBtn, marginTop: 4, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("This GemPy run's interface points and orientations, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog")}>{tr("Model inputs (GemPy CSV)")}</button>
                   )}
                 </div>
               )}
@@ -7120,7 +7121,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         {(!basicTools || domains.length > 0) && (<>
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Domains")}</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("A domain is one or more faults plus which side of each — an AND of constraints, so you can bound a domain between two faults, not just split the property in two. Pick which fault surfaces to use as constraints below (any generated surface typed \"Fault\" above); the domain fails open (matches everything) until it has at least one constraint, and again for any constraint whose fault surface gets deleted. Domains save with the project, along with the surfaces they reference.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("A domain is one or more faults plus a side of each (AND), so it can lie between two faults. Pick fault surfaces below; with none, or a deleted one, it matches everything. Saved with the project.")}</div>
         {(() => { const faultSurfaces = implicitSurfaces.filter((s) => s.type === "fault"); return (
         <>
         {domains.length === 0 && (
@@ -7259,7 +7260,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </div>
         <PlannedHoleAddForm presetTarget={planTarget} noTerrain={!terrain} groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null} /* #1835 */ onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} epsg={project?.epsg} survey={survey} />
         {plannedHoles.length === 0 ? (
-          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed orange line (distinct from real, drilled holes) in the 3D view, in every module tab, and in the same orange on sections, level plans and the rig KML.")}</div>
+          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("No planned holes yet: add a collar position and design orientation above. A planned hole is a dashed orange line, in 3D, on sections, plans and the rig KML.")}</div>
         ) : (
           <div style={{ marginTop: 8 }}>
             {plannedHoles.map((hole) => (
@@ -7534,7 +7535,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {head(tr("Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length", { n: nTr }))}
                 {three("survey", "__survey__", "Traces", !nTr)}
                 <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
-                <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database; it loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); close(); }} />
+                <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database (Postgres COPY, MySQL LOAD DATA)")} onClick={() => { exportDrillholeTables("all"); close(); }} />
               </div>
             </div>
           );
@@ -7558,7 +7559,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <ContextItem label={tr("Export DXF (.dxf)…")} onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export GOCAD (.vs / .pl)…")} onClick={() => { exportVectorGocad(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} /> {/* #2631 */}
             {layerContextMenu.key !== "geophys_pts" && <ContextItem label={tr("Export CSV table (imports back)…")} onClick={() => { exportDrillholeTables(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
-            <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database; it loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database (Postgres COPY, MySQL LOAD DATA)")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
             {!isVector && <>
               {/* TASKS.csv #76 — sort this layer into a named group (or back out of one). */}

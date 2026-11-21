@@ -26,7 +26,9 @@ function rampColour(t) {
 const fmt = (v) => (Math.abs(v) > 0 && Math.abs(v) < 0.01 ? v.toExponential(0) : Number(v.toPrecision(2)).toLocaleString()); // 1/7,500 s is 1e-4, not 0
 
 function SoundingPlot({ s }) {
-  const w = 300, pl = 44, pr = 8, pt = 8, h1 = 150, h2 = 90, gap = 22, pb = 26, h = pt + h1 + gap + h2 + pb;
+  // TASKS.csv #3900 T2 — the 10 px floor: both plots are drawn in the side panel at about 0.85 of their 300 units (256 px at the default width),
+  // so their text is 12 units (10.2 px); the left margin widens for the longer labels, the bottom for the period's ticks and title
+  const w = 300, pl = 58, pr = 8, pt = 8, h1 = 150, h2 = 90, gap = 22, pb = 30, h = pt + h1 + gap + h2 + pb;
   const keys = ["xy", "yx", "det"].filter((k) => s.rho[k]);
   const periods = s.freqs.map((f) => 1 / f), lp = periods.map(Math.log10);
   const x0 = Math.min(...lp), x1 = Math.max(...lp);
@@ -41,23 +43,23 @@ function SoundingPlot({ s }) {
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("Apparent resistivity and phase against period at {station}", { station: s.id })} style={{ display: "block", background: "#fff", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <line x1={pl} y1={pt} x2={pl} y2={pt + h1} stroke="#94a1b0" /><line x1={pl} y1={pt + h1} x2={w - pr} y2={pt + h1} stroke="#94a1b0" />
-      {decades.map((d) => <g key={d}><line x1={pl} x2={w - pr} y1={sy(d)} y2={sy(d)} stroke="#e3e7ec" /><text x={pl - 3} y={sy(d) + 3} fontSize="8" fill="#55606e" textAnchor="end">{fmt(10 ** d)}</text></g>)}
-      <text x={10} y={pt + h1 / 2} fontSize="9" fill="#55606e" textAnchor="middle" transform={`rotate(-90 10 ${pt + h1 / 2})`}>{tr("Apparent resistivity (Ω·m)")}</text>
+      {decades.map((d) => <g key={d}><line x1={pl} x2={w - pr} y1={sy(d)} y2={sy(d)} stroke="#e3e7ec" /><text x={pl - 3} y={sy(d) + 4} fontSize="12" fill="#55606e" textAnchor="end">{fmt(10 ** d)}</text></g>)}
+      <text x={12} y={pt + h1 / 2} fontSize="12" fill="#55606e" textAnchor="middle" transform={`rotate(-90 12 ${pt + h1 / 2})`}>{tr("Apparent resistivity (Ω·m)")}</text>
       {keys.map((k) => { const p = path(s.rho[k], (v) => sy(Math.log10(v)), (v) => v > 0); return <g key={k}><polyline points={p.join(" ")} fill="none" stroke={SERIES[k].color} strokeWidth={k === "det" ? 1.6 : 1} />{p.map((q, i) => { const [cx, cy] = q.split(","); return <circle key={i} cx={cx} cy={cy} r="1.6" fill={SERIES[k].color} />; })}</g>; })}
       <line x1={pl} y1={top2} x2={pl} y2={top2 + h2} stroke="#94a1b0" /><line x1={pl} y1={top2 + h2} x2={w - pr} y2={top2 + h2} stroke="#94a1b0" />
-      {[0, 45, 90].map((d) => <g key={d}><line x1={pl} x2={w - pr} y1={sp(d)} y2={sp(d)} stroke="#e3e7ec" /><text x={pl - 3} y={sp(d) + 3} fontSize="8" fill="#55606e" textAnchor="end">{d}°</text></g>)}
-      <text x={10} y={top2 + h2 / 2} fontSize="9" fill="#55606e" textAnchor="middle" transform={`rotate(-90 10 ${top2 + h2 / 2})`}>{tr("Phase")}</text>
+      {[0, 45, 90].map((d) => <g key={d}><line x1={pl} x2={w - pr} y1={sp(d)} y2={sp(d)} stroke="#e3e7ec" /><text x={pl - 3} y={sp(d) + 4} fontSize="12" fill="#55606e" textAnchor="end">{d}°</text></g>)}
+      <text x={12} y={top2 + h2 / 2} fontSize="12" fill="#55606e" textAnchor="middle" transform={`rotate(-90 12 ${top2 + h2 / 2})`}>{tr("Phase")}</text>
       {keys.map((k) => { const p = path(s.phs[k], sp, (v) => Number.isFinite(v)); return <polyline key={k} points={p.join(" ")} fill="none" stroke={SERIES[k].color} strokeWidth={k === "det" ? 1.6 : 1} />; })}
-      <text x={pl} y={h - pb + 12} fontSize="8" fill="#55606e">{fmt(10 ** x0)}</text>
-      <text x={w - pr} y={h - pb + 12} fontSize="8" fill="#55606e" textAnchor="end">{fmt(10 ** x1)}</text>
-      <text x={(pl + w - pr) / 2} y={h - 4} fontSize="9" fill="#55606e" textAnchor="middle">{tr("Period (s, log scale)")}</text>
-      {keys.map((k, i) => <g key={k}><line x1={pl + 8 + i * 44} x2={pl + 22 + i * 44} y1={pt + 8} y2={pt + 8} stroke={SERIES[k].color} strokeWidth="2" /><text x={pl + 25 + i * 44} y={pt + 11} fontSize="8" fill="#55606e">{SERIES[k].label}</text></g>)}
+      <text x={pl} y={h - pb + 14} fontSize="12" fill="#55606e">{fmt(10 ** x0)}</text>
+      <text x={w - pr} y={h - pb + 14} fontSize="12" fill="#55606e" textAnchor="end">{fmt(10 ** x1)}</text>
+      <text x={(pl + w - pr) / 2} y={h - 3} fontSize="12" fill="#55606e" textAnchor="middle">{tr("Period (s, log scale)")}</text>
+      {keys.map((k, i) => <g key={k}><line x1={pl + 8 + i * 50} x2={pl + 22 + i * 50} y1={pt + 8} y2={pt + 8} stroke={SERIES[k].color} strokeWidth="2" /><text x={pl + 25 + i * 50} y={pt + 12} fontSize="12" fill="#55606e">{SERIES[k].label}</text></g>)}
     </svg>
   );
 }
 
 function Pseudosection({ ordered, comp, quantity, selected, onPick }) {
-  const w = 300, pl = 40, pr = 8, pt = 8, ph = 170, pb = 30, h = pt + ph + pb + 22;
+  const w = 300, pl = 58, pr = 8, pt = 8, ph = 170, pb = 30, h = pt + ph + pb + 22; // #3900: 12-unit text, as SoundingPlot
   const cells = [], allV = [];
   const lpAll = ordered.flatMap(({ s }) => s.freqs.map((f) => Math.log10(1 / f)));
   if (!ordered.length || !lpAll.length) return null;
@@ -81,14 +83,14 @@ function Pseudosection({ ordered, comp, quantity, selected, onPick }) {
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("Pseudosection: stations along the line against period")} style={{ display: "block", background: "#fff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: "pointer" }}>
       {cells.map((c, k) => <rect key={k} x={c.x} y={c.y} width={Math.max(0.5, c.x2 - c.x)} height={Math.max(0.5, c.y2 - c.y)} fill={Number.isFinite(c.v) ? rampColour(t(c.v)) : "#eeeeee"} onClick={() => onPick(c.s.id)}><title>{`${c.s.id}: ${Number.isFinite(c.v) ? (quantity === "phase" ? `${c.v.toFixed(1)}°` : `${fmt(10 ** c.v)} Ω·m`) : "—"}`}</title></rect>)}
       {ordered.map(({ s, d }) => <line key={s.id} x1={sx(d)} x2={sx(d)} y1={pt + ph} y2={pt + ph + (s.id === selected ? 7 : 3)} stroke={s.id === selected ? "#111" : "#94a1b0"} strokeWidth={s.id === selected ? 2 : 1} />)}
-      <text x={pl - 3} y={pt + 8} fontSize="8" fill="#55606e" textAnchor="end">{fmt(10 ** y0)}</text>
-      <text x={pl - 3} y={pt + ph} fontSize="8" fill="#55606e" textAnchor="end">{fmt(10 ** y1)}</text>
-      <text x={10} y={pt + ph / 2} fontSize="9" fill="#55606e" textAnchor="middle" transform={`rotate(-90 10 ${pt + ph / 2})`}>{tr("Period (s)")}</text>
-      <text x={pl} y={pt + ph + 18} fontSize="8" fill="#55606e">0 m</text>
-      <text x={w - pr} y={pt + ph + 18} fontSize="8" fill="#55606e" textAnchor="end">{Math.round(dMax).toLocaleString()} m</text>
-      {RAMP.map((c, k) => <rect key={k} x={pl + 40 + k * 22} y={h - 14} width="22" height="8" fill={quantity === "phase" ? RAMP[RAMP.length - 1 - k] : c} />)}
-      <text x={pl + 37} y={h - 7} fontSize="8" fill="#55606e" textAnchor="end">{quantity === "phase" ? "0°" : `${fmt(10 ** lo)} Ω·m`}</text>
-      <text x={pl + 43 + RAMP.length * 22} y={h - 7} fontSize="8" fill="#55606e">{quantity === "phase" ? "90°" : `${fmt(10 ** hi)} Ω·m`}</text>
+      <text x={pl - 3} y={pt + 10} fontSize="12" fill="#55606e" textAnchor="end">{fmt(10 ** y0)}</text>
+      <text x={pl - 3} y={pt + ph} fontSize="12" fill="#55606e" textAnchor="end">{fmt(10 ** y1)}</text>
+      <text x={12} y={pt + ph / 2} fontSize="12" fill="#55606e" textAnchor="middle" transform={`rotate(-90 12 ${pt + ph / 2})`}>{tr("Period (s)")}</text>
+      <text x={pl} y={pt + ph + 18} fontSize="12" fill="#55606e">0 m</text>
+      <text x={w - pr} y={pt + ph + 18} fontSize="12" fill="#55606e" textAnchor="end">{Math.round(dMax).toLocaleString()} m</text>
+      {RAMP.map((c, k) => <rect key={k} x={pl + 40 + k * 18} y={h - 14} width="18" height="8" fill={quantity === "phase" ? RAMP[RAMP.length - 1 - k] : c} />)}
+      <text x={pl + 37} y={h - 6} fontSize="12" fill="#55606e" textAnchor="end">{quantity === "phase" ? "0°" : `${fmt(10 ** lo)} Ω·m`}</text>
+      <text x={pl + 43 + RAMP.length * 18} y={h - 6} fontSize="12" fill="#55606e">{quantity === "phase" ? "90°" : `${fmt(10 ** hi)} Ω·m`}</text>
     </svg>
   );
 }

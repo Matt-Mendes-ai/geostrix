@@ -25,7 +25,7 @@ test("a header the file has twice: the copy with values (the parser names the se
 
 test("a link-only table says what it is; the dialog's guesses read the rows", () => {
   const d = fs.readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8");
-  assert.ok(d.includes("This table links check samples to their originals ({cols}) but holds no results"));
+  assert.ok(d.includes("this table links them to their originals ({cols}) but holds no results")); // #3899: the action first
   const g = fs.readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.equal((g.match(/qc: qcColumns\(headers, data\)/g) || []).length, 2);
 });

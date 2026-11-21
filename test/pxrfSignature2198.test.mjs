@@ -17,5 +17,5 @@ test("the review's WAMEX lab file reads as lab assays; a pXRF export does not", 
 test("the pXRF dialog shows the warning", () => {
   const a = readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8");
   assert.match(a, /const labLike = modal\.isPxrf \? pxrfSignature\(modal\.headers \|\| \[\]\) : null;/);
-  assert.match(a, /This file looks like lab assays/);
+  assert.match(a, /Use Import assays for lab results: this file looks like lab assays/); // #3899: the action first
 });

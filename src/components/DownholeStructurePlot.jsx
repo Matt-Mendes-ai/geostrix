@@ -213,13 +213,13 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>{tr("Downhole structure (tadpole) — {v}", { v: activeHole || tr("no hole") })} <span style={{ fontWeight: 400, fontSize: 11, color: "#65717e" }}>({holePicks.length}{" "}{tr(holePicks.length === 1 ? "pick" : "picks")})</span>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#1a2028" }}>{tr("Downhole structure (tadpole) — {v}", { v: activeHole || tr("no hole") })} <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)", color: "#65717e" }}>({holePicks.length}{" "}{tr(holePicks.length === 1 ? "pick" : "picks")})</span>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         {!holeIds.length ? (
-          <div style={{ padding: "28px 8px", fontSize: 12, color: "#55606e", lineHeight: 1.6 }}>{tr("No hole has any structure picks with a dip and dip direction (or a measured alpha) yet. Import a structure layer (or save picks from the Core Orientation calculator) and this plot will fill in.")}</div>
+          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "#55606e", lineHeight: 1.6 }}>{tr("No hole has any structure picks with a dip and dip direction (or a measured alpha) yet. Import a structure layer (or save picks from the Core Orientation calculator) and this plot will fill in.")}</div>
         ) : (
         <div style={{ display: "flex", gap: 16 }}>
           <div>
@@ -235,14 +235,14 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 );
               })}
               <rect x={44} y={Y0} width={LITHO_W} height={PLOT_H} fill="none" stroke="#d9dce1" strokeWidth={1} />
-              <text x={44 + LITHO_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">{tr("Litho")}</text>
+              <text x={44 + LITHO_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={10} fill="#55606e">{tr("Litho")}</text>
 
               {/* Tadpole panel */}
               <rect x={X0} y={Y0} width={PLOT_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
               {[0, 15, 30, 45, 60, 75, 90].map((a) => (
                 <g key={`vx_${a}`}>
                   <line x1={xFor(a)} y1={Y0} x2={xFor(a)} y2={Y0 + PLOT_H} stroke={a % 45 === 0 ? "#e0e3e8" : "#f0f2f4"} strokeWidth={1} />
-                  <text x={xFor(a)} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">{a}</text>
+                  <text x={xFor(a)} y={Y0 - 6} textAnchor="middle" fontSize={10} fill="#55606e">{a}</text>
                 </g>
               ))}
               <text x={X0 + PLOT_W / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="#55606e">
@@ -253,10 +253,10 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
               {depthTicks.map((d) => (
                 <g key={`dt_${d}`}>
                   <line x1={44} y1={yFor(d)} x2={X0 + PLOT_W + (showFreq ? GAP + FREQ_W : 0)} y2={yFor(d)} stroke="#f0f2f4" strokeWidth={1} />
-                  <text x={40} y={yFor(d) + 3} textAnchor="end" fontSize={9} fill="#55606e">{d}</text>
+                  <text x={40} y={yFor(d) + 3} textAnchor="end" fontSize={10} fill="#55606e">{d}</text>
                 </g>
               ))}
-              <text x={10} y={Y0 - 6} fontSize={9} fill="#55606e">{tr("Depth (m)")}</text>
+              <text x={10} y={Y0 - 18} fontSize={10} fill="#55606e">{tr("Depth (m)")}</text>{/* #3900: a row above "Litho" (at 9 px they already touched) */}
 
               {/* Lithology CONTACTS extended across the tadpole panel as faint lines — this is what makes
                   "does structural style change at the contact" answerable at a glance instead of by
@@ -295,7 +295,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
               {freq && (
                 <>
                   <rect x={X0 + PLOT_W + GAP} y={Y0} width={FREQ_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
-                  <text x={X0 + PLOT_W + GAP + FREQ_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">n/{binSize}m</text>
+                  <text x={X0 + PLOT_W + GAP + FREQ_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={10} fill="#55606e">n/{binSize}m</text>
                   {freq.counts.map((c, i) => {
                     if (!c) return null;
                     const y1 = yFor(i * binSize), y2 = yFor(Math.min(maxDepth, (i + 1) * binSize));
@@ -306,7 +306,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                       </rect>
                     );
                   })}
-                  <text x={X0 + PLOT_W + GAP + FREQ_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#65717e">{tr("max {v}", { v: freq.max })}</text>
+                  <text x={X0 + PLOT_W + GAP + FREQ_W - 2} y={H - 8} textAnchor="end" fontSize={10} fill="#65717e">{tr("max {v}", { v: freq.max })}</text>
                 </>
               )}
               {/* TASKS.csv #2236 — the numeric track: bars for intervals, a line for points, from the track's lowest value (0 or below) to its highest */}
@@ -314,13 +314,13 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 const xv = (v) => NX0 + 1 + ((v - numRows.lo) / (numRows.hi - numRows.lo)) * (NUM_W - 2);
                 return <g>
                   <rect x={NX0} y={Y0} width={NUM_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
-                  <text x={NX0 + NUM_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">{numSrc.label.length > 14 ? numSrc.label.slice(0, 13) + "…" : numSrc.label}<title>{numSrc.label}</title></text>
+                  <text x={NX0 + NUM_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={10} fill="#55606e">{numSrc.label.length > 14 ? numSrc.label.slice(0, 13) + "…" : numSrc.label}<title>{numSrc.label}</title></text>
                   {numRows.points
                     ? <polyline fill="none" stroke="#7d3c98" strokeWidth={1} points={numRows.rows.filter((r) => r.at != null && r.at <= maxDepth).map((r) => `${xv(r.v).toFixed(1)},${yFor(r.at).toFixed(1)}`).join(" ")} />
                     : numRows.rows.map((r, i) => { const y1 = yFor(r.from), y2 = yFor(r.to); return y2 > y1 ? <rect key={`nm_${i}`} x={NX0 + 1} y={y1} width={Math.max(0, xv(r.v) - NX0 - 1)} height={Math.max(0.6, y2 - y1 - 0.3)} fill="#7d3c98" opacity={0.55}><title>{`${numSrc.label}: ${r.v} — ${r.from}–${r.to} m`}</title></rect> : null; })}
-                  <text x={NX0 + 2} y={H - 8} fontSize={9} fill="#65717e">{+numRows.lo.toPrecision(3)}</text>
-                  <text x={NX0 + NUM_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#65717e">{+numRows.hi.toPrecision(3)}</text>
-                  {!numRows.rows.length && <text x={NX0 + NUM_W / 2} y={Y0 + 20} textAnchor="middle" fontSize={9} fill="#65717e">{tr("none in this hole")}</text>}
+                  <text x={NX0 + 2} y={H - 8} fontSize={10} fill="#65717e">{+numRows.lo.toPrecision(3)}</text>
+                  <text x={NX0 + NUM_W - 2} y={H - 8} textAnchor="end" fontSize={10} fill="#65717e">{+numRows.hi.toPrecision(3)}</text>
+                  {!numRows.rows.length && <text x={NX0 + NUM_W / 2} y={Y0 + 20} textAnchor="middle" fontSize={10} fill="#65717e">{tr("none in this hole")}</text>}
                 </g>;
               })()}
             </svg>
@@ -365,14 +365,14 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
             )}
 
             {effectiveMode === "dip" && alphaOnly > 0 && (
-              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>
+              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: "var(--font-size-xs)", color: "#6b4e20", lineHeight: 1.45 }}>
                 {tr("{alphaOnly} {v} (non-oriented core) not shown in true-dip mode — they have no true dip. Switch to alpha to see them; they are counted in the frequency track.", { alphaOnly, v: tr(alphaOnly === 1 ? "alpha-only pick" : "alpha-only picks") })}</div>
             )}
             {xMode === "alpha" && !hasAlpha && (
-              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>{tr("Showing TRUE DIP: alpha needs this hole's attitude at each pick's depth, which requires collar and survey data for {activeHole}.", { activeHole })}</div>
+              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: "var(--font-size-xs)", color: "#6b4e20", lineHeight: 1.45 }}>{tr("Showing TRUE DIP: alpha needs this hole's attitude at each pick's depth, which requires collar and survey data for {activeHole}.", { activeHole })}</div>
             )}
 
-            <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10.5, color: "#1a2028", lineHeight: 1.55 }}>
+            <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: "var(--font-size-xs)", color: "#1a2028", lineHeight: 1.55 }}>
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{tr("Reading this plot")}</div>
               <div style={{ color: "#55606e" }}>{tr("Each dot sits at its {v} angle and its depth. The tail points in the structure's dip direction,", { v: effectiveMode === "alpha" ? tr("alpha") : tr("dip") })}{" "}<b>{tr("north up the page")}</b>{" "}{tr("— so a tail pointing right is dipping east.")}</div>
               <div style={{ color: "#55606e", marginTop: 4 }}>{tr("A hollow dot is an alpha-only pick (core not oriented): it has no dip direction, so no tail.")}{" "}{/* #527 */}{tr("Clustered tails = a consistent set. Tails fanning through 360° over a short interval usually means a core-orientation problem rather than real geology. Alpha does not depend on the orientation line, so alpha jumping wildly between adjacent picks points to a logging or depth error instead.")}</div>
@@ -381,7 +381,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
             {types.length > 1 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {types.map((t) => (
-                  <div key={t} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e" }}>
+                  <div key={t} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "#55606e" }}>
                     <div style={{ width: 8, height: 8, borderRadius: 4, background: colorForStructure(t) }} />
                     {t}
                   </div>
@@ -400,6 +400,6 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
 
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxWidth: "94vw", maxHeight: "94vh", overflow: "auto" };
-const rowLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
-const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 };
-const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: 11.5, cursor: "pointer" };
+const rowLabel = { fontSize: "var(--font-size-xs)", color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
+const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: "var(--font-size-sm)" };
+const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: "var(--font-size-sm)", cursor: "pointer" };

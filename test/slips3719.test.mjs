@@ -46,5 +46,5 @@ test("(f) collars.csv carries the credit once, on the first hole; the importer t
 test("(b) (g) (i) wiring: the autosave note resets with the tab, the unsampled words are translated, the export tooltip is rewritten", () => {
   assert.match(read("../src/App.jsx"), /useEffect\(\(\) => \{ setAutosavedAt\(null\); \}, \[activeTabId\]\);/);
   assert.match(read("../src/lib/legendGroups.js"), /label: tr\("Not sampled"\), items: \[\[tr\("bare trace: no sample here"\)/);
-  assert.match(read("../src/modules/ViewerModule.jsx"), /title=\{tr\("One CSV per table \(collars, survey, every layer, assays\) in a \.zip, for Leapfrog, Micromine or any database; it loads into Postgres with COPY and into MySQL with LOAD DATA"\)\}/);
+  assert.match(read("../src/modules/ViewerModule.jsx"), /title=\{tr\("One CSV per table \(collars, survey, every layer, assays\) in a \.zip, for Leapfrog, Micromine or any database \(Postgres COPY, MySQL LOAD DATA\)"\)\}/); // #3899: shorter
 });

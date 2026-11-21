@@ -37,8 +37,8 @@ test("wired: the atlas asks for the logged tracks, counts pages with no strip lo
   assert.match(m, /const noLog = pages\.filter\(\(pg\) => pg\.noStripLog\)\.length;/);
   assert.match(m, /gradeUnitLabel\(e\.symbol, e\.unit\)/); // 'Ag (g/t)', as the strip-log window's own list
   for (const k of [
-    "{n} of the selected holes has no logs and no density, and no assay track is chosen: its page will have no strip log. Choose an assay track above.",
-    "{n} of the selected holes have no logs and no density, and no assay track is chosen: their pages will have no strip log. Choose an assay track above.",
+    "Choose an assay track above: {n} of the selected holes has no logs or density, so its page would have no strip log.",
+    "Choose an assay track above: {n} of the selected holes have no logs or density, so their pages would have no strip log.",
     "{n} page has no strip log: that hole has no logs and no density, and no assay track was chosen.",
     "{n} pages have no strip log: those holes have no logs and no density, and no assay track was chosen.",
   ]) { assert.ok(m.includes(JSON.stringify(k)), k.slice(0, 40)); for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`); }

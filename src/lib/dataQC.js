@@ -128,8 +128,8 @@ function validateCollars(collars, survey = []) { // survey: #2186
       // W / D / A and a number, that parts from the parent down the hole (another length, or another direction at the last station), is a wedge: an info that says so
       same.forEach((g) => {
         const w = wedgeFamily(g, byId, survey);
-        if (w) pushIssue(issues, "info", "Collars", null, tr("{n} holes ({ids}) start at the same collar and point the same way: {parent} and its wedge / daughter hole(s) {kids}, which part from it down the hole — normal for wedged holes.", { n: g.length, ids: g.join(", "), parent: w.parent, kids: w.kids.join(", ") }));
-        else pushIssue(issues, "warning", "Collars", null, tr("{n} holes ({ids}) share the same collar (within 1m) AND point the same way (within 3°) — a wedge or daughter hole, a twin or re-drill, a duplicate import, or a coordinate entry error.", { n: g.length, ids: g.join(", ") }));
+        if (w) pushIssue(issues, "info", "Collars", null, tr("{n} holes ({ids}) share a collar and direction: {parent} and its wedge / daughter hole(s) {kids}, normal for wedged holes.", { n: g.length, ids: g.join(", "), parent: w.parent, kids: w.kids.join(", ") }));
+        else pushIssue(issues, "warning", "Collars", null, tr("Check {n} holes ({ids}) with the same collar (within 1 m) and direction (within 3°): a wedge, twin or re-drill, a duplicate import, or a coordinate error.", { n: g.length, ids: g.join(", ") }));
       });
       if (same.flat().length < unique.length) pushIssue(issues, "info", "Collars", null, tr("{n} holes ({ids}) start within 1m of each other with different azimuths or dips: a drill pad (fan), not a duplicate.", { n: unique.length, ids: unique.join(", ") }));
       return;
@@ -201,7 +201,7 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
       const top = sorted[0], one = sorted.length === 1 && top.depth <= 1, steep = Number.isFinite(top?.dip) && Math.abs(top.dip) >= 85;
       if (one && (steep || eoh <= COLLAR_ONLY_LONG_M)) collarOnly.push({ eoh, steep });
       else {
-        pushIssue(issues, "warning", "Survey", holeId, tr("The survey ends at {v} m, {v2} m above the end of the hole ({v3} m, {v4}%): the trace below is carried on with the last attitude, a guess — the hole's real path down there is unknown.", { v: +last.toFixed(1), v2: +(eoh - last).toFixed(1), v3: +eoh.toFixed(1), v4: Math.round((100 * (eoh - last)) / eoh) }));
+        pushIssue(issues, "warning", "Survey", holeId, tr("The survey ends at {v} m, {v2} m above the end of the hole ({v3} m, {v4}%): below, the trace continues at the last attitude, a guess.", { v: +last.toFixed(1), v2: +(eoh - last).toFixed(1), v3: +eoh.toFixed(1), v4: Math.round((100 * (eoh - last)) / eoh) }));
       }
     }
     { // TASKS.csv #3730 — a stretch with no station between two stations, far wider than this hole's (or the project's) usual spacing: the trace there is interpolated, not measured
@@ -209,7 +209,7 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
       const found = gapsIn(finite);
       if (found) {
         const w = found.widest, total = Number.isFinite(eoh) && eoh > 0 ? eoh : (finite.length ? finite[finite.length - 1].depth : NaN), pct = Number.isFinite(total) && total > 0 ? Math.round((100 * (w.to - w.from)) / total) : null;
-        pushIssue(issues, "warning", "Survey", holeId, tr("No survey station between {from} m and {to} m ({v}% of the hole; the stations are usually {usual} m apart): the path there is interpolated between the two stations, not measured.", { from: +w.from.toFixed(1), to: +w.to.toFixed(1), v: pct ?? "?", usual: +found.usual.toFixed(1) }) + (found.gaps.length > 1 ? " " + tr("{n} gaps like this on this hole; this is the widest.", { n: found.gaps.length }) : ""));
+        pushIssue(issues, "warning", "Survey", holeId, tr("No survey station between {from} m and {to} m ({v}% of the hole; usually {usual} m apart): the path there is interpolated, not measured.", { from: +w.from.toFixed(1), to: +w.to.toFixed(1), v: pct ?? "?", usual: +found.usual.toFixed(1) }) + (found.gaps.length > 1 ? " " + tr("{n} gaps like this on this hole; this is the widest.", { n: found.gaps.length }) : ""));
       }
     }
     // Duplicate-depth stations.
@@ -249,7 +249,7 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
   }
   if (collarOnly.length) { // #2335 — one note for every hole with a collar station only
     const d = collarOnly.map((h) => h.eoh), steep = collarOnly.filter((h) => h.steep).length;
-    pushIssue(issues, "info", "Survey", null, tr("{n} hole(s), {v} of them vertical, have a survey station at the collar only ({d1}-{d2} m deep): each is drawn straight at that attitude. Their path below the collar is not measured; a downhole survey would show any deviation.", { n: collarOnly.length, v: steep, d1: Math.round(arrMin(d)), d2: Math.round(arrMax(d)) }));
+    pushIssue(issues, "info", "Survey", null, tr("{n} hole(s), {v} vertical, have a survey station at the collar only ({d1}-{d2} m deep): drawn straight, their path below is not measured.", { n: collarOnly.length, v: steep, d1: Math.round(arrMin(d)), d2: Math.round(arrMax(d)) }));
   }
   { // TASKS.csv #2494 (review #2486) — holes whose survey method column says every station is assumed (planned, nominal, collar set-up)
     const sm = surveyMethodByHole(survey);
@@ -263,13 +263,13 @@ function* validateSurveyAndTrajectorySteps(collars, survey, { doglegWarn = 3, do
   // is a warning about an assumption, not an error about a hole that vanished; it was 534 errors on a 544-collar district compilation.
   // TASKS.csv #2169 — a collar imported with no elevation sits at an assumed one (collarElevation.js)
   const zHow = { terrain: () => tr("on the terrain"), median: () => tr("at the median collar elevation"), zero: () => tr("at 0 m") };
-  collars.filter((c) => c.zAssumed).forEach((c) => pushIssue(issues, "warning", "Collars", c.hole_id, tr("No elevation in the collar file — placed {how} ({z} m), an ASSUMED elevation: everything on the hole sits at that height. Add the collar RL and re-import the collars.", { how: (zHow[c.zAssumed] || zHow.zero)(), z: Number.isFinite(c.z) ? Math.round(c.z) : "?" })));
+  collars.filter((c) => c.zAssumed).forEach((c) => pushIssue(issues, "warning", "Collars", c.hole_id, tr("Add the collar RL and re-import the collars: with no elevation in the file it was placed {how} ({z} m), an ASSUMED elevation for everything on the hole.", { how: (zHow[c.zAssumed] || zHow.zero)(), z: Number.isFinite(c.z) ? Math.round(c.z) : "?" })));
   // TASKS.csv #3004 / #2896 — an elevation in the file that is probably a missing value (0 m on raised ground, or a stray far from every
   // other collar): recomputed here, so a project saved before the rule is checked too
   { const sus = suspectElevationIds(collars); if (sus.size) { const ok = collars.filter((c) => Number.isFinite(c.z) && !c.zAssumed && !sus.has(c.hole_id)).map((c) => c.z); const lo = arrMin(ok), hi = arrMax(ok);
-    collars.filter((c) => sus.has(c.hole_id)).forEach((c) => pushIssue(issues, "warning", "Collars", c.hole_id, tr("Elevation {z} m in the collar file, far from the other collars ({lo}–{hi} m): probably a missing value. Everything on the hole sits at that height; check the collar RL and re-import the collars.", { z: Math.round(c.z), lo: Number.isFinite(lo) ? Math.round(lo) : "?", hi: Number.isFinite(hi) ? Math.round(hi) : "?" }))); } }
+    collars.filter((c) => sus.has(c.hole_id)).forEach((c) => pushIssue(issues, "warning", "Collars", c.hole_id, tr("Check the collar RL and re-import the collars: elevation {z} m is far from the other collars ({lo}–{hi} m), probably a missing value.", { z: Math.round(c.z), lo: Number.isFinite(lo) ? Math.round(lo) : "?", hi: Number.isFinite(hi) ? Math.round(hi) : "?" }))); } }
   const untraceable = noSurvey.filter((c) => !Number.isFinite(c.azimuth) || !Number.isFinite(c.dip));
-  untraceable.forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, tr("No survey rows and no collar azimuth/dip — drawn as an ASSUMED vertical hole (dashed in the 3D view), and every interval, assay and pick on it is placed on that assumption. Add the collar azimuth and dip, or a survey.")));
+  untraceable.forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, tr("Add the collar azimuth and dip, or a survey: with neither, it is drawn as an ASSUMED vertical hole (dashed), and everything on it is placed on that assumption.")));
   const traceable = noSurvey.filter((c) => !untraceable.includes(c));
   noSurvey.filter((c) => !(Number.isFinite(c.length) && c.length > 0)).forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, tr("No survey rows and no hole length — drawn as a straight hole of an ASSUMED 300 m. Add the end-of-hole depth to the collar file.")));
   if (traceable.length) {
@@ -359,7 +359,7 @@ export function importCheckSummary(rows, collars, survey, label = "rows", range 
   if (!collarIds.size) {
     const ids = new Set();
     for (const r of rows || []) if (r.hole_id && !isMarkedQcRow(r)) ids.add(r.hole_id);
-    if (ids.size) none = tr("No collars are loaded, so these {label} for {n} hole(s) ({ex}{v}) cannot be drawn yet: they are kept, and appear once collars with those hole ids are imported.", { label, n: ids.size, ex: [...ids].slice(0, 3).join(", "), v: ids.size > 3 ? ", …" : "" });
+    if (ids.size) none = tr("Import the collars to draw these {label} for {n} hole(s) ({ex}{v}): they are kept until then.", { label, n: ids.size, ex: [...ids].slice(0, 3).join(", "), v: ids.size > 3 ? ", …" : "" });
   }
   if (ftHint?.kind === "feet") parts.push(tr("the deepest depth of {n} of {total} holes is about {ratio} times their length: these depths look like FEET — undo (Ctrl+Z) and import again with Feet chosen", { n: ftHint.holes, total: ftHint.total, ratio: ftHint.ratio.toFixed(2) }));
   const check = parts.length ? tr("Check these {label}: {parts}. They were imported as they are — Data QC lists each one.", { label, parts: parts.join(", ") }) : "";
@@ -400,7 +400,7 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
     // another `else if` on the chain above: from=-5, to=-2 is perfectly self-consistent (from < to,
     // non-zero length), so it slips through every branch there and needs its own test.
     if (Number.isFinite(r.from) && Number.isFinite(r.to) && (r.from < 0 || r.to < 0)) {
-      pushIssue(issues, "error", layerLabel, r.hole_id, tr("Interval has a negative depth ({from}–{to}m) — downhole depths are measured from the collar and can't be below zero. Usually a sign flip or a stray minus.", { from: r.from, to: r.to }));
+      pushIssue(issues, "error", layerLabel, r.hole_id, tr("Negative depth ({from}–{to}m): downhole depths can't be below zero, so usually a sign flip or a stray minus.", { from: r.from, to: r.to }));
     }
     const maxDepth = holeLengths.get(r.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(r.to) && r.to > maxDepth + 0.5) {
@@ -454,7 +454,7 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
   }
   zeroByHole.forEach(({ n, from }, id) => pushIssue(issues, "warning", layerLabel, id, n === 1 ? tr("Zero-length interval at {from}m.", { from }) : tr("{n} zero-length intervals in this hole, the shallowest at {from}m: point readings imported as intervals, or mis-keyed depths.", { n: n.toLocaleString("en-US"), from }))); // #3037
   noValueByHole.forEach(({ n, from, to }, id) => pushIssue(issues, "info", layerLabel, id, n === 1 ? tr("Interval at {v}–{v2}m has no code/value.", { v: from ?? "?", v2: to ?? "?" }) : tr("{n} intervals in this hole have no code/value, the shallowest at {v}m.", { n: n.toLocaleString(), v: from ?? "?" }))); // #3359
-  if (multiValued) pushIssue(issues, "info", layerLabel, null, tr("{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.", { n: multiValued }));
+  if (multiValued) pushIssue(issues, "info", layerLabel, null, tr("{n} interval(s) repeat another's from–to with a different value: several values per run (e.g. vein types), not counted as overlaps.", { n: multiValued }));
   orphans.forEach((n, id) => pushIssue(issues, "error", layerLabel, id, n === 1 ? tr("Interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} intervals reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   return issues;
 }
@@ -498,7 +498,7 @@ function* validateAssaysSteps(assays, collarIds, holeLengths) { // #3136
     Object.keys(q).forEach((sym) => { if (q[sym] === ">") overRange.set(sym, (overRange.get(sym) || 0) + 1); });
   }
   overRange.forEach((count, sym) => {
-    pushIssue(issues, "warning", "Assays", null, tr(count === 1 ? "{count} {sym} assay value is over-range (reported by the lab as \">x\"). It is a placeholder that needs a re-assay before any estimation — GeoStrix uses it at exactly the detection ceiling x, which understates the true grade, and no cap or estimate built on it is defensible." : "{count} {sym} assay values are over-range (reported by the lab as \">x\"). These are placeholders that need a re-assay before any estimation — GeoStrix uses them at exactly the detection ceiling x, which understates the true grade, and no cap or estimate built on them is defensible.", { count, sym }));
+    pushIssue(issues, "warning", "Assays", null, tr(count === 1 ? "Re-assay {count} over-range {sym} value (lab \">x\") before any estimation: GeoStrix uses it at the ceiling x, which understates the grade, so no cap or estimate on it is defensible." : "Re-assay {count} over-range {sym} values (lab \">x\") before any estimation: GeoStrix uses them at the ceiling x, which understates the grade, so no cap or estimate on them is defensible.", { count, sym }));
   });
   for (const a of assays) {
     if (++tick % ROW_STEP === 0) yield;
@@ -518,7 +518,7 @@ function* validateAssaysSteps(assays, collarIds, holeLengths) { // #3136
     // TASKS.csv #285 — same negative-depth check as validateIntervalLayer above (and as survey depths
     // have always had); see that comment for why it can't be folded into the else-if chain.
     if (Number.isFinite(a.from) && Number.isFinite(a.to) && (a.from < 0 || a.to < 0)) {
-      pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval has a negative depth ({from}–{to}m) — downhole depths are measured from the collar and can't be below zero. Usually a sign flip or a stray minus.", { from: a.from, to: a.to }));
+      pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval with a negative depth ({from}–{to}m): downhole depths can't be below zero, so usually a sign flip or a stray minus.", { from: a.from, to: a.to }));
     }
     const maxDepth = holeLengths.get(a.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(a.to) && a.to > maxDepth + 0.5) {
@@ -556,7 +556,7 @@ function* validateAssaysSteps(assays, collarIds, holeLengths) { // #3136
       const key = `${a.from}|${a.to}`, first = seen.get(key);
       if (first) {
         const ida = String(first.sample_id ?? "").trim(), idb = String(a.sample_id ?? "").trim();
-        if (ida && idb && ida !== idb) pushIssue(issues, "warning", "Assays", holeId, tr("Two samples at {from}–{to}m ({a}, {b}): a field or lab duplicate pair, not a double import. Both count in the statistics unless one is marked as a QAQC duplicate.", { from: a.from, to: a.to, a: ida, b: idb }));
+        if (ida && idb && ida !== idb) pushIssue(issues, "warning", "Assays", holeId, tr("Two samples at {from}–{to}m ({a}, {b}): a field or lab duplicate pair. Both count in the statistics unless one is marked a QAQC duplicate.", { from: a.from, to: a.to, a: ida, b: idb }));
         else pushIssue(issues, "warning", "Assays", holeId, tr("Duplicate assay interval {from}–{to}m — likely imported twice.", { from: a.from, to: a.to }));
       } else seen.set(key, a);
     });
@@ -697,7 +697,7 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
   // TASKS.csv #3882 follow-up — a compact cluster of collars far above the ground (mined since they were drilled), named even when the median is moderate
   const cluster = collarClusterAbove(collars, terrain);
   if (cluster) pushIssue(issues, "warning", "Collar vs terrain", null, collarClusterNote(cluster, terrain));
-  off.forEach((o) => pushIssue(issues, "warning", "Collar vs terrain", o.hole_id, tr("Collar elevation {z} m is {v} m {v2} the terrain ({dem} m) — a GPS / datum / units error, or a DEM that is too coarse here. Every intercept elevation on this hole moves with it.", { z: o.z.toFixed(1), v: Math.abs(o.dz).toFixed(1), v2: o.dz > 0 ? "above" : "below", dem: o.dem.toFixed(1) })));
+  off.forEach((o) => pushIssue(issues, "warning", "Collar vs terrain", o.hole_id, tr("Collar elevation {z} m is {v} m {v2} the terrain ({dem} m): a GPS, datum or units error, or a coarse DEM. Every intercept elevation on the hole moves with it.", { z: o.z.toFixed(1), v: Math.abs(o.dz).toFixed(1), v2: o.dz > 0 ? "above" : "below", dem: o.dem.toFixed(1) })));
   return issues;
 }
 
@@ -761,7 +761,7 @@ export function* runDataQCSteps({ project, collars, survey, layers, boundaries, 
   const tail2 = [
     // #1109 — calculator picks solved with a hole direction the survey no longer gives
     ...staleCalculatorPicks(collars, survey, layers.structure).map(({ pick, angle, now }) => ({ severity: "warning", category: tr("Core orientation calculator"), holeId: pick.hole_id,
-      message: tr("The structure pick at {depth} m was calibrated with the hole at azimuth {az0}°, dip {dip0}°; the survey now gives {az1}°, {dip1}° ({angle}° apart), so its dip / dip direction is stale: re-enter it in the core orientation calculator.", { depth: Number(pick.depth).toFixed(1), az0: pick.hole_az_used.toFixed(1), dip0: pick.hole_dip_used.toFixed(1), az1: now.azimuth.toFixed(1), dip1: now.dip.toFixed(1), angle: angle.toFixed(1) }) })),
+      message: tr("Re-enter the structure pick at {depth} m in the core orientation calculator: it was set with the hole at {az0}° / {dip0}°, the survey now gives {az1}° / {dip1}° ({angle}° apart).", { depth: Number(pick.depth).toFixed(1), az0: pick.hole_az_used.toFixed(1), dip0: pick.hole_dip_used.toFixed(1), az1: now.azimuth.toFixed(1), dip1: now.dip.toFixed(1), angle: angle.toFixed(1) }) })),
   ];
   yield;
   const tail3 = [
