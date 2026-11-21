@@ -138,6 +138,7 @@ import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 
 import { pointsAlongOneLine, surveyLabel } from "../lib/rasterMethod.js"; // TASKS.csv #2557; surveyLabel: #2559
 import { collarTerrainOffsets, collarTerrainSide } from "../lib/dataQC.js"; // TASKS.csv #3807
 import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import { stopsAreLogSpaced } from "../lib/legendScale.js"; // TASKS.csv #3813 — the model's own scale for its on-hole layer
 const APPARENT_METHODS = new Set(["ip_app", "res_app"]); // TASKS.csv #3808 — a DC / IP survey's apparent values at pseudo-depths
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
@@ -262,8 +263,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const out = rows.map((r) => ({ ...r, value: discrete ? labelOf(r.value) : r.value, modelled: true, ...(discrete ? {} : { numeric: true }), modelColor: colorForVoxelValue(model, r.value) }));
     // TASKS.csv #3813 — a second evaluation of the same model replaces its layer (same id: its style and the axis lists keep it) instead of adding a second layer of the same name
     const prevLayer = (customLayers || []).find((l) => l.sourceModel === model.id && /^On holes: /.test(String(l.name)));
+    // TASKS.csv #3813 (Matt's decision, 2026-11-21) — the layer starts on the model's own scale: log when its colours are log-spaced, else linear (switchable in the layer's Style)
+    const scale = discrete ? undefined : stopsAreLogSpaced(model.stops) ? "log" : "linear";
     const id = prevLayer?.id || `custom_${Date.now()}`;
-    setCustomLayers((p) => (p.some((l) => l.id === id) ? p.map((l) => (l.id === id ? { ...l, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null } : l)) : [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null }]));
+    setCustomLayers((p) => (p.some((l) => l.id === id) ? p.map((l) => (l.id === id ? { ...l, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null, defaultRampScale: scale } : l)) : [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null, defaultRampScale: scale }]));
     setVoxelError({ info: true, text: tr("Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs.{routes}", { name: model.name, routes: onHolesRoutes(assays, layers), rows: rows.length.toLocaleString(), holes }) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
   };
   // User question after the MAX_CELLS coarsening budget was lowered (perf investigation done in this

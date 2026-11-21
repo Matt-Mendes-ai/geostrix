@@ -14471,5 +14471,6 @@
   "Text size — remembered on this computer. Figures, the Layout page and exports keep their sizes.": "حجم النص: يُحفظ على هذا الحاسوب. تحتفظ الأشكال وصفحة التخطيط والملفات المُصدَّرة بأحجامها.",
   "Normal": "عادي",
   "Large": "كبير",
-  "Larger": "أكبر"
+  "Larger": "أكبر",
+  "as the model: {scale}": "كما في النموذج: {scale}"
 }

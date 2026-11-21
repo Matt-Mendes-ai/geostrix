@@ -14471,5 +14471,6 @@
   "Text size — remembered on this computer. Figures, the Layout page and exports keep their sizes.": "Taille du texte : mémorisée sur cet ordinateur. Les figures, la page de mise en page et les exports gardent leurs tailles.",
   "Normal": "Normal",
   "Large": "Grand",
-  "Larger": "Plus grand"
+  "Larger": "Plus grand",
+  "as the model: {scale}": "comme le modèle : {scale}"
 }

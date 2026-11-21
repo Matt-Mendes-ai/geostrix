@@ -14471,5 +14471,6 @@
   "Text size — remembered on this computer. Figures, the Layout page and exports keep their sizes.": "Tamanho do texto: lembrado neste computador. As figuras, a página da Prancha e as exportações mantêm seus tamanhos.",
   "Normal": "Normal",
   "Large": "Grande",
-  "Larger": "Maior"
+  "Larger": "Maior",
+  "as the model: {scale}": "como o modelo: {scale}"
 }
