@@ -14673,5 +14673,10 @@
   "Grade / intercept labels": "تسميات المحتوى / التقاطع",
   "Surface and shell names": "أسماء الأسطح والأغلفة",
   "Ground surface label": "تسمية سطح الأرض",
-  "{n} holes: offsets and depth ticks off.": "{n} ثقبًا: البعد وعلامات العمق مخفية."
+  "{n} holes: offsets and depth ticks off.": "{n} ثقبًا: البعد وعلامات العمق مخفية.",
+  "All the drilling": "كل الحفر",
+  "The box drawn": "المستطيل المرسوم",
+  "Draw a box…": "ارسم مستطيلًا…",
+  "Drag on the view to draw it.": "اسحب على العرض لرسمه.",
+  "Drag a corner to change it.": "اسحب زاوية لتغييره."
 }
