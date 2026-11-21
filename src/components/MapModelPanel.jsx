@@ -16,6 +16,7 @@ import { suggestPileOrder, mapRoleFromLog } from "../lib/pileOrder.js"; // mapRo
 import { roleWithCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #3369 — the logs' role of a code (Modelling codes first)
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M, contactsAgainstOrder } from "../lib/holeMapContacts.js"; // TASKS.csv #1718; contactsAgainstOrder: #2408
+import { plainLith } from "../lib/lithText.js"; // TASKS.csv #3936: a Macrostrat unit name's lithology block in words (shown; the run keeps the value)
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
@@ -220,7 +221,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, marginBottom: 3, fontSize: "var(--font-size-xs)" }}>
           <button onClick={() => move(i, -1)} disabled={!i} aria-label={tr("Move up")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i ? 1 : 0.3 }}><ChevronUp size={13} /></button>
           <button onClick={() => move(i, 1)} disabled={i === order.length - 1} aria-label={tr("Move down")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i < order.length - 1 ? 1 : 0.3 }}><ChevronDown size={13} /></button>
-          <span style={{ fontWeight: 600 }}>{u}</span>
+          <span style={{ fontWeight: 600 }}>{plainLith(u)}</span>
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-muted)" }} title={unitInfo.get(u)?.description || ""}>{unitInfo.get(u)?.description || ""} · {why(u)}</span>
           <select value={roles[u] || "stratigraphic"} onChange={(e) => setRole(u, e.target.value)} style={{ ...smallSel, width: 96 }} aria-label={tr("Role of {u}", { u })}>{ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select>
         </div>
@@ -237,7 +238,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         <div style={{ fontSize: "var(--font-size-xs)", marginTop: 4, marginBottom: 6 }}>
           {tr("Left out of the stack:")}{" "}
           {leftOut.map((u) => (
-            <span key={u} style={{ marginRight: 6, whiteSpace: "nowrap" }}>{u} <select value={roles[u]} onChange={(e) => setRole(u, e.target.value)} style={{ ...smallSel, width: 90 }} aria-label={tr("Role of {u}", { u })}>{ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select></span>
+            <span key={u} style={{ marginRight: 6, whiteSpace: "nowrap" }}>{plainLith(u)} <select value={roles[u]} onChange={(e) => setRole(u, e.target.value)} style={{ ...smallSel, width: 90 }} aria-label={tr("Role of {u}", { u })}>{ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select></span>
           ))}
         </div>
       )}
@@ -263,7 +264,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
                 <div key={code} style={{ ...row, marginBottom: 3, fontSize: "var(--font-size-xs)" }}>
                   <span style={{ width: 90, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr("{n} interval(s)", { n })}>{code} ({n})</span>
                   <select value={codeUnit[code] || ""} onChange={(e) => setCodeEdit((p) => ({ ...p, [code]: e.target.value }))} style={sel} aria-label={tr("Map unit for {code}", { code })}>
-                    <option value="">{tr("not used")}</option>{mapUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+                    <option value="">{tr("not used")}</option>{mapUnits.map((u) => <option key={u} value={u}>{plainLith(u)}</option>)}
                   </select>
                 </div>
               ))}
@@ -310,7 +311,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginBottom: 6 }}>
             {intrusive.map((u) => (
               <label key={u} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
-                <input type="checkbox" checked={!bodyOff[u]} onChange={(e) => setBodyOff((q) => ({ ...q, [u]: !e.target.checked }))} />{u}
+                <input type="checkbox" checked={!bodyOff[u]} onChange={(e) => setBodyOff((q) => ({ ...q, [u]: !e.target.checked }))} />{plainLith(u)}
               </label>
             ))}
           </div>

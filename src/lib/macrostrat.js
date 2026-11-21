@@ -6,6 +6,7 @@
 // The tiles are Web Mercator (z/x/y, PNG): the mosaic is resampled here to a longitude / latitude grid over the area, nearest
 // neighbour (a geologic map is categorical: no blended colours), then warped into the project CRS by the same code as a WMS map.
 
+import { plainLith } from "./lithText.js"; // TASKS.csv #3936 — the unit names told apart by lithology, in words
 export const MACROSTRAT_TILE_URL = (z, x, y) => `https://tiles.macrostrat.org/carto/${z}/${x}/${y}.png`;
 export const MACROSTRAT_API = "https://macrostrat.org/api/v2";
 // project data stays English (the raster's provenance)
@@ -151,8 +152,8 @@ export function macrostratUnitFeatures(tiles, bboxLonLat) {
   const legend = macrostratLegend(macrostratLayersInArea(tiles, bboxLonLat)); // #2315: the units in the area only
   // the unit field: the legend entry's name; two entries with one name are told apart by lithology, then by age
   const count = (fn) => { const m = new Map(); for (const u of legend.units) { const k = fn(u); m.set(k, (m.get(k) || 0) + 1); } return m; };
-  const byName = count((u) => u.name), withLith = (u) => (u.lith ? `${u.name} (${u.lith})` : u.name), byLith = count(withLith);
-  const unitName = (u) => (byName.get(u.name) === 1 ? u.name : byLith.get(withLith(u)) === 1 || !u.age ? withLith(u) : `${u.name} (${u.lith ? `${u.lith}, ` : ""}${u.age})`);
+  const byName = count((u) => u.name), withLith = (u) => (u.lith ? `${u.name} (${plainLith(u.lith)})` : u.name), byLith = count(withLith); // plainLith: #3936
+  const unitName = (u) => (byName.get(u.name) === 1 ? u.name : byLith.get(withLith(u)) === 1 || !u.age ? withLith(u) : `${u.name} (${u.lith ? `${plainLith(u.lith)}, ` : ""}${u.age})`);
   const unitOf = new Map(legend.units.map((u) => [u.id, { ...u, unit: unitName(u) }]));
   const features = [];
   for (const t of tiles || []) {
