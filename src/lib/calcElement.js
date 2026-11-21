@@ -76,6 +76,33 @@ export function oxideTotalPreset(assayElements, { majors, minMajors = 6 } = {}) 
 // #2500 — the units a preset reads, against the stored ones: [{ sym, from, to, factor }] for the ones that differ; throws when a stored unit
 // cannot be converted (an index, counts, a missing unit)
 const CONVERTIBLE = new Set(["%", "ppm", "ppb", "g/t"]);
+
+// TASKS.csv #3923 (user feedback: total rare earths) — 'TREO': the sum of the rare-earth oxides the project's REE assays make, each element times its oxide / element
+// mass ratio (from IUPAC atomic weights, below; Pr as Pr6O11 and Tb as Tb4O7, the usual convention for a total), read in ppm. The factors are IN the formula the dialog
+// shows, so the user sees and can change every one; the rare earths this project lacks are named as left out (the total is then short by them), never filled in.
+// Sc is not a lanthanide and not in a TREO by the usual definition; Y is. Rows missing any element in the formula get no value, so an element the user does not
+// want is taken out of the formula.
+const ATOMIC_WEIGHT = { La: 138.90547, Ce: 140.116, Pr: 140.90766, Nd: 144.242, Sm: 150.36, Eu: 151.964, Gd: 157.25, Tb: 158.92535, Dy: 162.5, Ho: 164.93033, Er: 167.259, Tm: 168.93422, Yb: 173.045, Lu: 174.9668, Y: 88.90584, O: 15.999 };
+export const REE_OXIDES = [["La", "La2O3", 2, 3], ["Ce", "CeO2", 1, 2], ["Pr", "Pr6O11", 6, 11], ["Nd", "Nd2O3", 2, 3], ["Sm", "Sm2O3", 2, 3], ["Eu", "Eu2O3", 2, 3], ["Gd", "Gd2O3", 2, 3], ["Tb", "Tb4O7", 4, 7], ["Dy", "Dy2O3", 2, 3], ["Ho", "Ho2O3", 2, 3], ["Er", "Er2O3", 2, 3], ["Tm", "Tm2O3", 2, 3], ["Yb", "Yb2O3", 2, 3], ["Lu", "Lu2O3", 2, 3], ["Y", "Y2O3", 2, 3]]
+  .map(([symbol, oxide, nEl, nO]) => ({ symbol, oxide, factor: +((nEl * ATOMIC_WEIGHT[symbol] + nO * ATOMIC_WEIGHT.O) / (nEl * ATOMIC_WEIGHT[symbol])).toFixed(4) }));
+export function treoPreset(assayElements, { minElements = 3 } = {}) {
+  const have = [], leftOut = [], asOxide = [];
+  for (const r of REE_OXIDES) {
+    const e = (assayElements || []).find((x) => x.symbol === r.symbol && !x.calculated);
+    if (!e) { leftOut.push(r.symbol); continue; }
+    if (unitBasis(e.unit).oxide) { asOxide.push(r.symbol); continue; } // stored as its oxide ('% La2O3'): its factor is already in the number
+    if (!CONVERTIBLE.has(String(e.unit || ""))) { asOxide.push(r.symbol); continue; } // an index, counts, an unknown basis
+    have.push(r);
+  }
+  if (have.length < minElements) return null;
+  const note = [
+    tr("Each rare earth is read in ppm and multiplied by its oxide factor (shown in the formula; change any of them): {list}.", { list: have.map((r) => `${r.symbol} → ${r.oxide} ×${r.factor}`).join(", ") }),
+    leftOut.length ? tr("Not in this project, so left out of the total: {list}.", { list: leftOut.join(", ") }) : null,
+    asOxide.length ? tr("Stored as an oxide or in a unit this cannot convert, so not added here: {list}.", { list: asOxide.join(", ") }) : null,
+  ].filter(Boolean).join(" ").replace(/\.$/, ""); // the preset menu adds the full stop
+  return { name: "TREO", label: "Total rare earth oxides (TREO), from the rare earths in this project", expr: have.map((r) => `${r.symbol}*${r.factor}`).join("+"), needs: have.map((r) => r.symbol), unitNote: note, units: Object.fromEntries(have.map((r) => [r.symbol, "ppm"])), unit: "ppm", treo: { oxides: have, leftOut, asOxide } };
+}
+
 export function presetConversions(assayElements, readUnits) {
   const out = [];
   for (const [sym, to] of Object.entries(readUnits || {})) {

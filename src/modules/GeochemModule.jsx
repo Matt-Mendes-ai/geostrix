@@ -23,7 +23,7 @@ import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, Te
 const McdAnomalyPanel = React.lazy(() => import("../components/McdAnomalyPanel.jsx")); // TASKS.csv #1999 — a lazy chunk: opened rarely
 import { noticeText, noticeLevel, errorNotice, notice, infoNotice } from "../lib/notices.js"; // TASKS.csv #729; infoNotice: #3409
 import { readLinks, mergeLinks, applyLinks, linkReport, packLinks, unpackLinks, linkCount } from "../lib/qcLinks.js"; // TASKS.csv #3409
-import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset, mixedUnitReads } from "../lib/calcElement.js"; // mixedUnitReads: #3219 // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
+import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset, treoPreset, mixedUnitReads } from "../lib/calcElement.js"; // mixedUnitReads: #3219 // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
 import { majorOxides, MIN_MAJORS, anhydrousRows, sourceRow } from "../lib/oxideTotals.js"; // anhydrousRows / sourceRow: #2942 // TASKS.csv #2914 — the 'Oxide total' preset sums QAQC > Totals' majors
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #2164
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
@@ -1458,7 +1458,8 @@ export default function GeochemModule() {
           const onSurface = calc.source === "surface" && surfaceElements.length > 0, calcEls = onSurface ? surfaceElements : assayElements;
           // TASKS.csv #2914 — the presets, with the oxide total built from this project's majors; the oxide names a formula may use
           const oxTotal = onSurface ? null : oxideTotalPreset(assayElements, { majors: majorOxides(assayElements), minMajors: MIN_MAJORS });
-          const presets = oxTotal ? [...CALC_PRESETS, oxTotal] : CALC_PRESETS;
+          const treo = onSurface ? null : treoPreset(assayElements); // TASKS.csv #3923 — total rare earth oxides from the REEs the project holds
+          const presets = [...CALC_PRESETS, ...(oxTotal ? [oxTotal] : []), ...(treo ? [treo] : [])];
           const aliasNames = onSurface ? [] : oxideAliases(assayElements).map((a) => a.name);
           return (
           <>

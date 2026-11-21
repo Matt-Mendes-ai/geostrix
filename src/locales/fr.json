@@ -14360,5 +14360,9 @@
   "Kept as the file gives it: the lab's or the company's number, never recalculated here.": "Conservé tel que le fichier le donne : le chiffre du laboratoire ou de l'entreprise, jamais recalculé ici.",
   "g/t": "g/t",
   "Kept as supplied, not recalculated: {list}.": "Conservés tels que fournis, sans recalcul : {list}.",
-  "This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.": "Les dosages de ce projet sont en unités différentes : {list}. Chacun est conservé et affiché dans sa propre unité ; une somme ou un rapport de deux d'entre eux demande la même unité."
+  "This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.": "Les dosages de ce projet sont en unités différentes : {list}. Chacun est conservé et affiché dans sa propre unité ; une somme ou un rapport de deux d'entre eux demande la même unité.",
+  "Total rare earth oxides (TREO), from the rare earths in this project": "Oxydes de terres rares totaux (TREO), à partir des terres rares de ce projet",
+  "Each rare earth is read in ppm and multiplied by its oxide factor (shown in the formula; change any of them): {list}.": "Chaque terre rare est lue en ppm et multipliée par son facteur d'oxyde (visible dans la formule ; vous pouvez changer n'importe lequel) : {list}.",
+  "Not in this project, so left out of the total: {list}.": "Absentes de ce projet, donc exclues du total : {list}.",
+  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "Stockées sous forme d'oxyde ou dans une unité non convertible, donc non ajoutées ici : {list}."
 }

@@ -14360,5 +14360,9 @@
   "Kept as the file gives it: the lab's or the company's number, never recalculated here.": "يُحفظ كما يعطيه الملف: رقم المختبر أو الشركة، ولا يُعاد حسابه هنا أبدًا.",
   "g/t": "g/t",
   "Kept as supplied, not recalculated: {list}.": "حُفظت كما وردت دون إعادة حساب: {list}.",
-  "This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.": "تحاليل هذا المشروع بوحدات مختلفة: {list}. تُحفظ كل منها وتُعرض بوحدتها؛ ويتطلب جمع أو نسبة أي اثنين منها وحدة واحدة."
+  "This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.": "تحاليل هذا المشروع بوحدات مختلفة: {list}. تُحفظ كل منها وتُعرض بوحدتها؛ ويتطلب جمع أو نسبة أي اثنين منها وحدة واحدة.",
+  "Total rare earth oxides (TREO), from the rare earths in this project": "إجمالي أكاسيد العناصر الأرضية النادرة (TREO)، من العناصر الأرضية النادرة في هذا المشروع",
+  "Each rare earth is read in ppm and multiplied by its oxide factor (shown in the formula; change any of them): {list}.": "يُقرأ كل عنصر أرضي نادر بوحدة ppm ويُضرب في معامل أكسيده (يظهر في المعادلة؛ يمكنك تغيير أي منها): {list}.",
+  "Not in this project, so left out of the total: {list}.": "غير موجودة في هذا المشروع، لذا تُستبعد من المجموع: {list}.",
+  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "مخزَّنة كأكسيد أو بوحدة لا يمكن تحويلها، لذا لا تُضاف هنا: {list}."
 }
