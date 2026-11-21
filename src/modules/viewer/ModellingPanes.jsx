@@ -431,6 +431,12 @@ export default function ModellingPanes(props) {
   const altSourceCodes = useMemo(() => { if (altSource.layer === "alt") return alt_units.filter((u) => !isNotLogged(u)); const vals = new Set(); for (const r of altSourceRows) vals.add(String(r.value ?? "")); return [...vals].filter((v) => v && !isNotLogged(v)).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true })); }, [altSource.layer, alt_units, altSourceRows]); /* #3283 (3) — without regard to case, i2 before i10: it was "WFP, i, i1, i10" */ // #2945: 'not logged' tested once per code, not per row
   // TASKS.csv #1421 (review #1352, Silvertip) — a code logged only as zero-length points (POT) cannot make a halo: it failed with
   // 'indicator never crosses 0.5'. The logged metres per code, so those are shown disabled and say why.
+  // TASKS.csv #3876 (#3767) — the lithology groups with a logged member, offered as one unit from the Lithology layer, and each member's group
+  const altGroups = useMemo(() => (altSource.layer !== "litho" ? [] : (lithoGroups || []).filter((g) => g?.name && (g.codes || []).some((c) => altSourceCodes.includes(c)))), [altSource.layer, lithoGroups, altSourceCodes]);
+  const altGroupOf = useMemo(() => new Map(altGroups.flatMap((g) => (g.codes || []).map((c) => [c, g.name]))), [altGroups]);
+  // TASKS.csv #3876 (#3767) — a group and its Modelling codes twin (the same name) are one unit in the Implicit and Strat. stack pickers
+  const mcodeNames = useMemo(() => new Set((modellingCodeList || []).map((c) => c.name)), [modellingCodeList]);
+  const twinInStack = (name) => (lithoGroups || []).some((g) => g.name === name && stackUnits.includes(lithoGroupKey(g)));
   const altLoggedM = useMemo(() => { const m = new Map(); for (const r of altSourceRows) { const k = String(r.value ?? ""), len = Number(r.to) - Number(r.from); if (k && len > 0) m.set(k, (m.get(k) || 0) + len); } return m; }, [altSourceRows]);
   // TASKS.csv #1553 (review #1497, Lawyers) — the Structures picker listed 27 types, VnGy and V1/V3 among them with no dip / dip
   // direction, and 'Run' only then said there was nothing to model: each type with its picks and how many are oriented
@@ -891,9 +897,10 @@ export default function ModellingPanes(props) {
             {/* TASKS.csv #176 — groups under their own optgroup; a mixed-role group gets no role
                 suffix (no guessing), a cross-cutting group is still offered HERE (this tool has no
                 non-crossing constraint), just labelled. */}
-            {lithoGroups.length > 0 && (
+            {/* TASKS.csv #3876 (#3767) — a group with a Modelling codes twin (the same name: its role set there) is offered once, under Modelling codes */}
+            {lithoGroups.some((g) => !mcodeNames.has(g.name)) && (
               <optgroup label={tr("Groups")}>
-                {lithoGroups.map((g) => {
+                {lithoGroups.filter((g) => !mcodeNames.has(g.name)).map((g) => {
                   const role = lithoGroupRole(g);
                   const xcut = lithoGroupCrossCuts(g);
                   const empty = !(g.codes || []).length;
@@ -980,18 +987,18 @@ export default function ModellingPanes(props) {
             })}
             {/* TASKS.csv #176 — groups with ANY cross-cutting member are excluded here, same rail as
                 a raw cross-cutting code just above. */}
-            {lithoGroups.some((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g) && !(g.codes || []).some((c) => stackUnits.includes(c))) && (
+            {lithoGroups.some((g) => !mcodeNames.has(g.name) && !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g) && !(g.codes || []).some((c) => stackUnits.includes(c))) && (
               <optgroup label={tr("Groups")}>
-                {lithoGroups.filter((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g) && !(g.codes || []).some((c) => stackUnits.includes(c))).map((g) => {
+                {lithoGroups.filter((g) => !mcodeNames.has(g.name) /* #3876 (#3767): offered as its Modelling codes twin */ && !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g) && !(g.codes || []).some((c) => stackUnits.includes(c))).map((g) => {
                   const empty = !(g.codes || []).length;
                   return <option key={g.id} value={lithoGroupKey(g)} disabled={empty}>{g.name} [{(g.codes || []).join("+") || tr("no codes yet")}]{lithoGroupRole(g) === "overburden" ? tr(" (overburden)") : ""}</option>;
                 })}
               </optgroup>
             )}
             {/* TASKS.csv #599 — intrusion / cross-cutting / ignored codes break the stack's non-crossing rule: not offered */}
-            {modellingCodeList.some((c) => !stackUnits.includes(`mcode:${c.name}`) && (c.role === "stratigraphic" || c.role === "overburden")) && (
+            {modellingCodeList.some((c) => !stackUnits.includes(`mcode:${c.name}`) && !twinInStack(c.name) && (c.role === "stratigraphic" || c.role === "overburden")) && (
               <optgroup label={tr("Modelling codes")}>
-                {modellingCodeList.filter((c) => !stackUnits.includes(`mcode:${c.name}`) && (c.role === "stratigraphic" || c.role === "overburden")).map((c) => <option key={c.name} value={`mcode:${c.name}`}>{c.name}{c.role === "overburden" ? tr(" (overburden)") : ""}</option>)}
+                {modellingCodeList.filter((c) => !stackUnits.includes(`mcode:${c.name}`) && !twinInStack(c.name) /* #3876 (#3767) */ && (c.role === "stratigraphic" || c.role === "overburden")).map((c) => <option key={c.name} value={`mcode:${c.name}`}>{c.name}{c.role === "overburden" ? tr(" (overburden)") : ""}</option>)}
               </optgroup>
             )}
           </select>
@@ -1201,7 +1208,9 @@ export default function ModellingPanes(props) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Code")} value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>{/* "Code", not "Assemblage": #1574 — Lawyers' Alteration log holds oxidation forms */}
             <option value="">{tr("Choose a code…")}</option>
-            {altSourceCodes.map((u) => (altLoggedM.get(u) > 0 ? <option key={u} value={u}>{u}</option> : <option key={u} value={u} disabled>{tr("{code} (no logged length)", { code: u })}</option>))}{/* #1421; #1740 — 'Unknown' is not an assemblage; #1574 — the chosen layer's codes */}
+            {altSourceCodes.map((u) => (altLoggedM.get(u) > 0 ? <option key={u} value={u}>{altGroupOf.get(u) ? tr("{code} (in the group {group})", { code: u, group: altGroupOf.get(u) }) : u}</option> : <option key={u} value={u} disabled>{tr("{code} (no logged length)", { code: u })}</option>))}{/* #1421; #1740 — 'Unknown' is not an assemblage; #1574 — the chosen layer's codes */}
+            {/* TASKS.csv #3876 (#3767) — from Lithology, a group is one unit ('mcode:<group>': its rows by their effective code, as the run reads a Modelling code) */}
+            {altGroups.length > 0 && <optgroup label={tr("Groups")}>{altGroups.map((g) => <option key={g.name} value={`mcode:${g.name}`}>{g.name} [{g.codes.join("+")}]</option>)}</optgroup>}
           </select>
           <button
             onClick={() => runAlterationModel(alterationTarget, { unloggedZero: altSource.layer === "alt" && !!altSource.unloggedZero } /* #2380 */, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null, vocab: !!(altSource.field && altSource.vocab), minLabel: altSource.minLabel || null /* #2230 */ })}

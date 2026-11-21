@@ -880,19 +880,29 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   // TASKS.csv #896 — thickness of a layer between its upper and lower contact (built surfaces), on one grid
   const [thickNote, setThickNote] = useState(null);
   const thicknessPairs = (unitInfo?.layers || []).filter((l) => l.upper.length === 1 && l.lower.length === 1);
-  const measureThickness = () => {
+  const measureThickness = async () => {
+    const vs = await import("../lib/veinSolid.js"); // TASKS.csv #3876 (#3771): the vein solid's own measures, loaded on use
     const meshOf = (d) => { const a = d.surfaceId && sc.meshes.current[d.surfaceId]?.geometry; if (!a?.attributes?.position || !a.index) return null; const s = a.attributes.position.array, q = new Float64Array(s.length); for (let i = 0; i < s.length; i += 3) { q[i] = s[i]; q[i + 1] = s[i + 2]; q[i + 2] = s[i + 1]; } return { positions: q, indices: a.index.array }; };
     let crossing = false;
     const parts = thicknessPairs.map((l) => {
       const name = l.layer ? `${curUnit} ${l.layer}` : curUnit, top = meshOf(l.upper[0]), base = meshOf(l.lower[0]);
       if (!top || !base) return tr("{layer}: build both surfaces first.", { layer: name });
       const r = thicknessBetween(top, base);
+      // TASKS.csv #3876 (#3771) — at the holes where both walls are picked: the true thickness of each intercept, said beside the surfaces' thickness
+      const at = vs.interceptThickness(l.upper[0].picks, l.lower[0].picks);
+      const atHoles = at ? ` ${tr("At the {n} holes where both are picked, the intercepts are {min} to {max} m thick across the walls, median {med} m: {list}.", { n: at.holes.length, min: at.min.toFixed(1), max: at.max.toFixed(1), med: at.median.toFixed(1), list: at.holes.slice(0, 8).map((x) => tr("{hole} {t} m ({d} m down the hole)", { hole: x.hole_id, t: x.trueM.toFixed(1), d: x.downholeM == null ? "?" : x.downholeM.toFixed(1) })).join(", ") + (at.holes.length > 8 ? ", …" : "") })}` : "";
+      // TASKS.csv #3876 (#3771) — a steep pair is measured as the vein solid measures it: across the walls in their own frame (lib/veinSolid.js), which a pair
+      // too steep for vertical columns (no column under both) still gets; the grid's own normal estimate is the fallback
+      let solid = null;
+      if (!r || (r.dipDeg != null && r.dipDeg >= STEEP_DIP_DEG)) { try { solid = vs.veinSolidFromSurfaces(top, base); } catch { solid = null; } if (!(solid?.nodes > 0)) solid = null; }
+      if (solid) return tr("{layer}: true thickness {min} to {max} m, mean {mean} m, measured across the walls as the vein solid measures it (they dip about {d}°{v}), over {n} points {c} m apart.", { layer: name, min: solid.thickness.min.toFixed(1), max: solid.thickness.max.toFixed(1), mean: solid.thickness.mean.toFixed(1), d: Math.round(solid.dip), v: r ? tr("; the vertical thickness is {v} m on average", { v: r.mean.toFixed(1) }) : "", n: solid.nodes, c: solid.cellM.toFixed(0) }) + atHoles
+        + (r?.negativePct > 0 && (crossing = true) ? ` ${tr("In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).", { p: r.negativePct < 1 ? r.negativePct.toFixed(1) : Math.round(r.negativePct) })}` : "");
       if (!r) return tr("{layer}: the top and the base do not overlap anywhere.", { layer: name });
       // TASKS.csv #3771 — a steep pair (the explicit surface's own steep rule): the thickness NORMAL to the surfaces, said, with the vertical one beside it; else the vertical thickness as before
       const steep = r.true && r.dipDeg != null && r.dipDeg >= STEEP_DIP_DEG;
       return (steep ? tr("{layer}: true thickness {min} to {max} m, mean {mean} m, measured normal to the surfaces (they dip about {d}°; the vertical thickness is {v} m on average), over {n} columns of {c} m.", { layer: name, min: r.true.min.toFixed(1), max: r.true.max.toFixed(1), mean: r.true.mean.toFixed(1), d: Math.round(r.dipDeg), v: r.mean.toFixed(1), n: r.true.columns, c: r.cellM.toFixed(0) })
         : tr("{layer}: vertical thickness {min} to {max} m, mean {mean} m, over {n} columns of {c} m.", { layer: name, min: r.min.toFixed(1), max: r.max.toFixed(1), mean: r.mean.toFixed(1), n: r.columns, c: r.cellM.toFixed(0) }))
-        + (r.negativePct > 0 && (crossing = true) ? ` ${tr("In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).", { p: r.negativePct < 1 ? r.negativePct.toFixed(1) : Math.round(r.negativePct) })}` : "");
+        + atHoles + (r.negativePct > 0 && (crossing = true) ? ` ${tr("In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).", { p: r.negativePct < 1 ? r.negativePct.toFixed(1) : Math.round(r.negativePct) })}` : "");
     });
     setThickNote({ text: parts.join(" "), crossing });
   };
