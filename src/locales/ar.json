@@ -14615,5 +14615,6 @@
   "A sheet in one click": "لوحة بنقرة واحدة",
   "Or start from the 3D view:": "أو ابدأ من العرض ثلاثي الأبعاد:",
   "The sheet is empty: pick a sheet on the page.": "اللوحة فارغة: اختر لوحة على الصفحة.",
-  "Rock name (optional)": "اسم الصخر (اختياري)"
+  "Rock name (optional)": "اسم الصخر (اختياري)",
+  "Keep the {col} codes, not the components": "إبقاء رموز {col} لا المكوّنات"
 }

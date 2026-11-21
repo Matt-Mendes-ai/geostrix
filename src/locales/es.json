@@ -14615,5 +14615,6 @@
   "A sheet in one click": "Una hoja en un clic",
   "Or start from the 3D view:": "O empiece desde la vista 3D:",
   "The sheet is empty: pick a sheet on the page.": "La lámina está vacía: elija una hoja en la página.",
-  "Rock name (optional)": "Nombre de la roca (opcional)"
+  "Rock name (optional)": "Nombre de la roca (opcional)",
+  "Keep the {col} codes, not the components": "Conservar los códigos de {col}, no los componentes"
 }

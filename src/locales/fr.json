@@ -14615,5 +14615,6 @@
   "A sheet in one click": "Une planche en un clic",
   "Or start from the 3D view:": "Ou partez de la vue 3D :",
   "The sheet is empty: pick a sheet on the page.": "La planche est vide : choisissez une planche sur la page.",
-  "Rock name (optional)": "Nom de la roche (facultatif)"
+  "Rock name (optional)": "Nom de la roche (facultatif)",
+  "Keep the {col} codes, not the components": "Garder les codes de {col}, pas les composants"
 }
