@@ -17,6 +17,7 @@ import { makeSurveyColorer, surveyKey } from "./geophysSurveys.js"; // TASKS.csv
 import { airDilutedFloor, voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1872; voxelStretch: #3765
 import { fmtSig3 } from "./numberFormat.js"; // TASKS.csv #3382
 import { fieldColourer } from "./fieldColours.js"; // TASKS.csv #3553
+import { plainLith } from "./lithText.js"; // TASKS.csv #3936: a Macrostrat unit's lithology block in words
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
 export const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
@@ -207,7 +208,7 @@ export function mapLayerLegendGroups(mapLayers) {
     const numeric = !graduated && cats.length > 1 && cats.every((c) => c.label == null && c.value != null && /^-?\d+(\.\d+)?$/.test(String(c.value)));
     const items = one ? [[l.name || "map layer", cats[0].color, o]]
       : cats.length
-      ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : numeric ? `${l.styleField} ${c.value}` : String(c.value)), c.color, o])
+      ? cats.map((c) => [plainLith(c.label ?? (c.value == null ? "(no value)" : numeric ? `${l.styleField} ${c.value}` : String(c.value))), c.color, o]) /* plainLith: #3936 */
       : [[l.name || "map layer", l.color || "#e2a63c", o]];
     // TASKS.csv #3393 (#3378) — a graduated layer's heading names the field and its unit ('Subcrop — cover_m, m'): classes of a bare number said nothing on a figure
     const unit = graduated && l.styleField ? (/_m$/.test(l.styleField) ? ", m" : "") : "";

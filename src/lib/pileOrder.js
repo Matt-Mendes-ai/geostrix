@@ -21,6 +21,7 @@
 //     (higher = younger, a weak rule), else by area.
 // Returns { order (youngest first, stratigraphic only), roles: { unit: role }, pairs: [{ a, b, younger, older,
 // weight, measurements, samples }], units: [{ unit, role, areaKm2, score, evidence }] }.
+import { majorLith } from "./lithText.js"; // TASKS.csv #3936
 import { extractMapContacts, pointInRings } from "./mapLayers.js";
 import { eigSym3 } from "./explicitSurface.js";
 
@@ -80,7 +81,7 @@ export function orderFromPairs(base, pairs, { minAgreement = 0.6 } = {}) {
   return { order, above, below };
 }
 
-const INTRUSIVE = /\b(qz|q|mic|f)?(dio|diorite|grd|granodiorite|gra|granite|ton|tonalite|mon|monzonite|syn|syenite|gab|gabbro|porph|porphyry|fp|qfp|dyke|dike|sill|intrusi\w*|plug|stock|aplite|pegmatite|diabase|dolerite|lamprophyre)\b/i;
+const INTRUSIVE = /\b(qz|q|mic|f)?(dio|diorite|grd|granodiorite|gra|granite|ton|tonalite|mon|monzonite|syn|syenite|gab|gabbro|porph|porphyry|fp|qfp|dyke|dike|sill|intrusi\w*|plug|stock|aplite|pegmatite|diabase|dolerite|lamprophyre|pluton|plutons|plutonic|batholith)\b/i; // pluton, plutonic, batholith: #3936 (a regional map's 'Plutonic Suite')
 const CROSS = /(breccia|\bbx\b|hbx|vein|\bqv\b|fault|gouge|mylonite)/i;
 const OTHER = /(hornfels|\bhfs\b|skarn|\bsk\b|till|overburden|alluvium|colluvium|glacial|\bobn\b|\bovb\b|gossan)/i;
 
@@ -94,7 +95,8 @@ export function mapRoleFromLog(role) {
 
 // "stratigraphic" | "intrusion" | "cross-cutting" | "other", from a unit code and (optionally) its description
 export function classifyUnitRole(code, description = "") {
-  const s = `${code || ""} ${description || ""}`;
+  // TASKS.csv #3936 — a Macrostrat lithology block counts by its MAJOR rock only (a shale with a minor dyke stays a shale)
+  const s = `${majorLith(code || "")} ${majorLith(description || "")}`;
   if (OTHER.test(s)) return "other";
   if (CROSS.test(s)) return "cross-cutting";
   // codes such as "QzDio" / "MicDio" / "DioF": split camel case before matching

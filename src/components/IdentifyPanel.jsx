@@ -5,6 +5,7 @@ import { identifyText } from "../lib/viewer/identify.js";
 import { IDENTIFY_PANEL } from "../lib/viewer/toastBox.js"; // TASKS.csv #3537 — its place, shared with the toast
 import { copyText } from "../lib/desktop.js";
 import { t as tr } from "../lib/i18n.js";
+import { plainLith } from "../lib/lithText.js"; // TASKS.csv #3936: a Macrostrat lithology block ("Major: {shale},Minor: {chert}") in words
 
 const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" };
 const act = { padding: "4px 8px", borderRadius: 5, border: "1px solid var(--color-border)", background: "var(--color-bg)", cursor: "pointer", font: "inherit", fontSize: "var(--font-size-sm)", color: "var(--color-text)" };
@@ -28,8 +29,8 @@ export default function IdentifyPanel({ result, onShow, onClose, onZoom, onStrip
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
                 <tbody>
                   {it.fields.map(([k, v], i) => (k
-                    ? <tr key={i}><td style={{ color: "var(--color-text-muted)", padding: "2px 8px 2px 0", verticalAlign: "top", overflowWrap: "anywhere" }}>{k}</td><td style={{ padding: "2px 0", overflowWrap: "anywhere" }}>{v}</td></tr>
-                    : <tr key={i}><td colSpan={2} style={{ padding: "2px 0", overflowWrap: "anywhere" }}>{v}</td></tr>))}
+                    ? <tr key={i}><td style={{ color: "var(--color-text-muted)", padding: "2px 8px 2px 0", verticalAlign: "top", overflowWrap: "anywhere" }}>{k}</td><td style={{ padding: "2px 0", overflowWrap: "anywhere" }}>{typeof v === "string" ? plainLith(v) : v}</td></tr>
+                    : <tr key={i}><td colSpan={2} style={{ padding: "2px 0", overflowWrap: "anywhere" }}>{typeof v === "string" ? plainLith(v) : v}</td></tr>))}
                 </tbody>
               </table>
             )}
