@@ -44,7 +44,7 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
       <div role="dialog" aria-modal="true" aria-label={tr("Choose the columns to read")} onClick={(e) => e.stopPropagation()} style={panel}>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border)" }}>
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}>{tr("Choose the columns to read")}</div>
-          <div style={{ ...note, marginTop: 4 }}>{tr("{name} is a very large table: about {rows} rows × {cols} columns, roughly {gb} GB of memory to open whole. Tick the columns you need: only those are read, every value exact.", { name, rows: preview.rows.toLocaleString(), cols: preview.cols, gb: gb(preview.bytes) })}</div>
+          <div style={{ ...note, marginTop: 4 }}>{tr("Tick the columns you need: {name} is about {rows} rows × {cols} columns, roughly {gb} GB to open whole; only ticked ones are read, every value exact.", { name, rows: preview.rows.toLocaleString(), cols: preview.cols, gb: gb(preview.bytes) })}</div>
         </div>
         <div style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -76,7 +76,7 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
               </label>}
               {rowsBy !== "all" && holeCol && share && <span style={note}>{share.kept
                 ? tr("In the first {s} rows, {pct}% are for these holes: the estimate below assumes the same share through the file (rough).", { s: share.seen.toLocaleString(), pct: Math.max(1, Math.round(share.share * 100)) })
-                : tr("None of the first {s} rows are for these holes, so the share can't be estimated (a file sorted by hole may have them further down): the estimate below is for every row.", { s: share.seen.toLocaleString() })}</span>}
+                : tr("None of the first {s} rows are for these holes (a file sorted by hole may have them further down), so the estimate below is for every row.", { s: share.seen.toLocaleString() })}</span>}
             </div>
           )}
           {/* TASKS.csv #2345 — composite as read: off by default, the length typed */}
@@ -92,8 +92,8 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
             </>}
           </div>
           {comp.on && <div style={note}>{cShare?.meanM
-            ? tr("Each hole's intervals become composites of this length: numbers as length-weighted means, text as the value over most of the length; the raw rows are not kept. The first rows' intervals average {m} m, so about {pct}% as many rows are held.", { m: cShare.meanM.toFixed(2), pct: Math.max(1, Math.round(cShare.share * 100)) })
-            : tr("Each hole's intervals become composites of this length: numbers as length-weighted means, text as the value over most of the length; the raw rows are not kept. Pick the From, To and hole id columns and type the length.")}</div>}
+            ? tr("Composite each hole to this length (numbers length-weighted, text by most of the length); raw rows are not kept. At {m} m average intervals, about {pct}% of the rows remain.", { m: cShare.meanM.toFixed(2), pct: Math.max(1, Math.round(cShare.share * 100)) })
+            : tr("Pick the From, To and hole id columns and type a length to composite each hole (numbers length-weighted, text by most of the length); raw rows are not kept.")}</div>}
           <div role="status" style={{ ...note, color: fits ? "var(--color-text-secondary)" : "var(--color-warn-text-strong)" }}>
             {fits
               ? tr("{k} of {n} columns: about {gb} GB. Fits (up to about {room} columns at this many rows).", { k: keep.size, n: preview.cols, gb: gb(bytes), room })

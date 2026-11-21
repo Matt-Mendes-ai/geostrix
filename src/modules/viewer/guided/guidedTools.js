@@ -70,7 +70,7 @@ export const BODIES = {
   },
   choices: unitsByHoles,
   check: (ctx, value) => (!value ? tr("Choose a rock first.")
-    : BODY_ROLES.has(ctx.roleOf(value)) ? null : tr("GeoStrix reads {code} as a layered rock, so it would draw its top, not a body. Mark it as an intrusion in 3D Modelling > Modelling codes, then build again.", { code: value })),
+    : BODY_ROLES.has(ctx.roleOf(value)) ? null : tr("Mark {code} as an intrusion in 3D Modelling > Modelling codes, then build again: read as a layered rock, only its top would be drawn.", { code: value })),
   contacts: (ctx, value) => ctx.intercepts().filter((c) => String(c.unit) === value),
   notes: () => [],
   run: (api, value, ctx) => api.runImplicitModel(ctx.target(value)), // mcode:<code> when Modelling codes give it its role (live: RSO marked overburden)
@@ -101,7 +101,7 @@ export const COVER = {
   },
   choices: unitsByHoles,
   check: (ctx, value) => (!value ? tr("Choose a code first.")
-    : ctx.isCover(value) ? null : tr("GeoStrix reads {code} as a rock, so it would draw its top, not its base. Mark it as overburden in 3D Modelling > Modelling codes, then build again.", { code: value })),
+    : ctx.isCover(value) ? null : tr("Mark {code} as overburden in 3D Modelling > Modelling codes, then build again: read as a rock, its top would be drawn, not its base.", { code: value })),
   contacts: coverBases,
   notes: (ctx) => (ctx.hasTerrain ? [] : [tr("No terrain in the project: the ground is taken from the collar heights.")]),
   run: (api, value, ctx) => api.runImplicitModel(ctx.target(value)), // mcode:<code> when Modelling codes give it its role (live: RSO marked overburden)
@@ -144,7 +144,7 @@ export const VEINS = {
   auto(ctx, value) {
     const v = veinLabel(value), n = value.startsWith("litho:") ? holesWith(ctx.rows, (r) => String(r.value) === v) : holesWith(ctx.veins, (r) => String(r.value) === v);
     const c = veinChoices(ctx).find((x) => x.key === value);
-    if (c && c.perHole > SET_PER_HOLE) return { ok: false, values: null, reasons: [], notes: [], verdict: [tr("{v} is logged about {k} times down each hole: a set of veins, not one sheet. Split it into single veins in Modelling codes, or show where the set is with an Alteration halo (All tools).", { v, k: fmtNum(Math.round(c.perHole)) })] };
+    if (c && c.perHole > SET_PER_HOLE) return { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Split {v} into single veins in Modelling codes, or show the set with an Alteration halo (All tools): it is logged about {k} times down each hole.", { v, k: fmtNum(Math.round(c.perHole)) })] };
     return n < 3
       ? { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} holes cut {v}: a sheet needs three or more.", { n, v })] }
       : { ok: true, values: {}, reasons: [{ field: "holes", text: tr("{v} is cut in {n} holes: the sheet is drawn through those intercepts, with the thickness logged there.", { v, n }) }], notes: [], verdict: null };
@@ -291,7 +291,7 @@ export const GRADE = {
     const saved = getUnsampledChoice("gradeShell", sym);
     if (saved?.mode === "unknown") reasons.push({ field: "unsampled", text: tr("Unsampled core inside the sampled holes is read as not known (your choice in the grade shell pane).") });
     else if (saved?.mode === "barren" && saved.value != null && saved.value !== "") reasons.push({ field: "unsampled", text: tr("Unsampled core inside the sampled holes is read as barren at {v} {unit} (your value in the grade shell pane).", { v: saved.value, unit }) });
-    else if (saved?.mode !== "log") { const d = barrenDefault(ctx.assays, sym); reasons.push({ field: "unsampled", text: d.lowest != null ? tr("Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.", { v: d.value, unit, el: sym, low: d.lowest }) : tr("Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.") }); }
+    else if (saved?.mode !== "log") { const d = barrenDefault(ctx.assays, sym); reasons.push({ field: "unsampled", text: d.lowest != null ? tr("Unsampled core in the sampled holes is read as barren at {v} {unit}, half the lowest {el} grade ({low} {unit}). Change it in the grade shell pane.", { v: d.value, unit, el: sym, low: d.lowest }) : tr("Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.") }); }
     // the grade shell's own settings, in the order api.numeric lists them: metal, cut-off, cell across, cell height, search radius, holes
     return { ok: true, values: { list: [sym, gs.values.cutoff, gs.values.cellSize ?? NUMERIC_CELL_DEFAULT, "", gs.values.searchRadius ?? GRADE_SHELL_SEARCH_DEFAULT, bm.values.minHoles], fromData: !!gs.values.fromData }, reasons, notes, verdict: null };
   },
@@ -311,11 +311,11 @@ export const GRADE = {
       // the shell's enclosed volume, as the run's own message computes it (lib/volumetrics.js), from its mesh
       // the cell the run used: a run over the block budget refits it (#1416), said here instead of the cell chosen (#3922: the one set before the run)
       const chosen = Number(api?.numeric?.now?.[2]) > 0 ? Number(api.numeric.now[2]) : NUMERIC_CELL_DEFAULT;
-      if (Number(s.params?.cellSizeM) > chosen) out.push(tr("The run used {c} m cells, not {d} m: at {d} m this area needs more blocks than the block budget allows (the messages under the sidebar say how many).", { c: s.params.cellSizeM, d: chosen }));
+      if (Number(s.params?.cellSizeM) > chosen) out.push(tr("The run used {c} m cells, not {d} m: at {d} m this area needs more blocks than the budget allows (see the messages under the sidebar).", { c: s.params.cellSizeM, d: chosen }));
       // #3922 — the grid round the grades, as the run made it (its record's gradeAreas), when it saved blocks
       const ga = s.params?.gradeAreas;
       if (ga?.nodes > 0 && ga.drilledNodes > 1.05 * ga.nodes) out.push(ga.grids === 1
-        ? tr("The grid covers only the ground within the search of the grades above the cut-off: {n} blocks in one area, not the {d} the drilled ground would need.", { n: fmtNum(ga.nodes), d: fmtNum(ga.drilledNodes) })
+        ? tr("The grid covers only the ground within search of the grades above the cut-off: {n} blocks, not the {d} the drilled ground would need.", { n: fmtNum(ga.nodes), d: fmtNum(ga.drilledNodes) })
         : tr("The grid covers only the ground within the search of the grades above the cut-off: {n} blocks in {a} areas, not the {d} the drilled ground would need.", { n: fmtNum(ga.nodes), a: ga.grids, d: fmtNum(ga.drilledNodes) }));
       const geo = api?.meshOf?.(s.id)?.geometry, vol = geo ? computeMeshVolume(geo).volumeM3 : Number(s.params?.volumeM3);
       if (vol > 0) out.push(tr("{name}: {v} m³ above the cut-off.", { name: s.name, v: fmtNum(Number(vol.toPrecision(3))) }));

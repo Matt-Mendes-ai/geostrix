@@ -49,7 +49,7 @@ function StartHere({ ctx, setTool, close }) {
   return (
     <div style={card} role="dialog" aria-label={tr("Start here")}>
       <Header title="Start here" close={close} />
-      <div style={{ ...muted, marginBottom: 10 }}>{tr("Build a model from your logs, one step at a time. Each tool asks one question, answers it from your data, and builds the rest for you.")}</div>
+      <div style={{ ...muted, marginBottom: 10 }}>{tr("Build a model from your logs, step by step: each tool asks one question and answers it from your data.")}</div>
       {GUIDED_TOOLS.map((t, i) => {
         const why = t.feed(ctx);
         return (
