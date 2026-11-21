@@ -96,7 +96,7 @@ export function lodTileMesh(terrain, origin, tile, raster, texture) {
   const pad = edgePadM((tile.box[2] - tile.box[0]) / TILE_PX), b = tile.box;
   const part = clipTo([b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad], raster.bbox), cx = (part[0] + part[2]) / 2, cy = (part[1] + part[3]) / 2;
   const geometry = terrainDrapeGeometry(terrain, part, { cx, cy, oz: origin.z, base: 0.15, uvBox: tile.box, near: true }); // #3449's path: the drawn ground
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: raster.opacity ?? 0.85, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: raster.opacity ?? 0.85, side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
   const m = new THREE.Mesh(geometry, material);
   m.rotation.x = -Math.PI / 2;
   m.position.set(cx - origin.x, 0, -(cy - origin.y));
