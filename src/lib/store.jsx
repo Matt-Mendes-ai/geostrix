@@ -18,6 +18,7 @@ import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisCh
 import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
+import { pageAfterUndo } from "./layoutPageUndo.js"; // TASKS.csv #3935
 import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
 import { rowsOf, isTable } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
 import { noteRemovedLayers, releaseUnheld, noteRemovedItems, releaseUnheldItems, noteClosedTabs, releaseClosedTabs } from "./mapLayerRelease.js"; // TASKS.csv #2824; the others: #3881
@@ -768,7 +769,7 @@ export function StoreProvider({ children }) {
   // already reads/writes "layoutElements" as a single flat array needed ZERO changes — they're just
   // reading/writing through to the active page's elements now instead of one global array.
   // switchLayoutPage/addLayoutPage/renameLayoutPage/deleteLayoutPage are defined further down (after
-  // clearUndoHistory, which they call — see that section for why).
+  // the undo history, which they use — see that section for why).
   const [layoutPages, setLayoutPages] = useState([{ id: "page_initial", name: "Page 1", elements: DEFAULT_LAYOUT_ELEMENTS }]);
   const [activeLayoutPageId, setActiveLayoutPageId] = useState("page_initial");
   const layoutElements = layoutPages.find((p) => p.id === activeLayoutPageId)?.elements || [];
@@ -1718,6 +1719,9 @@ export function StoreProvider({ children }) {
   const [, setViewSeq] = useState(0); // a view change / its notice re-renders the window, so the Undo tooltip (peekUndo) reads the new state
   const lastViewChangeAt = useRef(0), viewNoticeFor = useRef(0); // TASKS.csv #3616 — when the last view change (colours, checked holes, layers shown) was, and the one the first Ctrl+Z already told about
   const undoPastAt = useRef([]); // when each step of undoPast began (parallel to it)
+  // TASKS.csv #3935 — the Layout page each step was made on (step -> page id), so Undo / Redo show the page they change; a page add / delete is a
+  // step of its own (undoOwnStep: commit as soon as it lands; lastOwnStep: an AI app's label, given after it settled, still names it)
+  const undoPageOf = useRef(new WeakMap()), activePageSeen = useRef(activeLayoutPageId), undoOwnStep = useRef(false), lastOwnStep = useRef(null);
   const undoBurstAt = useRef(0);
 
   // useLayoutEffect (not useEffect) deliberately — applySnapshot's setTimeout(0) that clears
@@ -1754,7 +1758,8 @@ export function StoreProvider({ children }) {
   const undoStepLabels = useRef(new WeakMap()); // #3932 — step (its before-snapshot) -> label
   const commitUndoBurst = useLatestCallback((label) => {
     if (undoDebounceTimer.current) { clearTimeout(undoDebounceTimer.current); undoDebounceTimer.current = null; }
-    if (!undoBeforeBurst.current) return;
+    if (!undoBeforeBurst.current) { if (typeof label === "string" && label && lastOwnStep.current) undoStepLabels.current.set(lastOwnStep.current, label.slice(0, 160)); lastOwnStep.current = null; return; } // #3935
+    lastOwnStep.current = null;
     if (typeof label === "string" && label) undoStepLabels.current.set(undoBeforeBurst.current, label.slice(0, 160));
     undoPast.current.push(undoBeforeBurst.current); undoPastAt.current.push(undoBurstAt.current);
     if (undoPast.current.length > UNDO_MAX) { undoPast.current.shift(); undoPastAt.current.shift(); }
@@ -1783,15 +1788,17 @@ export function StoreProvider({ children }) {
     const prevSnap = undoPrevSnapshot.current;
     if (Object.keys(current).every((k) => current[k] === prevSnap[k])) return; // no real change
     setActiveTabDirty(true); // TASKS.csv #34 — see activeTabDirty's own comment above for scope/limits
-    if (!undoBeforeBurst.current) { undoBeforeBurst.current = undoPrevSnapshot.current; undoBurstAt.current = Date.now(); }
+    if (!undoBeforeBurst.current) { undoBeforeBurst.current = undoPrevSnapshot.current; undoBurstAt.current = Date.now(); undoPageOf.current.set(undoBeforeBurst.current, activePageSeen.current); } // page: #3935
     undoPrevSnapshot.current = current;
+    if (undoOwnStep.current) { undoOwnStep.current = false; const step = undoBeforeBurst.current; commitUndoBurst(); lastOwnStep.current = step; return; } // #3935 — a page added / deleted
     // TASKS.csv #3110 — a calculated element's Add: its step keeps a token ('remove the element'), not the old assay table, and is its own step
     if (undoIntent.current && current.assays === undoIntent.current.next) { undoBeforeBurst.current = { ...undoBeforeBurst.current, assays: undoIntent.current.token }; undoIntent.current = null; commitUndoBurst(); return; }
     if (undoDebounceTimer.current) clearTimeout(undoDebounceTimer.current);
     undoDebounceTimer.current = setTimeout(commitUndoBurst, UNDO_DEBOUNCE_MS);
   }, [...UNDO_KEYS.map((k) => live[k]), surfaceIds]); // #448 (always the same length); #463: layoutPages; surfaceIds: #3494
+  useLayoutEffect(() => { activePageSeen.current = activeLayoutPageId; }, [activeLayoutPageId]); // #3935 — after the watcher above: a step starts with the page it was made on
 
-  const applySnapshot = useCallback((snap) => {
+  const applySnapshot = useCallback((snap, showPage) => { // showPage: #3935
     undoApplying.current = true;
     if (snap.assays?.__inverse) { // TASKS.csv #3110 — the token of a calculated element's Add; a table that no longer matches it is left as it is
       const live = undoSnapshotRef.current(), r = applyCalcUndo(snap.assays, rowsOf(live.assays) /* #3424 */), symbol = snap.assays.__inverse.removeElement;
@@ -1801,7 +1808,7 @@ export function StoreProvider({ children }) {
     for (const f of FIELDS) if (f.track === "undo" && f.key !== "layoutPages") fieldState[f.key][1](snap[f.key] ?? f.empty());
     if (snap.surfaceIds) setSurfaceIds(snap.surfaceIds); // TASKS.csv #3494 — ViewerModule takes the surfaces away / back to match
     // #463 — whole pages list; keep the active page if it still exists, else the first one.
-    if (snap.layoutPages) { setLayoutPages(snap.layoutPages); setActiveLayoutPageId((id) => (snap.layoutPages.some((p) => p.id === id) ? id : snap.layoutPages[0]?.id || id)); }
+    if (snap.layoutPages) { setLayoutPages(snap.layoutPages); setActiveLayoutPageId((id) => (showPage && snap.layoutPages.some((p) => p.id === showPage) ? showPage : snap.layoutPages.some((p) => p.id === id) ? id : snap.layoutPages[0]?.id || id)); } // showPage: #3935
     // React batches these, but the flag needs to survive until AFTER the effect above re-runs on the
     // new state — a plain synchronous reset here would race it. A setTimeout(0) micro-delay lets
     // this render's effects flush first.
@@ -1825,8 +1832,10 @@ export function StoreProvider({ children }) {
     const topAt = undoPastAt.current[undoPastAt.current.length - 1] ?? 0;
     if (lastViewChangeAt.current > topAt + 2000 && viewNoticeFor.current !== lastViewChangeAt.current) { viewNoticeFor.current = lastViewChangeAt.current; setViewSeq((n) => n + 1); return { viewOnly: true, keys: changedKeys(undoSnapshotRef.current(), undoPast.current[undoPast.current.length - 1]), later: [] }; }
     const prev = undoPast.current.pop(), at = undoPastAt.current.pop() ?? 0, cur = undoSnapshotRef.current();
-    undoFuture.current.push(cur);
-    applySnapshot(prev);
+    undoFuture.current.push(cur); lastOwnStep.current = null;
+    const show = pageAfterUndo(cur.layoutPages, prev.layoutPages, activeLayoutPageId, undoPageOf.current.get(prev)); // #3935 — the page this step changes
+    undoPageOf.current.set(cur, show); // a Redo comes back to it
+    applySnapshot(prev, show);
     setUndoCount(undoPast.current.length);
     setRedoCount(undoFuture.current.length);
     const later = lastOutsideUndo.current && lastOutsideUndo.current.at >= at ? lastOutsideUndo.current.keys : []; // #1888
@@ -1836,8 +1845,10 @@ export function StoreProvider({ children }) {
   const redo = useLatestCallback(() => {
     if (!undoFuture.current.length) return null;
     const next = undoFuture.current.pop(), cur = undoSnapshotRef.current();
-    undoPast.current.push(cur); undoPastAt.current.push(Date.now());
-    applySnapshot(next);
+    undoPast.current.push(cur); undoPastAt.current.push(Date.now()); lastOwnStep.current = null;
+    const show = pageAfterUndo(cur.layoutPages, next.layoutPages, activeLayoutPageId, undoPageOf.current.get(next)); // #3935
+    undoPageOf.current.set(cur, show);
+    applySnapshot(next, show);
     setUndoCount(undoPast.current.length);
     setRedoCount(undoFuture.current.length);
     return { keys: changedKeys(cur, next), later: [] }; // #1087
@@ -1878,26 +1889,27 @@ export function StoreProvider({ children }) {
     if (noteRemovedLayers(prev, mapLayers)) setTimeout(() => releaseRemovedLayers(), 0); // after this change's undo step and tab bookkeeping
   }, [mapLayers, releaseRemovedLayers]);
   const clearUndoHistory = useLatestCallback(() => { // #2824: useLatestCallback (it now calls releaseRemovedLayers; #2769's rule)
-    undoPast.current = []; undoPastAt.current = []; undoFuture.current = []; undoBeforeBurst.current = null; lastOutsideUndo.current = null;
+    undoPast.current = []; undoPastAt.current = []; undoFuture.current = []; undoBeforeBurst.current = null; lastOutsideUndo.current = null; undoOwnStep.current = false; lastOwnStep.current = null; // own step: #3935
     if (undoDebounceTimer.current) { clearTimeout(undoDebounceTimer.current); undoDebounceTimer.current = null; }
     setUndoCount(0); setRedoCount(0);
     setTimeout(() => releaseRemovedLayers(), 0); // #2824 — a layer only the history held
   });
 
   // TASKS.csv #69 — layout page management (add/switch/rename/delete). Defined here rather than
-  // alongside layoutPages/layoutElements above because these call clearUndoHistory, which needs to
-  // already exist — see that state's own comment further up for why. Every switch clears undo history
-  // (undo is scoped to whichever page is active — see undoSnapshot's own comment), same reasoning as
-  // switchToTab already applies to workspace tabs.
+  // alongside layoutPages/layoutElements above because they use the undo history, which needs to
+  // already exist — see that state's own comment further up for why.
+  // TASKS.csv #3935 — none of them clears the history any more (a switch, an add and a delete each did, so Ctrl+Z after a one-click sheet
+  // could not take back the work before it). The history holds the whole pages list (#463), so a switch needs no step: an Undo shows the
+  // page it changes (lib/layoutPageUndo.js). An add or a delete is a step of its own: the edit before it is closed first.
+  const pageStep = () => { commitUndoBurst(); undoOwnStep.current = true; };
   const switchLayoutPage = useLatestCallback((pageId) => {
     setActiveLayoutPageId(pageId);
-    clearUndoHistory();
   });
   const addLayoutPage = useLatestCallback((name) => {
     const id = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    pageStep();
     setLayoutPages((p) => [...p, { id, name: name || `Page ${p.length + 1}`, elements: DEFAULT_LAYOUT_ELEMENTS }]);
     setActiveLayoutPageId(id);
-    clearUndoHistory();
     return id;
   });
   const renameLayoutPage = useCallback((id, name) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, name } : pg))), []);
@@ -1923,8 +1935,7 @@ export function StoreProvider({ children }) {
   // ELEMENTS (wrong — atlas pages carry their own generated `elements`) and switches the active page +
   // clears undo history on every single call, which for N pages would mean N wasted undo-history
   // clears and end with an arbitrary LAST generated page active rather than a deliberate choice.
-  // Switches to the FIRST newly-created page once, clears undo history once, same as any other
-  // page-navigating action.
+  // Switches to the FIRST newly-created page once; the whole batch is one undo step (#3935: it cleared the history).
   // TASKS.csv #3854 — the data credit goes on HERE, so every route that adds pages (Layout's own, Best intercepts from the 3D View, an Atlas, a split, a
   // table's continuation) gives each page the {credits} line when the project has a credit and the page does not print one; it was only Layout's own wrapper (#3591)
   creditStateRef.current = { terrain, rasters, dataCredit: project?.dataCredit || "" };
@@ -1933,9 +1944,9 @@ export function StoreProvider({ children }) {
     const credited = creditedNow(rawPages), pages = credited || rawPages;
     // TASKS.csv #1636 — batch: the run that generated the page (an atlas, a collar table's continuation), removable in one action
     const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}), ...(pg.format ? { format: pg.format } : {}) /* #3404 — its paper, so callers need not set it afterwards */ }));
+    pageStep(); // #3935
     setLayoutPages((p) => [...p, ...withIds]);
     setActiveLayoutPageId(withIds[0].id);
-    clearUndoHistory();
     if (!credited) creditLater(withIds.map((p) => p.id)); // #3854 — added before the credit's code arrived
     return withIds.map((p) => p.id);
   });
@@ -1943,14 +1954,16 @@ export function StoreProvider({ children }) {
   // same reasoning as closeWorkspaceTab's "last tab closed" branch above.
   const deleteLayoutPage = useLatestCallback((id) => { // TASKS.csv #1636 — or a list of ids (a generated batch)
     const gone = new Set(Array.isArray(id) ? id : [id]);
+    if (!layoutPages.some((p) => gone.has(p.id))) return; // #3935 — nothing to delete: no step
+    pageStep(); // #3935 — the page bar says 'Ctrl+Z undoes this', and now it does
     setLayoutPages((pages) => {
       const remaining = pages.filter((p) => !gone.has(p.id));
       if (!remaining.length) {
         const freshId = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        if (gone.has(activeLayoutPageId)) { setActiveLayoutPageId(freshId); clearUndoHistory(); }
+        if (gone.has(activeLayoutPageId)) setActiveLayoutPageId(freshId);
         return [{ id: freshId, name: "Page 1", elements: DEFAULT_LAYOUT_ELEMENTS }];
       }
-      if (gone.has(activeLayoutPageId)) { setActiveLayoutPageId(remaining[0].id); clearUndoHistory(); }
+      if (gone.has(activeLayoutPageId)) setActiveLayoutPageId(remaining[0].id);
       return remaining;
     });
   });

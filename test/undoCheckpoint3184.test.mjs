@@ -13,7 +13,8 @@ test("the store commits a burst in one place, from the quiet-period timer and fr
   assert.match(s, /undoDebounceTimer\.current = setTimeout\(commitUndoBurst, UNDO_DEBOUNCE_MS\)/);
   assert.match(s, /undoCheckpoint: commitUndoBurst/);
   const body = s.slice(s.indexOf("const commitUndoBurst"), s.indexOf("useLayoutEffect(() => {", s.indexOf("const commitUndoBurst")));
-  assert.match(body, /if \(!undoBeforeBurst\.current\) return;/, "nothing under way: no empty step");
+  assert.match(body, /if \(!undoBeforeBurst\.current\) (return;|\{[^\n]*\bundoStepLabels\.current\.set\(lastOwnStep\.current[^\n]*return; \})/, "nothing under way: no empty step"); // #3935: a late label names the page step just made
+  assert.doesNotMatch(body.split("\n").find((l) => l.includes("if (!undoBeforeBurst.current)")), /undoPast\.current\.push/, "nothing under way: no empty step");
   for (const k of ["capRemovedMapLayers", "capTables", "undoFuture.current = []", "setUndoCount"]) assert.ok(body.includes(k), k);
 });
 
