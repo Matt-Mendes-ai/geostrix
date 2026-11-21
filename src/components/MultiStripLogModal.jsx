@@ -11,7 +11,7 @@ import { composeStripLogs, MULTI_MAX_HOLES } from "../lib/multiStripLog.js";
 import { t as tr } from "../lib/i18n.js";
 
 const panel = { width: "min(1200px, 96vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
-const chip = (on) => ({ padding: "2px 8px", borderRadius: 10, fontSize: 11, cursor: "pointer", border: `1px solid ${on ? "var(--color-accent)" : "var(--color-border-light)"}`, background: on ? "var(--color-divider)" : "transparent", color: "var(--color-text)" });
+const chip = (on) => ({ padding: "2px 8px", borderRadius: 10, fontSize: "var(--font-size-sm)", cursor: "pointer", border: `1px solid ${on ? "var(--color-accent)" : "var(--color-border-light)"}`, background: on ? "var(--color-divider)" : "transparent", color: "var(--color-text)" });
 
 export default function MultiStripLogModal({ holeId, collars, layers, assays, assayElements, legendOverride = null, onAddToLayout = null, onClose }) {
   useEscapeKey(onClose); useFocusTrap();

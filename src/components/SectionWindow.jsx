@@ -432,13 +432,13 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
 
   return (
     <div style={{ height: tabId ? "100%" : "100vh", background: "#ffffff", color: "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
-      <div ref={toolbarRef} className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: 14, color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, boxSizing: "border-box", ...(drawing && toolbarHeight.current ? { height: toolbarHeight.current } : null) }}>
-        <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
+      <div ref={toolbarRef} className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: "var(--font-size-lg)", color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, boxSizing: "border-box", ...(drawing && toolbarHeight.current ? { height: toolbarHeight.current } : null) }}>
+        <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: "var(--font-size-sm)", marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} · {v2} · {v3} · {v4}{v5}{v6}", { v: countText(data.holes?.length, "{n} hole", "{n} holes"), v2: countText(data.intervals?.length, "{n} interval", "{n} intervals"), v3: countText(data.points?.length, "{n} point", "{n} points"), v4: countText(data.planes?.length, "{n} structure", "{n} structures") /* #3280 — '1 holes' */, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
-          {stepping && <span role="status" style={{ color: "#8a6a1f", fontSize: 11 }}>{tr("Building the section…")}</span>}{/* #2210 */}
-          {!(data.holes?.length > 0) && data.hiddenHoleCount > 0 && <span role="status" style={{ color: "#8a6a1f", fontSize: 11 }}>{tr(data.hiddenHoleCount === 1 ? "No hole is drawn: {n} hole is unchecked in the Holes list (show it, or move the line)" : "No hole is drawn: {n} holes are unchecked in the Holes list (show them, or move the line)", { n: data.hiddenHoleCount })}</span>}{/* #3680 */}
-          {labelsLeftOut > 0 && <span style={{ color: "#8a6a1f", fontSize: 11 }} title={tr("Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.")}>{labelsLeftOut === 1 ? tr("1 label left out: no room") : tr("{n} labels left out: no room", { n: labelsLeftOut })}</span>}{/* #1536 */}
+          <span style={{ color: "#65717e", fontSize: "var(--font-size-sm)" }}>{tr("{v} · {v2} · {v3} · {v4}{v5}{v6}", { v: countText(data.holes?.length, "{n} hole", "{n} holes"), v2: countText(data.intervals?.length, "{n} interval", "{n} intervals"), v3: countText(data.points?.length, "{n} point", "{n} points"), v4: countText(data.planes?.length, "{n} structure", "{n} structures") /* #3280 — '1 holes' */, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
+          {stepping && <span role="status" style={{ color: "#8a6a1f", fontSize: "var(--font-size-sm)" }}>{tr("Building the section…")}</span>}{/* #2210 */}
+          {!(data.holes?.length > 0) && data.hiddenHoleCount > 0 && <span role="status" style={{ color: "#8a6a1f", fontSize: "var(--font-size-sm)" }}>{tr(data.hiddenHoleCount === 1 ? "No hole is drawn: {n} hole is unchecked in the Holes list (show it, or move the line)" : "No hole is drawn: {n} holes are unchecked in the Holes list (show them, or move the line)", { n: data.hiddenHoleCount })}</span>}{/* #3680 */}
+          {labelsLeftOut > 0 && <span style={{ color: "#8a6a1f", fontSize: "var(--font-size-sm)" }} title={tr("Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.")}>{labelsLeftOut === 1 ? tr("1 label left out: no room") : tr("{n} labels left out: no room", { n: labelsLeftOut })}</span>}{/* #1536 */}
           {!drawing ? (
             <>
               {/* Unit picked BEFORE drawing starts — a contact is always a specific unit's upper
@@ -476,9 +476,9 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
               <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>
             </>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Clicks within ~12 px of a hole snap to the chosen unit's logged top (any logged boundary for faults / strings), else to the trace; the snapped vertex keeps the hole's exact position and depth (square marker)")}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Clicks within ~12 px of a hole snap to the chosen unit's logged top (any logged boundary for faults / strings), else to the trace; the snapped vertex keeps the hole's exact position and depth (square marker)")}>
             <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} />{" "}{tr("Snap to holes")}</label>
-          {snapOn && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.")}>
+          {snapOn && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.")}>
             <input type="checkbox" checked={projectSnaps || outlineOnPlane} disabled={outlineOnPlane} onChange={(e) => setProjectSnaps(e.target.checked)} />{" "}{tr("Keep snaps on the section")}</label>}
           {/* TASKS.csv #876 — step to the parallel section beside this one, and refresh what the main window draws on it */}
           <button onClick={() => stepTo({ id: data.id, step: -1 })} title={tr("Open the parallel section on the right of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>‹</button>
@@ -486,46 +486,46 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           {/* TASKS.csv #1131 — move the section by exactly ± its buffer (a new parallel section, or the saved one there) */}
           <button onClick={() => stepTo({ id: data.id, step: -1, by: "buffer" })} title={tr("Move the section {v} m to the right (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>−{data.section?.corridor} m</button>
           <button onClick={() => stepTo({ id: data.id, step: 1, by: "buffer" })} title={tr("Move the section {v} m to the left (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>+{data.section?.corridor} m</button>
-          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.")}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.")}>
             {tr("Buffer ±")}
             <NumberInput min={1} step={5} value={data.section?.corridor ?? null}
               onChange={(v) => { if (v > 0 && v !== data.section?.corridor) sendSectionContacts({ id: data.id, corridor: v }); }}
-              style={{ width: 52, fontSize: 11 }} aria-label={tr("Buffer ±")} />{" m"}
+              style={{ width: 52, fontSize: "var(--font-size-sm)" }} aria-label={tr("Buffer ±")} />{" m"}
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Font and size of the text on the section (and in its exports)")}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Font and size of the text on the section (and in its exports)")}>
             {tr("Text")}
-            <select value={textFont} onChange={(e) => setTextFont(e.target.value)} style={{ fontSize: 11 }} aria-label={tr("Section font")}>
+            <select value={textFont} onChange={(e) => setTextFont(e.target.value)} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Section font")}>
               {SECTION_FONTS.map((f) => <option key={f.stack} value={f.stack}>{f.label}</option>)}
             </select>
-            <select value={String(textScale)} onChange={(e) => setTextScale(e.target.value)} style={{ fontSize: 11 }} aria-label={tr("Section text size")}>
+            <select value={String(textScale)} onChange={(e) => setTextScale(e.target.value)} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Section text size")}>
               {[0.8, 1, 1.2, 1.4, 1.6, 2].map((v) => <option key={v} value={String(v)}>{Math.round(v * 100)}%</option>)}
             </select>
           </label>
           {data.planes?.length > 0 && (
-            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Opacity of the structure symbols on the section")}>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Opacity of the structure symbols on the section")}>
               {tr("Structures")}
               <input type="range" min="0.05" max="1" step="0.05" value={structOpacity} onChange={(e) => setStructOpacity(e.target.value)} style={{ width: 70 }} aria-label={tr("Opacity of the structure symbols on the section")} />
             </label>
           )}
-          {ribbonChoices.length > 1 && <details style={{ position: "relative", fontSize: 11, color: "#55606e" }}>{/* #1700 */}
+          {ribbonChoices.length > 1 && <details style={{ position: "relative", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{/* #1700 */}
             <summary style={{ cursor: "pointer", listStyle: "none", padding: "4px 8px", border: "1px solid #d9dce1", borderRadius: 6, background: "#f4f5f7" }} title={tr("Which interval layers draw as ribbons beside each hole (custom layers only when ticked)")}>{tr("Ribbons {n} of {m}", { n: ribbonChoices.filter((c) => !ribbonHidden(c.key)).length, m: ribbonChoices.length })}</summary>
             <div style={{ position: "absolute", zIndex: 5, top: "100%", left: 0, marginTop: 4, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 10px", display: "flex", flexDirection: "column", gap: 4, minWidth: 180, boxShadow: "0 4px 14px rgba(0,0,0,0.12)" }}>
               {ribbonChoices.map((c) => <label key={c.key} style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><input type="checkbox" checked={!ribbonHidden(c.key)} onChange={() => toggleRibbon(c.key)} />{c.label}</label>)}
             </div>
           </details>}
-          {(data?.points || []).some((r) => r.assay) && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("What the grade labels say: the highest single samples, or the best intercepts by Best intercepts' rule (the cut-off typed here, or the P90 of this section's values when blank; at most 2 m of internal dilution)")}>
+          {(data?.points || []).some((r) => r.assay) && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("What the grade labels say: the highest single samples, or the best intercepts by Best intercepts' rule (the cut-off typed here, or the P90 of this section's values when blank; at most 2 m of internal dilution)")}>
             {tr("Grade labels")}
-            <select value={gradeLabelMode} onChange={(e) => setGradeLabelMode(e.target.value)} style={{ fontSize: 11 }} aria-label={tr("Grade labels")}>
+            <select value={gradeLabelMode} onChange={(e) => setGradeLabelMode(e.target.value)} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Grade labels")}>
               <option value="samples">{tr("Highest samples")}</option>
               <option value="intercepts">{tr("Best intercepts (m @ grade)")}</option>
             </select>
-            {gradeLabelMode === "intercepts" && [...new Set((data?.points || []).filter((r) => r.assay && !r.assay.pxrf).map((r) => r.assay.sym))].map((sym) => <NumberInput key={sym} allowEmpty min={0} value={interceptCutoffs[sym] === "" ? null : interceptCutoffs[sym] ?? null} placeholder={tr("{sym} cut-off (P90)", { sym })} onChange={(v) => setInterceptCutoffs((c) => ({ ...c, [sym]: v == null ? "" : String(v) }))} style={{ width: 92, fontSize: 11 }} aria-label={tr("{sym} cut-off", { sym })} />)}
+            {gradeLabelMode === "intercepts" && [...new Set((data?.points || []).filter((r) => r.assay && !r.assay.pxrf).map((r) => r.assay.sym))].map((sym) => <NumberInput key={sym} allowEmpty min={0} value={interceptCutoffs[sym] === "" ? null : interceptCutoffs[sym] ?? null} placeholder={tr("{sym} cut-off (P90)", { sym })} onChange={(v) => setInterceptCutoffs((c) => ({ ...c, [sym]: v == null ? "" : String(v) }))} style={{ width: 92, fontSize: "var(--font-size-sm)" }} aria-label={tr("{sym} cut-off", { sym })} />)}
           </label>}{/* TASKS.csv #3860 */}
-          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Width of the drillhole interval ribbons on the section, in pixels")}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Width of the drillhole interval ribbons on the section, in pixels")}>
             {tr("Hole width")}
-            <NumberInput min={1} max={20} step={1} value={holeWidth} onChange={(v) => setHoleWidth(v)} style={{ width: 40, fontSize: 11 }} aria-label={tr("Hole width")} />
+            <NumberInput min={1} max={20} step={1} value={holeWidth} onChange={(v) => setHoleWidth(v)} style={{ width: 40, fontSize: "var(--font-size-sm)" }} aria-label={tr("Hole width")} />
           </label>
-          {patternCodes.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("FGDC lithology patterns over the lithology ribbon, each code's pattern as in its strip log (chosen there). They read from a hole width of about 10 px.")}>
+          {patternCodes.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("FGDC lithology patterns over the lithology ribbon, each code's pattern as in its strip log (chosen there). They read from a hole width of about 10 px.")}>
             <input type="checkbox" checked={patternsOn} onChange={(e) => setPatternsOn(e.target.checked)} />{tr("Patterns")}
           </label>}
           <button onClick={() => stepTo({ id: data.id, refresh: true })} title={tr("Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).")} style={btnStyle(false)}>{tr("Refresh")}</button>
@@ -536,18 +536,18 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             <Camera size={14} /> {snapped ? tr("Sent ✓") : tr("Snapshot to Layout")}
           </button>
           {data.modelBackdrop && ( // TASKS.csv #759
-            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("{name}: the modelled units on this section, behind the logged holes, {source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).", { name: data.modelBackdrop.name, source: data.modelBackdrop.source })}>
+            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("{name}: the modelled units on this section, behind the logged holes, {source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).", { name: data.modelBackdrop.name, source: data.modelBackdrop.source })}>
               <input type="checkbox" checked={showModel} onChange={(e) => setShowModel(e.target.checked)} />{" "}{tr("Modelled units")}</label>
           )}
           {data.sectionImages?.length > 0 && ( // TASKS.csv #631
-            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}", { v: data.sectionImages.map((i) => i.name).join(", ") })}>
+            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}", { v: data.sectionImages.map((i) => i.name).join(", ") })}>
               <input type="checkbox" checked={showSectionImages} onChange={(e) => setShowSectionImages(e.target.checked)} />{" "}{tr("Section image")}</label>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<NumberInput min={0.1} max={MAX_SECTION_VE} step={0.5} value={vExag ?? null} onChange={(v) => setVExag(v)} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<NumberInput min={0.1} max={MAX_SECTION_VE} step={0.5} value={vExag ?? null} onChange={(v) => setVExag(v)} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
             ×
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
-          {fitWhole && fitTextPx != null && fitTextPx < 7 && <span role="note" style={{ fontSize: 11, color: "#8a6a1f" }} title={tr("Fitted whole, this section's labels are drawn under 7 px tall. A lower VE makes it less tall, so it fits larger; or untick Fit to window and scroll.")}>{tr("Text under 7 px: lower the VE, or untick to scroll")}</span>}{/* #3304 */}
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
+          {fitWhole && fitTextPx != null && fitTextPx < 7 && <span role="note" style={{ fontSize: "var(--font-size-sm)", color: "#8a6a1f" }} title={tr("Fitted whole, this section's labels are drawn under 7 px tall. A lower VE makes it less tall, so it fits larger; or untick Fit to window and scroll.")}>{tr("Text under 7 px: lower the VE, or untick to scroll")}</span>}{/* #3304 */}
           {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
           <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
           <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
@@ -556,7 +556,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       </div>
 
       {/* TASKS.csv #395 — planned-hole design bar */}
-      <div className="ge-section-chips" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "6px 16px", borderBottom: "1px solid #e6e8eb", fontSize: 11 }}>
+      <div className="ge-section-chips" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "6px 16px", borderBottom: "1px solid #e6e8eb", fontSize: "var(--font-size-sm)" }}>
         {!planning ? (
           <button onClick={startPlanning} style={btnStyle(false)} title={tr("Click the collar (snapped to the ground profile when there is one), then the target — gives azimuth, dip and length for a new planned hole")}><Crosshair size={14} />{" "}{tr("Plan a hole")}</button>
         ) : (
@@ -595,7 +595,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       {contacts.length > 0 && (
         <div className="ge-section-chips" style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "8px 16px", borderBottom: "1px solid #e6e8eb" }}>
           {contacts.map((c) => (
-            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 12, fontSize: 10.5 }}>
+            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 12, fontSize: "var(--font-size-xs)" }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: c.color, display: "inline-block" }} />
               {c.unit} <span style={{ color: "#65717e" }}>{tr("({v}, {points} pts)", { v: c.kind === "fault" ? tr("fault") : c.kind === "string" ? tr("string") : c.kind === "outline" ? tr("outline") : tr("upper contact"), points: c.points.length })}</span>
               <Pencil role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Edit the vertices of {unit}", { unit: c.unit })} size={12} style={{ cursor: "pointer", color: editingId === c.id ? "#b06a1f" : "#55606e" }} onClick={() => { setDrawing(false); setEditingId(editingId === c.id ? null : c.id); }}><title>{tr("Edit vertices: drag to move, Alt-click to delete, click the line to insert")}</title></Pencil>
@@ -610,13 +610,13 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         {/* TASKS.csv #1230 — over the section's title margin, not in the toolbar: wrapping there moved the section ~23 px under the cursor as the first click was aimed */}
         {drawing && (
           <div style={{ position: "sticky", top: 0, height: 0, zIndex: 5 }}>
-            <div style={{ display: "inline-block", maxWidth: "100%", boxSizing: "border-box", padding: "3px 8px", background: "rgba(255,255,255,0.94)", border: "1px solid #edd9b7", borderRadius: 4, color: "#8a6a1f", fontSize: 11 }}>
+            <div style={{ display: "inline-block", maxWidth: "100%", boxSizing: "border-box", padding: "3px 8px", background: "rgba(255,255,255,0.94)", border: "1px solid #edd9b7", borderRadius: 4, color: "#8a6a1f", fontSize: "var(--font-size-sm)" }}>
               <div>{kindPick === "contact" && pickExplicit ? tr("Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.", { name: pickName, drawPoints: drawPoints.length }) : kindPick === "contact" ? tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : kindPick === "outline" ? tr("Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : tr("Click points along {unitPick}… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</div>
               {offHoles > 0 && <div style={{ color: "#65717e" }} title={tr("A point snapped to a hole takes the hole's real position, off the section; a free point lies on the section plane. A line mixing the two kinks between them.") + " " + tr("(+ is away from the viewer, − towards)")}>{tr("{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.", { n: offHoles })}</div>}{/* TASKS.csv #897 */}
             </div>
           </div>
         )}
-        {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
+        {editingId && <div style={{ fontSize: "var(--font-size-sm)", color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
         <SectionSVG gradeLabels={{ mode: gradeLabelMode, cutoffs: interceptCutoffs }} /* #3860 */ patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} printing={printScale != null} /* #2761 */ textFont={textFont} textScale={printScale ?? textScale * autoText} /* #1090 — the print size while an export is drawn; #3574 — the grown size of a fitted tall section on screen */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} onAutoVE={(v) => setVExag((cur) => cur ?? v)} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps || outlineOnPlane} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
@@ -628,9 +628,9 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
 }
 
 function btnStyle(active) {
-  return { display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: active ? "#1e3629" : "#f4f5f7", border: active ? "1px solid #3d6b52" : "1px solid #d9dce1", borderRadius: 6, color: active ? "#8fd9ab" : "#1a2028", fontSize: 11.5, cursor: "pointer" };
+  return { display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: active ? "#1e3629" : "#f4f5f7", border: active ? "1px solid #3d6b52" : "1px solid #d9dce1", borderRadius: 6, color: active ? "#8fd9ab" : "#1a2028", fontSize: "var(--font-size-sm)", cursor: "pointer" };
 }
-const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
+const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: "var(--font-size-sm)" };
 
 // TASKS.csv #3280 (Galore review) — '1 holes · 60 intervals' and an offset of '-0…+6 m': singular / plural, and a sign from the rounded metre
 const countText = (n, one, many) => tr(n === 1 ? one : many, { n: n || 0 });
@@ -1318,8 +1318,8 @@ function SectionKey({ rows, shown, onToggle }) {
   const list = (rows || []).filter((r) => r && (r[1] != null || r[2]?.heading));
   if (!list.length) return null;
   return (
-    <div style={{ marginTop: 8, fontSize: 11, color: "#55606e" }}>
-      <button type="button" onClick={onToggle} style={{ background: "none", border: "none", padding: 0, color: "#2f6db5", cursor: "pointer", fontSize: 11 }} aria-expanded={shown}>{shown ? tr("Hide the key") : tr("Show the key")}</button>
+    <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "#55606e" }}>
+      <button type="button" onClick={onToggle} style={{ background: "none", border: "none", padding: 0, color: "#2f6db5", cursor: "pointer", fontSize: "var(--font-size-sm)" }} aria-expanded={shown}>{shown ? tr("Hide the key") : tr("Show the key")}</button>
       {shown && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", marginTop: 4 }} aria-label={tr("Section key")}>
           {list.map(([label, color, opt], i) => (opt?.heading
@@ -1336,7 +1336,7 @@ function BlockModelKey({ slices }) {
   const shown = (slices || []).filter((vs) => vs.legend);
   if (!shown.length) return null;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", marginTop: 8, fontSize: 11, color: "#55606e" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", marginTop: 8, fontSize: "var(--font-size-sm)", color: "#55606e" }}>
       {shown.map((vs) => {
         const g = vs.legend;
         return (

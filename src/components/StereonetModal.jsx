@@ -188,20 +188,20 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#1a2028" }}>
             {plotted === filtered.length
               ? tr("{v} — structure picks ({filtered}/{picks})", { v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), filtered: filtered.length, picks: picks.length })
               : tr("{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); not plotted: {why}", { /* #1448; #1551 — each reason apart */ v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), plotted: plotted.toLocaleString(), filtered: filtered.length.toLocaleString(), picks: picks.length.toLocaleString(),
                 why: [unplotted.alphaOnly && tr("{n} alpha only (no beta)", { n: unplotted.alphaOnly.toLocaleString() }), unplotted.noAngles && tr("{n} with no angles", { n: unplotted.noAngles.toLocaleString() }), unplotted.betaOnly && tr("{n} beta only (no alpha)", { n: unplotted.betaOnly.toLocaleString() }), unplotted.noDipDir && tr("{n} with a dip but no dip direction", { n: unplotted.noDipDir.toLocaleString() }), unplotted.other && tr("{n} whose angles could not be converted", { n: unplotted.other.toLocaleString() })].filter(Boolean).join(", ") })}{domainId && domains.length > 0 && (
-              <span style={{ fontWeight: 400, fontSize: 11, color: "#7d3c98", marginLeft: 6 }}>{tr("· domain: {v}", { v: (domains.find((d) => d.id === domainId) || {}).name || domainId })}
+              <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)", color: "#7d3c98", marginLeft: 6 }}>{tr("· domain: {v}", { v: (domains.find((d) => d.id === domainId) || {}).name || domainId })}
               </span>
             )}
             {/* TASKS.csv #2270 — what the rose counts once 'Dips of at least' is set (the header kept '85/85' at 60°) */}
-            {view === "rose" && rose && roseMinDip > 0 && <span style={{ fontWeight: 400, fontSize: 11, color: "#55606e", marginLeft: 6 }}>{tr("· the rose counts {n} of {m} plane(s): those dipping {d}° or more", { n: rose.n.toLocaleString(), m: plotted.toLocaleString(), d: roseMinDip })}</span>}
+            {view === "rose" && rose && roseMinDip > 0 && <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)", color: "#55606e", marginLeft: 6 }}>{tr("· the rose counts {n} of {m} plane(s): those dipping {d}° or more", { n: rose.n.toLocaleString(), m: plotted.toLocaleString(), d: roseMinDip })}</span>}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
-        {(betaRefs.top + betaRefs.bottom) > 0 && <div role="note" style={{ fontSize: 11, color: "#6b4e20", background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "5px 8px", marginBottom: 8, lineHeight: 1.4 }}>{[betaRefs.bottom && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.bottom.toLocaleString(), ref: tr("bottom") }), betaRefs.top && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.top.toLocaleString(), ref: tr("top") })].filter(Boolean).join(" ")}</div>}{/* #2055 */}
+        {(betaRefs.top + betaRefs.bottom) > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "#6b4e20", background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "5px 8px", marginBottom: 8, lineHeight: 1.4 }}>{[betaRefs.bottom && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.bottom.toLocaleString(), ref: tr("bottom") }), betaRefs.top && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.top.toLocaleString(), ref: tr("top") })].filter(Boolean).join(" ")}</div>}{/* #2055 */}
 
         <div style={{ display: "flex", gap: 16 }}>
           <div>
@@ -343,7 +343,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                   <option value="surface" disabled={!surfacePicks.length}>{tr("Outcrop measurements ({surfacePicks})", { surfacePicks: surfacePicks.length })}</option>
                   <option value="both" disabled={!downholePicks.length || !surfacePicks.length}>{tr("Both")}</option>
                 </select>
-                {domainId && source !== "downhole" && <span style={{ fontSize: 10, color: "#b06a1f" }}>{tr("domain filter: downhole only")}</span>}
+                {domainId && source !== "downhole" && <span style={{ fontSize: "var(--font-size-xs)", color: "#b06a1f" }}>{tr("domain filter: downhole only")}</span>}
             </label>
             {view === "stereonet" && (
               <label style={rowLabel}>{tr("Projection")}<select value={projection} onChange={(e) => setProjection(e.target.value)} style={sel}>
@@ -421,7 +421,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                   <input type="checkbox" checked={showMean} onChange={(e) => setShowMean(e.target.checked)} />{" "}{tr("Mean orientation")}</label>
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.")}>
                   <input type="checkbox" checked={zoomData} onChange={(e) => setZoomData(e.target.checked)} />{" "}{tr("Zoom to the data")}</label>{/* TASKS.csv #2971 */}
-                {zoom && <div style={{ fontSize: 11, color: "#65717e", marginTop: -6, lineHeight: 1.35 }}>{tr("Zoomed: the edge of the net is a dip of {d}°", { d: zoom.edgeDip })}</div>}
+                {zoom && <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", marginTop: -6, lineHeight: 1.35 }}>{tr("Zoomed: the edge of the net is a dip of {d}°", { d: zoom.edgeDip })}</div>}
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Kamb (1959) counting-circle density contours — shades the net by how much more crowded each spot is than a random (uniform) spread of the same number of poles would be")}>
                   <input type="checkbox" checked={showContours} onChange={(e) => setShowContours(e.target.checked)} />{" "}{tr("Density contours")}</label>
               </>
@@ -436,7 +436,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
             >
               <input type="checkbox" checked={terzaghiOn && canTerzaghi} disabled={!canTerzaghi} onChange={(e) => setTerzaghiOn(e.target.checked)} />{" "}{tr("Terzaghi correction")}</label>
             {terzaghi && stats && stats.terzaghi && stats.terzaghi.applied && (
-              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>
+              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: "var(--font-size-xs)", color: "#6b4e20", lineHeight: 1.45 }}>
                 <div style={{ fontWeight: 600, marginBottom: 2 }}>{tr("Terzaghi-corrected")}</div>
                 <div>{tr("{weighted} of {n} pick(s) weighted{v}.", { weighted: stats.terzaghi.weighted, n: stats.n, v: stats.terzaghi.unweighted ? tr("; {unweighted} left at weight 1 (no hole attitude)", { unweighted: stats.terzaghi.unweighted }) : "" })}</div>
                 <div>{tr("Effective n = {nEff}", { nEff: stats.nEff.toFixed(1) })} <span style={{ color: "#9a7c46" }}>{tr("(k/α95 use this, not the raw count)")}</span></div>
@@ -456,7 +456,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 clustered than chance; 2σ is the conventional "worth drawing" threshold; a well-defined
                 fabric typically peaks somewhere between ~4σ (broad) and 10σ+ (tight). */}
             {showContours && view === "stereonet" && (
-              <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 8px", fontSize: 10, color: "#1a2028", lineHeight: 1.5 }}>
+              <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 8px", fontSize: "var(--font-size-xs)", color: "#1a2028", lineHeight: 1.5 }}>
                 {contour ? (
                   <>
                     <div style={{ fontWeight: 600, marginBottom: 3 }}>{tr("Kamb density (σ above uniform)")}</div>
@@ -464,7 +464,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                       {CONTOUR_LEVELS.map((lv, k) => (
                         <div key={lv} style={{ flex: 1, textAlign: "center" }} title={k === CONTOUR_LEVELS.length - 1 ? `≥ ${lv}σ` : `${lv} – ${CONTOUR_LEVELS[k + 1]}σ`}>
                           <div style={{ height: 8, background: CONTOUR_COLORS[k], opacity: 0.78, borderRadius: 2 }} />
-                          <div style={{ fontSize: 8.5, color: "#55606e", marginTop: 1 }}>{k === CONTOUR_LEVELS.length - 1 ? `${lv}+` : lv}</div>
+                          <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", marginTop: 1 }}>{k === CONTOUR_LEVELS.length - 1 ? `${lv}+` : lv}</div>
                         </div>
                       ))}
                     </div>
@@ -495,7 +495,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 tools. See stereonet.js's fisherStats for why this uses the orientation-tensor
                 (eigenvector) method rather than naive vector averaging. */}
             {stats ? (
-              <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10.5, color: "#1a2028", lineHeight: 1.55 }}>
+              <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: "var(--font-size-xs)", color: "#1a2028", lineHeight: 1.55 }}>
                 <div style={{ fontWeight: 600, marginBottom: 3, color: "#c0392b" }}>{tr("Mean orientation (n={n})", { n: stats.n })}</div>
                 {/* TASKS.csv #1207 — bedding, veins and faults are not one population */}
                 {typeFilter === "all" && types.length > 1 && <div style={{ marginBottom: 3, color: "#8a5a00" }}>{tr("Mixed types: this pools {n} structure types, so the figures below do not describe one population. Pick one structure type for a meaningful mean.", { n: types.length })}</div>}
@@ -546,16 +546,16 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                   <button
                     onClick={() => { if (noTrend) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn, name: stereonetTrendName({ terzaghi: !!terzaghiOn, dip: stats.meanDip, azimuth: stats.meanDipDir, label: trendLabel({ typeLabel: classList.find((c) => c.key === typeFilter)?.label ?? labelOf.get(typeFilter) ?? (types.length === 1 ? labelOf.get(types[0]) : null), area: areaFilter === "all" ? null : areaFilter, n: stats.n, k: stats.k, outcropOnly: filtered.every((p) => p.outcrop) }) }) }); }} // #1066; terzaghi: #1446 — the trend's name says which mean
                     disabled={isGirdle || pooledTypes || noTrend} // pooledTypes: TASKS.csv #1827 — a mean over several structure types is no one orientation; noTrend: #3379
-                    style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle || pooledTypes || noTrend ? 0.5 : 1, cursor: isGirdle || pooledTypes || noTrend ? "not-allowed" : "pointer" }}
+                    style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: "var(--font-size-xs)", borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle || pooledTypes || noTrend ? 0.5 : 1, cursor: isGirdle || pooledTypes || noTrend ? "not-allowed" : "pointer" }}
                     title={pooledTypes ? tr("Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.", { n: types.length }) : tooFew ? tr("Disabled: {n} reading(s) with a 95 % cone of {a}° are too few or too scattered to call a trend (at least {min} readings and a cone of {max}° or less). Add readings, or pick the type or area with more.", { n: stats.n, a: stats.alpha95.toFixed(0), min: TREND_MIN_PICKS, max: TREND_MAX_ALPHA95 }) /* #3845 */ : noTrend ? (picks.every((p) => p.outcrop) ? tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Pick one structure type or one area first.", { k: stats.k.toFixed(1) }) : tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.", { k: stats.k.toFixed(1) })) /* #3379; the outcrop wording: #3845 */ : isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}
                   >{tr("Add as structural trend")}</button>
                 )}
               </div>
             ) : noData ? null /* #2389 */ : (
-              <div style={{ fontSize: 10, color: "#65717e", lineHeight: 1.4 }}>{tr("Mean orientation needs at least 2 picks with a valid dip and dip direction.")}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", lineHeight: 1.4 }}>{tr("Mean orientation needs at least 2 picks with a valid dip and dip direction.")}</div>
             )}
 
-            <div style={{ fontSize: 10, color: "#65717e", lineHeight: 1.4, marginTop: 4 }}>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", lineHeight: 1.4, marginTop: 4 }}>
               {view === "rose" ? (
                 rose
                   ? <>{tr("Petal AREA is proportional to frequency (radius scales as √count), so a petal twice as long holds four times the picks. Longest petal = {maxCount}{v}, n = {n}.", { maxCount: rose.maxCount.toFixed(rose.maxCount % 1 ? 1 : 0), v: terzaghi ? tr(" (weighted)") : "", n: rose.n })}</>
@@ -572,12 +572,12 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
         {view !== "rose" && (types.length > 1 || both) && ( /* #1444 — a rose is one colour */
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
             {typeList.map((t) => (
-              <div key={t.key} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e" }}>
+              <div key={t.key} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "#55606e" }}>
                 <div style={{ width: 8, height: 8, borderRadius: 4, background: colorForStructure(t.label) }} />
                 {t.label}
               </div>
             ))}
-            {both && <div style={{ fontSize: 10, color: "#55606e" }}>{tr("Filled poles: core; open poles: outcrop")}</div>}
+            {both && <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e" }}>{tr("Filled poles: core; open poles: outcrop")}</div>}
           </div>
         )}
       </div>
@@ -664,6 +664,6 @@ const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)"
 // TASKS.csv #1368 — never taller or wider than the window: it measured 1,023 px in an 835 px window, with its title, close
 // button and Plot / Source dropdowns above the screen and nothing to scroll. Now it scrolls inside the window.
 const panel = { width: 660, maxWidth: "calc(100vw - 24px)", maxHeight: "calc(100vh - 24px)", overflowY: "auto", boxSizing: "border-box", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" };
-const rowLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
-const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 };
-const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: 11.5, cursor: "pointer" };
+const rowLabel = { fontSize: "var(--font-size-xs)", color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
+const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: "var(--font-size-sm)" };
+const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: "var(--font-size-sm)", cursor: "pointer" };

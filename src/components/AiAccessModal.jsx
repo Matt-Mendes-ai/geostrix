@@ -56,7 +56,7 @@ export default function AiAccessModal({ onClose }) {
             <>
               <div style={heading}>{tr("Connect an AI app")}</div>
               <div style={small}>{tr("Add this entry to the AI app's configuration (for Claude Desktop: Settings > Developer > Edit Config), then restart that app.")}</div>
-              <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", fontSize: 11, lineHeight: 1.4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: 8, margin: "6px 0" }}>{cfg?.text || "…"}</pre>
+              <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", fontSize: "var(--font-size-sm)", lineHeight: 1.4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: 8, margin: "6px 0" }}>{cfg?.text || "…"}</pre>
               <button type="button" onClick={copy} disabled={!cfg} style={btn}>{copied ? tr("Copied") : tr("Copy the entry")}</button>
               <div style={heading}>{tr("Connected now")}</div>
               {st.clients?.length ? st.clients.map((c) => <div key={c.name} style={small}>{tr("{name}: connected at {time}, {n} call(s)", { name: c.name, time: when(c.since), n: c.calls })}</div>) : <div style={small}>{tr("No AI app is connected.")}</div>}

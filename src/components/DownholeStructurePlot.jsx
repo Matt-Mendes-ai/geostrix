@@ -213,13 +213,13 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>{tr("Downhole structure (tadpole) — {v}", { v: activeHole || tr("no hole") })} <span style={{ fontWeight: 400, fontSize: 11, color: "#65717e" }}>({holePicks.length}{" "}{tr(holePicks.length === 1 ? "pick" : "picks")})</span>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#1a2028" }}>{tr("Downhole structure (tadpole) — {v}", { v: activeHole || tr("no hole") })} <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)", color: "#65717e" }}>({holePicks.length}{" "}{tr(holePicks.length === 1 ? "pick" : "picks")})</span>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         {!holeIds.length ? (
-          <div style={{ padding: "28px 8px", fontSize: 12, color: "#55606e", lineHeight: 1.6 }}>{tr("No hole has any structure picks with a dip and dip direction (or a measured alpha) yet. Import a structure layer (or save picks from the Core Orientation calculator) and this plot will fill in.")}</div>
+          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "#55606e", lineHeight: 1.6 }}>{tr("No hole has any structure picks with a dip and dip direction (or a measured alpha) yet. Import a structure layer (or save picks from the Core Orientation calculator) and this plot will fill in.")}</div>
         ) : (
         <div style={{ display: "flex", gap: 16 }}>
           <div>
@@ -365,14 +365,14 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
             )}
 
             {effectiveMode === "dip" && alphaOnly > 0 && (
-              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>
+              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: "var(--font-size-xs)", color: "#6b4e20", lineHeight: 1.45 }}>
                 {tr("{alphaOnly} {v} (non-oriented core) not shown in true-dip mode — they have no true dip. Switch to alpha to see them; they are counted in the frequency track.", { alphaOnly, v: tr(alphaOnly === 1 ? "alpha-only pick" : "alpha-only picks") })}</div>
             )}
             {xMode === "alpha" && !hasAlpha && (
-              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>{tr("Showing TRUE DIP: alpha needs this hole's attitude at each pick's depth, which requires collar and survey data for {activeHole}.", { activeHole })}</div>
+              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: "var(--font-size-xs)", color: "#6b4e20", lineHeight: 1.45 }}>{tr("Showing TRUE DIP: alpha needs this hole's attitude at each pick's depth, which requires collar and survey data for {activeHole}.", { activeHole })}</div>
             )}
 
-            <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10.5, color: "#1a2028", lineHeight: 1.55 }}>
+            <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: "var(--font-size-xs)", color: "#1a2028", lineHeight: 1.55 }}>
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{tr("Reading this plot")}</div>
               <div style={{ color: "#55606e" }}>{tr("Each dot sits at its {v} angle and its depth. The tail points in the structure's dip direction,", { v: effectiveMode === "alpha" ? tr("alpha") : tr("dip") })}{" "}<b>{tr("north up the page")}</b>{" "}{tr("— so a tail pointing right is dipping east.")}</div>
               <div style={{ color: "#55606e", marginTop: 4 }}>{tr("A hollow dot is an alpha-only pick (core not oriented): it has no dip direction, so no tail.")}{" "}{/* #527 */}{tr("Clustered tails = a consistent set. Tails fanning through 360° over a short interval usually means a core-orientation problem rather than real geology. Alpha does not depend on the orientation line, so alpha jumping wildly between adjacent picks points to a logging or depth error instead.")}</div>
@@ -381,7 +381,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
             {types.length > 1 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {types.map((t) => (
-                  <div key={t} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e" }}>
+                  <div key={t} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "#55606e" }}>
                     <div style={{ width: 8, height: 8, borderRadius: 4, background: colorForStructure(t) }} />
                     {t}
                   </div>
@@ -400,6 +400,6 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
 
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxWidth: "94vw", maxHeight: "94vh", overflow: "auto" };
-const rowLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
-const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 };
-const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: 11.5, cursor: "pointer" };
+const rowLabel = { fontSize: "var(--font-size-xs)", color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
+const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: "var(--font-size-sm)" };
+const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: "var(--font-size-sm)", cursor: "pointer" };

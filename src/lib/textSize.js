@@ -36,3 +36,10 @@ export function setTextSize(v) {
   listeners.forEach((f) => f());
 }
 export function subscribeTextSize(f) { listeners.add(f); return () => listeners.delete(f); }
+// TASKS.csv #3900 T2 — a section window is its own page: a size chosen in the main window reaches it through local storage's event
+try {
+  globalThis.addEventListener?.("storage", (e) => {
+    if (e.key !== TEXT_SIZE_KEY || !known(e.newValue) || e.newValue === current) return;
+    current = e.newValue; applyTextSize(); listeners.forEach((f) => f());
+  });
+} catch { /* no window (tests) */ }
