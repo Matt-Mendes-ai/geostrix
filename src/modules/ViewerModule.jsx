@@ -144,6 +144,7 @@ import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import Su
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 import { customColour, customLegendGroups, customFields, sectionCustomLegendItems /* #2669 */ } from "../lib/customColour.js"; // TASKS.csv #1697
 import { sectionNumericLegendItems, withLithoMeanings } from "../lib/sectionLegend.js"; // TASKS.csv #3413; meanings: #3860
+import { terrainShortName } from "../lib/terrainSource.js"; // TASKS.csv #3949 — the section's ground label
 import { fieldColourer } from "../lib/fieldColours.js"; // TASKS.csv #3704
 const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASKS.csv #1880
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
@@ -5724,7 +5725,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #1276 — the main process refuses a new section window past what this computer can hold
   // TASKS.csv #1995 — the litho patterns go with the payload. TASKS.csv #3159: lithoPatterns.js loads with the first section opened
   // (on use, like sectionDigitise.js #903), not at startup; this already returned a promise
-  const openSectionOrSay = async (payload) => { const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho)))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
+  const openSectionOrSay = async (sent) => { const payload = { ...sent, groundSource: terrainShortName(terrain) /* #3949 */ }; const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho)))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
   const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => (visibleHoles[t.hole_id] !== false || t.hole_id === scope.holeAsked /* #3680 — asked for by name */) && t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
