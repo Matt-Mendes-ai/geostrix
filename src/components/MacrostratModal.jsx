@@ -16,6 +16,8 @@ import { fetchMacrostratRaster, fetchMacrostratUnits, fetchMacrostratLegend, fet
 import { MACROSTRAT_CREDIT, MACROSTRAT_MVT_URL } from "../lib/macrostrat.js";
 import { t as tr } from "../lib/i18n.js";
 import { areaSizeText } from "../lib/areaSize.js"; // TASKS.csv #2314 / #1765
+import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a layer lands only in the project it was fetched for
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
 
@@ -32,34 +34,40 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
   const atProject = area.option?.kind === "project";
   useEscapeKey(onClose); // a stack: Esc in the picker closes only the picker
   useFocusTrap();
+  const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
+  const beginJob = () => (startProjectJob ? startProjectJob({ label: tr("Macrostrat geology") }) : noJob(tr("Macrostrat geology"))); // TASKS.csv #3953
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState(null);
   const [units, setUnits] = useState(null);
   const centre = bboxLonLat ? [(bboxLonLat[1] + bboxLonLat[3]) / 2, (bboxLonLat[0] + bboxLonLat[2]) / 2] : null; // lat, lng
   const addLayer = async () => {
     setMsg(null); setBusy(tr("Fetching Macrostrat tiles…"));
+    const job = beginJob(); // TASKS.csv #3953
     try {
       const r = await fetchMacrostratRaster({ bboxLonLat, projectEpsg, onProgress: (d, n) => setBusy(tr("Fetching Macrostrat tiles… {d} of {n}", { d, n })) });
       // TASKS.csv #2011 — the legend from the same tiles as vectors; a failure here still adds the drape (the layer offers "Fetch the legend")
       // #3952: the image is drawn from those tiles, which give the legend too (r.legend); fetched again only when they did not
       let legend = r.legend || null, legendErr = null;
       if (!legend) try { legend = await fetchMacrostratLegend({ bboxLonLat, onProgress: (d, n) => setBusy(tr("Fetching the legend… {d} of {n}", { d, n })) }); } catch (e) { legendErr = e.message; }
+      if (!(await landed(job))) { setBusy(null); return; } // TASKS.csv #3953 — into the project it started in
       addRaster({ name: "Macrostrat geology (CC BY 4.0)", bbox: r.bbox, dataUrl: r.dataUrl, opacity: 0.7, ...(legend ? { legend } : {}),
         provenance: { tool: "Macrostrat map units (vector tiles), drawn as an image", source: MACROSTRAT_MVT_URL("{z}", "{x}", "{y}"), /* #3952 */ zoom: r.zoom, areaLonLat: bboxLonLat, credit: MACROSTRAT_CREDIT, fetched: new Date().toISOString().slice(0, 10) } });
       setMsg({ ok: !r.failedTiles && !legendErr, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a raster drape: {w} × {h} px, ~{m} m pixels, {n} tiles at zoom {z}. Its eye in GeoTIFF / GXF turns it off.", { w: r.width, h: r.height, m: Math.round(r.pixelM), n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: r.failedTiles, total: r.tiles }) : "")
         + " " + (legend ? tr("Its legend lists {n} map units: open it under the layer, in Maps or in StrixViewer's layer list.", { n: legend.units.length }) : tr("Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.", { message: legendErr })) });
     } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
-    setBusy(null);
+    setBusy(null); job.end(); // job: TASKS.csv #3953
   };
   // TASKS.csv #2012 — the units as a geology map layer (polygons with a unit field), so Surface Geology > Model it can use them
   const addUnits = async () => {
     setMsg(null); setBusy(tr("Fetching Macrostrat units…"));
+    const job = beginJob(); // TASKS.csv #3953
     try {
       const r = await fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgress: (d, n) => setBusy(tr("Fetching Macrostrat units… {d} of {n}", { d, n })) });
+      if (!(await landed(job))) { setBusy(null); return; } // TASKS.csv #3953 — into the project it started in
       addMapLayer(r.layer);
       setMsg({ ok: !r.failedTiles, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a map layer: {p} polygons of {u} units, {n} tiles at zoom {z}. Find it under Geological Mapping > Geology map; it drapes on the terrain in 3D.", { p: r.polygons, u: r.units, n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} tiles could not be read: their polygons are missing.", { n: r.failedTiles, total: r.tiles }) : "") });
     } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
-    setBusy(null);
+    setBusy(null); job.end(); // job: TASKS.csv #3953
   };
   const listUnits = async () => {
     setMsg(null); setBusy(tr("Asking Macrostrat for the units at the project centre…"));
@@ -71,8 +79,8 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
       {/* TASKS.csv #3952 (Matt's first-time test: "we should have a nice card here for macrostrat geology. all the writing can go in more") — the dialog had
           no background: it spread modalStyles' panel, which is a function (panel(sizing)), so the title, text and buttons sat on the dimmed map. Now an
           opaque card in #3939's kit: the picture, one line of scale, the area, the buttons; what Macrostrat is and its credit behind More. */}
-      <div role="dialog" aria-modal="true" aria-label={tr("Macrostrat geology")} data-macrostrat-card="" style={panel({ width: 520, maxWidth: "94vw", maxHeight: "86vh", boxShadow: "0 6px 24px rgba(0,0,0,0.18)" })}>
-        <div style={header}>
+      <div role="dialog" aria-modal="true" aria-label={tr("Macrostrat geology")} data-macrostrat-card="" className="ge-card" style={panel({ width: 520, maxWidth: "94vw", maxHeight: "86vh", borderRadius: 12, boxShadow: "var(--shadow-pop)" })}>{/* #3956: the shared card */}
+        <div className="ge-card-head" style={header}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}><Globe size={16} />{tr("Macrostrat geology")}</span>
           <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
         </div>

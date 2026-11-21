@@ -12,6 +12,7 @@ import { Layers3, Eye, EyeOff, Trash2, Download, Maximize2 } from "./icons.js"; 
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a design lands only in the project it was run for
 import { runPitDesignAsync } from "../lib/pitDesignClient.js";
 import { benchStringRows, benchStringFeatures, benchTableRows, predictDesignCell, benchHeightThatDraws, MAX_DESIGN_CELLS, designDepth /* #3316 */ } from "../lib/pitDesign.js";
 import { collarGround } from "../lib/collarGround.js"; // TASKS.csv #3316
@@ -50,7 +51,7 @@ let kept = null; // #1356 — the last result (with its strings, for export) out
 const upperInterRamp = (inp) => (Math.atan(inp.benchH / (inp.benchH / Math.tan((inp.upper.batterDeg * Math.PI) / 180) + inp.upper.berm)) * 180) / Math.PI;
 
 export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onZoomTo: #2996
-  const { voxelModels = [], terrain, collars = [], project, designStrings = [], layers, survey = [], desurveyMethod } = useStore();
+  const { voxelModels = [], terrain, collars = [], project, designStrings = [], layers, survey = [], desurveyMethod, startProjectJob /* #3953 */ } = useStore();
   const cur = currencyOf(project), tr = (k, v) => withCurrency(trRaw(k, v), cur); // TASKS.csv #3797 (b) - the project currency (blank: $) // layers..desurveyMethod: #2647
   const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   const areas = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2 && !s.stopeRun /* #2601 */), [designStrings]); // #1916 — design areas
@@ -121,10 +122,12 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, wasteDensity: Number(pit.params?.inputs?.wasteDensity) || null /* #2437 */, weathered: (() => { const w = pit.params?.inputs?.weathered; return !w ? null : w.freshCode ? { ...w, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), w.freshCode).points } : w; })() /* #2671 — as the shell */, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null, economics: (byIn && byModel) || alsoPrices.some(Boolean) ? { ...pit.params.inputs, unit: unit || pit.params.inputs.unit, ...(byIn && byModel ? {} : { by: null }), alsoPrices } : null /* #1917; #3311 — the priced other grades too, aligned with alsoPairs (a model gone is left out of both) */ }; // areaPoly: #1916
     setBusy(true); setMsg(null);
     const t0 = performance.now();
+    const pj = startProjectJob ? startProjectJob({ label: trRaw("Pit design"), cancel: () => job.current?.cancel() }) : noJob(trRaw("Pit design")); // TASKS.csv #3953 — closing its project stops the worker
     try {
       const coded = modelWithCodeDensity(model, pit.params?.inputs, layers, collars, survey, desurveyMethod); // #2647 — weighed as the shell was
       job.current = runPitDesignAsync(positions, coded.model, opts, terrain, collarsForGround(collars, survey), (p) => setBusy(p && (p.k || p.stage) ? p : true) /* #2286; stage: #3002 */, byIn ? byModel : null, alsoPairs.map(({ m }) => m) /* #3084 */); // byModel: #1917
       const r = await job.current.promise;
+      if (!(await landed(pj))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "area-empty") { setMsg(tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" })); return; } // #1916
       if (r.failed === "underground") { setMsg(tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 })); return; } // #2276
@@ -149,7 +152,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       setMsg(e.message === "no-floors" ? tr("No mined column was found under the ground: the shell may sit above the terrain loaded now.")
         : e.message === "area-empty" ? tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" }) // #1928
         : tr("The design failed: {v}", { v: e.message || e }));
-    } finally { setBusy(false); job.current = null; }
+    } finally { setBusy(false); job.current = null; pj.end(); } // pj: TASKS.csv #3953
   };
   const cancel = () => job.current?.cancel();
   const removeDesign = async (s) => {

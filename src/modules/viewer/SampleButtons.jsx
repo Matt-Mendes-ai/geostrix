@@ -10,9 +10,9 @@ import MoreFold from "../../components/MoreFold.jsx";
 const descriptionOf = (title) => { const s = String(title || ""), i = s.indexOf(" — "); return (i > 0 ? s.slice(i + 3) : s).trim(); };
 
 const btn = (loading, filled) => ({
-  display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, textAlign: "left", width: 250, padding: "8px 12px", borderRadius: 6,
+  display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, textAlign: "left", width: 250, padding: "8px 12px", borderRadius: 10, boxShadow: "var(--shadow-chip)", // #3956: style A
   // filled: the empty card's own primary blue (EmptyState primaryBtn)
-  border: filled ? "1px solid #2a6291" : "1px solid var(--color-accent)", background: filled ? "#2f6f9f" : "var(--color-bg)", color: filled ? "#fff" : "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600,
+  border: filled ? "1px solid #2a6291" : "1px solid var(--color-accent)", background: filled ? "#2f6f9f" : "linear-gradient(170deg, var(--color-bg) 0%, var(--color-warn-bg) 100%)", color: filled ? "#fff" : "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600,
   cursor: loading ? "default" : "pointer", opacity: loading ? 0.6 : 1,
 });
 const second = { fontSize: "var(--font-size-xs)", fontWeight: 400, color: "var(--color-text-muted)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" };

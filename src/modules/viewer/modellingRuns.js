@@ -18,6 +18,7 @@ import { buildMeshQuery } from "../../lib/meshQuery.js"; // TASKS.csv #2376
 import { modelGround, boxTallerThanDrilling, groundAtInFrame } from "../../lib/modelGround.js"; // TASKS.csv #2470; groundAtInFrame: #2634
 import { roundVolume, loggedVolumeCheck, areaPerHole } from "../../lib/volumeCheck.js"; // TASKS.csv #2530; areaPerHole: #2919
 import { taskSlot, rampProgress } from "../../lib/taskSlot.js"; // TASKS.csv #2379; rampProgress: #2383
+import { landed, isProjectGone, noJob } from "../../lib/projectJobs.js"; // TASKS.csv #3953 — a run delivers only into the project it started in
 import { stackOrderFromHoles, stackRepeats } from "../../lib/stackOrderFromHoles.js"; // TASKS.csv #2382; repeats: #2532
 import { rockWithoutRows, unloggedDrilling } from "../../lib/unloggedGaps.js"; // TASKS.csv #2380
 import { stackOrderAtHoles } from "../../lib/stackOrderAtHoles.js"; // TASKS.csv #2376
@@ -132,6 +133,7 @@ export function createModellingRuns(ctx, mcRef) {
     filterRowsBySearchEllipsoid,
     fitBox,
     getProjectToken,
+    startProjectJob, // TASKS.csv #3953 (the store's, via useModelling)
     implicitGroupRef,
     implicitMeshesRef,
     importStateRef,
@@ -206,6 +208,9 @@ export function createModellingRuns(ctx, mcRef) {
   const areaParam = () => (modelArea === "checked" ? (() => { const a = checkedHoleCount(ctx.collars || [], visibleHoles); return `holes checked in the Holes list (${a.checked} of ${a.all})`; })() : "whole property");
   const setImplicitSurfaces = (u) => setImplicitSurfacesRaw((prev) => { const next = typeof u === "function" ? u(prev) : u; const had = new Set(prev || []); return (next || []).map((sf) => (had.has(sf) || !sf?.params || sf.params.modelArea ? sf : { ...sf, params: { ...sf.params, modelArea: areaParam() } })); });
   const ownTask = (label) => taskSlot(setTaskProgress, label); // TASKS.csv #2379 — a short tool never covers a cancellable run's progress
+  // TASKS.csv #3953 — every run is a job of the project it started in: `await landed(job)` right before it changes the scene or the project; false
+  // = its project was closed or replaced (cancelled, and the store said so), so the run stops; its project in another tab: it waits for that tab
+  const beginJob = (label, cancel) => (startProjectJob ? startProjectJob({ label, cancel }) : noJob(label));
 
   const runSurfaceStack = async (rawSpecs, stackOpts = {}) => {
     // TASKS.csv #2640 Stage 2 — a run that replays another (the structure fit's '(fitted)' version) gives its extent, resolution and range, and no
@@ -520,6 +525,7 @@ export function createModellingRuns(ctx, mcRef) {
     const abortController = new AbortController();
     modelAbortControllerRef.current = abortController;
     setTaskProgress?.({ label, pct: 8, onCancel: () => abortController.abort("user-cancelled") });
+    const job = beginJob(label, () => abortController.abort("project-closed")); // TASKS.csv #3953
     // TASKS.csv #2383 (review #2325, WA uranium) — the ramp read 90 % from 18 s into an eleven-minute run. After 10 s it is no longer a
     // guess at a percentage: an indeterminate bar with the time elapsed (rampProgress, lib/taskSlot.js)
     const rampStarted = Date.now();
@@ -553,6 +559,8 @@ export function createModellingRuns(ctx, mcRef) {
     if (!cakeRun && res.ok) recordGempyRate(baseSolveSeconds, gempyWork(specs, workOpts)); // #3215 — this computer's rate, for the next estimate
     setImplicitBusy(false);
     modelAbortControllerRef.current = null;
+    // TASKS.csv #3953 — into the project that started it, only: shown now, at once; open in another tab, when that tab is shown; closed, never
+    if (!(await landed(job))) { setTaskProgress?.((cur) => (cur && cur.label === label ? null : cur)); return; }
     if (!res.ok) {
       setTaskProgress?.(null);
       if (!res.cancelled) setNotices((p) => [...p, errorNotice(tr("{label} failed: {error}", { label, error: plainEngineError(res.error) }))]); // plainEngineError: #3162
@@ -973,6 +981,7 @@ export function createModellingRuns(ctx, mcRef) {
       const rng = makeRng(seed);
       const ac = new AbortController();
       modelAbortControllerRef.current = ac;
+      job.cancel = () => ac.abort("project-closed"); // TASKS.csv #3953 — closing the project stops the realizations
       setImplicitBusy(true);
       // Only vertices that belong to at least one triangle are ON the surface. GemPy's vertex list also
       // carries orphans no face references (and domain clipping leaves more), and a distance measured
@@ -1035,6 +1044,7 @@ export function createModellingRuns(ctx, mcRef) {
       setImplicitBusy(false);
       modelAbortControllerRef.current = null;
       setTaskProgress?.(null);
+      if (!(await landed(job))) return; // TASKS.csv #3953 — the spread goes to the project the run belongs to
       const elapsed = (performance.now() - tStart) / 1000;
       if (distances.length < 3) {
         setNotices((p) => [...p, notice("Sensitivity for \"{label}\" {v} after {distances} usable realization(s){v2} — at least 3 are needed, so no spread was produced.", { label: bSpec.label, v: cancelled ? tr("cancelled") : tr("stopped"), distances: distances.length, v2: failed ? tr(" ({failed} failed in GemPy)", { failed }) : "" })]);
@@ -2045,6 +2055,7 @@ export function createModellingRuns(ctx, mcRef) {
     const label = `${head}: ${altValue}${minField ? ` (${minField.field} ≥ ${minField.vocab ? (minField.label || minField.min) : minField.min})` : ""}`; // #1574; vein: #2050
     setAlterationBusy(true);
     ownTask(label).set(20); // #2379
+    const job = beginJob(label); // TASKS.csv #3953
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
     // synchronous grid pass — a timer, not rAF, because rAF never fires in a hidden window.
     setTimeout(async () => {
@@ -2200,10 +2211,12 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
 
         // TASKS.csv #520 — the grid runs in a worker: progress + Cancel on the status bar, the window keeps painting
         const ac = new AbortController();
+        job.cancel = () => ac.abort(); // TASKS.csv #3953 — closing its project stops the worker
         const grid = await runEstimation("dense", gridPts, {
           bounds, cellSize: { dx: cell, dy: cell, dz: cellZ /* #2384 */ }, method: "idw2",
           searchRadius: anisotropy.enabled ? radius * scl.major : radius, minSamples: 1, maxSamples: 16, minHoles: 1, // #656 — major semi-axis = radius
         }, { signal: ac.signal, onProgress: (f) => ownTask(label).set(20 + 60 * f, () => ac.abort()) });
+        if (!(await landed(job))) { ownTask(label).clear(); setAlterationBusy(false); return; } // TASKS.csv #3953 — its notices and body in its own project
         if (!grid.estimated) throw new Error(isCode ? tr("No grid cell had a sample within the search radius — increase the search radius.") : tr("No grid cell had an alteration sample within the search radius — increase the search radius."));
         // noData: "outside" — a no-data cell reads as "not altered", which is what lets the envelope
         // close against the edge of the informed region instead of leaving an open shell.
@@ -2280,6 +2293,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           ...(radiusRaisedFrom != null ? { searchRaisedFromM: Math.round(radiusRaisedFrom * 10) / 10 } : {}),
           generatedAt: new Date().toISOString(),
         };
+        if (!(await landed(job))) { ownTask(label).clear(); setAlterationBusy(false); return; } // TASKS.csv #3953 — again, right before the delivery (the imports above take a moment)
         mesh.userData = { tip: `${label}\n${mc.vertices.length} vertices, ${mc.faces.length} faces\nindicator envelope, ${cellZ !== cell ? cellText : cell.toFixed(1)} m cells, ${Math.round(radius)} m search${vol.watertight ? `\n${roundVolume(vol.volumeM3).toLocaleString()} m³ enclosed (about)` : "\n(open envelope)"}` };
         implicitGroupRef.current?.add(mesh);
         const id = `impl_${Date.now()}_alt_${altValue}`;
@@ -2311,10 +2325,11 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         if (closure === "artificial") setNotices((p) => [...p, notice(isCode ? "\"{label}\" closes partly against the search-radius boundary rather than a logged interval of another code, so its extent there reflects the {v} m search radius, not the data." : "\"{label}\" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the {v} m search radius, not the data.", { label, v: Math.round(radius) })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, e?.cancelled ? notice(isCode ? "Unit body cancelled." : "Alteration halo cancelled.") : e?.stopped ? infoNotice(tr("Unit body not built: {v}", { v: e.message })) /* #2047 */ : errorNotice(isCode ? tr("Unit body failed: {v}", { v: e.message || e }) : tr("Alteration halo failed: {v}", { v: e.message || e }))]);
+        if (!isProjectGone(e)) setNotices((p) => [...p, e?.cancelled ? notice(isCode ? "Unit body cancelled." : "Alteration halo cancelled.") : e?.stopped ? infoNotice(tr("Unit body not built: {v}", { v: e.message })) /* #2047 */ : errorNotice(isCode ? tr("Unit body failed: {v}", { v: e.message || e }) : tr("Alteration halo failed: {v}", { v: e.message || e }))]);
       }
       ownTask(label).clear(); // #2379 — only this tool's entry
       setAlterationBusy(false);
+      job.end(); // TASKS.csv #3953 — done (or failed): a later close has nothing to cancel
     }, 40);
   };
 
@@ -2347,6 +2362,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
     const label = tr("Vein: {v}", { v: veinValue }); // #1974
     setVeinBusy(true);
     ownTask(label).set(20); // #2379
+    const job = beginJob(label); // TASKS.csv #3953
     setTimeout(async () => {
       let logged = null; // #1415 — read by the catch below
       try {
@@ -2440,6 +2456,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
           generatedAt: new Date().toISOString(),
         };
+        if (!(await landed(job))) return; // TASKS.csv #3953 — the finally below clears its task
         const stamp = (part, suffix, color, opacity, type, relationships = []) => {
           const mesh = makeMesh(part, color, opacity);
           const vol = computeMeshVolume(mesh.geometry);
@@ -2517,6 +2534,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
       } finally { // #2050 — also after the early stop below
         ownTask(label).clear(); // #2379 — only this tool's entry
         setVeinBusy(false);
+        job.end(); // TASKS.csv #3953
       }
     }, 40);
   };
@@ -2572,6 +2590,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
     const taskLabel = shellName(shellTags); // the task's name while it runs: the areas' kinds are not known yet
     setNumericBusy(true);
     ownTask(taskLabel).set(20); // #2379
+    const job = beginJob(taskLabel); // TASKS.csv #3953 — Matt's grade shell finished into another project after its own was closed
     setTimeout(async () => {
       try {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
@@ -2741,6 +2760,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         }
         setNumericBudgetHint?.(null);
         const ac = new AbortController(); // TASKS.csv #520 — worker + status-bar progress and Cancel
+        job.cancel = () => ac.abort(); // TASKS.csv #3953 — closing its project stops the worker
         // TASKS.csv #2634 / #3580 — the ground the shell is cut at (a terrain, or the collar surface raised over the samples), and (#2757) the hole
         // spacing the beyond-drilling share is measured against: known before the estimate, as the worker's post-process needs them (#3580 (b))
         const gsG = clipToTopo ? modelGround(terrainForClipRef.current, collars, survey) : null, gsGround = gsG?.ground || null; // #2634: or the collar surface
@@ -2814,6 +2834,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         if (logInfo) unlogGrid(g); // #1741 — back to data units: the iso-surface at the cutoff is unchanged, each node a geometric mean
         grids.push(g);
         }
+        if (!(await landed(job))) { ownTask(taskLabel).clear(); setNumericBusy(false); return; } // TASKS.csv #3953 — its notices and shell in its own project
         // #3580 (a) — `grid`: the largest box's (its cell, its dimensions in the notice, its variogram); gridSum: the counts over every box
         const grid = grids[0];
         const gridSum = { estimated: 0, skipped: 0, singleHoleCells: 0, supportCounts: grid.supportCounts ? {} : null };
@@ -3017,6 +3038,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           supportCounts: gridSum.supportCounts, surfaceSupportCounts: surfCounts,
           generatedAt: new Date().toISOString(),
         };
+        if (!(await landed(job))) { ownTask(taskLabel).clear(); setNumericBusy(false); return; } // TASKS.csv #3953 — again, right before the delivery (the imports above take a moment)
         mesh.userData = { tip: `${label}\n${mc.vertices.length} vertices, ${mc.faces.length} faces\n${numericMethod.toUpperCase()} on ${points.length} points, ${anisotropy.enabled ? `cells of about ${trendCellText(trendCellM(anisotropy.trend, cs))} m along the trend` : `${cs} m cells`}${vol.watertight ? `\n${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³ enclosed${closure === "artificial" ? " (artificially closed — see panel)" : ""}` : "\n(open shell)"}` };
         implicitGroupRef.current?.add(mesh);
         const id = `impl_${Date.now()}_numeric_${symbol}`;
@@ -3090,10 +3112,11 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         else if (closure === "artificial") setNotices((p) => [...p, notice(!(numericSearchRadius > 0) ? "\"{label}\" was closed ARTIFICIALLY at the edge of the grid ({closingVertices} of its vertices sit on that wall, not on a grade boundary). With no search radius its volume depends on how far the grid reaches past the drilling, not only on the data. Treat it as a visualization of where grades might extend, not a measured volume." /* #1423 — no radius: the wall is the grid edge */ : "\"{label}\" was closed ARTIFICIALLY at the search-radius boundary ({closingVertices} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius can multiply the volume by up to eight (less where the shell's top and base are real grade boundaries, as in a flat body). Treat it as a visualization of where grades might extend, not a measured volume.", { label, closingVertices: mc.closingVertices.toLocaleString() })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, e?.cancelled ? notice("Numeric model cancelled.") : e?.prompt ? { text: e.message, level: "info" } /* #3607 (1) */ : errorNotice(tr("Numeric model failed: {v}", { v: e.message || e }))]);
+        if (!isProjectGone(e)) setNotices((p) => [...p, e?.cancelled ? notice("Numeric model cancelled.") : e?.prompt ? { text: e.message, level: "info" } /* #3607 (1) */ : errorNotice(tr("Numeric model failed: {v}", { v: e.message || e }))]);
       }
       ownTask(taskLabel).clear(); // #2379 — only this tool's entry
       setNumericBusy(false);
+      job.end(); // TASKS.csv #3953
     }, 40);
   }; // anisotropy/domains/modelDomainId: TASKS.csv #273
 

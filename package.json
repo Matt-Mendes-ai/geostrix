@@ -1,6 +1,6 @@
 {
   "name": "geostrix",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Mineral exploration workspace: drillholes, geochemistry, geophysics and 3D modelling",
   "author": "Matt Mendes",
   "license": "MIT",
@@ -74,6 +74,10 @@
       {
         "from": "electron/mcp-bridge.ps1",
         "to": "mcp-bridge.ps1"
+      },
+      {
+        "from": "electron/mcpToolDefs.json",
+        "to": "mcpToolDefs.json"
       },
       {
         "from": "python-sidecar/dist",

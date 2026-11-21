@@ -11,6 +11,7 @@ import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart
 import { requestPlanZoom } from "../lib/planZoom.js"; // TASKS.csv #2657
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
 import { useStore } from "../lib/store.jsx";
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a long job delivers only into the project it started in
 import { buildRasterImport, gridToSurveyRows, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
 import { SAT_LEVELS, planLatestFetch, levelsAddingNothing, naipCoverage, levelsAtNative } from "../lib/imageryLevels.js"; // levelsAtNative: #3450
@@ -102,7 +103,8 @@ function SpectrumPanel({ spectrum, onSplit }) {
 
 const GRAVITY_UNIT_RE = /^(mgal|µgal|μgal|ugal)$/i; // TASKS.csv #2947 — gridFilters.js GRAVITY_UNITS (that module loads on first use, so the form keeps its own copy)
 export default function RasterModule({ embedded = false } = {}) {
-  const { assays = [], assayElements = [], rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {}, layers = {} /* #2868 — the survey stations */ } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
+  const { assays = [], assayElements = [], rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {}, layers = {} /* #2868 — the survey stations */, startProjectJob /* #3953 */ } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
+  const beginJob = (label, cancel) => (startProjectJob ? startProjectJob({ label, cancel }) : noJob(label)); // TASKS.csv #3953
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
@@ -156,6 +158,7 @@ export default function RasterModule({ embedded = false } = {}) {
       params.height = Number(filt.height);
     }
     setFiltering(true);
+    const job = beginJob(tr("Grid filter")); // TASKS.csv #3953
     await new Promise((res) => setTimeout(res, 30)); // let the busy state paint before the FFTs block
     try {
       const values = b64ToF32(g.values);
@@ -168,7 +171,9 @@ export default function RasterModule({ embedded = false } = {}) {
       // TASKS.csv #1985 — Euler deconvolution (Harmonica, in the Python engine): the solutions become a point survey coloured by depth
       if (filt.kind === "euler") {
         const win = Number(filt.window) > 0 ? Number(filt.window) : Math.round(10 * Math.max(g.dx, g.dy));
-        const r2 = await runPfieldsJob({ op: "euler", nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, x0: g.x0, yTop: g.yTop, values: g.values, structural_index: Number(filt.si), window: win, observation_elevation: 0 }, { onProgress: (p) => setError({ info: true, text: p.message || tr("Working…") }) });
+        const ac = new AbortController(); job.cancel = () => ac.abort(); // TASKS.csv #3953 — closing its project stops the engine
+        const r2 = await runPfieldsJob({ op: "euler", nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, x0: g.x0, yTop: g.yTop, values: g.values, structural_index: Number(filt.si), window: win, observation_elevation: 0 }, { signal: ac.signal, onProgress: (p) => setError({ info: true, text: p.message || tr("Working…") }) });
+        if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
         if (!r2.ok) { setError({ info: false, text: r2.error }); return; }
         const d = r2.data, src = `${r.name} — Euler (SI ${d.structural_index}, ${win} m windows)`;
         // TASKS.csv #2553 — below the grid's own level when it was computed at one (equivalent sources, upward continued), else under the terrain
@@ -186,6 +191,7 @@ export default function RasterModule({ embedded = false } = {}) {
         if (!w.count) { setError({ info: false, text: tr("No edges found in \"{name}\".", { name: r.name }) }); return; }
         const nr = await (await import("../lib/gridFilterClient.js")).rasterFromGridAsync({ name: `${r.name} — Worms (edge heights, m)`, values: w.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
           extra: { surveyMethod: "worms_height", units: "m" /* #2639 — heights, not a field: no field filters on it */, filter: { kind: "worms", label: "Worms (Hornby et al. 1999)", params: { heightsM: w.levels.map((l) => l.h), nodesPerHeight: w.levels.map((l) => l.count), integrated: !!filt.integrate }, sourceRaster: r.name, method: "upward continuation to each height, total horizontal gradient, crests by the Blakely & Simpson 1986 test (2 of 4 directions, above the level's median); the node keeps the greatest height (gridFilters.js worms)", at: new Date().toISOString() } } });
+        if (!(await landed(job))) return; // TASKS.csv #3953
         addRaster({ ...nr, ...placeOf(r, filt.kind) }); // drawn as its parent: #2560
         setError({ info: true, text: tr("Added \"{name}\": edges at {n} heights ({heights} m above the grid), {count} nodes. Edges that stay put as the height grows are steep, ones that walk sideways dip that way; deep ones last longest.", { name: nr.name, n: w.levels.length, heights: w.levels.map((l) => l.h.toLocaleString()).join(", "), count: w.count.toLocaleString() }) });
         setFilterFor(null);
@@ -196,6 +202,7 @@ export default function RasterModule({ embedded = false } = {}) {
         if (!td.count) { setError({ info: false, text: tr("No tilt zero-crossings with a usable depth in \"{name}\".", { name: r.name }) }); return; }
         const nr = await (await import("../lib/gridFilterClient.js")).rasterFromGridAsync({ name: `${r.name} — Tilt-depth (contact depths, m)`, values: td.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
           extra: { surveyMethod: "tiltdepth_depth", units: "m" /* #2639 */, filter: { kind: "tiltdepth", label: "Tilt-depth (Salem et al. 2007)", params: { contactNodes: td.count, medianDepthM: Math.round(td.median) }, sourceRaster: r.name, method: "depth = 1 / |horizontal gradient of the tilt (radians)| at its zero contour, on the kept grid (gridFilters.js tiltDepth)", at: new Date().toISOString() } } });
+        if (!(await landed(job))) return; // TASKS.csv #3953
         addRaster({ ...nr, ...placeOf(r, filt.kind) }); // drawn as its parent: #2560
         setError({ info: true, text: tr("Added \"{name}\": {n} nodes along the tilt's zero contour (the contacts), median depth {median} m below the sensor: subtract its height for depth below ground. Valid for an RTP grid and near-vertical contacts.", { name: nr.name, n: td.count.toLocaleString(), median: Math.round(td.median) }) });
         setFilterFor(null);
@@ -212,26 +219,30 @@ export default function RasterModule({ embedded = false } = {}) {
       const { rasterFromGridAsync } = await import("../lib/gridFilterClient.js"); // TASKS.csv #3033 — its picture made in the worker too
       const nr = await rasterFromGridAsync({ name: `${r.name} — ${label}${suffix}`, values: out.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
         extra: { levelM: filteredLevelM(r, filt.kind, params) /* #2553 */, surveyMethod: rasterMethodOf(r, geophysSurveys) || undefined, units: ou.units /* #2557, #2837 */, filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
+      if (!(await landed(job))) return; // TASKS.csv #3953
       const place = filteredPlacement(r, filt.kind, params);
       addRaster({ ...nr, drapeMode: place.drapeMode, elevation: place.elevation }); // drawn as its parent, an upward continuation h higher: #2560
       setError({ info: !out.warning, text: tr("Added \"{name}\" (colours span the 2nd–98th percentile: {v}).{v2}", { name: nr.name, v: nr.colourRange.map((v) => v.toPrecision(3)).join(" to "), v2: out.warning ? " " + out.warning : "" }) + (place.raisedM ? " " + tr("It is drawn flat at {z} m, {h} m above the grid it was continued from.", { z: Math.round(place.elevation).toLocaleString(), h: place.raisedM }) : "") });
       setFilterFor(null);
     } catch (err) {
       setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) });
-    } finally { setFiltering(false); }
+    } finally { setFiltering(false); job.end(); } // job: TASKS.csv #3953
   };
   // TASKS.csv #808 — matched filter: the deep or the shallow component as a new raster
   const splitByDepth = async (r, which) => {
     const { matchedFilter } = await import("../lib/gridFilters.js");
     const g = r.grid, fit = spectrum?.fit;
+    const job = beginJob(tr("Grid filter")); // TASKS.csv #3953
     try {
       const m = matchedFilter({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values: b64ToF32(g.values) }, fit);
       const h = Math.round(fit[which].h);
       const nr = await (await import("../lib/gridFilterClient.js")).rasterFromGridAsync({ name: `${r.name} — ${which === "deep" ? "deep" : "shallow"} component (~${h} m, matched filter)`, values: m[which], nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
         extra: { filter: { kind: `matched-${which}`, label: "Matched filter (Spector & Grant 1970)", params: { deepDepthM: Math.round(fit.deep.h), shallowDepthM: Math.round(fit.shallow.h) }, sourceRaster: r.name, method: "w(k) = sqrt(P_i / (P_deep + P_shallow)) from the two fitted spectrum segments (gridFilters.js matchedFilter)", at: new Date().toISOString() } } });
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in
       addRaster({ ...nr, ...placeOf(r, `matched-${which}`) }); // #2560
       setError({ info: true, text: tr("Added \"{name}\".", { name: nr.name }) });
     } catch (err) { setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) }); }
+    finally { job.end(); } // TASKS.csv #3953
   };
   // TASKS.csv #375 — radiometric ternary image from three grids with kept values
   const [tern, setTern] = useState({ open: false, k: "", th: "", u: "" });
@@ -382,6 +393,7 @@ export default function RasterModule({ embedded = false } = {}) {
     setSatPickerOpen(false);
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
+    const job = beginJob(tr("Imagery")); // TASKS.csv #3953
     try { // TASKS.csv #816 / #837 — the latest clear Sentinel-2 scene (Copernicus: free and open, any use with attribution)
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
       // #3251 — Full: NAIP at the imagery's own pixels, in up to 2 x 2 pictures (r.parts)
@@ -404,6 +416,7 @@ export default function RasterModule({ embedded = false } = {}) {
         parts.push(p);
       }
       // TASKS.csv #3252 — the source's description (r.lod), for the Maps plan's detail tiles; not through a local grid's tie (the tiles are read in the project CRS)
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state; an AI app hears "not fetched")
       const addedIds = [];
       for (const p of parts) addedIds.push(addRaster({ name: p.name, bbox: p.bbox, dataUrl: p.dataUrl, elevation: defaultElevation, ...(p.pixelM ? { pixelM: p.pixelM, gridW: p.gridW, gridH: p.gridH } : {}) /* #3251 — said on the card */, ...(r.lod && !tie ? { lod: r.lod } : {}) }));
       said({ ok: true, name: r.name.replace(/, part 1 of \d+$/, ""), ids: addedIds, pictures: parts.length, area_cloud_percent: Number.isFinite(r.areaCloud) ? Math.round(r.areaCloud * 1000) / 10 : null }); // #3932
@@ -414,6 +427,7 @@ export default function RasterModule({ embedded = false } = {}) {
     } finally {
       setSatBusy(false);
       setSatProgress(null);
+      job.end(); // TASKS.csv #3953
     }
   };
 
@@ -468,15 +482,18 @@ export default function RasterModule({ embedded = false } = {}) {
   };
   // TASKS.csv #3470 — a new raster of a value grid's cells inside a boundary or claim, cropped to it (lib/clipGrid.js); the original stays
   const clipRasterTo = async (r, b) => {
+    const job = beginJob(tr("Clip")); // TASKS.csv #3953
     try {
       const [{ clipGridToPolygon }, { rasterFromGridAsync }] = await Promise.all([import("../lib/clipGrid.js"), import("../lib/gridFilterClient.js")]);
       const c = clipGridToPolygon(r.grid, b.polylines);
       if (!c || !c.kept) { setError({ info: false, text: tr("No cell of \"{name}\" with a value lies inside \"{boundary}\".", { name: r.name, boundary: b.name }) }); return; }
       const nr = await rasterFromGridAsync({ name: `${r.name} — inside ${b.name}`, values: c.values, nx: c.nx, ny: c.ny, x0: c.x0, yTop: c.yTop, dx: c.dx, dy: c.dy, averagedBy: r.grid.averagedBy || 1, sourceSize: r.grid.sourceSize, elevation: r.elevation,
         extra: { surveyMethod: rasterMethodOf(r, geophysSurveys) || undefined, units: rasterUnitOf(r) || undefined, ...(r.geochem ? { geochem: r.geochem } : {}), clippedTo: { boundary: b.name, source: r.name } } });
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in
       addRaster({ ...nr, drapeMode: r.drapeMode, elevation: r.elevation });
       setError({ info: true, text: tr("Added \"{name}\": {kept} of {total} cells inside \"{boundary}\" have a value ({cells} cells in all, cropped to the boundary). \"{source}\" is unchanged.", { name: nr.name, kept: c.kept.toLocaleString(), total: c.total.toLocaleString(), boundary: b.name, cells: (c.nx * c.ny).toLocaleString(), source: r.name }) });
     } catch (err) { setError({ info: false, text: err.message }); }
+    finally { job.end(); } // TASKS.csv #3953
   };
   const importRaster = async (file, world = null, xml = null, prj = null) => { // world: a world file selected with it (TASKS.csv #1855); xml: a Geosoft .xml (#2830); prj: #2857
     if (!file) return;

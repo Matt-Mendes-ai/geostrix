@@ -18,6 +18,8 @@ import HyperspectralTab from "./HyperspectralTab.jsx"; // TASKS.csv #807
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { lastSummer } from "../lib/summerDates.js"; // TASKS.csv #2464 — the project's own hemisphere
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the index lands only in the project it was made for
 
 const CUSTOM = "custom";
 
@@ -26,6 +28,7 @@ const CUSTOM = "custom";
 export default function SpectralIndexModal({ epsg, tie = null, defaultElevation, sourceEpsg, areaOptions = [], defaultPreset = "s2_clay", onImport, onClose }) { // defaultPreset: TASKS.csv #3479 — from the loaded assays
   useEscapeKey(onClose);
   useFocusTrap();
+  const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const fileInput = useRef(null);
   const [mode, setMode] = useState("fetch"); // "fetch" (#784) | "file" (#783)
   const [file, setFile] = useState(null); // { file, bands, width, height }
@@ -104,7 +107,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
   };
 
   // the index on a multiband File with `map` (role -> 1-based band), then into the project
-  const makeIndex = async (theFile, map, sensorKey, sourceNote, vegOn) => {
+  const makeIndex = async (theFile, map, sensorKey, sourceNote, vegOn, job = null) => { // job: TASKS.csv #3953
     let blank = 0, total = 0, dark = 0, vegetated = 0, encUsed = null, encGuessed = false;
     const bits = fetchMode ? null : file?.bits ?? null;
     // #2124 — an 8-bit file is not the sensor's surface reflectance: the raster is named after the index and the file only
@@ -124,25 +127,27 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
     const note = tr(" Index {expr}{v}.{v2}{v3}{v4} A ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it; only exposed rock or soil counts.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) + masks : masks, v4: isCustom ? "" : encUsed === "byte" ? " " + tr(preset.what) : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) }); // #2124: not the sensor's pixel
     const encNote = encUsed ? " " + tr("Pixel values read as: {v}{d}.", { v: tr(DN_ENCODINGS[encUsed].label), d: encGuessed ? tr(encUsed === "byte" ? " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)" : " (guessed from the values; choose it under \"Pixel values\" if that is wrong)") : "" }) : ""; // #928
     const byteNote = encUsed === "byte" ? " " + tr("8-bit values are picture or raw sensor values, not reflectance: the result ranks pixels within this file only, not comparable with a reflectance product's index.") : ""; // #2124
+    if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in
     onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(encUsed ? { encoding: encUsed } : {}), ...(fetchMode ? { scene: scene.id, date: scene.date } : {}) } }, msg + note + encNote + byteNote);
   };
 
   const run = async () => {
     if (parsed.error) return;
     setBusy(true); setError(null);
+    const job = startProjectJob ? startProjectJob({ label: tr("Spectral index") }) : noJob(tr("Spectral index")); // TASKS.csv #3953
     try {
       if (fetchMode) {
         if (!scene) return;
         const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => setProgress({ d, n }), targetEpsg: tie ? Number(tie.epsg) : epsg }); // tie: #2648
-        await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0);
+        await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0, job);
       } else {
         if (!file || unmapped.length) return;
         const vegOn = vegRoles.length > 0 && !vegUnmapped.length;
-        await makeIndex(file.file, Object.fromEntries((vegOn ? mapRoles : parsed.uses).map((r) => [r, bandOf(r)])), sensor, "", vegOn);
+        await makeIndex(file.file, Object.fromEntries((vegOn ? mapRoles : parsed.uses).map((r) => [r, bandOf(r)])), sensor, "", vegOn, job);
       }
     } catch (e) {
       setError(e.message);
-    } finally { setBusy(false); setProgress(null); }
+    } finally { setBusy(false); setProgress(null); job.end(); } // job: TASKS.csv #3953
   };
 
   const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };

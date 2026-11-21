@@ -4,9 +4,13 @@ import { defaultDrapeElevation } from "./drapeElevation.js"; // TASKS.csv #1823
 import { t as tr } from "./i18n.js"; // TASKS.csv #1285
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react"; // useMemo: #1679
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
-import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
-import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
 import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — already in startup (desktop.js)
+// TASKS.csv #3961 (startup size) — Layout's page helpers (capturedFrameFields #906 / #961, tieStarterFurniture / sendElementWithFurniture #1320 /
+// #1634, freeSpot / viewportFrameOnPaper / spotIsFree #1484 / #3418 / #3451) are only needed once a 3D view is sent to a page or an element moved
+// between pages: loaded then (~30 kB of startup JavaScript, with collarTable / legendFit / northDiagram behind them), as Layout itself is.
+let layoutKit = null;
+const loadLayoutKit = () => (layoutKit ? Promise.resolve(layoutKit)
+  : Promise.all([import("./layoutGeometry.js"), import("./layoutLinks.js"), import("./layoutPlace.js")]).then(([g, l, p]) => (layoutKit = { ...g, ...l, ...p })));
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
@@ -18,7 +22,8 @@ import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisCh
 import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
-import { pageAfterUndo, creditIntoSteps } from "./layoutPageUndo.js"; // TASKS.csv #3935
+import { pageAfterUndo, creditIntoSteps, isQuietRefresh } from "./layoutPageUndo.js"; // TASKS.csv #3935; isQuietRefresh: #3960
+import { createProjectJobs, newProjectKey, syncTabKeys } from "./projectJobs.js"; // TASKS.csv #3953 — a long job delivers only into its own project
 import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
 import { rowsOf, isTable } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
 import { noteRemovedLayers, releaseUnheld, noteRemovedItems, releaseUnheldItems, noteClosedTabs, releaseClosedTabs } from "./mapLayerRelease.js"; // TASKS.csv #2824; the others: #3881
@@ -26,14 +31,16 @@ import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 f
 import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
-import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
+import { readCellBudget, saveCellBudget } from "./estimationConsts.js"; // TASKS.csv #1970; estimationConsts: #3961
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles, setLithologyMeanings } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
-import { freeSpot, viewportFrameOnPaper /* #3418 */, spotIsFree /* #3451 */ } from "./layoutPlace.js"; // TASKS.csv #1484
-import { titleToKeep, withProjectTitle } from "./projectTitle.js";
-import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3611 / #3612 — the project's title, apart from its file's name
+import { titleToKeep, withProjectTitle } from "./projectTitle.js"; // TASKS.csv #3611 / #3612 — the project's title, apart from its file's name
+import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
+// TASKS.csv #3953 — the store's startProjectJob alone (stable): a pane that starts a long job takes it with no re-render on every store write (#438)
+const ProjectJobsContext = createContext(null);
+export const useStartProjectJob = () => useContext(ProjectJobsContext);
 
 // TASKS.csv #438 — the always-mounted 3D viewer (#225) is hidden (display:none) whenever another tab is
 // showing, yet as a useStore() consumer it re-rendered on EVERY store write: each Layout drag step, each
@@ -652,6 +659,13 @@ export function StoreProvider({ children }) {
   // went: "active" | "tab" | "gone" (that tab was closed or its project replaced — the caller says so).
   const addVoxelModelToTab = useLatestCallback((tok, model) => {
     // refs read at CALL time (declared further down the provider; a deps-array reference would hit the TDZ)
+    if (tok?.key) { // TASKS.csv #3953 — by the project's key: the tab holding that project, wherever it is now
+      if (tok.key === projectKeyRef.current) { addVoxelModel(model); return "active"; }
+      const tabId = [...tabKeysRef.current].find(([id, k]) => k === tok.key && id !== activeTabIdRef.current)?.[0];
+      if (!tabId || !autosaveTabsRef.current.workspaceTabs.some((t) => t.id === tabId && t.payload)) return "gone";
+      setWorkspaceTabs((prev) => prev.map((t) => (t.id === tabId && t.payload ? { ...t, dirty: true, payload: { ...t.payload, voxelModels: [...(t.payload.voxelModels || []), prepareVoxelModel(model)] } } : t)));
+      return "tab";
+    }
     if (tok && tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current) { addVoxelModel(model); return "active"; }
     const exists = autosaveTabsRef.current.workspaceTabs.some((t) => t.id === tok?.tabId && t.payload);
     if (!exists || tok.tabId === activeTabIdRef.current) return "gone"; // same tab but a different project now
@@ -781,6 +795,22 @@ export function StoreProvider({ children }) {
       ? { ...p, elements: typeof updater === "function" ? updater(p.elements) : updater }
       : p)));
   });
+  // TASKS.csv #3960 (Matt's first-time test) — 'Ctrl+Z won't undo deleted layout': deleting the page shown brought another forward, and
+  // LayoutModule refitted that page's starter credit box (#3657: the credit had grown while it was hidden) as its own undo step, on top of
+  // the delete, so Ctrl+Z undid the refit ('Undone: Layout pages.') and the page stayed deleted. A refresh the app makes by itself (the
+  // refit, a snapshot's long numbers rounded #2603, a fit's flags cleared #3018) goes through here: the pages list it makes is remembered,
+  // and the undo watcher moves its baseline over it instead of recording a step. One that changes nothing changes no state.
+  const sysLayoutPagesRef = useRef(null);
+  const setLayoutPagesQuietly = useLatestCallback((fn) => setLayoutPages((pages) => { const next = fn(pages); if (next === pages || next.every((p, i) => p === pages[i]) && next.length === pages.length) return pages; sysLayoutPagesRef.current = next; return next; }));
+  const setLayoutElementsQuietly = useLatestCallback((updater) => {
+    setLayoutPages((pages) => {
+      let changed = false;
+      const next = pages.map((p) => { if (p.id !== activeLayoutPageId) return p; const els = typeof updater === "function" ? updater(p.elements) : updater; if (els === p.elements) return p; changed = true; return { ...p, elements: els }; });
+      if (!changed) return pages;
+      sysLayoutPagesRef.current = next;
+      return next;
+    });
+  });
 
   // ---- Layout "Viewport" element (TASKS.csv #46) render round-trip. LayoutModule and ViewerModule
   // are never mounted at the same time (App.jsx only renders the active tab), so a Viewport element
@@ -828,8 +858,10 @@ export function StoreProvider({ children }) {
     const targetPageId = opts.pageId || null, viewState = opts.viewState || null, batch = opts.batch || null;
     // TASKS.csv #2303 — dpi (200 on the page, 300 for an export's print pass) and printPass (the image goes to printSrcs, not the element)
     const dpi = Number(opts.dpi) > 0 ? Number(opts.dpi) : null, printPass = !!opts.printPass;
+    // TASKS.csv #3965 — a resized frame (or its print pass) keeps the metres per page px it showed: the capture's extent follows the frame's size
+    const mPerPx = Number(opts.mPerPx) > 0 ? Number(opts.mPerPx) : null;
     setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale, elementW, elementH, targetPageId, printPass });
-    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch, dpi });
+    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch, dpi, mPerPx });
     setViewportRenderRequestSeq((s) => s + 1);
     return requestId;
   }, []);
@@ -851,13 +883,14 @@ export function StoreProvider({ children }) {
   const [layoutPrintRequest, setLayoutPrintRequest] = useState(null);
   const requestLayoutPrint = useCallback((opts = {}) => setLayoutPrintRequest({ seq: Date.now() + Math.random(), ...opts }), []);
 
-  const addViewportToPage = (els, view) => tieStarterFurniture([...els, view], view);
+  const addViewportToPage = (els, view) => layoutKit.tieStarterFurniture([...els, view], view); // #3961 — loaded by the effect below before it is called
+  const [layoutKitLoads, setLayoutKitLoads] = useState(0); // #3961 — the effect below runs again once Layout's helpers have loaded
   // TASKS.csv #1644 (review #1497) — an atlas's maps re-captured one page at a time, each centred on its hole at the template's scale:
   // a queue of { pageId, elementId, themeId, viewState, fixedScale, elementW, elementH, centreWorld }; each result is written to its
   // own page and the next request goes out from the 3D View (no hop back to Layout in between); Layout is shown once at the end
   const viewportBatchRef = useRef(null);
   const [viewportBatchDone, setViewportBatchDone] = useState(null);
-  const issueBatchItem = (it, b) => requestViewportRender(it.themeId || null, it.elementId, it.trueScale ?? true /* #2303: a print pass keeps the element's own */, false, { fixedScale: it.fixedScale, elementW: it.elementW, elementH: it.elementH, centreWorld: it.centreWorld, pageId: it.pageId, viewState: it.viewState || null, dpi: it.dpi, printPass: it.printPass, batch: { index: b.done + 1, total: b.total, ...(b.label ? { label: b.label } : {}) } });
+  const issueBatchItem = (it, b) => requestViewportRender(it.themeId || null, it.elementId, it.trueScale ?? true /* #2303: a print pass keeps the element's own */, false, { fixedScale: it.fixedScale, elementW: it.elementW, elementH: it.elementH, centreWorld: it.centreWorld, mPerPx: it.mPerPx, pageId: it.pageId, viewState: it.viewState || null, dpi: it.dpi, printPass: it.printPass, batch: { index: b.done + 1, total: b.total, ...(b.label ? { label: b.label } : {}) } });
   // TASKS.csv #2303 — an export's print pass: each viewport's 300 dpi image, session only (never in the project file or Undo), by element id
   const [printSrcs, setPrintSrcs] = useState({});
   const requestViewportBatch = useCallback((items) => {
@@ -884,6 +917,9 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (!viewportRenderResult || !viewportPendingRequest) return;
     if (viewportRenderResult.requestId !== viewportPendingRequest.requestId) return;
+    // TASKS.csv #3961 — Layout's helpers come in with the first result (nothing has been changed yet: this run stops, the next one applies it)
+    if (!layoutKit) { loadLayoutKit().then(() => setLayoutKitLoads((n) => n + 1)); return; }
+    const { capturedFrameFields, freeSpot, viewportFrameOnPaper, spotIsFree } = layoutKit;
     const res = viewportRenderResult;
     const { targetElementId, elementW: reqW, elementH: reqH, targetPageId, printPass } = viewportPendingRequest;
     setViewportPendingRequest(null);
@@ -895,7 +931,9 @@ export function StoreProvider({ children }) {
       return;
     }
     // #1644 — an atlas page's element is written on its own page, not the active one
-    const applyEls = targetPageId ? (fn) => setLayoutPages((pages) => pages.map((p) => (p.id === targetPageId ? { ...p, elements: fn(p.elements) } : p))) : setLayoutElements;
+    // TASKS.csv #3960 — a frame's new picture (or its error) arrives by itself, maybe seconds after the user's last step (a page deleted): it is no undo
+    // step of its own (it sat on top of the delete, so Ctrl+Z undid it and the page stayed deleted). A new frame (targetElementId 'new', below) stays a step.
+    const applyEls = targetPageId ? (fn) => setLayoutPagesQuietly((pages) => pages.map((p) => (p.id === targetPageId ? { ...p, elements: fn(p.elements) } : p))) : setLayoutElementsQuietly;
 
     if (res.error) {
       if (targetElementId !== "new") {
@@ -946,7 +984,7 @@ export function StoreProvider({ children }) {
     }
     if (continueViewportBatch(false)) return; // #1644 — the next atlas page
     goToModule("layout");
-  }, [viewportRenderResultSeq]);
+  }, [viewportRenderResultSeq, layoutKitLoads]);
 
   // ---- Layout snapshots (TASKS.csv #16/#17): a small queue of images (3D viewport PNGs, or
   // cross-section SVGs) waiting to be dropped onto the Layout page. LayoutModule drains this queue
@@ -1208,6 +1246,7 @@ export function StoreProvider({ children }) {
     extraDirtyBaseline.current = null; // #462
     undoRebaseline.current = true; setTimeout(() => { undoRebaseline.current = false; }, 0); // #478 (never left armed: it must not swallow a real edit)
     projectSeqRef.current++; // #466 — a different project now lives in this tab
+    projectKeyRef.current = restoreKeyRef.current || newProjectKey(); restoreKeyRef.current = null; // #3953 — a tab shown again keeps its key
     setActiveTabDirty(false);
   }, []);
 
@@ -1229,8 +1268,14 @@ export function StoreProvider({ children }) {
   const activeTabIdRef = useRef(activeTabId);
   activeTabIdRef.current = activeTabId;
   const projectSeqRef = useRef(0);
-  const getProjectToken = useCallback(() => ({ tabId: activeTabIdRef.current, seq: projectSeqRef.current }), []);
-  const isSameProject = useCallback((tok) => !!tok && tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current, []);
+  // TASKS.csv #3953 — and its own key (lib/projectJobs.js), given when a project is created, opened or restored and carried by its tab across
+  // switches: the counter above moves on every switch too, so a result whose tab was left and shown again was dropped as if its project had gone
+  const projectKeyRef = useRef(null);
+  if (!projectKeyRef.current) projectKeyRef.current = newProjectKey();
+  const tabKeysRef = useRef(new Map()); // tab id -> its project's key (the shown tab's is set after each render, below)
+  const restoreKeyRef = useRef(null); // a tab coming forward keeps its key: set just before its payload is loaded
+  const getProjectToken = useCallback(() => ({ tabId: activeTabIdRef.current, seq: projectSeqRef.current, key: projectKeyRef.current }), []);
+  const isSameProject = useCallback((tok) => !!tok && (tok.key ? tok.key === projectKeyRef.current : tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current), []);
   // TASKS.csv #2640 (side 2's Stage 1) — the last GemPy request as sent (modellingRuns.js): session only, not in FIELDS (never saved, never in
   // undo); tagged with the project it was made in, and read as null once another project is showing
   const [lastImplicitRequest, setLastImplicitRequestRaw] = useState(null);
@@ -1344,6 +1389,7 @@ export function StoreProvider({ children }) {
     extraDirtyBaseline.current = null; // #462 — a freshly loaded project is not "changed"
     undoRebaseline.current = true; setTimeout(() => { undoRebaseline.current = false; }, 0); // #478 (never left armed: it must not swallow a real edit)
     projectSeqRef.current++; // #466 — a different project now lives in this tab
+    projectKeyRef.current = restoreKeyRef.current || newProjectKey(); restoreKeyRef.current = null; // #3953 — a tab shown again keeps its key
     setActiveTabDirty(false);
   }, []);
 
@@ -1390,6 +1436,7 @@ export function StoreProvider({ children }) {
     const current = snapshotCurrentPayload();
     // TASKS.csv #3885 — the tab coming forward drops its stored payload (payload: null, as every active tab: its data is live now). It kept it, so the tab list
     // itself held the snapshot it was loaded from, and anything removed or replaced in that tab afterwards stayed alive through it (and counted as 'held by a tab')
+    restoreKeyRef.current = tabKeysRef.current.get(tabId) || null; // #3953 — the same project as before, by its key
     setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t.id === tabId ? { ...t, payload: null } : t)));
     loadProjectPayload(expanded && target.payload === stashed ? expanded : target.payload, target.name);
     // TASKS.csv #479 — loadProjectPayload marks a project clean (right for Open), but a tab you switch to keeps
@@ -1502,6 +1549,7 @@ export function StoreProvider({ children }) {
       return;
     }
     const next = remaining[0];
+    restoreKeyRef.current = tabKeysRef.current.get(next.id) || null; // #3953
     loadProjectPayload(next.payload, next.name);
     setActiveTabDirty(!!next.dirty); // #479 — see switchToTab
     setActiveTabId(next.id);
@@ -1522,6 +1570,34 @@ export function StoreProvider({ children }) {
   // tab (a stashed payload lives only in memory otherwise).
   const autosaveTabsRef = useRef({ workspaceTabs, activeTabId, activeTabDirty });
   autosaveTabsRef.current = { workspaceTabs, activeTabId, activeTabDirty };
+  // TASKS.csv #3953 (Matt's first-time test, data integrity) — a grade shell finished into another project after its own was closed. Every long job
+  // starts here (startProjectJob), and delivers through job.landing(): into its own project only (lib/projectJobs.js says how). The messages go to
+  // App's banner (jobNotes), seen on every module.
+  const [jobNotes, setJobNotes] = useState([]);
+  const tabSyncWaitersRef = useRef([]); // a job landing while the shown tab's key is not set yet (the render after a switch) waits for it
+  const jobsRef = useRef(null);
+  const backgroundTabOfKey = (key) => [...tabKeysRef.current].find(([id, k]) => k === key && id !== activeTabIdRef.current)?.[0] || null;
+  if (!jobsRef.current) jobsRef.current = createProjectJobs({
+    activeKey: () => projectKeyRef.current,
+    tabOfKey: (key) => { const id = backgroundTabOfKey(key), t = id && autosaveTabsRef.current.workspaceTabs.find((x) => x.id === id); return t ? { name: t.name } : null; },
+    loading: () => projectLoadingRef.current || tabKeysRef.current.get(activeTabIdRef.current) !== projectKeyRef.current,
+    whenLoaded: () => new Promise((ok) => (projectLoadingRef.current ? loadWaitersRef.current : tabSyncWaitersRef.current).push(ok)),
+    markUnsaved: (key) => { const id = backgroundTabOfKey(key); if (id) setWorkspaceTabs((prev) => prev.map((t) => (t.id === id ? { ...t, dirty: true } : t))); },
+    notify: (e) => setJobNotes((p) => [...p.slice(-2), { id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, level: e.kind === "held" || e.kind === "delivered" ? "info" : "warning",
+      text: e.kind === "held" ? tr("{label} finished for \"{project}\", which is open in another tab: it is added there when you show that tab.", { label: e.label, project: e.project })
+        : e.kind === "delivered" ? tr("{label}: added to \"{project}\" now that it is shown.", { label: e.label, project: e.project })
+        : e.kind === "cancelled" ? (e.reason === "replaced" ? tr("{label} cancelled: another project was opened in its tab.", { label: e.label }) : tr("{label} cancelled: its project was closed.", { label: e.label }))
+        : tr("{label} was not added: its project is no longer open.", { label: e.label }) }]),
+  });
+  const startProjectJob = useCallback((o) => jobsRef.current.start(o), []);
+  const dismissJobNote = useCallback((id) => setJobNotes((p) => p.filter((n) => n.id !== id)), []);
+  // After each render: the shown tab holds the live key; a key no tab holds any more is a project closed (its tab gone) or replaced (its tab holds
+  // another now: File > Open into the empty tab, a reprojection): its jobs are cancelled. Then the jobs waiting for the shown project land.
+  useLayoutEffect(() => {
+    for (const { key, reason } of syncTabKeys(tabKeysRef.current, workspaceTabs.map((t) => t.id), activeTabId, projectKeyRef.current)) jobsRef.current.projectClosed(key, reason);
+    const w = tabSyncWaitersRef.current; tabSyncWaitersRef.current = []; for (const f of w) f();
+    jobsRef.current.projectShown(projectKeyRef.current);
+  });
   // TASKS.csv #340 — while a recovery banner is waiting for Restore/Discard, autosave must not run: the
   // first tick after the user started working would otherwise overwrite the very file being offered.
   const autosaveHoldRef = useRef(false);
@@ -1807,6 +1883,10 @@ export function StoreProvider({ children }) {
     // now counts as a change (marks the tab dirty / records an identical undo step) — harmless, and rare.
     const prevSnap = undoPrevSnapshot.current;
     if (Object.keys(current).every((k) => current[k] === prevSnap[k])) return; // no real change
+    // TASKS.csv #3960 — the app's own Layout refresh (setLayoutElementsQuietly) and nothing else: no step (a page added / deleted, a burst under way: as before)
+    if (isQuietRefresh(current, prevSnap, sysLayoutPagesRef.current, { burst: !!undoBeforeBurst.current, ownStep: undoOwnStep.current })) {
+      sysLayoutPagesRef.current = null; setActiveTabDirty(true); undoPrevSnapshot.current = current; return;
+    }
     setActiveTabDirty(true); // TASKS.csv #34 — see activeTabDirty's own comment above for scope/limits
     if (!undoBeforeBurst.current) { undoBeforeBurst.current = undoPrevSnapshot.current; undoBurstAt.current = Date.now(); undoPageOf.current.set(undoBeforeBurst.current, activePageSeen.current); } // page: #3935
     undoPrevSnapshot.current = current;
@@ -1936,13 +2016,14 @@ export function StoreProvider({ children }) {
   // TASKS.csv #1484 (review #1352) — an element copied or moved from the active page to another (a section snapshot landed on the
   // plan's page with nowhere else to go); a copy gets a new id, a move keeps its own
   // #1634 — with what is bound to it (scale bar, legend, overview, north arrow); the destination's starter bar / arrow tie to it
-  const sendLayoutElement = useLatestCallback((elementId, toPageId, move = false) => setLayoutPages((pages) => {
+  // #3961 — Layout's helpers are loaded first (already in memory when Layout is open, as it is when this is called)
+  const sendLayoutElement = useLatestCallback((elementId, toPageId, move = false) => loadLayoutKit().then(({ sendElementWithFurniture }) => setLayoutPages((pages) => {
     const src = pages.find((p) => p.id === activeLayoutPageId), dst = pages.find((p) => p.id === toPageId);
     if (!src || !dst || toPageId === activeLayoutPageId) return pages;
     const r = sendElementWithFurniture(src.elements || [], dst.elements || [], elementId, move, undefined, pagePx(pageFormatOf(dst))); // page: #2740 — kept on the target's paper
     if (!r) return pages;
     return pages.map((p) => (p.id === toPageId ? { ...p, elements: r.to } : p.id === activeLayoutPageId ? { ...p, elements: r.from } : p));
-  }));
+  })));
   // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
   // with the page; a page without one is A4 landscape, exactly as before.
   const setLayoutPageFormat = useCallback((id, format) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, format } : pg))), []);
@@ -2050,7 +2131,7 @@ export function StoreProvider({ children }) {
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, surfaceIds, setSurfaceIds /* #3494 */, modelDomains, setModelDomains, // TASKS.csv #52
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
-    layoutElements, setLayoutElements,
+    layoutElements, setLayoutElements, setLayoutElementsQuietly /* #3960 */,
     layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, mapLayoutPagesElements /* #3331 */, setLastCompositing /* #2883 */, sendLayoutElement, // sendLayoutElement: #1484
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
@@ -2065,9 +2146,10 @@ export function StoreProvider({ children }) {
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     saveChoice, answerSaveChoice, // #3638 — the 'save over the recovered file?' question App draws
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
+    startProjectJob, jobNotes, dismissJobNote, // #3953
     undo, redo, peekUndo, peekRedo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
     // TASKS.csv #3110 — a NEW calculated element's Add (GeochemModule): its own undo step, holding a token instead of the old assay table
     setAssaysWithInverse: (next, symbol) => { commitUndoBurst(); undoIntent.current = { next, token: calcUndoToken(next, symbol) }; setAssays(next); },
   };
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  return <StoreContext.Provider value={value}><ProjectJobsContext.Provider value={startProjectJob}>{children}</ProjectJobsContext.Provider></StoreContext.Provider>; // #3953
 }

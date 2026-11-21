@@ -34,7 +34,7 @@ export function useModelling(ctx) {
   // hands the run the context of the render it was clicked in (ctxRef is refreshed every render).
   const ctxRef = useRef(ctx);
   const store = useStore(), logValidRange = store.project?.logValidRange; // #3116
-  ctxRef.current = { ...ctx, logValidRange, setLastImplicitRequest: store.setLastImplicitRequest /* #2640 */ };
+  ctxRef.current = { ...ctx, logValidRange, setLastImplicitRequest: store.setLastImplicitRequest /* #2640 */, startProjectJob: store.startProjectJob /* #3953 */ };
   const lazyRun = useCallback((name) => async (...args) => {
     let create;
     try {

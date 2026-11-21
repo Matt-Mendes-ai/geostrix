@@ -34,6 +34,7 @@ import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #170
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 const MacrostratModal = React.lazy(() => import("../components/MacrostratModal.jsx")); // TASKS.csv #2005
 import { useStore } from "../lib/store.jsx";
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a long job delivers only into the project it started in
 import { classifyBreaks, PALETTES, paletteShortName /* #1859 */, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, rangeText /* #2402 */, classCountNote /* #1430 */ } from "../lib/layers.js";
 import StopValueInput from "../components/StopValueInput.jsx"; // TASKS.csv #1422
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer, parseWorldFile } from "../lib/raster.js"; // parseWorldFile: #2901
@@ -235,7 +236,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     addMapLayer, // TASKS.csv #544 — WFS polygons/lines with their attributes
     mapLayers, // TASKS.csv #815 — the fetch area of a project without drillholes
     assays, assayElements, customLayers, // TASKS.csv #1425 — the downhole logs pane
+    startProjectJob, // TASKS.csv #3953
   } = useStore();
+  const beginJob = (label, cancel) => (startProjectJob ? startProjectJob({ label, cancel }) : noJob(label)); // TASKS.csv #3953
   // TASKS.csv #323 — a block model's value along each hole, as a downhole layer ("On holes: <model>"). Numeric
   // models show as a bar track in the strip log beside the logs; discrete ones (a GemPy unit block) as units.
   // TASKS.csv #328 — the export package (module loaded on first use: it brings the GeoTIFF writer)
@@ -310,6 +313,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #814 — which online elevation model the terrain fetch reads (a per-computer preference, like the detail)
   // TASKS.csv #3882 — GLO-30 unless another was chosen (and remembered) before; the saved terrain of a project keeps the service it came from
   const [terrainSource, setTerrainSourceState] = useState(() => savedTerrainSource(localStorage));
+  const [gemSmooth, setGemSmooth] = useState(false); // TASKS.csv #3950 — smooth GEM-15's steps at the fetch (off by default)
+  const gemOriginal = useRef(new Map()); // #3950 — a terrain's heights before "Smooth its steps", for Undo (this session)
   const setTerrainSource = (v) => { setTerrainSourceState(v); try { localStorage.setItem(TERRAIN_SOURCE_KEY, v); } catch { /* private window */ } };
   const [srtmPickerOpen, setSrtmPickerOpen] = useState(false);
   // TASKS.csv #3095 (Matt's pick B) — Terrain from samples and collars over a drawn area: on a field wider than the grid can resolve (6,000 holes
@@ -702,12 +707,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (!files.length) return;
     setTerrainError(null);
     setTerrainBusy(true);
+    const job = beginJob(tr("Terrain")); // TASKS.csv #3953
     try {
       // TASKS.csv #422 — crop to the drillholes (+ buffer) unless the user wants the whole tile.
       const cc = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
       const cropTo = demCrop && cc.length ? (() => { const xs = cc.map((c) => c.x), ys = cc.map((c) => c.y); const b = Math.max(1000, Number(demCropBuffer) || 2000); return [arrMin(xs) - b, arrMin(ys) - b, arrMax(xs) + b, arrMax(ys) + b]; })() : null;
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: the DEM comes into the grid through the tie
       const parsed = await parseDEMFiles(files, tie ? null : project?.epsg, demSourceEpsg.trim() || null, { cropTo, gridMax: terrainDetail, tie, mineSource: mineSourceOf(project) /* #2684 */, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
       if (terrain && !await askConfirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) {
         setTerrainBusy(false);
@@ -737,6 +744,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       setTerrainError({ info: false, text: err.message });
     } finally {
       setTerrainBusy(false);
+      job.end(); // TASKS.csv #3953
     }
   };
 
@@ -747,8 +755,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #1599 — the triangulation, the replace check and the report, shared by a points / contours file and the project's own samples and collars
   // misfitAt / benchNote (TASKS.csv #2589): the points the surface is measured against, and what was done where collars stack
   const finishPointsTerrain = async ({ points, lines, what, name, sourceFile, reprojected, misfitAt = null, benchNote = "", leftOutNote = "", spacingFit = false, reach = null }) => {
+    const job = beginJob(tr("Terrain")); // TASKS.csv #3953
+    let t;
+    try {
     const { terrainFromPointsAsync } = await import("../lib/terrainFromPoints.js");
-    const t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail, spacingFit, reach }); // #986 — in a worker; spacingFit: #3036; reach: #3338
+    t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail, spacingFit, reach }); // #986 — in a worker; spacingFit: #3036; reach: #3338
+    if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the callers clear the busy state)
+    } finally { job.end(); } // TASKS.csv #3953 — landed or not, nothing of it is left to cancel
     if (!(await confirmReplaceTerrain(terrain, name))) return; // #2554 — the shared question
     const replaced = replacedTerrainNote(terrain);
     const built = { name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: sourceFile, points: t.stats.points, nodeM: t.stats.cellM, ...(t.stats.reachM ? { reachM: Math.round(t.stats.reachM) } : {}) } }; // reachM: #3338
@@ -947,6 +960,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (wantTerrain && terrain && !await askConfirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: name }))) return;
     setLidarBusy(true);
     const label = tr("Reading {name}", { name: file.name }), t0 = Date.now();
+    const job = beginJob(label); // TASKS.csv #3953
     try {
       const L = await import("../lib/lidarImport.js");
       const plan = await L.lidarCrsPlan(info, epsg);
@@ -955,6 +969,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const keepEvery = wantCloud ? Math.max(1, Math.floor(toRead / (4 * target))) : 1;
       const res = await L.readLidarAsync(file, { cellSize: cell, keepEvery, maxCloud: 8 * target + 1, cloudClasses, wantCloud }, (f) => setTaskProgress?.({ label, pct: Math.round(f * 100) }));
       setTaskProgress?.(null);
+      if (!(await landed(job))) { setLidarPending(null); return; } // TASKS.csv #3953 — into the project it started in
       const out = lidarResultToProject(res, { reproject: plan.reproject, zFactor: plan.zFactor, hFactor: plan.hFactor, colourBy, src: file.name, wantTerrain });
       const msg = [];
       const secs = ((Date.now() - t0) / 1000).toFixed(1);
@@ -978,6 +993,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           } else {
             const { terrainFromPointsAsync } = await import("../lib/terrainFromPoints.js");
             const t = await terrainFromPointsAsync({ points: out.terrain.points, lines: [] }, { gridMax: terrainDetail });
+            if (!(await landed(job))) { setLidarPending(null); return; } // TASKS.csv #3953 — again, after the last await
             built = { bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null };
           }
           addTerrain({ name, ...built, source: { kind: "lidar ground", file: file.name, from: sf.from, cellM: +sf.cellM.toFixed(2), points: res.seen } });
@@ -1009,6 +1025,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       setTerrainError({ info: false, text: tr("Could not read {name}: {message}", { name: file.name, message: err.message }) });
     } finally {
       setLidarBusy(false);
+      job.end(); // TASKS.csv #3953
     }
   };
 
@@ -1143,6 +1160,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setSrtmPickerOpen(false);
     setTerrainBusy(true);
     setSrtmProgress({ done: 0, total: 1 });
+    const job = beginJob(tr("Terrain")); // TASKS.csv #3953 — a zone relabel below fetches again as its own job
     try {
       const nrcan = src === "mrdem" || src === "hrdem"; // TASKS.csv #815
       const gem = src === "gem15" || src === "gem15dsm"; // TASKS.csv #3721
@@ -1150,8 +1168,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       let parsed = await fetcher({
         lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
         onProgress: (done, total) => setSrtmProgress({ done, total }),
-        source: src,
+        source: src, smoothSteps: gem && gemSmooth, // #3950
       });
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state; an AI app hears "not fetched")
       let tieNote = "";
       if (tie) { // #2648
         const local = tieTerrainToLocal(parsed, tie, targetEpsg, terrainDetail);
@@ -1174,6 +1193,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         setSrtmProgress(null);
         setTerrainError({ info: true, text: tr("The collars sit a median {v} m off this terrain — checking whether the project's CRS is one UTM zone off…", { v: Math.round(misfit.medianDz) }) });
         const better = await findBetterUtmZone(collars, targetEpsg, misfit);
+        if (!(await landed(job))) return; // TASKS.csv #3953 — again, before the relabel and the terrain
         if (ai) ai.misfit = { collar_misfit_m: Math.round(misfit.medianDz), ...(better ? { a_better_fit: `${better.name} (EPSG:${better.code}), within ${Math.round(better.medianDz)} m` } : {}) }; // #3932 — said, not relabelled
         if (better && !ai && await askConfirm(tr("The {n} collars sit a median {v} m off the terrain for {v2}, but within {v3} m as {name}: probably the wrong UTM zone.\n\nOK — relabel the project {name} (EPSG:{code}; no coordinates change) and fetch there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code }))) {
           setEpsg(better.code);
@@ -1181,6 +1201,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           const [bx0, by0, bx1, by1] = parsed.bbox;
           const c = [[bx0, by0], [bx1, by0], [bx0, by1], [bx1, by1]].map(([x, y]) => T(x, y));
           relabelNote.current = tr(" Project CRS relabelled from EPSG:{targetEpsg} to {name} (EPSG:{code}): the collars sit on the ground. Re-fetch any satellite imagery, hillshade or online layer.", { targetEpsg, name: better.name, code: better.code });
+          job.end(); // TASKS.csv #3953 — the fetch in the new zone is a job of its own
           return await runSrtmFetch([Math.min(...c.map((p) => p[0])), Math.min(...c.map((p) => p[1])), Math.max(...c.map((p) => p[0])), Math.max(...c.map((p) => p[1]))], better.code);
         }
         misfitNote = better
@@ -1204,6 +1225,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         : tr(" {n} of {total} nodes have no GEM-15 value (water, snow and ice, low texture, or no cell) and are left as no data.", { n: parsed.source.gapNodes.toLocaleString(), total: parsed.source.totalNodes.toLocaleString() });
       // TASKS.csv #3871 — the fill is GLO-30 plus the GEM-15 - GLO-30 difference interpolated in from the nodes GEM-15 has: said, with the jump across the seam it left
       if (parsed.source?.gapSeam?.deltaFilled && parsed.source.gapSeam.after && parsed.source.gapSeam.before) msg += tr(" The fill is GLO-30 adjusted to meet GEM-15 at the edge: nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m).", { after: +parsed.source.gapSeam.after.median.toFixed(1), before: +parsed.source.gapSeam.before.median.toFixed(1) });
+      if (parsed.source?.stepSmooth) msg += stepSmoothNote(parsed.source.stepSmooth); // TASKS.csv #3950 — the source data was changed: said
       // TASKS.csv #814 — cones in the AWS tiles that Copernicus GLO-30 does not have: reported, not changed
       if (parsed.suspectCones?.length) {
         const fmt = (c) => (Number.isFinite(c.x) ? `${Math.round(c.x).toLocaleString()} E ${Math.round(c.y).toLocaleString()} N` : `${c.lon.toFixed(4)}, ${c.lat.toFixed(4)}`) + tr(" ({v} m high{v2})", { v: Math.round(c.riseM), v2: c.copRiseM == null ? "" : tr("; Copernicus {v} m", { v: Math.round(c.copRiseM) }) });
@@ -1225,6 +1247,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     } finally {
       setTerrainBusy(false);
       setSrtmProgress(null);
+      job.end(); // TASKS.csv #3953
     }
   };
 
@@ -1463,11 +1486,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     { const crop = omfCropBox(); if (crop) opts = { ...opts, crop }; } // #1596
     setOmfError(null);
     setOmfBusy(true);
+    const job = beginJob(file.name); // TASKS.csv #3953
     try {
       const buf = await file.arrayBuffer();
       // TASKS.csv #637 — the element conversion lives in lib/omfImport.js (shared with the Woodjam sample project)
       // TASKS.csv #1993 — a Geoscience ANALYST .geoh5 is read (h5wasm, on demand) into the same objects; drillholes are a later step
       const res = /\.geoh5$/i.test(file.name) ? await (await import("../lib/geoh5Import.js")).geoh5ToProjectObjects(buf, effectiveMaxCells, { ...opts, baseName: file.name.replace(/\.geoh5$/i, "") }) : await omfToProjectObjectsAsync(buf, effectiveMaxCells, opts);
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       // TASKS.csv #1202 — pillar 3: a budget the geologist raised once should not fill a modest laptop unasked (about 0.4 GB per million blocks, as the budget's own tooltip says)
       const blocks = res.voxelModels.reduce((n, m) => n + (m.cells?.length || 0), 0);
       if (blocks > 500000 && !await askConfirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while open, which can slow a laptop. Import it? (A lower cell budget coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) { setOmfError({ info: true, text: tr("\"{name}\" was not imported.", { name: file.name }) }); return; }
@@ -1501,6 +1526,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       setOmfError({ info: false, text: err.message });
     } finally {
       setOmfBusy(false);
+      job.end(); // TASKS.csv #3953
     }
   };
 
@@ -1954,6 +1980,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setVoxelError(null);
     setVoxelBusy(true);
     setVoxelProgress(null);
+    const job = beginJob(tr("Block model")); // TASKS.csv #3953
     try {
       // TASKS.csv #1658 (review #1646, Kodiak) — the mesh by its content, not its name: SJ Geophysics delivered "3dmesh_utm.txt" (nx ny nz,
       // then the origin), which a .msh-only test refused. A .msh name still wins; every other file is a model on that mesh (#1669: each
@@ -2019,6 +2046,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const guessed = guessVoxelProperty(modelFile.name);
       const logColours = isLogProperty(guessed, min, max); // #1786 — a .chg is not log-normal
       const ramp = propertyRamp(guessed); // #1788 — resistivity low = red
+      if (!(await landed(job))) return; // TASKS.csv #3953 — each model into the project it started in (the finally clears the busy state)
       addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(guessed ? { property: guessed } : {}), ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, ramp?.anchors || SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true /* #1780: log-stepped range sliders */, ...(ramp?.palette ? { palette: ramp.palette } : {}) } : {}) });
       infoNotes.push(farNote(cells) + (guessed ? tr("Values read as {p} from the file name (change it under Values are).", { p: tr(guessed) }) + " " : "") + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }));
       } catch (e) { failed.push(tr("{file}: {message}", { file: modelFile.name, message: e.message })); setVoxelProgress(null); }
@@ -2031,6 +2059,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     } finally {
       setVoxelBusy(false);
       setVoxelProgress(null);
+      job.end(); // TASKS.csv #3953
     }
   };
 
@@ -2084,7 +2113,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const base = p.fileName.replace(/\.csv$/i, "");
     const msgs = [];
     setVoxelError({ info: true, text: tr("Importing \"{fileName}\"…", { fileName: p.fileName }) });
-    const results = await blockModelAttrsAsync(p, base, mapping, attrs);
+    const job = beginJob(p.fileName); // TASKS.csv #3953
+    const results = await blockModelAttrsAsync(p, base, mapping, attrs).catch((e) => { job.end(); throw e; });
+    if (!(await landed(job))) { setVoxelError(null); return; } // TASKS.csv #3953 — into the project it started in
+    job.end();
     results.forEach(({ attr, empty, raw: rawCount, badRows, inferred, air, guessed, logMean, cells, factors, sourceM3, mergedM3 }) => {
       if (empty) { msgs.push(tr("{attr}: no usable rows (x/y/z and {attr} all need numbers).", { attr })); return; }
       const { min, max } = cellValueRange(cells);
@@ -2639,6 +2671,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     const label = surveyLabel(idwKey); // #2559 — 'file.csv · K_pct' kept its channel ('[^.]+$' took '.csv · K_pct' off)
                     const tag = gridMethodTag(idwMethod, idwTension); // #2846
                     const gName = uniqueName(`${label}${sliceTag} ${tag} ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, rasters.map((x) => x.name)); // sliceTag: #1783; uniqueName: #2562
+                    const pj = beginJob(tr("Grid to raster"), () => idwCancel.current?.()); // TASKS.csv #3953 — closing its project stops the worker
+                    try {
                     let raster, how = {};
                     if (idwMethod === "idw") { // TASKS.csv #3444 — in a worker: the window keeps drawing, the rows done are shown, Cancel stops it
                       setIdwBusy(tr("Gridding {n} points by inverse distance…", { n: pts.length.toLocaleString() }));
@@ -2682,6 +2716,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     // TASKS.csv #2239 (review #2174) — stations with elevations are drawn at THEIR median elevation: a ground-mag grid at z 400 went to the
                     // collars' median (192.55 m, an underground mine level), 207 m under the survey and through the holes. The collar median only when
                     // the points have no z.
+                    if (!(await landed(pj))) return; // TASKS.csv #3953 — into the project it started in
                     const ptsZs = pts.map((r) => r.z).filter(Number.isFinite), ptsZ = ptsZs.length ? median(ptsZs) : null;
                     const gridElev = ptsZ != null ? ptsZ : defaultElevation;
                     addRaster({ ...raster, elevation: gridElev, provenance: { tool: idwMethod === "mincurv" ? "Point survey gridding (minimum curvature with tension)" : idwMethod === "spline" ? "Point survey gridding (Verde biharmonic spline on block medians, damping by blocked cross-validation)" : "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, ...(idwMethod === "idw" ? { power: idwPower } : how) /* #2846 */, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? (idwAutoBlank > idwSuggest.distance + 1e-9 ? `1.5 cells (${idwCellSize} m)` : `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)`) : "entered" }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined /* #2557 */ });
@@ -2703,6 +2738,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       : potential ? tr(" Derivatives of an IDW grid show the station pattern (a bull's-eye at each station): grid with minimum curvature for derivatives.") : "";
                     setError({ info: true, text: kept + howText + where }); // where: #2075
                     setIdwOpen(false);
+                    } finally { pj.end(); } // TASKS.csv #3953
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
                 >{tr("Generate raster")}</button>
@@ -2768,6 +2804,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </select>
         </div>
         {terrainSource === "gem15dsm" && <div data-gem-surface-note="" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 6px", lineHeight: 1.4 }}>{tr("Trees, buildings, cut blocks and flat snow or ice show as steps. GEM-15 bare earth has the same 15 m.")}</div>}{/* TASKS.csv #3946 */}
+        {(terrainSource === "gem15" || terrainSource === "gem15dsm") && ( /* TASKS.csv #3950 — off by default */
+          <label data-gem-smooth="" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.")}>
+            <input type="checkbox" checked={gemSmooth} onChange={(e) => setGemSmooth(e.target.checked)} />{tr("Smooth GEM-15's steps on flat ground")}
+          </label>
+        )}
         {/* TASKS.csv #796 — terrain detail */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flexShrink: 0 }}>{tr("Terrain detail")}</span>
@@ -2924,6 +2965,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>
               <input type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1} onChange={(e) => updateTerrain({ opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
+            {/GEM-15/.test(String(terrain.source?.service || "")) && ( /* TASKS.csv #3950 — for a GEM-15 terrain already fetched; Undo restores the heights (this session) */
+              gemOriginal.current.has(terrain.id)
+                ? <button data-gem-smooth-undo="" onClick={() => { const orig = gemOriginal.current.get(terrain.id); gemOriginal.current.delete(terrain.id); const { stepSmooth: _drop, ...src } = terrain.source || {}; updateTerrain({ elevations: orig, source: src }); setTerrainError({ info: true, text: tr("Smoothing undone.") }); }} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }}>{tr("Undo smoothing")}</button>
+                : !terrain.source?.stepSmooth && <button data-gem-smooth-run="" onClick={async () => {
+                    const { smoothSteps } = await import("../lib/stepSmooth.js");
+                    const r = smoothSteps(terrain.elevations, terrain.gridW, terrain.gridH, { nodeM: terrain.source?.nodeM || 15 });
+                    if (!r.changed) { setTerrainError({ info: true, text: tr("No steps found: nothing changed.") }); return; }
+                    const sm = { changed: r.changed, maxM: +r.maxM.toFixed(2), medianM: +r.medianM.toFixed(2), steps: r.steps };
+                    gemOriginal.current.set(terrain.id, terrain.elevations);
+                    updateTerrain({ elevations: r.out, source: { ...terrain.source, stepSmooth: sm } });
+                    setTerrainError({ info: true, text: stepSmoothNote(sm).trim() });
+                  }} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title={tr("Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.")}>{tr("Smooth its steps")}</button>
+            )}
             <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title={tr("Export the merged/processed terrain's elevation grid as a single-band GeoTIFF")}>
               <Download size={14} />{" "}{tr("Export to GeoTIFF…")}</button>
             {/* TASKS.csv #237 — raster derivative: hillshade from the terrain's own elevation grid,
@@ -3796,3 +3850,8 @@ function projAreaBox(area, epsg) {
   return [xs.reduce((m, v) => (v < m ? v : m)), ys.reduce((m, v) => (v < m ? v : m)), xs.reduce((m, v) => (v > m ? v : m)), ys.reduce((m, v) => (v > m ? v : m))]; // four corners: no spread (#371)
 }
 const numInput = { flex: 1, minWidth: 0 /* #1433 */, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 6px" };
+
+// TASKS.csv #3950 — what the step smoothing changed, said with the terrain (the source data was changed)
+function stepSmoothNote(sm) {
+  return " " + tr("Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).", { n: sm.changed.toLocaleString(), max: sm.maxM, med: sm.medianM });
+}

@@ -92,16 +92,16 @@ export function ToolInfoCard({ anchorRef, title, text, width, align }) {
     <div
       ref={ref}
       aria-hidden="true"
-      className="ge-tool-info"
-      style={{
+      className="ge-tool-info ge-card"
+      style={{ // #3956: the shared style-A card, the popover shadow
         position: "fixed", zIndex: 1200, left: pos ? pos.left : 0, top: pos ? pos.top : 0, visibility: pos ? "visible" : "hidden",
-        width, maxWidth: "calc(100vw - 16px)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8,
-        boxShadow: "0 6px 20px rgba(0,0,0,0.16)", padding: "9px 11px", boxSizing: "border-box",
+        width, maxWidth: "calc(100vw - 16px)", borderRadius: 10,
+        boxShadow: "var(--shadow-pop)", padding: "9px 11px", boxSizing: "border-box",
         textTransform: "none", letterSpacing: "normal", fontWeight: 400, pointerEvents: "none", textAlign: "start",
       }}
     >
       {title && (
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: text ? 5 : 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        <div className="ge-card-head" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600, margin: text ? "-9px -11px 6px" : "-9px -11px -9px", padding: "7px 11px 6px", borderRadius: "10px 10px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
           {trText(title)}
         </div>
       )}

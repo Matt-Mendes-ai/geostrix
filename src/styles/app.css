@@ -14,6 +14,9 @@
   --color-bg-subtle: #f4f5f7;
   --color-bg-subtlest: #fafbfc;
   --color-bg-inset: #fbfbfc;
+  /* TASKS.csv #3966 — Matt: "the default background in all viewports to be white. Also layout paper has to be white." */
+  --color-view-bg: #ffffff;
+  --color-paper: #ffffff;
   --color-border: #d9dce1;
   --color-border-light: #c7ccd3;
   --color-divider: #dde1e6;
@@ -41,6 +44,11 @@
      5.65:1 and 4.97:1 on their own pale -bg, the caption chip). A stripe, not a fill: the selected tab is already light blue. */
   --color-tier-basic: #276b43;
   --color-tier-basic-bg: #e8f3ec;
+  /* TASKS.csv #3956 — soft shadows for the empty cards (style A, Matt's pick): the card, the lifted green drop box, a column chip. Mirrored in lib/theme.js shadows. */
+  --shadow-card: 0 6px 18px rgba(20, 40, 30, 0.08), 0 1px 3px rgba(20, 40, 30, 0.06);
+  --shadow-lift: 0 4px 12px rgba(39, 107, 67, 0.14);
+  --shadow-chip: 0 1px 2px rgba(39, 107, 67, 0.12);
+  --shadow-pop: 0 8px 24px rgba(20, 40, 30, 0.16); /* a floating card: a tool's info, a popover */
   --color-tier-advanced: #2a62c9;
   --color-tier-advanced-bg: #e9f0fc;
   /* TASKS.csv #3903 — the thin bar along the top of an advanced tool's ribbon button (a share of the text size, so it grows with it) */
@@ -406,7 +414,7 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
 }
 /* TASKS.csv #908 — the print root exists only while exporting and is never shown on screen */
 .ge-print-root { display: none; }
-.ge-print-page { position: relative; overflow: hidden; background: #fff; break-after: page; page-break-after: always; break-inside: avoid; }
+.ge-print-page { position: relative; overflow: hidden; background: var(--color-paper); /* #3966 */ break-after: page; page-break-after: always; break-inside: avoid; }
 .ge-print-page:last-child { break-after: auto; page-break-after: auto; }
 
 /* Cross-section pop-out's own "Export PDF" button (TASKS.csv #14) reuses the same generic
@@ -434,3 +442,9 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
 @keyframes ge-progress-slide { from { left: -35%; } to { left: 100%; } }
 .ge-progress-indeterminate { animation: ge-progress-slide 1.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .ge-progress-indeterminate { animation: none; left: 0; width: 100% !important; opacity: 0.45; } }
+
+/* TASKS.csv #3956 — the style-A card every first screen shares (Matt's pick): white, rounded, a soft shadow; .ge-card-head is its tinted header (a green wash fading down).
+   Inline styles on a card may still set its size, padding or a deliberate ground (the 3D View's translucent one). */
+.ge-card { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 12px; box-shadow: var(--shadow-card); }
+.ge-card-head { background: linear-gradient(180deg, var(--color-tier-basic-bg) 0%, var(--color-bg) 100%); border-bottom: 1px solid var(--color-border-subtle); border-radius: 12px 12px 0 0; }
+

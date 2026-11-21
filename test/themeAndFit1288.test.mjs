@@ -18,10 +18,10 @@ test("#1287 one writer of viewerUiState", () => {
   assert.ok(!viewer.includes("restoreLiveView"));
 });
 test("#1288 a theme carries the four settings, in all three places", () => {
-  for (const key of ["setBgColor(theme.bgColor)", "setHoleLabelMode(theme.holeLabelMode)", "setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY, ...theme.figureOverlay })"]) assert.ok(viewer.includes(key), key);
+  for (const key of ["setBgColor(viewBgOf(theme.bgColor))" /* #3966: the old grey default reads as not picked */, "setHoleLabelMode(theme.holeLabelMode)", "setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY, ...theme.figureOverlay })"]) assert.ok(viewer.includes(key), key);
   assert.match(viewer, /JSON\.stringify\(p\) === JSON\.stringify\(theme\.layerStyles\) \? p : theme\.layerStyles/);
   assert.match(viewer, /bgColor, holeLabelMode, figureOverlay, layerStyles, \/\/ TASKS\.csv #1288/);
-  assert.match(viewer, /bgColor: s\?\.bgColor \|\| DEFAULT_BG_COLOR, holeLabelMode: s\?\.holeLabelMode/);
+  assert.match(viewer, /bgColor: viewBgOf\(s\?\.bgColor\) \/\* #3966 \*\/, holeLabelMode: s\?\.holeLabelMode/); // #3966: white unless one was picked
 });
 test("#1241 the pin points down the dip", async () => {
   const THREE = await import("three");

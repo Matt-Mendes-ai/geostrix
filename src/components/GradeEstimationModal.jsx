@@ -74,13 +74,14 @@ import { lastEstimateSettings, estimateSettingsKey } from "../lib/estimateMemory
 import { CAP_WARN_PCT } from "../lib/capWarning.js"; // TASKS.csv #3783
 import { floorElements, applyFloorModes } from "../lib/floorShare.js"; // TASKS.csv #3788
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the estimate belongs to the project it was run in
 export { estimateSettingsKey };
 // TASKS.csv #3273 — a semivariance with separators (22,800,000, not 22800000)
 const fmtSemi = (v) => (!Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : String(+v.toPrecision(3)));
 export default function GradeEstimationModal({ modelArea = null /* #2544 */, assayStyle = null /* #3596: the holes' classes of each element */, assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend: modelTrend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, voxelModels, project, customLayers = [], updateVoxelModel } = useStore(); // updateVoxelModel: #3596 // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws; customLayers: #1571
+  const { desurveyMethod, voxelModels, project, customLayers = [], updateVoxelModel, startProjectJob, isSameProject } = useStore(); // startProjectJob, isSameProject: #3953 // updateVoxelModel: #3596 // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws; customLayers: #1571
   // TASKS.csv #1741 / #1708 (review #1645, Copley) — a numeric downhole log (mag susc, SG) or a numeric field of a custom layer (a SWIR
   // wavelength, a chalcopyrite %) is estimated like a grade: its rows become assay-shaped intervals under one "element"
   const saved = useRef(lastEstimateSettings.get(estimateSettingsKey(project)) || null).current; // #1580
@@ -508,6 +509,13 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   const etaRef = useRef(null);
   const timeLeft = (p) => { const now = performance.now() / 1000; if (!etaRef.current) return ""; etaRef.current.push(p, now); const left = etaRef.current.left(now); if (left == null) return ""; return left < 60 ? tr(" (about {s} s left)", { s: Math.max(5, Math.round(left / 5) * 5) }) : tr(" (about {m} min left)", { m: Math.round(left / 60) }); };
   const abortRef = useRef(null);
+  // TASKS.csv #3953 — the project the shown result was estimated in: its Add buttons add it there only (the window stays open across a tab switch)
+  const resultProject = useRef(null);
+  const resultIsHere = () => {
+    if (!resultProject.current || isSameProject?.(resultProject.current) !== false) return true;
+    setError(tr("This estimate was made in another project. Show that project to add it, or run it again here."));
+    return false;
+  };
   const cancelRun = () => abortRef.current?.abort();
   const run = () => {
     setError(""); setResult(null); runSig.current = sigNow.current; setProgress(0); runStartedAt.current = performance.now(); etaRef.current = makeEta(runStartedAt.current / 1000); // #3256; #3876
@@ -518,6 +526,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     if (!bounds) { setError(tr("Import hole lengths or survey records first: no loaded collar has a recorded length or survey data, so the grid has no depth to reach. GeoStrix will not assume one.")); return; }
     if (!uns.ready) { setError(tr("Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running.")); setProgress(null); return; } // #2417
     setRunning(true);
+    const job = startProjectJob ? startProjectJob({ label: `${symbol} estimate`, cancel: () => abortRef.current?.abort() }) : noJob(); // TASKS.csv #3953 — after the early stops above
     // Synchronous but deferred so the "Running…" state actually paints before the estimation loop
     // blocks the main thread — a plain synchronous call here would show the button flip back to "Run"
     // with no visible in-between state.
@@ -571,10 +580,10 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         if (shellId) {
           const sh = (volumeShells || []).find((v) => v.id === shellId);
           const closed = sh ? isMeshClosed(sh.positions, sh.indices) : null;
-          if (!sh || !closed?.closed) { setError(sh ? tr("\"{name}\" is not a closed solid ({boundaryEdges} open edges) — it has no inside to restrict to.", { name: sh.name, boundaryEdges: closed.boundaryEdges }) : tr("That volume is no longer in the project.")); setRunning(false); return; }
+          if (!sh || !closed?.closed) { setError(sh ? tr("\"{name}\" is not a closed solid ({boundaryEdges} open edges) — it has no inside to restrict to.", { name: sh.name, boundaryEdges: closed.boundaryEdges }) : tr("That volume is no longer in the project.")); setRunning(false); job.end(); return; }
           // TASKS.csv #860 — a shell that crosses itself has no well-defined inside (parity flips inside the overlap)
           const vs = await validateSolidAsync(sh.positions, sh.indices); // #3791 — in a worker, and kept for the session
-          if (vs.selfIntersectingPairs > 0) { setError(tr("\"{name}\" crosses itself ({n} triangle pairs), so it has no well-defined inside to restrict to. Fix or rebuild it first.", { name: sh.name, n: vs.selfIntersectingPairs })); setRunning(false); return; }
+          if (vs.selfIntersectingPairs > 0) { setError(tr("\"{name}\" crosses itself ({n} triangle pairs), so it has no well-defined inside to restrict to. Fix or rebuild it first.", { name: sh.name, n: vs.selfIntersectingPairs })); setRunning(false); job.end(); return; }
           const q = buildMeshQuery(sh.positions, sh.indices);
           inShell = (p) => isPointInsideMesh(q, p);
           const before = points.length;
@@ -583,8 +592,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           carryInside = { positions: sh.positions, indices: sh.indices }; // #3784 — only the blocks kept credit their samples
         }
         // #3269 — no composite kept (every window under the minimum coverage) is not a placing problem: say what left the readings out
-        if (!points.length && !intervals.length && coverageStats.readings > 0 && coverageStats.leftOut === coverageStats.readings) { setError(tr("All {n} readings were left out: every composite they fell in was under the minimum coverage ({c} %). Lower the minimum coverage, or untick compositing to estimate the readings as they are.", { n: coverageStats.readings.toLocaleString(), c: Math.round(minCoverage * 100) })); setRunning(false); return; }
-        if (!points.length) { setError(shellInfo ? tr("No {symbol} samples fall inside \"{name}\".", { symbol, name: shellInfo.name }) : tr("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data.")); setRunning(false); return; }
+        if (!points.length && !intervals.length && coverageStats.readings > 0 && coverageStats.leftOut === coverageStats.readings) { setError(tr("All {n} readings were left out: every composite they fell in was under the minimum coverage ({c} %). Lower the minimum coverage, or untick compositing to estimate the readings as they are.", { n: coverageStats.readings.toLocaleString(), c: Math.round(minCoverage * 100) })); setRunning(false); job.end(); return; }
+        if (!points.length) { setError(shellInfo ? tr("No {symbol} samples fall inside \"{name}\".", { symbol, name: shellInfo.name }) : tr("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data.")); setRunning(false); job.end(); return; }
         let logInfo = null; // TASKS.csv #1741 — a geometric mean per block: interpolate log10 values, convert the blocks back below
         if (logValues) logInfo = logPoints(points);
         const estPts = logInfo ? logInfo.points : points; // the raw points stay for the checks and the composite statistics
@@ -831,6 +840,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           members.push({ ...memberSummary(el, u, t.cells, mp.length), method: mMethod /* #3164 */, cells: t.cells, params: mParams, supportCounts, cap: mCap, capAudit: mAudit, check: mCheck, checkNn: mNn ? mNn.checkColumns : t.cells, checkPoints: mp }); // cap / check: #3271; checkNn / checkPoints: the member's swaths, #3384
         }
         setStage(null);
+        // TASKS.csv #3953 — shown in the project it was run in: now, or when that project's tab is shown again; never in another
+        if (!(await landed(job))) { abortRef.current = null; setProgress(null); setStage(null); setRunning(false); job.end(); return; }
+        resultProject.current = { key: job.key };
         const withBlocks = members.filter((m) => m.cells.length);
         if (withBlocks.length) { const set = setRecord(newSetId(), symbol, withBlocks.map((m) => m.element)); params.set = set; for (const m of withBlocks) { m.params.set = set; if (!m.params.holeIds) m.params.holeIds = params.holeIds; /* #3595 */ } }
         setResult({ ...est, params, members, nnCells: nnCheck /* #3060 */, checkPoints: points, compositingSkipped, coverageLeftOut: coverageStats.leftOut > 0 ? { leftOut: coverageStats.leftOut, readings: coverageStats.readings, minCoverage } : null /* #3269 */, samplePointCount: points.length, noCodeComposites: domainKey ? points.filter((p) => p.domain == null).length : 0 /* #2541 */, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
@@ -843,6 +855,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
       weakFitAccepted.current = false; // #3273 — 'Krige with it anyway' covers the one run
       abortRef.current = null; setProgress(null); setStage(null);
       setRunning(false);
+      job.end(); // TASKS.csv #3953
     }, 40);
   };
 
@@ -866,7 +879,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m${r}${a}${w}${h}${dn})` : `${symbol} estimate (${method}, ${cellLabel}m${r}${a})`);
   };
   const addSupportModel = () => {
-    if (!result || !result.cells.length) return;
+    if (!result || !result.cells.length || !resultIsHere()) return; // resultIsHere: #3953
     const base = resultName();
     onAddModel({
       name: `${base} — Data Support Index (geometric, not a confidence)`,
@@ -878,7 +891,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
   };
   // TASKS.csv #709 — the kriging variance as its own block model, named so it can't be read as an error bar on grade
   const addKvModel = () => {
-    if (!result || !result.cells.length) return;
+    if (!result || !result.cells.length || !resultIsHere()) return; // #3953
     const base = resultName(); // #1737
     const cells = result.cells.filter((c) => Number.isFinite(c.kv)).map((c) => ({ x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value: c.kv, nSamples: c.nSamples, nHoles: c.nHoles }));
     onAddModel({ name: `${base} — kriging variance (data layout, not a grade error)`, source: "kriging-variance", cells, params: { ...result.params, value: `kriging variance (${unit} squared): how well the samples' layout constrains the block under the variogram` } });
@@ -897,7 +910,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     return classes ? { min: gMin, max: gMax, ...classes, legendFrom: ec.seeded ? `the classes GeoStrix seeds for ${element} on the holes (not shown on them yet)` : `the classes of ${element} on the holes` } : { min: gMin, max: gMax, colorMode: "continuous", stops: gradeStops(gMin, gMax) };
   };
   const addToProject = () => {
-    if (!result || !result.cells.length) return;
+    if (!result || !result.cells.length || !resultIsHere()) return; // #3953
     const name = resultName(); // #1737
     const set = result.params?.set; // #3014 — the set's models are added together, each named for its element and the set
     const p0 = result.params?.element || symbol, typed = !!modelName.trim();

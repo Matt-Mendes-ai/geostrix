@@ -29,7 +29,9 @@ export function withLithoMeanings(payload) {
 }// TASKS.csv #1637 (review #1497, Lawyers) — a value over LONG_VALUE characters is a description, not a category: the Mineralization
 // group listed 25 free-text notes (one ~300 characters) and ran off the sheet. They are left out with a note row. ribbons (the
 // section's ribbonOrder) name each interval group's ribbon in its heading, so the parallel ribbons can be told apart in print.
-export const LONG_VALUE = 40;
+// TASKS.csv #3959 — 64 (was 40): since #3945 a lithology row is 'CODE — rock name' (at most five words), which can run past 40 and was left
+// out as a 'longer description'; the free-text notes this is for (one was ~300 characters) are still left out
+export const LONG_VALUE = 64;
 export function groupSectionLegend(items, ribbons = null) {
   const all = (items || []).filter((it) => it && it[0] != null);
   // TASKS.csv #2669 — a ramp row (a numeric custom layer's) becomes its own group after the others: a heading and five value swatches (rampRows),

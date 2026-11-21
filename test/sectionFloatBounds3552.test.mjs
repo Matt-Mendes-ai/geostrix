@@ -39,7 +39,7 @@ test("the right edge too; widthOf replaces the estimate", () => {
 
 test("wiring: the section passes the frame's bounds and its own measured widths; the fitted text grows", () => {
   const sw = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
-  assert.match(sw, /resolveLabels\(floatLabels, \[\.\.\.holeLabelBoxes, \.\.\.axisLabelBoxes\], \{ bounds: \[PAD, W - PAD\]/);
+  assert.match(sw, /resolveLabels\(shown, \[\.\.\.holeLabelBoxes, \.\.\.axisLabelBoxes\], \{ bounds: \[PAD, W - PAD\]/);
   assert.match(sw, /widthOf: floatWidth, strictBounds: true/);
   assert.match(sw, /const floatMeasures = new Map\(\), floatWidth = /);
   assert.match(sw, /textScale=\{printScale \?\? textScale \* autoText\}/);

@@ -17,8 +17,9 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
-import NumberInput from "./NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { requestCollarZFromTerrain } from "../lib/collarTerrainRequests.js"; // TASKS.csv #3955
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #222 — a real project's QC pass can run into the thousands of issues (measured: 26,762 DOM
 // nodes at 3000 synthetic issues, 12,819 on the real 37-hole Harry property set's own 1483 issues) with
@@ -191,6 +192,7 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
           </span>
           {terrain && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("Collars further than this from the loaded terrain are flagged (an auto-fetched terrain: ~15 m or more; LiDAR: a few metres){v}", { v: terrainNodeM(terrain) ? tr(". This terrain's nodes are ~{v} m apart.", { v: Math.round(terrainNodeM(terrain)) }) : "" /* #3807 — [dx, dy] read too */ })}>{tr("Collar vs terrain over")}<NumberInput min="0.5" step="0.5" value={terrainThreshold} onChange={(v) => setTerrainThreshold(v)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Collar vs terrain threshold (m)")} /> m
+              <button type="button" onClick={requestCollarZFromTerrain} style={rerunBtn} title={tr("Take collar elevations from the terrain; preview first, Ctrl+Z undoes it.")}>{tr("Collar elevations from the terrain…")}</button>
               {terrainOff.length > 0 && <button onClick={snapToTerrain} style={rerunBtn} title={tr("Set those collars' elevation to the terrain (undoable; the old value is kept)")}>{tr("Snap {n} to terrain", { n: terrainOff.length })}</button>}
             </span>
           )}

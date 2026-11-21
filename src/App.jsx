@@ -1,4 +1,5 @@
-import SaveRecoveredModal from "./components/SaveRecoveredModal.jsx"; // TASKS.csv #3638 — small, drawn only while the question is open
+import { lazyPart } from "./lib/lazyModal.jsx"; // TASKS.csv #3961
+const SaveRecoveredModal = lazyPart(() => import("./components/SaveRecoveredModal.jsx")); // TASKS.csv #3638 — drawn only while the question is open; #3961: loaded then
 import { prewarmAdaptiveMesh } from "./lib/viewer/sceneBuilders.js"; // TASKS.csv #3588 (8)
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { sampleStatus } from "./lib/desktop.js"; // TASKS.csv #3100
@@ -32,6 +33,7 @@ const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
 import ConfirmHost from "./components/ConfirmHost.jsx"; // TASKS.csv #3957 — the app's one confirm / alert dialog
 import TitleCards from "./components/TitleCards.jsx"; // TASKS.csv #3940 — the info card for every button that has only a native title
+import CollarZGate from "./components/CollarZGate.jsx"; // TASKS.csv #3955 — collar elevations from the terrain: the gate (the dialog, the offer and the planner load on first use)
 import { undoMessage, undoTooltip } from "./lib/undoLabels.js"; // TASKS.csv #1087; undoTooltip: #3616
 import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 import { timeAgo } from "./lib/timeAgo.js"; // TASKS.csv #1274
@@ -136,6 +138,7 @@ export default function App() {
     saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, setSectionLabels, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
+    jobNotes = [], dismissJobNote, // TASKS.csv #3953 — a long job's word about its project (cancelled, waiting in another tab, added)
     saveChoice, answerSaveChoice, // TASKS.csv #3638 — the 'save over the recovered file?' question
     undo, redo, canUndo, canRedo, peekUndo, peekRedo, requestSampleProject, // requestSampleProject: #1120; peek: #3616
     requestLayoutPrint, // TASKS.csv #908 — Export PDF prints from Layout's print root
@@ -515,6 +518,8 @@ export default function App() {
       else if (typeof action === "string" && action.startsWith("sample:")) { const which = action.slice(7); openSample(which); } // #1120; a BC sample not on this computer asks to download it first: #3100
       else if (action === "undo") undoSay();
       else if (action === "redo") redoSay();
+      // TASKS.csv #3966 — Edit > Background colour...: the 3D view on screen, else StrixViewer's
+      else if (action === "background-colour") { if (!["viewer", "modelling", "targeting", "minedesign"].includes(activeRef.current)) setActive("viewer"); requestModuleAction("background-colour"); }
     });
     return off;
   }, [doNew, doOpen, doSave, doExportPdf, doExportKmz, runGeoh5Export, runOmfExport, undoSay, redoSay, requestSampleProject]);
@@ -629,6 +634,12 @@ export default function App() {
           <button onClick={() => setRecoveryNote(null)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("OK")}</button>
         </div>
       )}
+      {jobNotes.map((n) => ( /* TASKS.csv #3953 — on every module: the job's project may not be the one shown */
+        <div key={n.id} role="status" data-job-note={n.level} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: n.level === "warning" ? "var(--color-warn-bg)" : "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)", color: n.level === "warning" ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>
+          <span style={{ flex: 1 }}>{n.text}</span>
+          <button onClick={() => dismissJobNote?.(n.id)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("OK")}</button>
+        </div>
+      ))}
       <WorkspaceTabBar
         tabs={workspaceTabs}
         activeTabId={activeTabId}
@@ -747,6 +758,7 @@ export default function App() {
       )}
       <TitleCards />
       <ConfirmHost />{/* TASKS.csv #3957 */}
+      <CollarZGate />
       {startDialog && <Suspense fallback={null}><StartDialogs reason={startDialog.reason} onClose={() => setStartDialog(null)} goTo={setActive} onOpenProject={doOpen} /></Suspense>}{/* TASKS.csv #3888 */}
       {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}

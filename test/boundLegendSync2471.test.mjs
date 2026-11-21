@@ -29,7 +29,7 @@ test("viewports carry capturedAt, loads stamp the legend, and a refresh reloads 
   const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
   assert.equal((s.match(/capturedAt: Date\.now\(\)/g) || []).length, 2);
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(l, /const stamp = \(items\) => \(\{ items, loadedItems: items, loadedCapturedAt: vp\.capturedAt \|\| null, autoReloaded: auto \}\);/);
+  assert.match(l, /const stamp = \(all\) => \{ const items = keepGroups\(all, legend\?\.groupsShown\); return \{ items: carryColumnBreaks\(legend\?\.items, items\), loadedItems: items, loadedCapturedAt: vp\.capturedAt \|\| null, autoReloaded: auto \}; \};/ /* #3959: the column breaks kept, a split legend's own groups */);
   assert.match(l, /\{legendReloaded \? " " \+ tr\("The bound legend reloaded with the refreshed viewport\."\) : ""\}/);
   assert.match(l, /legendSyncState\(e, byId\.get\(e\.boundViewportId\)\) === "reload"\)\.forEach\(\(l\) => syncLegendFromView\(l\.id, \{ auto: true \}\)\)/);
   assert.match(l, /const staleLegends = staleBoundLegends\(layoutPages\)\.length;/);

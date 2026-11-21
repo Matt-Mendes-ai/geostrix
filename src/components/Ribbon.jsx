@@ -18,6 +18,7 @@ import { helpIdForPane, openHelp } from "../lib/help.js"; // TASKS.csv #1966 —
 import { noticeText, noticeLevel } from "../lib/notices.js"; // TASKS.csv #1602
 import { useTextSize } from "../lib/useTextSize.js"; // TASKS.csv #3900 — a new text size re-fits the band
 import { useToolInfo } from "./HoverToolInfo.jsx"; // TASKS.csv #3940 — the styled info card on every tool
+import { twoTone } from "./ribbonIcons.jsx"; // TASKS.csv #3958 — the ribbon's two-tone look
 
 export const RibbonSlotContext = createContext(null);
 
@@ -148,7 +149,7 @@ export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick
         disabled={disabled && !soft}
         {...info.handlers}
       >
-        {Icon && <Icon size={22} strokeWidth={1.7} color={disabled ? undefined : RIBBON_TONES[tone] || tone} aria-hidden="true" />}
+        {Icon && <Icon size={22} strokeWidth={1.7} color={disabled ? undefined : RIBBON_TONES[tone] || tone} aria-hidden="true" {...twoTone(Icon)} />}{/* twoTone: #3958 */}
         <span className="ge-ribbon-label">{label}</span>
       </button>
       {body && <span id={info.descId} style={SR_ONLY}>{body}</span>}

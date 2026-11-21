@@ -2,18 +2,13 @@
 // defect that review found sat in these unexported helpers). Page px are CSS px at 96 dpi; a captured viewport keeps
 // the frame size it was rendered at in capW / capH (#906), which every scale figure must read instead of w / h.
 import { t as tr } from "./i18n.js";
-
-const M_PER_PAGE_PX = 0.0254 / 96;
+// TASKS.csv #3961 — the capture's own figures (#398 fixedScaleHalfHeight, #1486 scaleForHalfHeight, #1479 / #2303 captureLongPx) live in
+// captureScale.js, which the 3D View loads at startup; re-exported here unchanged
+import { M_PER_PAGE_PX, fixedScaleHalfHeight, scaleForHalfHeight, captureLongPx } from "./captureScale.js";
+export { fixedScaleHalfHeight, scaleForHalfHeight, captureLongPx };
 
 // #906 — the size the image was captured at (the frame's size until it is resized after the capture)
 export const capturedSize = (el) => ({ w: el.capW || el.w, h: el.capH || el.h });
-
-// #398 — the orthographic half-height that puts N x the frame's printed width of ground across a frame elementW page px
-// wide (ViewerModule's capture); the height follows from the frame's aspect
-export const fixedScaleHalfHeight = (fixedScale, elementW, aspect) => (fixedScale * elementW * M_PER_PAGE_PX) / 2 / aspect;
-// TASKS.csv #1486 — the other way: the 1:N a frame elementW page px wide shows when it holds 2 x halfH of world at this aspect (what the
-// user's zoom framed in 'Enter & adjust view' while a fixed scale ignored it), and that N rounded to two significant figures
-export const scaleForHalfHeight = (halfH, elementW, aspect) => (elementW > 0 && aspect > 0 ? (2 * halfH * aspect) / (elementW * M_PER_PAGE_PX) : null);
 export const roundScale = (n) => { if (!(n > 0)) return null; const p = 10 ** (Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; };
 
 // #906 — the capW / capH (and, for an old request without a height, h) store.jsx writes when a capture comes back
@@ -27,6 +22,20 @@ export function capturedFrameFields(el, reqW, reqH, aspect, fixedScale) {
 export function metresPerPagePx(el) {
   const { h } = capturedSize(el);
   return el.worldHeightAtTarget && h ? el.worldHeightAtTarget / h : null;
+}
+
+// TASKS.csv #3965 (Matt: "when I resize the view it creates a white frame around the previous view") — a captured 3D view frame whose
+// size on the page is no longer the size it was captured at
+export const frameResized = (el) => !!(el && el.type === "viewport" && el.src && el.capW > 0 && el.capH > 0 && (Math.round(el.w) !== Math.round(el.capW) || Math.round(el.h) !== Math.round(el.capH)));
+// the old picture scaled up just enough to cover the frame (never down: a smaller frame crops it at its scale), until the new capture lands
+export const coverScale = (W, H, imgW, imgH) => (imgW > 0 && imgH > 0 ? Math.max(1, W / imgW, H / imgH) : 1);
+// the capture a resized frame asks for: its new size, at the scale it had (a fixed 1 : N, else the metres per page px it showed) and centred
+// where it was, with the view it was captured with (a frame from the current view: not whatever the 3D View shows now), so a bigger frame
+// shows more ground, as in a GIS layout
+export function resizeRecaptureOpts(el) {
+  const fixed = el.trueScale && el.fixedScale > 0 ? el.fixedScale : null, mPerPx = fixed ? null : metresPerPagePx(el);
+  const tw = el.targetWorld && Number.isFinite(el.targetWorld.x) && Number.isFinite(el.targetWorld.y) ? { x: el.targetWorld.x, y: el.targetWorld.y } : null;
+  return { fixedScale: fixed || 0, ...(mPerPx ? { mPerPx } : {}), elementW: el.w, elementH: el.h, ...(tw ? { centreWorld: tw } : {}), ...(!el.themeId && el.viewState ? { viewState: el.viewState } : {}) };
 }
 
 // the ground a fixed-scale frame shows, w x h metres
@@ -167,17 +176,7 @@ export function snapToGuides(vals, lines, thr) {
   return best || { delta: 0, at: null };
 }
 
-// TASKS.csv #1479 (review #1352) — the long side, in pixels, to render a Layout frame's capture at: 300 dpi of the frame's printed
-// size (elementW / elementH in page px at 96 dpi), at least 600 px, at most `max`. Every capture used to be 3,000 px long, so a
-// 60 x 40 mm overview frame was drawn at a pixel ratio of up to 13 (points and labels overdrawn) and froze the window for seconds.
-// No frame size (a capture that is not for a Layout frame): `max`.
-// TASKS.csv #2303 (Matt's option (b), 2026-11-09) — dpi: 200 for the captures shown on the page (44 % of the pixels: a shorter stall), 300
-// for the print pass an export runs; 300 when not given, as before
-export function captureLongPx(elementW, elementH, max = 3000, dpi = 300) {
-  if (!(elementW > 0)) return max;
-  const d = Number(dpi) > 0 ? Number(dpi) : 300;
-  return Math.min(max, Math.max(600, Math.round((Math.max(elementW, elementH || 0) * d) / 96)));
-}
+// TASKS.csv #1479 / #2303 — captureLongPx: lib/captureScale.js (re-exported above, #3961)
 
 // TASKS.csv #1485 (review #1352, Silvertip) — a section snapshot is drawn so that its caption prints at `captionPt` when the image is
 // `placedW` page px wide (theme PLACED_W; SectionWindow atPrintSize). Sized to another width on the page (a plot scale), its text

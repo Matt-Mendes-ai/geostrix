@@ -98,12 +98,17 @@
 //     channel and are almost certainly the same intent, but merging them is a (tiny) visual change
 //     and so is out of scope for a refactor pass.
 import { textBump } from "./textSize.js"; // TASKS.csv #3900 — uiFontPx
+// TASKS.csv #3966 — a view's stored background: one equal to the old grey default was never picked (old projects turn white); a picked one stays
+export const viewBgOf = (c) => (typeof c === "string" && c && c.toLowerCase() !== colors.viewBgOld ? c : colors.viewBg);
 export const colors = {
   // Core surfaces
   bg: "#ffffff",
   bgSubtle: "#f4f5f7", // input fields, hover backgrounds, subtle panels
   bgSubtlest: "#fafbfc", // sub-toolbar background
   bgInset: "#fbfbfc", // chart/plot backdrop, inset note boxes
+  viewBg: "#ffffff", // TASKS.csv #3966 — every view's default background (3D view, Maps plan, captures); --color-view-bg
+  viewBgOld: "#f4f5f7", // #3966 — the 3D view's old default: a stored bgColor equal to it reads as 'not picked'
+  paper: "#ffffff", // #3966 — the Layout paper, on screen and in every export; --color-paper
 
   // Borders
   border: "#d9dce1", // the standard border color — by far the most common single value in the app
@@ -196,6 +201,14 @@ export const PLACED_W = 700;
 export const exportScale = (width, basePx = 11, pt = printPt.small) => Math.max(1, (printPx(pt) * (width / PLACED_W)) / basePx);
 
 // TASKS.csv #3892 — mirrors app.css :root --font-weight-title: the side-panel section headings are bold
+// TASKS.csv #3956 — the empty cards' soft shadows, value-for-value with app.css --shadow-*
+export const shadows = {
+  card: "0 6px 18px rgba(20, 40, 30, 0.08), 0 1px 3px rgba(20, 40, 30, 0.06)",
+  lift: "0 4px 12px rgba(39, 107, 67, 0.14)",
+  chip: "0 1px 2px rgba(39, 107, 67, 0.12)",
+  pop: "0 8px 24px rgba(20, 40, 30, 0.16)",
+};
+
 export const fontWeights = { title: 700 };
 
 // TASKS.csv #3900 — FROZEN: these are now the sizes of text INSIDE figures (charts, SVG plots, exports), which do not follow the window's text

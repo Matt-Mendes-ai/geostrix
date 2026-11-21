@@ -40,5 +40,7 @@ test("wired in the store: the active page's paper, the sized frame, the spot on 
   const s = fs.readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /const paper = pagePx\(pageFormatOf\(layoutPages\.find\(\(p\) => p\.id === activeLayoutPageId\)\)\);\n\s*const \{ w, h \} = viewportFrameOnPaper\(paper, aspect\);/);
   assert.match(s, /mkView\(freeSpot\(els, w, h, paper\)\)/);
-  assert.match(s, /import \{ freeSpot, viewportFrameOnPaper/);
+  // #3961: Layout's helpers are loaded with the first capture result, not at startup
+  assert.match(s, /import\("\.\/layoutPlace\.js"\)/);
+  assert.match(s, /const \{ capturedFrameFields, freeSpot, viewportFrameOnPaper, spotIsFree \} = layoutKit;/);
 });

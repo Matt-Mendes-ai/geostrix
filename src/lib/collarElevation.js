@@ -28,6 +28,10 @@ export function fillMissingCollarZ(rows, { existing = [], groundAt = null } = {}
   return { rows: out, counts, medianZ };
 }
 
+// TASKS.csv #3955 — a collar file with no elevation column can still be imported: its holes are placed on the terrain, or flagged at the median / 0 m (the
+// dialog says which). Elevation is only required when the table is not a collar one, or an elevation column is mapped
+export const zOptional = (target) => target === "collars";
+
 // a merged collar whose elevation now comes from the file (a real value) is no longer assumed
 export function settleAssumedZ(merged, incoming) {
   if (merged?.zAssumed && !incoming?.zAssumed && Number.isFinite(incoming?.z) && merged.z === incoming.z) {

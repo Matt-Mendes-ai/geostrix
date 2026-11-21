@@ -9,6 +9,7 @@
 // setting (lib/startFlow.js). Offline, or the download declined, the project keeps the collar heights and says so. Nothing is fetched without a click.
 import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../lib/store.jsx";
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the download lands only in the project it started in
 import { requestModuleAction } from "../lib/menuRequests.js";
 import { startOptedOut, setStartOptOut, shouldCloseStart } from "../lib/startFlow.js"; // shouldCloseStart: #3930
 import { groundFileKind, terrainSummary, crsWords, groundStrip, startChecklist, startDestination, qcLine, parseEpsgInput, whatIsThis } from "../lib/startChecklist.js"; // qcLine, parseEpsgInput, whatIsThis: #3918
@@ -35,7 +36,7 @@ function DropArea({ onFiles, multiple, accept, label, busy, picture }) {
   return (
     <div data-start-drop="" onDragOver={(e) => { stop(e); setOver(true); }} onDragLeave={() => setOver(false)}
       onDrop={(e) => { stop(e); setOver(false); const f = Array.from(e.dataTransfer?.files || []); if (f.length) onFiles(f); }}
-      style={{ border: `2px dashed ${over ? "var(--color-primary)" : "var(--color-border)"}`, borderRadius: 8, padding: "22px 16px", textAlign: "center", background: over ? "var(--color-selected-bg)" : "var(--color-bg-subtle)" }}>
+      style={{ border: `1.5px dashed ${over ? "var(--color-primary)" : "var(--color-tier-basic)"}`, borderRadius: 14, padding: "18px 16px", textAlign: "center", background: over ? "var(--color-selected-bg)" : "linear-gradient(160deg, var(--color-bg) 0%, var(--color-tier-basic-bg) 75%)", boxShadow: "var(--shadow-lift)" }}>{/* #3956: style A */}
       {picture && <div style={{ maxWidth: 240, margin: "0 auto 8px" }}><DropPicture picture={picture} /></div>}{/* TASKS.csv #3939 */}
       <div style={{ marginBottom: 10 }}>{label}</div>
       <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => input.current?.click()}>{busy ? tr("Reading…") : tr("Browse…")}</button>
@@ -46,7 +47,7 @@ function DropArea({ onFiles, multiple, accept, label, busy, picture }) {
 
 export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenProject }) {
   const store = useStore();
-  const { project, terrain, addTerrain, setEpsg, projectIsEmpty, collars } = store;
+  const { project, terrain, addTerrain, setEpsg, projectIsEmpty, collars, startProjectJob } = store; // startProjectJob: TASKS.csv #3953
   const [step, setStep] = useState(1);
   const [noDrill, setNoDrill] = useState(false);
   const [ground, setGround] = useState(null); // "file" | "make" | "skip"
@@ -134,6 +135,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
     const offline = () => setStripDone({ text: tr("No internet connection: using the collar heights for now. Add a terrain later with Add data."), warn: true });
     if (typeof navigator !== "undefined" && navigator.onLine === false) { offline(); return; }
     setBusy(true);
+    const job = startProjectJob ? startProjectJob({ label: tr("Terrain") }) : noJob(tr("Terrain")); // TASKS.csv #3953
     try {
       const box = fetchAreaBox(collars, store.surfaceSamples || []);
       const { toLonLat } = await import("../lib/reproject.js");
@@ -144,16 +146,18 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       const parsed = await fetchCopernicusTerrain({ lonMin: ext[0], latMin: ext[1], lonMax: ext[2], latMax: ext[3], targetEpsg: useEpsg, gridMax: 200 });
       // #3918 — Maps > Terrain's own check (lib/srtmFetch.js): collars hundreds of metres off the ground are in the wrong UTM zone, or not
       const { collarGroundMisfit, findBetterUtmZone, MISFIT_ZONE_M } = await import("../lib/srtmFetch.js");
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       const misfit = zoneEpsg ? null : collarGroundMisfit(collars, parsed);
       if (misfit && misfit.medianDz > MISFIT_ZONE_M) {
         const better = await findBetterUtmZone(collars, useEpsg, misfit);
+        if (!(await landed(job))) return; // TASKS.csv #3953 — again, after the last await
         if (better) { setZoneAsk({ better, misfit, parsed }); return; }
       }
       keepGround(parsed, misfit && misfit.medianDz > MISFIT_ZONE_M ? tr(" Check the project CRS and the collar elevations (feet? a local datum?): the collars sit a median {v} m off this terrain.", { v: Math.round(misfit.medianDz) }) : "");
     } catch (e) {
       if (typeof navigator !== "undefined" && navigator.onLine === false) offline();
       else setStripDone({ text: tr("The ground could not be downloaded ({error}): using the collar heights for now. Add a terrain later with Add data.", { error: String(e?.message || e) }), warn: true });
-    } finally { setBusy(false); }
+    } finally { setBusy(false); job.end(); } // job: TASKS.csv #3953
   };
 
   const keepGround = (parsed, extra = "") => {
@@ -167,8 +171,8 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   const noteLine = (n) => n && <div role="status" style={{ ...small, marginTop: 8, color: n.warn ? "var(--color-warn-text)" : "var(--color-text)" }}>{n.text}</div>;
 
   if (card) return ( // #3918 — screen 3: a small card, not a dialog; the project is usable behind it
-    <div data-start-card="" role="status" style={{ ...panel({ width: "min(380px, calc(100vw - 32px))" }), position: "fixed", right: 16, bottom: 40, zIndex: Z, padding: "12px 14px", gap: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+    <div data-start-card="" role="status" className="ge-card" style={{ ...panel({ width: "min(380px, calc(100vw - 32px))" }), borderRadius: 12, boxShadow: "var(--shadow-pop)", position: "fixed", right: 16, bottom: 40, zIndex: Z, padding: "12px 14px", gap: 6 }}>{/* #3956: the shared card */}
+      <div className="ge-card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, margin: "-12px -14px 2px", padding: "10px 14px 8px" }}>
         <b>{tr("Your project is in.")}</b>
         <button type="button" style={link} onClick={onClose}>{tr("Close")}</button>
       </div>
@@ -185,8 +189,8 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   return (
     <div data-start-dialog={step} style={{ position: "fixed", inset: 0, zIndex: Z, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(8,10,14,0.45)" }}
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="ge-start-title" style={{ ...panel({ width: "min(560px, calc(100vw - 32px))", maxHeight: "calc(100vh - 32px)" }), overflow: "auto", padding: "18px 20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="ge-start-title" className="ge-card" style={{ ...panel({ width: "min(560px, calc(100vw - 32px))", maxHeight: "calc(100vh - 32px)" }), borderRadius: 12, boxShadow: "var(--shadow-pop)", overflow: "auto", padding: "18px 20px" }}>{/* #3956: the shared card */}
+        <div className="ge-card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, margin: "-18px -20px 0", padding: "14px 20px 4px", borderBottom: "none" }}>
           <h2 id="ge-start-title" style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>{tr("Let's begin a project!")}</h2>
           <button type="button" style={link} onClick={onClose}>{tr("Close")}</button>
         </div>

@@ -52,7 +52,7 @@ const METHODS = {
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false, resultSlot = null }) { // inPane: TASKS.csv #458
-  const { layers, customLayers /* #2950 */, terrain: projectTerrain /* #2638 — the run may use its own ground, below */, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain, goToModule } = useStore(); // goToModule: #1429 // addTerrain: #1589
+  const { layers, customLayers /* #2950 */, terrain: projectTerrain /* #2638 — the run may use its own ground, below */, project, surfaceStructures, getProjectToken, startProjectJob /* #3953 */, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain, goToModule } = useStore(); // goToModule: #1429 // addTerrain: #1589
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
@@ -405,7 +405,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     };
     const projectToken = getProjectToken(); // #466 — the result belongs to the project that started the run
     const res = await startInversionJob(p.request, meta, {
-      setTaskProgress,
+      setTaskProgress, startJob: startProjectJob, // #3953
       onDone: (result) => {
         const verdict = fitVerdict(result);
         const model = resultToVoxelModel(result, meta);
@@ -451,7 +451,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     const p = await doPlan("forward", { plates });
     if (!p) return;
     const meta = { label: `${M.label} forward model`, surveyName: `${planned.on ? tr("Planned grid") : activeSurvey}: ${rows.length} stations`, ...p.meta, plannedGrid: planned.on ? plannedGrid.stats : null }; // #364; plannedGrid: #1710
-    const res = await startInversionJob(p.request, meta, { setTaskProgress, onDone: (result) => setLastResult({ result, prepared: p, verdict: null, meta }) }); // meta: #1710
+    const res = await startInversionJob(p.request, meta, { setTaskProgress, startJob: startProjectJob /* #3953 */, onDone: (result) => setLastResult({ result, prepared: p, verdict: null, meta }) }); // meta: #1710
     if (!res.ok) setMsg({ ok: false, text: res.error });
   };
 
@@ -477,7 +477,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     if (!p) return;
     const meta = { label: `${M.label}: geology model "${geoModel.name}"`, surveyName: `${planned.on ? tr("Planned grid") : activeSurvey}: ${rows.length} stations`, ...p.meta, plannedGrid: planned.on ? plannedGrid.stats : null }; // plannedGrid: #1710
     const geoInfo = { modelName: geoModel.name, units: body.units, background: num(geo.background), cellsSent: body.cells.length };
-    const res = await startInversionJob(p.request, meta, { setTaskProgress, onDone: (result) => setLastResult({ result, prepared: p, verdict: null, geo: geoInfo, meta }) }); // meta: #1710
+    const res = await startInversionJob(p.request, meta, { setTaskProgress, startJob: startProjectJob /* #3953 */, onDone: (result) => setLastResult({ result, prepared: p, verdict: null, geo: geoInfo, meta }) }); // meta: #1710
     if (!res.ok) setMsg({ ok: false, text: res.error });
   };
 

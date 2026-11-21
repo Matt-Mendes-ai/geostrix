@@ -9,13 +9,13 @@ const src = fs.readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", imp
 test("the Simple set follows whether the project has collars", () => {
   assert.match(src, /const noHoles = !spacingCollars\.length;/);
   assert.match(src, /<RibbonGroup label="View" advanced=\{!noHoles\}>/); // the group shows in Simple only for 3D slice
-  assert.match(src, /<RibbonButton advanced=\{!noHoles\} icon=\{SquareSplitVertical\} label="3D slice"/);
-  assert.match(src, /<RibbonButton advanced=\{!noHoles\} icon=\{Layers3\} label="Level plan"/);
+  assert.match(src, /<RibbonButton advanced=\{!noHoles\} icon=\{Slice3dIcon\} label="3D slice"/);
+  assert.match(src, /<RibbonButton advanced=\{!noHoles\} icon=\{LevelPlanIcon\} label="Level plan"/);
   // TASKS.csv #3908 — Data QC is Advanced with or without holes now (the Model button keeps the Basic list at nine)
   assert.match(src, /<div className="ge-ribbon-cell ge-adv">\{\/\* TASKS\.csv #3908 — Advanced, so Model keeps the Basic list at nine \(ribbonTiers3903\) \*\/\}\n\s+<HoverToolInfo title=\{tr\("Run data QC"\)\}/);
   // TASKS.csv #3914 — Boundary intercepts is Advanced with or without holes now (test/ribbonTiers3903)
   assert.match(src, /<div className="ge-ribbon-cell ge-adv">\{\/\* TASKS\.csv #3914 — a specialist report: Advanced \*\/\}\n\s+<HoverToolInfo title=\{tr\("Boundary intercepts"\)\}/);
-  assert.match(src, /<RibbonButton advanced=\{noHoles\} icon=\{FileBarChart2\} label="Best intercepts"/);
+  assert.match(src, /<RibbonButton advanced=\{noHoles\} icon=\{BestInterceptsIcon\} label="Best intercepts"/);
 });
 
 test("Grid, Figure overlay and Themes stay Advanced either way (so the View group shows only 3D slice in Simple)", () => {

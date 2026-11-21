@@ -38,7 +38,7 @@ export function VoxelChoice({ o, setO, lbl, row }) {
 }
 
 export default function Dcip3dPanel({ pBtn, numInput }) {
-  const { terrain, dcipLines, addVoxelModelToTab, getProjectToken } = useStore();
+  const { terrain, dcipLines, addVoxelModelToTab, getProjectToken, startProjectJob /* #3953 */ } = useStore();
   const setTaskProgress = useSetTaskProgress();
   const placed = useMemo(() => dcipLines.map((e) => ({ e, l: lineIn3d(e, terrain) })), [dcipLines, terrain]);
   const usable = placed.filter((p) => p.l.ok);
@@ -109,7 +109,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
       geometricFactor: req.geometricFactor, interpretation: "One smooth 3D model fitting every line's readings to the stated uncertainty. In each column, cells below the deepest one the data see (support at or above the cutoff) are left out of the block model: below that the values are the regularization's extrapolation, not data. No depth-of-investigation (DOI) index is computed in 3D.",
     };
     const res = await startInversionJob(req, { label: tr("3D DC/IP inversion ({n} lines)", { n: names.length }), dcip3d: true }, {
-      kind: "dcip3d", setTaskProgress,
+      kind: "dcip3d", setTaskProgress, startJob: startProjectJob, // #3953 — into its own project only
       onDone: (result) => {
         const cut = Number(o.cutoff) || 0, maxCell = 2 * req.mesh.core;
         const runParams = { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.iterations, fitChoice: result.fitChoice, ...(result.ip ? { ip: { phiD: result.ip.phi_d, iterations: result.ip.iterations, ...ipFitStored(result) } } : {}) } /* #970 — the #682 rule */,

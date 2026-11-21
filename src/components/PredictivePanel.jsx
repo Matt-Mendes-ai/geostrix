@@ -4,7 +4,8 @@ import GeomlMissedIntercepts from "./GeomlMissedIntercepts.jsx"; // TASKS.csv #1
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
 import { planDomain, planGrade, roughTime, INDUCING_CAP, INDUCING_LIMIT_NO_CAP, FOCUS_SPACING, FOCUS_OTHER } from "../lib/geomlPlan.js"; // TASKS.csv #1146; #1312
-import { useSetTaskProgress } from "../lib/store.jsx";
+import { useSetTaskProgress, useStartProjectJob } from "../lib/store.jsx"; // useStartProjectJob: TASKS.csv #3953 (stable, like the progress setter)
+import { noJob, isProjectGone } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a geoML model lands only in the project it was run for
 import { addonStatus, addonCpuCheck, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob, addonHas } from "../lib/geomlAddon.js";
 import { gradeStops, labStopsAt, sequentialStops } from "../lib/inversion.js";
 import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
@@ -50,6 +51,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
   const job = useSyncExternalStore(subscribeRun, getRun);
   const runs = useSyncExternalStore(subscribeRun, getRunHistory);
   const setTaskProgress = useSetTaskProgress();
+  const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const [cpu, setCpu] = useState(null); // TASKS.csv #689 — { avx: true | false | null }, asked once the add-on is known to be missing
   useEffect(() => { if (st && st.available !== false && !st.installed && !cpu) addonCpuCheck().then(setCpu); }, [st, cpu]);
   const refresh = () => addonStatus().then(setSt).catch(() => setSt({ available: false }));
@@ -113,6 +115,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
   const run = async (label, kind, params, onResult) => {
     const ctrl = new AbortController();
     beginRun(label, ctrl, tr("Starting the add-on"));
+    const pj = startProjectJob ? startProjectJob({ label: tr("geoML: {label}", { label }), cancel: () => ctrl.abort() }) : noJob(label); // TASKS.csv #3953 — closing its project stops the run; onResult lands it
     // #1142 — in the status bar with its Cancel, so a long run stays visible and stoppable from any pane
     const statusLabel = tr("geoML: {label}", { label }), toBar = (progress) => setTaskProgress({ label: statusLabel, pct: (progress || 0) * 100, onCancel: () => cancelRun(tr("Cancelling…")) });
     toBar(0);
@@ -128,14 +131,14 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       }
       if (trend) params = { ...params, trend: trendToGeoml(trend) };
       const res = await runJob(kind, params, (s) => { if (!getRun()?.cancelling) updateRun({ progress: s.progress, message: s.message, elapsed: s.elapsed }); toBar(s.progress); }, ctrl.signal);
-      const note = `${await onResult(res)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""}`;
+      const note = `${await onResult(res, pj)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""}`;
       const secs = Math.round((Date.now() - t0) / 1000);
       record = { label, note, secs, at: new Date().toLocaleTimeString(), intercepts: res.intercepts || null };
       setNotices((p) => [...p, notice("geoML — {label}: {note} ({secs} s).", { label, note, secs })]);
     } catch (e) {
       if (e.busyJobId) setBusyJob(e.busyJobId); // #691 — a model left running earlier: offer to cancel it
-      setNotices((p) => [...p, errorNotice(tr("geoML — {label}: {message}", { label, message: e.message }))]); // #739
-    } finally { endRun(record); setTaskProgress(null); refresh(); }
+      if (!isProjectGone(e) && !pj.gone) setNotices((p) => [...p, errorNotice(tr("geoML — {label}: {message}", { label, message: e.message }))]); // #739; its project closed: the store said so (TASKS.csv #3953)
+    } finally { endRun(record); setTaskProgress(null); refresh(); pj.end(); } // pj: TASKS.csv #3953
   };
 
   const runUnit = async () => {
@@ -149,12 +152,13 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
     const check = interceptCheckPoints(unitIntercepts(sent, unit), collars, survey || [], desurveyHole, pointOnTrace, desurveyMethod); // #1318
     params.check_points = check.points;
     const sizing = plan && (plan.focused || plan.factor > 1) ? { holesSent: plan.nHoles, holesInProject: plan.totalHoles, focusM: plan.focused ? plan.focusM : null, trainSpacingM: plan.trainSpacing, inducingSpacingM: plan.inducingSpacing, pointsWithoutSizing: plan.wanted.points } : null;
-    run(`${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`, "domain", params, async (res) => {
+    run(`${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`, "domain", params, async (res, pj) => { // pj: TASKS.csv #3953
       const parts = [];
       const intercepts = res.intercepts = scoreIntercepts(check.spans, res.check_probability); // #1318
       // #673 — clip to the range the model LEARNT when the add-on reports it (0.1.2+); 400 m is only training's start
       const range = Math.round(res.range?.trained || 400);
       const clip = await clipper(sent, range);
+      await pj.landing(); // TASKS.csv #3953 — into the project it started in (its project gone: throws, and run says nothing more)
       if (res.surface?.triangles?.length) {
         // #646 — triangles above the ground or beyond the range are left out (vertices kept; unused ones are harmless)
         const v = res.surface.vertices;
@@ -205,11 +209,12 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
     if (!samples.length) { setNotices((q) => [...q, notice("geoML grade model: no {element} samples to model after QA/QC rows were left out.", { element })]); return; }
     const unitTxt = el?.unit ? ` ${el.unit}` : "";
     const gq = planGrade({ samples, composite: QUALITY[quality].grade.composite, inducing: QUALITY[quality].grade.inducing, iterations: QUALITY[quality].grade.iterations }); // #1146
-    run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade, composite: gq.composite }, async (res) => {
+    run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade, composite: gq.composite }, async (res, pj) => { // pj: TASKS.csv #3953
       const b = res.blocks;
       checkBlocks(b, ["prediction"]); // #741 (p10 / p90 are optional)
       const range = Math.round(res.range?.trained || 150); // #673 — the learnt range (0.1.2+), else training's start
       const r = (await clipper(samples, range))(blockPoints(b));
+      await pj.landing(); // TASKS.csv #3953 — into the project it started in (its project gone: throws, and run says nothing more)
       const keep = r.keep.map((k, i) => k && Number.isFinite(b.prediction[i])); // a spread only where there is a grade
       const cells = blockCells(b, keep, (i) => b.prediction[i]);
       const spread = b.p10 && b.p90 ? blockCells(b, keep, (i) => b.p90[i] - b.p10[i]) : [];

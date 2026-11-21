@@ -5,6 +5,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { holeYear, collarDateFields, newHoleIds, parseIdList } from "../../lib/viewer/domainUpdate.js";
 import { gridBlockCount, cellToFit } from "../../lib/estimationMeta.js"; // TASKS.csv #3674 — the cell the pane's budget leaves
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
+import { useStore } from "../../lib/store.jsx"; // TASKS.csv #3953
 
 export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay, style, fieldStyle, selectStyle, buttonStyle }) {
   const imported = (ctx.implicitSurfaces || []).filter((s) => s.type === "imported");
@@ -21,6 +22,7 @@ export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay,
   const [widthText, setWidthText] = useState("");
   const [reachText, setReachText] = useState("");
   const noteCache = useRef({}); // the budget note's figures, worked out once per domain / budget / cell
+  const startProjectJob = useStore()?.startProjectJob; // TASKS.csv #3953 (before the early return: hooks run on every render)
   if (!imported.length) return null;
   const sid = imported.some((s) => s.id === surfaceId) ? surfaceId : imported[0].id;
   const fy = Number(firstYear) || (years.length ? years[years.length - 1] : "");
@@ -42,8 +44,9 @@ export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay,
   noteCache.current = { key: noteKey, value: budgetNote };
   const run = async () => {
     setBusy(true);
-    try { const { runDomainUpdate } = await import("./domainUpdateRun.js"); await runDomainUpdate(ctx, { surfaceId: sid, firstYear: fy, select, priorWidthM: Number(widthText) > 0 ? Number(widthText) : null, newReachM: Number(reachText) > 0 ? Number(reachText) : null, symbol, cutoff, iso }); }
-    finally { setBusy(false); }
+    const job = startProjectJob?.({ label: tr("Update an imported domain with new drilling") }) || null; // TASKS.csv #3953
+    try { const { runDomainUpdate } = await import("./domainUpdateRun.js"); await runDomainUpdate(ctx, { job, surfaceId: sid, firstYear: fy, select, priorWidthM: Number(widthText) > 0 ? Number(widthText) : null, newReachM: Number(reachText) > 0 ? Number(reachText) : null, symbol, cutoff, iso }); }
+    finally { setBusy(false); job?.end(); }
   };
   return (
     <div style={style}>
