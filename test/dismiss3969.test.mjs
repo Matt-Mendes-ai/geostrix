@@ -32,6 +32,13 @@ test("wired: the guided card and the ribbon's popovers close on a dialog, a pres
   assert.match(v, /useDismiss\(!!openPopover, \(n\) => !!n\?\.closest\?\.\("\[data-ribbon-popover\], \[aria-haspopup\]\[aria-expanded\]"\), \(\) => setOpenPopover\(null\)\);/);
   const p = read("modules/viewer/ViewerParts.jsx");
   assert.equal((p.match(/data-ribbon-popover=""/g) || []).length, 4, "the Model menu, Grid, Figure and Themes");
+  // the other ribbon menus (Main's follow-up): Layout's Add menu and Geochem's lithology menu
+  const l = read("modules/LayoutModule.jsx");
+  assert.match(l, /useDismiss\(!!addMenu, \(n\) => !!n\?\.closest\?\.\('\[data-add-menu\], \[aria-expanded="true"\]'\), \(\) => setAddMenu\(null\)\);/);
+  assert.doesNotMatch(l, /window\.addEventListener\("mousedown", off\)/, "its own listener is gone");
+  const gc = read("modules/GeochemModule.jsx");
+  assert.match(gc, /useDismiss\(lithMenuOpen, \(n\) => !!n\?\.closest\?\.\("\[data-lith-menu\]"\), \(\) => setLithMenuOpen\(false\)\);/);
+  assert.match(gc, /<div data-lith-menu="" style=/);
   // the dialogs opened from the ribbon declare themselves modal, so the rule sees them
   assert.match(read("components/BestIntercepts.jsx"), /role="dialog" aria-modal="true"/);
 });
