@@ -9,6 +9,7 @@
 // setting (lib/startFlow.js). Offline, or the download declined, the project keeps the collar heights and says so. Nothing is fetched without a click.
 import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../lib/store.jsx";
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the download lands only in the project it started in
 import { requestModuleAction } from "../lib/menuRequests.js";
 import { startOptedOut, setStartOptOut, shouldCloseStart } from "../lib/startFlow.js"; // shouldCloseStart: #3930
 import { groundFileKind, terrainSummary, crsWords, groundStrip, startChecklist, startDestination, qcLine, parseEpsgInput, whatIsThis } from "../lib/startChecklist.js"; // qcLine, parseEpsgInput, whatIsThis: #3918
@@ -45,7 +46,7 @@ function DropArea({ onFiles, multiple, accept, label, busy, picture }) {
 
 export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenProject }) {
   const store = useStore();
-  const { project, terrain, addTerrain, setEpsg, projectIsEmpty, collars } = store;
+  const { project, terrain, addTerrain, setEpsg, projectIsEmpty, collars, startProjectJob } = store; // startProjectJob: TASKS.csv #3953
   const [step, setStep] = useState(1);
   const [noDrill, setNoDrill] = useState(false);
   const [ground, setGround] = useState(null); // "file" | "make" | "skip"
@@ -133,6 +134,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
     const offline = () => setStripDone({ text: tr("No internet connection: using the collar heights for now. Add a terrain later with Add data."), warn: true });
     if (typeof navigator !== "undefined" && navigator.onLine === false) { offline(); return; }
     setBusy(true);
+    const job = startProjectJob ? startProjectJob({ label: tr("Terrain") }) : noJob(tr("Terrain")); // TASKS.csv #3953
     try {
       const box = fetchAreaBox(collars, store.surfaceSamples || []);
       const { toLonLat } = await import("../lib/reproject.js");
@@ -143,16 +145,18 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       const parsed = await fetchCopernicusTerrain({ lonMin: ext[0], latMin: ext[1], lonMax: ext[2], latMax: ext[3], targetEpsg: useEpsg, gridMax: 200 });
       // #3918 — Maps > Terrain's own check (lib/srtmFetch.js): collars hundreds of metres off the ground are in the wrong UTM zone, or not
       const { collarGroundMisfit, findBetterUtmZone, MISFIT_ZONE_M } = await import("../lib/srtmFetch.js");
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       const misfit = zoneEpsg ? null : collarGroundMisfit(collars, parsed);
       if (misfit && misfit.medianDz > MISFIT_ZONE_M) {
         const better = await findBetterUtmZone(collars, useEpsg, misfit);
+        if (!(await landed(job))) return; // TASKS.csv #3953 — again, after the last await
         if (better) { setZoneAsk({ better, misfit, parsed }); return; }
       }
       keepGround(parsed, misfit && misfit.medianDz > MISFIT_ZONE_M ? tr(" Check the project CRS and the collar elevations (feet? a local datum?): the collars sit a median {v} m off this terrain.", { v: Math.round(misfit.medianDz) }) : "");
     } catch (e) {
       if (typeof navigator !== "undefined" && navigator.onLine === false) offline();
       else setStripDone({ text: tr("The ground could not be downloaded ({error}): using the collar heights for now. Add a terrain later with Add data.", { error: String(e?.message || e) }), warn: true });
-    } finally { setBusy(false); }
+    } finally { setBusy(false); job.end(); } // job: TASKS.csv #3953
   };
 
   const keepGround = (parsed, extra = "") => {

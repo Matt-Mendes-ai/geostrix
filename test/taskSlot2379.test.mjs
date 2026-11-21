@@ -34,6 +34,7 @@ test("alone, a tool shows its own progress and clears it; a task with no Cancel 
 
 test("the short tools use it, and none clears the slot outright", () => {
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.equal((m.match(/ownTask\((label|taskLabel)\)\.clear\(\)/g) || []).length, 3); // #3700 (1): the shell's task keeps the name it started with
+  // #3700 (1): the shell's task keeps the name it started with; #3953: the halo and the shell also clear their own entry where a closed project stops them (2 each)
+  assert.equal((m.match(/ownTask\((label|taskLabel)\)\.clear\(\)/g) || []).length, 7);
   assert.equal((m.match(/setTaskProgress\?\.\(\{ label, pct: 20 \}\)/g) || []).length, 0);
 });

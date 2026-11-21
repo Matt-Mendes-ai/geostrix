@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { useStore } from "../lib/store.jsx";
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the grid lands only in the project it was made for
 import { t as tr } from "../lib/i18n.js";
 import { gridSamples, logByDefault, samplePoints, suggestSampleGrid, MINCURV_MAX_CELLS, SPLINE_MAX_CELLS, splineRequest, splineFinish } from "../lib/sampleGrid.js";
 import { rasterColourFields } from "../lib/rasterColour.js";
@@ -12,7 +13,7 @@ import { defaultDrapeElevation } from "../lib/drapeElevation.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 export default function SampleGridPanel({ setNotices }) {
-  const { surfaceSamples, surfaceElements, addRaster, collars, voxelModels } = useStore();
+  const { surfaceSamples, surfaceElements, addRaster, collars, voxelModels, startProjectJob /* #3953 */ } = useStore();
   const [open, setOpen] = useState(false);
   const [symbol, setSymbol] = useState("");
   const [medium, setMedium] = useState("");
@@ -38,8 +39,11 @@ export default function SampleGridPanel({ setNotices }) {
       if (sp.error) res = sp;
       else {
         setBusy(tr("Starting the Python engine…"));
-        const job = await runPfieldsJob(sp.request, { onProgress: (q) => setBusy(q.message || tr("Working…")) });
+        const ac = new AbortController(), pj = startProjectJob ? startProjectJob({ label: tr("Grid to raster"), cancel: () => ac.abort() }) : noJob(tr("Grid to raster")); // TASKS.csv #3953 — closing its project stops the engine
+        const job = await runPfieldsJob(sp.request, { signal: ac.signal, onProgress: (q) => setBusy(q.message || tr("Working…")) });
         setBusy(null);
+        if (!(await landed(pj))) return; // TASKS.csv #3953 — into the project it started in
+        pj.end();
         if (!job.ok) { setNotices((p) => [...p, tr("The spline failed: {message}", { message: job.error })]); return; }
         res = splineFinish(sp.plan, b64ToF32(job.data.values), job.data);
       }

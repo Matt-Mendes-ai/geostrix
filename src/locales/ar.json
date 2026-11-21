@@ -14626,5 +14626,11 @@
   "Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.": "ينعّم الدرجات المستقيمة على الأرض المستوية. وتبقى المنحدرات والحواف والجروف.",
   "Smoothing undone.": "أُلغي التنعيم.",
   "No steps found: nothing changed.": "لم يُعثر على درجات: لم يتغير شيء.",
-  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "نُعّمت الدرجات: تغيّرت {n} عقدة، بما يصل إلى {max} م (الوسيط {med} م)."
+  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "نُعّمت الدرجات: تغيّرت {n} عقدة، بما يصل إلى {max} م (الوسيط {med} م).",
+  "{label} finished for \"{project}\", which is open in another tab: it is added there when you show that tab.": "انتهى {label} للمشروع \"{project}\" المفتوح في علامة تبويب أخرى: يُضاف هناك عندما تعرض علامة التبويب تلك.",
+  "{label}: added to \"{project}\" now that it is shown.": "{label}: أُضيف إلى \"{project}\" الآن بعد عرضه.",
+  "{label} cancelled: another project was opened in its tab.": "أُلغي {label}: فُتح مشروع آخر في علامة تبويبه.",
+  "{label} cancelled: its project was closed.": "أُلغي {label}: أُغلق مشروعه.",
+  "{label} was not added: its project is no longer open.": "لم يُضف {label}: مشروعه لم يعد مفتوحًا.",
+  "This estimate was made in another project. Show that project to add it, or run it again here.": "أُجري هذا التقدير في مشروع آخر. اعرض ذلك المشروع لإضافته، أو شغّله مرة أخرى هنا."
 }

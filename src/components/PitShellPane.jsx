@@ -8,6 +8,7 @@ import { Pickaxe, Eye, EyeOff, Trash2, Pencil, Maximize2 } from "./icons.js"; //
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a pit lands only in the project it was run for
 import { shortModelName, highStripRatio, HIGH_STRIP_RATIO, cutoffUnits /* #3318 */, joinByProduct /* #2115 */, pitEconomics, pitMetalOf, elementOfModel, SECTORS, hasSectorSlopes, slopeForSector, priceUnitsFor, PRICED_MASS_T, metalAmountText, gradeWithElement, oxideSuffix /* #2594 */, gradeUnitText /* #2111 */, planCellForSlope /* #2985 */, UNIT_PRICED /* #2986 */, unitWithElement /* #2995 */ } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748; SECTORS: #1881
 import { sgSummary } from "../lib/gradeTonnage.js";
 import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3587
@@ -59,7 +60,7 @@ let kept = null; // #1356 — the last result, shown again when the pane or the 
 // onAdd({ name, positions, indices, params, tip, type, closure, color, tag }) puts the pit in the 3D view; onToggle(id) shows/hides a surface;
 // onRemove(id) deletes one (#1498).
 export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove, onClose, onZoomTo = null }) { // onZoomTo: #2996
-  const { voxelModels = [], terrain, layers, collars = [], assays = [], assayElements = [], survey = [], desurveyMethod, designStrings = [], project: shellProject, setProjectCurrency } = useStore();
+  const { voxelModels = [], terrain, layers, collars = [], assays = [], assayElements = [], survey = [], desurveyMethod, designStrings = [], project: shellProject, startProjectJob /* #3953 */, setProjectCurrency } = useStore();
   const cur = currencyOf(shellProject), tr = (k, v) => withCurrency(trRaw(k, v), cur); // TASKS.csv #3797 (b) - every text of this pane prints the project currency (blank: $) // project: #3587 // assays..desurveyMethod: #2593; designStrings: #2120
   const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   // a grade: a unit that counts metal first, then none stated (an import may simply not say); never a resistivity, a variance, an inversion or a category
@@ -254,6 +255,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
     const inputs = { unit, element, ...(typedCut ? { typedCutoff: typedCut } : {}) /* #2986 */, ...(isProduct ? { priceBasis: "product", refGrade: Number(f.refGrade), adjPerUnit: f.adjPerUnit === "" ? 0 : Number(f.adjPerUnit), penalties: penInputs } : {}) /* #2986 part 2: saved with the pit */, price: value("price"), priceUnit, recovery: value("recovery"), miningCost: value("miningCost"), processingCost: value("processingCost"), density: value("density"), ...(Number(f.wasteDensity) > 0 ? { wasteDensity: Number(f.wasteDensity) } : {}) /* #2437 */, ...(f.densityLayer && typedCodeDensities(f.densityByCode) ? { densityLayer: f.densityLayer, densityByCode: typedCodeDensities(f.densityByCode) } : {}) /* #2647 */, slopeDeg: value("slopeDeg"), revenueFactor: rf, size, ...(Object.keys(sectors).length ? { sectorSlopes: sectors } : {}), ...(byInputs ? { by: byInputs } : {}), ...(weathInputs ? { weathered: weathInputs } : {}) /* #2597 */, ...(upperTyped && !upperBad ? { upperSlope: { slopeDeg: Number(f.upperDeg), rl: Number(f.upperRL) } } : {}) /* #2439 */, ...(f.limitM !== "" && f.limitM != null && Number(f.limitM) >= 0 ? { limitM: Number(f.limitM) } : {}) /* #2665 */ }; // by: #1917
     setBusy(0); setMsg(null); // the previous result stays until a new one arrives (#1366)
     const t0 = performance.now();
+    const pj = startProjectJob ? startProjectJob({ label: trRaw("Pit shell"), cancel: () => job.current?.cancel() }) : noJob(trRaw("Pit shell")); // TASKS.csv #3953 — closing its project stops the worker
     try {
       const runInputs = weathInputs?.freshCode ? { ...inputs, weathered: { ...weathInputs, points: weathBase.points } } : inputs; // #2597 — the points go to the solve, not into the saved pit
       const byIn = clip(byModel), coded = modelWithCodeDensity(areaWithWaste(model), inputs, layers, collars, survey, desurveyMethod), mIn = coded.model; // #2120; per-code density: #2647; areaWithWaste: #3314
@@ -264,6 +266,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       for (const r of isProduct ? penRows : []) { const m = penModelOf(r); if (m && !alsoChosen.includes(m)) alsoIn.push({ model: clip(m), label: alsoLabel(m), unit: valueUnit(m) || "", element: valueUnit(m) ? elementOfModel(m) : null, modelName: m.name }); } // a penalty's grade is reported too
       job.current = runPitShellAsync(mIn, runInputs, terrain, (phases) => setBusy(phases), collarsForGround(collars, survey), byIn, alsoIn, penModels); // collars: the ground when there is no terrain (#1353); byModel: #1917; clipped to the pit area: #2120
       const r = await job.current.promise;
+      if (!(await landed(pj))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       setRes(null); kept = null;
       if (r.failed || r.empty) {
@@ -316,6 +319,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       setMsg(tr("The pit run failed: {v}", { v: e.message || e }));
     } finally {
       setBusy(null); job.current = null;
+      pj.end(); // TASKS.csv #3953
     }
   };
   const cancel = () => job.current?.cancel();

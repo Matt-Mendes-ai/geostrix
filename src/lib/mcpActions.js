@@ -9,6 +9,7 @@
 //  - Every change shows: a toast says what was done, with Undo, and stays until dismissed; the AI App Access window lists the change with the same Undo
 //    (lib/mcpChangeLog.js), so it is not lost with the toast; the answer to the app is short ({ ok, changed, name, id }).
 import { t as tr } from "./i18n.js";
+import { landed } from "./projectJobs.js"; // TASKS.csv #3953 — an AI app's change belongs to the project it was asked in
 import { requestModuleAction } from "./menuRequests.js";
 import { holeTraces } from "./evidenceSources.js";
 import { sectionThroughHole } from "./sectionDefs.js";
@@ -151,16 +152,22 @@ export async function runChange(name, args, { getStore, client = "An AI app", to
   const s = getStore?.();
   if (!s) return { ok: false, error: "GeoStrix has no project open to change." };
   try { s.undoCheckpoint?.(); } catch { /* no history */ }
+  // TASKS.csv #3953 — a change that takes a while (a satellite image, a terrain) finishes into the project it was asked in, or not at all
+  const job = s.startProjectJob?.({ label: tr("{client}: {what}", { client, what: String(name) }) }) || null;
   let r;
   try { r = await act(args && typeof args === "object" ? args : {}, s, { getStore, client }); } catch { return { ok: false, error: "The change could not be made." }; } // a stack or a path never goes out
-  if (!r?.ok) return { ok: false, error: String(r?.error || "The change could not be made.").slice(0, 400) };
+  if (!r?.ok) { job?.end(); return { ok: false, error: String(r?.error || "The change could not be made.").slice(0, 400) }; }
+  if (job && !(await landed(job))) return { ok: false, error: "The project this change was asked in was closed before it finished; nothing was changed in another project." }; // #3953
+  job?.end();
   await settle();
   const said = r.say ? tr("{client}: {what}", { client, what: r.say }) : "";
   try { getStore?.()?.undoCheckpoint?.(r.tracked && said ? said : undefined); } catch { /* no history */ }
   if (said) {
     const revert = typeof r.revert === "function" ? r.revert : null;
     // #3932 (Main) — the change is also listed in AI App Access with its own Undo; the toast's and the list's Undo are one (it runs once)
-    const entry = recordChange({ client, tool: name, message: said, revert: revert ? () => { const st = getStore?.(); try { st?.undoCheckpoint?.(); revert(st); } catch { /* already gone */ } } : null });
+    // #3953 — its Undo acts on the project it changed only (shown again later it can still be undone; in another project it does nothing)
+    const ownKey = job?.key || null;
+    const entry = recordChange({ client, tool: name, message: said, revert: revert ? () => { const st = getStore?.(); if (ownKey && st?.isSameProject && !st.isSameProject({ key: ownKey })) return; try { st?.undoCheckpoint?.(); revert(st); } catch { /* already gone */ } } : null });
     try { toast({ ok: true, message: said, sticky: true, ...(revert ? { undo: () => entry.undo(), entry } : {}) }); } catch { /* no window */ }
   }
   return { ok: true, data: { ok: true, ...(r.data || {}) } };

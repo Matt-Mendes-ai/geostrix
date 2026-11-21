@@ -5,6 +5,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { holeYear, collarDateFields, newHoleIds, parseIdList } from "../../lib/viewer/domainUpdate.js";
 import { gridBlockCount, cellToFit } from "../../lib/estimationMeta.js"; // TASKS.csv #3674 — the cell the pane's budget leaves
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
+import { useStore } from "../../lib/store.jsx"; // TASKS.csv #3953
 
 export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay, style, fieldStyle, selectStyle, buttonStyle }) {
   const imported = (ctx.implicitSurfaces || []).filter((s) => s.type === "imported");
@@ -40,10 +41,12 @@ export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay,
     return { budget, cell: Math.round(cellToFit(b, budget, c0)), asked: c0 };
   })();
   noteCache.current = { key: noteKey, value: budgetNote };
+  const startProjectJob = useStore()?.startProjectJob; // TASKS.csv #3953
   const run = async () => {
     setBusy(true);
-    try { const { runDomainUpdate } = await import("./domainUpdateRun.js"); await runDomainUpdate(ctx, { surfaceId: sid, firstYear: fy, select, priorWidthM: Number(widthText) > 0 ? Number(widthText) : null, newReachM: Number(reachText) > 0 ? Number(reachText) : null, symbol, cutoff, iso }); }
-    finally { setBusy(false); }
+    const job = startProjectJob?.({ label: tr("Update an imported domain with new drilling") }) || null; // TASKS.csv #3953
+    try { const { runDomainUpdate } = await import("./domainUpdateRun.js"); await runDomainUpdate(ctx, { job, surfaceId: sid, firstYear: fy, select, priorWidthM: Number(widthText) > 0 ? Number(widthText) : null, newReachM: Number(reachText) > 0 ? Number(reachText) : null, symbol, cutoff, iso }); }
+    finally { setBusy(false); job?.end(); }
   };
   return (
     <div style={style}>

@@ -19,6 +19,7 @@ import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
 import { pageAfterUndo, creditIntoSteps } from "./layoutPageUndo.js"; // TASKS.csv #3935
+import { createProjectJobs, newProjectKey, syncTabKeys } from "./projectJobs.js"; // TASKS.csv #3953 — a long job delivers only into its own project
 import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
 import { rowsOf, isTable } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
 import { noteRemovedLayers, releaseUnheld, noteRemovedItems, releaseUnheldItems, noteClosedTabs, releaseClosedTabs } from "./mapLayerRelease.js"; // TASKS.csv #2824; the others: #3881
@@ -33,6 +34,9 @@ import { titleToKeep, withProjectTitle } from "./projectTitle.js"; // TASKS.csv 
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
+// TASKS.csv #3953 — the store's startProjectJob alone (stable): a pane that starts a long job takes it with no re-render on every store write (#438)
+const ProjectJobsContext = createContext(null);
+export const useStartProjectJob = () => useContext(ProjectJobsContext);
 
 // TASKS.csv #438 — the always-mounted 3D viewer (#225) is hidden (display:none) whenever another tab is
 // showing, yet as a useStore() consumer it re-rendered on EVERY store write: each Layout drag step, each
@@ -651,6 +655,13 @@ export function StoreProvider({ children }) {
   // went: "active" | "tab" | "gone" (that tab was closed or its project replaced — the caller says so).
   const addVoxelModelToTab = useLatestCallback((tok, model) => {
     // refs read at CALL time (declared further down the provider; a deps-array reference would hit the TDZ)
+    if (tok?.key) { // TASKS.csv #3953 — by the project's key: the tab holding that project, wherever it is now
+      if (tok.key === projectKeyRef.current) { addVoxelModel(model); return "active"; }
+      const tabId = [...tabKeysRef.current].find(([id, k]) => k === tok.key && id !== activeTabIdRef.current)?.[0];
+      if (!tabId || !autosaveTabsRef.current.workspaceTabs.some((t) => t.id === tabId && t.payload)) return "gone";
+      setWorkspaceTabs((prev) => prev.map((t) => (t.id === tabId && t.payload ? { ...t, dirty: true, payload: { ...t.payload, voxelModels: [...(t.payload.voxelModels || []), prepareVoxelModel(model)] } } : t)));
+      return "tab";
+    }
     if (tok && tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current) { addVoxelModel(model); return "active"; }
     const exists = autosaveTabsRef.current.workspaceTabs.some((t) => t.id === tok?.tabId && t.payload);
     if (!exists || tok.tabId === activeTabIdRef.current) return "gone"; // same tab but a different project now
@@ -1207,6 +1218,7 @@ export function StoreProvider({ children }) {
     extraDirtyBaseline.current = null; // #462
     undoRebaseline.current = true; setTimeout(() => { undoRebaseline.current = false; }, 0); // #478 (never left armed: it must not swallow a real edit)
     projectSeqRef.current++; // #466 — a different project now lives in this tab
+    projectKeyRef.current = restoreKeyRef.current || newProjectKey(); restoreKeyRef.current = null; // #3953 — a tab shown again keeps its key
     setActiveTabDirty(false);
   }, []);
 
@@ -1228,8 +1240,14 @@ export function StoreProvider({ children }) {
   const activeTabIdRef = useRef(activeTabId);
   activeTabIdRef.current = activeTabId;
   const projectSeqRef = useRef(0);
-  const getProjectToken = useCallback(() => ({ tabId: activeTabIdRef.current, seq: projectSeqRef.current }), []);
-  const isSameProject = useCallback((tok) => !!tok && tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current, []);
+  // TASKS.csv #3953 — and its own key (lib/projectJobs.js), given when a project is created, opened or restored and carried by its tab across
+  // switches: the counter above moves on every switch too, so a result whose tab was left and shown again was dropped as if its project had gone
+  const projectKeyRef = useRef(null);
+  if (!projectKeyRef.current) projectKeyRef.current = newProjectKey();
+  const tabKeysRef = useRef(new Map()); // tab id -> its project's key (the shown tab's is set after each render, below)
+  const restoreKeyRef = useRef(null); // a tab coming forward keeps its key: set just before its payload is loaded
+  const getProjectToken = useCallback(() => ({ tabId: activeTabIdRef.current, seq: projectSeqRef.current, key: projectKeyRef.current }), []);
+  const isSameProject = useCallback((tok) => !!tok && (tok.key ? tok.key === projectKeyRef.current : tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current), []);
   // TASKS.csv #2640 (side 2's Stage 1) — the last GemPy request as sent (modellingRuns.js): session only, not in FIELDS (never saved, never in
   // undo); tagged with the project it was made in, and read as null once another project is showing
   const [lastImplicitRequest, setLastImplicitRequestRaw] = useState(null);
@@ -1343,6 +1361,7 @@ export function StoreProvider({ children }) {
     extraDirtyBaseline.current = null; // #462 — a freshly loaded project is not "changed"
     undoRebaseline.current = true; setTimeout(() => { undoRebaseline.current = false; }, 0); // #478 (never left armed: it must not swallow a real edit)
     projectSeqRef.current++; // #466 — a different project now lives in this tab
+    projectKeyRef.current = restoreKeyRef.current || newProjectKey(); restoreKeyRef.current = null; // #3953 — a tab shown again keeps its key
     setActiveTabDirty(false);
   }, []);
 
@@ -1389,6 +1408,7 @@ export function StoreProvider({ children }) {
     const current = snapshotCurrentPayload();
     // TASKS.csv #3885 — the tab coming forward drops its stored payload (payload: null, as every active tab: its data is live now). It kept it, so the tab list
     // itself held the snapshot it was loaded from, and anything removed or replaced in that tab afterwards stayed alive through it (and counted as 'held by a tab')
+    restoreKeyRef.current = tabKeysRef.current.get(tabId) || null; // #3953 — the same project as before, by its key
     setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t.id === tabId ? { ...t, payload: null } : t)));
     loadProjectPayload(expanded && target.payload === stashed ? expanded : target.payload, target.name);
     // TASKS.csv #479 — loadProjectPayload marks a project clean (right for Open), but a tab you switch to keeps
@@ -1501,6 +1521,7 @@ export function StoreProvider({ children }) {
       return;
     }
     const next = remaining[0];
+    restoreKeyRef.current = tabKeysRef.current.get(next.id) || null; // #3953
     loadProjectPayload(next.payload, next.name);
     setActiveTabDirty(!!next.dirty); // #479 — see switchToTab
     setActiveTabId(next.id);
@@ -1521,6 +1542,34 @@ export function StoreProvider({ children }) {
   // tab (a stashed payload lives only in memory otherwise).
   const autosaveTabsRef = useRef({ workspaceTabs, activeTabId, activeTabDirty });
   autosaveTabsRef.current = { workspaceTabs, activeTabId, activeTabDirty };
+  // TASKS.csv #3953 (Matt's first-time test, data integrity) — a grade shell finished into another project after its own was closed. Every long job
+  // starts here (startProjectJob), and delivers through job.landing(): into its own project only (lib/projectJobs.js says how). The messages go to
+  // App's banner (jobNotes), seen on every module.
+  const [jobNotes, setJobNotes] = useState([]);
+  const tabSyncWaitersRef = useRef([]); // a job landing while the shown tab's key is not set yet (the render after a switch) waits for it
+  const jobsRef = useRef(null);
+  const backgroundTabOfKey = (key) => [...tabKeysRef.current].find(([id, k]) => k === key && id !== activeTabIdRef.current)?.[0] || null;
+  if (!jobsRef.current) jobsRef.current = createProjectJobs({
+    activeKey: () => projectKeyRef.current,
+    tabOfKey: (key) => { const id = backgroundTabOfKey(key), t = id && autosaveTabsRef.current.workspaceTabs.find((x) => x.id === id); return t ? { name: t.name } : null; },
+    loading: () => projectLoadingRef.current || tabKeysRef.current.get(activeTabIdRef.current) !== projectKeyRef.current,
+    whenLoaded: () => new Promise((ok) => (projectLoadingRef.current ? loadWaitersRef.current : tabSyncWaitersRef.current).push(ok)),
+    markUnsaved: (key) => { const id = backgroundTabOfKey(key); if (id) setWorkspaceTabs((prev) => prev.map((t) => (t.id === id ? { ...t, dirty: true } : t))); },
+    notify: (e) => setJobNotes((p) => [...p.slice(-2), { id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, level: e.kind === "held" || e.kind === "delivered" ? "info" : "warning",
+      text: e.kind === "held" ? tr("{label} finished for \"{project}\", which is open in another tab: it is added there when you show that tab.", { label: e.label, project: e.project })
+        : e.kind === "delivered" ? tr("{label}: added to \"{project}\" now that it is shown.", { label: e.label, project: e.project })
+        : e.kind === "cancelled" ? (e.reason === "replaced" ? tr("{label} cancelled: another project was opened in its tab.", { label: e.label }) : tr("{label} cancelled: its project was closed.", { label: e.label }))
+        : tr("{label} was not added: its project is no longer open.", { label: e.label }) }]),
+  });
+  const startProjectJob = useCallback((o) => jobsRef.current.start(o), []);
+  const dismissJobNote = useCallback((id) => setJobNotes((p) => p.filter((n) => n.id !== id)), []);
+  // After each render: the shown tab holds the live key; a key no tab holds any more is a project closed (its tab gone) or replaced (its tab holds
+  // another now: File > Open into the empty tab, a reprojection): its jobs are cancelled. Then the jobs waiting for the shown project land.
+  useLayoutEffect(() => {
+    for (const { key, reason } of syncTabKeys(tabKeysRef.current, workspaceTabs.map((t) => t.id), activeTabId, projectKeyRef.current)) jobsRef.current.projectClosed(key, reason);
+    const w = tabSyncWaitersRef.current; tabSyncWaitersRef.current = []; for (const f of w) f();
+    jobsRef.current.projectShown(projectKeyRef.current);
+  });
   // TASKS.csv #340 — while a recovery banner is waiting for Restore/Discard, autosave must not run: the
   // first tick after the user started working would otherwise overwrite the very file being offered.
   const autosaveHoldRef = useRef(false);
@@ -2064,9 +2113,10 @@ export function StoreProvider({ children }) {
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     saveChoice, answerSaveChoice, // #3638 — the 'save over the recovered file?' question App draws
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
+    startProjectJob, jobNotes, dismissJobNote, // #3953
     undo, redo, peekUndo, peekRedo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
     // TASKS.csv #3110 — a NEW calculated element's Add (GeochemModule): its own undo step, holding a token instead of the old assay table
     setAssaysWithInverse: (next, symbol) => { commitUndoBurst(); undoIntent.current = { next, token: calcUndoToken(next, symbol) }; setAssays(next); },
   };
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  return <StoreContext.Provider value={value}><ProjectJobsContext.Provider value={startProjectJob}>{children}</ProjectJobsContext.Provider></StoreContext.Provider>; // #3953
 }

@@ -11,8 +11,12 @@ import { parseSpectrum, resampleSpectrum, matchMap } from "../lib/spectralMatch.
 import { loadUsgsSubset, spectrumText, USGS_CREDIT } from "../lib/usgsSpectra.js"; // TASKS.csv #3514
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the maps land only in the project they were made for
 
 export default function HyperspectralTab({ epsg, tie = null, defaultElevation, sourceEpsg, onImport, onClose }) { // tie: TASKS.csv #2648
+  const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
+  const beginJob = () => (startProjectJob ? startProjectJob({ label: tr("Hyperspectral (EMIT)") }) : noJob(tr("Hyperspectral (EMIT)"))); // TASKS.csv #3953
   const fileInput = useRef(null), hdrInput = useRef(null);
   const [file, setFile] = useState(null); // { file, bands, width, height }
   const [wl, setWl] = useState(null); // nm per band, or null
@@ -59,6 +63,7 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
   const canRun = !!file && !!wl && !busy && (mode === "match" ? matchOk && wl.length >= 10 : win.length >= 5 && (products.depth || products.wavelength));
   const runMatch = async () => { // TASKS.csv #2003 - the spectral angle, matched filter or RX map of the whole cube (the bands the reference covers)
     setBusy(true); setError(null);
+    const job = beginJob(); // TASKS.csv #3953
     try {
       const use = []; for (let i = 0; i < wl.length; i++) if (kind === "rx" || Number.isFinite(refAt.value[i])) use.push(i);
       const refv = kind === "rx" ? null : use.map((i) => refAt.value[i]);
@@ -69,12 +74,14 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
         bandFn: (bands, isNoData) => { const r = matchMap(bands, kind, refv, { isNoData }); stats = r; return r.map; },
       });
       const note = " " + tr("{what}: {n} bands, {valid} valid pixels. {how}", { what: tr(what), n: use.length, valid: (stats?.valid ?? 0).toLocaleString(), how: kind === "sam" ? tr("A small angle means a spectrum shaped like the reference, whatever its brightness.") : kind === "mf" ? tr("0 is the scene's background and 1 the reference; a score is relative to this scene's own background.") : tr("High where a pixel's spectrum is unlike the scene's background: an anomaly, not a mineral.") });
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       onImport([{ ...raster, spectralIndex: { hyperspectral: true, match: kind, bands: use.length, ...(refName && kind !== "rx" ? { reference: refName } : {}) } }], msg + note + (refName && kind !== "rx" ? " " + tr("Reference: {name}. {credit}", { name: refName, credit: USGS_CREDIT }) : ""));
-    } catch (e) { setError(e.message); } finally { setBusy(false); }
+    } catch (e) { setError(e.message); } finally { setBusy(false); job.end(); } // job: TASKS.csv #3953
   };
   const run = async () => {
     if (mode === "match") return runMatch();
     setBusy(true); setError(null);
+    const job = beginJob(); // TASKS.csv #3953
     try {
       const wlSel = win.map((i) => wl[i]);
       const md = Math.max(0, Number(minDepth) || 0);
@@ -89,8 +96,9 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
         made.push({ raster: { ...raster, spectralIndex: { hyperspectral: true, feature, product: kind, bands: win.length, window: [Math.round(wlSel[0]), Math.round(wlSel[wlSel.length - 1])], minDepth: md } }, msg });
       }
       const note = tr(" Continuum removed over {lo}-{hi} nm ({n} bands): depth = 1 - the lowest value; no wavelength under {min} ({none} of {valid} pixels). {what} Vegetation, water, shadow and 60 m pixels shape it.", { lo: Math.round(wlSel[0]), hi: Math.round(wlSel[wlSel.length - 1]), n: win.length, min: md, none: (stats?.noFeature || 0).toLocaleString(), valid: (stats?.valid || 0).toLocaleString(), what: tr(f.what) });
+      if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       onImport(made.map((m) => m.raster), made.map((m) => m.msg).join(" ") + note);
-    } catch (e) { setError(e.message); } finally { setBusy(false); }
+    } catch (e) { setError(e.message); } finally { setBusy(false); job.end(); } // job: TASKS.csv #3953
   };
 
   return (

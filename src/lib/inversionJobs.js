@@ -3,6 +3,7 @@
 // unmounts or hides the panel) would orphan the job — still computing in the sidecar, with nobody left to
 // collect the result or offer Cancel (software-design review, #321). Here it survives any UI change, and it
 // drives the status bar's progress chip through the store's stable setter.
+import { landed } from "./projectJobs.js"; // TASKS.csv #3953
 import { sidecarStartPotentialJob, sidecarStartDcipJob, sidecarStartDcip3dJob, sidecarJobStatus, sidecarJobResult, sidecarCancelJob, abandonSidecarJob, JOB_POLL_MAX_MISSES } from "./desktop.js";
 
 let current = null; // { id, request, meta, status, result, error, onDone }
@@ -19,11 +20,15 @@ export const currentInversionJob = () => current;
 // meta: { label, surveyName, ... } — carried to onDone so the caller can build provenance.
 // setTaskProgress: the store's stable status-bar setter. onDone(result, job) runs once on success.
 // kind: "potential" (mag/grav, #321), "dcip2d" (2D DC resistivity / IP, #322) or "dcip3d" (#643) — one job at a time.
-export async function startInversionJob(request, meta, { setTaskProgress, onDone, kind = "potential" }) {
+// startJob: the store's startProjectJob (TASKS.csv #3953) — the run belongs to the project it started in: onDone runs only when that project is shown
+// (at once, or when its tab is shown again), and closing that project cancels the run in the engine.
+export async function startInversionJob(request, meta, { setTaskProgress, onDone, kind = "potential", startJob = null }) {
   if (current && current.status?.state === "running") return { ok: false, error: "An inversion is already running." };
   const res = await (kind === "dcip2d" ? sidecarStartDcipJob(request) : kind === "dcip3d" ? sidecarStartDcip3dJob(request) : sidecarStartPotentialJob(request));
   if (!res.ok) return res;
   current = { id: res.data.id, request, meta, plan: res.data.plan, status: { state: "running", progress: { stage: "starting" }, history: [] }, result: null, error: null, startedAt: Date.now() };
+  const own = current;
+  current.projectJob = startJob?.({ label: meta?.label || "Inversion", cancel: () => { if (current === own && own.status?.state === "running") sidecarCancelJob(own.id); } }) || null; // #3953
   emit();
   poll(current, setTaskProgress, onDone);
   return { ok: true, id: current.id };
@@ -69,11 +74,14 @@ async function poll(job, setTaskProgress, onDone) {
         if (st.data.state === "done") {
           const r = await sidecarJobResult(job.id);
           if (current !== job) return;
+          // TASKS.csv #3953 — into its own project: shown, at once; in another tab, when that tab is shown (a newer run may have started by then); closed, never
+          if (r.ok && job.projectJob && !(await landed(job.projectJob))) { job.status = { ...job.status, state: "cancelled" }; emit(); return; }
           if (r.ok) { job.result = r.data; try { onDone?.(r.data, job); } catch (e) { job.error = `Result could not be added: ${e.message}`; } }
           else job.error = r.error;
         } else if (st.data.state === "failed") {
           job.error = st.data.error || "The job failed.";
         }
+        job.projectJob?.end(); // TASKS.csv #3953 — finished: a later close has nothing to cancel
         emit();
         return;
       }

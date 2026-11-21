@@ -20,6 +20,7 @@ import { dragTarget, holeContacts, nearestContact, SNAP_REACH_M } from "../lib/e
 import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
 import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage, groundProfileOnImage, nearestOnPolyline, pointOnSegment, insertPoint, splitAt, joinLines, extendTo } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825 / #828
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a build lands only in the project it was made for
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
 import { faultNormalZ } from "../lib/explicitTrim.js"; // TASKS.csv #957
 import { supportShadeFactors, compactHull } from "../lib/explicitSupport.js"; // TASKS.csv #977
@@ -211,7 +212,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const [seedNote, setSeedNote] = useState(null);
   useEffect(() => { setSeedNote(null); }, [def?.id]); // TASKS.csv #3771 — another surface's 'Added 25 pick(s)...' sat above this surface's own count
   // TASKS.csv #2317 — a layer of depth picks by code (regolith events: BOCO, TOFR, ...): one pick per hole at that code's depth
-  const { customLayers: storeCustomLayers } = useStore();
+  const { customLayers: storeCustomLayers, startProjectJob /* #3953 */ } = useStore();
   const eventOpts = useMemo(() => eventPickOptions(storeCustomLayers), [storeCustomLayers]);
   const [eventKey, setEventKey] = useState("");
   const eventOpt = eventOpts.find((o) => o.key === eventKey) || defaultEventOption(eventOpts, def ? unitOf(def) || def.name : "");
@@ -721,6 +722,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   // rebuild when the inputs change (debounced, so a burst of picks builds once)
   const timer = useRef(null);
   const wantKey = useRef(null); // TASKS.csv #865 — the build the inputs ask for now: an older result arriving later is dropped
+  const buildJob = useRef(null); // TASKS.csv #3953 — the build in flight, a job of the project it started in
   useEffect(() => {
     if (!def || !ep) return undefined;
     const faultMesh = def.boundedBy ? sc.meshes.current[def.boundedBy.surfaceId] : null;
@@ -745,6 +747,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     }
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
+      const job = buildJob.current = startProjectJob ? startProjectJob({ label: tr("Explicit surface") }) : noJob(tr("Explicit surface")); // TASKS.csv #3953
       // TASKS.csv #865 — the fit runs in a worker: the old surface stays on screen and the view keeps moving meanwhile
       const slow = setTimeout(() => { if (wantKey.current === key) setStatus({ ok: true, text: tr("Building the surface…") }); }, 150);
       try {
@@ -772,6 +775,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, marginBasis: def.boundedBy ? "long" : "short" /* #1013 */, resolution: def.resolution || 80, frame, trend, extent: def.extent === "hull" ? "hull" : "box" /* #2921 */ }, def.cutAtTerrain && hasTerrain ? terrain : null, trimReq); // trend: #881
         clearTimeout(slow);
         if (!res || wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
+        if (!(await landed(job)) || wantKey.current !== key) return; // TASKS.csv #3953 — only into the project it was built for (shown again: still the build it asks for?)
         // TASKS.csv #861 — Matt: each fault block gets its own surface, trimmed at the fault (nothing invented: the picks of
         // the block carry the throw). The spline is fitted through this surface's inputs, then cut at the fault and only
         // the chosen side kept; where the fault ends inside the surface no cut point exists and those edges stay whole.
@@ -855,8 +859,9 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           + (orderNote ? ` ${orderNote}` : "") // #2921
           + (trimNote ? ` ${trimNote}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
       } catch (e) { clearTimeout(slow); if (wantKey.current === key) setStatus({ ok: false, text: (e.message || String(e)) + stale }); }
+      finally { job.end(); } // TASKS.csv #3953
     }, 250);
-    return () => clearTimeout(timer.current);
+    return () => { clearTimeout(timer.current); buildJob.current?.end(); }; // TASKS.csv #3953 — a superseded build has nothing to cancel
   }, [def, ep, hasTerrain, surfaces, trend, pileTop, seedUnit]); // terrain and the scene refs are read at build time; surfaces: a fault it is trimmed at may rebuild (#861); trend: #881; pileTop: #2921
 
   // TASKS.csv #830 / #831 / #832 — the unit this surface bounds, upper or lower contact, and the unit's layers

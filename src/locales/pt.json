@@ -14626,5 +14626,11 @@
   "Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.": "Suaviza os degraus retos em terreno plano. Encostas, cristas e penhascos ficam.",
   "Smoothing undone.": "Suavização desfeita.",
   "No steps found: nothing changed.": "Nenhum degrau encontrado: nada mudou.",
-  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "Degraus suavizados: {n} nós alterados, até {max} m (mediana {med} m)."
+  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "Degraus suavizados: {n} nós alterados, até {max} m (mediana {med} m).",
+  "{label} finished for \"{project}\", which is open in another tab: it is added there when you show that tab.": "{label} terminou para \"{project}\", que está aberto em outra aba: é adicionado lá quando você mostrar essa aba.",
+  "{label}: added to \"{project}\" now that it is shown.": "{label}: adicionado a \"{project}\" agora que ele é exibido.",
+  "{label} cancelled: another project was opened in its tab.": "{label} cancelado: outro projeto foi aberto na sua aba.",
+  "{label} cancelled: its project was closed.": "{label} cancelado: o projeto dele foi fechado.",
+  "{label} was not added: its project is no longer open.": "{label} não foi adicionado: o projeto dele não está mais aberto.",
+  "This estimate was made in another project. Show that project to add it, or run it again here.": "Esta estimativa foi feita em outro projeto. Mostre esse projeto para adicioná-la, ou execute-a de novo aqui."
 }

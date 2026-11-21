@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Download, Layers3 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the outlines land only in the project they were run for
 import { stopeRows } from "../lib/stopeOutlines.js";
 import { elementOfModel, gradeWithElement, gradeUnitText, cutoffUnits, pitMetalOf, priceUnitsFor, metalAmountText, metalCells, shortModelName } from "../lib/pitShell.js"; // TASKS.csv #2594; units: #2111; cutoffUnits: #2666; metal: #3795
 import { runStopeOutlinesAsync } from "../lib/stopeOutlinesClient.js"; // TASKS.csv #2279 — off the UI thread
@@ -47,7 +48,7 @@ let kept = null; // #1356 — the last result outlives the pane (this session)
 // stopes this pane put in the view)
 // surfaces / meshOf (#1964): the generated surfaces (pit shells and designs to start below) and a surface's mesh in world E, N, Z
 export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onShow = null, onRemoveMany = null, surfaces = [], meshOf = null }) { // stopes / onShow / onRemoveMany: TASKS.csv #1968
-  const { voxelModels = [], layers, project, terrain, collars = [] /* #2438 */, survey = [] /* #3634 */, setDesignStrings, designStrings = [], generatedSurfaces = [], setProjectCurrency } = useStore(); // generatedSurfaces: #1968 — the saved copy a Restore rebuilds from
+  const { voxelModels = [], layers, project, terrain, collars = [] /* #2438 */, survey = [] /* #3634 */, setDesignStrings, designStrings = [], generatedSurfaces = [], setProjectCurrency, startProjectJob /* #3953 */ } = useStore(); // generatedSurfaces: #1968 — the saved copy a Restore rebuilds from
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
   const [f, setF] = useState(() => ({ ...EMPTY, ...(kept?.inputs || {}), modelId: kept?.inputs?.modelId && models.some((m) => (m.id ?? m.name) === kept.inputs.modelId) ? kept.inputs.modelId : models[0]?.id ?? models[0]?.name ?? "" }));
   const [res, setRes] = useState(() => kept);
@@ -108,11 +109,13 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
     const groundIn = ground.at ? groundGrid(model.cells, ground.at) : null;
     let r;
     setBusy({ level: 0, levels: 0 }); setMsg(null);
+    const pj = startProjectJob ? startProjectJob({ label: tr("Stopes"), cancel: () => job.current?.cancel() }) : noJob(tr("Stopes")); // TASKS.csv #3953 — closing its project stops the worker
     try {
       job.current = runStopeOutlinesAsync(model, { cutoff: cutV, levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */, pillar: pit ? v("pillar") || 0 : 0 /* #1964 */, crown: v("crown") || 0 /* #2438 */ }, ceilingAt, (level, levels) => setBusy({ level, levels }), groundIn, alsoChosen /* #3084 */);
       r = await job.current.promise;
+      if (!(await landed(pj))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
     } catch (e) { kept = null; setRes(null); setMsg(tr("The outlines failed: {error}", { error: e?.message || String(e) })); return; } // #1884 — never a silent stale result
-    finally { job.current = null; setBusy(null); }
+    finally { job.current = null; setBusy(null); pj.end(); } // pj: TASKS.csv #3953
     if (r?.cancelled) { setMsg(tr("Cancelled: nothing was outlined.")); return; }
     if (!r) { setMsg(tr("Nothing to outline: the model has no blocks with sizes.")); return; }
     if (r.failed === "range") { setMsg(tr("From RL must be below To RL.")); return; }

@@ -10,6 +10,8 @@ import { autoCategories } from "../lib/mapLayers.js";
 import BasemapView from "./BasemapView.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { COMMON_WEB_SERVICES, presetService, servicesFirst } from "../lib/webServices.js"; // TASKS.csv #1468; servicesFirst: #3000
+import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a layer lands only in the project it was fetched for
 
 // TASKS.csv #127 — "many exploration geologists pull government geological/geophysical WMS layers
 // (provincial bedrock geology, airborne mag WMS, claim-tenure WFS) directly in QGIS. GeoStrix has no
@@ -24,6 +26,7 @@ import { COMMON_WEB_SERVICES, presetService, servicesFirst } from "../lib/webSer
 export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addMapLayer, projectEpsg, defaultBboxLonLat, areaOptions = null }) {
   useEscapeKey(onClose);
   useFocusTrap(); // TASKS.csv #238
+  const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const [service, setService] = useState("wms"); // "wms" | "wfs"
   const [url, setUrl] = useState("");
   const [presetId, setPresetId] = useState(""); // #1468 — a common service picked from the list
@@ -77,11 +80,13 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
   const doImport = async () => {
     if (!selectedLayer) return;
     setBusy(true); setResult(null);
+    const job = startProjectJob ? startProjectJob({ label: tr("Web layers") }) : noJob(tr("Web layers")); // TASKS.csv #3953
     try {
       if (service === "wms") {
         if (!bboxLonLat) throw new Error(tr("Draw an area first: this layer has no declared extent and there is no project area to default to."));
         const raster = await fetchWmsMapAsRaster({ baseUrl: url.trim(), layerName: selectedLayer.name, bboxLonLat, projectEpsg, longPx: WMS_DETAIL[wmsDetail].longPx,
           maxRequest: { width: selectedLayer.maxWidth, height: selectedLayer.maxHeight }, onProgress: (done, total) => setWmsProgress(total > 1 ? { done, total } : null) }); // #840
+        if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
         addRaster({ name: `WMS: ${selectedLayer.title || selectedLayer.name}`, bbox: raster.bbox, dataUrl: raster.dataUrl });
         const title = selectedLayer.title || selectedLayer.name;
         const failedNote = raster.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: raster.failedTiles, total: raster.tiles }) : "";
@@ -89,6 +94,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
       } else {
         const clip = clipToArea && defaultBboxLonLat ? defaultBboxLonLat : null;
         const boundary = await fetchWfsFeaturesAsBoundary({ baseUrl: url.trim(), typeName: selectedLayer.name, projectEpsg, clipBboxLonLat: clip });
+        if (!(await landed(job))) return; // TASKS.csv #3953
         const title = selectedLayer.title || selectedLayer.name;
         const clipNote = boundary.clippedCount ? tr(" ({clippedCount} part(s) outside the project area were skipped)", { clippedCount: boundary.clippedCount }) : "";
         const more = wfsTruncationText(boundary); // #544
@@ -114,6 +120,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
     } finally {
       setBusy(false);
       setWmsProgress(null);
+      job.end(); // TASKS.csv #3953
     }
   };
   // #840 — what the chosen detail gives for this area: image size, ground pixel, number of GetMap requests

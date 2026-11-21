@@ -134,6 +134,7 @@ export default function App() {
     saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, setSectionLabels, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
+    jobNotes = [], dismissJobNote, // TASKS.csv #3953 — a long job's word about its project (cancelled, waiting in another tab, added)
     saveChoice, answerSaveChoice, // TASKS.csv #3638 — the 'save over the recovered file?' question
     undo, redo, canUndo, canRedo, peekUndo, peekRedo, requestSampleProject, // requestSampleProject: #1120; peek: #3616
     requestLayoutPrint, // TASKS.csv #908 — Export PDF prints from Layout's print root
@@ -627,6 +628,12 @@ export default function App() {
           <button onClick={() => setRecoveryNote(null)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("OK")}</button>
         </div>
       )}
+      {jobNotes.map((n) => ( /* TASKS.csv #3953 — on every module: the job's project may not be the one shown */
+        <div key={n.id} role="status" data-job-note={n.level} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: n.level === "warning" ? "var(--color-warn-bg)" : "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)", color: n.level === "warning" ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>
+          <span style={{ flex: 1 }}>{n.text}</span>
+          <button onClick={() => dismissJobNote?.(n.id)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("OK")}</button>
+        </div>
+      ))}
       <WorkspaceTabBar
         tabs={workspaceTabs}
         activeTabId={activeTabId}

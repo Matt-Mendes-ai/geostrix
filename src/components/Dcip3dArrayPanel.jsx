@@ -21,7 +21,7 @@ const minutes = (s) => (s < 90 ? tr("{s} s", { s: Math.round(s) }) : s < 5400 ? 
 const fmt = (v) => (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : +v.toPrecision(3));
 
 export default function Dcip3dArrayPanel({ pBtn, numInput }) {
-  const { terrain, voxelModels = [], addVoxelModelToTab, getProjectToken } = useStore();
+  const { terrain, voxelModels = [], addVoxelModelToTab, getProjectToken, startProjectJob /* #3953 */ } = useStore();
   const setTaskProgress = useSetTaskProgress();
   const fileRef = useRef(null);
   const [file, setFile] = useState(null); // { name, parsed }
@@ -98,7 +98,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
     };
     const base = file.name.replace(/\.[^.]+$/, "");
     const res = await startInversionJob(req, { label: tr("3D DC/IP inversion ({name})", { name: base }), dcip3d: true }, {
-      kind: "dcip3d", setTaskProgress,
+      kind: "dcip3d", setTaskProgress, startJob: startProjectJob, // #3953 — into its own project only
       onDone: (result) => {
         const cut = Number(o.cutoff) || 0, maxCell = 2 * req.mesh.core;
         const runParams = { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.iterations, ...(result.ip ? { ip: { phiD: result.ip.phi_d, target: result.ip.target, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations } } : {}) },

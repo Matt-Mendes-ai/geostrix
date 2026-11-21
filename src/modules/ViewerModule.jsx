@@ -237,6 +237,7 @@ import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
 import RastersTerrainSection from "./viewer/RastersTerrainSection.jsx"; // TASKS.csv #3891
 import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
+import { landed } from "../lib/projectJobs.js"; // TASKS.csv #3953
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
 import { makeWheelAnchors, wheelBoxes, sceneFloor } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669; sceneFloor: #3927
@@ -528,7 +529,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     designLines, /* TASKS.csv #1342 */ designStrings, /* TASKS.csv #1876 */ plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
     surfaceIds, setSurfaceIds, undoCheckpoint, // TASKS.csv #3494 — the ids of the model surfaces in the undo history
-    getProjectToken, isSameProject, // TASKS.csv #466
+    getProjectToken, isSameProject, startProjectJob, // TASKS.csv #466; startProjectJob: #3953
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
     layoutPages, // TASKS.csv #3296 — the code order set on a Layout legend (#3130)
     viewerUiState, setViewerUiState, viewerUiStateSeq, markViewerUiBaseline,
@@ -3531,9 +3532,11 @@ ${describeTrend(t)}` };
     const progLabel = `Reading ${file.name}`;
     const clearProgress = () => setTaskProgress((cur) => (cur && cur.label === progLabel ? null : cur));
     setTaskProgress({ label: progLabel, pct: 0 });
+    const job = startProjectJob?.({ label: file.name }) || null; // TASKS.csv #3953 — the solid goes to the project it was imported in
     try {
       const solid = await parseSolidInWorker(file, (read, total) => setTaskProgress((cur) => (cur && cur.label === progLabel ? { ...cur, pct: Math.round((read / Math.max(1, total)) * 100) } : cur)));
       clearProgress();
+      if (!(await landed(job))) return; // #3953
       const layered = solid.parts.length > 1;
       // #483: the saved size is the compact form (compactSurfaces.js, ~10 MB per million triangles measured); an
       // upper estimate here, at ~3 bytes per coordinate and ~2 per index, base64
@@ -3557,6 +3560,7 @@ ${describeTrend(t)}` };
         setNotices((p) => [...p, notice("{name}: import cancelled (it lies about {km} km from the holes).", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString() })]);
         return;
       }
+      if (!(await landed(job))) return; // #3953 — again, right before it is added (the checks above take a moment)
       const o = originRef.current;
       const label = file.name.replace(/\.(dxf|obj|msh|ts|gp)$/i, "");
       const stamp = Date.now(), importedBefore = Object.keys(implicitMeshesRef.current).filter((i) => i.includes("_imported")).length;
@@ -3617,7 +3621,7 @@ ${describeTrend(t)}` };
     } catch (e) {
       clearProgress();
       setNotices((p) => [...p, errorNotice(tr("{name}: couldn't import as a solid ({v}).", { name: file.name, v: e.message || e }))]); // #739
-    }
+    } finally { job?.end(); }
   }, [fitBox, project?.epsg, project?.crsSet, project?.localGrid, setTaskProgress]); // crsSet / localGrid: the tie (#3186)
   useModuleAction(["import-solid"], (a, payload) => { for (const f of payload?.files || []) importSolidFile(f); }); // TASKS.csv #1503 — a face-only DXF dropped on the Geophysics tab
 

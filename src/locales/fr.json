@@ -14626,5 +14626,11 @@
   "Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.": "Adoucit les marches rectilignes sur terrain plat. Les pentes, crêtes et falaises restent.",
   "Smoothing undone.": "Adoucissement annulé.",
   "No steps found: nothing changed.": "Aucune marche trouvée : rien n'a changé.",
-  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "Marches adoucies : {n} nœuds modifiés, jusqu'à {max} m (médiane {med} m)."
+  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "Marches adoucies : {n} nœuds modifiés, jusqu'à {max} m (médiane {med} m).",
+  "{label} finished for \"{project}\", which is open in another tab: it is added there when you show that tab.": "{label} est terminé pour « {project} », ouvert dans un autre onglet : il y est ajouté quand vous affichez cet onglet.",
+  "{label}: added to \"{project}\" now that it is shown.": "{label} : ajouté à « {project} » maintenant qu'il est affiché.",
+  "{label} cancelled: another project was opened in its tab.": "{label} annulé : un autre projet a été ouvert dans son onglet.",
+  "{label} cancelled: its project was closed.": "{label} annulé : son projet a été fermé.",
+  "{label} was not added: its project is no longer open.": "{label} n'a pas été ajouté : son projet n'est plus ouvert.",
+  "This estimate was made in another project. Show that project to add it, or run it again here.": "Cette estimation a été faite dans un autre projet. Affichez ce projet pour l'ajouter, ou relancez-la ici."
 }
