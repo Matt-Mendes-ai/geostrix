@@ -188,6 +188,15 @@ export function calcInputsSignature(assays, expr, symbols) {
   }
   return (h >>> 0).toString(36) + ":" + ops.length;
 }
+// a default name no element of the project already has: 'TREO' -> 'TREO' or 'TREO_calc' ('TREO_calc2' ...) — the live pass found a calculated TREO / AuEq named like the
+// imported column (kept as supplied) failing with 'already exists' on the first click
+export function freeCalcName(name, elements) {
+  const taken = new Set((elements || []).map((e) => e.symbol));
+  if (!taken.has(name)) return name;
+  let n = `${name}_calc`, k = 1;
+  while (taken.has(n)) n = `${name}_calc${++k}`;
+  return n;
+}
 // the calculated elements (with a stored formula and signature) whose inputs have changed since they were calculated -> [element]
 export function staleCalculated(assays, assayElements) {
   const symbols = (assayElements || []).map((e) => e.symbol);

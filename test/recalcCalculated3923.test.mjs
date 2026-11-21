@@ -46,3 +46,15 @@ test("#3923 wiring: the Geochem panel shows the line and a Recalculate button", 
   assert.match(g, /tr\("Recalculate"\)/);
   for (const lang of ["es", "pt", "fr", "ar"]) { const j = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8")); assert.ok(j["Recalculate"] && j["The assays changed since {list} was calculated."], lang); }
 });
+
+test("#3923 a calculated TREO / AuEq does not start with the name of the imported (as supplied) column: TREO_calc, TREO_calc2", async () => {
+  const { freeCalcName } = await import("../src/lib/calcElement.js");
+  assert.equal(freeCalcName("TREO", [{ symbol: "La" }]), "TREO");
+  assert.equal(freeCalcName("TREO", [{ symbol: "TREO" }]), "TREO_calc");
+  assert.equal(freeCalcName("AuEq", [{ symbol: "AuEq" }, { symbol: "AuEq_calc" }]), "AuEq_calc2");
+  const g = fs.readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(g, /name: freeCalcName\(p\.name, calcEls\)/);
+  assert.match(g, /name: c\.nameTouched \? c\.name : freeCalcName\(d\.name, calcEls\)/);
+  assert.ok(g.includes("It is not recalculated if assays are re-imported."), "the panel's general sentence stays");
+  assert.ok(!g.includes("If the assays change later, a Recalculate button appears."));
+});
