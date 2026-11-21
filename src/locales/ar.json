@@ -14573,5 +14573,9 @@
   "Normalized eigenvalues of the orientation tensor. S1 near 1: one tight cluster. S1≈S2 >> S3: a girdle (picks along a great circle, as on a fold). All near 0.33: no preferred orientation.": "القيم الذاتية المطبّعة لموتر الاتجاه. S1 قرب 1: تجمع ضيق واحد. S1≈S2 >> S3: حزام (القياسات على دائرة عظمى، كما في طية). الثلاثة قرب 0.33: لا اتجاه مفضل.",
   "The line the folding rotates about: the pole to the best-fit girdle. For a cylindrical fold this, not the mean plane, is the orientation to use.": "الخط الذي يدور حوله الطي: قطب الحزام الأفضل مطابقة. للطية الأسطوانية هذا، لا المستوي المتوسط، هو الاتجاه الذي يُستخدم.",
   "Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation. Filter to one fold limb first.": "معطّل: هذه المجموعة حزام (طية)، لذا مستويها المتوسط ليس اتجاهًا حقيقيًا. صفِّ إلى جناح طية واحد أولًا.",
-  "Lower hemisphere. Each point is a plane's pole: clusters are a consistent trend; scatter flags unreliable picks before they go into the anisotropy or structural-surface tools.": "نصف الكرة السفلي. كل نقطة قطب مستوٍ: التجمع اتجاه متسق؛ والتشتت ينبه إلى قياسات غير موثوقة قبل إدخالها في أدوات تباين الخواص أو الأسطح البنيوية."
+  "Lower hemisphere. Each point is a plane's pole: clusters are a consistent trend; scatter flags unreliable picks before they go into the anisotropy or structural-surface tools.": "نصف الكرة السفلي. كل نقطة قطب مستوٍ: التجمع اتجاه متسق؛ والتشتت ينبه إلى قياسات غير موثوقة قبل إدخالها في أدوات تباين الخواص أو الأسطح البنيوية.",
+  "Title block and tokens": "جدول العنوان والحقول التلقائية",
+  "Plan view of the drillholes": "عرض مسقط لثقوب الحفر",
+  "Export: what goes where (Leapfrog, Micromine, GIS, Google Earth)": "التصدير: أي ملف لأي برنامج (Leapfrog وMicromine ونظم المعلومات الجغرافية وGoogle Earth)",
+  "Save, autosave and recovery; Undo": "الحفظ والحفظ التلقائي والاسترداد؛ التراجع"
 }
