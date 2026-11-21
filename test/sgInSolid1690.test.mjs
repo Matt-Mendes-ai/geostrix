@@ -38,7 +38,7 @@ test("the tonnage box offers both, stamps the source, and the viewer uses it", (
   assert.match(c, /Use the SG inside this solid/);
   assert.match(c, /Use the SG layer's mean/);
   assert.match(c, /kind: "inside"/);
-  assert.match(c, /onDensity\(e\.target\.value === "" \? "" : Number\(e\.target\.value\), null\)/); // typing clears the stamp
+  assert.match(c, /onChange=\{\(v\) => onDensity\(v == null \? "" : v, null\)\}/); // typing clears the stamp (the box is a NumberInput since #3926: it commits on blur / Enter, emptied -> "")
   const v = read("src/modules/ViewerModule.jsx");
   assert.match(v, /<SurfaceTonnage s=\{s\}/);
   assert.match(v, /\{ \.\.\.s, density, densityFrom \}/);

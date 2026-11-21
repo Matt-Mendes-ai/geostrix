@@ -18,7 +18,7 @@ test("wired: empty by default, the note, a dash in the Flag column, translated w
   const q = readFileSync(new URL("../src/components/QAQCPanel.jsx", import.meta.url), "utf8");
   assert.match(q, /const \[blankThreshold, setBlankThreshold\] = useState\(null\);/);
   assert.doesNotMatch(q, /useState\(0\.1\)/);
-  assert.match(q, /value=\{blankThreshold \?\? ""\}/);
+  assert.match(q, /<NumberInput allowEmpty value=\{blankThreshold \?\? null\}/); // TASKS.csv #3926 — the box is a NumberInput now; allowEmpty keeps it empty (null) until a number is typed
   assert.match(q, /\(blankByMethod \? b\.limit : blankLimit\) == null \? "—"/); // #2772 — a row judged per method reads its own limit
   const key = "No threshold set, so the {n} blank(s) are listed but not judged. Enter a threshold in {unit}, or set {symbol}'s detection limit to judge them against a multiple of it.";
   assert.ok(q.includes(`tr(${JSON.stringify(key)}`));
