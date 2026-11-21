@@ -11,6 +11,7 @@ import { densityRangeOf } from "../../lib/densityRange.js"; // TASKS.csv #3587
 import { useStore } from "../../lib/store.jsx";
 import { sgInsideSolid } from "../../lib/sgInSolid.js";
 import { sgMethodsText } from "../../lib/sgMethodsText.js"; // TASKS.csv #3595
+import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
 
 // TASKS.csv #2068 (review #2013, Woodjam) — sgSummary's min / max are the raw logged values (1.766666666666667): two decimals here
 const r2 = (v) => String(+Number(v).toFixed(2));
@@ -28,8 +29,7 @@ export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, 
     <>
       <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
         <span style={{ flexShrink: 0 }}>{tr("Density (t/m³ or g/cm³)")}</span>
-        <input type="number" min={0} step={0.01} placeholder={tr("required")} value={s.density ?? ""}
-          onChange={(e) => onDensity(e.target.value === "" ? "" : Number(e.target.value), null)} style={{ ...smallSel, width: 70 }} />
+        <NumberInput allowEmpty min={0} step={0.01} placeholder={tr("required")} value={s.density ?? ""} onChange={(v) => onDensity(v == null ? "" : v, null)} style={{ ...smallSel, width: 70 }} />
       </label>
       {whole && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>

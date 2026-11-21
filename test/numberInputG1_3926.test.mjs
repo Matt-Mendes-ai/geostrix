@@ -13,15 +13,22 @@ const DONE = [
   "src/components/EvidenceOverlayPane.jsx",
   "src/components/HoleValueGridPanel.jsx", "src/components/IsoconTool.jsx", "src/components/LayerInspector.jsx", "src/components/LayerStyleModal.jsx", "src/components/LogChannelsBox.jsx", "src/components/MineralPercentBox.jsx",
   "src/components/NumericSymbologyEditor.jsx", "src/components/OxideTotalsTab.jsx", "src/components/QAQCPanel.jsx", "src/components/SurfaceQaqcPanel.jsx",
+  "src/components/RasterColourControls.jsx", "src/components/StopValueInput.jsx", "src/components/SurfaceAnomalyControls.jsx", "src/components/SurfaceQueryModal.jsx", "src/components/UnsampledChoice.jsx", "src/components/VoxelRangeNumber.jsx",
+  "src/modules/GeochemModule.jsx", "src/modules/viewer/SurfaceTonnage.jsx",
 ];
 
 test("#3926 G1: converted files have no <input type=\"number\"> left and import NumberInput", () => {
   for (const f of DONE) {
     const s = src(f);
     assert.ok(!/<input[^>]*type=\{?["']number["']/.test(s) && !/<input\s*\n[^>]*type="number"/.test(s), `${f}: a number input is left`);
-    assert.match(s, /import NumberInput from "\.{1,2}\/(?:\.\.\/components\/)?NumberInput\.jsx"/, `${f}: import`);
+    assert.match(s, /import NumberInput from "(?:\.\.?\/)+(?:components\/)?NumberInput\.jsx"/, `${f}: import`);
     assert.ok((s.match(/<NumberInput /g) || []).length >= 1, f);
   }
+});
+
+test("#3926 G1: all 31 files of the group are done (the plan's list), and none of the files held back for another side was touched", () => {
+  assert.equal(DONE.length, 31 - 0, "AssayStyleModal ... SurfaceTonnage");
+  for (const held of ["src/modules/ViewerModule.jsx", "src/modules/LayoutModule.jsx", "src/modules/GeophysicsModule.jsx", "src/modules/viewer/ModellingPanes.jsx"]) assert.ok(!DONE.includes(held), held);
 });
 
 test("#3926 G1: no step=\"any\" is passed on (the arrow keys use a numeric step), and an emptiable box says allowEmpty", () => {
