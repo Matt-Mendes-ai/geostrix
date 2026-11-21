@@ -185,7 +185,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     let sPerPx = Math.max(sSpan / PLOT_W, ((z1 - z0) * ve) / PLOT_H);
     // TASKS.csv #1375 — room above the collars for a stack of fan-hole labels (19 px a label): Silvertip's four PAD42 labels ran up
     // into the offset ribbon. The tallest stack, from the collars as drawn at the first scale.
-    const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: h.pts[0].s / sPerPx, y: (-h.pts[0].z * ve) / sPerPx })));
+    const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: h.pts[0].s / sPerPx, y: (-h.pts[0].z * ve) / sPerPx })), { dx: 52 }); // #3900: a 10 px id is about 52 px wide (40 was set for 8.6 px)
     const need = 26 + 19 * Math.min(FENCE_LABEL_SLOTS - 1, Math.max(0, ...Object.values(slots))); // #2327 — a stack of at most three labels
     const topCollar = Math.max(...panel.holes.map((h) => h.pts[0].z));
     const room = ((z1 - topCollar) * ve) / sPerPx;
@@ -264,10 +264,10 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               {view && zTicks.map((z) => (
                 <g key={`z${z}`}>
                   <line x1={PAD_L} y1={view.yFor(z)} x2={PAD_L + PLOT_W} y2={view.yFor(z)} stroke="#f0f2f4" strokeWidth={1} />
-                  <text x={PAD_L - 5} y={view.yFor(z) + 3} textAnchor="end" fontSize={9} fill="#55606e">{z}</text>
+                  <text x={PAD_L - 5} y={view.yFor(z) + 3.5} textAnchor="end" fontSize={10} fill="#55606e">{z}</text>
                 </g>
               ))}
-              <text x={10} y={PAD_T - 6} fontSize={9} fill="#55606e">RL (m)</text>
+              <text x={10} y={PAD_T - 6} fontSize={10} fill="#55606e">RL (m)</text>
               <text x={PAD_L + PLOT_W / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="#55606e">
                 {tr("Distance along section (m) — bearing {v}°", { v: panel ? panel.line.azimuth.toFixed(1) : "—" })}
               </text>
@@ -279,7 +279,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 <g>
                   <rect x={PAD_L} y={22} width={PLOT_W} height={RIBBON_H - 6} fill="#f7f8fa" stroke="#e6e8ec" strokeWidth={1} />
                   <line x1={PAD_L} y1={22 + (RIBBON_H - 6) / 2} x2={PAD_L + PLOT_W} y2={22 + (RIBBON_H - 6) / 2} stroke="#c7ccd3" strokeWidth={1} strokeDasharray="4 3" />
-                  <text x={PAD_L + 4} y={22 - 3} fontSize={8.5} fill="#65717e">{tr("Offset from section plane (same scale as the section)")}</text>
+                  <text x={PAD_L + 4} y={22 - 3} fontSize={10} fill="#65717e">{tr("Offset from section plane (same scale as the section)")}</text>
                   {panel.holes.map((h) => {
                     const cy = 22 + (RIBBON_H - 6) / 2;
                     const dy = Math.max(-(RIBBON_H - 8) / 2, Math.min((RIBBON_H - 8) / 2, h.offset / view.sPerPx));
@@ -329,8 +329,8 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                       });
                     })()}</g>)}
               {/* ---- each hole: its projected trace, then its lithology intervals as a column ---- */}
-              {view && panel && (() => { const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: view.xFor(h.pts[0].s), y: view.yFor(h.pts[0].z) }))); return panel.holes.map((h) => {
-                const lift = 19 * (slots[h.hole_id] || 0); // #1375 — fan holes from one collar: their labels stacked, not printed over each other
+              {view && panel && (() => { const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: view.xFor(h.pts[0].s), y: view.yFor(h.pts[0].z) })), { dx: 52 }); /* #3900 */ return panel.holes.map((h) => {
+                const lift = 23 * (slots[h.hole_id] || 0); /* #3900: a 10 px id and sub-label are 21 px tall (was 19) */ // #1375 — fan holes from one collar: their labels stacked, not printed over each other
                 const labelled = (slots[h.hole_id] || 0) < FENCE_LABEL_SLOTS; // #2327 — past three in a stack: the name on hover only
                 const rows = lithoByHole[h.hole_id] || [];
                 const over = h.maxAbsOffset > offsetLimit;
@@ -356,15 +356,15 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                       );
                     })}
                     <circle cx={view.xFor(h.pts[0].s)} cy={view.yFor(h.pts[0].z)} r={2.6} fill="#1a2028"><title>{`${h.hole_id} — ${h.maxAbsOffset.toFixed(0)} m off section`}</title></circle>
-                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 12 - lift} textAnchor="middle" fontSize={8.6} fill="#1a2028">{h.hole_id}</text>}
+                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 15 - lift} textAnchor="middle" fontSize={10} fill="#1a2028">{h.hole_id}</text>} {/* #3900: 10 px, the id a little higher over its 10 px sub-label */}
                     {/* Offset printed ON the diagram, per hole — the projection's error bar, not a footnote. */}
-                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4 - lift} textAnchor="middle" fontSize={7.6} fill={over ? "#a8741a" : "#65717e"}>
+                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4 - lift} textAnchor="middle" fontSize={10} fill={over ? "#a8741a" : "#65717e"}>
                       {h.maxAbsOffset < 0.05 ? tr("on section") : `${h.maxAbsOffset.toFixed(0)} m off`}
                     </text>}
                   </g>
                 );
               }); })()}
-              {track && track.n > 0 && <text x={PAD_L} y={H - 22} fontSize={8.6} fill="#7d3c98">{track.log ? tr(track.below === 0 ? "Track: {name}, log scale from {lo} to {hi}" : track.below === 1 ? "Track: {name}, log scale from {lo} to {hi}; {n} value at or under {lo} is drawn at zero width" : "Track: {name}, log scale from {lo} to {hi}; {n} values at or under {lo} are drawn at zero width", { name: trackSrc.label, lo: Number(track.lo.toPrecision(3)).toLocaleString(undefined, { maximumFractionDigits: 10 }), hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.below.toLocaleString() }) /* #2813 */
+              {track && track.n > 0 && <text x={PAD_L} y={H - 22} fontSize={10} fill="#7d3c98">{track.log ? tr(track.below === 0 ? "Track: {name}, log scale from {lo} to {hi}" : track.below === 1 ? "Track: {name}, log scale from {lo} to {hi}; {n} value at or under {lo} is drawn at zero width" : "Track: {name}, log scale from {lo} to {hi}; {n} values at or under {lo} are drawn at zero width", { name: trackSrc.label, lo: Number(track.lo.toPrecision(3)).toLocaleString(undefined, { maximumFractionDigits: 10 }), hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.below.toLocaleString() }) /* #2813 */
                 : track.above === 0 ? tr("Track: {name}, the full width is {hi} (the 98th percentile of the panel's values)", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString() })
                 : tr(track.above === 1 ? "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher value is drawn at full width" : "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher values are drawn at full width", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.above.toLocaleString() })}</text>}{/* #2786 */}
             </svg>
