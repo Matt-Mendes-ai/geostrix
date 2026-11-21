@@ -40,6 +40,11 @@ const PICTURES = {
       return <rect key={`${r}-${c}`} x={4 + c * 16} y={2 + r * 12} width={15} height={11} {...fill(v > 0.5 ? "accent" : "info", 0.25 + 0.6 * v)} />;
     }))}
   </>),
+  // a terrain profile with the file dropping onto it (the Start dialog's first step)
+  terrain: () => (<>
+    <path d="M0 44 L0 34 L26 28 L48 32 L72 20 L96 24 L120 12 L146 22 L170 18 L200 26 L200 44 Z" {...both("text-muted", 0.18, "text-muted")} />
+    <path d="M100 0 V10 M95 5 L100 10 L105 5" fill="none" {...stroke("tier-basic", 2)} strokeLinecap="round" strokeLinejoin="round" />
+  </>),
   // map polygons with a contact line and a strike symbol
   map: () => (<>
     <path d="M4 4 L90 4 L76 26 L96 48 L4 48 Z" {...both("tier-basic", 0.25, "tier-basic")} />
@@ -47,6 +52,12 @@ const PICTURES = {
     <path d="M140 18 L160 30 M150 24 L146 30" fill="none" {...stroke("text", 1.5)} />
   </>),
 };
+
+// the picture alone, for a drop area that is already the drop box (the Start dialog)
+export function DropPicture({ picture = "holes", style }) {
+  const Pic = PICTURES[picture] || PICTURES.holes;
+  return <svg viewBox="0 0 200 52" width="100%" aria-hidden="true" data-drop-picture={picture} style={{ display: "block", maxHeight: 64, ...style }}><Pic /></svg>;
+}
 
 export default function DropDiagram({ picture = "holes", drop, viewLabel, caption, cells = [], label, tooltip, ...rest }) {
   const Pic = PICTURES[picture] || PICTURES.holes;
