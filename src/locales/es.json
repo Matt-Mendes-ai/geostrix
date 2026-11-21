@@ -3432,6 +3432,7 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "The new holes' grade was spread along \"{name}\"'s own plane (dip {dip}° towards {az}°): {a} x {b} x {c} m, the volume of a {r} m sphere.": "La ley de los sondajes nuevos se extendió a lo largo del plano propio de \"{name}\" (manteo {dip}° hacia {az}°): {a} x {b} x {c} m, el volumen de una esfera de {r} m.",
   " One body that only one hole's composites at the cut-off hold was kept within {r} m of them (half the hole spacing): {v} m³ less.": " Un cuerpo que solo sostienen los compósitos sobre la ley de corte de un sondaje se mantuvo a menos de {r} m de ellos (la mitad del espaciamiento entre sondajes): {v} m³ menos.",
   " {k} bodies that only one hole's composites at the cut-off hold were kept within {r} m of them (half the hole spacing): {v} m³ less.": " {k} cuerpos que solo sostienen los compósitos sobre la ley de corte de un sondaje se mantuvieron a menos de {r} m de ellos (la mitad del espaciamiento entre sondajes): {v} m³ menos.",
   "Cells {c} x {c} m and a {r} m search: GeoStrix's standard grade-shell settings, because your data didn't give a clear drill spacing (fewer than three drill sites with grades). Change them in the grade shell pane.": "Celdas de {c} x {c} m y una búsqueda de {r} m: los ajustes estándar de GeoStrix para la envolvente de ley, porque sus datos no dieron un espaciamiento de sondajes claro (menos de tres sitios de sondaje con leyes). Cámbielos en el panel de la envolvente de ley.",

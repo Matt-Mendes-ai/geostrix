@@ -3432,6 +3432,7 @@
   "CV": "CV",
   "Top cut": "Corte superior",
   "Top cut for {el}": "Corte superior de {el}",
+  "The new holes' grade was spread along \"{name}\"'s own plane (dip {dip}° towards {az}°): {a} x {b} x {c} m, the volume of a {r} m sphere.": "O teor dos furos novos foi espalhado ao longo do plano próprio de \"{name}\" (mergulho {dip}° para {az}°): {a} x {b} x {c} m, o volume de uma esfera de {r} m.",
   " One body that only one hole's composites at the cut-off hold was kept within {r} m of them (half the hole spacing): {v} m³ less.": " Um corpo sustentado apenas pelos compósitos acima do teor de corte de um furo foi mantido a até {r} m deles (metade do espaçamento entre furos): {v} m³ a menos.",
   " {k} bodies that only one hole's composites at the cut-off hold were kept within {r} m of them (half the hole spacing): {v} m³ less.": " {k} corpos sustentados apenas pelos compósitos acima do teor de corte de um furo foram mantidos a até {r} m deles (metade do espaçamento entre furos): {v} m³ a menos.",
   "Cells {c} x {c} m and a {r} m search: GeoStrix's standard grade-shell settings, because your data didn't give a clear drill spacing (fewer than three drill sites with grades). Change them in the grade shell pane.": "Células de {c} x {c} m e uma busca de {r} m: as configurações padrão do GeoStrix para o envelope de teor, porque seus dados não deram um espaçamento de furos claro (menos de três locais de furo com teores). Altere-as no painel do envelope de teor.",

@@ -3432,6 +3432,7 @@
   "CV": "CV",
   "Top cut": "Écrêtage",
   "Top cut for {el}": "Écrêtage de {el}",
+  "The new holes' grade was spread along \"{name}\"'s own plane (dip {dip}° towards {az}°): {a} x {b} x {c} m, the volume of a {r} m sphere.": "La teneur des nouveaux sondages a été étendue le long du plan propre de « {name} » (pendage {dip}° vers {az}°) : {a} x {b} x {c} m, le volume d'une sphère de {r} m.",
   " One body that only one hole's composites at the cut-off hold was kept within {r} m of them (half the hole spacing): {v} m³ less.": " Un corps que seuls les composites d'un sondage au-dessus de la teneur de coupure soutiennent a été gardé à moins de {r} m d'eux (la moitié de l'espacement des sondages) : {v} m³ de moins.",
   " {k} bodies that only one hole's composites at the cut-off hold were kept within {r} m of them (half the hole spacing): {v} m³ less.": " {k} corps que seuls les composites d'un sondage au-dessus de la teneur de coupure soutiennent ont été gardés à moins de {r} m d'eux (la moitié de l'espacement des sondages) : {v} m³ de moins.",
   "Cells {c} x {c} m and a {r} m search: GeoStrix's standard grade-shell settings, because your data didn't give a clear drill spacing (fewer than three drill sites with grades). Change them in the grade shell pane.": "Cellules de {c} x {c} m et une recherche de {r} m : les réglages standard de GeoStrix pour l'enveloppe de teneur, car vos données n'ont pas donné d'espacement de sondages clair (moins de trois emplacements de sondage avec des teneurs). Modifiez-les dans le panneau de l'enveloppe de teneur.",

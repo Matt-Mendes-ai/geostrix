@@ -11,6 +11,7 @@
 // it outside), the intervals at or above the cut-off outside the old domain and below it inside, and the volume added and removed.
 
 // triangles in XY buckets, for the vertical lines through a mesh. positions: world (x east, y north, z up), Float64Array; indices: Uint32Array
+import { shellPlaneSearch, PLANE_MIN_COMPOSITES } from "./shellPlane.js"; // TASKS.csv #3876 (#3674): the domain's own plane
 function columnIndex(positions, indices, cell) {
   const buckets = new Map(), key = (a, b) => a * 1000003 + b;
   for (let t = 0; t < indices.length; t += 3) {
@@ -225,3 +226,18 @@ export function newHoleIds(collars, sel) {
 }
 // a typed list read: ids separated by commas, spaces, semicolons or new lines
 export const parseIdList = (text) => [...new Set(String(text || "").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean))];
+
+// TASKS.csv #3876 (#3674's open point) — the new holes' indicator was searched in a sphere of two sample spacings, whatever the domain's shape: a
+// steep vein domain took grade from the new holes as far across it as along it. It is now searched along the domain's OWN plane: the plane of the
+// old mesh's vertices (thinned to maxPoints, fitted as the grade shell's plane search fits the composites at the cut-off, lib/viewer/shellPlane.js),
+// an ellipsoid with the volume of the sphere and the ratios capped as there. A domain with no clear plane (its vertices about as wide every way,
+// under minRatio, or parts too far apart for one plane) keeps the sphere. positions: the old mesh, x y z per vertex (the composites' frame).
+// -> shellPlaneSearch's result ({ trend, basis, scales, majorM, axesM, ... }) or null (the sphere)
+export function domainPlaneSearch(positions, radiusM, { maxPoints = 5000, minRatio = 1.5 } = {}) {
+  const n = Math.floor((positions?.length || 0) / 3);
+  if (!(radiusM > 0) || n < PLANE_MIN_COMPOSITES) return null;
+  const step = Math.max(1, Math.ceil(n / maxPoints)), pts = [];
+  for (let i = 0; i < n; i += step) pts.push({ x: positions[3 * i], y: positions[3 * i + 1], z: positions[3 * i + 2], hole_id: "domain" });
+  const s = shellPlaneSearch(pts, radiusM, { minHoles: 1 });
+  return s?.trend && s.trend.ratios.max >= minRatio ? s : null;
+}

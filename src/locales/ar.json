@@ -3432,6 +3432,7 @@
   "CV": "معامل التباين",
   "Top cut": "القطع الأعلى",
   "Top cut for {el}": "القطع الأعلى لـ{el}",
+  "The new holes' grade was spread along \"{name}\"'s own plane (dip {dip}° towards {az}°): {a} x {b} x {c} m, the volume of a {r} m sphere.": "وُزِّع محتوى الثقوب الجديدة على امتداد المستوى الخاص بـ\"{name}\" (ميل {dip}° نحو {az}°): {a} × {b} × {c} م، بحجم كرة نصف قطرها {r} م.",
   " One body that only one hole's composites at the cut-off hold was kept within {r} m of them (half the hole spacing): {v} m³ less.": " جسم واحد لا تسنده إلا مركّبات ثقب واحد فوق حد القطع أُبقي ضمن {r} م منها (نصف التباعد بين الثقوب): أقل بمقدار {v} م³.",
   " {k} bodies that only one hole's composites at the cut-off hold were kept within {r} m of them (half the hole spacing): {v} m³ less.": " {k} أجسام لا تسندها إلا مركّبات ثقب واحد فوق حد القطع أُبقيت ضمن {r} م منها (نصف التباعد بين الثقوب): أقل بمقدار {v} م³.",
   "Cells {c} x {c} m and a {r} m search: GeoStrix's standard grade-shell settings, because your data didn't give a clear drill spacing (fewer than three drill sites with grades). Change them in the grade shell pane.": "خلايا {c} × {c} م وبحث {r} م: إعدادات GeoStrix القياسية لغلاف المحتوى، لأن بياناتك لم تعطِ تباعدًا واضحًا بين ثقوب الحفر (أقل من ثلاثة مواقع حفر فيها محتويات). غيّرها في لوحة غلاف المحتوى.",
