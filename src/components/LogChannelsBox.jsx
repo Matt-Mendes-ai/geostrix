@@ -5,6 +5,7 @@ import { logChannelColumns, defaultLogChannels, effectiveLogBin, logBoxPatch, ne
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #3039 — the project's assay samples // no-data: TASKS.csv #2332; effectiveLogBin / logBoxPatch: #2333; logBinEstimate / LOG_BINS: #2885
 import { t as tr } from "../lib/i18n.js";
 import { logUnitChoices, rangeGuessFor } from "../lib/logUnits.js"; // TASKS.csv #2952; rangeGuessFor: #3158
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 
@@ -55,10 +56,7 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
                 <datalist id={`chunits-${c.col}`}>{logUnitChoices(c.col).map((u) => <option key={u} value={u} />)}</datalist>
                 {/* TASKS.csv #3041 — the channel's valid range, typed: readings outside it are left out and counted (none is preset) */}
                 {["min", "max"].map((k) => (
-                  <input key={k} type="number" step="any" value={modal.logRanges?.[c.col]?.[k] ?? ""} placeholder={k === "min" ? tr("min") : tr("max")}
-                    title={tr("The channel's valid range, if you know it: readings below the minimum or above the maximum are left out and counted (a density over 5 g/cc, a gamma of 80,000 cps). Blank: no limit.")}
-                    onChange={(e) => set({ logRanges: { ...(modal.logRanges || {}), [c.col]: { ...(modal.logRanges?.[c.col] || {}), [k]: e.target.value } } })}
-                    style={{ ...sel, width: 62, padding: "1px 4px" }} aria-label={k === "min" ? tr("Lowest valid reading of {c}", { c: c.col }) : tr("Highest valid reading of {c}", { c: c.col })} />
+                  <NumberInput allowEmpty value={modal.logRanges?.[c.col]?.[k] ?? ""} placeholder={k === "min" ? tr("min") : tr("max")} title={tr("The channel's valid range, if you know it: readings below the minimum or above the maximum are left out and counted (a density over 5 g/cc, a gamma of 80,000 cps). Blank: no limit.")} onChange={(v) => set({ logRanges: { ...(modal.logRanges || {}), [c.col]: { ...(modal.logRanges?.[c.col] || {}), [k]: v == null ? "" : String(v) } } })} style={{ ...sel, width: 62, padding: "1px 4px" }} aria-label={k === "min" ? tr("Lowest valid reading of {c}", { c: c.col }) : tr("Highest valid reading of {c}", { c: c.col })} />
                 ))}
                 {/* TASKS.csv #3158 — the physical range for the unit the column name states, offered (never preset) while both boxes are blank */}
                 {(() => {
