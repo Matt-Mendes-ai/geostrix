@@ -8,7 +8,7 @@
 //
 // What is counted (a word = a run of letters or digits, [\p{L}\p{N}][\p{L}\p{N}'%/.-]*; a {placeholder} is not a word):
 //  - Help, src/help/pages/*.js, by field: title, summary, notFor, a setting's name / what / choose, a warning's says / means / do, the walk-through steps.
-//    "Seen first" is everything except a field called `more` (on a page, a setting or a warning): the text kept behind the Help pane's "More" fold, which
+//    "Seen first" is everything except a field called `more` (on a page, a setting or a warning) and a walk-through marked `folded`: the text kept behind the Help pane's "More" fold, which
 //    search still reads. Until a page has a `more` field, seen first = all.
 //  - Every tr() string outside Help (the interface's own words; a tr is any call of the i18n.js export `t`, whatever it is imported as), in ONE of:
 //      tooltips      a title={…} attribute (not InfoButton's)
@@ -60,7 +60,7 @@ export async function collectHelp() {
       for (const s of p.notFor || []) add(acc, "notFor", s);
       for (const fl of p.fields || []) { acc.settings++; add(acc, "name", fl.name); add(acc, "what", fl.what); add(acc, "choose", fl.choose); add(acc, "more", fl.more, true); }
       for (const w of p.warnings || []) { acc.warnings++; add(acc, "says", w.says); add(acc, "means", w.means); add(acc, "do", w.do); add(acc, "more", w.more, true); }
-      for (const s of p.howto?.steps || []) add(acc, "howto", s);
+      for (const s of p.howto?.steps || []) add(acc, "howto", s, !!p.howto.folded); // a folded walk-through is behind its closed heading
     }
     out.pages[acc.id] = acc;
     for (const [k, v] of Object.entries(acc.fields)) out.fields[k] = (out.fields[k] || 0) + v;

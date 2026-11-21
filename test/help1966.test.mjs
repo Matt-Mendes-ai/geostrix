@@ -44,7 +44,8 @@ test("#1966 pages are well formed: unique ids, a known area, the pane's own titl
   }
 });
 
-const prose = (p) => [p.title, p.summary, ...p.notFor, ...p.fields.flatMap((f) => [f.name, f.what, f.choose]), ...p.warnings.flatMap((w) => [w.says, w.means, w.do]), ...(p.howto?.steps || [])].filter(Boolean).join("\n");
+// #3899: the text behind "More" is checked too
+const prose = (p) => [p.title, p.summary, p.more, ...p.notFor, ...p.fields.flatMap((f) => [f.name, f.what, f.choose, f.more]), ...p.warnings.flatMap((w) => [w.says, w.means, w.do, w.more]), ...(p.howto?.steps || [])].filter(Boolean).join("\n");
 
 test("#1966 text rules: no backlog numbers, Canadian spelling", () => {
   const US = /\b(color|colors|colored|coloring|center|centers|centered|meter|meters|gray|modeling|modeled|labeled|labeling|behavior|neighbor|neighbors|neighboring|catalog|canceled|favorite|sulfide|sulfides)\b/i;
