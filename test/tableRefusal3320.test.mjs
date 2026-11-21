@@ -32,5 +32,5 @@ test("wired: the .xyz picker (streamed and whole), Import CSV, DC / IP Import li
   assert.equal((g.match(/tableRefusal\(file\.name, (columns|t\.headers), (sample|parsedRows|t\.rows), "point"(, head|, text)?\)/g) || []).length, 3); // the file's head / text as a 5th argument: #3804
   const d = readFileSync(new URL("../src/components/DcipPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(d, /r = !\(g0\.a && g0\.m\) \? tableRefusal\(f\.name, t\.headers, t\.rows, "dcipLine"\) : null/);
-  assert.match(d, /if \(!keys\.length\) \{ setMsg\(\{ ok: false, text: tr\("\\"\{name\}\\" has no line stations in it:/);
+  assert.match(d, /if \(!keys\.length\) \{ setMsg\(\{ ok: false, text: tr\("\\"\{name\}\\" has no line stations. Use GPS waypoints/);
 });

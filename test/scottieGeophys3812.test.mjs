@@ -16,10 +16,11 @@ test("#3812 a 3D UBC mesh is told where it goes; the pane says where a 3D model 
   assert.equal(isUBCMeshText("72 182 75\n531000 5531000 1500\n"), true); // the review's Model_Fine_Con.msh shape: nx ny nz, then the origin
   const p = read("../src/components/DcipPanel.jsx");
   assert.match(p, /const k = texts\.findIndex\(\(t\) => isUBCMeshText\(t\)\);/);
-  assert.match(p, /goes to Geophysics › Block models › Import UBC mesh \+ model, not here\. This button reads one 2D line \(dcinv2d\.msh\)\./);
-  assert.match(p, /One 2D line only\. A 3D inversion model \(a UBC mesh with 3 sizes\) goes to Block models/);
-  hasKeys(['"{name}" is a 3D UBC mesh ({nx} × {ny} × {nz} cells): a 3D inversion model goes to Geophysics › Block models › Import UBC mesh + model, not here. This button reads one 2D line (dcinv2d.msh).',
-    "One 2D line only. A 3D inversion model (a UBC mesh with 3 sizes) goes to Block models; a cloud of apparent values (X Y Z value) to Point survey."]);
+  // #3899 T7: shortened, the same routes
+  assert.match(p, /import it under Geophysics › Block models › Import UBC mesh \+ model\. This reads one 2D line\./);
+  assert.match(p, /One 2D line only\. A UBC 3D mesh goes to Block models/);
+  hasKeys(['"{name}" is a 3D UBC mesh ({nx} × {ny} × {nz} cells): import it under Geophysics › Block models › Import UBC mesh + model. This reads one 2D line.',
+    "One 2D line only. A UBC 3D mesh goes to Block models; a cloud of apparent values (X Y Z value) to Point survey."]);
 });
 
 test("#3813 the notice names the route this project can use; a repeat evaluation replaces its layer", () => {

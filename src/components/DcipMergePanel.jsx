@@ -80,7 +80,7 @@ export default function DcipMergePanel({ pBtn, numInput }) {
   return (
     <div style={{ marginTop: 14 }}>
       <div className="ge-section-label">{tr("Merge lines into 3D")}</div>
-      <div style={small}>{tr("Interpolates the inverted lines in this project into one block model between them (inverse distance, a flat search at each depth). Only where at least two lines are within the radius and the lines see; a guide between 2.5D sections, not a 3D inversion.")}</div>
+      <div style={small}>{tr("Interpolates the inverted lines into one block model where two or more lines are within the radius: a guide between sections, not a 3D inversion.")}</div>
       {kinds.length > 1 && (
         <div style={row}><span style={lbl}>{tr("Property")}</span>
           <select value={kind} onChange={(e) => setKind(e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Property to merge")}>
@@ -89,7 +89,7 @@ export default function DcipMergePanel({ pBtn, numInput }) {
         </div>
       )}
       {kinds.length === 1 && <div style={{ ...small, marginTop: 5 }}>{tr("{kind}: {n} inverted lines.", { kind: tr(KINDS[kind].label), n: byMethod[kind].length })}</div>}
-      <div style={row} title={tr("How far across from a line a block still takes its values. The suggestion reaches the next line, so every block between two lines uses both.")}><span style={lbl}>{tr("Search radius (m)")}</span>
+      <div style={row} title={tr("How far from a line a block still takes its values. The suggestion reaches the next line, so blocks between two lines use both.")}><span style={lbl}>{tr("Search radius (m)")}</span>
         <NumberInput allowEmpty min={1} value={radius} placeholder={suggested ? String(suggested) : "m"} onChange={(v) => setRadius((v == null ? "" : String(v)))} style={inp} aria-label={tr("Merge search radius")} />
       </div>
       <div style={row} title={tr("Block size in plan; the vertical size is the lines' own cell height.")}><span style={lbl}>{tr("Block size (m)")}</span>
