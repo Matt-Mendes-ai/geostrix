@@ -170,16 +170,17 @@ export function snappedGridExtent({ xmin, ymin, xmax, ymax }, cell) {
   return { xmin: lo(xmin), ymin: lo(ymin), xmax: hi(xmax), ymax: hi(ymax) };
 }
 
-export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize, power, name, stretch = "p2-98", maxDistance = Infinity }) {
+export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize, power, name, stretch = "p2-98", maxDistance = Infinity, stretchFrom = null }) {
   const { gridW, gridH, values } = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power, maxDistance });
-  return gridValuesToRasterInput(values, gridW, gridH, { xmin, ymax, cellSize, name, stretch });
+  return gridValuesToRasterInput(values, gridW, gridH, { xmin, ymax, cellSize, name, stretch, stretchFrom });
 }
 // TASKS.csv #2846 — the raster of any gridded survey (IDW, minimum curvature, the spline): node centres at xmin + (i + 0.5) cell, row 0 north
-export function gridValuesToRasterInput(values, gridW, gridH, { xmin, ymax, cellSize, name, stretch = "p2-98" }) {
+// stretchFrom (TASKS.csv #3883, #3810): the values the colour stretch is taken from, when not the grid's own (the level grids of one 3D cloud share the cloud's)
+export function gridValuesToRasterInput(values, gridW, gridH, { xmin, ymax, cellSize, name, stretch = "p2-98", stretchFrom = null }) {
   let min = Infinity, max = -Infinity;
   for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; } }
-  const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
-  const st = makeStretch(values, stretch); // #372
+  const st = makeStretch(stretchFrom && stretchFrom.length ? stretchFrom : values, stretch); // #372
+  const hasRange = Number.isFinite(min) && Number.isFinite(max) && (max > min || (stretchFrom && st.hi > st.lo)); // #3810: a flat level still takes the shared colour
 
   const canvas = document.createElement("canvas");
   canvas.width = gridW; canvas.height = gridH;

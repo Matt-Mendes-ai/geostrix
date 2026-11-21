@@ -521,6 +521,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     if (!wins) { setError(tr("Give a step above zero and a range with the top above the bottom.")); return; }
     const taken = rasters.map((x) => x.name), label = surveyLabel(idwKey), blank = idwBlank === "" ? idwAutoBlank ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity;
     let made = 0, skipped = 0, tooBig = false;
+    // TASKS.csv #3883 (#3810) — one colour stretch for every level, taken from the cloud's values over the whole range: each level used to be stretched over
+    // its own values, so the same colour meant a different value from one level to the next and the levels could not be compared
+    const shared = Float64Array.from(rows3.filter((r) => r.z >= wins[0].lo && r.z <= wins[wins.length - 1].hi && Number.isFinite(r.value)).map((r) => r.value));
     for (const w of wins) {
       const pts = rows3.filter((r) => inLevel(r.z, w));
       if (pts.length < 3 || pointsAlongOneLine(pts, idwCellSize)) { skipped++; continue; }
@@ -528,7 +531,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const box = snappedGridExtent({ xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) }, idwCellSize);
       if (Math.round((box.xmax - box.xmin) / idwCellSize) * Math.round((box.ymax - box.ymin) / idwCellSize) > 4_000_000) { tooBig = true; break; }
       const name = uniqueName(`${label} z ${+w.lo.toFixed(2)}–${+w.hi.toFixed(2)} m IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}`, taken); taken.push(name);
-      const raster = idwGridToRasterInput(pts, { ...box, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank, name });
+      const raster = idwGridToRasterInput(pts, { ...box, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank, name, stretchFrom: shared });
       const zs = pts.map((r) => r.z);
       addRaster({ ...raster, elevation: median(zs), provenance: { tool: "IDW gridding (level set)", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, levelM: [w.lo, w.hi] }, surveyMethod: geophysSurveys?.[idwKey]?.method || undefined, units: geophysSurveys?.[idwKey]?.units || undefined });
       made++;
