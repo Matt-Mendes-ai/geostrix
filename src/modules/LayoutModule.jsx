@@ -2135,8 +2135,8 @@ export default function LayoutModule() {
         {/* TASKS.csv #788 — the sheet is physical paper (rulers from the left, x in mm): it stays left-to-right in Arabic, or an RTL scroll would open on the page's right edge */}
         <div dir="ltr" ref={areaRef} style={{ overflow: "auto", padding: 30, flex: 1 }}>
         {!startCardClosed && elements.every((el) => LAYOUT_STARTER_IDS.has(el.id)) && ( /* TASKS.csv #3939 — the first screen: a sheet in one click, over the page */
-          <div style={{ position: "sticky", top: 0, left: 0, height: 0, zIndex: 6, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-            <div dir="auto" style={{ marginTop: 110, display: "flex", justifyContent: "center", width: "100%" }}>
+          <div style={{ position: "sticky", top: 0, left: 0, height: 0, zIndex: 6, display: "flex", justifyContent: "center", alignItems: "flex-start", pointerEvents: "none" }}>{/* flex-start: a zero-height row must not squash the card */}
+            <div dir="auto" style={{ marginTop: 110, display: "flex", justifyContent: "center", alignItems: "flex-start", width: "100%" }}>
               <LayoutStartCard onClose={() => setStartCardClosed(true)} onMake={(k) => makeSheet(k)} onCurrentView={() => startViewportRender(null, "new")} sheets={[ // the ribbon's Sheets group, same conditions and words
                 { kind: "plan", label: "Plan map", disabled: !collars.length && !(plannedHoles || []).length, reason: "Import collars or plan a hole first", title: "A new page with a drill plan of every hole at a round scale, plus key, north arrow, scale bar, title and data credit." },
                 { kind: "section", label: "Cross-section", disabled: !sheetSrc.section, reason: "Send a section to Layout first (Snapshot in the section window)", title: "A new page with the newest section sent to Layout at a round scale, plus legend, north arrow, scale bar, title and data credit." },
