@@ -26,7 +26,7 @@ test("#1134 the section draws planned holes after the ribbons and contacts, and 
   const at = (t) => s.indexOf(t);
   assert.ok(at("{intervals.map((row, i) => {") < at("{plannedHoles.map((ph, i) => {"));
   assert.ok(at("{contacts.map((c) => (") < at("{plannedHoles.map((ph, i) => {"));
-  assert.ok(at("{plannedHoles.map((ph, i) => {") < at("resolveLabels(floatLabels, [...holeLabelBoxes"));
+  assert.ok(at("{plannedHoles.map((ph, i) => {") < at("resolveLabels(shown, [...holeLabelBoxes") /* #3968: the kinds turned on */);
 });
 
 test("#1144 a label that must show never lands on a hole's name: it moves off, with a leader back to its spot", () => {

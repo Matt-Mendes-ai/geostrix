@@ -25,6 +25,7 @@ import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3573 �
 import { sectionIntercepts, gradeBarAxis, gradeBarFrac } from "../lib/sectionIntercepts.js"; // TASKS.csv #3860
 import { defaultSectionVE, plotAspect, MAX_SECTION_VE } from "../lib/sectionVE.js"; // TASKS.csv #2363; plotAspect: #2933
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import { LABEL_KINDS, labelShow, floatLabelKind, labelsPatch, labelsPatchAll, crowdedDefault } from "../lib/sectionLabelKinds.js"; // TASKS.csv #3968
 // TASKS.csv #2933 / #2387 — the VE of the section a step (‹ ›) was taken from, for the section that step opens in the next tab of this
 // window (the tabs share this module): a parallel section keeps the user's 8x instead of opening at its own automatic 3x
 let stepVE = null;
@@ -180,6 +181,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // with the section (relayed to the main window like contacts), so a re-opened section and its Layout snapshot keep them.
   const [labels, setLabels] = useState({ mode: "collar", leaders: "auto", offsets: {} });
   const [labelsLeftOut, setLabelsLeftOut] = useState(0); // #1536
+  const holeCount = (data?.holes || []).length, labelsShown = labelShow(labels, holeCount); // TASKS.csv #3968
   const changeLabels = (patch) => setLabels((p) => {
     const next = { ...p, ...patch };
     if (data?.id) sendSectionContacts({ id: data.id, labels: next });
@@ -578,6 +580,18 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         )}
         {/* TASKS.csv #823 — hole labels */}
         <span style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", color: "#55606e" }}>
+          {/* TASKS.csv #3968 — each kind of label on or off, saved with the section; a crowded section starts with offsets and depth ticks off */}
+          {crowdedDefault(labels, holeCount) && <span style={{ fontSize: "var(--font-size-sm)" }}>{tr("{n} holes: offsets and depth ticks off.", { n: holeCount })}</span>}
+          <details data-section-labels="" style={{ position: "relative", fontSize: "var(--font-size-sm)" }}>
+            <summary style={{ cursor: "pointer", listStyle: "none", padding: "4px 8px", border: "1px solid #d9dce1", borderRadius: 6, background: "#f4f5f7" }}>{tr("Labels")} ▾</summary>
+            <div style={{ position: "absolute", zIndex: 5, top: "100%", right: 0, marginTop: 4, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 10px", display: "flex", flexDirection: "column", gap: 4, whiteSpace: "nowrap" }}>
+              <span style={{ display: "flex", gap: 6, marginBottom: 2 }}>
+                <button type="button" onClick={() => changeLabels(labelsPatchAll(labels, true))} style={{ ...btnStyle(false), padding: "2px 8px" }}>{tr("All")}</button>
+                <button type="button" onClick={() => changeLabels(labelsPatchAll(labels, false))} style={{ ...btnStyle(false), padding: "2px 8px" }}>{tr("None")}</button>
+              </span>
+              {LABEL_KINDS.map(([k, name]) => <label key={k} style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={!!labelsShown[k]} onChange={(e) => changeLabels(labelsPatch(labels, holeCount, k, e.target.checked))} />{tr(name)}</label>)}
+            </div>
+          </details>
           <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Hole labels")}
             <select value={labels.mode} onChange={(e) => changeLabels({ mode: e.target.value })} style={{ ...selectStyle, padding: "3px 5px" }} aria-label={tr("Hole labels")}>
               <option value="collar">{tr("at the collar")}</option><option value="end">{tr("at the end of the hole")}</option><option value="both">{tr("at both ends")}</option><option value="off">{tr("off")}</option>
@@ -677,6 +691,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   useEffect(() => { if (autoVERef.current != null && vExagIn == null) onAutoVE?.(autoVERef.current); });
   const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [], rlOffset = 0 } = data; // scatter: #1807; rlOffset: #2809
   const groundLabel = data.groundSource ? tr("Ground surface ({source})", { source: data.groundSource }) : tr("Ground surface"); // TASKS.csv #3949 — the terrain's own source, not always SRTM
+  const show = labelShow(labels, (data.holes || []).length); // TASKS.csv #3968 — the kinds of label this section draws (its Labels menu)
   const rlOff = Number.isFinite(rlOffset) ? rlOffset : 0; // TASKS.csv #2809 — the mine grid's RL datum: grid RL = elevation + this; 0: the axis is elevation
   // TASKS.csv #1090 — the margin and the title / axis text positions follow the text size: at 2x (or the print size the
   // exports use) the title and subtitle, and the tick labels and coordinates under the frame, overlapped
@@ -954,7 +969,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
             points={elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")}
             fill="none" stroke={colors.terrainLine} strokeWidth="1.6"
           />
-          {haloBox(groundLabel, W - PAD - 4, sz(elevationProfile[elevationProfile.length - 1].z) - 6, fs(9.5), "end")}<text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#55606e" fontSize={fs(9.5)} textAnchor="end">{groundLabel}</text>
+          {show.ground && <>{haloBox(groundLabel, W - PAD - 4, sz(elevationProfile[elevationProfile.length - 1].z) - 6, fs(9.5), "end")}<text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#55606e" fontSize={fs(9.5)} textAnchor="end">{groundLabel}</text></>}{/* #3968 */}
         </g>
       )}
 
@@ -1140,7 +1155,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
         if (!trace?.length) return null;
         const eoh = trace[trace.length - 1].md;
         const marks = [];
-        for (let md = 50; md < eoh - 5; md += 50) {
+        for (let md = 50; show.ticks && md < eoh - 5; md += 50) { // #3968 — Labels: Depth ticks
           const p = interpTrace(trace, md), q = interpTrace(trace, Math.min(eoh, md + 1));
           if (!p || !q) continue;
           const x = sx(along(p.x, p.y)), y = sz(p.z);
@@ -1184,7 +1199,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
         const marks = [];
         if (hasMd) {
           const eoh = t[t.length - 1].md;
-          for (let md = 50; md < eoh - 5; md += 50) {
+          for (let md = 50; show.ticks && md < eoh - 5; md += 50) { // #3968
             const p = interpTrace(t, md), q = interpTrace(t, Math.min(eoh, md + 1));
             if (!p || !q) continue;
             const x = sx(along(p.x, p.y)), y = sz(p.z);
@@ -1228,7 +1243,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
           const collarOff = firstIn !== first ? offEnd(first) : null;
           const collarText = !collarOff ? h.hole_id : collarOff.side === "left" ? tr("{hole} (collar {m} m beyond the left end)", { hole: h.hole_id, m: collarOff.m }) : tr("{hole} (collar {m} m beyond the right end)", { hole: h.hole_id, m: collarOff.m });
           if (labels.mode === "collar" || labels.mode === "both") items.push({ key: `${h.hole_id}|collar`, text: collarText, ax: at(firstIn)[0], ay: at(firstIn)[1], dir: -1, color: "#1a2028" });
-          if (labels.mode === "end" || labels.mode === "both") items.push({ key: `${h.hole_id}|end`, text: tr("{hole} · EOH {v} m", { hole: h.hole_id, v: Math.round(last.md ?? 0) }), ax: at(lastIn)[0], ay: at(lastIn)[1], dir: 1, color: "#1a2028" });
+          if (labels.mode === "end" || labels.mode === "both") items.push({ key: `${h.hole_id}|end`, text: show.eoh ? tr("{hole} · EOH {v} m", { hole: h.hole_id, v: Math.round(last.md ?? 0) }) : h.hole_id /* #3968 */, ax: at(lastIn)[0], ay: at(lastIn)[1], dir: 1, color: "#1a2028" });
         });
         plannedHoles.forEach((ph) => {
           const t = ph.trace;
@@ -1270,7 +1285,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
       })()}
       {/* TASKS.csv #1134 — depth / EOH / offset / planned-hole labels: one collision pass, drawn last (over the ribbons) */}
       <g pointerEvents="none">
-        {(() => { const rl = resolveLabels(floatLabels, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [PAD, W - PAD] /* #3552 — the frame's width, not the page's: an EOH / offset tag near a hole's end started left of the frame */, yBounds: [2, totalH - 2], widthOf: floatWidth, strictBounds: true }); leftOutRef.current += floatLabels.filter((l) => l.optional).length - rl.filter((l) => l.optional).length; return rl; })().map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}{haloBox(l.text, l.x, l.y, l.size, l.anchor, undefined, floatWidth(l.text, l.size))}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
+        {(() => { const shown = floatLabels.filter((l) => { const k = floatLabelKind(l.key); return !k || show[k]; }) /* #3968 — the kinds turned off are not placed, nor counted as left out */; const rl = resolveLabels(shown, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [PAD, W - PAD] /* #3552 — the frame's width, not the page's: an EOH / offset tag near a hole's end started left of the frame */, yBounds: [2, totalH - 2], widthOf: floatWidth, strictBounds: true }); leftOutRef.current += shown.filter((l) => l.optional).length - rl.filter((l) => l.optional).length; return rl; })().map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}{haloBox(l.text, l.x, l.y, l.size, l.anchor, undefined, floatWidth(l.text, l.size))}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
       </g>
       <text x={W / 2} y={H - fs(14)} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
       <text x={fs(16)} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 ${fs(16)} ${H / 2})`}>{rlOff ? tr("RL (m)") : tr("Elevation (m)")}</text>
