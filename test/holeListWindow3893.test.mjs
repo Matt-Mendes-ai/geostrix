@@ -38,14 +38,15 @@ writeFileSync(out, buildSync({ entryPoints: [path.join(here, "..", "src", "modul
 test.after(() => rmSync(dir, { recursive: true, force: true }));
 
 test("10,000 holes: the list draws a window of rows, not 10,000; one fixed row height; no 'Show more'", async () => {
-  const { HoleRowList, HOLE_ROW_H, HOLE_LIST_ROWS, HOLE_LIST_OVERSCAN } = await import(pathToFileURL(out).href);
+  const { HoleRowList, HOLE_LIST_ROWS, HOLE_LIST_OVERSCAN, holeRowH } = await import(pathToFileURL(out).href);
+  const HOLE_ROW_H = holeRowH("large"); // #3900 — the default text size (no local storage here): 28 px rows
   const React = (await import("react")).default, { renderToStaticMarkup } = await import("react-dom/server");
   const holes = Array.from({ length: 10000 }, (_, i) => ({ hole_id: `DH-${String(i).padStart(5, "0")}` }));
   const html = renderToStaticMarkup(React.createElement(HoleRowList, { holes, filterKey: "", visibleHoles: {}, onToggle() {}, onOpenStripLog() {}, onSection() {}, onZoom() {} }));
   const rows = (html.match(/role="listitem"/g) || []).length;
   assert.equal(rows, HOLE_LIST_ROWS + 1 + HOLE_LIST_OVERSCAN, `${rows} rows drawn`);
   assert.match(html, /role="list" aria-label="Holes list" tabindex="0"/);
-  assert.match(html, /max-height:min\(40vh, 312px\);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable/);
+  assert.match(html, /max-height:min\(40vh, 336px\);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable/);
   assert.ok(html.includes(`height:${(10000 - rows) * HOLE_ROW_H}px`), "the space below stands for the rows not drawn");
   assert.ok(html.includes("DH-00000") && !html.includes("DH-09999"), "the top of the list, sorted by id");
   assert.ok(!/Show \d+ more/.test(html));
@@ -56,7 +57,7 @@ test("10,000 holes: the list draws a window of rows, not 10,000; one fixed row h
 test("wiring: a new filter scrolls back to the top; a row's text never wraps (the window depends on one height)", () => {
   const p = rd("../src/modules/viewer/ViewerParts.jsx");
   assert.match(p, /useEffect\(\(\) => \{ if \(boxRef\.current\) boxRef\.current\.scrollTop = 0;[^\n]*\}, \[filterKey\]\);/);
-  assert.match(p, /height: HOLE_ROW_H, boxSizing: "border-box"/);
+  assert.match(p, /height: rowH, boxSizing: "border-box"/); // #3900 — HOLE_ROW_H plus the text size's bump
   assert.match(p, /whiteSpace: "nowrap" \}\} title=\{hole_id\}>\{hole_id\}<\/span>/);
   assert.ok(!p.includes("HOLE_ROWS_STEP"), "the 300-row step is gone");
 });

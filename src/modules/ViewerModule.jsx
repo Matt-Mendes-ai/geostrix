@@ -2747,9 +2747,9 @@ ${describeTrend(t)}` };
     try {
       const shot = captureHiRes(renderer, mountW, mountH, () => { // #380 — print resolution
         const hl = layerGroupsRef.current?.hole_labels;
-        fitScreenLabels(hl, renderCamera, outH); // #379
-        fitScreenLabels(sectionLinesGroupRef.current?.userData.labels, renderCamera, outH); // #1126; #3246
-        fitContourLabels(boundaryGroupRef.current, renderCamera, outW, outH, false); // #1466 — sized for the capture; the live declutter kept
+        fitScreenLabels(hl, renderCamera, outH, LABEL_PX); // #379; LABEL_PX: a capture is 16 px whatever the text size (#3900)
+        fitScreenLabels(sectionLinesGroupRef.current?.userData.labels, renderCamera, outH, LABEL_PX); // #1126; #3246
+        fitContourLabels(boundaryGroupRef.current, renderCamera, outW, outH, false, LABEL_PX); // #1466 — sized for the capture; the live declutter kept
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — the figure shows the slice you see
         // TASKS.csv #1770 — a drill plan labels every hole: the live view's declutter (#1294) must not hide one in the capture
         labelsOverlapping = withEveryLabel(hl, renderCamera, outW, outH, () => withMarkerViewport(outH, () => renderer.render(scene, renderCamera)) /* #3855 */, LABEL_PX); // outW x outH: the frame fitScreenLabels sized the labels against (the canvas is that times the print pixel ratio)

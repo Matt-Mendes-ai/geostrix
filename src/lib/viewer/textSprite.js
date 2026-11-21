@@ -3,7 +3,10 @@
 // comments of both were written in ViewerModule and are kept as they were (TASKS.csv #379, #380).
 import * as THREE from "three";
 import { declutterHoleLabels } from "./holeLabels.js"; // #1466
+import { screenLabelPx } from "../textSize.js"; // #3900
 
+// TASKS.csv #3900 — LABEL_PX is a CAPTURE's label height (a figure for the Layout sheet or a file: always 16). On screen the labels follow
+// the text size setting, 16 / 19 / 22 px (lib/textSize.js screenLabelPx), the default of fitScreenLabels and of the declutter.
 export const LABEL_PX = 16;
 const LABEL_FONT = "600 32px 'Exo 2', system-ui, sans-serif";
 export function makeTextSprite(text, { color = "#1a2028", bg = "rgba(255,255,255,0.85)" } = {}) {
@@ -165,11 +168,11 @@ export function makeCalloutSprite(lines, { color = "#1a2028", bg = "rgba(255,255
 makeTextSprite.callout = makeCalloutSprite;
 makeTextSprite.fill = fillTextSprites;
 
-export function fitScreenLabels(group, camera, viewportH) {
+export function fitScreenLabels(group, camera, viewportH, px = screenLabelPx()) {
   if (!group || !viewportH) return;
   const s = camera.isPerspectiveCamera
-    ? (2 * LABEL_PX) / (viewportH * camera.projectionMatrix.elements[5])
-    : (LABEL_PX * (camera.top - camera.bottom)) / (camera.zoom * viewportH);
+    ? (2 * px) / (viewportH * camera.projectionMatrix.elements[5])
+    : (px * (camera.top - camera.bottom)) / (camera.zoom * viewportH);
   for (const sp of group.children) {
     const a = sp.material?.userData?.labelAspect, L = sp.material?.userData?.labelLines || 1; // L: a callout's lines (#3399)
     if (a) sp.scale.set(s * a * L, s * L, 1);
@@ -178,13 +181,13 @@ export function fitScreenLabels(group, camera, viewportH) {
 
 // TASKS.csv #1466 / #1622 — each visible contour layer's labels (the boundary group's child flagged userData.contourLabels): kept
 // LABEL_PX tall and, when `declutter`, thinned where they overlap, as the hole labels are
-export function fitContourLabels(boundaryGroup, camera, width, height, declutter = true) {
+export function fitContourLabels(boundaryGroup, camera, width, height, declutter = true, px = screenLabelPx()) {
   for (const g of boundaryGroup?.children || []) {
     if (!g.visible) continue;
     for (const c of g.children) {
       if (!c.userData?.contourLabels || !c.children.length) continue;
-      fitScreenLabels(c, camera, height);
-      if (declutter) declutterHoleLabels(c, camera, width, height);
+      fitScreenLabels(c, camera, height, px);
+      if (declutter) declutterHoleLabels(c, camera, width, height, px);
     }
   }
 }
