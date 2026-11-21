@@ -176,7 +176,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const d1 = rangeTo === "" || !Number.isFinite(Number(rangeTo)) ? maxDepth : Math.max(d0 + 1, Math.min(maxDepth, Number(rangeTo)));
   const ranged = d0 > 0 || d1 < maxDepth;
   const sy = (d) => PAD_TOP + (d - d0) * pxPerMeter;
-  const H = sy(d1) + 30;
+  const H = sy(d1) + 34; // TASKS.csv #3900 T2 — the captions under the tracks at 10 px (the figure-text floor), was + 30
   // TASKS.csv #3559 (Fireweed rehearsal) — a 1,000 m hole at 6 px/m was ten screens of mostly empty tracks, with no way under 1 px/m: Fit, the sampled stretch, the whole hole, and the log opens fitted
   const paneH = () => scrollRef.current?.clientHeight || 560;
   const fit = () => setPxPerMeter(fitPxPerMetre(d1 - d0, paneH()));
@@ -228,7 +228,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const calcBars = tracks.filter((t) => t.kind === "bar" && t.methodOf), hasCalc = calcBars.some((t) => t.rows.some((r) => isCalculatedMethod(t.methodOf(r)))), hasMeasured = calcBars.some((t) => t.rows.some((r) => !isCalculatedMethod(t.methodOf(r))));
   // TASKS.csv #3713 — each assay bar's colour classes, as the 3D View's legend words them: 'Au (ppm): ≤ 0.1 | 0.1–0.5 | > 0.5', one key row per element, in the figure
   const classKeys = (assayClasses ? tracks.filter((t) => t.kind === "assaybar" && t.sym) : []).flatMap((t) => { const br = assayClasses(t.sym); if (!br?.length) return []; const u = elementUnits[t.sym] || "ppm"; return [{ sym: t.sym, label: `${t.sym} (${u})`, classes: br.map((b, i) => ({ color: b.color, text: i === 0 ? `≤ ${fmtLegendValue(b.max)}` : i === br.length - 1 ? `> ${fmtLegendValue(br[i - 1].max)}` : `${fmtLegendValue(br[i - 1].max)}–${fmtLegendValue(b.max)}` })) }]; });
-  const keyH = (hasCalc ? 34 : 0) + classKeys.length * 14;
+  const keyH = (hasCalc ? 38 : 0) + classKeys.length * 16; // #3900: the key rows at 10 px
   // a bar track's scale caption: its own range, or the log range
   const barCaption = (t) => (t.lo != null ? `${sigText(t.lo, 4)}–${sigText(t.max, 4)}` : t.logOk && logOn && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: sigText(t.minPos, 2), max: sigText(t.max, 3) }) : `0–${sigText(t.max, 3)}`);
 
@@ -392,7 +392,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             {depthTicks(d0, d1, pxPerMeter).map((d, i) => (
               <g key={i}>
                 <line x1={DEPTH_COL_W - 4} y1={sy(d)} x2={DEPTH_COL_W} y2={sy(d)} stroke="#94a1b0" strokeWidth="1" />
-                <text x={DEPTH_COL_W - 7} y={sy(d) + 3} fontSize="9" textAnchor="end" fill="#55606e">{d}</text>
+                <text x={DEPTH_COL_W - 7} y={sy(d) + 3.5} fontSize="10" textAnchor="end" fill="#55606e">{d}</text>
               </g>
             ))}
             <line x1={DEPTH_COL_W} y1={sy(d0)} x2={DEPTH_COL_W} y2={sy(d1)} stroke="#94a1b0" strokeWidth="1" />
@@ -403,7 +403,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 <g key={t.key}>
                   {(() => { const hl = headerLines(t.label, TRACK_W - 8), hs = headerSize(hl.reduce((p, l) => (l.length > p.length ? l : p))) /* the longer line sets the size */; return <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14 - (hl.length - 1) * (hs + 1)} fontSize={hs} fontWeight="600" textAnchor="middle" fill="#1a2028">{hl.map((l, k) => <tspan key={k} x={x0 + TRACK_W / 2} dy={k ? hs + 1 : 0}>{l}</tspan>)}<title>{t.title || t.label}</title></text>; })() /* two lines: #2481 */}{/* #3141 — sized to its track (a 14-letter custom name ran under the next header) */}
                   <rect x={x0} y={sy(d0)} width={TRACK_W - 6} height={sy(d1) - sy(d0)} fill="none" stroke="#dde1e6" />
-                  {t.kind === "bar" && t.scaleLabel && t.max > 0 && <text x={x0 + TRACK_W / 2} y={PAD_TOP - 3} fontSize="7" textAnchor="middle" fill="#65717e">{barCaption(t)}</text> /* TASKS.csv #3558 — the scale where the track starts, not only 3,000 px down */}
+                  {t.kind === "bar" && t.scaleLabel && t.max > 0 && <text x={x0 + TRACK_W / 2} y={PAD_TOP - 3} fontSize="10" textAnchor="middle" fill="#65717e">{barCaption(t)}</text> /* TASKS.csv #3558 — the scale where the track starts, not only 3,000 px down */}
                   {t.kind === "fill" && (() => { // #1254 — rows on the same depths side by side, with their percent where the log gives one
                     const { rows, lanes } = t.key === "mnlgy" ? fillLanes(t.rows) : { rows: t.rows, lanes: 1 };
                     const w = (TRACK_W - 6) / lanes;
@@ -442,7 +442,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     return <g pointerEvents="none"><clipPath id={cid}>{calcRows.map((r, i) => { const w = wOf(r); return w > 0 ? <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} /> : null; })}</clipPath><rect x={x0 + 2} y={sy(d0)} width={TRACK_W - 8} height={sy(d1) - sy(d0)} fill="url(#sl-calc-hatch)" opacity="0.6" clipPath={`url(#${cid})`} /></g>;
                   })()}
                   {t.kind === "bar" && t.scaleLabel && t.max > 0 && ( // #323 — each bar track's own full-scale value
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{barCaption(t)}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 15} fontSize="10" textAnchor="middle" fill="#65717e">{barCaption(t)}</text>
                   )}
                   {t.kind === "struct" && t.rows.map((s, i) => { // #1400
                     const cx = x0 + (TRACK_W - 6) / 2, y = sy(s.depth), tk = alphaTick(s.alpha, (TRACK_W - 6) / 2 - 4), c = t.colorFn(s.value);
@@ -461,34 +461,34 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     if (!(w > 0)) return null;
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={assayColor ? assayColor(t.sym, v) : "#c9863d"} opacity="0.85"><title>{`${r.from}-${r.to} m: ${v} ${gradeUnitLabel(t.sym, elementUnits[t.sym])}`}</title></rect>;
                   })}
-                  {t.kind === "assaybar" && t.sym && peakValueLabels(t.rows.map((r) => { const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits); return v == null || !Number.isFinite(v) ? null : { v, y: (sy(r.from) + sy(r.to)) / 2, f: barFrac(t.sym, v) }; }).filter(Boolean)).map((pk) => { const txt = sigText(pk.v, 3), tw = txt.length * 8 * 0.55 + 4, tx = x0 + TRACK_W - 7; return <g key={`pk${pk.y}`} pointerEvents="none"><rect x={tx - tw} y={pk.y - 5.5} width={tw} height={10} fill="#ffffff" fillOpacity="0.85" /><text x={tx - 2} y={pk.y + 3} fontSize="8" textAnchor="end" fill="#1a2028">{txt}</text></g>; })}{/* TASKS.csv #3859 — the highest values written at their bars */}
+                  {t.kind === "assaybar" && t.sym && peakValueLabels(t.rows.map((r) => { const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits); return v == null || !Number.isFinite(v) ? null : { v, y: (sy(r.from) + sy(r.to)) / 2, f: barFrac(t.sym, v) }; }).filter(Boolean), { gapPx: 13 }).map((pk) => { const txt = sigText(pk.v, 3), tw = txt.length * 10 * 0.55 + 4, tx = x0 + TRACK_W - 7; return <g key={`pk${pk.y}`} pointerEvents="none"><rect x={tx - tw} y={pk.y - 7} width={tw} height={12} fill="#ffffff" fillOpacity="0.85" /><text x={tx - 2} y={pk.y + 3.5} fontSize="10" textAnchor="end" fill="#1a2028">{txt}</text></g>; })}{/* TASKS.csv #3859 — the highest values written at their bars */}
                   {t.kind === "pxrfdots" && t.sym && t.rows.map((r, i) => { // #1695 — a pXRF reading: a dot at its depth, scaled to the pXRF readings' own maximum
                     const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);
                     if (v == null || !Number.isFinite(v) || !(pxrfRange[t.sym] > 0)) return null;
                     return <circle key={i} cx={x0 + 2 + Math.max(0, Math.min(1, v / pxrfRange[t.sym])) * (TRACK_W - 8)} cy={sy(r.from)} r="2" fill="#6b4fa0" opacity="0.9"><title>{`${r.from} m: ${v} ${elementUnits[t.sym] || "ppm"} (pXRF)`}</title></circle>;
                   })}
                   {t.kind === "pxrfdots" && t.sym && pxrfRange[t.sym] > 0 && (
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{`pXRF 0–${sigText(pxrfRange[t.sym], 3)}`}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 15} fontSize="10" textAnchor="middle" fill="#65717e">{`pXRF 0–${sigText(pxrfRange[t.sym], 3)}`}</text>
                   )}
                   {t.kind === "assaybar" && t.sym && assayRange[t.sym]?.max > 0 && (() => { const ax = axisOf(t.sym); return ax.ticks // #3141 — a linear axis: its round ticks under the track
-                    ? ax.ticks.map((tk, k) => (k % tickStride(ax.ticks) === 0 || k === ax.ticks.length - 1) && <text key={`t${tk}`} x={x0 + 2 + (tk / ax.max) * (TRACK_W - 8)} y={sy(d1) + 12} fontSize="8" textAnchor={k === 0 ? "start" : k === ax.ticks.length - 1 ? "end" : "middle"} fill="#65717e">{tk}</text>) /* the end ticks inside the track: "80" and the next track's "0" read "800" */
-                    : !ax.linear ? <>{logAxisTicks(assayRange[t.sym].minPos, assayRange[t.sym].max, { widthPx: TRACK_W - 8, fontPx: 8 }).filter((tk) => tk.label).map((tk) => <text key={`lt${tk.v}`} x={x0 + 2 + tk.f * (TRACK_W - 8)} y={sy(d1) + 11} fontSize="8" textAnchor={tk.anchor} fill="#65717e">{tk.label}</text>)}{/* TASKS.csv #3859 — the decades, then the axis's ends under them */}
-                      <text x={x0 + TRACK_W / 2} y={sy(d1) + 21} fontSize="7" textAnchor="middle" fill="#65717e">{tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) })}</text></>
-                    : <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{!ax.linear ? tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) }) : `0–${sigText(assayRange[t.sym].max, 3)}`}</text>; })()}
+                    ? ax.ticks.map((tk, k) => (k % tickStride(ax.ticks) === 0 || k === ax.ticks.length - 1) && <text key={`t${tk}`} x={x0 + 2 + (tk / ax.max) * (TRACK_W - 8)} y={sy(d1) + 13} fontSize="10" textAnchor={k === 0 ? "start" : k === ax.ticks.length - 1 ? "end" : "middle"} fill="#65717e">{tk}</text>) /* the end ticks inside the track: "80" and the next track's "0" read "800" */
+                    : !ax.linear ? <>{logAxisTicks(assayRange[t.sym].minPos, assayRange[t.sym].max, { widthPx: TRACK_W - 8, fontPx: 10 }).filter((tk) => tk.label).map((tk) => <text key={`lt${tk.v}`} x={x0 + 2 + tk.f * (TRACK_W - 8)} y={sy(d1) + 13} fontSize="10" textAnchor={tk.anchor} fill="#65717e">{tk.label}</text>)}{/* TASKS.csv #3859 — the decades, then the axis's ends under them */}
+                      <text x={x0 + TRACK_W / 2} y={sy(d1) + 26} fontSize="10" textAnchor="middle" fill="#65717e">{tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) })}</text></>
+                    : <text x={x0 + TRACK_W / 2} y={sy(d1) + 15} fontSize="10" textAnchor="middle" fill="#65717e">{!ax.linear ? tr("log {minPos}–{max}", { minPos: sigText(assayRange[t.sym].minPos, 2), max: sigText(assayRange[t.sym].max, 3) }) : `0–${sigText(assayRange[t.sym].max, 3)}`}</text>; })()}
                 </g>
               );
             })}
-            {classKeys.map((k, ki) => { const y0 = sy(d1) + 26 + (hasCalc ? 34 : 0) + ki * 14; let x = DEPTH_COL_W + 2 + 60; return ( /* TASKS.csv #3713 — the colour classes of an assay bar */
+            {classKeys.map((k, ki) => { const y0 = sy(d1) + 30 + (hasCalc ? 38 : 0) + ki * 16; /* #3900: 10 px rows */ let x = DEPTH_COL_W + 2 + 60; return ( /* TASKS.csv #3713 — the colour classes of an assay bar */
               <g key={`ck${k.sym}`}>
-                <text x={DEPTH_COL_W + 2} y={y0 + 7} fontSize="8" fill="#55606e">{k.label}</text>
-                {k.classes.map((c, ci) => { const w = 14 + 4 + c.text.length * 4.6 + 8, x0 = x; x += w; return <g key={ci}><rect x={x0} y={y0} width={10} height={8} fill={c.color} opacity="0.85" stroke="#8a929c" strokeWidth="0.4" /><text x={x0 + 14} y={y0 + 7} fontSize="8" fill="#55606e">{c.text}</text></g>; })}
+                <text x={DEPTH_COL_W + 2} y={y0 + 9} fontSize="10" fill="#55606e">{k.label}</text>
+                {k.classes.map((c, ci) => { const w = 16 + 4 + c.text.length * 5.6 + 8, x0 = x; x += w; return <g key={ci}><rect x={x0} y={y0} width={12} height={10} fill={c.color} opacity="0.85" stroke="#8a929c" strokeWidth="0.4" /><text x={x0 + 16} y={y0 + 9} fontSize="10" fill="#55606e">{c.text}</text></g>; })}
               </g>
             ); })}
-            {hasCalc && (() => { const y0 = sy(d1) + 26, x0 = DEPTH_COL_W + 2; return ( /* TASKS.csv #3713 — the key of the hatch */
+            {hasCalc && (() => { const y0 = sy(d1) + 30, x0 = DEPTH_COL_W + 2; return ( /* TASKS.csv #3713 — the key of the hatch */
               <g>
-                <rect x={x0} y={y0} width={14} height={8} fill="#4a9be0" opacity="0.3" stroke="#4a9be0" strokeDasharray="2 1.5" strokeWidth="0.8" /><rect x={x0} y={y0} width={14} height={8} fill="url(#sl-calc-hatch)" />
-                <text x={x0 + 19} y={y0 + 7} fontSize="8" fill="#55606e">{tr("hatched = calculated (regression)")}</text>
-                {hasMeasured && <><rect x={x0} y={y0 + 13} width={14} height={8} fill="#4a9be0" opacity="0.75" /><text x={x0 + 19} y={y0 + 20} fontSize="8" fill="#55606e">{tr("solid = measured")}</text></>}
+                <rect x={x0} y={y0} width={14} height={10} fill="#4a9be0" opacity="0.3" stroke="#4a9be0" strokeDasharray="2 1.5" strokeWidth="0.8" /><rect x={x0} y={y0} width={14} height={10} fill="url(#sl-calc-hatch)" />
+                <text x={x0 + 19} y={y0 + 9} fontSize="10" fill="#55606e">{tr("hatched = calculated (regression)")}</text>
+                {hasMeasured && <><rect x={x0} y={y0 + 16} width={14} height={10} fill="#4a9be0" opacity="0.75" /><text x={x0 + 19} y={y0 + 25} fontSize="10" fill="#55606e">{tr("solid = measured")}</text></>}
               </g>
             ); })()}
           </svg>}
