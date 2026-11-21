@@ -29,8 +29,8 @@ test("classifyBreaks: every method gives readable breaks; the first (the minimum
 
 test("both legend editors show the stops rounded and keep what is typed (StopValueInput)", () => {
   const c = read("../src/components/StopValueInput.jsx");
-  assert.match(c, /setText\(\(t\) => \(t !== "" && Number\(t\) === value \? t : String\(shown \?\? value\)\)\)/);
-  assert.match(c, /if \(t\.trim\(\) !== "" && Number\.isFinite\(v\)\) onCommit\(v\);/);
+  // TASKS.csv #3926 — the box is a NumberInput (it keeps what is typed until the box is left); the stored stop is rounded only by an edit
+  assert.match(c, /<NumberInput value=\{shown \?\? value\} onChange=\{\(v\) => \{ if \(v != null && v !== value && !\(shown != null && v === Number\(shown\)\)\) onCommit\(v\); \}\}/);
   const g = read("../src/modules/GeophysicsModule.jsx");
   assert.match(g, /const shown = useMemo\(\(\) => readableValues\(\[\.\.\.stops\.map\(\(s\) => s\.value\), model\.max\]\), \[stops, model\.max\]\);/);
   assert.match(g, /<StopValueInput value=\{s\.value\} shown=\{shown\[i\]\} onCommit=\{\(v\) => updateStop\(i, \{ value: v \}\)\}/);

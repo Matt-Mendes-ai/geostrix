@@ -27,6 +27,6 @@ test("wiring: the extra columns and their cells, the widened table, and the page
   const b = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.match(b, /\.\.\.shownExtras\.map\(\(s\) => `\$\{s\} \(\$\{gradeUnitLabel\(s, elementUnits\[s\]\)\}\)`\)/);
   assert.match(b, /\.\.\.shownExtras\.map\(\(s\) => \(r\.extras\?\.\[s\] == null \? "—" : fExtra\[s\]\(r\.extras\[s\]\)\)\)/);
-  assert.match(b, /const tableW = Math\.min\(pageSize\.w - 80, 560 \+ 70 \* shownExtras\.length\);/);
+  assert.match(b, /const tableW = Math\.min\(pageSize\.w - 80, 560 \+ 70 \* \(shownExtras\.length \+ \(concCol \? 1 : 0\)\)\);/); // concCol: #3876 (#3758), the two richest samples' share column widens it by one
   assert.match(b, /if \(ownPage\) addLayoutPages\(\[\{ name: tr\("Best intercepts"\), elements: \[table\][^\n]*\}, \.\.\.contPages\]\);/); // contPages: #2708
 });

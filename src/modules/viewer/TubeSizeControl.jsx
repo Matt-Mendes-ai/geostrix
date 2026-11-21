@@ -4,11 +4,11 @@
 // layer's own choice is kept in tubeSize.byLayer[key] ('Same as all layers' removes it). The tubes of each layer use that layer's uniforms (tubeShader.js).
 import React, { useMemo, useState } from "react";
 import { t as tr } from "../../lib/i18n.js";
-import { useStore } from "../../lib/store.jsx";
-import { LAYER_META } from "../../lib/layers.js";
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
+import { useStore } from "../../lib/store.jsx";
+import { LAYER_META } from "../../lib/layers.js";
 
 export default function TubeSizeControl({ figureOverlay, setFigureOverlay }) {
   const all = figureOverlay.tubeSize || { mode: "auto" };
