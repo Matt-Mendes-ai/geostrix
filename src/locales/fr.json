@@ -5087,8 +5087,6 @@
   "Loaded {items} categories from \"{v2}\".": "{items} catégories chargées depuis « {v2} ».",
   "Loaded {items} lithology unit from \"{name}\".": "{items} unité lithologique chargée depuis « {name} ».",
   "Loaded {items} lithology units from \"{name}\".": "{items} unités lithologiques chargées depuis « {name} ».",
-  "Imagery, terrain, map layers and boundaries all lie under your drillholes in the": "L'imagerie, le terrain, les couches cartographiques et les limites se trouvent tous sous vos sondages dans la",
-  "— switch tabs to see them. Everything is placed in the project CRS{v}.": "— changez d'onglet pour les voir. Tout est placé dans le SCR du projet{v}.",
   " (not chosen yet: Project CRS above)": " (pas encore choisi : SCR du projet ci-dessus)",
   "EPSG:{v}": "EPSG:{v}",
   "{rasters} raster": "{rasters} raster",
@@ -14606,5 +14604,10 @@
   "A soil grid's KML shows the lines (stations in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. The CSV and field sheet list QC inserts in sample order; duplicates are taken at the site of the sample they follow.": "Le KML d'une grille de sols montre les lignes (stations dans un dossier masqué au départ) ; son GPX contient les lignes en traces et les stations en points de passage. Les sites de sédiments de ruisseau sont des points. Le CSV et la feuille de terrain listent les contrôles QC dans l'ordre des échantillons ; les duplicatas sont pris au site de l'échantillon qu'ils suivent.",
   "A trend is the direction the geology is most continuous in. Each model below can follow one.": "Une tendance est la direction dans laquelle la géologie est la plus continue. Chaque modèle ci-dessous peut en suivre une.",
   "It is a plane (dip, dip azimuth), the line of greatest continuity in it (pitch, from the strike direction, dip azimuth − 90°, towards down dip: 90° = down dip) and how much more continuous it is along that line than across it (ratios).": "C'est un plan (pendage, azimut de pendage), la ligne de plus grande continuité qu'il contient (pitch, depuis la direction, azimut de pendage − 90°, vers le bas du pendage : 90° = selon le pendage) et combien plus continue elle est selon cette ligne que perpendiculairement (rapports).",
-  "How QC samples are found": "Comment les échantillons de QC sont repérés"
+  "How QC samples are found": "Comment les échantillons de QC sont repérés",
+  "Drop a GeoTIFF, grid or map layer here": "Déposez ici un GeoTIFF, une grille ou une couche cartographique",
+  "Imagery, grids and map layers": "Imagerie, grilles et couches cartographiques",
+  "A GeoTIFF, a grid or a map layer dropped here is drawn on this plan and under your drill holes in 3D.": "Un GeoTIFF, une grille ou une couche cartographique déposé ici est dessiné sur ce plan et sous vos sondages en 3D.",
+  "Drag a GeoTIFF, grid or map layer here to start.": "Glissez ici un GeoTIFF, une grille ou une couche cartographique pour commencer.",
+  "They lie under your drill holes in {sv}, placed in the project CRS{v}.": "Ils se placent sous vos sondages dans {sv}, dans le SCR du projet{v}."
 }

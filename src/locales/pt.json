@@ -5087,8 +5087,6 @@
   "Loaded {items} categories from \"{v2}\".": "{items} categorias carregadas de \"{v2}\".",
   "Loaded {items} lithology unit from \"{name}\".": "{items} unidade litológica carregada de \"{name}\".",
   "Loaded {items} lithology units from \"{name}\".": "{items} unidades litológicas carregadas de \"{name}\".",
-  "Imagery, terrain, map layers and boundaries all lie under your drillholes in the": "Imagens, terreno, camadas de mapa e limites ficam sob seus furos na",
-  "— switch tabs to see them. Everything is placed in the project CRS{v}.": "— mude de aba para vê-los. Tudo é posicionado no SRC do projeto{v}.",
   " (not chosen yet: Project CRS above)": " (ainda não escolhido: SRC do projeto acima)",
   "EPSG:{v}": "EPSG:{v}",
   "{rasters} raster": "{rasters} raster",
@@ -14606,5 +14604,10 @@
   "A soil grid's KML shows the lines (stations in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. The CSV and field sheet list QC inserts in sample order; duplicates are taken at the site of the sample they follow.": "O KML de uma malha de solos mostra as linhas (estações em uma pasta que começa oculta); seu GPX tem as linhas como trilhas e as estações como waypoints. Os locais de sedimento de corrente são pontos. O CSV e a folha de campo listam os controles QC na ordem das amostras; as duplicatas são coletadas no local da amostra que seguem.",
   "A trend is the direction the geology is most continuous in. Each model below can follow one.": "Uma tendência é a direção em que a geologia é mais contínua. Cada modelo abaixo pode seguir uma.",
   "It is a plane (dip, dip azimuth), the line of greatest continuity in it (pitch, from the strike direction, dip azimuth − 90°, towards down dip: 90° = down dip) and how much more continuous it is along that line than across it (ratios).": "É um plano (mergulho, azimute do mergulho), a linha de maior continuidade nele (rake, a partir da direção, azimute do mergulho − 90°, em direção ao mergulho: 90° = no mergulho) e o quanto ela é mais contínua ao longo dessa linha do que transversalmente (razões).",
-  "How QC samples are found": "Como as amostras de QC são reconhecidas"
+  "How QC samples are found": "Como as amostras de QC são reconhecidas",
+  "Drop a GeoTIFF, grid or map layer here": "Solte aqui um GeoTIFF, uma grade ou uma camada de mapa",
+  "Imagery, grids and map layers": "Imagens, grades e camadas de mapa",
+  "A GeoTIFF, a grid or a map layer dropped here is drawn on this plan and under your drill holes in 3D.": "Um GeoTIFF, uma grade ou uma camada de mapa solto aqui é desenhado nesta planta e sob seus furos em 3D.",
+  "Drag a GeoTIFF, grid or map layer here to start.": "Arraste aqui um GeoTIFF, uma grade ou uma camada de mapa para começar.",
+  "They lie under your drill holes in {sv}, placed in the project CRS{v}.": "Ficam sob seus furos no {sv}, posicionados no SRC do projeto{v}."
 }

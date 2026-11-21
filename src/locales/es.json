@@ -5087,8 +5087,6 @@
   "Loaded {items} categories from \"{v2}\".": "Se cargaron {items} categorías de \"{v2}\".",
   "Loaded {items} lithology unit from \"{name}\".": "Se cargó {items} unidad litológica de \"{name}\".",
   "Loaded {items} lithology units from \"{name}\".": "Se cargaron {items} unidades litológicas de \"{name}\".",
-  "Imagery, terrain, map layers and boundaries all lie under your drillholes in the": "Las imágenes, el terreno, las capas de mapa y los límites quedan bajo sus sondajes en la",
-  "— switch tabs to see them. Everything is placed in the project CRS{v}.": "— cambie de pestaña para verlos. Todo se ubica en el SRC del proyecto{v}.",
   " (not chosen yet: Project CRS above)": " (aún no elegido: SRC del proyecto arriba)",
   "EPSG:{v}": "EPSG:{v}",
   "{rasters} raster": "{rasters} ráster",
@@ -14606,5 +14604,10 @@
   "A soil grid's KML shows the lines (stations in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. The CSV and field sheet list QC inserts in sample order; duplicates are taken at the site of the sample they follow.": "El KML de una malla de suelos muestra las líneas (estaciones en una carpeta que empieza oculta); su GPX tiene las líneas como tracks y las estaciones como waypoints. Los sitios de sedimentos de arroyo son puntos. El CSV y la hoja de campo listan los controles QC en el orden de las muestras; los duplicados se toman en el sitio de la muestra a la que siguen.",
   "A trend is the direction the geology is most continuous in. Each model below can follow one.": "Una tendencia es la dirección en que la geología es más continua. Cada modelo de abajo puede seguir una.",
   "It is a plane (dip, dip azimuth), the line of greatest continuity in it (pitch, from the strike direction, dip azimuth − 90°, towards down dip: 90° = down dip) and how much more continuous it is along that line than across it (ratios).": "Es un plano (manteo, azimut de manteo), la línea de mayor continuidad en él (cabeceo, desde la dirección del rumbo, azimut de manteo − 90°, hacia el manteo: 90° = según el manteo) y cuánto más continua es a lo largo de esa línea que a través de ella (razones).",
-  "How QC samples are found": "Cómo se reconocen las muestras de QC"
+  "How QC samples are found": "Cómo se reconocen las muestras de QC",
+  "Drop a GeoTIFF, grid or map layer here": "Suelte aquí un GeoTIFF, una grilla o una capa de mapa",
+  "Imagery, grids and map layers": "Imágenes, grillas y capas de mapa",
+  "A GeoTIFF, a grid or a map layer dropped here is drawn on this plan and under your drill holes in 3D.": "Un GeoTIFF, una grilla o una capa de mapa soltados aquí se dibujan en esta planta y bajo sus sondajes en 3D.",
+  "Drag a GeoTIFF, grid or map layer here to start.": "Arrastre aquí un GeoTIFF, una grilla o una capa de mapa para empezar.",
+  "They lie under your drill holes in {sv}, placed in the project CRS{v}.": "Quedan bajo sus sondajes en {sv}, ubicados en el SRC del proyecto{v}."
 }

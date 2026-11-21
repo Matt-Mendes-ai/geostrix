@@ -5087,8 +5087,6 @@
   "Loaded {items} categories from \"{v2}\".": "حُمّلت {items} فئات من «{v2}».",
   "Loaded {items} lithology unit from \"{name}\".": "حُمّلت {items} وحدة ليثولوجية من «{name}».",
   "Loaded {items} lithology units from \"{name}\".": "حُمّلت {items} وحدات ليثولوجية من «{name}».",
-  "Imagery, terrain, map layers and boundaries all lie under your drillholes in the": "الصور والتضاريس وطبقات الخرائط والحدود كلها تحت ثقوبك في",
-  "— switch tabs to see them. Everything is placed in the project CRS{v}.": "— بدّل التبويبات لرؤيتها. كل شيء موضوع في نظام إحداثيات المشروع{v}.",
   " (not chosen yet: Project CRS above)": " (لم يُختر بعد: نظام إحداثيات المشروع أعلاه)",
   "EPSG:{v}": "EPSG:{v}",
   "{rasters} raster": "{rasters} نقطية",
@@ -14606,5 +14604,10 @@
   "A soil grid's KML shows the lines (stations in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. The CSV and field sheet list QC inserts in sample order; duplicates are taken at the site of the sample they follow.": "يعرض KML لشبكة التربة الخطوط (المحطات في مجلد يبدأ مخفيًا)؛ ويحتوي GPX على الخطوط كمسارات والمحطات كنقاط طريق. مواقع رواسب الجداول نقاط. يسرد CSV وورقة الميدان ضوابط الجودة بترتيب العينات؛ وتؤخذ المكررات من موقع العينة التي تليها.",
   "A trend is the direction the geology is most continuous in. Each model below can follow one.": "الاتجاه هو المنحى الذي تكون فيه الجيولوجيا أكثر استمرارية. كل نموذج أدناه يمكنه اتباع واحد.",
   "It is a plane (dip, dip azimuth), the line of greatest continuity in it (pitch, from the strike direction, dip azimuth − 90°, towards down dip: 90° = down dip) and how much more continuous it is along that line than across it (ratios).": "وهو مستوٍ (الميل، سمت الميل)، وخط أعظم استمرارية داخله (الانحدار، من اتجاه المضرب، سمت الميل − 90°، نحو أسفل الميل: 90° = مع الميل) ومدى زيادة استمراريته على ذلك الخط مقارنة بعرضه (النسب).",
-  "How QC samples are found": "كيف تُعرَف عينات ضبط الجودة"
+  "How QC samples are found": "كيف تُعرَف عينات ضبط الجودة",
+  "Drop a GeoTIFF, grid or map layer here": "أفلت ملف GeoTIFF أو شبكة أو طبقة خريطة هنا",
+  "Imagery, grids and map layers": "الصور والشبكات وطبقات الخريطة",
+  "A GeoTIFF, a grid or a map layer dropped here is drawn on this plan and under your drill holes in 3D.": "يُرسم ملف GeoTIFF أو الشبكة أو طبقة الخريطة المُفلتة هنا على هذا المسقط وتحت ثقوب الحفر في العرض ثلاثي الأبعاد.",
+  "Drag a GeoTIFF, grid or map layer here to start.": "اسحب ملف GeoTIFF أو شبكة أو طبقة خريطة هنا للبدء.",
+  "They lie under your drill holes in {sv}, placed in the project CRS{v}.": "تقع تحت ثقوب الحفر في {sv}، موضوعة في نظام إحداثيات المشروع{v}."
 }
