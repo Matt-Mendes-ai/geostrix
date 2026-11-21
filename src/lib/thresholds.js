@@ -232,6 +232,25 @@ export function probabilityBreak(values, weights = null) {
   return s ? candidateThresholds(s).values.probbreak : null;
 }
 
+// TASKS.csv #3876 (#3758) — on a nuggety grade with many values at a detection floor (half the limit, logged as one number), the probability plot's
+// break can sit on the first value above that floor: the step off the below-detection values, not a bend into a high-grade tail, and not a cap
+// to test. The floor: the lowest positive value when at least floorShare of the values are at it. -> { floor, first, share } when the break is at
+// the first value above the floor (below the geometric middle between it and the next value up), else null.
+export function detectionStep(values, brk, { floorShare = 0.1 } = {}) {
+  if (!(brk > 0)) return null;
+  let v0 = Infinity;
+  for (const v of values || []) if (v > 0 && v < v0) v0 = v;
+  if (!Number.isFinite(v0)) return null;
+  const tol = (x) => Math.abs(x - v0) <= v0 * 1e-9;
+  let n = 0, at = 0, first = Infinity;
+  for (const v of values) { if (!(v > 0)) continue; n++; if (tol(v)) at++; else if (v < first) first = v; }
+  if (!n || at / n < floorShare || !Number.isFinite(first)) return null;
+  let next = Infinity;
+  for (const v of values) if (v > first * (1 + 1e-9) && v < next) next = v;
+  const limit = Number.isFinite(next) ? Math.sqrt(first * next) : first * (1 + 1e-6);
+  return brk < limit ? { floor: v0, first, share: at / n } : null;
+}
+
 export function robustZ(value, summary) {
   if (!(value > 0) || !summary || !(summary.madL > 0)) return null;
   return (log10(value) - summary.medianL) / summary.madL;
