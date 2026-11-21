@@ -31,6 +31,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { rememberCompositing, compositingToSave } from "../lib/lastCompositing.js"; // TASKS.csv #2224 — these settings, offered by Estimation and the grade shell
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — composited-interval count can genuinely reach the thousands (e.g. a 300m hole at 2m composites), unlike a toy dataset
 
@@ -206,7 +207,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
               </select>
             </label>
-            <label style={fieldLabel}>{tr("Composite length (m)")}<input type="number" step="any" min="0.1" value={length} onChange={(e) => setLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
+            <label style={fieldLabel}>{tr("Composite length (m)")}<NumberInput min="0.1" value={length} onChange={(v) => setLength(Math.max(0.1, v ?? 2))} style={inp} />
               {usual && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("{length} m: the commonest sample length ({pct} % of the samples)", { length: usual.length, pct: Math.round(usual.share * 100) })}</span>}{/* #1801 */}
             </label>
             <label style={fieldLabel} title={tr("Honour a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.")}>{tr("Honour domain")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
@@ -215,12 +216,12 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
                 {customDomains.map((d) => <option key={d.key} value={d.key}>{d.attribute || d.grouped ? attributeDomainLabel(d, tr) : d.label}</option>)}{/* #1678; attributes: #2504 */}
               </select>
             </label>
-            <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap ({unit})", { unit: unitL })}<input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
+            <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap ({unit})", { unit: unitL })}<NumberInput allowEmpty min="0" placeholder={tr("none")} value={capValue} onChange={(v) => setCapValue(v == null ? "" : String(v))} style={inp} />
             </label>
             <div style={{ gridColumn: "1 / -1", flexBasis: "100%" }}>
               <CapAuditHint assays={compAssays} symbol={symbol} unit={unit} unitLabel={unitL} /* #2192: g/t beside the g/t field */ elementUnits={elementUnits} capValue={capStored} toShown={sh} /* #3475 */ onSetCap={(v) => setCapValue(String(Number(sh(v).toPrecision(4))))} />
             </div>
-            <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be reported.")}>{tr("Min coverage (%)")}<input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
+            <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be reported.")}>{tr("Min coverage (%)")}<NumberInput step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(v) => setMinCoverage(Math.max(0, Math.min(100, v ?? 0)) / 100)} style={inp} />
               {Math.round(minCoverage * 100) === 50 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("50 is the tool's starting value")}</span>}{/* #3579 */}
             </label>
             {density && <label style={fieldLabel} title={tr("How a composite's grade is averaged: by metres, or by metres times the density of each sample (the Specific gravity layer). A sample with no density takes the mean density of the others in the composite.")}>{tr("Weight grades by")}
@@ -236,7 +237,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
                 <option value="drop">{tr("Drop")}</option>
               </select>
             </label>
-            {shortEnd !== "keep" && <label style={fieldLabel}>{tr("when under (m)")}<input type="number" step="any" min="0" value={minEnd} onChange={(e) => setMinEnd(Math.max(0, Number(e.target.value) || 0))} style={{ ...inp, width: 80 }} /></label>}
+            {shortEnd !== "keep" && <label style={fieldLabel}>{tr("when under (m)")}<NumberInput min="0" value={minEnd} onChange={(v) => setMinEnd(Math.max(0, v ?? 0))} style={{ ...inp, width: 80 }} /></label>}
           </div>
           {symbols.length > 1 && <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Composite these elements in the same run, on the same windows: one table with each element's grade and coverage, and the density.")}>
             <span>{tr("Also composite:")}</span>
