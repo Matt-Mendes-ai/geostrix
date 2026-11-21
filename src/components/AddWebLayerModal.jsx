@@ -1,4 +1,5 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import AreaChooser, { useFetchArea } from "./AreaChooser.jsx"; // TASKS.csv #3954
 import { X, Globe, Loader2, Download } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -20,7 +21,7 @@ import { COMMON_WEB_SERVICES, presetService, servicesFirst } from "../lib/webSer
 // WMS -> one rendered image for a chosen area, imported as a raster drape (addRaster). WFS -> real
 // vector features, imported as a boundary polylines layer (addBoundary). Both go through
 // src/lib/webLayers.js, which does the actual GetCapabilities/GetMap/GetFeature work.
-export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addMapLayer, projectEpsg, defaultBboxLonLat }) {
+export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addMapLayer, projectEpsg, defaultBboxLonLat, areaOptions = null }) {
   useEscapeKey(onClose);
   useFocusTrap(); // TASKS.csv #238
   const [service, setService] = useState("wms"); // "wms" | "wfs"
@@ -34,7 +35,6 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null); // {ok, text}
   const [areaPickerOpen, setAreaPickerOpen] = useState(false);
-  const [bboxLonLat, setBboxLonLat] = useState(null); // WMS only
   const [clipToArea, setClipToArea] = useState(true); // WFS only
   const [wfsAs, setWfsAs] = useState("map"); // TASKS.csv #544 — "map": Map layer with attributes | "lines": boundary lines
   // TASKS.csv #840 — WMS image detail (longest side), remembered per computer like the satellite fetch's level
@@ -43,6 +43,13 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
   const [wmsProgress, setWmsProgress] = useState(null);
 
   const selectedLayer = layers?.find((l) => l.name === selectedName) || null;
+  // TASKS.csv #3954 — the WMS area from the shared chooser (lib/fetchAreas.js); #543: the project area first, the layer's own extent only without one
+  const options = useMemo(() => {
+    const base = areaOptions || (defaultBboxLonLat ? [{ id: "project", kind: "project", label: tr("Project area"), bboxLonLat: defaultBboxLonLat }] : []);
+    return base.length || !selectedLayer?.bboxLonLat ? base : [{ id: "layer", kind: "layer", label: tr("The layer's extent"), bboxLonLat: defaultWmsArea(selectedLayer.bboxLonLat, null) }];
+  }, [areaOptions, defaultBboxLonLat, selectedLayer]);
+  const area = useFetchArea("web", options);
+  const bboxLonLat = area.bboxLonLat; // WMS only
 
   // svc / u / want: a common service picked from the list (#1468), fetched at once with its layer chosen
   // TASKS.csv #3835 — choosing a common service used to ask it for its layers at once, before 'Fetch layers' was pressed: nothing goes online until the button (or Enter in the URL box). The layer a preset wants is kept for then.
@@ -56,10 +63,6 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
       setLayers(found);
       const pick = want && found.find((l) => l.name === want);
       if (pick) setSelectedName(pick.name);
-      if (svc === "wms") {
-        const first = pick || found[0];
-        setBboxLonLat(defaultWmsArea(first.bboxLonLat, defaultBboxLonLat)); // #543 — the project area first
-      }
     } catch (err) {
       setCapsError(err.message);
     } finally {
@@ -69,10 +72,6 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
 
   const selectLayer = (name) => {
     setSelectedName(name);
-    if (service === "wms") {
-      const l = layers.find((x) => x.name === name);
-      setBboxLonLat(defaultWmsArea(l?.bboxLonLat, defaultBboxLonLat)); // #543
-    }
   };
 
   const doImport = async () => {
@@ -174,15 +173,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
 
           {selectedLayer && service === "wms" && (
             <div>
-              <div style={labelStyle}>{tr("Area")}</div>
-              {bboxLonLat ? (
-                <div style={{ fontSize: "var(--font-size-sm)", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>~{(bboxLonLat[2] - bboxLonLat[0]).toFixed(3)}° × {(bboxLonLat[3] - bboxLonLat[1]).toFixed(3)}°</span>
-                  <button onClick={() => setAreaPickerOpen(true)} style={{ ...btn(false), width: "auto", padding: "4px 8px" }}>{tr("Draw a different area…")}</button>
-                </div>
-              ) : (
-                <button onClick={() => setAreaPickerOpen(true)} style={{ ...btn(false), width: "auto", padding: "4px 8px" }}>{tr("Draw an area…")}</button>
-              )}
+              <AreaChooser options={options} area={area} disabled={busy} onDraw={() => setAreaPickerOpen(true)} />{/* #3954 */}
               <div style={{ ...labelStyle, marginTop: 10 }}>{tr("Detail")}</div>{/* TASKS.csv #840 */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
                 <select value={wmsDetail} onChange={(e) => setWmsDetail(e.target.value)} aria-label={tr("Image detail")} style={{ ...sel, width: "auto" }}
@@ -223,7 +214,8 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
           title={tr("Draw the area to fetch this WMS layer for")}
           confirmLabel="Use this area"
           onClose={() => setAreaPickerOpen(false)}
-          onConfirm={(bbox) => { setBboxLonLat(bbox); setAreaPickerOpen(false); }}
+          areaOptions={options} /* #3954 */
+          onConfirm={(bbox) => { area.setDrawn(bbox); setAreaPickerOpen(false); }}
         />
       )}
     </div>

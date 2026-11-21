@@ -19,6 +19,8 @@ test("claims and polygons are areas; open lines and contours are not", () => {
 
 test("the terrain and imagery area lists and Select by location use it", () => {
   const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
-  for (const p of ["../src/modules/GeophysicsModule.jsx", "../src/modules/RasterModule.jsx"]) assert.match(read(p), /if \(!isAreaBoundary\(b\)\) continue; \/\/ #1466/, p);
+  // #3954: the terrain and imagery lists are one list now (lib/fetchAreas.js), which both modules use
+  assert.match(read("../src/lib/fetchAreas.js"), /if \(!isAreaBoundary\(b\)\) continue;/);
+  for (const p of ["../src/modules/GeophysicsModule.jsx", "../src/modules/RasterModule.jsx"]) assert.match(read(p), /fetchAreaOptions\(fetchAreaChoices\(/, p);
   assert.match(read("../src/modules/ViewerModule.jsx"), /\{boundaries\.filter\(isAreaBoundary\)\.map\(\(b\) => <option key=\{b\.id\} value=\{b\.id\}>/);
 });

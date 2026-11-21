@@ -10439,10 +10439,6 @@
   "The units inside the drape's area, read from the {n} tiles it was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places.": "Les unités à l'intérieur de la zone du drapé, lues dans les {n} tuiles qui l'ont dessiné (zoom {z}). Couleurs telles que Macrostrat les donne : la carte ajoute un ombrage du relief, le drapé est donc plus sombre par endroits.",
   "This legend was read before GeoStrix cut it to the drape's area, so it can list units of the surrounding tiles that are not on the map.": "Cette légende a été lue avant que GeoStrix ne la limite à la zone du drapé : elle peut lister des unités des tuiles voisines absentes de la carte.",
   "Fetch it again for the area only": "La récupérer à nouveau pour la zone seulement",
-  "Area: drawn on the map, {size}": "Zone : dessinée sur la carte, {size}",
-  "Area: the project area, {size}": "Zone : la zone du projet, {size}",
-  "Area: none yet": "Zone : aucune pour l'instant",
-  "Use the project area": "Utiliser la zone du projet",
   "No project area yet: draw an area on the map, or load holes, samples or a map first.": "Pas encore de zone de projet : dessinez une zone sur la carte, ou chargez d'abord des sondages, des échantillons ou une carte.",
   "Map units at the centre of this area": "Unités cartographiques au centre de cette zone",
   "Draw the area to fetch Macrostrat geology for": "Dessinez la zone pour laquelle récupérer la géologie Macrostrat",
@@ -14617,5 +14613,12 @@
   "Add the units as a map layer": "Ajouter les unités comme couche cartographique",
   "Add as an image only": "Ajouter comme image seulement",
   "Sharp polygons with names: for Model it, Identify and the legend.": "Polygones nets et nommés : pour Modéliser, Identifier et la légende.",
-  "A picture only, with no names.": "Une image seulement, sans noms."
+  "A picture only, with no names.": "Une image seulement, sans noms.",
+  "Project area": "Zone du projet",
+  "The layer's extent": "L'emprise de la couche",
+  "Drawn on the map": "Dessinée sur la carte",
+  "Clip to the outline": "Découper au contour",
+  "Same as the satellite image": "Comme l'image satellite",
+  "Same as the satellite image: {name}": "Comme l'image satellite : {name}",
+  "Claim: {name}": "Claim : {name}"
 }
