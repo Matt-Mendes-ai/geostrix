@@ -238,7 +238,7 @@ import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
-import { makeWheelAnchors, wheelBoxes } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669
+import { makeWheelAnchors, wheelBoxes, sceneFloor } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669; sceneFloor: #3927
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { useSliceModelFace } from "./viewer/useSliceModelFace.js"; // #3765
 const ImportedSurfaceRows = React.lazy(() => import("./viewer/ImportedSurfaceRows.jsx")); // TASKS.csv #3762 — loads when a surface has been imported
@@ -1008,7 +1008,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const contextMenuByKeyRef = useRef(false);
   const onViewKeyDown = (e) => {
     if (e.target !== e.currentTarget) return; // a control inside the view (Fit, Top…) keeps its own keys
-    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(0.05, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
+    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(sceneFloor(tracesRef.current, visibleHolesRef.current, [voxelGroupRef.current, omfGroupRef.current, layerGroupsRef.current.geophys_pts, layerGroupsRef.current.surface_samples]) /* #3927: the wheel's floor */, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
     if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
     e.preventDefault(); // no second, browser-dispatched contextmenu event
     const r = e.currentTarget.getBoundingClientRect();
