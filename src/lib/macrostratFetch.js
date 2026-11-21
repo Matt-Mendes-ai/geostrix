@@ -4,53 +4,32 @@ import { macrostratFetch } from "./desktop.js";
 import { getProj4DefSync } from "./reproject.js";
 import { reprojectImageRGBA } from "./reprojectMore.js"; // TASKS.csv #3590
 import { wmsImageSize, wmsPixelMetres } from "./webLayers.js";
-import { MACROSTRAT_TILE_URL, MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, planMacrostratTiles, mercatorToLonLat, parseMacrostratUnits, parseMacrostratSources, tilePixelMetres, outputLongPx, macrostratLegend, macrostratUnitFeatures, macrostratLayersInArea } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
+import { MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, planMacrostratTiles, parseMacrostratUnits, parseMacrostratSources, macrostratLegend, macrostratUnitFeatures, macrostratLayersInArea, drawUnitsRGBA, unitImageLongPx } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
 import { parseLithologies } from "./macrostratColours.js";
 import { readVectorTile } from "./mvt.js"; // TASKS.csv #2011
 import { buildLayer } from "./mapLayerBuild.js"; // TASKS.csv #2012
 import { t as tr } from "./i18n.js";
 
-const decodeTile = async (res) => {
-  if (!res.ok || !res.bytes) throw new Error(res.message || tr("Request failed (HTTP {status}).", { status: res.status }));
-  return createImageBitmap(new Blob([res.bytes], { type: "image/png" }));
-};
 
-export async function fetchMacrostratRaster({ bboxLonLat, projectEpsg, longPx = 1024, onProgress }) {
-  const plan = planMacrostratTiles(bboxLonLat);
-  if (!plan) throw new Error(tr("No Macrostrat tiles cover this area."));
+// TASKS.csv #3952 — the image is drawn from the unit polygons of the vector tiles (lib/macrostrat.js drawUnitsRGBA), sized to the area, then
+// warped into the project CRS as before; the same tiles give its legend, so nothing is fetched twice. Macrostrat's PNG tiles (its relief-shaded
+// map) are no longer read: they stop at zoom 12 and a small area came out a few dozen pixels across.
+export async function fetchMacrostratRaster({ bboxLonLat, projectEpsg, onProgress }) {
   const fromDef = getProj4DefSync(4326), toDef = getProj4DefSync(projectEpsg);
   if (!fromDef || !toDef) throw new Error(tr("Can't reproject WGS84 into the project's EPSG:{projectEpsg} — unrecognized target CRS.", { projectEpsg }));
-  const list = [];
-  for (let y = plan.y0; y <= plan.y1; y++) for (let x = plan.x0; x <= plan.x1; x++) list.push({ x, y });
-  const bitmaps = new Array(list.length).fill(null);
-  const failed = [];
-  let next = 0, done = 0;
-  onProgress?.(0, list.length);
-  const worker = async () => {
-    while (next < list.length) {
-      const k = next++, t = list[k];
-      try { bitmaps[k] = await decodeTile(await macrostratFetch({ url: MACROSTRAT_TILE_URL(plan.z, t.x, t.y), binary: true })); } catch (e) { failed.push(e); }
-      onProgress?.(++done, list.length);
-    }
-  };
-  await Promise.all([worker(), worker()]);
-  if (failed.length === list.length) throw failed[0];
-  const tileSize = bitmaps.find(Boolean).width;
-  const cols = plan.x1 - plan.x0 + 1, rows = plan.y1 - plan.y0 + 1;
-  const mosaicW = cols * tileSize, mosaicH = rows * tileSize;
-  const mc = document.createElement("canvas");
-  mc.width = mosaicW; mc.height = mosaicH;
-  const mctx = mc.getContext("2d");
-  list.forEach((t, k) => { const b = bitmaps[k]; if (b) { mctx.drawImage(b, (t.x - plan.x0) * tileSize, (t.y - plan.y0) * tileSize, tileSize, tileSize); b.close?.(); } });
-  const srcPixelM = tilePixelMetres(plan.z, (bboxLonLat[1] + bboxLonLat[3]) / 2, tileSize);
-  const { width, height } = wmsImageSize(bboxLonLat, outputLongPx(wmsPixelMetres(bboxLonLat, 1), srcPixelM, longPx));
-  const ll = mercatorToLonLat(mctx.getImageData(0, 0, mosaicW, mosaicH).data, { z: plan.z, x0: plan.x0, y0: plan.y0, tileSize, mosaicW, mosaicH }, bboxLonLat, width, height);
+  const { plan, count, tiles, failed } = await fetchMacrostratTiles(bboxLonLat, onProgress);
+  const { features, units } = macrostratUnitFeatures(tiles, bboxLonLat);
+  if (!features.length) throw new Error(tr("Macrostrat has no map unit polygons in this area."));
+  const colour = new Map(units.map((u) => [u.unit, u.color]));
+  const { width, height } = wmsImageSize(bboxLonLat, unitImageLongPx(wmsPixelMetres(bboxLonLat, 1)));
+  const ll = drawUnitsRGBA(features, (f) => colour.get(f.attributes.unit) || "#777777", bboxLonLat, width, height);
   const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
   const rp = reprojectImageRGBA({ xmin: lonMin, ymin: latMin, xmax: lonMax, ymax: latMax, width, height, data: ll }, fromDef, toDef, width, height);
   const out = document.createElement("canvas");
   out.width = rp.width; out.height = rp.height;
   out.getContext("2d").putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
-  return { bbox: rp.bbox, dataUrl: out.toDataURL("image/png"), width, height, zoom: plan.z, tiles: list.length, failedTiles: failed.length, pixelM: Math.max(srcPixelM, wmsPixelMetres(bboxLonLat, Math.max(width, height))) }; // the detail the tiles hold
+  const legend = { ...macrostratLegend(macrostratLayersInArea(tiles, bboxLonLat)), inArea: true, zoom: plan.z, tiles: count, failedTiles: failed.length, fetched: new Date().toISOString().slice(0, 10) };
+  return { bbox: rp.bbox, dataUrl: out.toDataURL("image/png"), width, height, zoom: plan.z, tiles: count, failedTiles: failed.length, pixelM: wmsPixelMetres(bboxLonLat, Math.max(width, height)), legend };
 }
 
 // the map units at a point, finest map first, each with its original map's citation
