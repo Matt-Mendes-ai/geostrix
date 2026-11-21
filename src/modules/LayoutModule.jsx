@@ -154,7 +154,7 @@ export default function LayoutModule() {
     // unmounted (i.e. every trip to another tab, including the Viewer round-trip that "Add
     // viewport"/"Refresh" themselves force) — a real layout could be wiped out just by using its own
     // core feature. Now it survives tab switches and round-trips through project save/load.
-    layoutElements: elements, setLayoutElements: setElements,
+    layoutElements: elements, setLayoutElements: setElements, setLayoutElementsQuietly: setElementsQuietly, // #3960 — the app's own refreshes: no undo step
     layoutTemplates, addLayoutTemplate, deleteLayoutTemplate,
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
@@ -534,7 +534,7 @@ export default function LayoutModule() {
     const todo = elements.filter((el) => el.type === "image" && !el.numbersChecked && /^data:image\/svg\+xml;base64,/.test(el.src || ""));
     if (!todo.length) return;
     const fixed = new Map(todo.map((el) => { const r = roundLongNumbersInSnapshot(el.src); return [el.id, r]; }));
-    setElements((els) => els.map((el) => (fixed.has(el.id) ? { ...el, numbersChecked: true, ...(fixed.get(el.id).n ? { src: fixed.get(el.id).src, numbersRounded: (el.numbersRounded || 0) + fixed.get(el.id).n } : {}) } : el)));
+    setElementsQuietly((els) => els.map((el) => (fixed.has(el.id) ? { ...el, numbersChecked: true, ...(fixed.get(el.id).n ? { src: fixed.get(el.id).src, numbersRounded: (el.numbersRounded || 0) + fixed.get(el.id).n } : {}) } : el)));
   }, [elements]);
 
   // Kick off a (re-)render of a theme for a Viewport element. targetElementId is "new" to create a
@@ -746,7 +746,7 @@ export default function LayoutModule() {
     const due = elements.filter((el) => el.type === "viewport" && el.fitAzimuth != null && (el.capturedAt || 0) !== el.fitFrom);
     if (!due.length) return;
     const turn = (a, b) => { const d = Math.abs(((((a || 0) - (b || 0)) % 360) + 540) % 360 - 180); return d; };
-    setElements((els) => els.map((el) => (due.some((d) => d.id === el.id) ? { ...el, fitAzimuth: undefined, fitFrom: undefined, fitPass: undefined } : el)));
+    setElementsQuietly((els) => els.map((el) => (due.some((d) => d.id === el.id) ? { ...el, fitAzimuth: undefined, fitFrom: undefined, fitPass: undefined } : el))); // #3960
     for (const el of due) if ((el.fitPass || 1) < 2 && turn(el.cameraAzimuthDeg, el.fitAzimuth) > 0.5) fitViewport({ ...el, fitAzimuth: undefined }, { pass: 2, allHoles: !!el.fitInfo?.allHoles /* #3371 */ });
   }, [elements]); // fitViewport reads the project data of this render
   // TASKS.csv #906 — a resize handle was pressed (see Handles / the resize branch of the drag effect above)
@@ -1209,7 +1209,7 @@ export default function LayoutModule() {
     const f = pageFormatOf(activePage);
     // TASKS.csv #3702 — a FUNCTIONAL update on the page's elements as they are when it runs: writing back this render's `elements` (and refitStarter's new objects for an unmoved north arrow made that every time)
     // dropped a strip log, section or Maps plan that the picture-adding effect had just put on the page
-    setElements((prev) => refitStarterOf(prev || [], f, f, credits, ""));
+    setElementsQuietly((prev) => refitStarterOf(prev || [], f, f, credits, "")); // TASKS.csv #3960 — not an undo step: it sat on top of a page delete, so Ctrl+Z undid it and not the delete
   }, [credits, activeLayoutPageId]);
   // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
   useHoleVisibility(); // TASKS.csv #3605 — a plan that follows the checked holes redraws when they change

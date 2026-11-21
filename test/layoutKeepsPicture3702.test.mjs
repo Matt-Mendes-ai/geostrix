@@ -52,7 +52,7 @@ test("a paper change still moves the starter, and leaves an element the user mov
 
 test("wired: both LayoutModule callers update functionally through refitStarterOf", () => {
   const l = read("../src/modules/LayoutModule.jsx");
-  assert.match(l, /setElements\(\(prev\) => refitStarterOf\(prev \|\| \[\], f, f, credits, ""\)\);/);
+  assert.match(l, /setElements(Quietly)?\(\(prev\) => refitStarterOf\(prev \|\| \[\], f, f, credits, ""\)\);/); // Quietly: #3960 (still functional, and no undo step)
   assert.match(l, /setElements\(\(prev\) => \{ const t = refitStockTemplate\(prev \|\| \[\], f\)/);
   assert.doesNotMatch(l, /if \(next\.some\(\(el, i\) => el !== elements\[i\]\)\) setElements\(next\);/);
   assert.doesNotMatch(l, /\brefitStarter\(/, "no caller left on the identity-returning version");
