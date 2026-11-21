@@ -11,6 +11,7 @@ import { windowRange } from "../../lib/listWindow.js"; // TASKS.csv #3893
 import { Bookmark, BookmarkPlus, Camera, ChevronDown, ChevronUp, Database, Download, RefreshCw, Eye, EyeOff, FileBarChart2, Grid3x3, Info, LayoutTemplate, ListFilter, Maximize2, Milestone, PenTool, Pencil, Ruler, Scissors, ShieldAlert, TerminalSquare, Trash2, Upload, X, SquareSplitVertical, Rows3, Layers3, Crosshair, Map as MapIcon, Compass, Target, Mountain, Shapes, Palette } from "../../components/icons.js";
 import { Ribbon, RibbonGroup, RibbonButton, RIBBON_TONES } from "../../components/Ribbon.jsx";
 import HoverToolInfo from "../../components/HoverToolInfo.jsx";
+import RibbonMenu from "../../components/RibbonMenu.jsx"; // TASKS.csv #3928
 import VoxelRangeNumber from "../../components/VoxelRangeNumber.jsx"; // TASKS.csv #1208
 import { iconAction, activateOnKey } from "../../lib/a11y.js";
 import { voxelCellSupported } from "../../lib/viewer/geomath.js";
@@ -76,14 +77,14 @@ export function ViewToolbar({
           loaded on first use). The ids are guided/guidedTools.js's; the labels stay here so the menu costs the startup chunk nothing. */}
       <RibbonGroup label="Model">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Model")} text={tr("Build a model from your logs, one step at a time: each tool asks one question, answers it from your data, and builds the rest for you.")}>
+          <HoverToolInfo title={tr("Model")} text={tr("Build a model from your logs, one step at a time: each tool asks one question, answers it from your data, and builds the rest for you.")} suppress={openPopover === "model" /* #3928: the card never covers its own menu */}>
             <button className={`ge-ribbon-btn ${openPopover === "model" ? "active" : ""}`} aria-expanded={openPopover === "model"} aria-haspopup="menu" onClick={() => toggle("model")}><Mountain size={22} strokeWidth={1.7} color={RIBBON_TONES.model} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Model")}</span></button>
           </HoverToolInfo>
           {openPopover === "model" && (
-            <div role="menu" style={{ ...popoverStyle, width: 220, padding: 6 }}>
+            <RibbonMenu label={tr("Model")} onClose={() => setOpenPopover(null)} style={{ ...popoverStyle, width: 220, padding: 6 }}>{/* #3928: focus in, arrows, Escape */}
               {GUIDED_MENU.map(([id, label]) => <button key={id} type="button" role="menuitem" onClick={() => { setOpenPopover(null); requestModuleAction("guided-open", { tool: id }); }}
                 style={{ display: "block", width: "100%", textAlign: "start", padding: "6px 8px", border: "none", background: "transparent", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)", fontWeight: id === "start" ? 600 : 400 }}>{tr(label)}</button>)}
-            </div>
+            </RibbonMenu>
           )}
         </div>
       </RibbonGroup>
