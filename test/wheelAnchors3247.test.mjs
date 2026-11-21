@@ -79,7 +79,7 @@ test("wheelAnchors: the visible holes' points, thinned to the cap with each hole
 test("wiring: the viewer passes the traces and the visible holes to the wheel zoom", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /anchors: \(\) => wheelAnchorsFor\(tracesRef\.current, visibleHolesRef\.current\), boxes: \(\) => wheelBoxes\(\[voxelGroupRef\.current, omfGroupRef\.current, layerGroupsRef\.current\.geophys_pts, layerGroupsRef\.current\.surface_samples\]\)/); // #3669; #3671
-  assert.match(v, /import \{ makeWheelAnchors, wheelBoxes \} from "\.\/viewer\/wheelAnchors\.js"/);
+  assert.match(v, /import \{ makeWheelAnchors, wheelBoxes(, sceneFloor)? \} from "\.\/viewer\/wheelAnchors\.js"/);
 });
 
 // ---- TASKS.csv #3669 — the shown block / OMF models' boxes as the fallback when no hole is near the cursor
