@@ -49,9 +49,9 @@ test("#3324 Downhole logs compares a log with the sampled survey like a block mo
 
 test("#3324 the pane offers it for a 3D cloud and writes an 'On holes' layer", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(g, /import \{ sampleSurveyOnHoles, suggestHoleSampling \} from "\.\.\/lib\/surveyOnHoles\.js";/); // the Geophysics tab is lazy already
+  assert.match(g, /import \{ sampleSurveyOnHoles \} from "\.\.\/lib\/surveyOnHoles\.js";/); // the Geophysics tab is lazy already; suggestHoleSampling runs in the worker (#3883 / #3803)
   assert.match(g, /const name = uniqueName\(`On holes: \$\{key\}`/);
-  assert.match(g, /const holeSuggest = useMemo\(\(\) => \(holeShape\?\.is3D \? suggestHoleSampling\(legendRows\) : null\)/);
+  assert.match(g, /const holeSuggest = holeDefaults\?\.hole \|\| null;/);
   assert.match(g, /onClick=\{\(\) => sampleSurveyAlongHoles\(legendKey\)\}/);
   assert.match(g, /sampleSurveyOnHoles\(\{ points: pts, collars, survey, desurveyMethod, step, maxDist, mode \}\)/);
 });

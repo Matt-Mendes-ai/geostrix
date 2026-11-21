@@ -20,7 +20,9 @@ import { numericLayerColorFn, numericClips } from "./numericClip.js";
 import { customColour } from "./customColour.js";
 import { assayColorFor, assayHueIndex, voxelLegendGroups } from "./legendGroups.js";
 import { layerCategoryValue, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js";
-import { mapLayerFeatures, boundaryFeatures, surfaceStructureRows, kmlColor } from "./overlayExport.js";
+import { mapLayerFeatures, boundaryPlacemarkFeatures, surfaceStructureRows, kmlColor } from "./overlayExport.js"; // boundaryPlacemarkFeatures: #3883 (#3836)
+import { boundaryAreaHectares } from "./geoprocessing.js"; // #3883 (#3836) — a claim's area
+import { isMetricProjectedEpsg } from "./reproject.js"; // #3883 (#3836)
 import { polygonsFromRings } from "./polygonRings.js";
 import { plannedTrace } from "./holePlanning.js"; // #3068 — planned holes as the 3D View draws them
 import { computeLine } from "./designLines.js"; // TASKS.csv #3087 — Mine Design's lines (start + segments -> vertices)
@@ -374,6 +376,7 @@ export function buildProjectKml(ctx, opts) {
   const sets = (ctx.surfaceStructures || []).filter((s) => (s.rows || []).length);
   const maps = (ctx.mapLayers || []).filter((l) => (l.features || []).length);
   const bounds = (ctx.boundaries || []).filter((b) => (b.polylines || []).some((p) => p?.length >= 2));
+  const metricCrs = isMetricProjectedEpsg(ctx.epsg); // #3883 (#3836) — a claim's area in hectares only in a projected metric CRS
   if (inc("surface") && (samples.length || sets.length || maps.length || bounds.length)) {
     w.open("Surface", { open: true });
     if (samples.length) {
@@ -455,13 +458,13 @@ export function buildProjectKml(ctx, opts) {
       w.open("Boundaries");
       for (const b of bounds) {
         counts.layers++;
-        const built = boundaryFeatures(b);
+        const built = boundaryPlacemarkFeatures(b, { areaHa: b.kind === "claim" && metricCrs ? boundaryAreaHectares(b.polylines) : null }); // #3883 (#3836) — each feature's attributes, a claim's tenure fields
         const color = b.color || "#e2a63c", op = fin(num(b.opacity)) ? num(b.opacity) : 1;
         const sid = built.geomType === "polygon" ? w.style({ color, width: 2, fill: color, fillAlpha: 0.15 * op, alpha: op }) : w.style({ color, width: 2, alpha: op });
         w.open(b.name || "Boundary", { visible: b.visible !== false });
         for (const f of built.features) {
           const geom = built.geomType === "polygon" ? w.polygonGround(f.parts) : w.multi(f.parts.map((p) => w.lineGround(p)));
-          w.placemark(f.attributes?.level != null ? String(f.attributes.level) : b.name || "", sid, geom, { data: f.attributes });
+          w.placemark(f.name, sid, geom, { data: f.attributes, description: built.description(f) });
         }
         w.close();
       }
