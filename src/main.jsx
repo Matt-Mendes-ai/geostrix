@@ -6,6 +6,7 @@ const SectionTabs = React.lazy(() => import("./components/SectionTabs.jsx")); //
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { initLanguage, currentLanguage, onLanguageChange } from "./lib/i18n.js"; // TASKS.csv #786
 import { StoreProvider, CursorProvider, TaskProgressProvider } from "./lib/store.jsx";
+import { installNoPageScroll } from "./lib/noPageScroll.js"; // TASKS.csv #3933
 // TASKS.csv #185 — "Let's use Exo 2 for all fonts." Bundled via @fontsource/exo-2 (not a Google
 // Fonts <link>) so the app-wide font still loads with no network access — this is an Electron
 // desktop app used in the field, and a CDN <link> would silently fall back to system fonts offline.
@@ -46,6 +47,7 @@ if (window.desktop?.refocusAfterDialog) {
   }
 }
 window.addEventListener("drop", (e) => e.preventDefault());
+installNoPageScroll(); // TASKS.csv #3933 — the page itself never scrolls (app.css keeps its scroll range at zero; this is the backstop)
 
 // TASKS.csv #786 — the interface language: its dictionary is loaded before the first render; a later change re-mounts
 // <App> under a new key (the store above it keeps the project).

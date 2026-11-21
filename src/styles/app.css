@@ -114,6 +114,13 @@
 
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; width: 100%; }
+/* TASKS.csv #3933 — the page never scrolls; every pane scrolls inside itself. overflow: hidden on the window stops the wheel but not a
+   focus() or scrollIntoView, and an absolutely placed element with no positioned box around it (a hidden radio) sat 2,600 px down the
+   page: focusing it slid the whole app out of a 983 px window. html takes the window's overflow; body is the box for such stray elements
+   and clips them, as #root does, so the page has nothing to scroll to. lib/noPageScroll.js puts it back if something scrolls it anyway. */
+html { overflow: hidden; }
+body { position: relative; } /* its overflow: clip is in the body rule below */
+#root { overflow: clip; }
 /* TASKS.csv #788 — charts, stereonets and logs are drawn in left-to-right coordinates: in Arabic (dir="rtl") an SVG
    inheriting rtl would flip every text-anchor (a label anchored "start" at a box edge would hang outside it). */
 [dir="rtl"] svg { direction: ltr; }
@@ -121,7 +128,7 @@ body {
   font-family: 'Exo 2', system-ui, sans-serif;
   background: var(--color-bg);
   color: var(--color-text);
-  overflow: hidden;
+  overflow: clip; /* TASKS.csv #3933 — clip, not hidden: with html taking the window's overflow, a hidden body is a scroll box of its own */
 }
 button { font-family: inherit; }
 /* TASKS.csv #383 — Exo 2's digits are proportional (measured at 40 px: ten 1s = 159 px, ten 8s = 243 px),
