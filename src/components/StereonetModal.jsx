@@ -6,7 +6,8 @@ import { netZoom } from "../lib/stereonetZoom.js"; // TASKS.csv #2971
 import { colorForStructure, PALETTES } from "../lib/layers.js";
 import { typeKeyOf, typeEntries } from "../lib/stereonetTypes.js"; // TASKS.csv #1440
 import { TREND_MIN_PICKS, TREND_MAX_ALPHA95 } from "../lib/stereonetGroups.js"; // TASKS.csv #3845
-import { classEntries, areaEntries, keepPick, trendLabel, stereonetTrendName, surfacePicksOf } from "../lib/stereonetGroups.js"; // TASKS.csv #3843
+import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #3843
+import { keepWhere, classEntries, areaEntries, keepPick, trendLabel, stereonetTrendName, surfacePicksOf } from "../lib/stereonetGroups.js"; // TASKS.csv #3843
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -16,6 +17,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { stereonetFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1068
 import { betaReferenceCounts } from "../lib/coreOrientation.js"; // TASKS.csv #2055
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); // TASKS.csv #1238 — alpha/beta picks carry full double precision
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
@@ -40,7 +42,7 @@ const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); //
 // TASKS.csv #281 — `domains`/`domainFilter` add a SPATIAL filter alongside the existing type filter.
 // Both are optional props: the modal still works standalone with picks alone (domainFilter absent =
 // the domain control simply isn't offered), so nothing here depends on the caller having a scene.
-export default function StereonetModal({ picks: downholePicks, surfacePicks: surfacePicksIn = [], surfaceSets = null, onClose, onUseAsTrend, domains = [], domainFilter = null, customLayers = [] }) { // customLayers: TASKS.csv #1545
+export default function StereonetModal({ picks: downholePicks, surfacePicks: surfacePicksIn = [], surfaceSets = null, onClose, onUseAsTrend, domains = [], domainFilter = null, customLayers = [], locate = null }) { // customLayers: TASKS.csv #1545
   const surfacePicks = useMemo(() => (surfaceSets ? surfacePicksOf(surfaceSets) : surfacePicksIn), [surfaceSets, surfacePicksIn]); // TASKS.csv #3843 - from the structure sets: class and area kept
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -97,7 +99,11 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
     return domainFilter(picks.filter((p) => !p.outcrop), domainId);
   }, [picks, domainId, domainFilter]);
 
-  const typed = useMemo(() => (typeFilter === "all" && areaFilter === "all" ? domainScoped : domainScoped.filter((p) => keepPick(p, typeFilter, areaFilter))), [domainScoped, typeFilter, areaFilter]); // #3843: a class and an area
+  // TASKS.csv #3843 — only the readings the 3D view shows now, and/or those inside one of the project's boundaries (locate: from the 3D view)
+  const [viewOnly, setViewOnly] = useState(false), [boundaryId, setBoundaryId] = useState("");
+  const boundary = useMemo(() => (locate?.boundaries || []).find((b) => b.id === boundaryId)?.polylines || null, [locate, boundaryId]);
+  const placed = useMemo(() => keepWhere(domainScoped, locate && { inView: viewOnly ? locate.inView : null, boundary, collarXY: locate.collarXY }, pointInBoundary), [domainScoped, locate, viewOnly, boundary]);
+  const typed = useMemo(() => (typeFilter === "all" && areaFilter === "all" ? placed : placed.filter((p) => keepPick(p, typeFilter, areaFilter))), [placed, typeFilter, areaFilter]); // #3843: a class and an area
   const qualityRes = useMemo(() => filterByQuality(typed, qualityMax === "" ? NaN : Number(qualityMax), qIndex), [typed, qualityMax, qIndex]); // #1545
   const filtered = qualityRes.kept;
 
@@ -359,7 +365,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 </label>
                 {/* TASKS.csv #1444 — near-flat planes have no meaningful strike: on Silvertip the 14° bedding filled the strike rose */}
                 <label style={rowLabel} title={tr("Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.")}>{tr("Dips of at least (°)")}
-                  <input type="number" min="0" max="89" step="5" value={roseMinDip} onChange={(e) => setRoseMinDip(Math.max(0, Math.min(89, Number(e.target.value) || 0)))} style={sel} aria-label={tr("Minimum dip for the rose")} />
+                  <NumberInput min={0} max={89} step={5} value={roseMinDip} onChange={(v) => setRoseMinDip(v)} style={sel} aria-label={tr("Minimum dip for the rose")} />
                 </label>
               </>
             )}
@@ -382,6 +388,18 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 <option value="all">{tr("All areas")}</option>
                 {areaList.map((a) => <option key={a.key} value={a.key}>{`${a.key} (${a.n})`}</option>)}
               </select></label>
+            )}
+            {locate && ( /* TASKS.csv #3843 — only what is in the window / inside a boundary */
+              <>
+                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Only the readings whose collar or outcrop point is in the 3D view's window now (a ground point at the scene's level)")}>
+                  <input type="checkbox" checked={viewOnly} onChange={(e) => setViewOnly(e.target.checked)} />{tr("Only readings in the view")}</label>
+                {(locate.boundaries || []).length > 0 && (
+                  <label style={rowLabel}>{tr("Inside a boundary")}<select value={boundaryId} onChange={(e) => setBoundaryId(e.target.value)} style={sel} aria-label={tr("Boundary the readings are inside")}>
+                    <option value="">{tr("Anywhere")}</option>
+                    {locate.boundaries.map((b) => <option key={b.id} value={b.id}>{b.name || b.id}</option>)}
+                  </select></label>
+                )}
+              </>
             )}
             {/* TASKS.csv #281 — spatial-domain filter. Only offered when the caller actually supplied
                 domains and a filter (i.e. from the 3D viewer, where a domain has a meaning); the same

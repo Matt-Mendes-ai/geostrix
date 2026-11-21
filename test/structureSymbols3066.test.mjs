@@ -6,7 +6,7 @@ import { SYMBOLS, FAMILIES, defaultFamily, familyFor, symbolForReading, attitude
 test("every family's three variants are symbols, each citing its FGDC number", () => {
   for (const [id, f] of Object.entries(FAMILIES)) for (const a of ["inclined", "vertical", "horizontal"]) {
     const s = SYMBOLS[f[a]];
-    assert.ok(s, `${id}.${a}`); assert.ok(/^\d+(\.\d+)*( \/ \d+(\.\d+)*)?$/.test(s.fgdc), s.fgdc); assert.ok(s.parts.length > 0);
+    assert.ok(s, `${id}.${a}`); assert.ok(s.fgdc === "-" /* #3851 (4): the dip tick and the breccia cross are not FGDC references */ || /^\d+(\.\d+)*( \/ \d+(\.\d+)*)?$/.test(s.fgdc), s.fgdc); assert.ok(s.parts.length > 0);
   }
   assert.equal(SYMBOLS["6.2"].name, "Inclined bedding"); assert.equal(SYMBOLS["6.1"].name, "Horizontal bedding"); assert.equal(SYMBOLS["8.3.2"].fgdc, "8.3.2");
 });

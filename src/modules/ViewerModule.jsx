@@ -162,6 +162,7 @@ import { holeZoomPhi } from "./viewer/zoomHole.js"; // TASKS.csv #2375
 import { sortVoxelInstancesBackToFront, sortFacesBackToFront } from "../lib/viewer/voxelSort.js"; // TASKS.csv #434; faces: #3354
 import { assayValueCounts, orderAssayChips, filterAssayChips, CHIP_FILTER_MIN } from "../lib/viewer/assayChipOrder.js"; // TASKS.csv #2374; filter: #2785
 import { scoreRasterLegendGroups } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2670
+import { makeStereonetLocate } from "../lib/viewer/stereonetLocate.js"; // TASKS.csv #3843
 import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
@@ -229,7 +230,7 @@ import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { snapMeasurePoint } from "../lib/viewer/measureSnap.js"; // TASKS.csv #3643
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
-import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
+import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems, setStructureFloor /* #3844 */ } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
 import RastersTerrainSection from "./viewer/RastersTerrainSection.jsx"; // TASKS.csv #3891
@@ -237,7 +238,7 @@ import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
-import { makeWheelAnchors, wheelBoxes } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669
+import { makeWheelAnchors, wheelBoxes, sceneFloor } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669; sceneFloor: #3927
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { useSliceModelFace } from "./viewer/useSliceModelFace.js"; // #3765
 const ImportedSurfaceRows = React.lazy(() => import("./viewer/ImportedSurfaceRows.jsx")); // TASKS.csv #3762 — loads when a surface has been imported
@@ -263,6 +264,7 @@ import { useSavedCamera, applySavedCamera } from "./viewer/savedCamera.js"; // #
 import { decideLight, registerRenderer, lightDrawingNotice } from "../lib/viewer/lightDrawing.js"; // #3620
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
+import NumberInput from "../components/NumberInput.jsx"; // #3926
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641
@@ -1007,7 +1009,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const contextMenuByKeyRef = useRef(false);
   const onViewKeyDown = (e) => {
     if (e.target !== e.currentTarget) return; // a control inside the view (Fit, Top…) keeps its own keys
-    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(0.05, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
+    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(sceneFloor(tracesRef.current, visibleHolesRef.current, [voxelGroupRef.current, omfGroupRef.current, layerGroupsRef.current.geophys_pts, layerGroupsRef.current.surface_samples]) /* #3927: the wheel's floor */, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
     if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
     e.preventDefault(); // no second, browser-dispatched contextmenu event
     const r = e.currentTarget.getBoundingClientRect();
@@ -2322,6 +2324,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
             else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; go(); }
           }
         }
+        if (surfStructGroupRef.current?.children.length) setStructureFloor(surfStructGroupRef.current, metresPerPixel(camera, camState.current?.radius, mount.clientHeight)); // #3844 — the strike symbols' readable floor: one uniform a set
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
         lodTiles.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles (viewer/useLodTiles.js)
         { const sl = sectionLinesGroupRef.current?.userData.labels; if (sl?.children.length) { fitScreenLabels(sl, camera, mount.clientHeight); declutterHoleLabels(sl, camera, mount.clientWidth, mount.clientHeight); } } // #1126 section end labels; #3246
@@ -3022,6 +3025,7 @@ ${describeTrend(t)}` };
   // meshes) — it just asks "which of these picks are in domain X". Deliberately the SAME
   // filterRowsByDomain the GemPy orientation feed uses (#89/#231), so a domain means one thing app-wide
   // and a pick can't be inside "Fault block A" for modelling but outside it for QC.
+  const stereonetLocate = () => (stereonetOpen ? makeStereonetLocate(cameraRef.current, mountRef.current, originRef.current, boundaries, collars) : null); // TASKS.csv #3843
   const domainStereonetFilter = useCallback(
     (rows, domainId) => filterRowsByDomain(rows, tracesRef.current, (s) => s.depth, domainId || ""),
     [domains, implicitSurfaces]
@@ -4566,7 +4570,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // moved to lib/viewer/sceneBuilders.js syncSurfaceStructures (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */ }); drawSymbolsOnTop(surfStructGroupRef.current); /* #3844 */ const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
+  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */, mpp: metresPerPixel(cameraRef.current, camState.current?.radius, mountRef.current?.clientHeight) }); drawSymbolsOnTop(surfStructGroupRef.current); /* #3844 */ const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // moved to lib/viewer/sceneBuilders.js syncOmfObjects (TASKS.csv #693); its comments explain the build
@@ -6174,8 +6178,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre E")}<input value={typedSection.e} placeholder={tr("view centre") /* #3574 */} onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre easting")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre N")}<input value={typedSection.n} placeholder={tr("view centre") /* #3574 */} onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre northing")} /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="360" value={typedSection.azimuth} onChange={(e) => setTypedSection((s) => ({ ...s, azimuth: e.target.value }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<input type="number" min="10" step="50" value={typedSection.length} onChange={(e) => setTypedSection((s) => ({ ...s, length: e.target.value }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<NumberInput allowEmpty min={0} max={360} value={typedSection.azimuth === "" ? null : typedSection.azimuth} onChange={(v) => setTypedSection((s) => ({ ...s, azimuth: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<NumberInput allowEmpty min={10} step={50} value={typedSection.length === "" ? null : typedSection.length} onChange={(v) => setTypedSection((s) => ({ ...s, length: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
         </div>
         <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={tr("Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer ({sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.", { sectionCorridor })}><Scissors size={14} />{" "}{tr("Open section")}</button>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.", { sectionCorridor })}</div>
@@ -6197,12 +6201,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <option value="horizontal">{tr("Horizontal (level plan)")}</option>
               </select>
               {slice3d.mode === "vertical" && (
-                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Az")}{" "}<input type="number" min="0" max="180" value={slice3d.azimuth} onChange={(e) => setSlice3d((s) => ({ ...s, azimuth: ((Number(e.target.value) % 180) + 180) % 180 }))} style={{ width: 56 }} aria-label={tr("Slice azimuth")} />°</label>
+                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Az")}{" "}<NumberInput value={slice3d.azimuth} onChange={(v) => setSlice3d((s) => ({ ...s, azimuth: ((v % 180) + 180) % 180 }))} style={{ width: 56 }} aria-label={tr("Slice azimuth")} />°</label>
               )}
             </div>
             <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label={tr("Slice position")} />
             <Suspense fallback={null}><SlicePlaceRow slice3d={slice3d} setSlice3d={setSlice3d} ext={sliceExtent} origin={originRef.current} collars={collars} /></Suspense>{/* #3431 — by a hole or a coordinate */}
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Thickness")}{" "}<input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label={tr("Slice thickness")} /> m
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Thickness")}{" "}<NumberInput min={0} step={5} value={slice3d.thickness} onChange={(v) => setSlice3d((s) => ({ ...s, thickness: v }))} style={{ width: 64 }} aria-label={tr("Slice thickness")} /> m
               <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? tr("slab") : tr("0 = everything beyond the cut")}</span>
             </label>
             <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{sliceReadout}</div>
@@ -6214,9 +6218,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {paneHeader("Slice series (fence sections)", Rows3, "section")}{lineNote && <div style={miniField}>{lineNote}</div>}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Cuts the drilling into equal-width parallel sections at a fixed azimuth (the visible voxel / block models too when \"Also cover the visible block models\" is ticked, or when there are no drillholes) — each one added to the list below, ready to open individually. Includes the geophysics voxel slice automatically, same as any other section.")}</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{/* #1258 */}
-          <label style={{ ...miniField, flex: 1 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+          <label style={{ ...miniField, flex: 1 }}>{tr("Azimuth (°)")}<NumberInput step={1} value={sliceSeriesAzimuth} onChange={(v) => setSliceSeriesAzimuth((v % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
-          <label style={{ ...miniField, flex: 1 }}>{tr("Width (m)")}<input type="number" min="1" step="10" value={sliceSeriesWidth} onChange={(e) => setSliceSeriesWidth(Math.max(1, Number(e.target.value) || 50))} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+          <label style={{ ...miniField, flex: 1 }}>{tr("Width (m)")}<NumberInput min={1} step={10} value={sliceSeriesWidth} onChange={(v) => setSliceSeriesWidth(v)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
           <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
@@ -6575,6 +6579,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: im.visible === false ? "Show" : "Hide", onClick: () => updateSectionImage(im.id, { visible: im.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(sectionImageMeshesRef.current[im.id]) },
             { label: tr("Match to terrain…"), onClick: () => setSectionVerticalId(im.id) }, // TASKS.csv #3880
+            { label: tr("Move to another line…"), onClick: () => setSectionGeorefOpen({ moveId: im.id }) }, // TASKS.csv #3924
             { label: tr("Opaque"), onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
             { label: tr("Half transparent"), onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
             "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
@@ -6587,7 +6592,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Opacity")}{" "}<input type="range" min={0.1} max={1} step={0.05} value={im.opacity ?? 1} onChange={(e) => updateSectionImage(im.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} aria-label={tr("Opacity of \"{name}\"", { name: im.name })} />
             </label>
-            <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionVerticalId(im.id)} title={tr("Click along the image's drawn topography line and fit its heights to the terrain, or type a vertical offset and scale.")} style={{ cursor: "pointer", marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-info)", textDecoration: "underline" }}>{tr("Match to terrain…")}{im.verticalAdjust ? tr(" (adjusted {offset} m)", { offset: im.verticalAdjust.offset }) : ""}</div>{/* TASKS.csv #3880 */}
+            <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionVerticalId(im.id)} title={tr("Click along the image's drawn topography line and fit its heights to the terrain, or type a vertical offset and scale.")} style={{ cursor: "pointer", marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-info)", textDecoration: "underline" }}>{tr("Match to terrain…")}{im.verticalAdjust?.warp ? tr(" (fitted at {n} points)", { n: im.verticalAdjust.warp.points }) : im.verticalAdjust ? tr(" (adjusted {offset} m)", { offset: im.verticalAdjust.offset }) : ""}</div>{/* TASKS.csv #3880 */}
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionGeorefOpen(true)} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Georeference a section image…")}</div>
@@ -7029,7 +7034,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {s.closure !== "closed" && !["unit_volume", "vein_solid", "explicit_wireframe"].includes(s.type) && ( // TASKS.csv #895 — an offset copy (open surfaces; an imported sheet too)
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }} title={tr("A copy of this surface moved by a distance: along its normal (a true thickness, positive = its upper side) or vertically. For example a hangingwall from a footwall plus the vein's width.")}>
                       <span style={{ flexShrink: 0 }}>{tr("Offset copy")}</span>
-                      <input type="number" step={1} value={offsetIn[s.id]?.d ?? ""} placeholder="m" onChange={(e) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], d: e.target.value } }))} style={{ ...smallSel, width: 56 }} aria-label={tr("Offset distance (m)")} />
+                      <NumberInput allowEmpty step={1} value={offsetIn[s.id]?.d === "" ? null : offsetIn[s.id]?.d ?? null} placeholder="m" onChange={(v) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], d: v == null ? "" : String(v) } }))} style={{ ...smallSel, width: 56 }} aria-label={tr("Offset distance (m)")} />
                       <select value={offsetIn[s.id]?.mode || "normal"} onChange={(e) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], mode: e.target.value } }))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Offset direction")}>
                         <option value="normal">{tr("along its normal")}</option><option value="vertical">{tr("vertically")}</option>
                       </select>
@@ -7670,7 +7675,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} onZoomHole={(id) => { zoomToHole(id); setQcModalOpen(false); } /* TASKS.csv #3569 */} />}
       {sectionGeorefOpen && (
         <Suspense fallback={null}>
-          <SectionGeorefModal sections={sections} rlOffset={rlOffsetOf(project)} onClose={() => setSectionGeorefOpen(false)}
+          <SectionGeorefModal sections={sections} rlOffset={rlOffsetOf(project)} onClose={() => setSectionGeorefOpen(false)} collars={collars} images={sectionImages} /* #3924 */
+            moveImage={sectionImages.find((i) => i.id === sectionGeorefOpen?.moveId) || null} onMove={(patch) => { const im = sectionImages.find((i) => i.id === sectionGeorefOpen.moveId); updateSectionImage(sectionGeorefOpen.moveId, patch); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: moved to its new section line.", { name: im?.name || "" })]); }}
             onImport={(img) => { addSectionImage(img); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: placed in 3D on its section line{v} — listed under Section images.", { name: img.name, v: img.rmse != null ? tr(" (fit error {rmse} m)", { rmse: img.rmse.toFixed(1) }) : "" })]); }} />
         </Suspense>
       )}
@@ -7701,7 +7707,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           modelledLayers={customLayers.filter((l) => l.rows?.[0]?.modelled)} // TASKS.csv #356
           initial={stripRedo?.spec || null} replaceElementId={stripRedo?.elementId || null} // #3873 (a)
           onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }} onAdvice={(t) => t && setNotices((p) => [...p, t])} // #1480; advice: #1641
-          assayColor={(sym, v) => assayColorFor(v, assayHueIndex(sym, assayElements), assayStyle[sym])} // #3879
+          assayColor={(sym, v) => assayColorFor(v, assayHueIndex(sym, assayElements), assayStyle[sym])} assayClasses={(sym) => assayStyle[sym]?.breaks} // #3879; #3713 — the class key
           onClose={() => { setStripLogHoleId(null); setStripRedo(null); }} onOpenFence={() => { setStripLogHoleId(null); setFenceOpen(true); }} legendOverride={legendOverride} // #3560 A0 / A1; #3873 (a)
         />
       )}
@@ -7759,6 +7765,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           surfaceSets={surfaceStructures || []} // TASKS.csv #428; the file's type: #1440; class and area: #3843 (the modal builds the picks, lib/stereonetGroups.js)
           domains={domains}
           domainFilter={domainStereonetFilter}
+          locate={stereonetLocate()} /* TASKS.csv #3843 — in the window / inside a boundary */
           onClose={() => setStereonetOpen(false)}
           onUseAsTrend={({ azimuth, dip, terzaghi, name }) => {
             // TASKS.csv #650 — a new named trend from the mean plane (pitch 90 = down dip, the old behaviour); #1446 — named with its weighting,

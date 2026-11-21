@@ -25,3 +25,5 @@ export const needsSymbolRebuild = (builtMpp, nowMpp, factor = 2) => Number.isFin
 // TASKS.csv #2849 — the survey points' floor on screen (px across): a regional gravity survey (400 m stations over 94 km) reads as a map of
 // coloured stations at Fit instead of a few specks
 export const GEOPHYS_MIN_PX = 5;
+// TASKS.csv #3844 — an outcrop structure symbol's strike line, at least this many px on screen (the symbol is 5 strike lengths across at most)
+export const STRUCTURE_MIN_PX = 14;

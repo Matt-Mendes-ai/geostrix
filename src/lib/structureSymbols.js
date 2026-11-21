@@ -62,6 +62,12 @@ export const SYMBOLS = {
   // attitude decorations, which §1.4 applies to dikes
   "1.3+1.4.1": { fgdc: "1.3 / 1.4.1", name: "Inclined dike or vein (dike line, contact dip tick)", kind: "planar", attitude: "inclined", parts: [{ t: "line", p: [[-S, 0], [S, 0]], w: 0.25 }, { t: "line", p: [[0, 0], [0, 1.75]], w: 0.25 }], label: [0.6, 2.6] },
   "1.3+1.4.3": { fgdc: "1.3 / 1.4.3", name: "Vertical dike or vein (dike line, contact crossbar)", kind: "planar", attitude: "vertical", parts: [{ t: "line", p: [[-S, 0], [S, 0]], w: 0.25 }, { t: "line", p: [[0, -1.25], [0, 1.25]], w: 0.25 }], label: null },
+  // TASKS.csv #3851 (4) (Matt, 2026-11-20) — not FGDC references: a reading with no type is a plain dip tick (no strike line, nothing claimed),
+  // and breccia a small cross (the standard has no point symbol for it); neither depends on the dip, apart from the untyped one's own tick
+  "tick.2": { fgdc: "-", name: "Untyped reading: dip tick", kind: "planar", attitude: "inclined", parts: [tick(1.75)], label: LABEL },
+  "tick.3": { fgdc: "-", name: "Untyped reading: vertical", kind: "planar", attitude: "vertical", parts: [{ t: "line", p: [[-1, 0], [1, 0]] }, cross(1)], label: null },
+  "tick.1": { fgdc: "-", name: "Untyped reading: horizontal", kind: "planar", attitude: "horizontal", parts: [ring], label: null },
+  "brec": { fgdc: "-", name: "Breccia", kind: "planar", attitude: "inclined", parts: [{ t: "line", p: [[-1.1, 0], [1.1, 0]] }, { t: "line", p: [[0, -1.1], [0, 1.1]] }], label: null },
   // 9 — Lineation (trend and plunge: the reading's dip direction and dip): a 6.0 mm arrow from the point, a filled head 1.25 mm at 25°
   "9.3": { fgdc: "9.3", name: "Inclined lineation", kind: "linear", attitude: "inclined", parts: [{ t: "line", p: [[0, 0], [0, 6]] }, arrowHead(6)], label: [0, 7.1] },
   "9.5": { fgdc: "9.5", name: "Horizontal lineation", kind: "linear", attitude: "horizontal", parts: [{ t: "line", p: [[0, -3], [0, 3]] }, arrowHead(3), arrowHead(-3, -1)], label: null },
@@ -87,6 +93,8 @@ export const FAMILIES = {
   vein: { label: "Vein or dike", inclined: "1.3+1.4.1", vertical: "1.3+1.4.3", horizontal: "1.3+1.4.1" },
   lineation: { label: "Lineation", inclined: "9.3", vertical: "9.7", horizontal: "9.5" },
   foldHinge: { label: "Minor fold hinge", inclined: "9.97", vertical: "9.7", horizontal: "9.99" },
+  dipTick: { label: "Dip tick (type not given)", inclined: "tick.2", vertical: "tick.3", horizontal: "tick.1" }, // #3851 (4)
+  breccia: { label: "Breccia (small cross)", inclined: "brec", vertical: "brec", horizontal: "brec" }, // #3851 (4)
 };
 
 // a dip (degrees) -> the attitude whose symbol it takes: horizontal at 0 (and a reading flagged horizontal, #2958), vertical from 89°
@@ -101,6 +109,8 @@ export function attitudeOf(dip, horizontal = false) {
 // importer gave it (mapLayers.structureClass). Words first ('overturned bedding', 'S1 schistosity', 'slaty cleavage'), then the class.
 export function defaultFamily(typeText, cls) {
   const s = String(typeText || "").toLowerCase();
+  if (cls === "breccia" || /breccia/.test(s)) return "breccia"; // #3851 (4)
+  if (!s.trim() || /^(un(typed|known|specified)|n\/?a|none|-+|\?+)$/.test(s.trim())) return "dipTick"; // #3851 (4) — no type given
   if (/overturn|\bot\b|o\/t/.test(s)) return "beddingOverturned";
   if (/approx|estimat|~/.test(s) && /bed|s0|ss\b/.test(s)) return "beddingApprox";
   if (/fold ?ax|hinge|\bf[1-4]\b/.test(s)) return "foldHinge";
@@ -142,7 +152,8 @@ export function familyFor(typeText, cls, choices = null) {
 
 // a reading -> its symbol: { symbol, family, attitude }
 export function symbolForReading(row, choices = null) {
-  const family = familyFor(row?.type || row?.cls, row?.cls, choices), attitude = attitudeOf(row?.dip, !!row?.horizontal);
+  const untyped = !String(row?.type ?? "").trim() && (!row?.cls || row.cls === "other"); // #3851 (4) — the importer's class is 'other' when there is no type
+  const family = untyped && !choices?.[typeKey(row?.type || row?.cls)] ? "dipTick" : familyFor(row?.type || row?.cls, row?.cls, choices), attitude = attitudeOf(row?.dip, !!row?.horizontal);
   return { symbol: SYMBOLS[FAMILIES[family][attitude]], family, attitude };
 }
 

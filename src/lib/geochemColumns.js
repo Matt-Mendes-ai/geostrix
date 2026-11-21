@@ -140,7 +140,9 @@ export const PRECIOUS_METALS = new Set(["Au", "Ag", "Pt", "Pd"]);
 // number), everything else keeps its stored unit. Grade stats, Best intercepts and Compositing said 'Au (ppm)' where Estimation said g/t.
 // TASKS.csv #3750 — a kept composites layer's element ('Au (2 m composites)', lib/compositeSources.js) reads as its element: g/t for gold in ppm
 const baseElement = (symbol) => String(symbol ?? "").replace(/ \([^()]*composites[^()]*\)$/, "");
-export const gradeUnitLabel = (symbol, unit) => (PRECIOUS_METALS.has(baseElement(symbol)) && (unit || "ppm") === "ppm" ? "g/t" : unit || "ppm");
+// TASKS.csv #3923 — a precious-metal equivalent supplied by the file (AuEq, Ag_Eq, "Au Eq"): grams per tonne as well
+const PRECIOUS_EQUIVALENT = /^(Au|Ag|Pt|Pd)[\s_.-]*(Eq|Equiv)/i;
+export const gradeUnitLabel = (symbol, unit) => ((PRECIOUS_METALS.has(baseElement(symbol)) || PRECIOUS_EQUIVALENT.test(baseElement(symbol))) && (unit || "ppm") === "ppm" ? "g/t" : unit || "ppm");
 
 // TASKS.csv #261 — qualifier handling for censored assay values.
 //   "<x"  below detection limit  -> x/2  (half-detection substitution: standard practice)

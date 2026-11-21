@@ -17,7 +17,7 @@ test("the default cell size is the shared constant", () => {
 test("only the untouched default is resized, and the over-budget failure is kept for a chosen size", () => {
   const i = runs.indexOf("numericCellSize === NUMERIC_CELL_DEFAULT");
   assert.ok(i > 0);
-  const tail = runs.slice(i, i + 1400);
+  const tail = runs.slice(i, i + 2600); // #3922: the refit also rebuilds the grade boxes and names the data's cell
   assert.match(tail, /fitOf\(blockBudget, cs\)/); // #3062: cellToFit per axis (the same steps for a cubic cell)
   // #3651 — the run uses the fitted cell but leaves the box at the default, and says the cell beside it (numericBudgetHint.ranAt)
   assert.doesNotMatch(tail, /setNumericCellSize\?\.\(fit\)/);

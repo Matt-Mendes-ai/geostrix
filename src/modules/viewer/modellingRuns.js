@@ -2542,7 +2542,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
   // "auto" (the default: per drilled area by its share of composites at the cut-off, lib/viewer/shellEnvelope.js chooseShell), "envelope", "tight"
   const shellModePref = () => { try { const m = localStorage.getItem("geostrix.shellMode"); return m === "envelope" || m === "auto" ? m : "tight"; } catch { return "tight"; } }; // default Tight: Matt, 2026-11-20
   const shellEnvelopeIso = () => { try { const v = Number(localStorage.getItem("geostrix.shellEnvelopeIso")); return v >= 0.3 && v <= 0.7 ? v : 0.5; } catch { return 0.5; } };
-  const runNumericModel = () => {
+  // opts.cellFromData (TASKS.csv #3922): the cell the guided Grade model read from the drilling; at that cell an over-budget run refits, as
+  // at the untouched default (#1416), and says so. (The pane's button passes its click event: no such field.)
+  const runNumericModel = (opts) => {
+    const cellFromData = Number(opts?.cellFromData) > 0 ? Number(opts.cellFromData) : null;
     const shellTrend = trendWarp("gradeShell"); // TASKS.csv #650
     // TASKS.csv #3062 — no trend: a flat search typed in the pane (the search radius across, the vertical reach up and down), as
     // Estimation's (#2418): a horizontal ellipsoid R x R x reach, run through the same warp a trend uses
@@ -2697,7 +2700,13 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // TASKS.csv #3580 (a) — one grid per drilled cluster, not one box round all of them (lib/viewer/shellBoxes.js): clusters more than twice
         // the search (or the pad) apart share no node, so each gets its own box; the block budget counts those boxes, so the cells can be finer.
         // Each box's run still gets every sample: its nodes take the values the single box gave them.
-        const gridBoxes = (await import("../../lib/viewer/shellBoxes.js")).drilledBoxes(gridPoints, { bounds, padM: pad, linkM: 2 * Math.max(searchInGrid, pad) });
+        // TASKS.csv #3922 — a Tight shell's grid only round the composites at or above the cut-off (plus the search and the pad, or a cell), inside
+        // those boxes: nodes further from them stay below the cut-off, so the shell is the same and ground with no grade costs no block. An envelope
+        // (its indicators reach further) keeps the drilled boxes. Rebuilt after a refit (the margin holds a cell).
+        const boxLib = await import("../../lib/viewer/shellBoxes.js"), boxLink = 2 * Math.max(searchInGrid, pad);
+        const drilledBoxList = boxLib.drilledBoxes(gridPoints, { bounds, padM: pad, linkM: boxLink });
+        const boxesAt = (c) => (envelopeMode ? drilledBoxList : boxLib.gradeBoxes(gridPoints, numericCutoff, { bounds, padM: pad, linkM: boxLink, drilled: drilledBoxList, marginM: searchInGrid + Math.max(pad, ((g) => Math.max(g.dx, g.dy, g.dz))(cellOf(c))) }));
+        let gridBoxes = boxesAt(cs);
         // TASKS.csv #625 — the block budget is the user's (200,000 by default, up to 5 million); checked here, before
         // the worker starts, so an over-budget run says which cell size WOULD fit (the pane offers it as a button)
         // TASKS.csv #3581 — up to 50 million, but only the budgets this computer's memory allows (the pane offers no others; a budget remembered on
@@ -2709,10 +2718,14 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         let blocksNeeded = blocksOf(cs);
         // TASKS.csv #1416 (review #1352, Silvertip) — the untouched default (10 m) failed on Silvertip's three pads (2,152,305 blocks): as
         // Grade estimation does, it now runs at the cell size that fits the budget and says so; a cell size the user chose still stops here
-        if (blocksNeeded > blockBudget && numericCellSize === NUMERIC_CELL_DEFAULT) {
-          const fit = fitOf(blockBudget, cs);
+        if (blocksNeeded > blockBudget && (numericCellSize === NUMERIC_CELL_DEFAULT || numericCellSize === cellFromData)) { // cellFromData: #3922
+          let fit = fitOf(blockBudget, cs);
+          // #3922 — the grade boxes' margin holds a cell: rebuilt at the new cell, and refitted again if they grew past the budget
+          for (let k = 0; k < 4; k++) { gridBoxes = boxesAt(fit); if (blocksOf(fit) <= blockBudget) break; fit = fitOf(blockBudget, fit); }
           // built here, not inside the updater: that runs later, after cs and blocksNeeded are reassigned below
-          const fitNotice = { ...notice("Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() }), level: "info" };
+          const fitNotice = { ...(numericCellSize === cellFromData && cellFromData !== NUMERIC_CELL_DEFAULT
+            ? notice("Cell size set to {fit} m: at the {cs} m read from your drilling this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() })
+            : notice("Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() })), level: "info" };
           setNotices((p) => [...p, fitNotice]);
           // TASKS.csv #3651 — the box keeps the default: a run at the refitted cell is said beside it (numericBudgetHint.ranAt), so a larger budget
           // picked afterwards gives smaller cells by itself (the 27.5 m refit stayed in the box and a 5,000,000 budget then still ran at 27.5 m)
@@ -2987,6 +3000,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           samplePoints: points.length, cellsEstimated: gridSum.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
           singleHoleCells: gridSum.singleHoleCells, meanGradeInShell,
           ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster: the box round all the samples would have had wholeBoxNodes" } } : {}),
+          ...(!envelopeMode ? { gradeAreas: { grids: gridBoxes.length, nodes: boxTotal, drilledNodes: drilledBoxList.reduce((n, b) => n + boxBlocks(b.bounds, cs), 0), note: "the grid only round the composites at or above the cut-off, within the search and the pad of them ; drilledNodes: the drilled clusters' boxes" } } : {}), // #3922
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
           ...(alongHoles ? { alongHoles } : {}), // #3785
           ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing), spacingAt: gsSampleSpacing > 0 ? "samples" : "collars" } } : {}), // #2757; spacingAt: #3654 (4)

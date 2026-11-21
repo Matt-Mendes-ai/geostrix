@@ -25,7 +25,8 @@ test("two populations: the cut-off falls between them, from the data alone", () 
   assert.equal(r.ok, true);
   assert.ok(r.values.cutoff > 0.1 && r.values.cutoff < 1, String(r.values.cutoff)); // between the background (~0.05) and the zone (~2)
   assert.ok(r.values.shareAbove > 0.08 && r.values.shareAbove < 0.2);
-  assert.equal(r.values.cellSize, 10); // a quarter of 40 m
+  assert.equal(r.values.cellSize, 20); // half of 40 m (#3922)
+  assert.equal(r.values.searchRadius, 120); // three spacings (#3922)
   assert.match(r.reasons[0].text, /^Cut-off 0\.\d+ g\/t: where these grades split best/);
   assert.deepEqual(r.notes, []);
   // the same holes with grades ten times higher: the cut-off moves with them (no "usual" cut-off for a metal)

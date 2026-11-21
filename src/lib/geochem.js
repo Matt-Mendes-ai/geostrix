@@ -109,6 +109,8 @@ export function partialLeachCode(header) {
   if (w) return w[2].replace(/[\s_-]+/g, "").toUpperCase().replace(/^SEQUENTIAL$/, "SEQ").replace(/^SOLUBLE$/, "SOL");
   return null;
 }
+// TASKS.csv #3923 — a custom assay's name can hold + . ( ) : it is matched as text in a RegExp
+const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export function pickElementColumns(headers, rows, stats = null) {
   const bySym = new Map();
   headers.forEach((h, order) => {
@@ -175,7 +177,7 @@ export function pickElementColumns(headers, rows, stats = null) {
 export function repeatColumns(headers, chosen, numbered = []) {
   const out = [];
   for (const e of chosen || []) {
-    const re = new RegExp(`^${e.symbol}[\\s_-]*(rp|rpt|rep|repeat|dup|duplicate|chk|check|re-?assay)\\d*$`, "i");
+    const re = new RegExp(`^${escapeRe(e.symbol)}[\\s_-]*(rp|rpt|rep|repeat|dup|duplicate|chk|check|re-?assay)\\d*$`, "i");
     for (const h of headers || []) if (h !== e.header && re.test(String(h).replace(/\(.*?\)/g, "").trim().replace(/_\d+$/, ""))) out.push({ header: h, symbol: e.symbol });
     for (const h of numbered || []) if (h !== e.header && numberedOf(h) === e.symbol && !out.some((o) => o.header === h)) out.push({ header: h, symbol: e.symbol, numbered: true });
   }
@@ -193,7 +195,7 @@ export function numberedRepeatCandidates(headers, rows, chosen, { minPairs = 3 }
   const out = [];
   const num = (v) => { const n = parseAssayValue(v); return Number.isFinite(n) && n > 0 ? n : null; };
   for (const e of chosen || []) {
-    const methodCols = (headers || []).filter((h) => h !== e.header && new RegExp(`^${e.symbol}_\\d+$`).test(String(h).trim()));
+    const methodCols = (headers || []).filter((h) => h !== e.header && new RegExp(`^${escapeRe(e.symbol)}_\\d+$`).test(String(h).trim()));
     for (const h of headers || []) {
       if (h === e.header || numberedOf(h) !== e.symbol) continue;
       const ratios = [];

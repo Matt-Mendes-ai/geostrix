@@ -21,7 +21,7 @@ test("other keys, and any key with Ctrl / Cmd / Alt, are left alone", () => {
 
 test("wiring: on the focused view only (#575's handler), the radius clamped, Home as the Fit button; listed in Shortcuts", () => {
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(v, /if \(e\.target !== e\.currentTarget\) return; \/\/ a control inside the view \(Fit, Top…\) keeps its own keys\n\s+if \(viewKeyZoom\(e, \{ zoom: \(f\) => \{ camState\.current\.radius = Math\.min\(4e6, Math\.max\(0\.05, camState\.current\.radius \* f\)\); cameraRef\.current\?\.__update\?\.\(\); \}, fit: \(\) => fitButton\(\) \}\)\) return;/);
+  assert.match(v, /if \(e\.target !== e\.currentTarget\) return; \/\/ a control inside the view \(Fit, Top…\) keeps its own keys\n\s+if \(viewKeyZoom\(e, \{ zoom: \(f\) => \{ camState\.current\.radius = Math\.min\(4e6, Math\.max\((0\.05|sceneFloor\([^)]*\]\) \/\* #3927: the wheel's floor \*\/), camState\.current\.radius \* f\)\); cameraRef\.current\?\.__update\?\.\(\); \}, fit: \(\) => fitButton\(\) \}\)\) return;/);
   const s = fs.readFileSync(new URL("../src/components/ShortcutsModal.jsx", import.meta.url), "utf8");
   assert.match(s, /\["\+ \/ - \(the 3D view focused: click it first\)", "Zoom in \/ out"\]/);
   assert.match(s, /\["Home \(the 3D view focused\)", "Fit the view, as the Fit button"\]/);
