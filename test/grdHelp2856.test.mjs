@@ -6,8 +6,7 @@ test("the raster texts name the .grd it reads", () => {
   const r = fs.readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
   assert.ok(!r.includes("isn't supported, no public spec"));
   assert.ok(r.includes("Geosoft .gxf or Geosoft / Surfer .grd grid as a flat plane"));
-  assert.ok(r.includes('tr("Drop GeoTIFF / .gxf / .grd files to import")'));
-  assert.ok(r.includes("Pick a georeferenced raster — a GeoTIFF, a Geosoft .gxf grid or a Geosoft / Surfer .grd grid"));
+  // #3948: the drop overlay's and the empty card's texts went with RasterModule's own empty card (never shown inside Maps)
   assert.ok(fs.readFileSync(new URL("../src/modules/MapsModule.jsx", import.meta.url), "utf8").includes("Geosoft / Surfer .grd grid and manage the raster drapes"));
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));

@@ -47,6 +47,16 @@ export async function askSampleDownload(which, statusOf = sampleStatus, dispatch
 export const SAMPLE_RANK = ["wa_gold", "yk_macpass", "qld_century", "wa_iron", "wa_zinc_copper", "silvertip", "harry", "woodjam", "qc_rouyn_noranda", "wa_lead_zinc", "wa_uranium", "mount_raymond", "perk", "fi_lapland", "blake", "osborne", "geomet"];
 // Surface Geology: the mapping samples first, best first (bundled with a terrain and structures, then the downloads)
 export const SURFACE_LEAD = ["qc_rouyn_noranda", "mount_raymond", "perk", "silvertip"];
+// TASKS.csv #3948 (Matt, 2026-11-21: "fold the samples ... Show Macpass and Mount Raymond") — the empty 3D View's card shows these two, in this
+// order, the first as its filled button; every other sample goes under a closed "More samples" (SampleButtons), in the list's own order. The
+// File menu and the footnote keep SAMPLE_RANK. -> { shown, more }; a list holding neither shows its first card.
+export const SAMPLES_IN_VIEW = ["yk_macpass", "mount_raymond"];
+export function emptyCardSamples(cards) {
+  const list = Array.isArray(cards) ? cards : [];
+  let shown = SAMPLES_IN_VIEW.map((id) => list.find((c) => c.id === id)).filter(Boolean);
+  if (!shown.length) shown = list.slice(0, 1);
+  return { shown, more: list.filter((c) => !shown.includes(c)) };
+}
 
 export function sampleCardsFor(mode) {
   const cards = [
