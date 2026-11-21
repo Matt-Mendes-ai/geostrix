@@ -10,11 +10,14 @@ import { surveyKey } from "../lib/geophysSurveys.js";
 import { replaceSurveyPoints } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the surveys land only in the project they were made for
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 4 };
 const lbl = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: "var(--font-size-sm)", marginTop: 5 };
 
 export default function GravityReductionBox({ survey, rows, epsg, terrain, setLayers, updateGeophysSurvey, numInput, pBtn, method = null }) {
+  const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const pts = useMemo(() => rows.filter((r) => surveyKey(r) === survey && Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)), [rows, survey]);
   const withZ = useMemo(() => pts.filter((r) => Number.isFinite(r.z)), [pts]);
   const median = useMemo(() => { const v = pts.map((r) => r.value).sort((a, b) => a - b); return v[v.length >> 1]; }, [pts]);
@@ -43,10 +46,13 @@ export default function GravityReductionBox({ survey, rows, epsg, terrain, setLa
       ...(correction === "topo" ? { terrain: terrainGrid(terrain), easting: withZ.map((r) => r.x), northing: withZ.map((r) => r.y) } : {}),
     };
     abort.current = new AbortController();
+    const ac = abort.current, job = startProjectJob ? startProjectJob({ label: tr("Gravity reductions"), cancel: () => ac.abort() }) : noJob(tr("Gravity reductions")); // TASKS.csv #3953 — closing its project stops the engine
     setBusy(tr("Starting the Python engine…"));
     const t0 = Date.now();
     const res = await runPfieldsJob(req, { signal: abort.current.signal, onProgress: (p) => setBusy(p.message || tr("Working…")) });
     setBusy(null);
+    if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in
+    job.end();
     if (!res.ok) { setMsg({ ok: !!res.cancelled, text: res.cancelled ? tr("Cancelled.") : tr("The gravity reduction failed: {message}", { message: res.error }) }); return; }
     const d = res.data, dens = Number(density) || 2670;
     const out = [];

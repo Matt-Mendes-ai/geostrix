@@ -19,7 +19,7 @@ test("each reader passes the project's log ranges", () => {
 });
 
 test("the grade shell run: useModelling adds the ranges to the run's context, the run reads its source with them", () => {
-  assert.match(read("modules/viewer/useModelling.js"), /ctxRef\.current = \{ \.\.\.ctx, logValidRange, setLastImplicitRequest: store\.setLastImplicitRequest \/\* #2640 \*\/ \};/);
+  assert.match(read("modules/viewer/useModelling.js"), /ctxRef\.current = \{ \.\.\.ctx, logValidRange, setLastImplicitRequest: store\.setLastImplicitRequest \/\* #2640 \*\/(, startProjectJob: store\.startProjectJob \/\* #3953 \*\/)? \};/);
   const runs = read("modules/viewer/modellingRuns.js");
   assert.match(runs, /findNumericSource\(numericSymbol, \{ layers, customLayers, logValidRange \}\)/);
   assert.match(runs, /logCtx: \{ layers, customLayers, logValidRange \} \}\)/);

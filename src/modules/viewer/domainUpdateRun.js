@@ -2,6 +2,7 @@
 // redrawn with the holes drilled from a year on, the old mesh a soft prior (lib/viewer/domainUpdate.js), the work in the estimation worker
 // (shellPost's update step), and a report of what changed. Loaded when the button is used, not at startup.
 import * as THREE from "three";
+import { landed } from "../../lib/projectJobs.js"; // TASKS.csv #3953
 import { t as tr } from "../../lib/i18n.js";
 import { notice, errorNotice } from "../../lib/notices.js";
 import { desurveyHole } from "../../lib/desurvey.js";
@@ -28,7 +29,7 @@ export function holesFromYear(collars, firstYear) {
 // opts: { surfaceId, firstYear, symbol, cutoff, iso, onProgress, signal } -> the new surface's id, or null
 // TASKS.csv #3674 — opts.select: { mode: "year" | "list" | "date", ... } (lib/viewer/domainUpdate.js newHoleIds) in place of firstYear; opts.priorWidthM and opts.newReachM (m) set the
 // prior's width and the new data's reach (blank: half a sample spacing and one spacing, as before)
-export async function runDomainUpdate(ctx, { surfaceId, firstYear, select = null, priorWidthM = null, newReachM = null, symbol, cutoff, iso = 0.5, onProgress = null, signal = null }) {
+export async function runDomainUpdate(ctx, { surfaceId, firstYear, select = null, priorWidthM = null, newReachM = null, symbol, cutoff, iso = 0.5, onProgress = null, signal = null, job = null /* TASKS.csv #3953 — the store's project job: the new surface goes to the project it was run in */ }) {
   const { implicitSurfaces, implicitMeshesRef, implicitGroupRef, originRef, setImplicitSurfaces, setNotices, assays, assayElements, collars, survey, desurveyMethod } = ctx;
   const say = (n) => setNotices((p) => [...p, n]);
   const surf = (implicitSurfaces || []).find((s) => s.id === surfaceId), mesh = implicitMeshesRef.current?.[surfaceId];
@@ -78,6 +79,7 @@ export async function runDomainUpdate(ctx, { surfaceId, firstYear, select = null
       },
     }, { onProgress, signal });
   } catch (e) { if (!e?.cancelled) say(errorNotice(tr("Updating \"{name}\" failed: {v}", { name: surf.name, v: e?.message || e }))); return null; }
+  if (job && !(await landed(job))) return null; // TASKS.csv #3953 — its project closed: nothing lands; in another tab: when that tab is shown
   const post = g.post, rep = post?.update;
   if (!post || !rep || !post.faces?.length) { say(errorNotice(tr("Updating \"{name}\" gave no surface.", { name: surf.name }))); return null; }
   const mc = meshOfPost(post), pos = new Float32Array(mc.vertices.length * 3);

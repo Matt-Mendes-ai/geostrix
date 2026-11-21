@@ -10,6 +10,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { Layers, Download, Eye, EyeOff } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a series lands only in the project it was run for
 import { runPitSeriesAsync } from "../lib/pitSeriesClient.js";
 import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -63,7 +64,7 @@ export function droppedFactors(text) {
 const sameShells = (runs) => runs.length > 2 && runs.every((r) => Math.abs(r.oreT - runs[0].oreT) <= 0.01 * Math.max(runs[0].oreT, 1));
 
 export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemove, onClose }) {
-  const { voxelModels = [], terrain, collars = [], project, layers, survey = [], desurveyMethod } = useStore();
+  const { voxelModels = [], terrain, collars = [], project, layers, survey = [], desurveyMethod, startProjectJob /* #3953 */ } = useStore();
   const cur = currencyOf(project), tr = (k, v) => withCurrency(trRaw(k, v), cur); // TASKS.csv #3797 (b) - the project currency (blank: $) // layers..desurveyMethod: #2597
   const chips = unsampledWord(collars) === "chips"; // TASKS.csv #3513 — 'unsampled chips' on RC / aircore holes, as the Estimation says it (#3507)
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
@@ -97,10 +98,12 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
     if (!inputs || !model || !factors.length || byMissing) return;
     setBusy({ idx: 0, of: factors.length }); setMsg(null);
     const t0 = performance.now();
+    const pj = startProjectJob ? startProjectJob({ label: trRaw("Nested pits"), cancel: () => job.current?.cancel() }) : noJob(trRaw("Nested pits")); // TASKS.csv #3953 — closing its project stops the worker
     try {
       const coded = modelWithCodeDensity(model, inputs, layers, collars, survey, desurveyMethod); // #2647 — weighed as the shell was
       job.current = runPitSeriesAsync(coded.model, { ...inputs, unit, element, alsoPrices /* #3311 */, ...(inputs.weathered?.freshCode ? { weathered: { ...inputs.weathered, points: weatheredBasePoints(layers?.weath || [], holeTraces(collars, survey, desurveyMethod), inputs.weathered.freshCode).points } } : {}) /* #2597 — the shell's weathered zone, rebuilt from the log */ }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars: collarsForGround(collars, survey), byModel /* #1917 */, penaltyModels: (inputs.priceBasis === "product" ? inputs.penalties || [] : []).map((l) => models.find((m) => (m.id ?? m.name) === l.modelId) || models.find((m) => m.name === l.modelName) || { cells: [] }) /* #2986 part 2 — the shell's penalty lines; a model gone joins nothing */, alsoModels: alsoPairs.map(({ m }) => m) /* #3084 */, onProgress: (p) => setBusy(p) });
       const r = await job.current.promise;
+      if (!(await landed(pj))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "underground") { setMsg(tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): no ground surface is known, so no pit is cut from them. Load a terrain (Maps > Terrain) for the real surface.", { upward: r.underground?.upward ?? 0, stacked: r.underground?.stacked ?? 0 })); return; } // #2276
       if (r.failed || r.empty) { setMsg(r.empty ? tr("At these inputs no block pays for the rock over it at the largest factor, so there is no pit.") : tr("The series failed: {v}", { v: r.failed })); return; }
@@ -109,7 +112,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       kept = { ...r, alsoLabels: alsoPairs.map(({ g }) => { const l = g.label || g.blockModel, u = g.unit ? gradeUnitText(g.unit, g.element || l) : ""; return u ? `${l} (${u})` : l; }) /* #3084; the unit: #3326 */, densityUsed: coded.used ? { layer: inputs.densityLayer, used: coded.used, untyped: coded.untyped || null /* #2993 */ } : null /* #2647 */, seconds, pitId: lastPit.id, factorsText: f.factors, rateText: f.rate, discountText: f.discount, unit, priceLabel, price: inputs.price, seriesId: `series_${Date.now()}`, shown: {} };
       setRes(kept);
     } catch (e) { setMsg(tr("The series failed: {v}", { v: e.message || e })); }
-    finally { setBusy(null); job.current = null; }
+    finally { setBusy(null); job.current = null; pj.end(); } // pj: TASKS.csv #3953
   };
   const cancel = () => job.current?.cancel();
   // a shell into the view (once), or its surface shown / hidden

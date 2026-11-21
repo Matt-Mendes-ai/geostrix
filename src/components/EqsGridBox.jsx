@@ -11,10 +11,13 @@ import { surveyKey } from "../lib/geophysSurveys.js";
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #3321 — a 3D cloud is not a field measured on one surface
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
+import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the grid lands only in the project it was made for
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 4 };
 
 export default function EqsGridBox({ survey, rows, units = "", method = null /* TASKS.csv #2639 */, addRaster, defaultElevation = 0, numInput, pBtn }) {
+  const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const pts = useMemo(() => rows.filter((r) => surveyKey(r) === survey && Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)), [rows, survey]);
   const withZ = pts.filter((r) => Number.isFinite(r.z)).length;
   const sug = useMemo(() => suggestSampleGrid(pts.slice(0, 20000)), [pts]);
@@ -55,10 +58,13 @@ export default function EqsGridBox({ survey, rows, units = "", method = null /* 
     const depthM = Number(depth) > 0 ? Number(depth) : depthDefault;
     const request = { op: "eqs", x: pts.map((p) => p.x), y: pts.map((p) => p.y), z: pts.map((p) => (noZ ? z0 : p.z)), value: pts.map((p) => p.value), cell: cellM, elevation: draped ? "draped" : elevM, blank: blankM, depth: depthM, region: [xmin, xmax, ymin, ymax] };
     abort.current = new AbortController();
+    const ac = abort.current, job = startProjectJob ? startProjectJob({ label: tr("Grid with equivalent sources"), cancel: () => ac.abort() }) : noJob(tr("Grid with equivalent sources")); // TASKS.csv #3953 — closing its project stops the engine
     setBusy(tr("Starting the Python engine…")); setMsg(null);
     const t0 = Date.now();
     const r = await runPfieldsJob(request, { signal: abort.current.signal, onProgress: (p) => setBusy(p.message || tr("Working…")) });
     setBusy(null);
+    if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in
+    job.end();
     if (!r.ok) { setMsg({ info: !!r.cancelled, text: r.error }); return; }
     const d = r.data;
     try {

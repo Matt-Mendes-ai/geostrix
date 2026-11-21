@@ -14649,5 +14649,11 @@
   "Elevation source": "Origen de la elevación",
   "assumed: median": "supuesta: mediana",
   "assumed: 0 m": "supuesta: 0 m",
-  "assumed: terrain": "supuesta: terreno"
+  "assumed: terrain": "supuesta: terreno",
+  "{label} finished for \"{project}\", which is open in another tab: it is added there when you show that tab.": "{label} terminó para \"{project}\", que está abierto en otra pestaña: se agrega allí cuando muestres esa pestaña.",
+  "{label}: added to \"{project}\" now that it is shown.": "{label}: agregado a \"{project}\" ahora que se muestra.",
+  "{label} cancelled: another project was opened in its tab.": "{label} cancelado: se abrió otro proyecto en su pestaña.",
+  "{label} cancelled: its project was closed.": "{label} cancelado: su proyecto se cerró.",
+  "{label} was not added: its project is no longer open.": "{label} no se agregó: su proyecto ya no está abierto.",
+  "This estimate was made in another project. Show that project to add it, or run it again here.": "Esta estimación se hizo en otro proyecto. Muestra ese proyecto para agregarla, o vuelve a ejecutarla aquí."
 }

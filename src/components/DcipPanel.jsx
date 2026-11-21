@@ -47,7 +47,7 @@ const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"], ["err", "Reading error (optional)"]];
 
 export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
-  const { terrain, project, addVoxelModelToTab, getProjectToken, dcipLines, saveDcipLine, removeDcipLine, projectIsEmpty, setEpsg } = useStore();
+  const { terrain, project, addVoxelModelToTab, getProjectToken, startProjectJob /* #3953 */, dcipLines, saveDcipLine, removeDcipLine, projectIsEmpty, setEpsg } = useStore();
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
   const fileRef = useRef(null);
@@ -361,7 +361,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     };
     const token = getProjectToken();
     const res = await startInversionJob(request, meta, {
-      kind: "dcip2d", setTaskProgress,
+      kind: "dcip2d", setTaskProgress, startJob: startProjectJob, // #3953 — its line, its result and its sections go to its own project only
       onDone: (result) => {
         setLast({ result, geom: lineGeom, name, thick: num(opts.cell), obs: { readings: parsed.readings, rho: parsed.rho, ip: parsed.ip } }); // obs: #683 — for the data-fit view
         saveDcipLine({ name, section: { result: slimDcipResult(result), line: lineAtRun, opts: ranOpts, ranAt: new Date().toISOString() } });
