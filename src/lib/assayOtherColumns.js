@@ -15,12 +15,12 @@ export const TOTAL_HEADER = /\b(treo|trem|reo|ree|total|sum|tot)\b|(^|_)(treo|tr
 export const columnKind = (header) => (EQUIVALENT_HEADER.test(String(header)) ? "equivalent" : TOTAL_HEADER.test(String(header).replace(/_/g, " ")) ? "total" : "");
 
 // the unit a header states, as the dialog's units: ppm / ppb / % and g/t (the same number as ppm; kept as typed) -> { name, unit, unitLabel, assumed }
-const UNIT_TAIL = /[\s_-]*(?:\(\s*(ppm|ppb|pct|%|gpt|g\/t|wt\s*%)\s*\)|[\s_-](ppm|ppb|pct|%|gpt|g\/t|g_t|wt_?pct|wt%)|(ppm|ppb|pct|gpt))\s*$/i;
+const UNIT_TAIL = /[\s_-]*(?:\(\s*(ppm|ppb|pct|pc|percent|%|gpt|g\/t|g_t|wt\s*%)\s*\)|[\s_-](ppm|ppb|pct|pc|percent|%|gpt|g\/t|g_t|wt_?pct|wt%)|(ppm|ppb|pct|gpt))\s*$/i;
 export function nameAndUnit(header) {
   const h = String(header ?? "").trim();
   const m = UNIT_TAIL.exec(h);
   const tok = (m && (m[1] || m[2] || m[3]) || "").toLowerCase().replace(/\s/g, "");
-  const unit = tok === "ppb" ? "ppb" : tok === "ppm" ? "ppm" : /^(pct|%|wt%|wt_?pct)$/.test(tok) ? "%" : /^(gpt|g\/t|g_t)$/.test(tok) ? "ppm" : null;
+  const unit = tok === "ppb" ? "ppb" : tok === "ppm" ? "ppm" : /^(pct|pc|percent|%|wt%|wt_?pct)$/.test(tok) ? "%" : /^(gpt|g\/t|g_t)$/.test(tok) ? "ppm" : null;
   let name = (m ? h.slice(0, m.index) : h).replace(/[\s_-]+$/, "").replace(/[^\p{L}\p{N} _.+-]/gu, "").trim();
   if (!name) name = h.replace(/[^\p{L}\p{N} _.+-]/gu, "").trim() || h;
   return { name, unit: unit || "ppm", unitLabel: /^(gpt|g\/t|g_t)$/.test(tok) ? "g/t" : null, assumed: !unit };

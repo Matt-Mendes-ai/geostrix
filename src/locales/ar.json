@@ -1332,8 +1332,8 @@
   "{label}: missing {missing}.": "{label}: ينقصه {missing}.",
   "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to StrixViewer to see it.": "أُنشئت {rows} فترة من {n} عينة ← طبقة {v} (تُدمج العينات المتلاصقة من الفئة نفسها).{detail} انتقل إلى StrixViewer لرؤيتها.",
   "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} No collars are loaded, so they cannot be drawn until collars with these hole ids are imported.": "أُنشئت {rows} فترة من {n} عينة ← طبقة {v} (تُدمج العينات المتلاصقة من الفئة نفسها).{detail} لا توجد فوهات محمّلة، لذا لا يمكن رسمها حتى تُستورد فوهات بمعرّفات الثقوب هذه.",
-  "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. Every Geochem tool can use it now; it is drawn downhole once collars are loaded. It is not recalculated if assays are re-imported.": "أُضيف العنصر المحسوب {symbol} = {expr} على {computed} فترة تحليل (المدى {min}–{max}){v}. يمكن لكل أدوات الكيمياء الجيولوجية استخدامه الآن؛ ويُرسم على طول الثقب عند تحميل الفوهات. لا يُعاد حسابه إذا أعيد استيراد التحاليل.",
-  "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported.": "أُضيف العنصر المحسوب {symbol} = {expr} على {computed} فترة تحليل (المدى {min}–{max}){v}. يمكن الآن عرضه على طول الثقب وفي العرض ثلاثي الأبعاد والمقاطع كأي عنصر. لا يُعاد حسابه إذا أعيد استيراد التحاليل.",
+  "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. Every Geochem tool can use it now; it is drawn downhole once collars are loaded. If the assays change later, a Recalculate button appears.": "أُضيف العنصر المحسوب {symbol} = {expr} على {computed} فترة تحليل (المدى {min}–{max}){v}. يمكن لكل أدوات الكيمياء الجيولوجية استخدامه الآن؛ ويُرسم على طول الثقب عند تحميل الفوهات. إذا تغيّرت التحاليل لاحقًا يظهر زر إعادة الحساب.",
+  "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. If the assays change later, a Recalculate button appears.": "أُضيف العنصر المحسوب {symbol} = {expr} على {computed} فترة تحليل (المدى {min}–{max}){v}. يمكن الآن عرضه على طول الثقب وفي العرض ثلاثي الأبعاد والمقاطع كأي عنصر. إذا تغيّرت التحاليل لاحقًا يظهر زر إعادة الحساب.",
   "; {skipped} interval(s) missing an element in the formula have no value": "؛ {skipped} فترة ينقصها عنصر من الصيغة بلا قيمة",
   "Removed {removed} assay interval(s) from {label}.{v} Ctrl+Z to undo.": "أُزيلت {removed} فترة تحليل من {label}.{v} Ctrl+Z للتراجع.",
   " {keptShared} interval(s) also came from another file and were kept (their values can't be separated by file).": " {keptShared} فترة جاءت أيضًا من ملف آخر فاحتُفظ بها (لا يمكن فصل قيمها حسب الملف).",
@@ -14374,5 +14374,11 @@
   "Tick at least one metal to add to the base metal.": "حدّد معدنًا واحدًا على الأقل لإضافته إلى المعدن الأساسي.",
   "Enter a price and recovery for every metal ticked: no equivalent is made until all are entered.": "أدخل سعرًا ونسبة استخلاص لكل معدن محدّد: لا يُنشأ المكافئ حتى تُدخل جميعها.",
   "Pick the base metal.": "اختر المعدن الأساسي.",
-  "Metal equivalent from the prices and recoveries you typed: {text}. Nothing was filled in for you.": "مكافئ المعدن من الأسعار ونسب الاستخلاص التي أدخلتها: {text}. لم يُملأ أي شيء تلقائيًا."
+  "Metal equivalent from the prices and recoveries you typed: {text}. Nothing was filled in for you.": "مكافئ المعدن من الأسعار ونسب الاستخلاص التي أدخلتها: {text}. لم يُملأ أي شيء تلقائيًا.",
+  "The assays changed since {list} was calculated.": "تغيّرت التحاليل منذ حساب {list}.",
+  "The assays changed since {list} were calculated.": "تغيّرت التحاليل منذ حساب {list}.",
+  "Recalculate": "إعادة الحساب",
+  "Recalculated {list} on the assays as they are now.": "أُعيد حساب {list} على التحاليل بحالتها الحالية.",
+  "None is added for you: add the ones that are grades, such as AuEq or TREO, and leave out sample weight or recovery.": "لا يُضاف أي منها تلقائيًا: أضف الأعمدة التي تمثّل عيارات، مثل AuEq أو TREO، واترك وزن العينة أو نسبة الاستخلاص.",
+  "Not imported (numeric, not an element): {cols}. To add one as an assay (an equivalent such as AuEq, a total such as TREO), import the file again and add it under \"Other numeric columns in this file\" in the import dialog.": "لم تُستورد (رقمية وليست عناصر): {cols}. لإضافة أحدها كتحليل (مكافئ مثل AuEq أو مجموع مثل TREO)، أعد استيراد الملف وأضفه ضمن «أعمدة رقمية أخرى في هذا الملف» في نافذة الاستيراد."
 }

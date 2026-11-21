@@ -15,7 +15,7 @@ import { pxrfSignature } from "../lib/pxrfSignature.js"; // TASKS.csv #2198
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2391 — the row filter of the drillhole import (#2330), here too
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
 import { assayTextColumns, assayUsedColumns, chosenExtraColumns } from "../lib/assayExtraFields.js"; // TASKS.csv #3728
-import { otherNumericColumns, customAssayEntry } from "../lib/assayOtherColumns.js"; // TASKS.csv #3923
+import { otherNumericColumns, customAssayEntry, nameAndUnit } from "../lib/assayOtherColumns.js"; // TASKS.csv #3923
 
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit, onQcLinks = null, existingUnits = {} }) { // onQcLinks: TASKS.csv #3409
   // TASKS.csv #2037 — the columns an interval import cannot do without (a long file also needs its analyte and value columns)
@@ -102,12 +102,14 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const addElement = () => {
     const sym = addSymbol.trim();
     if (!sym || !addHeader) return;
-    const unit = inferUnit(addHeader, sym);
+    // TASKS.csv #3923 — a name that is not a chemical element (AuEq, TREO): the unit as the column's name gives it (g/t stays g/t), kept as supplied
+    const custom = !ELEMENT_SYMBOLS.includes(sym) && !UNIT_ONLY_SYMBOLS.includes(sym) && !modal.elements.some((e) => e.symbol === sym), nu = custom ? nameAndUnit(addHeader) : null;
+    const unit = nu ? nu.unit : inferUnit(addHeader, sym);
     onChange({
       ...modal,
       elements: modal.elements.some((e) => e.symbol === sym)
         ? modal.elements.map((e) => e.symbol === sym ? { ...e, header: addHeader, checked: true } : e)
-        : [...modal.elements, { symbol: sym, header: addHeader, unit, checked: true }],
+        : [...modal.elements, { symbol: sym, header: addHeader, unit, checked: true, ...(nu ? { custom: true, asSupplied: true, ...(nu.unitLabel ? { unitLabel: nu.unitLabel } : {}) } : {}) }],
     });
     setAddSymbol(""); setAddHeader("");
   };
@@ -300,7 +302,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                 <span style={{ color: "var(--color-text-muted)" }}>{othersOpen ? tr("hide this list") : tr("show this list")}</span>
               </div>
               {othersOpen && (<>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, margin: "4px 0 6px" }}>{tr("These are not chemical elements. Add one to import it as an assay of its own, with the name and unit the file gives it. Equivalents (AuEq, AgEq), totals (TREO) and any other measured number are kept as supplied: GeoStrix does not recalculate them.")}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, margin: "4px 0 6px" }}>{tr("These are not chemical elements. Add one to import it as an assay of its own, with the name and unit the file gives it. Equivalents (AuEq, AgEq), totals (TREO) and any other measured number are kept as supplied: GeoStrix does not recalculate them.")}{" "}{tr("None is added for you: add the ones that are grades, such as AuEq or TREO, and leave out sample weight or recovery.")}</div>
                 {others.some((c) => c.kind) && <button type="button" onClick={() => addOthers(others.filter((c) => c.kind))} style={{ ...btn(true), width: "auto", padding: "4px 10px", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Add the equivalents and totals ({n})", { n: others.filter((c) => c.kind).length })}</button>}
                 <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 180, overflowY: "auto" }}>
                   {others.map((c) => (

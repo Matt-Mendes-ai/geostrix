@@ -97,3 +97,18 @@ test("#3923 a note when the project's assays are in more than one unit and a sup
   assert.equal(mixedUnitsList([{ symbol: "Au", unit: "ppm" }], chosen), null, "one unit only: nothing to say");
   assert.equal(mixedUnitsList(project, [{ symbol: "Zn", unit: "%", checked: true }]), null, "nothing supplied: the note is about the supplied columns");
 });
+
+test("#3923 (Main) the unit is read from the name as typed: g/t spellings are g/t, per cent spellings %, ppb and ppm as they are", () => {
+  const gt = ["AuEq_gpt", "AuEq gpt", "AuEq_g/t", "AuEq (g/t)", "AuEqgpt", "AuEq_g_t", "AuEq g/t"];
+  for (const h of gt) { const r = nameAndUnit(h); assert.deepEqual([r.name, r.unit, r.unitLabel, r.assumed], ["AuEq", "ppm", "g/t", false], h); }
+  const pc = ["TREO_pct", "TREO_%", "TREO (%)", "TREO_pc", "TREO pc", "TREO_percent", "TREO wt%", "TREO_wt_pct", "TREOpct"];
+  for (const h of pc) { const r = nameAndUnit(h); assert.deepEqual([r.name, r.unit, r.unitLabel, r.assumed], ["TREO", "%", null, false], h); }
+  for (const h of ["Sn_ppb", "Sn (ppb)", "Snppb"]) { const r = nameAndUnit(h); assert.deepEqual([r.unit, r.assumed], ["ppb", false], h); }
+  for (const h of ["TREO_ppm", "TREO (ppm)", "TREOppm"]) { const r = nameAndUnit(h); assert.deepEqual([r.unit, r.unitLabel, r.assumed], ["ppm", null, false], h); }
+  assert.equal(nameAndUnit("Spct").name, "S", "a unit glued to a name is a unit");
+  const m = fs.readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(m, /nu = custom \? nameAndUnit\(addHeader\) : null/, "the dialog's hand-add row reads a non-element name the same way");
+  assert.match(m, /None is added for you: add the ones that are grades, such as AuEq or TREO/, "why the list is unticked");
+  const g = fs.readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(g, /import the file again and add it under \\"Other numeric columns in this file\\" in the import dialog/, "the post-import notice says where to add them");
+});

@@ -170,5 +170,41 @@ export function addCalculatedElement(assays, assayElements, name, expr, unit = "
     return { ...a, values: { ...(a.values || {}), [n]: v } };
   });
   if (!computed) throw new Error(tr("The formula gave no value on any assay row — check that every element in it has results."));
-  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}) } }, computed, skipped, min, max, converted: conv, leftBdl, flaggedLt, divZero, mixedUnits: mixed ? Object.keys(mixed).map((sym) => ({ sym, unit: (assayElements || []).find((e) => e.symbol === sym)?.unit || "" })) : null };
+  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}), sig: calcInputsSignature(assays, expr, symbols) /* #3923 */ } }, computed, skipped, min, max, converted: conv, leftBdl, flaggedLt, divZero, mixedUnits: mixed ? Object.keys(mixed).map((sym) => ({ sym, unit: (assayElements || []).find((e) => e.symbol === sym)?.unit || "" })) : null };
+}
+
+// TASKS.csv #3923 (Main) — a calculated element keeps its formula and the inputs it was made from, and says when the assays have changed since: a signature of the
+// rows (their number) and of every operand's values, taken when it was calculated and compared when the panel is shown. One click recalculates it. Imported
+// 'as supplied' columns have no formula and are never touched.
+export function calcInputsSignature(assays, expr, symbols) {
+  const ops = operandsOf(expr, symbols);
+  let h = 2166136261 ^ (assays || []).length;
+  for (const a of assays || []) {
+    for (const s of ops) {
+      const v = a?.values?.[s];
+      const x = typeof v === "number" && Number.isFinite(v) ? Math.round(v * 1e6) | 0 : v == null ? 7 : 11;
+      h = Math.imul(h ^ x, 16777619);
+    }
+  }
+  return (h >>> 0).toString(36) + ":" + ops.length;
+}
+// the calculated elements (with a stored formula and signature) whose inputs have changed since they were calculated -> [element]
+export function staleCalculated(assays, assayElements) {
+  const symbols = (assayElements || []).map((e) => e.symbol);
+  return (assayElements || []).filter((e) => e.calculated?.expr && e.calculated.sig && e.calculated.sig !== calcInputsSignature(assays, e.calculated.expr, symbols));
+}
+// the element worked out again over the assays as they are now (its stored formula and reading units); the old values are dropped first so a row that no longer has
+// every operand does not keep an out-of-date number. -> { assays, element, computed, skipped } (throws like addCalculatedElement)
+export function recalculateElement(assays, assayElements, element) {
+  const sym = element.symbol, c = element.calculated || {};
+  const clean = (assays || []).map((a) => {
+    if (!a?.values || !(sym in a.values)) return a;
+    const { [sym]: dropV, ...values } = a.values;
+    const out = { ...a, values };
+    if (a.qualifiers && sym in a.qualifiers) { const { [sym]: dropQ, ...q } = a.qualifiers; out.qualifiers = q; }
+    if (Array.isArray(a.bdl)) out.bdl = a.bdl.filter((x) => x !== sym);
+    return out;
+  });
+  const r = addCalculatedElement(clean, (assayElements || []).filter((e) => e.symbol !== sym), sym, c.expr, element.unit, { readUnits: c.readUnits || null });
+  return { assays: r.assays, element: { ...element, calculated: { ...c, sig: r.element.calculated.sig } }, computed: r.computed, skipped: r.skipped };
 }
