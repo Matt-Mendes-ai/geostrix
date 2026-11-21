@@ -36,12 +36,12 @@ export default function MethodPairsTab({ methods, symbol, unit, assays = null, s
   const [asking, setAsking] = useState(false); // #2687 — the swap asks first, inline
   const [done, setDone] = useState("");
   if (!methods.length) {
-    return <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No sample carries {symbol} by a second lab method. Method pairs come from the element's other method columns in the assay file (U_103 beside U), kept at import from now on: re-import a file to see its pairs.", { symbol })}</div>;
+    return <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No sample has {symbol} by a second lab method. Pairs come from other method columns of the element (U_103 beside U): re-import the assay file to see them.", { symbol })}</div>;
   }
   const g = methods[Math.min(pick, methods.length - 1)];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-      <div>{tr("Samples analysed for {symbol} by two lab methods: the element's value (the column it was imported from) against each other method column. A median ratio away from 1 is a bias between the methods; mixing them in one column carries that bias into every grade.", { symbol })}</div>
+      <div>{tr("Samples analysed for {symbol} by two lab methods: the imported value against each other method column. A median ratio away from 1 is a bias; mixing the methods in one column carries it into every grade.", { symbol })}</div>
       <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
         <thead><tr>{[tr("Method column"), tr("Against"), tr("Pairs"), tr("Median RPD"), tr("Median ratio (method / element)")].map((hd) => <th key={hd} style={th}>{hd}</th>)}</tr></thead>
         <tbody>
@@ -55,11 +55,11 @@ export default function MethodPairsTab({ methods, symbol, unit, assays = null, s
       </table>
       <MethodScatter g={g} unit={unit} symbol={symbol} />
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Green: the 1:1 line. Dashed: the median ratio. Censored ('<' / '>') results are left out.")}</div>
-      {isDifferentMeasurement(g) && <div role="status" style={{ color: "var(--color-warn-text)" }}>{tr("{m} reads {r} times {symbol} on the median sample: a different measurement (a partial or soluble digest, say), not a bias between two methods of one. It is not offered in place of {symbol}; Calc. element can take its ratio to {symbol}.", { m: g.header, r: fmt(g.medianRatio), symbol })}</div>}{/* #3220 */}
+      {isDifferentMeasurement(g) && <div role="status" style={{ color: "var(--color-warn-text)" }}>{tr("{m} reads {r} times {symbol} on the median sample: a different measurement (a partial or soluble digest, say), so it is not offered in its place. Calc. element can take the ratio.", { m: g.header, r: fmt(g.medianRatio), symbol })}</div>}{/* #3220 */}
       {setAssays && assays && !isDifferentMeasurement(g) /* #3220 — never offered over a total */ && ( /* TASKS.csv #2687 — use the other method's results as the element's value */
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           {!asking ? <button type="button" onClick={() => { setAsking(true); setDone(""); }}>{tr("Use {m} instead", { m: g.header })}</button> : <>
-            <span>{tr("On every sample with a {m} result, {m} becomes the {symbol} value; the value it replaces is kept as a method result, so this can be swapped back. Every tool then reads {m}.", { m: g.header, symbol })}</span>
+            <span>{tr("On every sample with a {m} result, {m} becomes the {symbol} value; the old value is kept as a method result, so this can be swapped back.", { m: g.header, symbol })}</span>
             <button type="button" onClick={() => { const r = swapInMethod(assays, symbol, g.header); setAssays(r.rows); setAsking(false); setDone(tr("{n} sample(s) now take {symbol} from {m}.", { n: r.swapped.toLocaleString(), symbol, m: g.header })); }}>{tr("Swap")}</button>
             <button type="button" onClick={() => setAsking(false)}>{tr("Cancel")}</button></>}
           {done && <span role="status" style={{ color: "var(--color-success-fg)" }}>{done}</span>}

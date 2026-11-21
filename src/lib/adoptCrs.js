@@ -32,7 +32,7 @@ export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName, at =
   if (at && isGeographicCrs(d)) {
     const m = crsCandidatesAt(at.lon, at.lat)[0];
     if (!m || m.code === cur) return null;
-    return confirm(tr("This project is empty and its CRS is {cur} (EPSG:{code}).\n{file} is in latitude and longitude, which cannot be a project CRS: elevations are in metres.\n\nOK: use {name} (EPSG:{m}) for this area and reproject the data into it.\nCancel: keep EPSG:{code}.", { cur: crsName(cur) || "?", code: cur, file: fileName, name: m.name, m: m.code })) ? m.code : null;
+    return confirm(tr("This project is empty and its CRS is {cur} (EPSG:{code}).\n{file} is in latitude and longitude, which cannot be a project CRS.\n\nOK: use {name} (EPSG:{m}) for this area and reproject the data into it.\nCancel: keep EPSG:{code}.", { cur: crsName(cur) || "?", code: cur, file: fileName, name: m.name, m: m.code })) ? m.code : null;
   }
   const ok = confirm(
     `This project is empty and its CRS is ${crsName(cur) || "?"} (EPSG:${cur}).\n` +

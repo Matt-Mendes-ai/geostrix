@@ -22,7 +22,7 @@ export default function LodCacheLine({ hasLod, rasters = [] }) { // rasters: TAS
   };
   return (
     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0", lineHeight: 1.4, display: "flex", gap: 6, alignItems: "baseline", flexWrap: "wrap" }}
-      title={tr("Imagery fetched with a source (NAIP) shows finer detail where the Maps plan looks. The detail read is kept on this computer, up to 2 GB, so it shows again without a connection; the project file keeps only the fetched picture.")}>
+      title={tr("Imagery fetched with a source (NAIP) shows finer detail where the Maps plan looks. That detail is kept on this computer (up to 2 GB) to show offline; the project file keeps only the fetched picture.")}>
       <span>{tr("Detail tiles on this computer: {size} of {cap} ({n} tiles)", { size: mb(stats?.bytes || 0), cap: mb(DISK_CAP_BYTES), n: (stats?.count || 0).toLocaleString() })}</span>
       <button type="button" onClick={clear} disabled={busy || !(stats?.count > 0)} style={{ fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Clear")}</button>
       {hasLod && <LodOfflineDownload rasters={rasters} usedBytes={stats?.bytes || 0} onDone={refresh} />}

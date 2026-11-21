@@ -191,15 +191,15 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
           {(dupInfo.exactDuplicates > 0 || dupInfo.conflictingIntervals > 0) && (
             <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.5, padding: "7px 9px", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, color: "#6b5a2a" }}>
               {dupInfo.exactDuplicates > 0 && (
-                <div>{tr(dupInfo.exactDuplicates === 1 ? "{n} exact-duplicate raw interval was found in this assay table (same hole, same from/to, same results — the classic double-import). It was counted once, not twice, so it doesn't double-weight the composite grades below. Worth cleaning up at the source anyway — run Data QC for the full list." : "{n} exact-duplicate raw intervals were found in this assay table (same hole, same from/to, same results — the classic double-import). They were counted once, not twice, so they don't double-weight the composite grades below. Worth cleaning up at the source anyway — run Data QC for the full list.", { n: dupInfo.exactDuplicates })}</div>
+                <div>{tr(dupInfo.exactDuplicates === 1 ? "{n} exact-duplicate raw interval (same hole, from/to and results: a double import) was counted once, not twice. Fix it at the source; Data QC lists them all." : "{n} exact-duplicate raw intervals (same hole, from/to and results: double imports) were counted once, not twice. Fix them at the source; Data QC lists them all.", { n: dupInfo.exactDuplicates })}</div>
               )}
               {dupInfo.conflictingIntervals > 0 && (
-                <div style={{ marginTop: dupInfo.exactDuplicates > 0 ? 5 : 0 }}>{tr(dupInfo.conflictingIntervals === 1 ? "{n} interval appears more than once with DIFFERENT results (a re-assay, or a mislabeled sample). That is a genuine conflict, not a double-import: each such metre is counted once, at the MEAN of the disagreeing results, and the composite CSV says how many metres of each composite that affected (conflict_m). Resolve it in the source data before using these composites for estimation." : "{n} intervals appear more than once with DIFFERENT results (a re-assay, or a mislabeled sample). Those are a genuine conflict, not a double-import: each such metre is counted once, at the MEAN of the disagreeing results, and the composite CSV says how many metres of each composite that affected (conflict_m). Resolve them in the source data before using these composites for estimation.", { n: dupInfo.conflictingIntervals })}</div>
+                <div style={{ marginTop: dupInfo.exactDuplicates > 0 ? 5 : 0 }}>{tr(dupInfo.conflictingIntervals === 1 ? "{n} interval appears more than once with DIFFERENT results (a re-assay or a mislabelled sample). Resolve it in the source data before estimating; here each such metre counts once, at the MEAN of its results (conflict_m in the CSV)." : "{n} intervals appear more than once with DIFFERENT results (a re-assay or a mislabelled sample). Resolve them in the source data before estimating; here each such metre counts once, at the MEAN of its results (conflict_m in the CSV).", { n: dupInfo.conflictingIntervals })}</div>
               )}
             </div>
           )}
           {qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't get composited into a resource-estimation input — check this to include them anyway.")}>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("Standards, blanks and duplicates (found by hole_id) are left out, so they cannot be composited into a resource-estimation input. Tick to include them.")}>
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -210,7 +210,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             <label style={fieldLabel}>{tr("Composite length (m)")}<NumberInput min="0.1" value={length} onChange={(v) => setLength(Math.max(0.1, v ?? 2))} style={inp} />
               {usual && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("{length} m: the commonest sample length ({pct} % of the samples)", { length: usual.length, pct: Math.round(usual.share * 100) })}</span>}{/* #1801 */}
             </label>
-            <label style={fieldLabel} title={tr("Honour a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.")}>{tr("Honour domain")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
+            <label style={fieldLabel} title={tr("Honour a domain layer's boundaries: no composite straddles a change in its value, even if that makes it shorter than the target length.")}>{tr("Honour domain")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
                 <option value="">{tr("— none —")}</option>
                 {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
                 {customDomains.map((d) => <option key={d.key} value={d.key}>{d.attribute || d.grouped ? attributeDomainLabel(d, tr) : d.label}</option>)}{/* #1678; attributes: #2504 */}
@@ -224,13 +224,13 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be reported.")}>{tr("Min coverage (%)")}<NumberInput step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(v) => setMinCoverage(Math.max(0, Math.min(100, v ?? 0)) / 100)} style={inp} />
               {Math.round(minCoverage * 100) === 50 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("50 is the tool's starting value")}</span>}{/* #3579 */}
             </label>
-            {density && <label style={fieldLabel} title={tr("How a composite's grade is averaged: by metres, or by metres times the density of each sample (the Specific gravity layer). A sample with no density takes the mean density of the others in the composite.")}>{tr("Weight grades by")}
+            {density && <label style={fieldLabel} title={tr("Average a composite's grade by metres, or by metres × each sample's density (the Specific gravity layer). A sample with no density takes the mean density of the others.")}>{tr("Weight grades by")}
               <select value={weightBy} onChange={(e) => setWeightBy(e.target.value)} style={inp} aria-label={tr("Weight grades by")}>
                 <option value="length">{tr("Length")}</option>
                 <option value="density">{tr("Length × density")}</option>
               </select>
             </label>}
-            <label style={fieldLabel} title={tr("The short piece left at the end of a hole, or of a domain interval, when its length is not a whole number of composites: keep it as it is, add it to the composite above (that one runs a little longer), or leave it out.")}>{tr("Short end piece")}
+            <label style={fieldLabel} title={tr("The short piece at the end of a hole or domain interval: keep it, add it to the composite above, or leave it out.")}>{tr("Short end piece")}
               <select value={shortEnd} onChange={(e) => setShortEnd(e.target.value)} style={inp} aria-label={tr("Short end piece")}>
                 <option value="keep">{tr("Keep")}</option>
                 <option value="merge">{tr("Add to the composite above")}</option>
@@ -294,7 +294,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
           )}
 
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            {tr(chips ? "{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled chips — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero)." : "{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).", { results: results.length, assays: assays.length })}</div>
+            {tr(chips ? "{results} composite(s) from {assays} raw intervals, stepped at the length above from each hole's first sampled depth; a domain boundary or the hole's end can shorten one. Below 100% coverage, part falls in unsampled chips: the grade is the length-weighted average of what IS sampled, not diluted toward zero." : "{results} composite(s) from {assays} raw intervals, stepped at the length above from each hole's first sampled depth; a domain boundary or the hole's end can shorten one. Below 100% coverage, part falls in unsampled core: the grade is the length-weighted average of what IS sampled, not diluted toward zero.", { results: results.length, assays: assays.length })}</div>
 
           {results.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{/* TASKS.csv #3575 / #3562 / #3567 — what was done, counted */}
             {(cs.perElement?.[symbol]?.underCovered || 0) > 0 && <div>{tr("{n} window(s) that held some {symbol} sample were left out for being under {pct} % covered.", { n: cs.perElement[symbol].underCovered.toLocaleString(), symbol, pct: Math.round(minCoverage * 100) })}</div>}
@@ -307,7 +307,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Download size={14} />{" "}{tr("Export composites (CSV)")}</button>
           <CsvStampToggle />{/* TASKS.csv #3614 */}
-          <button onClick={keepAsLayer} disabled={results.length === 0 || typeof setCustomLayers !== "function"} title={tr("Add these composites to the project as a numeric layer: StrixViewer colours it by any field (each element, its coverage, the density), and Estimation, Grade shell, Geochem X-Y and Statistics read it.")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", opacity: results.length === 0 ? 0.5 : 1 }}>{tr("Keep as a layer in the project")}</button>{/* #3567 */}
+          <button onClick={keepAsLayer} disabled={results.length === 0 || typeof setCustomLayers !== "function"} title={tr("Add these composites as a numeric layer: StrixViewer colours it by any field, and Estimation, Grade shell, Geochem X-Y and Statistics read it.")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", opacity: results.length === 0 ? 0.5 : 1 }}>{tr("Keep as a layer in the project")}</button>{/* #3567 */}
           {kept && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{kept}</div>}
         </div>
 

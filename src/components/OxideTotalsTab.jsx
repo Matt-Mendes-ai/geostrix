@@ -30,7 +30,7 @@ export default function OxideTotalsTab({ assays, majors, setAssays, sel, tabBtn 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-        {partial ? tr("{missing} not analysed: these are partial sums of {list}, not totals, and cannot be checked against 100 less the LOI.", { missing: missingBig.join(" and "), list: majors.map((m) => m.oxide).join(", ") }) /* #3225 */ : tr("Sum of the major oxides ({list}) per sample, from the stored values with the import's factors, total iron as {fe}. LOI and the minor oxides are not in it: a sound sample totals about 100 less its LOI.", { list: majors.map((m) => m.oxide).join(", "), fe: majors.find((m) => m.symbol === "Fe")?.oxide || "Fe2O3" })}
+        {partial ? tr("{missing} not analysed: these are partial sums of {list}, not totals, and cannot be checked against 100 less the LOI.", { missing: missingBig.join(" and "), list: majors.map((m) => m.oxide).join(", ") }) /* #3225 */ : tr("Sum of the major oxides ({list}) per sample, with the import's factors, total iron as {fe}. LOI and minor oxides are not in it: a sound sample totals about 100 less its LOI.", { list: majors.map((m) => m.oxide).join(", "), fe: majors.find((m) => m.symbol === "Fe")?.oxide || "Fe2O3" })}
       </div>
       <div style={{ fontSize: "var(--font-size-sm)" }}>
         {res.n ? tr("{n} sample(s) with every major: median {median} %, 90 % of them between {p5} and {p95} %, range {min} to {max} %.", { n: res.n.toLocaleString(), median: fmt(res.median), p5: fmt(res.p5), p95: fmt(res.p95), min: fmt(res.min), max: fmt(res.max) }) : tr("No sample holds every major oxide.")}
@@ -61,7 +61,7 @@ export default function OxideTotalsTab({ assays, majors, setAssays, sel, tabBtn 
         </div>
       )}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <button type="button" disabled={!flagged.length || !setAssays} onClick={exclude} style={tabBtn} title={tr("Writes the exclusion on each sample: Grade stats, Correlation, Compositing, Best intercepts, estimation and the diagrams leave it out, as they leave out QC inserts. Saved with the project; reversible.")}>{tr("Exclude {n} sample(s) from plots and statistics", { n: flagged.length.toLocaleString() })}</button>
+        <button type="button" disabled={!flagged.length || !setAssays} onClick={exclude} style={tabBtn} title={tr("Marks each sample excluded: Grade stats, Correlation, Compositing, Best intercepts, estimation and the diagrams leave it out. Saved with the project; reversible.")}>{tr("Exclude {n} sample(s) from plots and statistics", { n: flagged.length.toLocaleString() })}</button>
         {excludedN > 0 && <button type="button" onClick={restore} style={tabBtn}>{tr("Include the {n} excluded sample(s) again", { n: excludedN.toLocaleString() })}</button>}
         {msg && <span role="status" style={{ fontSize: "var(--font-size-sm)" }}>{msg}</span>}
       </div>

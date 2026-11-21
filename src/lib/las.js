@@ -100,6 +100,6 @@ export function parseLAS(text, fileName = "file.las") {
     + (nullVal != null ? tr(" NULL {nullVal}: {nulls} value(s) left blank.", { nullVal, nulls: nulls.toLocaleString("en-US") }) : tr(" No NULL value declared — {COMMON_NULLS} read as missing ({nulls} value(s)).", { COMMON_NULLS: COMMON_NULLS.join(" / "), nulls }))
     + (bad ? tr(" {bad} record(s) without a usable depth were skipped.", { bad }) : "")
     + (leftover ? tr(" {leftover} trailing value(s) didn't make a full record and were ignored.", { leftover }) : "")
-    + tr(" Map the curve you want to a layer (Mag. susceptibility takes point depths; any curve can go to a Custom layer). The hole id comes from the file's WELL field — it must match a collar.");
+    + tr(" Map a curve to a layer (Mag. susceptibility takes point depths; any curve can go to a Custom layer). The hole id is the file's WELL field and must match a collar.");
   return { rows, headers, note, well: holeId, curves, version: vers, wrapped, nullValue: nullVal, depthFeet };
 }

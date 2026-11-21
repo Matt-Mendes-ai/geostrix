@@ -31,7 +31,7 @@ export async function readGeoPackageNear(file, { clipBox, projectEpsg, sourceEps
   const ix = await index(file);
   if (!ix.ok && ix.error === "no path") return null;
   if (!ix.ok) throw new Error(ix.error);
-  if (!clipBox) throw new Error(tr("{name} is {mb} MB. GeoStrix reads a GeoPackage this size only around the project's holes and samples, and this project has none yet: import them first, or export just your area from QGIS and import that.", { name: file.name, mb: Math.round(file.size / 1048576) }));
+  if (!clipBox) throw new Error(tr("Import the project's holes and samples first, or export just your area from QGIS and import that: {name} is {mb} MB, and GeoStrix reads a GeoPackage this size only around them.", { name: file.name, mb: Math.round(file.size / 1048576) }));
   const epsgBy = epsgBySrsRows((ix.srs || []).map((s) => [s.srs_id, s.organization, s.organization_coordsys_id, s.definition]));
   const layers = [], outside = [];
   for (const t of ix.tables) {

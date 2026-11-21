@@ -60,7 +60,7 @@ ${info?.componentStack || ""}`.slice(0, 6000) }); if (list.length > 50) list.spl
           <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6, marginBottom: 16, wordBreak: "break-word" }}>
             {String(this.state.error?.message || this.state.error)}
           </div>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 16 }}>{tr("The full stack trace is in the DevTools console (already open in dev builds). The project state could not be kept at this level; if the app was autosaving, restart it to recover from the last autosave (at most a minute old).")}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 16 }}>{tr("The project state could not be kept here. If the app was autosaving, restart it to recover the last autosave (at most a minute old). The full stack trace is in the DevTools console.")}</div>
           <button
             onClick={() => this.setState({ error: null })}
             style={{ marginRight: 10, padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}

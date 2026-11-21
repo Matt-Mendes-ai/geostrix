@@ -26,8 +26,8 @@ export function collarLevelsText(collars, survey) {
   if (!n) return [ugText, untrustedText].filter(Boolean).join(" ") || null;
   const args = { n, plan: b.planM, rl: b.rlM };
   const benchText = n === 1
-    ? tr("1 collar has another collar within {plan} m in plan that is more than {rl} m lower (steep ground, benches or a pit?): the ground between the collars uses the lower collar there and leaves this one out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.", args)
-    : tr("{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (steep ground, benches or a pit?): the ground between the collars uses the lowest collar there and leaves these {n} out. A check by those two distances, not a survey: on a steep hillside it lowers real ground too. Load a terrain for the real surface.", args);
+    ? tr("1 collar has another collar within {plan} m in plan that is more than {rl} m lower (steep ground, benches or a pit?): so the ground between the collars leaves this one out. On a steep hillside this also lowers real ground: load a terrain for the real surface.", args)
+    : tr("{n} collars have another collar within {plan} m in plan that is more than {rl} m lower (steep ground, benches or a pit?): so the ground between the collars leaves these {n} out. On a steep hillside this also lowers real ground: load a terrain for the real surface.", args);
   return [ugText, untrustedText, `${benchText} ${tr("Left out: {list}.", { list: idList(b.higher) })}`].filter(Boolean).join(" ");
 }
 

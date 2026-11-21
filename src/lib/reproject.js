@@ -222,13 +222,13 @@ export function datumNote(epsg) {
   if (c === 4267 || (c >= 26701 && c <= 26722)) {
     // TASKS.csv #299 — the shift itself. #489 sweep against PROJ: within ~12 m of PROJ's local choice in zones 9-12N, ~31 m in 7-8N, up to ~200 m
     // in zones far from western Canada (the shift is a fit for Alberta/BC only).
-    return tr("NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC, typically within ~10 m there). EPSG's own fits for other regions differ from it by about 5 m (Canada as a whole), 12 m (the lower 48 states) and 31 m (Alaska), each good to about 10 m itself. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet."); // #973 — figures from the EPSG parameter sets 1172 / 1173 / 1174 against 1179
+    return tr("NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC, typically within ~10 m there; EPSG's own fits for other regions differ from it by about 5-31 m). Not survey-grade: that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet."); // #973 — figures from the EPSG parameter sets 1172 / 1173 / 1174 against 1179
   }
   // #834 — a code from the EPSG registry (not hand-verified): what EPSG says about its datum shift
   const f = !handDef(c) && fullEntry(c);
   if (f) {
     const [name, , acc, flags] = f, notes = [];
-    if (acc === null) notes.push(tr("{name}: EPSG publishes no datum shift to WGS 84 for this datum, so GeoStrix treats it as WGS 84 when converting to or from another datum. That can be metres to hundreds of metres out; data already in this CRS is unaffected.", { name }));
+    if (acc === null) notes.push(tr("{name}: EPSG publishes no datum shift to WGS 84 for this datum, so GeoStrix treats it as WGS 84 when converting to another datum, which can be metres to hundreds of metres out. Data already in this CRS is unaffected.", { name }));
     else if (acc > 5) notes.push(tr("{name}: the datum shift to WGS 84 is accurate to about {acc} m (EPSG).", { name, acc }));
     if (flags & 2) notes.push(tr("The shift is published for part of this CRS's area only."));
     if (flags & 1) notes.push(tr("A more accurate grid-based shift exists, which GeoStrix doesn't include yet."));
@@ -238,7 +238,7 @@ export function datumNote(epsg) {
   if (REGISTRY.get(c)?.def.includes(AGD84_SHIFT)) return tr("AGD84: EPSG's national datum shift is applied (EPSG:1280, about 1 m). The NTv2 grid is more accurate and is not included.");
   if (REGISTRY.get(c)?.def.includes(AGD66_SHIFT)) return tr("AGD66: EPSG's national datum shift is applied (EPSG:15979, about 3 m). The NTv2 grid and the state fits are more accurate and are not included.");
   if (REGISTRY.get(c)?.def.includes(SAD69_BRAZIL)) {
-    return tr("SAD69: Brazil's IBGE datum shift is applied (EPSG:1877, about 5 m in Brazil). Elsewhere in South America the right shift differs by country and this can be 10–25 m out. Not survey-grade.");
+    return tr("SAD69: Brazil's IBGE datum shift is applied (EPSG:1877, about 5 m in Brazil); elsewhere in South America it can be 10–25 m out. Not survey-grade.");
   }
   return null;
 }

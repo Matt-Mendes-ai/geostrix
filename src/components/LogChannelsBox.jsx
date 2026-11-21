@@ -56,7 +56,7 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
                 <datalist id={`chunits-${c.col}`}>{logUnitChoices(c.col).map((u) => <option key={u} value={u} />)}</datalist>
                 {/* TASKS.csv #3041 — the channel's valid range, typed: readings outside it are left out and counted (none is preset) */}
                 {["min", "max"].map((k) => (
-                  <NumberInput allowEmpty value={modal.logRanges?.[c.col]?.[k] ?? ""} placeholder={k === "min" ? tr("min") : tr("max")} title={tr("The channel's valid range, if you know it: readings below the minimum or above the maximum are left out and counted (a density over 5 g/cc, a gamma of 80,000 cps). Blank: no limit.")} onChange={(v) => set({ logRanges: { ...(modal.logRanges || {}), [c.col]: { ...(modal.logRanges?.[c.col] || {}), [k]: v == null ? "" : String(v) } } })} style={{ ...sel, width: 62, padding: "1px 4px" }} aria-label={k === "min" ? tr("Lowest valid reading of {c}", { c: c.col }) : tr("Highest valid reading of {c}", { c: c.col })} />
+                  <NumberInput allowEmpty value={modal.logRanges?.[c.col]?.[k] ?? ""} placeholder={k === "min" ? tr("min") : tr("max")} title={tr("The channel's valid range, if you know it: readings outside it are left out and counted (a density over 5 g/cc, a gamma of 80,000 cps). Blank: no limit.")} onChange={(v) => set({ logRanges: { ...(modal.logRanges || {}), [c.col]: { ...(modal.logRanges?.[c.col] || {}), [k]: v == null ? "" : String(v) } } })} style={{ ...sel, width: 62, padding: "1px 4px" }} aria-label={k === "min" ? tr("Lowest valid reading of {c}", { c: c.col }) : tr("Highest valid reading of {c}", { c: c.col })} />
                 ))}
                 {/* TASKS.csv #3158 — the physical range for the unit the column name states, offered (never preset) while both boxes are blank */}
                 {(() => {
@@ -75,7 +75,7 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
       {ticked.length > 0 ? ( /* #2333 — the bin menu always, the budget text only over it; the text says what the menu holds */
         <div style={{ marginTop: 8 }}>
           <div style={{ ...note, color: over && binM ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{over && binM
-            ? tr("{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer: they are averaged to a bin (mean, with the bin's minimum and maximum kept), stated in the notice and the layer. The file stays the source.", { n: readings.toLocaleString(), k: ticked.length })
+            ? tr("{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer: they are averaged to a bin (mean, minimum and maximum kept), as the notice and layer state. The file stays the source.", { n: readings.toLocaleString(), k: ticked.length })
             : over ? tr("{n} readings × {k} channel(s) is more than GeoStrix keeps reading by reading on this computer, and every reading is chosen: about {mb} MB of memory, and the import may be slow or run out of memory. A bin averages them.", { n: readings.toLocaleString(), k: ticked.length, mb: rawLogMB(readings, ticked.length).toLocaleString() })
             : binM ? tr("Readings averaged to a bin (mean, with its minimum and maximum).")
             : tr("Every reading is kept (about {mb} MB of memory). A bin averages them (mean, with its minimum and maximum).", { mb: rawLogMB(readings, ticked.length).toLocaleString() })}</div>{/* the MB: TASKS.csv #2430 */}

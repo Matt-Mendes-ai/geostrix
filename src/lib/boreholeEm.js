@@ -46,7 +46,7 @@ export function emPointRefusal(name, columns, rows, headText = "") {
   if (!d) return null;
   const bh = boreholeEmClues(columns, rows, headText);
   return bh.length
-    ? tr("\"{name}\" is a borehole EM file ({clues}; decay channels {first} … {last}, {n} gates), not a table of points: its readings are the decays at each station down a hole. GeoStrix has no reader for borehole EM yet.", { name, clues: bh.join(", "), first: d.first, last: d.last, n: d.n })
+    ? tr("\"{name}\" is a borehole EM file ({clues}; decay channels {first} … {last}, {n} gates), not a table of points. GeoStrix has no reader for borehole EM yet.", { name, clues: bh.join(", "), first: d.first, last: d.last, n: d.n })
     : tr("\"{name}\" is a multi-channel EM file (decay channels {first} … {last}, {n} gates), not a table of points. Read it with EM › TEM line data.", { name, first: d.first, last: d.last, n: d.n });
 }
 

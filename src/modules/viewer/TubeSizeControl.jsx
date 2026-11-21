@@ -29,7 +29,7 @@ export default function TubeSizeControl({ figureOverlay, setFigureOverlay }) {
   });
   const needsPx = ts.mode === "atLeast" || ts.mode === "fixed";
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8 }} title={tr("How the drilled intervals' tubes are drawn from far out. Auto never draws them thinner than 1.5 px; True radius draws them as thin as they really are; At least keeps a pixel floor you choose; Fixed draws every tube the same width on screen.")}>
+    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8 }} title={tr("How the interval tubes are drawn from far out. Auto: never thinner than 1.5 px. True radius: as thin as they really are. At least: a pixel floor you choose. Fixed: one width on screen for every tube.")}>
       {tr("Interval tubes")}
       {layerList.length > 1 && <select aria-label={tr("Hole layer for the tube size")} value={layer} onChange={(e) => setLayer(e.target.value)} style={{ fontSize: "var(--font-size-sm)", padding: "2px 4px", maxWidth: 120 }}>
         <option value="">{tr("All hole layers")}</option>

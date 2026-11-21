@@ -68,7 +68,7 @@ test("#1716 readGeoPackageNear: layers from the rows near the project, tables ou
   assert.deepEqual(near.outside, ["far"]);
   assert.equal(near.layers[0].features[0].attributes.k, 31, "attributes kept, fid and geometry columns left out");
   assert.equal(await readGeoPackageNear(asFile, { clipBox: [0, 0, 1, 1], index: async () => ({ ok: false, error: "no path" }), read }), null);
-  await assert.rejects(readGeoPackageNear(asFile, { clipBox: null, projectEpsg: 26910, index, read }), /this project has none yet/);
+  await assert.rejects(readGeoPackageNear(asFile, { clipBox: null, projectEpsg: 26910, index, read }), /Import the project's holes and samples first/); // #3899: the action first
 });
 
 test("#1716 the project box is moved into the table's CRS (UTM 10N -> BC Albers), unchanged when the CRS matches", async () => {

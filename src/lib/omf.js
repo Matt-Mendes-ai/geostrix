@@ -232,7 +232,7 @@ async function convertSurface(fileBytes, project, el) {
   const geom = get(project, geomUuid, "geometry");
   const geomCls = attr(geom, "__class__");
   if (geomCls === "SurfaceGridGeometry") {
-    return { kind: "skipped", reason: tr("grid-based surface (SurfaceGridGeometry) — not implemented, only triangulated surfaces are; the geometry itself doesn't carry per-node elevation the way a triangulated mesh's vertices do, and needs separate handling") };
+    return { kind: "skipped", reason: tr("grid-based surface (SurfaceGridGeometry): not supported, only triangulated surfaces are (its nodes carry no elevation the way a mesh's vertices do)") };
   }
   if (geomCls !== "SurfaceGeometry") throw new InvalidOMFFile(`Unsupported surface geometry "${geomCls}".`);
   const origin = attr(geom, "origin", false) || [0, 0, 0];

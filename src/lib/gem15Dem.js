@@ -89,7 +89,7 @@ export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEp
   const { gridW, gridH } = gridDims(lonMin, latMin, lonMax, latMax, gridMax);
   let r;
   try { r = await readGemGrid(box, gridW, gridH, { band, onProgress: (d, t) => onProgress?.(d, t + 1) }); } catch (e) { throw new Error(tr("Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.", { v: e.message })); }
-  if (!r.cells) throw new Error(tr("GEM-15 has no data in this area: it covers 60°S to 84°N, without Russia, China, Mongolia, Greenland and Antarctica, and leaves out water, snow and ice. Choose Copernicus GLO-30 or the AWS Terrain Tiles."));
+  if (!r.cells) throw new Error(tr("Choose Copernicus GLO-30 or the AWS Terrain Tiles: GEM-15 has no data in this area (it covers 60°S to 84°N, without Russia, China, Mongolia, Greenland, Antarctica, water, snow and ice)."));
   if (!r.read && r.failed.length) throw new Error(tr("Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.", { v: r.failed[0] }));
   const out = r.elevations, total = out.length;
   const own = out.reduce((n, v) => n + (Number.isNaN(v) ? 0 : 1), 0);
@@ -108,7 +108,7 @@ export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEp
     } catch (e) { copFailed = e.message; }
   }
   onProgress?.(r.cells + 1, r.cells + 1);
-  if (!own && !filled) throw new Error(tr("GEM-15 has no data in this area: it covers 60°S to 84°N, without Russia, China, Mongolia, Greenland and Antarctica, and leaves out water, snow and ice. Choose Copernicus GLO-30 or the AWS Terrain Tiles."));
+  if (!own && !filled) throw new Error(tr("Choose Copernicus GLO-30 or the AWS Terrain Tiles: GEM-15 has no data in this area (it covers 60°S to 84°N, without Russia, China, Mongolia, Greenland, Antarctica, water, snow and ice)."));
   const fin = await finishTerrain(out, box, gridW, gridH, targetEpsg);
   const latMid = ((latMin + latMax) / 2) * (Math.PI / 180);
   const nodeM = Math.max(((lonMax - lonMin) * 111320 * Math.cos(latMid)) / Math.max(1, gridW - 1), ((latMax - latMin) * 110574) / Math.max(1, gridH - 1));

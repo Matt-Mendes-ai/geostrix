@@ -67,7 +67,7 @@ function Contents({ onOpen }) {
     <div>
       <div style={{ ...muted, fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{/* TASKS.csv #3534 — what the status bar's ? used to open */}<button type="button" style={link} onClick={() => openShortcuts("shortcuts")}>{tr("Keyboard shortcuts")}</button> · <button type="button" style={link} onClick={() => openShortcuts("about")}>{tr("About GeoStrix")}</button></div>
       <button type="button" data-first-steps-open="" style={{ ...link, display: "block", fontWeight: 600, textDecoration: "none", margin: "4px 0 8px", fontSize: "var(--font-size-base)" }} onClick={() => onOpen("first-steps")}>{tr("New here? First steps, in six screens")}</button>{/* TASKS.csv #3887 */}
-      <div style={{ ...muted, fontSize: "var(--font-size-sm)", lineHeight: 1.45, marginBottom: 6 }}>{tr("One page per tool: what it does, what it is not, each field and how to choose a value, the warnings it can show, and a short walk-through. Works with no internet connection.")}</div>
+      <div style={{ ...muted, fontSize: "var(--font-size-sm)", lineHeight: 1.45, marginBottom: 6 }}>{tr("One page per tool: what it does and is not, each field and how to set it, its warnings and a short walk-through. Works offline.")}</div>
       {byArea.map(([area, ps]) => (
         <div key={area}>
           <div style={sectionHead}>{tr(area)}</div>

@@ -354,7 +354,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
             )}
             {view === "rose" && (
               <>
-                <label style={rowLabel} title={tr("Strike is bidirectional (a plane striking 040 also strikes 220), so that rose is symmetric — the standard convention for planar fabrics. Dip direction genuinely has a sense (it points downhill), so that one is not mirrored.")}>{tr("Rose measures")}<select value={roseMode} onChange={(e) => setRoseMode(e.target.value)} style={sel}>
+                <label style={rowLabel} title={tr("Strike is bidirectional (040 is also 220), so its rose is symmetric, the usual convention for planar fabrics. Dip direction points downhill, so its rose is not mirrored.")}>{tr("Rose measures")}<select value={roseMode} onChange={(e) => setRoseMode(e.target.value)} style={sel}>
                     <option value="strike">{tr("Strike (bidirectional)")}</option>
                     <option value="dipdir">{tr("Dip direction (0-360°)")}</option>
                   </select>
@@ -370,7 +370,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
               </>
             )}
             {oriLayer && ( // TASKS.csv #1545 — the orientation-line quality logged as an interval table (Lawyers' OriCore 1 / 2 / 3)
-              <label style={rowLabel} title={tr("The custom layer \"{name}\" logs the orientation-line quality per interval; a pick inside an interval above this quality is left out. Picks with no logged quality are kept.", { name: oriLayer.name })}>{tr("Orientation quality ≤")}<select value={qualityMax} onChange={(e) => setQualityMax(e.target.value)} style={sel} aria-label={tr("Orientation quality ≤")}>
+              <label style={rowLabel} title={tr("The layer \"{name}\" logs orientation-line quality per interval; picks in an interval above this quality are left out. Picks with no logged quality are kept.", { name: oriLayer.name })}>{tr("Orientation quality ≤")}<select value={qualityMax} onChange={(e) => setQualityMax(e.target.value)} style={sel} aria-label={tr("Orientation quality ≤")}>
                   <option value="">{tr("Any quality")}</option>
                   {qualityLevels(qIndex).map((q) => <option key={q} value={q}>{q}</option>)}
                 </select>
@@ -405,7 +405,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 domains and a filter (i.e. from the 3D viewer, where a domain has a meaning); the same
                 domains the Modelling tab's tools use, so "Fault block A" means one thing app-wide. */}
             {domainFilter && domains.length > 0 && (
-              <label style={rowLabel} title={tr("Restrict this plot to structure picks whose downhole position falls inside one structural domain — the same domains the Modelling tab's tools use. Blending two genuinely different structural domains into one mean or contour is one of the easiest ways to produce a confident-looking but meaningless trend.")}>{tr("Structural domain")}<select aria-label={tr("Model domain")} value={domainId} onChange={(e) => setDomainId(e.target.value)} style={sel}>
+              <label style={rowLabel} title={tr("Plot only the picks inside one structural domain (the Modelling tab's domains). Mixing two domains into one mean or contour gives a confident-looking but meaningless trend.")}>{tr("Structural domain")}<select aria-label={tr("Model domain")} value={domainId} onChange={(e) => setDomainId(e.target.value)} style={sel}>
                   <option value="">{tr("Whole property")}</option>
                   {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
@@ -419,10 +419,10 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                   <input type="checkbox" checked={showCircles} onChange={(e) => setShowCircles(e.target.checked)} />{" "}{tr("Great circles")}</label>
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <input type="checkbox" checked={showMean} onChange={(e) => setShowMean(e.target.checked)} />{" "}{tr("Mean orientation")}</label>
-                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds, whose poles all sit in the net's inner few degrees.")}>
+                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Rescale the net so the poles fill it, with rings of equal dip: for flat-lying beds whose poles sit near the centre.")}>
                   <input type="checkbox" checked={zoomData} onChange={(e) => setZoomData(e.target.checked)} />{" "}{tr("Zoom to the data")}</label>{/* TASKS.csv #2971 */}
                 {zoom && <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", marginTop: -6, lineHeight: 1.35 }}>{tr("Zoomed: the edge of the net is a dip of {d}°", { d: zoom.edgeDip })}</div>}
-                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Kamb (1959) counting-circle density contours — shades the net by how much more crowded each spot is than a random (uniform) spread of the same number of poles would be")}>
+                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Kamb (1959) density contours: shades the net by how much more crowded each spot is than a random spread of the same number of poles")}>
                   <input type="checkbox" checked={showContours} onChange={(e) => setShowContours(e.target.checked)} />{" "}{tr("Density contours")}</label>
               </>
             )}
@@ -431,7 +431,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
             <label
               style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6, color: canTerzaghi ? "#55606e" : "#a8b0ba", cursor: canTerzaghi ? "pointer" : "default" }}
               title={canTerzaghi
-                ? tr("Terzaghi (1965) correction. A drillhole intersects structures at a rate proportional to sin(alpha) — so it under-samples anything near-parallel to it and over-samples anything near-perpendicular. This weights each drillhole pick by 1/sin(alpha) to undo that, which can genuinely change which orientation reads as dominant. Outcrop readings have no hole and keep weight 1; with both sources shown, the drillhole weights are scaled to average 1 so neither population outweighs the other by more than its number of readings.")
+                ? tr("Terzaghi (1965) correction: a hole under-samples structures near-parallel to it, so each drillhole pick is weighted by 1/sin(alpha); this can change which set reads as dominant. Outcrop readings keep weight 1; with both shown, drillhole weights are scaled to average 1.")
                 : tr("Needs each pick's hole attitude at its own depth (collar + survey data for the holes these picks came from).")}
             >
               <input type="checkbox" checked={terzaghiOn && canTerzaghi} disabled={!canTerzaghi} onChange={(e) => setTerzaghiOn(e.target.checked)} />{" "}{tr("Terzaghi correction")}</label>
@@ -480,7 +480,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                         something the reader has to go and count. */}
                     {contour.n < 20 && (
                       <div style={{ marginTop: 4, padding: "5px 6px", background: "#fdf4e6", border: "1px solid #edd9b7", borderRadius: 4, color: "#7a4a1f", lineHeight: 1.45 }}>
-                        <b>{tr("Low sample count (n={n}).", { n: contour.n })}</b>{" "}{tr("Kamb σ is measured against a random spread of this same n, so {v} even a strong-looking peak can come from two or three similar readings and may not be statistically meaningful. Treat the contours as indicative only until more picks exist.", { v: contour.n < 10 ? tr("at this few picks") : tr("below about 15–20 picks") })}</div>
+                        <b>{tr("Low sample count (n={n}).", { n: contour.n })}</b>{" "}{tr("Kamb σ is measured against a random spread of the same n, so {v} even a strong-looking peak can come from two or three similar readings. Treat the contours as indicative only.", { v: contour.n < 10 ? tr("at this few picks") : tr("below about 15–20 picks") })}</div>
                     )}
                   </>
                 ) : (
@@ -503,12 +503,12 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 <div>{tr("Pole: {meanPlunge}° → {meanTrend}°", { meanPlunge: stats.meanPlunge.toFixed(1), meanTrend: stats.meanTrend.toFixed(1) })}{" "}<span style={{ color: "#65717e" }}>{tr("(plunge/trend)")}</span></div>
                 <div style={{ marginTop: 4, borderTop: "1px solid #e3e6ea", paddingTop: 4 }}>
                   {stats.noPreferred ? ( /* TASKS.csv #1066 — no k / α95 cone for a population random planes would match */
-                    <div style={{ color: "var(--color-warn-text)", fontWeight: 600 }} title={tr("Random planes give k ≈ 2 with this method (each pole is flipped towards the mean), and their α95 shrinks as more picks are added, so a small cone here would not mean a well-known trend. Flagged when k is below 3 or Bingham's test cannot reject a uniform spread (5 %).")}>{tr("No preferred orientation (k = {k}, at the level of random planes) — no confidence cone given.", { k: stats.k.toFixed(1) })}</div>
+                    <div style={{ color: "var(--color-warn-text)", fontWeight: 600 }} title={tr("Random planes give k ≈ 2 with this method, and their α95 shrinks as picks are added, so a small cone here does not mean a well-known trend. Flagged when k is below 3 or Bingham's test cannot reject a uniform spread (5 %).")}>{tr("No preferred orientation (k = {k}, at the level of random planes) — no confidence cone given.", { k: stats.k.toFixed(1) })}</div>
                   ) : (<>
                   <div title={tr("Fisher concentration parameter — higher means a tighter cluster. Rule of thumb: >100 very tight, 20-100 well defined, <10 poorly defined.")}>k = {stats.k === Infinity ? "∞" : stats.k.toFixed(1)}</div>
                   <div title={tr("95% confidence cone half-angle about the mean direction. Smaller is better — this is the real 'how well do I know this trend' number.")}>α95 = {stats.alpha95.toFixed(1)}°</div>
                   </>)}
-                  <div title={tr("Normalized eigenvalues of the orientation tensor. S1 near 1 = tight point cluster (one dominant orientation). S1≈S2 >> S3 = girdle (picks spread along a great circle, typical of a folded surface). All three near 0.33 = no preferred orientation.")}>S = {stats.s1.toFixed(2)} / {stats.s2.toFixed(2)} / {stats.s3.toFixed(2)}</div>
+                  <div title={tr("Normalized eigenvalues of the orientation tensor. S1 near 1: one tight cluster. S1≈S2 >> S3: a girdle (picks along a great circle, as on a fold). All near 0.33: no preferred orientation.")}>S = {stats.s1.toFixed(2)} / {stats.s2.toFixed(2)} / {stats.s3.toFixed(2)}</div>
                 </div>
                 <div style={{ marginTop: 4, color: "#55606e" }}>
                   <span title={tr("Woodcock shape K = {K} (< 1 girdle, > 1 cluster), strength C = {C}", { K: fabric.K.toFixed(2), C: fabric.C.toFixed(1) })}>
@@ -535,7 +535,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 {isGirdle && (
                   <div style={{ marginTop: 5, borderTop: "1px solid #e3e6ea", paddingTop: 4 }}>
                     <div style={{ fontWeight: 600, color: "#7d3c98", marginBottom: 2 }}>{tr("Fold (β) axis")}</div>
-                    <div title={tr("The line the folding rotates about — the pole to the best-fit girdle. For a cylindrical fold this is the single most useful orientation to take away from this population; the mean plane above is not.")}>
+                    <div title={tr("The line the folding rotates about: the pole to the best-fit girdle. For a cylindrical fold this, not the mean plane, is the orientation to use.")}>
                       <b>{stats.betaPlunge.toFixed(1)}° → {stats.betaTrend.toFixed(1)}°</b> <span style={{ color: "#65717e" }}>{tr("(plunge/trend)")}</span>
                     </div>
                     <div style={{ color: "#55606e" }} title={tr("The great circle the poles spread along (the π-circle), given as a plane.")}>{tr("Girdle plane: {girdleDip}° / {girdleDipDir}°", { girdleDip: stats.girdleDip.toFixed(1), girdleDipDir: stats.girdleDipDir.toFixed(1) })}{" "}<span style={{ color: "#65717e" }}>{tr("(dip/dipdir)")}</span>
@@ -547,7 +547,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                     onClick={() => { if (noTrend) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn, name: stereonetTrendName({ terzaghi: !!terzaghiOn, dip: stats.meanDip, azimuth: stats.meanDipDir, label: trendLabel({ typeLabel: classList.find((c) => c.key === typeFilter)?.label ?? labelOf.get(typeFilter) ?? (types.length === 1 ? labelOf.get(types[0]) : null), area: areaFilter === "all" ? null : areaFilter, n: stats.n, k: stats.k, outcropOnly: filtered.every((p) => p.outcrop) }) }) }); }} // #1066; terzaghi: #1446 — the trend's name says which mean
                     disabled={isGirdle || pooledTypes || noTrend} // pooledTypes: TASKS.csv #1827 — a mean over several structure types is no one orientation; noTrend: #3379
                     style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: "var(--font-size-xs)", borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle || pooledTypes || noTrend ? 0.5 : 1, cursor: isGirdle || pooledTypes || noTrend ? "not-allowed" : "pointer" }}
-                    title={pooledTypes ? tr("Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.", { n: types.length }) : tooFew ? tr("Disabled: {n} reading(s) with a 95 % cone of {a}° are too few or too scattered to call a trend (at least {min} readings and a cone of {max}° or less). Add readings, or pick the type or area with more.", { n: stats.n, a: stats.alpha95.toFixed(0), min: TREND_MIN_PICKS, max: TREND_MAX_ALPHA95 }) /* #3845 */ : noTrend ? (picks.every((p) => p.outcrop) ? tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Pick one structure type or one area first.", { k: stats.k.toFixed(1) }) : tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.", { k: stats.k.toFixed(1) })) /* #3379; the outcrop wording: #3845 */ : isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}
+                    title={pooledTypes ? tr("Disabled: this mean pools {n} structure types (faults, veins, bedding…), which is not one orientation. Pick one structure type first.", { n: types.length }) : tooFew ? tr("Disabled: {n} reading(s) with a 95 % cone of {a}° are too few or too scattered to call a trend (at least {min} readings and a cone of {max}° or less). Add readings, or pick the type or area with more.", { n: stats.n, a: stats.alpha95.toFixed(0), min: TREND_MIN_PICKS, max: TREND_MAX_ALPHA95 }) /* #3845 */ : noTrend ? (picks.every((p) => p.outcrop) ? tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Pick one structure type or one area first.", { k: stats.k.toFixed(1) }) : tr("Disabled: these picks show no preferred orientation (k = {k}, at the level of random planes), so their mean plane is not a trend to model. Filter to fewer holes or one domain first.", { k: stats.k.toFixed(1) })) /* #3379; the outcrop wording: #3845 */ : isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}
                   >{tr("Add as structural trend")}</button>
                 )}
               </div>
@@ -561,7 +561,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                   ? <>{tr("Petal AREA is proportional to frequency (radius scales as √count), so a petal twice as long holds four times the picks. Longest petal = {maxCount}{v}, n = {n}.", { maxCount: rose.maxCount.toFixed(rose.maxCount % 1 ? 1 : 0), v: terzaghi ? tr(" (weighted)") : "", n: rose.n })}</>
                   : <>{tr("A rose diagram needs at least one pick with a valid dip and dip direction.")}</>
               ) : (
-                <>{tr("Lower-hemisphere. Each point is a plane's pole (perpendicular to the plane) — clustering shows a consistent trend; scatter flags noisy/unreliable picks before feeding them into the anisotropy or structural-surface tools.")}</>
+                <>{tr("Lower hemisphere. Each point is a plane's pole: clusters are a consistent trend; scatter flags unreliable picks before they go into the anisotropy or structural-surface tools.")}</>
               )}
             </div>
             {/* #1721 — nothing drawn, nothing to export */}

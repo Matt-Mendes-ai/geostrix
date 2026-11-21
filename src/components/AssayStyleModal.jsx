@@ -72,7 +72,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   const offers = useMemo(() => drillThresholdOffers(geochemThresholds, symbol, unit).slice(0, 4), [geochemThresholds, symbol, unit]);
   const addOffer = (v) => commit({ ...local, breaks: addClassLimit(local.breaks.length ? local.breaks : seedBreaks({ ...range, unit }, local.color), v, local.color) });
   const basis = range?.basis;
-  const basisText = !basis || !basis.n ? null : basis.kind === "flags" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} detected values; the {left} reported below detection ('<') are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString() }) : basis.kind === "floor" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} values above the floor {floor} {unit}; the {left} at the floor (probably half a detection limit substituted before import) are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString(), floor: gradeText(basis.floor), unit: unitLbl }) : tr("Default classes: the 50th, 90th and 97.5th percentiles of all {n} values.", { n: basis.n.toLocaleString() });
+  const basisText = !basis || !basis.n ? null : basis.kind === "flags" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} detected values; the {left} reported below detection ('<') are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString() }) : basis.kind === "floor" ? tr("Default classes: the 50th, 90th and 97.5th percentiles of the {n} values above the floor {floor} {unit}; the {left} at the floor (probably half a detection limit) are left out.", { n: basis.n.toLocaleString(), left: basis.left.toLocaleString(), floor: gradeText(basis.floor), unit: unitLbl }) : tr("Default classes: the 50th, 90th and 97.5th percentiles of all {n} values.", { n: basis.n.toLocaleString() });
 
   // TASKS.csv #2935 — Reset gives the seeded classes the dialog calls the default (was no classes: 'sphere size = grade', one colour)
   const reset = () => commit({ color: defaultColor, sizeMult: 1, shape: "auto", opacity: 1, minCutoff: "", breaks: seedBreaks({ ...range, unit }, defaultColor) });
@@ -168,7 +168,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                   </div>
                 ))}
                 <button onClick={addBreak} style={{ ...smallBtn, alignSelf: "flex-start" }}><Plus size={12} />{" "}{tr("Add class")}</button>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("Classes are evaluated in order — a sample's colour comes from the first class whose value is ≤ its threshold. A value above every threshold still gets the top class's colour, so nothing above the highest break silently disappears.")}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("A sample takes the colour of the first class whose value is ≤ its threshold; a value above every threshold takes the top class's colour, so none disappears.")}</div>
               </div>
             )}
           </div>

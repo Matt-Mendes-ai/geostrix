@@ -243,7 +243,7 @@ export function applyGridFilter(grid, kind, opts = {}) {
     const I = (Number(opts.inclination) * Math.PI) / 180, D = (Number(opts.declination) * Math.PI) / 180;
     if (!Number.isFinite(I) || !Number.isFinite(D)) throw new Error(tr("Enter the field inclination and (grid) declination."));
     const warning = Math.abs(opts.inclination) < 20
-      ? tr("At an inclination of {inclination}° RTP is unstable (it amplifies noise along the declination); RTP for low latitudes, RTE, the tilt derivative or the analytic signal is the safer product here.", { inclination: opts.inclination }) : null; // #1988
+      ? tr("At an inclination of {inclination}° RTP is unstable (it amplifies noise along the declination): use RTP for low latitudes, RTE, the tilt derivative or the analytic signal instead.", { inclination: opts.inclination }) : null; // #1988
     const sI = Math.sin(I), cI = Math.cos(I), sD = Math.sin(D), cD = Math.cos(D);
     const out = applyOperator(P, nx, ny, (kx, ky, k) => {
       if (k === 0) return [1 / (sI * sI), 0];

@@ -58,7 +58,7 @@ export function inputsBySide(points, fault, side, onTolM = 0.5) {
 export function fitBoundedSurface(points, fit, fault, side) {
   const of = orientedFault(fault);
   // #1058 — a fault that cannot be made to face one way (a twisted or folded-over sheet) has no consistent sides to keep
-  if (of.conflicts > 0) throw new Error(tr("The fault surface cannot be turned to face one way ({n} edges disagree), so it has no consistent sides: fix or rebuild the fault mesh, or fit this surface without the fault.", { n: of.conflicts }));
+  if (of.conflicts > 0) throw new Error(tr("Fix or rebuild the fault mesh, or fit this surface without the fault: the fault surface cannot be turned to face one way ({n} edges disagree), so it has no consistent sides.", { n: of.conflicts }));
   fault = of;
   const { keep, off } = inputsBySide(points, fault, side);
   if (off.length && keep.length < 3) throw new Error(tr("Only {k} of this surface's {n} inputs lie on the kept side of the fault: check the side chosen, or the fault.", { k: keep.length, n: points.length }));

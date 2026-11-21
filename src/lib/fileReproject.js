@@ -129,7 +129,7 @@ export function reportShapefileText(report, toEpsg) {
   const lines = report.map((r) => `${r.name}: ${r.features.toLocaleString()} feature(s), ${r.vertices.toLocaleString()} vertices from ${r.fromName || crsName(r.from) || `EPSG:${r.from}`}` // fromName: #2812
     + (r.failed ? `; ${r.failed} vertices could not be converted and were kept as they were` : "")
     + (r.unsupported ? `; ${r.unsupported} record(s) of a shape type GeoStrix doesn't know were copied unchanged` : ""));
-  return tr("Saved {report} layer(s) in {v}, each with a new .prj. Only the coordinates changed: shape types, Z / M, parts and the attribute table (.dbf, field types and encoding) are as they were. {lines}.", { report: report.length, v: crsName(toEpsg) || tr("EPSG:{toEpsg}", { toEpsg }), lines: lines.join(". ") });
+  return tr("Saved {report} layer(s) in {v}, each with a new .prj. Only the coordinates changed; shape types, Z / M, parts and the attribute table are as they were. {lines}.", { report: report.length, v: crsName(toEpsg) || tr("EPSG:{toEpsg}", { toEpsg }), lines: lines.join(". ") });
 }
 
 // ---------------------------------------------------------------------------------------------

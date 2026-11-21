@@ -56,7 +56,7 @@ export function silvertipSurface(text, medium) {
 
 // readFile(relPath) -> File; store: { setAssays, setAssayElements, setSurfaceSamples, setSurfaceElements }. Returns notices.
 export async function loadSilvertipExtras(readFile, store, { existingElements = [], existingSurfaceElements = [] } = {}) {
-  const notes = [tr("Silvertip survey: the downhole azimuths are grid azimuths (the export names their grid, NAD83 / UTM zone 9N). Magnetic susceptibility is as logged; the export does not state its unit.")];
+  const notes = [tr("Silvertip survey: the downhole azimuths are grid azimuths (NAD83 / UTM zone 9N, as the export names it). Magnetic susceptibility is as logged; the export states no unit.")];
   try {
     const raw = silvertipAssays(await (await readFile("assays.csv")).text());
     const { rows, elements, converted } = alignAssayUnits(raw.rows, raw.elements, existingElements);

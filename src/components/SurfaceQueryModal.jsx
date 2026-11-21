@@ -170,7 +170,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
         </div>
 
         {!surfaces.length ? (
-          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>{tr("No generated surfaces to query yet. Build one with the implicit-modelling tools on the Modelling tab (a lithology contact, an alteration or grade shell, a fault) and it will appear in this list.")}</div>
+          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>{tr("No generated surfaces yet. Build one with the implicit-modelling tools on the Modelling tab (a lithology contact, an alteration or grade shell, a fault) and it appears here.")}</div>
         ) : (
           <>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
@@ -184,7 +184,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                 ))}
               </div>
               {tab === "holes" && (
-                <label style={rowLabel} title={tr("Spacing of the closest-approach sweep along each trace. It bounds only that one number's precision — pierce depths and metres-inside are exact intersections and are unaffected. Coarser is faster.")}>{tr("Sweep step")}<select value={step} onChange={(e) => setStep(Number(e.target.value))} style={sel}>
+                <label style={rowLabel} title={tr("Step of the closest-approach sweep along each trace. It limits only that number's precision: pierce depths and metres inside are exact intersections. Coarser is faster.")}>{tr("Sweep step")}<select value={step} onChange={(e) => setStep(Number(e.target.value))} style={sel}>
                     {[0.5, 1, 2, 5].map((s) => <option key={s} value={s}>{s} m</option>)}
                   </select>
                 </label>
@@ -200,7 +200,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
               <div style={mesh.closed ? goodNote : warnNote}>
                 {mesh.closed
                   ? tr("This surface is watertight ({edges} edges, none open), so \"metres inside\" is well defined.", { edges: mesh.edges.toLocaleString() })
-                  : tr("This surface is NOT closed — {boundaryEdges} of its {edges} edges are open, so it has no inside. Distances and pierce depths below are still exact; metres-inside is left blank rather than guessed. A draped contact or fault plane is open by nature; a shell that should be closed but isn't was probably clipped by a modelling domain or the grid boundary.", { boundaryEdges: mesh.boundaryEdges.toLocaleString(), edges: mesh.edges.toLocaleString() })}
+                  : tr("This surface is NOT closed ({boundaryEdges} of its {edges} edges are open), so it has no inside: metres-inside is left blank, not guessed, while distances and pierce depths stay exact. A draped contact or fault plane is open by nature; a shell that should be closed was probably clipped by a modelling domain or the grid boundary.", { boundaryEdges: mesh.boundaryEdges.toLocaleString(), edges: mesh.edges.toLocaleString() })}
               </div>
             )}
             {!mesh && <div style={warnNote}>{tr("This surface's mesh is empty or degenerate — nothing to query.")}</div>}
@@ -248,7 +248,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                     </tbody>
                   </table>
                 </div>
-                <div style={hint}>{tr("Closest approach is the true point-to-triangle distance (nearest face, edge or vertex — not just the nearest mesh vertex). Rows that intersect the surface are highlighted and report 0. Hover an \"Inside\" cell for the individual intercept intervals.")}</div>
+                <div style={hint}>{tr("Closest approach is the true distance to the nearest face, edge or vertex, not just the nearest mesh vertex. Rows that cross the surface are highlighted and show 0. Hover an \"Inside\" cell for its intercepts.")}</div>
               </>
             )}
 

@@ -37,7 +37,7 @@ export function useSurfaceChecks({ implicitSurfaces, surfaceLabels, implicitMesh
         if (!res.checked) {
           setNotices((p) => replaceNotices(p, "topologyCheck", notice("Nothing to check: none of the {surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare \"is below\" / \"is above\" / \"must not cross\" on a surface (expand its row) and run this again.", { surfacesChecked: res.surfacesChecked }))); // #3114
         } else if (!res.violations.length) {
-          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: (res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "") + steepNote }))); // #3114
+          setNotices((p) => replaceNotices(p, "topologyCheck", notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: (res.skipped ? tr(" {skipped} declared relationship(s) skipped: the target surface no longer exists, or the relationship (truncates / terminates against / cuts) expects an intersection, so has nothing to violate.", { skipped: res.skipped }) : "") + steepNote }))); // #3114
         } else {
           setNotices((p) => replaceNotices(p, "topologyCheck", appendNotice(notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), res.violations.map((v) => ` • ${v.message}`).join("") + foldWhy + steepNote))); // #3114 — replaces the last check's notice // #1542 — one notice: the count and the list stay together
         }
@@ -99,7 +99,7 @@ export function useSurfaceChecks({ implicitSurfaces, surfaceLabels, implicitMesh
                 tool: "fault block split" /* TASKS.csv #52 */, derivedFrom: host.name, fault: cutter.name, block: sense,
                 triangles: Math.floor(part.indices.length / 3), components: sense === "+" ? sp.stats.positiveComponents : sp.stats.negativeComponents,
                 edgesBeyondTheFaultTip: sp.stats.unresolvedEdges,
-                note: tr("Geometry only: the surface is divided where the fault mesh cuts it. NO fault displacement is applied — the blocks are not offset along the fault, because no slip has been measured here."),
+                note: tr("Geometry only: the surface is split where the fault mesh cuts it. NO fault displacement is applied: the blocks are not offset, as no slip has been measured here."),
                 sourceParams: host.params || null, generatedAt: new Date().toISOString(),
               },
             };

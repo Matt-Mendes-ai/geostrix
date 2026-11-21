@@ -116,7 +116,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
             <button type="button" style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }} onClick={exportReport} disabled={!records.length}><Download size={14} />{tr("QC report (CSV)")}</button>
           </div>
           {msg && <div style={{ ...note, color: msg.warn ? "var(--color-warn-text)" : "var(--color-text)" }}>{msg.text}</div>}
-          {!records.length && <div style={note}>{tr("No QC results yet. Add the lab's certificates (the QC certificate holds the lab's blanks, standards and duplicates; your own inserts are found by name in the sample certificates), or import a sample file whose sample-type column marks standards, blanks and duplicates.")}</div>}
+          {!records.length && <div style={note}>{tr("No QC results yet. Add the lab's certificates (its QC certificate holds the lab's blanks, standards and duplicates; your own inserts are found by name), or import a sample file whose sample-type column marks standards, blanks and duplicates.")}</div>}
 
           {showSettings && (
             <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 10, display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)" }}>
@@ -206,7 +206,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
 
           {tab === "limits" && (
             <>
-              <div style={note}>{tr("Below-detection results are stored at half the detection limit (a common convention, not the only one; it biases statistics of heavily censored elements). Elements over 30% below detection are marked. An element reported by more than one method (a different digestion, or an ore-grade finish) is listed: results from different digestions are not directly comparable.")}</div>
+              <div style={note}>{tr("Below-detection results are stored at half the detection limit (a common convention, not the only one; it biases statistics of heavily censored elements). Elements over 30% below detection are marked. An element reported by more than one method (another digestion, or an ore-grade finish) is listed: different digestions are not directly comparable.")}</div>
               <div style={{ overflowX: "auto", maxHeight: 360 }}><table style={tbl}>
                 <thead><tr><th style={{ ...th, textAlign: "start" }}>{tr("Element")}</th><th style={th}>n</th><th style={th}>{tr("Below detection")}</th><th style={th}>%</th><th style={th}>{tr("Detection limit")}</th><th style={{ ...th, textAlign: "start" }}>{tr("Methods (certificates)")}</th></tr></thead>
                 <tbody>{censored.map((c) => { const d = detectionLimitOf(surfaceSamples, c.symbol); const m = methods[c.symbol] || []; return (

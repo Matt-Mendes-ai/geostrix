@@ -132,7 +132,7 @@ function resolveVariogram(pts, given, cellSize) {
   const lag = (between ? between / 4 : suggestLagDistance(pts)) || cellSize?.dx || 10;
   const ev = experimentalVariogram(pts, { lagDistance: lag, nLags: between ? 24 : 12 });
   const fit = fitVariogramModel(ev.bins, { model });
-  if (!fit || !(fit.sill > 0) || !(fit.range > 0)) throw new Error(tr("A variogram could not be fitted to these composites (too few pairs at most lags). Enter the nugget, sill and range, or use the Variogram tool to choose them."));
+  if (!fit || !(fit.sill > 0) || !(fit.range > 0)) throw new Error(tr("Enter the nugget, sill and range, or choose them with the Variogram tool: no variogram could be fitted to these composites (too few pairs at most lags)."));
   let nugget = Math.min(Math.max(0, fit.nugget), fit.sill), nuggetFrom = null;
   // TASKS.csv #1572 (review #1497, Lawyers) — the omnidirectional fit runs on a stride subsample whose closest pairs sit several
   // composites apart (16 m on Lawyers, 50,653 composites / 6,000), so its nugget is read off lags that hold no short pair.
@@ -349,10 +349,10 @@ function gridDims(bounds, cellSize, maxBlocks = MAX_BLOCKS, reach = null) {
   const { dx, dy, dz, nx, ny, nz, total: totalBlocks } = gridShape(bounds, cellSize);
   // TASKS.csv #1416 — a block model holds only the blocks it estimates: its budget is the blocks within reach of a composite
   if (reach?.tooBig) {
-    throw new Error(tr("At this cell size the grid's box would be {totalBlocks} blocks ({nx}×{ny}×{nz}): too many to even mark which ones the composites reach. Use a larger cell size or a smaller extent.", { totalBlocks: totalBlocks.toLocaleString(), nx, ny, nz }));
+    throw new Error(tr("Use a larger cell size or a smaller extent: at this cell size the grid's box would be {totalBlocks} blocks ({nx}×{ny}×{nz}), too many to even mark which ones the composites reach.", { totalBlocks: totalBlocks.toLocaleString(), nx, ny, nz }));
   }
   if (reach?.mask) {
-    if (reach.reach > limit) throw new Error(tr("{reach} blocks lie within the search radius of the composites ({totalBlocks} in the grid's box, {nx}×{ny}×{nz}) — over the {limit}-block limit kept for a responsive in-app estimation pass. Use a larger cell size, a smaller search radius or a larger block budget.", { reach: reach.reach.toLocaleString(), totalBlocks: totalBlocks.toLocaleString(), nx, ny, nz, limit: limit.toLocaleString() }));
+    if (reach.reach > limit) throw new Error(tr("Use a larger cell size, a smaller search radius or a larger block budget: {reach} blocks lie within the search radius of the composites ({totalBlocks} in the grid's box, {nx}×{ny}×{nz}), over the {limit}-block limit for an in-app estimate.", { reach: reach.reach.toLocaleString(), totalBlocks: totalBlocks.toLocaleString(), nx, ny, nz, limit: limit.toLocaleString() }));
     return { dx, dy, dz, nx, ny, nz, totalBlocks };
   }
   if (totalBlocks > limit) {

@@ -232,8 +232,8 @@ export function buildVeinModel(intercepts, opts = {}) {
       if (fb) { plane = planeOf(fb.dip, fb.dipDir); attitudeSource = fb.source || "fallback attitude"; } // #1415
       else if (!plane) throw Object.assign(new Error(tr("At least three vein intercepts (or an explicit dip / dip direction) are needed to establish the vein's attitude.")), { attitude: true });
       // #1415 — "one section of holes" was said of intercepts all in one hole
-      else if (oneHole) throw Object.assign(new Error(tr("All the vein intercepts are in one hole, so their midpoints lie along the hole and cannot fix the vein's attitude. Enter the vein's dip and dip direction to model it.")), { attitude: true });
-      else throw Object.assign(new Error(tr("The vein intercepts lie along a single line (one section of holes), so their midpoints cannot fix the vein's attitude — the fitted plane could be rotated freely about that line. Enter the vein's dip and dip direction to model it.")), { attitude: true });
+      else if (oneHole) throw Object.assign(new Error(tr("Enter the vein's dip and dip direction to model it: all the vein intercepts are in one hole, so their midpoints lie along the hole and cannot fix the vein's attitude.")), { attitude: true });
+      else throw Object.assign(new Error(tr("Enter the vein's dip and dip direction to model it: the vein intercepts lie along one line (one section of holes), so the plane through their midpoints could turn freely about it.")), { attitude: true });
     } else {
       // TASKS.csv #1739 — midpoints from one or two holes always fit a plane (a hole's intercepts lie along the hole, and a line
       // plus a point fixes a plane): Copley's CB, six intercepts in one hole and one 800 m away, gave 0.0 m RMS and a true
@@ -249,7 +249,7 @@ export function buildVeinModel(intercepts, opts = {}) {
       const planSpread = tr2 / 2 + disc > 1e-12 ? Math.sqrt(Math.max(0, tr2 / 2 - disc) / (tr2 / 2 + disc)) : 0;
       if (cents.length < 3 || planSpread < 0.05) {
         if (fb) { plane = planeOf(fb.dip, fb.dipDir); attitudeSource = fb.source || "fallback attitude"; }
-        else throw Object.assign(new Error(cents.length < 3 ? tr("The vein intercepts come from only {n} hole(s), so the plane through their midpoints is set by the holes' own paths, not by the vein: it fits them almost exactly and says nothing about the attitude. Enter the vein's dip and dip direction to model it.", { n: cents.length }) : tr("The holes that cut this vein lie along one line (one section of holes), so the plane through the intercept midpoints could be rotated freely about that line and does not measure the vein's attitude. Enter the vein's dip and dip direction to model it.")), { attitude: true });
+        else throw Object.assign(new Error(cents.length < 3 ? tr("Enter the vein's dip and dip direction to model it: with intercepts from only {n} hole(s), the plane through their midpoints follows the holes' own paths, not the vein, and says nothing about its attitude.", { n: cents.length }) : tr("Enter the vein's dip and dip direction to model it: the holes that cut this vein lie along one line (one section of holes), so the plane through the intercept midpoints could turn freely about it and does not measure the vein's attitude.")), { attitude: true });
       } else attitudeSource = "fitted to intercept midpoints";
     }
   }

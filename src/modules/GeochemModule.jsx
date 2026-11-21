@@ -675,7 +675,7 @@ export default function GeochemModule() {
     // unit the dialog says (ppm under a _pct name), and converting it would damage the project's earlier, correct values. The dialog stays open.
     const badConv = format === "wide" ? conversionsOver100(allRows, converted) : [];
     if (badConv.length) {
-      setNotices((p) => [...p, errorNotice(tr("Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.", { list: badConv.map((b) => tr("{header} ({n} value(s), up to {max} {unit})", { header: b.header, n: b.n.toLocaleString(), max: b.max.toLocaleString(), unit: b.unit })).join(", "), units: [...new Set(badConv.map((b) => existingUnit[b.symbol]))].join(", ") }))]);
+      setNotices((p) => [...p, errorNotice(tr("Not imported: set the unit of {list} in the dialog (the project has them in {units}) and import again; as set, they would convert to over 100 %.", { list: badConv.map((b) => tr("{header} ({n} value(s), up to {max} {unit})", { header: b.header, n: b.n.toLocaleString(), max: b.max.toLocaleString(), unit: b.unit })).join(", "), units: [...new Set(badConv.map((b) => existingUnit[b.symbol]))].join(", ") }))]);
       return;
     }
     // TASKS.csv #333 — negative lab/database codes resolved at import (see readAssayCell).
@@ -898,7 +898,7 @@ export default function GeochemModule() {
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
       chosen.some((e) => e.asSupplied) ? tr("Kept as supplied, not recalculated: {list}.", { list: chosen.filter((e) => e.asSupplied).map((e) => `${e.symbol} (${gradeUnitLabel(e.symbol, e.unitLabel || e.unit)})`).join(", ") }) : null, // #3923
-      mixedUnitsList(assayElements, chosen) ? tr("This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.", { list: mixedUnitsList(assayElements, chosen) }) : null, // #3923
+      mixedUnitsList(assayElements, chosen) ? tr("This project's assays are in different units: {list}. Each stays in its own unit; a sum or ratio of two needs the same unit.", { list: mixedUnitsList(assayElements, chosen) }) : null, // #3923
       converted.length ? tr("Converted {list} to match the unit already used in this project.", { list: converted.map((e) => `${e.symbol} ${importStoreUnit(e)} → ${existingUnit[e.symbol]}`).join(", ") }) : null, // #2490: the unit actually read
       negBdl ? tr("{n} negative value(s) read as below detection (e.g. -0.005 → \"<0.005\", stored at half).", { n: negBdl }) : null,
       negMissing ? tr("{n} negative value(s) treated as not assayed.", { n: negMissing }) : null,
@@ -910,7 +910,7 @@ export default function GeochemModule() {
       textCodes.nodl ? tr("{n} cell(s) written as below detection left blank: their column ({list}) states no detection limit to use.", { n: textCodes.nodl.toLocaleString(), list: [...textCodes.nodlCols].join(", ") }) : null,
       textCodes.na ? tr("{n} cell(s) marked not assayed (NULL, X, N/A, NS, -...) left blank.", { n: textCodes.na.toLocaleString() }) : null,
       mergedCount ? tr("{n} interval(s) were already loaded and were updated in place, not duplicated.", { n: mergedCount }) : null,
-      chg.valuesChanged ? tr("{n} interval(s) of the assays already loaded were replaced by this file: {m} value(s) changed in {k} hole(s) ({holes}). Grade shells, block models and tonnage tables made from the earlier values are marked \"assays changed\" until you run them again.", { n: chg.updated.toLocaleString(), m: chg.valuesChanged.toLocaleString(), k: chg.holes.length.toLocaleString(), holes: chg.holes.slice(0, 6).join(", ") + (chg.holes.length > 6 ? ", …" : "") }) : null, // #3686
+      chg.valuesChanged ? tr("This file replaced {n} loaded interval(s): {m} value(s) changed in {k} hole(s) ({holes}). Grade shells, block models and tonnage tables made before are marked \"assays changed\" until run again.", { n: chg.updated.toLocaleString(), m: chg.valuesChanged.toLocaleString(), k: chg.holes.length.toLocaleString(), holes: chg.holes.slice(0, 6).join(", ") + (chg.holes.length > 6 ? ", …" : "") }) : null, // #3686
       pairedLinks ? tr("{n} check sample(s) in this file paired with the QC links kept with the project (their category and parent sample were filled).", { n: pairedLinks.toLocaleString() }) : null, // TASKS.csv #3409
       (() => { // #541 — ids that miss a collar only by case / spaces / hyphens
         const ids = new Set(collars.map((c) => c.hole_id)); if (!ids.size) return null;
@@ -930,7 +930,7 @@ export default function GeochemModule() {
       blankBdl.size ? tr("Empty cells read as below detection: {list}; stored at half the limit and flagged '<'.", { list: [...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return tr(L.basis === "lt" ? "{symbol} {n} at <{limit} (the lab's most common '<' limit in the file)" : "{symbol} {n} at <{limit} (the lowest value reported — no '<' limit in the file)", { symbol: sym, n, limit: L.limit }); }).join("; ") }) : null, // #502
       blankNoLimit.size ? tr("No detection limit could be found for {list} (no '<' values and no reported values), so their empty cells stay not assayed.", { list: [...blankNoLimit].join(", ") }) : null,
       // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates
-      repeatedInFile ? tr("{n} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.", { n: repeatedInFile }) : null,
+      repeatedInFile ? tr("{n} interval(s) repeat in this file (often field or lab duplicates): all are kept; Data QC and Best Intercepts flag them as overlaps.", { n: repeatedInFile }) : null,
       // TASKS.csv #2391 — intervals of this file that overlap another of the same hole, and the column that probably marks the out-of-date ones
       (() => { if (format !== "wide") return null; const o = overlapSummary(allRows, { hole: mapping.hole_id, from: mapping.from, to: mapping.to }, modal.headers || Object.keys(allRows[0] || {})); if (!overlapWorthSaying(o)) return null;
         return o.col ? tr("{n} of the file's {total} interval(s) overlap another of the same hole, in {holes} hole(s); {pct}% of them have {col} = {value}, which may mark the out-of-date rows: the dialog's row filter can leave them out.", { n: o.n.toLocaleString(), total: o.total.toLocaleString(), holes: o.holes, pct: Math.round(o.share * 100), col: o.col, value: o.value || "(blank)" })
@@ -954,7 +954,7 @@ export default function GeochemModule() {
           f.nonDrill.length ? tr("Sample types that are not drill intervals, taken in as rows of their hole: {list}.", { list: f.nonDrill.map(([t, n]) => `${t} ${n.toLocaleString()}`).join(", ") }) : null,
         ];
       })(),
-      oxideNotes.size ? tr("Oxide columns: {list}. A grade kept as its oxide is read, typed, priced and exported as the oxide; one stored as the element is in element wt%, and the diagrams convert either to oxides.", { list: [...oxideNotes].join(", ") }) : null, // #2487
+      oxideNotes.size ? tr("Oxide columns: {list}. A grade kept as oxide is read, typed, priced and exported as oxide; one kept as element is in element wt%. Diagrams convert both to oxides.", { list: [...oxideNotes].join(", ") }) : null, // #2487
     ].filter(Boolean).join(" ");
     import("../lib/dataQC.js").then(({ importCheckSummary }) => { const msg = importCheckSummary(rows, collars, store.survey, tr("assay rows")); if (msg) setNotices((p) => [...p, msg]); }).catch(() => {}); // TASKS.csv #1268
     setNotices((p) => [...p, notice(chosen.length === 1 ? "Loaded {rows} {v} intervals (1 element).{v2}" : "Loaded {rows} {v} intervals ({chosen} elements).{v2}", /* #2201 */ { rows: rows.length, v: modal.isPxrf ? tr("pXRF") : tr("assay"), chosen: chosen.length, v2: extra ? " " + extra : "" })]);
@@ -1084,7 +1084,7 @@ export default function GeochemModule() {
     // TASKS.csv #3217 (surface follow-up) — a conversion that would put readings over 100 % is refused before anything is written; the dialog stays open
     const badConv = conversionsOver100(allRows, converted);
     if (badConv.length) {
-      setNotices((p) => [...p, errorNotice(tr("Not imported: converting {list} to the project's unit would put readings over 100 %, so these columns are probably not in the unit the dialog says. Set their unit in the dialog (the project has them in {units}) and import again.", { list: badConv.map((b) => tr("{header} ({n} value(s), up to {max} {unit})", { header: b.header, n: b.n.toLocaleString(), max: b.max.toLocaleString(), unit: b.unit })).join(", "), units: [...new Set(badConv.map((b) => existingUnit[b.symbol]))].join(", ") }))]);
+      setNotices((p) => [...p, errorNotice(tr("Not imported: set the unit of {list} in the dialog (the project has them in {units}) and import again; as set, they would convert to over 100 %.", { list: badConv.map((b) => tr("{header} ({n} value(s), up to {max} {unit})", { header: b.header, n: b.n.toLocaleString(), max: b.max.toLocaleString(), unit: b.unit })).join(", "), units: [...new Set(badConv.map((b) => existingUnit[b.symbol]))].join(", ") }))]);
       return;
     }
     let negBdl = 0, negMissing = 0;
@@ -1295,7 +1295,7 @@ export default function GeochemModule() {
       const codes = new Set(altSetup.fitCodes || []);
       const pts = labRows.filter((a) => codes.has(loggedCodeAt(a, altByHole))).map((a) => { const q = DIAGRAMS.boxplot.project(a, elementUnits); return q ? { ai: q.y, ccpi: q.x } : null; }).filter(Boolean);
       fitted = fitLeastAlteredBox(pts);
-      if (!fitted) { setNotices((p) => [...p, errorNotice(tr("Only {n} lab sample(s) with Na, K, Mg, Ca and Fe lie in the alteration logged {codes}: a least-altered box needs at least 5. Choose more codes, or a protolith.", { n: pts.length, codes: [...codes].join(", ") || "—" }))]); return; }
+      if (!fitted) { setNotices((p) => [...p, errorNotice(tr("Choose more codes, or a protolith: a least-altered box needs at least 5 lab samples with Na, K, Mg, Ca and Fe, and only {n} lie in {codes}.", { n: pts.length, codes: [...codes].join(", ") || "—" }))]); return; }
     }
     const rows = labRows.map((a) => {
       let opts;
@@ -1328,7 +1328,7 @@ export default function GeochemModule() {
     const sedText = sedN && volcanic ? tr(" {n} sample(s) were not classified: their logged codes were not ticked as volcanic ({codes}); this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k}${codeMeaning(k)} ${n}`).join(", ") }) /* #2352 */ : sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k}${codeMeaning(k)} ${n}`).join(", ") }) : "";
     const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
     setNotices((p) => [...p, notice(runs.length ? (collars.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to StrixViewer to see it." : "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} No collars are loaded, so they cannot be drawn until collars with these hole ids are imported.") /* #1800 */ : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: (fitted ? (countList ? ` ${countList}.` : "") + fitText + tr(" Screening level.") : detail) + trendText + sedText + bdlText + jensenText })]); // fitted: #2028; trendText: #2145; bdlText: #2501
-    { const pd = partialDigestionFor(assayElements, method.requires); if (pd.length) setNotices((p) => [...p, notice("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })]); } // #1518
+    { const pd = partialDigestionFor(assayElements, method.requires); if (pd.length) setNotices((p) => [...p, notice("Partial digestion: {list}. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion: four-acid or aqua-regia leaves zircon undissolved, so Zr and Hf (partly Nb, Ta, Y, REE) read low.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })]); } // #1518
   };
 
   // ---------- exports ----------
@@ -1349,7 +1349,7 @@ export default function GeochemModule() {
       : [];
     const keyTitle = colorMode === "yfield" && yColouring ? `${yLayerChoice?.label || "Y layer"} › ${yColouring.field}` /* #3585 */ : colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
     const pdx = partialDigestionFor(assayElements, diagram.requires); // #1518 — the warning travels with the exported figure
-    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (volcanicNote ? `${volcanicNote} ` : "") /* #2911 */ + (anhydrousOn ? `${tr("Major oxides recalculated to 100 % volatile-free.")} ` : "") /* #2942 */ + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
+    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (volcanicNote ? `${volcanicNote} ` : "") /* #2911 */ + (anhydrousOn ? `${tr("Major oxides recalculated to 100 % volatile-free.")} ` : "") /* #2942 */ + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion: four-acid or aqua-regia leaves zircon undissolved, so Zr and Hf (partly Nb, Ta, Y, REE) read low.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
   };
   const exportPlotSVG = () => {
     const svg = svgRef.current;
@@ -1466,7 +1466,7 @@ export default function GeochemModule() {
         <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", margin: "10px 0 4px" }}>
           {surfaceSamples.length ? tr("{surfaceSamples} samples · {surfaceElements} elements", { surfaceSamples: surfaceSamples.length, surfaceElements: surfaceElements.length }) : tr("No surface samples loaded")}
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel workbook (.xlsx: the sheet with most element columns) anywhere here. \"pxrf\"/\"xrf\" in the name goes to pXRF; x/y with no from / to opens as surface samples; anything else as assays.")}</div>
         {assayElements.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>{tr("Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.")}</div>}
 
         <SampleGridPanel setNotices={setNotices} />{/* TASKS.csv #1622 — a soil grid */}
@@ -1493,7 +1493,7 @@ export default function GeochemModule() {
                 {calc.eq && <EquivalentBuilder elements={calcEls} eq={calc.eq} result={equivalentFromInputs(calc.eq, calcEls)} onChange={(next) => { const d = equivalentFromInputs(next, calcEls); setCalc((c) => ({ ...c, eq: next, eqMeta: d.ready ? d.meta : null, ...(d.ready ? { expr: d.expr, unit: d.unit, name: c.nameTouched ? c.name : freeCalcName(d.name, calcEls), preset: null, msg: null } : { expr: "" }) })); }} />}{/* TASKS.csv #3923 */}
                 <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value, nameTouched: true }))} placeholder={tr("Name, e.g. AI")} aria-label={tr("Calculated element name")} style={{ fontSize: "var(--font-size-sm)" }} />
                 {/* TASKS.csv #1749 (review #1645, Copley) — a metal-equivalent (CuEq, AuEq) is a grade, not an index: with a grade unit its estimate can be priced in the pit shell */}
-                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes the grade unit its formula gives, % or g/t, so an estimate of it can be priced in the pit shell.")}>{[...new Set(["index", "%", "g/t", "ppm", "ppb", ...((calc.source === "surface" ? surfaceElements : assayElements).map((e) => e.unit).filter((u) => u && unitBasis(u).oxide)) /* #3160 — the oxide units the project stores */, ...(calc.unit ? [calc.unit] : [])])].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes its formula's grade unit, % or g/t, so its estimate can be priced in the pit shell.")}>{[...new Set(["index", "%", "g/t", "ppm", "ppb", ...((calc.source === "surface" ? surfaceElements : assayElements).map((e) => e.unit).filter((u) => u && unitBasis(u).oxide)) /* #3160 — the oxide units the project stores */, ...(calc.unit ? [calc.unit] : [])])].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
                 <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value, eqMeta: null }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
                 {!presetUnitsFor(calc.preset, calc.expr) && mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements) && ( /* TASKS.csv #3219 — a ratio of elements stored in different units */
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}><input type="checkbox" checked={!!calc.readPpm} onChange={(e) => setCalc((c) => ({ ...c, readPpm: e.target.checked }))} />{tr("Read these elements in ppm: the formula divides elements stored in different units ({list})", { list: Object.keys(mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements)).map((sym) => `${sym} ${((calc.source === "surface" ? surfaceElements : assayElements).find((e) => e.symbol === sym) || {}).unit || ""}`).join(", ") })}</label>
@@ -1607,10 +1607,10 @@ export default function GeochemModule() {
             </>
           )}
           {anhMajors.length >= MIN_MAJORS && !(ALL_DIAGRAMS[diagramId]?.spider) && ( /* TASKS.csv #2942 — volatile-free majors */
-            <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Each sample's major oxides are scaled to sum to 100 % (the loss on ignition left out), as classification diagrams such as TAS are drawn. Samples missing a major oxide are left out. Ratios do not change.")}><input type="checkbox" checked={anhydrousOn} onChange={(e) => setAnhydrous(e.target.checked)} />{tr("Majors to 100 % volatile-free")}</label>
+            <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Scales each sample's major oxides to sum to 100 % (loss on ignition left out), as for TAS. Samples missing a major oxide are left out; ratios do not change.")}><input type="checkbox" checked={anhydrousOn} onChange={(e) => setAnhydrous(e.target.checked)} />{tr("Majors to 100 % volatile-free")}</label>
           )}
           {hasPxrf && ( /* TASKS.csv #1673 — which rows the plot uses */
-            <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, a bad reading at 36,096 ppm Rb): plotted apart from the lab assays unless you choose both.")}>{tr("Samples:")}<select aria-label={tr("Samples plotted")} value={plotSource} onChange={(e) => setPlotSource(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, bad readings), plotted apart from the lab assays unless you choose both.")}>{tr("Samples:")}<select aria-label={tr("Samples plotted")} value={plotSource} onChange={(e) => setPlotSource(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="lab">{tr("Lab assays")}</option><option value="pxrf">{tr("pXRF readings (screening)")}</option><option value="both">{tr("Lab + pXRF")}</option>
             </select></div>
           )}
@@ -1697,7 +1697,7 @@ export default function GeochemModule() {
         <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", marginBottom: 10 }}>{tr(diagram.caption)}</div>
         {carbonateNote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{carbonateNote}</div>} {/* #1392 */}
         {volcanicNote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{volcanicNote}</div>} {/* #2911 */}
-        {(() => { const pd = partialDigestionFor(assayElements, diagram.requires); return pd.length ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })}</div> : null; })()}{/* #1518 */}
+        {(() => { const pd = partialDigestionFor(assayElements, diagram.requires); return pd.length ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Partial digestion: {list}. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion: four-acid or aqua-regia leaves zircon undissolved, so Zr and Hf (partly Nb, Ta, Y, REE) read low.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })}</div> : null; })()}{/* #1518 */}
 
         {assays.length > 0 && missingForDiagram.length > 0 && (
           <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: "var(--font-size-base)", color: "#d8c080", marginBottom: 12 }}>{tr("This diagram needs {requires} — missing {missingForDiagram}. Points that can't be projected are dropped.", { requires: diagram.requires.join(", "), missingForDiagram: missingForDiagram.join(", ") })}</div>
@@ -1724,10 +1724,10 @@ export default function GeochemModule() {
                   </button>
                 </>
               }
-              footnote={tr("An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.")}
+              footnote={tr("An assay CSV needs a hole ID, from/to depths and one column per element; a table with x/y and no from/to opens as surface samples.")}
             >
-              <div style={{ marginBottom: 12 }}>{tr("Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.")}</div>
-              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Your surface samples are used by Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn in StrixViewer and on the Maps tab.")}</div>}{/* #1086 */}
+              <div style={{ marginBottom: 12 }}>{tr("Ternary, bivariate and REE-spider diagrams, alteration indices, correlation, QAQC and compositing for your assay or pXRF data. Import a file to start.")}</div>
+              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above use your surface samples; StrixViewer and the Maps tab draw them.")}</div>}{/* #1086 */}
             </EmptyState>
           </div>
         ) : (

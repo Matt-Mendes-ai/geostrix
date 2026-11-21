@@ -380,20 +380,20 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 {trackSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
               </select>
             </label>}
-            {track && track.positive >= 2 && <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Draws the track on a log scale, from the 2nd percentile of the positive values to the highest: for skewed values such as gamma or grades, where a linear track shows only the high end.")}>
+            {track && track.positive >= 2 && <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Log scale from the 2nd percentile of the positive values to the highest, for skewed values such as gamma or grades.")}>
               <input type="checkbox" checked={trackLog} onChange={(e) => setTrackLog(e.target.checked)} />{tr("Log scale")}
             </label>}{/* #2813 */}
             {track && track.n === 0 && <div style={warnNote}>{tr("No {name} values in the selected holes.", { name: trackSrc.label })}</div>}{/* #2786 */}
-            <label style={rowLabel} title={tr("Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimizes perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.")}>{tr("Section line")}<select value={azMode} onChange={(e) => (e.target.value === "section" ? pickSection(sectionId) : setAzMode(e.target.value))} style={sel}>
+            <label style={rowLabel} title={tr("Best fit: the principal (total-least-squares) axis of the selected collars. Unlike a y-on-x regression, it works for a north-south line and ignores map rotation.")}>{tr("Section line")}<select value={azMode} onChange={(e) => (e.target.value === "section" ? pickSection(sectionId) : setAzMode(e.target.value))} style={sel}>
                 <option value="fit">{tr("Best fit through collars")}</option>
                 <option value="manual">{tr("Fixed azimuth…")}</option>
                 <option value="through">{tr("Through the ticked holes, in order")}</option>{/* #3560 B3 */}
                 {usableSections.length > 0 && <option value="section">{tr("Along a saved section…")}</option>}{/* #1552 */}
               </select>
             </label>
-            {azMode === "through" && <div style={warnNote}>{tr("The holes are joined in the order you tick them, along their collars in plan, and drawn unfolded: the distance runs along that bent line and each hole hangs from its own collar. Untick and tick again to change the order.")}</div>}{/* #3560 B3 */}
+            {azMode === "through" && <div style={warnNote}>{tr("Holes are joined in the order you tick them, collar to collar in plan, and drawn unfolded along that bent line. Untick and tick again to change the order.")}</div>}{/* #3560 B3 */}
             {azMode === "section" && (
-              <label style={rowLabel} title={tr("The section's own line, from its start, and the holes lying mainly inside its corridor (at least half of the hole). Tick or untick holes below as usual.")}>{tr("Section")}
+              <label style={rowLabel} title={tr("The section's own line from its start, with the holes mostly inside its corridor (at least half the hole). Tick or untick holes below.")}>{tr("Section")}
                 <select value={sectionId} onChange={(e) => pickSection(e.target.value)} style={sel}>
                   {usableSections.map((s) => <option key={s.id} value={s.id}>{tr("{name} (±{corridor} m)", { name: s.name || s.id, corridor: Number(s.corridor) || 100 })}</option>)}
                 </select>
@@ -403,7 +403,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{tr("This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.", { n: allIds.length })}</div>
             )}
             {initial.trimmed > 0 && azMode === "fit" && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{initial.site ? tr("Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line through them): the holes here are drilled in fans from a few sites, so one fan is one panel. {n} others are in the list below, unticked.", { k: initial.ids.length, site: initial.site, n: initial.trimmed }) /* #2220 */ : tr("Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.", { k: initial.ids.length, n: initial.trimmed })}{usableSections.length ? " " + tr("Or draw the panel along a saved section.") : " " + tr("Or draw a cross-section in StrixViewer first and use it here.")}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{initial.site ? tr("Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line): one fan, one panel. {n} others are below, unticked.", { k: initial.ids.length, site: initial.site, n: initial.trimmed }) /* #2220 */ : tr("Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.", { k: initial.ids.length, n: initial.trimmed })}{usableSections.length ? " " + tr("Or draw the panel along a saved section.") : " " + tr("Or draw a cross-section in StrixViewer first and use it here.")}</div>
             )}
             {azMode === "manual" && (
               <label style={rowLabel}>{tr("Azimuth (°)")}<input value={manualAz} onChange={(e) => setManualAz(e.target.value)} style={sel} />
@@ -471,7 +471,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
             )}
 
             <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.5 }}>
-              <div style={{ fontWeight: 600, color: "#1a2028", marginBottom: 3 }}>{tr("Reading this panel")}</div>{tr("Horizontal is distance along the section line; vertical is elevation. Each hole's whole trace is projected, so an inclined hole leans exactly as it does in the ground. The number under each collar is that hole's largest perpendicular distance from the section plane — the error this flattening introduces.")}</div>
+              <div style={{ fontWeight: 600, color: "#1a2028", marginBottom: 3 }}>{tr("Reading this panel")}</div>{tr("Horizontal is distance along the section line, vertical is elevation. Each whole trace is projected, so inclined holes lean as in the ground. The number under each collar is the hole's largest distance off the section plane: the error of this flattening.")}</div>
 
             <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
           </div>

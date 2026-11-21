@@ -31,7 +31,7 @@ export default function CapAuditHint({ assays, symbol, unit, elementUnits, capVa
         <span title={tr("Length-weighted: a 10 m sample counts ten times a 1 m sample")}>{tr("Cap at the length-weighted")}</span>
         {minPcts && (
           <select value={over} onChange={(e) => setOver(e.target.value)} aria-label={tr("Percentiles of")} style={{ fontSize: "var(--font-size-sm)" }}
-            title={tr("The mineralised samples are those at or above {cut} {unit}, where these grades split into a background and a higher group (read from the data). Over all samples, the percentiles of a mostly barren column can fall inside the ore.", { cut: fmt(toShown(minPcts.cut)), unit: unitLabel || unit })}>
+            title={tr("Mineralized samples are those at or above {cut} {unit}, where these grades split into a background and a higher group. Over all samples, a mostly barren column's percentiles can fall inside the ore.", { cut: fmt(toShown(minPcts.cut)), unit: unitLabel || unit })}>
             <option value="mineralised">{tr("of the {n} mineralised samples (≥ {cut})", { n: minPcts.n, cut: fmt(toShown(minPcts.cut)) })}</option>
             <option value="all">{tr("of all samples")}</option>
           </select>

@@ -166,7 +166,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} aria-label={tr("Close")} />
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={small}>{tr("Government geochemical surveys, free to use under the licence shown. A download asks the agency's service for the samples in the area only, and they import as surface samples with the source and licence on every sample. Only the area is sent (its bounding box, and for the USGS the map quadrangles it covers), never your project's data.")}</div>
+          <div style={small}>{tr("Government geochemical surveys, free under the licence shown, imported as surface samples with their source and licence. Only the area is sent (its bounding box; for the USGS, its map quadrangles), never your project's data.")}</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search: name, agency, country, medium")} aria-label={tr("Search the catalogue")} style={{ ...sel, flex: 1, minWidth: 200 }} />
             <label style={{ ...small, display: "flex", gap: 5, alignItems: "center" }}><input type="checkbox" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} disabled={!area} />{tr("Only surveys covering the area")}</label>

@@ -36,7 +36,7 @@ test("a boundary with no .prj lands on the collars through the mine grid; withou
   const parsed = { features: [{ geometry: square[0] }], geomType: "polygon", epsg: null, prjWkt: null };
   const r = await vectorToBoundaryPolylines(parsed, 28350, { mineGrid: mg, collars });
   assert.equal(r.mineGrid, true);
-  assert.match(r.note, /lie on the project's mine grid \(GBMG\) where the collars are/);
+  assert.match(r.note, /lies on the project's mine grid \(GBMG\) by the collars/); // #3899: shorter
   assert.ok(Math.abs(r.polylines[0][0].x - 413601.6) < 1e-6);
   const r2 = await vectorToBoundaryPolylines(parsed, 28350, { collars });
   assert.match(r2.note, /it states no CRS: .* \(it landed [\d,]+ km from the collars\)/);

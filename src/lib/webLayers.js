@@ -274,7 +274,7 @@ async function wfsGetFeature(baseUrl, params) {
   const { contentType, arrayBuffer } = await fetchWebLayerUrl(buildQuery(baseUrl, params));
   const bodyText = new TextDecoder("utf-8").decode(arrayBuffer);
   if (contentType.includes("xml")) throw Object.assign(new Error(parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || tr("Server rejected the feature request — check the layer name.")), { serverRejected: true });
-  try { return JSON.parse(bodyText); } catch { throw new Error(tr("Server didn't return valid GeoJSON — it may not support OUTPUTFORMAT=application/json (try a different layer, or this server may need GML support this app doesn't have).")); }
+  try { return JSON.parse(bodyText); } catch { throw new Error(tr("Try another layer: the server did not return valid GeoJSON. It may not support OUTPUTFORMAT=application/json, or it may need GML, which GeoStrix does not read.")); }
 }
 const WFS_NORTHING_FIRST = new Set([2193]); // projected CRSs in this app whose EPSG axis order is northing, easting
 export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEpsg, maxFeatures = 2000, clipBboxLonLat = null }) {
@@ -374,5 +374,5 @@ export function pickWfsStyleField(features, fields, current) {
 
 // TASKS.csv #544 — "the server's first 2,000 features — there may be more" for the import notice ("" when complete)
 export function wfsTruncationText({ truncated, maxFeatures }) {
-  return truncated ? tr("This is only the server's first {v} features — the layer may have more here. Tick \"Limit to the current project area\", or work in a smaller area, to get all of them.", { v: Number(maxFeatures).toLocaleString("en-US") }) : "";
+  return truncated ? tr("Tick \"Limit to the current project area\", or work in a smaller area, to get them all: this is only the server's first {v} features, and the layer may have more here.", { v: Number(maxFeatures).toLocaleString("en-US") }) : "";
 }

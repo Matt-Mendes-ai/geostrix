@@ -64,7 +64,7 @@ export default function DrillPlanColourControls({ sel, updateSelected, collars, 
       {isGrade && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           {kind === "bi"
-            ? tr("Each hole's best intercept (Best intercepts' rule: the cut-off, at most this much internal dilution, at least this length) as grade × length. With no cut-off typed, the plan uses the element's 90th percentile, as Best intercepts suggests. The key's classes break at the 50th, 75th and 90th percentile of the plan's holes.")
+            ? tr("Each hole's best intercept as grade × length, by Best intercepts' rule (the cut-off, at most this internal dilution, at least this length). No cut-off typed: the element's 90th percentile. The key's classes break at the 50th, 75th and 90th percentile of the plan's holes.")
             : kind === "gt"
             ? tr("Each hole's grade × length is summed over its assayed metres, with no cut-off. The key's classes break at the 50th, 75th and 90th percentile of the plan's holes, so they follow this project's own values.")
             : tr("The key's classes break at the 50th, 75th and 90th percentile of the plan's holes, so they follow this project's own values.")}
