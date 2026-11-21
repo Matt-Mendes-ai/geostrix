@@ -50,6 +50,69 @@ export function drilledBoxes(points, { bounds, padM, linkM, maxShare = 0.5 }) {
   return boxes.sort((a, b) => b.idx.length - a.idx.length); // the largest first (its kriging variogram, when fitted, is the run's)
 }
 
+// TASKS.csv #3922 (Matt: settings read from the data, "box only around the grade") — a Tight shell's grid only round the composites at or above
+// the cut-off: within each drilled cluster's box (drilledBoxes, so a box is never larger than before), one box per group of them (groups more
+// than twice marginM apart get their own), each their extent plus marginM, kept inside the cluster's box. marginM is the search plus the pad (or
+// a cell, if larger): a node further than the search from every composite at the cut-off is estimated from composites below it, so it is below
+// the cut-off too (an inverse-distance mean cannot rise above its largest sample; the plane search's reach cut keeps the shell within the search
+// as well), and the shell closes inside the box as it did inside the larger one. Ground with no composite at the cut-off gets no node at all.
+// Not for an envelope (its indicators reach further) — the caller keeps drilledBoxes there. idx: the composites inside each box.
+// drilled: drilledBoxes' result for the same points, when the caller has it.
+// -> [{ bounds, idx, atCut }] (largest first), or drilledBoxes' own result when no composite reaches the cut-off
+export function gradeBoxes(points, cutoff, { bounds, padM, linkM, marginM, maxShare = 0.5, drilled: given = null }) {
+  const drilled = given || drilledBoxes(points, { bounds, padM, linkM, maxShare }); // given: the caller's drilledBoxes, already made
+  const M = Number(marginM), cut = Number(cutoff);
+  if (!(M > 0) || !Number.isFinite(M) || !Number.isFinite(cut)) return drilled;
+  const out = [];
+  for (const d of drilled) {
+    const at = d.idx.filter((i) => points[i].value >= cut);
+    if (!at.length) continue; // no composite at the cut-off in this cluster: no shell can form there
+    let boxes = linkGroups(points, at, 2 * M).map((g) => ({ at: g, bounds: clip(extentOf(points, g, M), d.bounds) }));
+    for (let merged = true; merged && boxes.length > 1;) {
+      merged = false;
+      outer: for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+        if (!overlaps(boxes[i].bounds, boxes[j].bounds)) continue;
+        const g = boxes[i].at.concat(boxes[j].at);
+        boxes = boxes.filter((_, k) => k !== i && k !== j).concat([{ at: g, bounds: clip(extentOf(points, g, M), d.bounds) }]);
+        merged = true; break outer;
+      }
+    }
+    for (const b of boxes) out.push({ bounds: b.bounds, idx: d.idx.filter((i) => inside(points[i], b.bounds)), atCut: b.at.length });
+  }
+  if (!out.length) return drilled;
+  return out.sort((a, b) => b.idx.length - a.idx.length);
+}
+
+// the blocks a set of boxes holds at a cell { dx, dy, dz } (a number: cubic), counted as the run counts them (gridBlockCount per axis)
+export function boxesBlocks(boxes, cell) {
+  const g = typeof cell === "number" ? { dx: cell, dy: cell, dz: cell } : cell;
+  const n = (a, z, d) => Math.max(1, Math.round((z - a) / Math.max(0.01, d)));
+  return (boxes || []).reduce((s, { bounds: b }) => s + n(b.xmin, b.xmax, g.dx) * n(b.ymin, b.ymax, g.dy) * n(b.zmin, b.zmax, g.dz), 0);
+}
+
+const overlaps = (a, b) => a.xmin < b.xmax && b.xmin < a.xmax && a.ymin < b.ymax && b.ymin < a.ymax && a.zmin < b.zmax && b.zmin < a.zmax;
+const inside = (p, b) => p.x >= b.xmin && p.x <= b.xmax && p.y >= b.ymin && p.y <= b.ymax && p.z >= b.zmin && p.z <= b.zmax;
+const clip = (b, o) => ({ xmin: Math.max(o.xmin, b.xmin), xmax: Math.min(o.xmax, b.xmax), ymin: Math.max(o.ymin, b.ymin), ymax: Math.min(o.ymax, b.ymax), zmin: Math.max(o.zmin, b.zmin), zmax: Math.min(o.zmax, b.zmax) });
+function extentOf(points, idx, m) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const i of idx) { const p = points[i]; if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; if (p.z < z0) z0 = p.z; if (p.z > z1) z1 = p.z; }
+  return { xmin: x0 - m, xmax: x1 + m, ymin: y0 - m, ymax: y1 + m, zmin: z0 - m, zmax: z1 + m };
+}
+// single linkage of the points idx on an L grid (as drilledBoxes): -> [[indices], ...]
+function linkGroups(points, idx, L) {
+  const key = (i, j, k) => `${i},${j},${k}`, cell = new Map();
+  for (const i of idx) { const p = points[i], k = key(Math.floor(p.x / L), Math.floor(p.y / L), Math.floor(p.z / L)); (cell.get(k) || cell.set(k, []).get(k)).push(i); }
+  const parent = new Map([...cell.keys()].map((k) => [k, k]));
+  const find = (k) => { while (parent.get(k) !== k) { parent.set(k, parent.get(parent.get(k))); k = parent.get(k); } return k; };
+  for (const k of cell.keys()) {
+    const [a, b, c] = k.split(",").map(Number);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let l = -1; l <= 1; l++) { const o = key(a + i, b + j, c + l); if (parent.has(o)) { const r1 = find(o), r2 = find(k); if (r1 !== r2) parent.set(r1, r2); } }
+  }
+  const groups = new Map();
+  for (const [k, list] of cell) { const r = find(k); (groups.get(r) || groups.set(r, []).get(r)).push(...list); }
+  return [...groups.values()];
+}
+
 // marching-cubes results of several grids as one mesh: vertices in order, faces offset, closing vertices summed; parts: each grid's vertex
 // range, for the support colours (each vertex is looked up in its own grid)
 export function mergeMeshes(mcs) {

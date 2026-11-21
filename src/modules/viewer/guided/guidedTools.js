@@ -19,6 +19,7 @@ import { barrenDefault, unsampledReady } from "../../../lib/unsampledFill.js";
 import { NUMERIC_CELL_DEFAULT, GRADE_SHELL_SEARCH_DEFAULT } from "../../../lib/estimationMeta.js";
 import { getUnsampledChoice, setUnsampledChoice } from "../../../lib/unsampledChoices.js";
 import { gradeUnitLabel } from "../../../lib/geochemColumns.js";
+import { desurveyHole, pointOnTrace } from "../../../lib/desurvey.js";
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
 const unitsByHoles = (ctx) => stackOrder(ctx.rows).units.map((u) => u.unit);
@@ -225,17 +226,32 @@ export const FAULTS = {
 // TASKS.csv #3909 — a grade model: the grade shell at a cut-off read from the grades (lib/auto/autoGradeShell.js), its cells, search and holes per
 // cell from the drilling (lib/auto/autoBlockModel.js), along the trend the trend helper set (#3910) when there is one. The card gives the volume
 // above the cut-off and says it is not a resource estimate; tonnes and grade-tonnage stay in All tools (Matt's decision 9).
-// Sample positions here are the collar's, down the hole as if vertical: they size nothing but the thinning; the run desurveys its own.
-function gradeSamples(ctx, sym) {
+// Sample positions: the collar's, down the hole as if vertical, for the suggestion and the cut-off (no position used); for the blocks
+// (#3922: the grid round the grades is counted from them) each sample's centre on its hole's trace, from ctx.survey (minimum curvature).
+const tracesKept = new WeakMap(); // ctx -> Map(hole_id -> trace)
+function traceOf(ctx, c) {
+  let m = tracesKept.get(ctx);
+  if (!m) {
+    m = new Map(); tracesKept.set(ctx, m);
+    const by = new Map();
+    for (const s of ctx.survey || []) (by.get(s.hole_id) || by.set(s.hole_id, []).get(s.hole_id)).push(s);
+    m.by = by;
+  }
+  if (!m.has(c.hole_id)) { let t = null; try { t = desurveyHole(c, m.by.get(c.hole_id) || []); } catch { t = null; } m.set(c.hole_id, t?.length ? t : null); }
+  return m.get(c.hole_id);
+}
+function gradeSamples(ctx, sym, placed = false) {
   const at = new Map(ctx.collars.map((c) => [c.hole_id, c])), out = [];
   for (const a of ctx.assays || []) {
     const v = Number(a?.values?.[sym]), c = at.get(a?.hole_id);
     if (!Number.isFinite(v) || !c) continue;
-    const mid = (Number(a.from) + Number(a.to)) / 2;
-    out.push({ hole_id: a.hole_id, from: Number(a.from), to: Number(a.to), value: v, x: Number(c.x), y: Number(c.y), z: Number(c.z) - (Number.isFinite(mid) ? mid : 0) });
+    const mid = (Number(a.from) + Number(a.to)) / 2, t = placed && Number.isFinite(mid) ? traceOf(ctx, c) : null, p = t ? pointOnTrace(t, mid) : null;
+    out.push({ hole_id: a.hole_id, from: Number(a.from), to: Number(a.to), value: v, ...(p || { x: Number(c.x), y: Number(c.y), z: Number(c.z) - (Number.isFinite(mid) ? mid : 0) }) });
   }
   return out;
 }
+// the Grade shell pane's Shell choice, as the run reads it (modellingRuns.js shellModePref): the grid round the grades is a Tight shell's
+const tightShell = () => { try { const m = localStorage.getItem("geostrix.shellMode"); return m !== "envelope" && m !== "auto"; } catch { return true; } };
 // shown as the shell names it: a precious metal stored in ppm reads g/t (#2218)
 const elementUnit = (ctx, sym) => gradeUnitLabel(sym, ctx.assayElements.find((e) => e.symbol === sym)?.unit || "");
 export const GRADE = {
@@ -256,17 +272,18 @@ export const GRADE = {
   choices: (ctx) => ctx.assayElements.map((e) => e.symbol),
   check: (ctx, value) => (value ? null : tr("Choose a metal first.")),
   auto(ctx, sym) {
-    const samples = gradeSamples(ctx, sym), unit = elementUnit(ctx, sym);
-    const gs = autoGradeShell({ collars: ctx.collars, samples, unit });
+    const samples = gradeSamples(ctx, sym, true), unit = elementUnit(ctx, sym);
+    const gs = autoGradeShell({ collars: ctx.collars, samples, unit, tight: tightShell() });
     if (!gs.ok) return gs;
     const bm = autoBlockModel({ collars: ctx.collars, samples, hasDensity: ctx.hasDensity });
     if (!bm.ok) return bm;
-    // Matt, 2026-11-20: the shell runs on GeoStrix's standard grade-shell settings (50 m cells, a 200 m search, the Tight shell along the
-    // composites' plane), said as standard settings, not read from the data (#264); autoBlockModel still gives the verdicts and the density note
-    // (its enlarged blocks gave 500 m cells and a 500 m search on Macpass's 21 km spread)
-    const reasons = [...gs.reasons.filter((r) => r.field === "cutoff"),
-      { field: "cells", text: tr("Cells {c} x {c} m and a {r} m search: GeoStrix's standard grade-shell settings, not values read from your data. Change them in the grade shell pane.", { c: NUMERIC_CELL_DEFAULT, r: GRADE_SHELL_SEARCH_DEFAULT }) },
-      ...bm.reasons.filter((r) => r.field === "minHoles")];
+    // TASKS.csv #3922 (Matt: settings read from the data, done right) — the cells about half the drill spacing, the search about three spacings, the
+    // grid only round the grades, counted under the block budget (lib/auto/autoGradeShell.js); GeoStrix's standard 50 m / 200 m (#3921) only when
+    // the drilling gives no spacing, and said so. autoBlockModel still gives the verdicts, the holes per block and the density note (its blocks
+    // and search, sized over the whole project, are not used: 500 m on Macpass's 21 km spread)
+    // the grid's own count is said after the run, from the run's record (result below): the estimate here counts the raw samples, the run its
+    // composites and the unsampled core (Macpass: 621,149 here, 735,652 in the run)
+    const reasons = [...gs.reasons.filter((r) => r.field !== "box"), ...bm.reasons.filter((r) => r.field === "minHoles")];
     const notes = [...gs.notes, ...bm.notes];
     if (ctx.gradeTrend) reasons.push({ field: "trend", text: tr("It follows the trend set with the trend helper.") });
     else notes.push(tr("No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first."));
@@ -276,7 +293,7 @@ export const GRADE = {
     else if (saved?.mode === "barren" && saved.value != null && saved.value !== "") reasons.push({ field: "unsampled", text: tr("Unsampled core inside the sampled holes is read as barren at {v} {unit} (your value in the grade shell pane).", { v: saved.value, unit }) });
     else if (saved?.mode !== "log") { const d = barrenDefault(ctx.assays, sym); reasons.push({ field: "unsampled", text: d.lowest != null ? tr("Unsampled core inside the sampled holes is read as barren at {v} {unit}: half the lowest {el} grade ({low} {unit}), the usual stand-in for below detection. Change it in the grade shell pane.", { v: d.value, unit, el: sym, low: d.lowest }) : tr("Unsampled core inside the sampled holes is read as barren at 0: no sample carries a positive grade.") }); }
     // the grade shell's own settings, in the order api.numeric lists them: metal, cut-off, cell across, cell height, search radius, holes
-    return { ok: true, values: { list: [sym, gs.values.cutoff, NUMERIC_CELL_DEFAULT, "", GRADE_SHELL_SEARCH_DEFAULT, bm.values.minHoles] }, reasons, notes, verdict: null };
+    return { ok: true, values: { list: [sym, gs.values.cutoff, gs.values.cellSize ?? NUMERIC_CELL_DEFAULT, "", gs.values.searchRadius ?? GRADE_SHELL_SEARCH_DEFAULT, bm.values.minHoles], fromData: !!gs.values.fromData }, reasons, notes, verdict: null };
   },
   prepare(api, v) {
     v.list.forEach((x, i) => api.numeric.set[i](x));
@@ -292,8 +309,14 @@ export const GRADE = {
     const out = [];
     for (const s of made) {
       // the shell's enclosed volume, as the run's own message computes it (lib/volumetrics.js), from its mesh
-      // the cell the run used: a run over the block budget refits it (#1416), said here instead of the standard 50 m
-      if (Number(s.params?.cellSizeM) > NUMERIC_CELL_DEFAULT) out.push(tr("The run used {c} m cells, not {d} m: at {d} m this area needs more blocks than the block budget allows (the messages under the sidebar say how many).", { c: s.params.cellSizeM, d: NUMERIC_CELL_DEFAULT }));
+      // the cell the run used: a run over the block budget refits it (#1416), said here instead of the cell chosen (#3922: the one set before the run)
+      const chosen = Number(api?.numeric?.now?.[2]) > 0 ? Number(api.numeric.now[2]) : NUMERIC_CELL_DEFAULT;
+      if (Number(s.params?.cellSizeM) > chosen) out.push(tr("The run used {c} m cells, not {d} m: at {d} m this area needs more blocks than the block budget allows (the messages under the sidebar say how many).", { c: s.params.cellSizeM, d: chosen }));
+      // #3922 — the grid round the grades, as the run made it (its record's gradeAreas), when it saved blocks
+      const ga = s.params?.gradeAreas;
+      if (ga?.nodes > 0 && ga.drilledNodes > 1.05 * ga.nodes) out.push(ga.grids === 1
+        ? tr("The grid covers only the ground within the search of the grades above the cut-off: {n} blocks in one area, not the {d} the drilled ground would need.", { n: fmtNum(ga.nodes), d: fmtNum(ga.drilledNodes) })
+        : tr("The grid covers only the ground within the search of the grades above the cut-off: {n} blocks in {a} areas, not the {d} the drilled ground would need.", { n: fmtNum(ga.nodes), a: ga.grids, d: fmtNum(ga.drilledNodes) }));
       const geo = api?.meshOf?.(s.id)?.geometry, vol = geo ? computeMeshVolume(geo).volumeM3 : Number(s.params?.volumeM3);
       if (vol > 0) out.push(tr("{name}: {v} m³ above the cut-off.", { name: s.name, v: fmtNum(Number(vol.toPrecision(3))) }));
       if (s.closure === "artificial") out.push(tr("Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades."));
@@ -302,7 +325,7 @@ export const GRADE = {
     return out;
   },
   actions: [{ label: "Set a trend", run: (api) => api.openPane("settings") }],
-  run: (api) => api.runNumericModel(),
+  run: (api, value, ctx, values) => api.runNumericModel(values?.fromData ? { cellFromData: values.list[2] } : undefined), // #3922: a refit at the data's cell is said
   prefill: () => {}, // Build or not, the grade shell pane holds what was chosen (set before the run)
 };
 
