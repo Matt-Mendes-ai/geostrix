@@ -423,7 +423,7 @@ export function createDXFMeshParser(opts = {}) {
       if (!sawEntities) throw new Error(tr("No ENTITIES section found — this may not be a valid DXF file, or uses the binary DXF variant (unsupported)."));
       const parts = [...buckets.values()].filter((b) => b.triangles > 0).map((b) => b.result());
       if (!parts.length) {
-        throw new Error(tr("No 3D faces found — this DXF has no 3DFACE entities or polyface mesh. A plan-view DXF (lines/polylines) can be imported as a boundary from the Geophysics tab instead."));
+        throw new Error(tr("No 3D faces found (no 3DFACE entities or polyface mesh in this DXF). Import a plan-view DXF (lines / polylines) as a boundary from the Geophysics tab instead."));
       }
       const triangleCount = parts.reduce((s, p) => s + p.indices.length / 3, 0);
       const vertexCount = parts.reduce((s, p) => s + p.positions.length / 3, 0);

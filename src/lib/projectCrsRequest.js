@@ -45,5 +45,5 @@ export async function ensureExportCrs(project) {
   if (project?.crsSet && project?.epsg) return Number(project.epsg);
   if (project?.crsSet !== false && project?.epsg) return Number(project.epsg); // a project from before #615 counts as chosen
   if (isLocalGrid(project)) return requestProjectCrs(localGridFirst(project, "")); // #2180
-  return requestProjectCrs(tr("This export places your data on Earth (latitude / longitude, a .prj, a GeoTIFF's coordinate system), but the project's coordinate system was never chosen — only a placeholder is set, and the file would put your data in the wrong place. Choose it first."));
+  return requestProjectCrs(tr("Choose the project's coordinate system first: this export places your data on Earth (latitude / longitude, a .prj, a GeoTIFF's coordinate system), and with only a placeholder set it would put your data in the wrong place."));
 }

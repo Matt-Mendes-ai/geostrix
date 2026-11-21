@@ -147,7 +147,7 @@ export async function boundaryCrsTransform({ src = null, prjWkt = null, dst = nu
       const M = mineToProject(mineGrid, dst);
       T = (x, y) => M(x, y);
       mineGridUsed = true;
-      note = tr("it states no CRS, and its coordinates lie on the project's mine grid{grid} where the collars are: read on that grid and brought into EPSG:{dst} through its tie", { grid: mineGrid.name ? ` (${mineGrid.name})` : "", dst });
+      note = tr("it states no CRS and lies on the project's mine grid{grid} by the collars: read on that grid and brought into EPSG:{dst} through its tie", { grid: mineGrid.name ? ` (${mineGrid.name})` : "", dst });
     } else {
       const km = kmFromCollars(b, collars);
       const far = km != null && km > 20 ? tr(" (it landed {km} km from the collars)", { km: Math.round(km).toLocaleString() }) : ""; // #2586

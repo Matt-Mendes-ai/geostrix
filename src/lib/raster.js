@@ -139,7 +139,7 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
   const fileSize = image.source?.fileSize ?? image.source?.arrayBuffer?.byteLength ?? tiff?.source?.fileSize ?? null;
   const plausible = !(fileSize > 0) || need * 4 <= MAX_EXPANSION * fileSize;
   if (plausible && opts.width > 0 && opts.height > 0 && opts.width * opts.height * bands <= MAX_DECODE_SAMPLES) return readTiledReduced(image, opts, label);
-  throw new Error(tr("{label} is {v} × {v2} px{v3} — over the {v4} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.", { label, v: (c1 - c0).toLocaleString(), v2: (r1 - r0).toLocaleString(), v3: bands > 1 ? tr(" × {bands} bands", { bands }) : "", v4: (MAX_DECODE_SAMPLES / 1e6).toFixed(0) }));
+  throw new Error(tr("Crop {label} to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first: it is {v} × {v2} px{v3}, over the {v4} million-value limit GeoStrix decodes at once, with no smaller overview inside.", { label, v: (c1 - c0).toLocaleString(), v2: (r1 - r0).toLocaleString(), v3: bands > 1 ? tr(" × {bands} bands", { bands }) : "", v4: (MAX_DECODE_SAMPLES / 1e6).toFixed(0) }));
 }
 
 // ---------------- TASKS.csv #1351 — big GeoTIFFs: read by byte range, decoded a tile at a time ----------------
@@ -644,7 +644,7 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
   const viaTie = !!(tieTo && epsgTag && tieReaches(tie, epsgTag));
   let tiedNote = null;
   if (viaTie) targetEpsg = tieTo;
-  else if (tieTo && epsgTag) tiedNote = tr("Its EPSG:{src} cannot be brought through the local grid's tie to EPSG:{tie} (GeoStrix has no definition for one of them), so it kept its own numbers: check where it lies.", { src: epsgTag, tie: tieTo });
+  else if (tieTo && epsgTag) tiedNote = tr("Check where it lies: it kept its own numbers, as GeoStrix cannot bring EPSG:{src} through the local grid's tie to EPSG:{tie} (no definition for one of them).", { src: epsgTag, tie: tieTo });
 
   let outBbox = [xmin, ymin, xmax, ymax];
   let outGridW = gridW, outGridH = gridH;
@@ -688,7 +688,7 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
       if (!g || !g.valid) throw new Error(tr("None of these DEM tiles overlaps the drillhole area — untick 'Crop to the drillholes' to import them whole, or check the source CRS."));
       outBbox = [g.x0, g.yTop - g.dy * (g.ny - 1), g.x0 + g.dx * (g.nx - 1), g.yTop]; outGridW = g.nx; outGridH = g.ny; outElevations = g.values;
       tiedNote = mineSourceSentence(mineSource, targetEpsg).trim() + " " + tr("It was resampled onto the project's own north.");
-    } else if (mineSource.kind === "tie") tiedNote = tr("It could not be brought through the mine grid's tie to EPSG:{dst} (GeoStrix has no definition for one of the CRSs), so it kept its own numbers: check where it lies.", { dst: targetEpsg || mineSource.mg.tie.epsg });
+    } else if (mineSource.kind === "tie") tiedNote = tr("Check where it lies: it kept its own numbers, as GeoStrix cannot bring it through the mine grid's tie to EPSG:{dst} (no definition for one of the CRSs).", { dst: targetEpsg || mineSource.mg.tie.epsg });
     else tiedNote = mineSourceSentence(mineSource, targetEpsg).trim();
   }
 
@@ -929,7 +929,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       if (parsed.grid) tiedGrid = mineGridToProject(parsed.grid, mineSource.mg, projEpsg, GRID_MAX);
       crsNote = mineSourceSentence(mineSource, projEpsg) + " " + tr("It was resampled onto the project's own north.");
     } else if (mineSource.kind === "tie") {
-      crsNote = " " + tr("It could not be brought through the mine grid's tie to EPSG:{dst} (GeoStrix has no definition for one of the CRSs), so it kept its own numbers: check where it lies.", { dst: projEpsg || mineSource.mg.tie.epsg });
+      crsNote = " " + tr("Check where it lies: it kept its own numbers, as GeoStrix cannot bring it through the mine grid's tie to EPSG:{dst} (no definition for one of the CRSs).", { dst: projEpsg || mineSource.mg.tie.epsg });
     } else crsNote = mineSourceSentence(mineSource, projEpsg);
   } else if (tied) {
     const canvas = document.createElement("canvas");
@@ -942,7 +942,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       ? tr("Its EPSG:{src} ({label}) was brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: srcEpsg, label: srcLabelTr })
       : tr("Its EPSG:{src} ({label}) was reprojected to EPSG:{tie} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { src: srcEpsg, tie: tie.epsg, label: srcLabelTr }));
   } else if (tie && srcEpsg && !projEpsg) {
-    crsNote = " " + tr("Its EPSG:{src} cannot be brought through the local grid's tie to EPSG:{tie} (GeoStrix has no definition for one of them), so it kept its own numbers: check where it lies.", { src: srcEpsg, tie: tie.epsg });
+    crsNote = " " + tr("Check where it lies: it kept its own numbers, as GeoStrix cannot bring EPSG:{src} through the local grid's tie to EPSG:{tie} (no definition for one of them).", { src: srcEpsg, tie: tie.epsg });
   } else if (srcEpsg && projEpsg && srcEpsg !== projEpsg && notDegrees(srcEpsg, parsed.bbox)) {
     // TASKS.csv #1862 (review #1646, Kodiak) — a file tagged WGS 84 degrees whose bounds run lon -180..1900, lat -2290..90 was
     // 'reprojected' into a raster 15,500 x 38,600 km wide, unsaid: degrees outside +-180 / +-90 are not degrees
@@ -1047,7 +1047,7 @@ export function assertNorthUp(image, label = "This GeoTIFF") {
   if (!t || t.length < 8) return;
   const size = Math.max(Math.abs(t[0]), Math.abs(t[5]), 1e-12);
   if (Math.abs(t[1]) > 1e-9 * size || Math.abs(t[4]) > 1e-9 * size) {
-    throw Object.assign(new Error(tr("{label} is rotated or sheared (its ModelTransformation has rotation terms). GeoStrix places north-up rasters only, and this one would be stretched into the wrong place. Warp it north-up first — QGIS: Raster > Projections > Warp (Reproject), or gdalwarp.", { label })), { code: "rotated" }); // #786 — callers match the code: the message is translated
+    throw Object.assign(new Error(tr("{label} is rotated or sheared (its ModelTransformation has rotation terms), and GeoStrix places north-up rasters only. Warp it north-up first — QGIS: Raster > Projections > Warp (Reproject), or gdalwarp.", { label })), { code: "rotated" }); // #786 — callers match the code: the message is translated
   }
 }
 // TASKS.csv #560 — the raster's PIXEL-AREA extent (what an image drape spans). geotiff.js's getBoundingBox treats the

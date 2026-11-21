@@ -1435,7 +1435,7 @@ export function StoreProvider({ children }) {
       performance.measure?.("GeoStrix: project JSON.parse", { start: tParse, detail: { bytes: res.content.length } });
       const check = checkProjectFile(data); // TASKS.csv #342
       if (!check.ok) return { ok: false, error: check.error };
-      if (check.newer && !window.confirm(tr("This project was saved by a newer version of GeoStrix (file format {newer}; this version reads up to {reads}). Anything that newer version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
+      if (check.newer && !window.confirm(tr("This project was saved by a newer GeoStrix (file format {newer}; this version reads up to {reads}). What that version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
       data = await expandPayloadSliced(data); // TASKS.csv #3423 — the column tables built into rows a slice at a time (one 1.4-1.9 s task before), before anything changes
       const current = snapshotCurrentPayload();
       const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;

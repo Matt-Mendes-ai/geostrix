@@ -17,7 +17,7 @@ export function modelCheckBaseline(chk) {
 export function baselineNotice(chk, by = 5) {
   const b = modelCheckBaseline(chk);
   if (!b || b.margin >= by) return null;
-  return errorNotice(tr("Model check baseline: calling every one of these logged metres {unit} would score {base}%, so {pct}% does not show this model is better than that. The check scores only the modelled units' own intervals; judge the surface on sections, near its contacts, and with the sensitivity spread.", { unit: b.base.unit, base: Math.round(b.base.pct), pct: Math.round(b.pct) }));
+  return errorNotice(tr("Model check baseline: calling every one of these logged metres {unit} would score {base}%, so {pct}% does not show this model is better than that. Judge the surface on sections, near its contacts, and with the sensitivity spread.", { unit: b.base.unit, base: Math.round(b.base.pct), pct: Math.round(b.pct) }));
 }
 
 // points: the contact points an orientation was estimated from (with hole_id) -> { hole, k, n } when one hole holds at least `share`
@@ -33,5 +33,5 @@ export function oneHoleShare(points, share = 0.5) {
 }
 export function oneHoleDipNotice(points, unitName) {
   const s = oneHoleShare(points);
-  return s ? errorNotice(tr("{k} of {n} \"{unitName}\" contact points are in {hole}: the estimated dip follows that hole, not the unit. Add structure picks, or contacts in other holes, before trusting the surface's attitude.", { k: s.k, n: s.n, unitName, hole: s.hole })) : null;
+  return s ? errorNotice(tr("Add structure picks or contacts in other holes before trusting this dip: {k} of {n} \"{unitName}\" contact points are in {hole}, so it follows that hole, not the unit.", { k: s.k, n: s.n, unitName, hole: s.hole })) : null;
 }

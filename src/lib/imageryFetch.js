@@ -230,7 +230,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
       bands.push(v); mapping[`B${10 + k}`] = k + 1;
     });
     onProgress?.(1, 1);
-    note = tr(" ASTER L1T {v} ({date}, {cloud}% cloud over the scene), thermal bands 10-14 as at-sensor radiance (no atmospheric or temperature correction: compare values within this scene, not between scenes), {v2} m.", { v: scene.id.split("_").slice(0, 3).join("_"), date: scene.date, cloud: scene.cloud, v2: Math.round(g.cell) });
+    note = tr(" ASTER L1T {v} ({date}, {cloud}% cloud over the scene), thermal bands 10-14 as at-sensor radiance, with no atmospheric or temperature correction (compare values within this scene only), {v2} m.", { v: scene.id.split("_").slice(0, 3).join("_"), date: scene.date, cloud: scene.cloud, v2: Math.round(g.cell) });
   }
   // The importer keeps an index's VALUES only when it needs no reprojection (#326: a picture resample is not a value
   // re-grid), and the scenes come in WGS 84 / UTM while projects are often NAD83(CSRS) / UTM: so the stack is resampled

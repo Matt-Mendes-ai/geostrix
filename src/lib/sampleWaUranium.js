@@ -29,7 +29,7 @@ export function waUraniumGamma(text, channel = "eU3O8_ppm") {
 
 // readFile(relPath) -> File; store: { setAssays, setAssayElements, addCustomLayer({ id, name, rows }) }. Returns notices.
 export async function loadWaUraniumExtras(readFile, store, { existingElements = [] } = {}) {
-  const notes = [tr("WA uranium survey: every hole was drilled vertically (one station per hole, dip -90); collars are MGA94 zone 51 with the company's RL. The gamma eU3O8 is the probe's equivalent uranium, not an assay.")];
+  const notes = [tr("WA uranium survey: every hole is vertical (one station per hole, dip -90); collars are MGA94 zone 51 with the company's RL. The gamma eU3O8 is the probe's equivalent uranium, not an assay.")];
   try {
     const raw = silvertipAssays(await (await readFile("assays.csv")).text());
     const { rows, elements, converted } = alignAssayUnits(raw.rows, raw.elements, existingElements);
@@ -42,7 +42,7 @@ export async function loadWaUraniumExtras(readFile, store, { existingElements = 
     const rows = waUraniumGamma(text), cps = waUraniumGamma(text, "raw_cps");
     store.addCustomLayer({ id: `custom_wa_gamma_${Date.now()}`, name: WA_URANIUM_GAMMA_LAYER, rows, unit: "ppm" }); // unit: TASKS.csv #2421 — eU3O8 ppm, as a downhole-log import keeps it
     if (cps.length) store.addCustomLayer({ id: `custom_wa_cps_${Date.now()}`, name: WA_URANIUM_CPS_LAYER, rows: cps, unit: "cps" }); // #2342 — the raw counts, the second channel
-    notes.push(tr("WA uranium gamma log: {rows} eU3O8 readings (every 0.5 m, cased probe) added as the custom layer \"{name}\" — along the holes in StrixViewer, and a log in Downhole Logs and the modelling tools' numeric sources.", { rows: rows.length.toLocaleString(), name: WA_URANIUM_GAMMA_LAYER }));
+    notes.push(tr("WA uranium gamma log: {rows} eU3O8 readings (every 0.5 m, cased probe) added as the custom layer \"{name}\": along the holes in StrixViewer, in Downhole Logs and in the modelling tools' numeric sources.", { rows: rows.length.toLocaleString(), name: WA_URANIUM_GAMMA_LAYER }));
   } catch (e) { notes.push(tr("WA uranium gamma log could not be loaded: {message}", { message: e.message })); }
   return notes;
 }

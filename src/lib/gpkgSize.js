@@ -7,5 +7,5 @@ export const GPKG_MAX_BYTES = 300 * 1024 * 1024;
 export function checkGpkgSize(file) {
   const size = Number(file?.size);
   if (!(size > GPKG_MAX_BYTES)) return;
-  throw new Error(tr("{name} is {mb} MB: GeoStrix reads a GeoPackage whole, and one this size would freeze the window for minutes and need several GB of memory. Export just the tables and the area you need (in QGIS: clip to your property, save as a new GeoPackage or shapefile) and import that.", { name: file.name || "This GeoPackage", mb: Math.round(size / 1048576) }));
+  throw new Error(tr("{name} is {mb} MB: read whole, it would freeze the window for minutes and need several GB of memory. Export just the tables and the area you need (in QGIS: clip to your property, save as a new GeoPackage or shapefile) and import that.", { name: file.name || "This GeoPackage", mb: Math.round(size / 1048576) }));
 }

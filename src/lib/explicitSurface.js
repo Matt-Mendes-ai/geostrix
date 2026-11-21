@@ -353,7 +353,7 @@ export function fitExplicitSurface(points, { margin = null, marginBasis = "short
       if (Math.hypot(uvw[i][0] - uvw[j][0], uvw[i][1] - uvw[j][1]) < mergeTol) { keep[j] = false; conflicts++; worst = Math.max(worst, Math.abs(uvw[i][2] - uvw[j][2])); }
     }
   }
-  if (conflicts) warnings.push(tr("{n} point(s) lie straight above or below another point ({d} m apart at most) and were left out: one surface cannot pass through both. If the surface really folds back, model it as two surfaces.", { n: conflicts, d: worst.toFixed(1) }));
+  if (conflicts) warnings.push(tr("{n} point(s) straight above or below another point (up to {d} m apart) were left out: one surface cannot pass through both. If the surface really folds back, model it as two surfaces.", { n: conflicts, d: worst.toFixed(1) }));
   const used = pts.filter((_, i) => keep[i]);
   uvw = uvw.filter((_, i) => keep[i]);
   // collinear in the plane (e.g. one section line only): the surface is not defined sideways
@@ -365,13 +365,13 @@ export function fitExplicitSurface(points, { margin = null, marginBasis = "short
   const tr2 = suu + svv, det = suu * svv - suv * suv, lmin = tr2 / 2 - Math.sqrt(Math.max(0, (tr2 * tr2) / 4 - det));
   // #856 — "along one line" is a shape test: the narrow side under 2 % of the long side (it was 0.1 %, which let a 500 x 4 m
   // strip of picks through and the spline swung 1,056 m across it)
-  if (F.fence && !(lmin > 4e-4 * tr2)) throw new Error(tr("The picks lie in the plane of one drill section (the holes were drilled along it), so they cannot show how the contact runs across the section. Pick it on holes of another section, or draw it on a second section."));
-  if (!(lmin > 4e-4 * tr2) || used.length < 3) throw new Error(tr("All the points lie along one line (for example a single section): the surface is not defined to either side of it. Add picks or a line on another section. (A steep surface such as a dyke or fault picked in one plane: set Shape to Over its own plane.)"));
+  if (F.fence && !(lmin > 4e-4 * tr2)) throw new Error(tr("Pick the contact on holes of another section, or draw it on a second section: these picks lie in the plane of one drill section, so they cannot show how it runs across the section."));
+  if (!(lmin > 4e-4 * tr2) || used.length < 3) throw new Error(tr("Add picks or a line on another section: all the points lie along one line (for example a single section), so the surface is not defined to either side. For a steep dyke or fault picked in one plane, set Shape to Over its own plane."));
   const U = uvw.map((q) => q[0]), V = uvw.map((q) => q[1]), W = uvw.map((q) => q[2]);
   // #881 — with a trend the spline is fitted in the stretched coordinates (and evaluated through them): still exact at
   // every input, smoother along the trend
   const an0 = trendInPlane(trend, F), an = an0 && !an0.skip ? an0 : null; // #940: a skipped (nearly round) trend is said
-  if (an0?.skip) warnings.push(tr("The structural trend is almost round within this surface's plane ({r} times along {az}°), so it was not applied: this trend does not describe continuity within this surface.", { r: an0.ratio.toFixed(2), az: Math.round(an0.azimuthDeg) }));
+  if (an0?.skip) warnings.push(tr("Trend not applied: the structural trend is almost round within this surface's plane ({r} times along {az}°).", { r: an0.ratio.toFixed(2), az: Math.round(an0.azimuthDeg) }));
   const UA = an ? U.map((u, i) => an.a(u, V[i])) : U, VA = an ? U.map((u, i) => an.b(u, V[i])) : V;
   const fA = thinPlate(UA, VA, W);
   const f = fA && an ? (u, v) => fA(an.a(u, v), an.b(u, v)) : fA;
@@ -432,7 +432,7 @@ export function fitExplicitSurface(points, { margin = null, marginBasis = "short
     quality.beyondPct = kept ? (100 * outside) / kept : 0;
     if (quality.overshootM > Math.max(10, 0.2 * (wmax - wmin))) {
       const [x, y] = quality.overshootAt;
-      warnings.push(tr("Between the inputs the surface swings {d} m beyond them (near E {e}, N {n}): usually two inputs that disagree, such as a pick and a section line, or a pick on the wrong contact. Check the inputs there; the leave-one-out figure names the worst one.", { d: quality.overshootM.toFixed(0), e: x.toFixed(0), n: y.toFixed(0) }));
+      warnings.push(tr("Check the inputs near E {e}, N {n}: between them the surface swings {d} m beyond them, usually two inputs that disagree (a pick and a section line, or a pick on the wrong contact). The leave-one-out figure names the worst one.", { d: quality.overshootM.toFixed(0), e: x.toFixed(0), n: y.toFixed(0) }));
     }
     if (!quality.looSkipped) {
       const e = thinPlateLoo(UA, VA, W); // #881: in the trend's coordinates

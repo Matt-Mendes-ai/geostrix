@@ -31,14 +31,14 @@ export function farNote(far) {
   if (!far) return "";
   const km = kmText(far.distM);
   return [
-    tr("It lies about {km} km north of the drillholes: check its CRS, or its control points if it was georeferenced (a local mine grid's numbers read as a real CRS land far away).", { km }),
-    tr("It lies about {km} km north-east of the drillholes: check its CRS, or its control points if it was georeferenced (a local mine grid's numbers read as a real CRS land far away).", { km }),
-    tr("It lies about {km} km east of the drillholes: check its CRS, or its control points if it was georeferenced (a local mine grid's numbers read as a real CRS land far away).", { km }),
-    tr("It lies about {km} km south-east of the drillholes: check its CRS, or its control points if it was georeferenced (a local mine grid's numbers read as a real CRS land far away).", { km }),
-    tr("It lies about {km} km south of the drillholes: check its CRS, or its control points if it was georeferenced (a local mine grid's numbers read as a real CRS land far away).", { km }),
-    tr("It lies about {km} km south-west of the drillholes: check its CRS, or its control points if it was georeferenced (a local mine grid's numbers read as a real CRS land far away).", { km }),
-    tr("It lies about {km} km west of the drillholes: check its CRS, or its control points if it was georeferenced (a local mine grid's numbers read as a real CRS land far away).", { km }),
-    tr("It lies about {km} km north-west of the drillholes: check its CRS, or its control points if it was georeferenced (a local mine grid's numbers read as a real CRS land far away).", { km }),
+    tr("It lies about {km} km north of the drillholes: check its CRS, or its control points if it was georeferenced (mine-grid numbers read as a real CRS land far away).", { km }),
+    tr("It lies about {km} km north-east of the drillholes: check its CRS, or its control points if it was georeferenced (mine-grid numbers read as a real CRS land far away).", { km }),
+    tr("It lies about {km} km east of the drillholes: check its CRS, or its control points if it was georeferenced (mine-grid numbers read as a real CRS land far away).", { km }),
+    tr("It lies about {km} km south-east of the drillholes: check its CRS, or its control points if it was georeferenced (mine-grid numbers read as a real CRS land far away).", { km }),
+    tr("It lies about {km} km south of the drillholes: check its CRS, or its control points if it was georeferenced (mine-grid numbers read as a real CRS land far away).", { km }),
+    tr("It lies about {km} km south-west of the drillholes: check its CRS, or its control points if it was georeferenced (mine-grid numbers read as a real CRS land far away).", { km }),
+    tr("It lies about {km} km west of the drillholes: check its CRS, or its control points if it was georeferenced (mine-grid numbers read as a real CRS land far away).", { km }),
+    tr("It lies about {km} km north-west of the drillholes: check its CRS, or its control points if it was georeferenced (mine-grid numbers read as a real CRS land far away).", { km }),
   ][far.dir];
 }
 // a fetch-area list entry's label, marked when the layer lies far from the drilling

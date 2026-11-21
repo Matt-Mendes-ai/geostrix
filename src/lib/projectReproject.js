@@ -36,7 +36,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
   const fromDef = getProj4DefSync(fromEpsg), toDef = getProj4DefSync(toEpsg);
   const rotate = opts.rotateAzimuths !== false;
   const counts = {}, notes = [];
-  if (nullDatumPair(fromDef, toDef)) notes.push(tr("NAD83 and WGS 84 are treated as the same datum in this move (no shift applied); today they differ by about 1–2 m in North America."));
+  if (nullDatumPair(fromDef, toDef)) notes.push(tr("NAD83 and WGS 84 are treated as the same datum in this move (no shift); today they differ by about 1–2 m in North America."));
   let maxRot = 0;
   const count = (k, n = 1) => { counts[k] = (counts[k] || 0) + n; };
   const xy = (x, y) => (fin(x) && fin(y) ? T(x, y) : [x, y]);
@@ -230,7 +230,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
       return { ...m, cells, ...(params ? { params } : {}), ...(stationData ? { stationData } : {}) };
     });
     count("voxel models", f.voxelModels.length);
-    if (worst > 0.2) notes.push(tr("Voxel models: cell centres moved exactly, but cells stay aligned to the new grid axes — grid north differs by {worst}° between the two CRSs, so blocks are now turned by that much relative to the ground they describe. Fine for display; re-run an inversion in the new CRS if the orientation matters.", { worst: worst.toFixed(2) }));
+    if (worst > 0.2) notes.push(tr("Voxel models: re-run an inversion in the new CRS if the orientation matters. Cell centres moved exactly, but the cells keep the grid axes, so blocks are turned {worst}° against the ground (grid north differs between the two CRSs).", { worst: worst.toFixed(2) }));
   }
 
   // ---- terrain (node grid) and raster value grids ----

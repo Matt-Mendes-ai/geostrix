@@ -552,7 +552,7 @@ async function verifySidecarIdentity(token) {
   const res = await fetch(`${await sidecarBase()}/health?nonce=${nonce}`, { signal: AbortSignal.timeout(3000) });
   const j = await res.json().catch(() => ({}));
   if (j?.proof !== (await sidecarProof(token, nonce))) {
-    const e = new Error(tr("Another program is using the Python engine's port (127.0.0.1:{port}), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again.", { port: await sidecarPort() }));
+    const e = new Error(tr("Close the other program using the Python engine's port (127.0.0.1:{port}), or restart the computer, and try again. GeoStrix did not send it your data.", { port: await sidecarPort() }));
     e.code = "SIDECAR_IDENTITY";
     throw e;
   }

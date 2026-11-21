@@ -90,7 +90,7 @@ export function gxfRows(text, name) {
   // raster drape model assumes (same assumption parseGeoTIFF's bbox makes) — rather than silently
   // draping it in the wrong place, surface this as an explicit limitation.
   if (Math.abs(rotation) > 0.01) {
-    throw new Error(tr("This GXF grid has a #ROTATION of {rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated if your software supports that, or open it in GIS software first to reproject/re-grid to north-up.", { rotation }));
+    throw new Error(tr("Re-export this GXF grid unrotated, or reproject / re-grid it north-up in GIS software first: its #ROTATION is {rotation}°, and GeoStrix drapes only axis-aligned grids.", { rotation }));
   }
 
   const total = ncols * nrows;
@@ -126,7 +126,7 @@ export function gxfRows(text, name) {
     const digitRatio = gridCharCount > 0 ? gridDigitCount / gridCharCount : 0;
     if (gridCharCount > 1000 && digitRatio < 0.3) {
       throw new Error(
-        tr("This GXF's #GRID section doesn't look like plain-text numbers (only {v}% digit characters across {gridCharCount} characters read) — it's very likely using a proprietary/compressed Geosoft grid encoding this reader doesn't support, not a truncated file. If your workflow already exported this same grid as a GeoTIFF (.tif), import that instead — it carries the same data and is fully supported. Otherwise, re-export from Oasis montaj as an uncompressed/plain-text .gxf if that option is available.", { v: (digitRatio * 100).toFixed(1), gridCharCount: gridCharCount.toLocaleString() })
+        tr("Import this grid as a GeoTIFF (.tif) if you have one, or re-export it from Oasis montaj as an uncompressed, plain-text .gxf: its #GRID section is not plain-text numbers (only {v}% digits in {gridCharCount} characters read), most likely a compressed Geosoft encoding this reader does not support, not a truncated file.", { v: (digitRatio * 100).toFixed(1), gridCharCount: gridCharCount.toLocaleString() })
       );
     }
     throw new Error(tr("This GXF's #GRID section has fewer values ({filled}) than #POINTS×#ROWS ({total}) declares — the file may be truncated.", { filled, total }));

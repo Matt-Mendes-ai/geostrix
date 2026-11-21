@@ -45,7 +45,7 @@ export const MAX_CELLS = 100000; // guards the 3D view from an accidental multi-
 export function parseUBCMesh(text) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length && !l.startsWith("!"));
   if (lines.length < 5) {
-    throw new Error(tr("Not a recognizable UBC mesh file — expected at least 5 non-comment lines (dimensions, origin, then X/Y/Z cell-width lists). Only the plain tensor-mesh format is supported, not OcTree/unstructured UBC variants."));
+    throw new Error(tr("Not a recognizable UBC mesh file: expected at least 5 non-comment lines (dimensions, origin, then X/Y/Z cell widths). Only the plain tensor-mesh format is supported, not OcTree or unstructured UBC variants."));
   }
   const [nx, ny, nz] = lines[0].split(/\s+/).map(Number);
   if (![nx, ny, nz].every((v) => Number.isInteger(v) && v > 0)) {
@@ -147,7 +147,7 @@ function mismatchMessage(gotCount, expected, mesh, fileSize) {
   // "Files On-Demand" placeholder (OneDrive/Dropbox/Google Drive) that hasn't actually been downloaded
   // to this machine yet, so the local read returns nothing even though Explorer shows the real size.
   if (gotCount === 0 && fileSize > 1024 * 1024) {
-    msg += tr(" The file itself is {v} MB, so getting 0 values back usually means the read itself failed rather than the file being empty — if this file lives in OneDrive/Dropbox/Google Drive, it may be a \"cloud-only\" placeholder that hasn't actually downloaded to this machine yet. Right-click it and choose \"Always keep on this device\" (or the equivalent for your sync tool), wait for the download to finish, then try importing again.", { v: (fileSize / (1024 * 1024)).toLocaleString(undefined, { maximumFractionDigits: 0 }) });
+    msg += tr(" Right-click the file, choose \"Always keep on this device\" (or your sync tool's equivalent), wait for the download, then import again: at {v} MB, 0 values usually means the read failed, as with a OneDrive / Dropbox / Google Drive cloud-only placeholder.", { v: (fileSize / (1024 * 1024)).toLocaleString(undefined, { maximumFractionDigits: 0 }) });
   }
   return msg;
 }

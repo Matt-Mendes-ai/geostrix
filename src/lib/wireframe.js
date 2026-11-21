@@ -72,7 +72,7 @@ export function linkOutlines(outlines, { n = 128, ends = "flat" } = {}) {
   const label = (o) => o.section;
   const bySection = new Map();
   usable.forEach((o, i) => { const k = o.section ?? `${o.ax},${o.ay},${o.bx},${o.by}`; bySection.set(k, [...(bySection.get(k) || []), label(o, i)]); });
-  for (const names of bySection.values()) if (names.length > 1) throw new Error(tr("Two outlines of this name are on section {s}. A body that branches is linked one branch at a time: give each branch its own name (for example VeinA-N and VeinA-S) and link each.", { s: names[0] }));
+  for (const names of bySection.values()) if (names.length > 1) throw new Error(tr("Give each branch its own name (for example VeinA-N and VeinA-S) and link each: two outlines of this name are on section {s}, and a body that branches is linked one branch at a time.", { s: names[0] }));
   const az = (o) => Math.atan2(o.bx - o.ax, o.by - o.ay);
   usable.forEach((o, i) => {
     const d = Math.abs(((az(o) - az(usable[0])) % Math.PI + Math.PI) % Math.PI);

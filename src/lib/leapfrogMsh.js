@@ -58,7 +58,7 @@ export function parseMshIndex(text) {
 // bytes -> { parts: [{ layer, positions: Float64Array, indices: Uint32Array }], triangleCount, vertexCount, oneBased, skipped }
 export function parseLeapfrogMsh(data, { name = "mesh" } = {}) {
   const b = asBytes(data);
-  if (looksLikeUbcMesh(b)) throw new Error(tr("This .msh is a UBC-GIF tensor mesh (cell widths for an inversion model), not a Leapfrog surface: load it with its model file in Geophysics > Block models."));
+  if (looksLikeUbcMesh(b)) throw new Error(tr("Load this .msh with its model file in Geophysics > Block models: it is a UBC-GIF tensor mesh (an inversion model's cell widths), not a Leapfrog surface."));
   const at = findAscii(b, "[binary]", 0, Math.min(b.length, 1 << 20));
   if (at < 0) throw new Error(tr("No [binary] section: not a Leapfrog mesh file."));
   const blocks = parseMshIndex(asciiText(b, 0, at + 8));

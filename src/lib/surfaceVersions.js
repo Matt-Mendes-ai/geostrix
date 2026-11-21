@@ -274,7 +274,7 @@ export function editDisclosure(surfA, surfB) {
   const anyEdited = a.count > 0 || b.count > 0;
   let message = null;
   if (a.count > 0 && b.count > 0) {
-    message = tr("BOTH versions were hand-edited after generation ({count} sculpt edit(s) on the older, {count2} on the newer). Neither mesh is purely the output of the parameters listed below, so the differences here are parameter changes AND manual edits combined — they cannot be separated from this comparison alone.", { count: a.count, count2: b.count });
+    message = tr("BOTH versions were hand-edited after generation ({count} sculpt edit(s) on the older, {count2} on the newer), so the differences here mix parameter changes AND manual edits; this comparison alone cannot separate them.", { count: a.count, count2: b.count });
   } else if (a.count > 0) {
     message = tr("The OLDER version was hand-edited after generation ({count} manual sculpt edit(s)). Part of the difference below is that editing, not the parameter change.", { count: a.count });
   } else if (b.count > 0) {
