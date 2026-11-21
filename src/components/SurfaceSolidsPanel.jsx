@@ -13,6 +13,7 @@ import { unitOf, contactOf, layerLabel } from "../lib/explicitUnits.js"; // TASK
 import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
 import { blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1550
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const zStats = (pos) => {
   const zs = [];
@@ -153,16 +154,16 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
       {auto && (<>
         <div style={row}>
           <span style={{ width: 90, flexShrink: 0, color: "var(--color-text-secondary)" }}>{tr("Block size (m)")}</span>
-          <input type="number" min="0" value={cellIn} placeholder={String(auto.cell)} onChange={(e) => setCellIn(e.target.value)} style={{ ...numInput, width: 80, flex: "none" }} aria-label={tr("Block size (m)")} />
+          <NumberInput min="0" allowEmpty value={cellIn === "" || cellIn == null ? null : cellIn} placeholder={String(auto.cell)} onChange={(n) => setCellIn(n == null ? "" : String(n))} style={{ ...numInput, width: 80, flex: "none" }} wrapStyle={{ flex: "none" }} aria-label={tr("Block size (m)")} />
         </div>
         <div style={row} title={tr("Optional: a block height of its own (flat blocks for a flat, thin unit). Blank: cubes of the block size.")}>{/* #2922 */}
           <span style={{ width: 90, flexShrink: 0, color: "var(--color-text-secondary)" }}>{tr("Block height (m)")}</span>
-          <input type="number" min="0" step="any" value={cellZIn} placeholder={tr("= block size")} onChange={(e) => setCellZIn(e.target.value)} style={{ ...numInput, width: 80, flex: "none" }} aria-label={tr("Block height (m)")} />
+          <NumberInput min="0" allowEmpty value={cellZIn === "" || cellZIn == null ? null : cellZIn} placeholder={tr("= block size")} onChange={(n) => setCellZIn(n == null ? "" : String(n))} style={{ ...numInput, width: 80, flex: "none" }} wrapStyle={{ flex: "none" }} aria-label={tr("Block height (m)")} />
         </div>
         {thinCell && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{thinnest.t < cell ? tr("The thinnest closed solid, \"{name}\", is about {t} m thick, thinner than one {c} m block.", { name: thinnest.name, t: +thinnest.t.toPrecision(2), c: cell }) : tr("The thinnest closed solid, \"{name}\", is about {t} m thick: at {c} m blocks it is {k} block(s) across.", { name: thinnest.name, t: +thinnest.t.toPrecision(2), c: cell, k: Math.floor(thinnest.t / cell) })}{" "}{thinCells <= 2_000_000 ? <>{tr("{c2} m gives three across it (about {n} blocks).", { c2: thinCell, n: thinCells.toLocaleString() })}{" "}<button type="button" onClick={() => setCellIn(String(thinCell))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use {v} m", { v: thinCell })}</button></> : tr("{c2} m would give three across it, but this box would then hold about {n} blocks, over the 2,000,000 limit.", { c2: thinCell, n: thinCells.toLocaleString() })}</div>}{/* #2762 — offered only within the 2,000,000-block limit */}
         <div style={row} title={tr("Where the lowest unit stops: it has no surface below it.")}>
           <span style={{ width: 90, flexShrink: 0, color: "var(--color-text-secondary)" }}>{tr("Base (m)")}</span>
-          <input type="number" value={baseIn} placeholder={String(Math.round(auto.extent[4]))} onChange={(e) => setBaseIn(e.target.value)} style={{ ...numInput, width: 80, flex: "none" }} aria-label={tr("Base elevation (m)")} />
+          <NumberInput allowEmpty value={baseIn === "" || baseIn == null ? null : baseIn} placeholder={String(Math.round(auto.extent[4]))} onChange={(n) => setBaseIn(n == null ? "" : String(n))} style={{ ...numInput, width: 80, flex: "none" }} wrapStyle={{ flex: "none" }} aria-label={tr("Base elevation (m)")} />
         </div>
         <label style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }} title={tr("Each contact is carried past its own edge along its dip to the edge of the box, so a unit ends where its contacts meet. Untick to stop every contact at its own edge (the unit then ends in a vertical wall there).")}><input type="checkbox" checked={extend} onChange={(e) => setExtend(e.target.checked)} />{tr("Extend contacts until they meet")}</label>
         {terrain && <label style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }}><input type="checkbox" checked={cutGround} onChange={(e) => setCutGround(e.target.checked)} />{tr("Cut at the terrain (nothing above the ground)")}</label>}

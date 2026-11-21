@@ -9,6 +9,7 @@ import { rasterColourFields } from "../lib/rasterColour.js";
 import { f32ToB64, b64ToF32 } from "../lib/inversion.js";
 import { runPfieldsJob } from "../lib/desktop.js";
 import { defaultDrapeElevation } from "../lib/drapeElevation.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 export default function SampleGridPanel({ setNotices }) {
   const { surfaceSamples, surfaceElements, addRaster, collars, voxelModels } = useStore();
@@ -85,11 +86,11 @@ export default function SampleGridPanel({ setNotices }) {
               <option value="idw">{tr("IDW")}</option><option value="mincurv">{tr("Minimum curvature")}</option><option value="natneigh">{tr("Natural neighbour")}</option><option value="spline">{tr("Spline (Python engine)")}</option></select></label>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <label style={lbl}>{tr("Cell (m)")}<input type="number" min="1" value={cell} placeholder={suggestion ? String(suggestion.cellM) : ""} onChange={(e) => setCell(e.target.value)} style={inp} /></label>
+            <label style={lbl}>{tr("Cell (m)")}<NumberInput min="1" allowEmpty value={cell === "" || cell == null ? null : cell} placeholder={suggestion ? String(suggestion.cellM) : ""} onChange={(n) => setCell(n == null ? "" : String(n))} style={inp} /></label>
             {method === "natneigh" || method === "spline" ? null : method === "mincurv"
-              ? <label style={lbl}>{tr("Tension")}<input type="number" min="0" max="1" step="0.05" value={tension} onChange={(e) => setTension(Math.max(0, Math.min(1, Number(e.target.value) || 0)))} style={inp} /></label>
-              : <label style={lbl}>{tr("Power")}<input type="number" min="1" max="4" step="0.5" value={power} onChange={(e) => setPower(Math.max(1, Math.min(4, Number(e.target.value) || 2)))} style={inp} /></label>}
-            <label style={lbl}>{tr("Blank beyond (m)")}<input type="number" min="0" value={blank} placeholder={suggestion ? String(suggestion.blankM) : ""} onChange={(e) => setBlank(e.target.value)} style={inp} /></label>
+              ? <label style={lbl}>{tr("Tension")}<NumberInput min="0" max="1" step="0.05" value={tension} onChange={(n) => setTension(n)} style={inp} /></label>
+              : <label style={lbl}>{tr("Power")}<NumberInput min="1" max="4" step="0.5" value={power} onChange={(n) => setPower(n)} style={inp} /></label>}
+            <label style={lbl}>{tr("Blank beyond (m)")}<NumberInput min="0" allowEmpty value={blank === "" || blank == null ? null : blank} placeholder={suggestion ? String(suggestion.blankM) : ""} onChange={(n) => setBlank(n == null ? "" : String(n))} style={inp} /></label>
           </div>
           {suggestion && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Blank fields use the sample spacing: about {s} m between samples, so {c} m cells and no value beyond {b} m of a sample.", { s: Math.round(suggestion.spacingM), c: suggestion.cellM, b: suggestion.blankM })}</div>}
           {busy ? <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{busy}</div>

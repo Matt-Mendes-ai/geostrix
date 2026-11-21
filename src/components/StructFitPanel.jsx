@@ -13,6 +13,7 @@ import { requestModuleAction } from "../lib/menuRequests.js"; // #2640 Stage 2 �
 import { movableSurfaces, propertyUnits, modelProblem, buildStructfitRequest, everyNth, resultRows, verdictPoints, recordIsFull, buildFitRequest, fitRows, fitPointsCsv, FIT_STOPPED, MAX_FIT_POINTS, recordWithFit } from "../lib/structFit.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? "–" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number(v.toPrecision(d)).toLocaleString());
 
@@ -98,9 +99,9 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
       {!method ? <div style={small}>{tr("Choose magnetics or gravity first.")}</div> : problem ? <div role="status" style={{ ...small, color: "var(--color-text)" }}>{tr(problem)}</div> : (<>
         <div style={{ ...small, marginTop: 4 }}>{tr("Model from the run \"{tool}\" ({n} surfaces).", { tool: record.tool || tr("last run"), n: record.surfaces.length })}</div>
         <div style={{ ...row, flexWrap: "wrap" }}><span style={lbl}>{tr("Data uncertainty")}</span>
-          <input type="number" min="0" step="any" value={unc?.floor ?? ""} onChange={(e) => setUnc?.((u) => ({ ...u, floor: e.target.value }))} style={inp} aria-label={tr("Uncertainty floor ({unit})", { unit })} />
+          <NumberInput min="0" allowEmpty value={unc?.floor === "" || unc?.floor == null ? null : unc?.floor} onChange={(n) => setUnc?.((u) => ({ ...u, floor: n == null ? "" : String(n) }))} style={inp} aria-label={tr("Uncertainty floor ({unit})", { unit })} />
           <span style={small}>{unit}</span>
-          <input type="number" min="0" step="any" value={unc?.percent ?? ""} onChange={(e) => setUnc?.((u) => ({ ...u, percent: e.target.value }))} style={{ ...inp, width: 44 }} aria-label={tr("Uncertainty, percent of each reading")} />
+          <NumberInput min="0" allowEmpty value={unc?.percent === "" || unc?.percent == null ? null : unc?.percent} onChange={(n) => setUnc?.((u) => ({ ...u, percent: n == null ? "" : String(n) }))} style={{ ...inp, width: 44 }} aria-label={tr("Uncertainty, percent of each reading")} />
           <span style={small}>%</span>
         </div>
         <div style={small}>{tr("The floor is required and never assumed: it sets how much a change in the data counts. The same values as the inversion's.")}</div>
@@ -108,9 +109,9 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
         {units.map((u) => (
           <div key={u.id} style={row}>
             <span style={lbl}>{u.label == null ? tr("Background") : u.label}</span>
-            <input type="number" step="any" value={st.props?.[u.id] ?? ""} onChange={(e) => set({ props: { ...st.props, [u.id]: e.target.value } })} style={inp} aria-label={`${u.label == null ? tr("Background") : u.label} (${method === "grav" ? "g/cm³" : "SI"})`} />
-            {st.resolve && u.id > 1 && <><input type="number" step="any" placeholder={tr("from")} value={st.bounds?.[u.id]?.lo ?? ""} onChange={(e) => set({ bounds: { ...st.bounds, [u.id]: { ...st.bounds?.[u.id], lo: e.target.value } } })} style={{ ...inp, width: 52 }} aria-label={tr("Lowest value of {u}", { u: u.label == null ? tr("Background") : u.label })} />
-              <input type="number" step="any" placeholder={tr("to")} value={st.bounds?.[u.id]?.hi ?? ""} onChange={(e) => set({ bounds: { ...st.bounds, [u.id]: { ...st.bounds?.[u.id], hi: e.target.value } } })} style={{ ...inp, width: 52 }} aria-label={tr("Highest value of {u}", { u: u.label == null ? tr("Background") : u.label })} /></>}
+            <NumberInput allowEmpty value={st.props?.[u.id] === "" || st.props?.[u.id] == null ? null : st.props?.[u.id]} onChange={(n) => set({ props: { ...st.props, [u.id]: n == null ? "" : String(n) } })} style={inp} aria-label={`${u.label == null ? tr("Background") : u.label} (${method === "grav" ? "g/cm³" : "SI"})`} />
+            {st.resolve && u.id > 1 && <><NumberInput placeholder={tr("from")} allowEmpty value={st.bounds?.[u.id]?.lo === "" || st.bounds?.[u.id]?.lo == null ? null : st.bounds?.[u.id]?.lo} onChange={(n) => set({ bounds: { ...st.bounds, [u.id]: { ...st.bounds?.[u.id], lo: n == null ? "" : String(n) } } })} style={{ ...inp, width: 52 }} aria-label={tr("Lowest value of {u}", { u: u.label == null ? tr("Background") : u.label })} />
+              <NumberInput placeholder={tr("to")} allowEmpty value={st.bounds?.[u.id]?.hi === "" || st.bounds?.[u.id]?.hi == null ? null : st.bounds?.[u.id]?.hi} onChange={(n) => set({ bounds: { ...st.bounds, [u.id]: { ...st.bounds?.[u.id], hi: n == null ? "" : String(n) } } })} style={{ ...inp, width: 52 }} aria-label={tr("Highest value of {u}", { u: u.label == null ? tr("Background") : u.label })} /></>}
           </div>
         ))}
         <label style={{ ...row, justifyContent: "flex-start", gap: 4 }}><input type="checkbox" checked={!!st.resolve} onChange={(e) => set({ resolve: e.target.checked })} />{tr("Also re-solve the unit values within bounds, from the survey, and show them beside the entered ones")}</label>
@@ -136,7 +137,7 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
           </div>
         </>)}
         <div style={{ ...small, marginTop: 4 }}>{tr("{n} of at most 20 points marked.", { n: (st.picked || []).length })}</div>
-        <div style={row}><span style={lbl}>{tr("Each may move (m)")}</span><input type="number" min="0" step="any" value={st.maxM} onChange={(e) => set({ maxM: e.target.value })} style={inp} aria-label={tr("Distance each point may move (m)")} /></div>
+        <div style={row}><span style={lbl}>{tr("Each may move (m)")}</span><NumberInput min="0" allowEmpty value={st.maxM === "" || st.maxM == null ? null : st.maxM} onChange={(n) => set({ maxM: n == null ? "" : String(n) })} style={inp} aria-label={tr("Distance each point may move (m)")} /></div>
         <div style={small}>{tr("The distance you would believe: a contact is called seen when the survey would notice a move within it. Each point costs one model solve; if one solve times the points would take over 10 minutes the run is refused before it starts.")}</div>
         {busy ? (
           <div role="status" style={{ ...small, display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}><span style={{ flex: 1 }}>{busy.text}</span>

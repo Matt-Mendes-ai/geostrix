@@ -11,6 +11,14 @@ const DONE = {
   "modules/viewer/ModellingPanes.jsx": 31,
   "components/GradeEstimationModal.jsx": 18,
   "components/VariogramModal.jsx": 11,
+  "components/ExplicitSurfacePanel.jsx": 6,
+  "components/ModellingCodesPane.jsx": 6,
+  "components/StructFitPanel.jsx": 6,
+  "components/LongSectionGT.jsx": 5,
+  "components/CatchmentsPanel.jsx": 4,
+  "components/SampleGridPanel.jsx": 4,
+  "components/UndrilledZonesPane.jsx": 4,
+  "components/SurfaceSolidsPanel.jsx": 3,
 };
 
 test("every G3 box in these files is a NumberInput", () => {
@@ -53,4 +61,21 @@ test("Grade estimation and the variogram: the clamps are min / max; empty keeps 
   assert.match(v, /<NumberInput min="3" max="60" step="1" value=\{nLags\} onChange=\{\(n\) => setNLags\(Math\.round\(n\)\)\}/);
   assert.match(v, /<NumberInput min="1" max="89" value=\{angleTol\} onChange=\{\(n\) => setAngleTol\(n\)\}/);
   assert.match(v, /allowEmpty value=\{planeHalf === "" \|\| planeHalf == null \? null : planeHalf\} placeholder=\{String\(compositeLength\)\} onChange=\{\(n\) => setPlaneHalf\(n == null \? "" : n\)\}/);
+});
+
+test("the surface, codes, fitting, long section, catchments, gridding, undrilled zones and solids panes: the same rules", () => {
+  const x = read("components/ExplicitSurfacePanel.jsx");
+  assert.match(x, /<NumberInput min=\{0\.5\} step=\{0\.5\} value=\{def\.downholeGuide\.windowM \?\? 3\} onChange=\{\(n\) => update\(\{ downholeGuide: \{ \.\.\.def\.downholeGuide, windowM: n \} \}\)\}/);
+  assert.match(x, /allowEmpty value=\{def\.margin \?\? null\} placeholder=\{tr\("auto"\)\} onChange=\{\(n\) => update\(\{ margin: n \}\)\}/);
+  const m = read("components/ModellingCodesPane.jsx");
+  assert.match(m, /allowEmpty value=\{unitBody\.search \|\| null\} placeholder=\{tr\("auto"\)\} onChange=\{\(n\) => setUnitBody\(\(b\) => \(\{ \.\.\.b, search: n \?\? 0 \}\)\)\}/);
+  assert.match(m, /setSheetAtt\(\(a\) => \(\{ \.\.\.a, dip: n == null \? "" : String\(n\) \}\)\)/);
+  assert.match(read("components/StructFitPanel.jsx"), /set\(\{ bounds: \{ \.\.\.st\.bounds, \[u\.id\]: \{ \.\.\.st\.bounds\?\.\[u\.id\], lo: n == null \? "" : String\(n\) \} \} \}\)/);
+  assert.match(read("components/LongSectionGT.jsx"), /onChange=\{\(n\) => \{ setAzText\(n == null \? "" : String\(n\)\); setFig\(null\); \}\}/);
+  const c = read("components/CatchmentsPanel.jsx");
+  assert.match(c, /<NumberInput min="50" max="99\.9" step="1" value=\{opts\.percentile\} onChange=\{\(n\) => set\(\{ percentile: n \}\)\}/);
+  assert.match(c, /allowEmpty value=\{opts\.backgroundValue \?\? null\} onChange=\{\(n\) => set\(\{ backgroundValue: n \|\| null \}\)\}/);
+  assert.match(read("components/SampleGridPanel.jsx"), /<NumberInput min="0" max="1" step="0\.05" value=\{tension\} onChange=\{\(n\) => setTension\(n\)\}/);
+  assert.match(read("components/UndrilledZonesPane.jsx"), /<NumberInput min="1" step="5" value=\{coverM\} onChange=\{\(n\) => setCoverM\(n\)\}/);
+  assert.match(read("components/SurfaceSolidsPanel.jsx"), /style=\{\{ \.\.\.numInput, width: 80, flex: "none" \}\} wrapStyle=\{\{ flex: "none" \}\}/);
 });

@@ -20,6 +20,7 @@ import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped; crsCell: #1064
 import { catchmentRows } from "../lib/tableExports.js"; // TASKS.csv #1083
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Math.abs(v) >= 1 || v === 0 ? v.toFixed(d) : v.toPrecision(Math.max(2, d))); // small values (Cu in %) keep their digits
 
@@ -101,12 +102,12 @@ export default function CatchmentsPanel({ onClose }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
         <label style={ctl}>{tr("Sample type")}<select value={opts.medium} onChange={(e) => set({ medium: e.target.value })} style={{ ...sel, display: "block", marginTop: 4 }}>{media.map((m) => <option key={m} value={m}>{tr(m)}</option>)}</select></label>
         <label style={ctl}>{tr("Element")}<select value={opts.symbol || ""} onChange={(e) => set({ symbol: e.target.value })} style={{ ...sel, display: "block", marginTop: 4 }}>{surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}</select></label>
-        <label style={ctl}>{tr("Snap sites within (m)")}<input type="number" min="0" step="10" value={opts.snapM} onChange={(e) => set({ snapM: Math.max(0, Number(e.target.value) || 0) })} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
-        <label style={ctl}>{tr("Streams from (km²)")}<input type="number" min="0.01" step="0.1" value={opts.minAreaKm2} onChange={(e) => set({ minAreaKm2: Math.max(0.001, Number(e.target.value) || 0.5) })} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
+        <label style={ctl}>{tr("Snap sites within (m)")}<NumberInput min="0" step="10" value={opts.snapM} onChange={(n) => set({ snapM: n })} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
+        <label style={ctl}>{tr("Streams from (km²)")}<NumberInput min="0.01" step="0.1" value={opts.minAreaKm2} onChange={(n) => set({ minAreaKm2: n })} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
         <label style={ctl}>{tr("Background")}<select value={opts.background} onChange={(e) => set({ background: e.target.value })} style={{ ...sel, display: "block", marginTop: 4 }}><option value="median">{tr("Median of the sites")}</option><option value="value">{tr("A value")}</option></select></label>
-        {opts.background === "value" && <label style={ctl}>{unit}<input type="number" min="0" step="any" value={opts.backgroundValue ?? ""} onChange={(e) => set({ backgroundValue: Number(e.target.value) || null })} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>}
+        {opts.background === "value" && <label style={ctl}>{unit}<NumberInput min="0" allowEmpty value={opts.backgroundValue ?? null} onChange={(n) => set({ backgroundValue: n || null })} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>}
         <label style={ctl}>{tr("Anomalous from")}<select value={opts.anomalyFrom} onChange={(e) => set({ anomalyFrom: e.target.value })} style={{ ...sel, display: "block", marginTop: 4 }}><option value="saved">{tr("Saved threshold (Geochem > Thresholds)")}</option><option value="percentile">{tr("A percentile")}</option></select></label>
-        {opts.anomalyFrom === "percentile" && <label style={ctl}>{tr("Percentile")}<input type="number" min="50" max="99.9" step="1" value={opts.percentile} onChange={(e) => set({ percentile: Math.min(99.9, Math.max(50, Number(e.target.value) || 90)) })} style={{ ...sel, display: "block", marginTop: 4, width: 70 }} /></label>}
+        {opts.anomalyFrom === "percentile" && <label style={ctl}>{tr("Percentile")}<NumberInput min="50" max="99.9" step="1" value={opts.percentile} onChange={(n) => set({ percentile: n })} style={{ ...sel, display: "block", marginTop: 4, width: 70 }} /></label>}
         <label style={ctl}>{tr("Catchment geology (optional)")}<select value={opts.lithoLayer || ""} onChange={(e) => set({ lithoLayer: e.target.value || null, lithoField: null })} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 170 }}><option value="">{tr("— none —")}</option>{polyLayers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
         {lithoLayer && <label style={ctl}>{tr("Unit field")}<select value={opts.lithoField || ""} onChange={(e) => set({ lithoField: e.target.value || null })} style={{ ...sel, display: "block", marginTop: 4 }}><option value="">—</option>{(lithoLayer.fields || []).map((f) => <option key={f} value={f}>{f}</option>)}</select></label>}
       </div>
