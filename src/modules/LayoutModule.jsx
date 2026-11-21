@@ -74,6 +74,7 @@ import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv 
 import { geophysLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #2878
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, pageFont, withPageFont } from "../lib/layoutFonts.js"; // TASKS.csv #2144
+import { toggleColumnBreak, clearColumnBreaks, hasColumnBreaks, startsColumn, carryColumnBreaks } from "../lib/legendColumns.js"; // TASKS.csv #3959
 import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLegendBox } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869; a sized box: #3395
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
@@ -1073,6 +1074,13 @@ export default function LayoutModule() {
   const updateSelected = (patch) => setElements((els) => els.map((el) => el.id === selected ? { ...el, ...patch } : el));
   // TASKS.csv #3130 — a legend loaded from a view (it knows its groups) records the order its rows were moved into, for every legend of
   // the project to take on its next 'Load from view'; a hand-made legend records nothing
+  // TASKS.csv #3959 — a legend's column count (undefined: Auto), from the sidebar's buttons or the bar on the sheet; as the select did (#3395),
+  // turning the box on with a bound 3D view loads that view's codes in full, so the box decides what shows
+  const setLegendColsFor = (el, v) => {
+    const was = isLegendBox(el);
+    setElements((els) => els.map((x) => (x.id === el.id ? { ...x, legendCols: v } : x)));
+    if (!was && v && el.codesPerLayer == null && elements.some((e) => e.id === el.boundViewportId && e.type === "viewport")) syncLegendFromView(el.id, { perGroup: "all" });
+  };
   const keptOrder = (legend, items) => (legend?.loadedGroups?.length ? { codeOrder: { ...(legend.codeOrder || {}), ...groupOrdersFromItems(items, legend.loadedGroups.length === 1 ? legend.loadedGroups[0] : null) } } : {});
   // Deleting a viewport/section also drops any scale bar bound to it (an orphaned bar with no view to
   // describe would just be confusing) and un-binds any legend that was reading lithologies from it
@@ -1309,7 +1317,7 @@ export default function LayoutModule() {
     if (!legend.boundViewportId) { say(tr("Pick a bound viewport or cross-section above first.")); return; }
     const vp = elements.find((el) => el.id === legend.boundViewportId);
     if (!vp) { say(tr("That viewport/section no longer exists on this page — pick a different one.")); return; }
-    const stamp = (items) => ({ items, loadedItems: items, loadedCapturedAt: vp.capturedAt || null, autoReloaded: auto }); // autoReloaded: said in the viewport's sidebar
+    const stamp = (items) => ({ items: carryColumnBreaks(legend?.items, items) /* #3959 — the column breaks stay */, loadedItems: items, loadedCapturedAt: vp.capturedAt || null, autoReloaded: auto }); // autoReloaded: said in the viewport's sidebar
 
     // Cross-section snapshots (type "image") carry their own pre-computed legendItems — the exact
     // {label,color} pairs drawn in that section (litho/alt/vein/structure), built once in
@@ -1673,7 +1681,7 @@ export default function LayoutModule() {
                   const allCodes = () => { if (sel.codesPerLayer == null && elements.some((e) => e.id === sel.boundViewportId && e.type === "viewport")) syncLegendFromView(sel.id, { perGroup: "all" }); };
                   return (
                     <div style={{ marginBottom: 8 }}>
-                      <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" /* #3959: the Columns buttons on a line of their own */ }}>
                         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("W (mm)")}{/* TASKS.csv #3874 (#3716 (1)) — a width box: the legend's long lines ('cut-off 5 %, at most 2 m internal dilution; classes: ...') made it 136 mm wide with no way to say less */}
                           <NumberInput allowEmpty min="20" step="1" placeholder={tr("auto")} value={Number(sel.w) > 0 ? mm(sel.w) : ""} aria-label={tr("Legend width (mm)")}
                             onChange={asEvent((e) => { const v = Number(e.target.value); updateSelected({ w: e.target.value === "" || !(v > 0) ? undefined : Math.max(20, v) * PX_PER_MM }); })}
@@ -1682,11 +1690,11 @@ export default function LayoutModule() {
                           <NumberInput allowEmpty min="10" step="1" placeholder={tr("auto")} value={Number(sel.h) > 0 ? mm(sel.h) : ""} aria-label={tr("Legend height (mm)")}
                             onChange={asEvent((e) => { const v = Number(e.target.value); if (e.target.value === "" || !(v > 0)) { updateSelected({ h: undefined }); return; } const was = isLegendBox(sel); updateSelected({ h: Math.max(10, v) * PX_PER_MM }); if (!was) allCodes(); })}
                             style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }} /></label>
-                        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Columns")}
-                          <select value={String(sel.legendCols ?? "auto")} aria-label={tr("Legend columns")} onChange={(e) => { const v = e.target.value === "auto" ? undefined : Number(e.target.value); const was = isLegendBox(sel); updateSelected({ legendCols: v }); if (!was && v) allCodes(); }}
-                            style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }}>
-                            <option value="auto">{tr("Auto")}</option>{[1, 2, 3, 4].map((n) => <option key={n} value={String(n)}>{n}</option>)}
-                          </select></label>
+                        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: "1 1 100%" }}>{tr("Columns")}
+                          <div role="group" aria-label={tr("Legend columns")} data-legend-cols-side="" style={{ display: "flex", gap: 2, marginTop: 4 }}>{/* TASKS.csv #3959 — 1 / 2 / 3 / 4 in view (was a select) */}
+                            {[["auto", tr("Auto")], ...[1, 2, 3, 4].map((n) => [String(n), String(n)])].map(([v, lab]) => { const on = String(sel.legendCols ?? "auto") === v; return (
+                              <button key={v} type="button" aria-pressed={on} onClick={() => setLegendColsFor(sel, v === "auto" ? undefined : Number(v))} style={{ ...smallBtn, flex: v === "auto" ? 1.6 : 1, padding: "4px 0", textAlign: "center", justifyContent: "center", fontWeight: on ? 700 : 400, background: on ? "var(--color-selected-bg)" : undefined, borderColor: on ? "var(--color-selected-border)" : undefined }}>{lab}</button>); })}
+                          </div></label>
                       </div>
                       <div style={{ fontSize: "var(--font-size-xs)", color: fit.box && fit.left ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>
                         {fit.box && fit.left > 0 ? tr("{n} row(s) do not fit in this box: make it taller, add a column or widen it.", { n: fit.left })
@@ -1746,7 +1754,7 @@ export default function LayoutModule() {
                   );
                 })()}
                 {sel.items.map(([name, color, opt], i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
+                  <div key={i} data-legend-row={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5, ...(opt?.colBreak ? { borderTop: "2px dashed var(--color-selected-border)", paddingTop: 4 } : {}) /* #3959 */ }}>
                     {opt?.heading || opt?.ramp || opt?.note || opt?.image /* TASKS.csv #725 — a group heading or a ramp has no single colour; #1633 a note; #2747 an image */
                       ? <span title={opt.ramp || opt.image ? tr("Colour scale") : opt.note ? tr("Note") : tr("Group heading")} style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 4, border: "1px solid var(--color-border)", background: opt.ramp ? `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` : "transparent" }} />
                       : <input type="color" value={color} onChange={(e) => {
@@ -1763,10 +1771,16 @@ export default function LayoutModule() {
                       <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === sel.items.length - 1) return; const items = sel.items.slice(); [items[i + 1], items[i]] = [items[i], items[i + 1]]; updateSelected({ items, ...keptOrder(sel, items) }); }}
                         style={{ cursor: i === sel.items.length - 1 ? "default" : "pointer", color: i === sel.items.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title={tr("Move down")}>▼</div>
                     </div>
+                    {i > 0 && sel.type === "legend" && ( /* TASKS.csv #3959 — this row starts a new column of the legend (or joins the one before again) */
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} data-col-break={opt?.colBreak ? "on" : "off"} aria-pressed={!!opt?.colBreak} onClick={() => updateSelected({ items: toggleColumnBreak(sel.items, i) })}
+                        title={opt?.colBreak ? tr("Join this row to the column before") : tr("Start a new column here")} aria-label={opt?.colBreak ? tr("Join this row to the column before") : tr("Start a new column here")}
+                        style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", lineHeight: 1, padding: "2px 3px", borderRadius: 3, color: opt?.colBreak ? "var(--color-primary)" : "var(--color-text-muted)", background: opt?.colBreak ? "var(--color-selected-bg)" : "transparent", flexShrink: 0 }}>{"\u2AF4"}</div>
+                    )}
                     <Trash2 aria-label={tr("Remove this item")} title={tr("Remove this item")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: sel.items.length > 1 ? "pointer" : "default", color: sel.items.length > 1 ? "var(--color-text-secondary)" : "var(--color-border-light)", flexShrink: 0 }}
                       onClick={() => { if (sel.items.length <= 1) return; updateSelected({ items: sel.items.filter((_, j) => j !== i) }); }} />
                   </div>
                 ))}
+                {sel.type === "legend" && hasColumnBreaks(sel.items) && <button type="button" onClick={() => updateSelected({ items: clearColumnBreaks(sel.items) })} style={{ ...smallBtn, marginBottom: 4 }}>{tr("Clear column breaks")}</button>}{/* #3959 */}
                 <button onClick={() => updateSelected({ items: [...sel.items, ["Item", "#55606e"]] })} style={{ ...pBtn, marginTop: 2 }}>
                   <Plus size={12} />{" "}{tr("Add row")}</button>
               </div>
@@ -2184,7 +2198,7 @@ export default function LayoutModule() {
             <Lock key={`lock_${el.id}`} size={11} aria-hidden="true" style={{ position: "absolute", left: el.x - 13, top: el.y - 13, color: "var(--color-text-muted)", pointerEvents: "none", zIndex: 4 }} />
           ))}
           {withLiveScaleBars(elements).map((el) => (
-            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} onTextEdit={(id, text) => setElements((els) => els.map((x) => (x.id === id ? { ...x, text } : x)))} /* #2944 */ />
+            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} onTextEdit={(id, text) => setElements((els) => els.map((x) => (x.id === id ? { ...x, text } : x)))} /* #2944 */ onLegendCols={setLegendColsFor} /* #3959 */ />
           ))}
           {guides.map((g, i) => ( /* TASKS.csv #910 */
             <div key={`guide${i}`} style={g.axis === "x"
@@ -2753,7 +2767,7 @@ function textContextFor(els, project, page, index, count, collars = null, credit
 }
 const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 
-function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null, onTextEdit = null }) {
+function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null, onTextEdit = null, onLegendCols = null /* #3959 */ }) {
   // TASKS.csv #2944 (split from #2144) — a double-click on a title or text box edits its text in place (the raw text, placeholders and all);
   // Enter (a title) or Ctrl+Enter (a text), or leaving the box, keeps it; Escape leaves it as it was. The sidebar field stays the other way in.
   const [editing, setEditing] = useState(false);
@@ -3000,10 +3014,17 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     return (
       <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 * legendCols, width: box ? el.w || undefined : legendCols > 1 ? undefined : el.w || undefined, boxSizing: "border-box", ...(boxH ? { height: boxH, overflow: "hidden", display: "flex", flexDirection: "column" } : {}) }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         {handles}
+        {handles && onLegendCols && ( /* TASKS.csv #3959 — the columns, right on the selected legend */
+          <div role="group" aria-label={tr("Legend columns")} data-legend-cols-sheet="" onMouseDown={(e) => e.stopPropagation()} style={{ position: "absolute", top: -28, left: 0, display: "flex", gap: 2, padding: 2, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, boxShadow: "0 1px 4px rgba(0,0,0,0.15)", zIndex: 5 }}>
+            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", padding: "0 4px", alignSelf: "center" }}>{tr("Columns")}</span>
+            {[1, 2, 3, 4].map((n) => <button key={n} type="button" aria-pressed={Number(el.legendCols) === n} onClick={(e) => { e.stopPropagation(); onLegendCols(el, n); }} style={{ minWidth: 22, padding: "1px 4px", fontSize: "var(--font-size-sm)", fontWeight: Number(el.legendCols) === n ? 700 : 400, border: "1px solid var(--color-border)", borderRadius: 3, background: Number(el.legendCols) === n ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{n}</button>)}
+          </div>
+        )}
         <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: FONT, flexShrink: 0 }}>{tr("Legend")}</div>
         <div style={legendCols > 1 || box ? { columnCount: legendCols, columnGap: 18, columnFill: boxH ? "auto" : "balance", ...(boxH ? { flex: 1, minHeight: 0 } : {}) } : undefined}>
           {rowsOf.map((ix) => ix.length > 1
-            ? <div key={ix[0]} style={{ breakInside: "avoid" }}>{legendRow(legendItems[ix[0]], ix[0])}{legendRow(legendItems[ix[1]], ix[1])}</div>
+            ? <div key={ix[0]} style={{ breakInside: "avoid", ...(startsColumn(legendItems[ix[0]]) ? { breakBefore: "column" } : {}) /* #3959 */ }}>{legendRow(legendItems[ix[0]], ix[0])}{legendRow(legendItems[ix[1]], ix[1])}</div>
+            : startsColumn(legendItems[ix[0]]) ? <div key={ix[0]} style={{ breakBefore: "column" }}>{legendRow(legendItems[ix[0]], ix[0])}</div> /* #3959 — the user's column break */
             : legendRow(legendItems[ix[0]], ix[0]))}
         </div>
       </div>

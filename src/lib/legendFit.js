@@ -3,6 +3,7 @@
 // the legend, and rows that still do not fit are left out with a note saying how many (the sheet is a printed page: nothing past it shows).
 // Pure: rowH(item) gives a row's printed height in page px, labelW(item) its label's width.
 import { printPt, printPx } from "./theme.js"; // TASKS.csv #2869
+import { hasColumnBreaks, startsColumn } from "./legendColumns.js"; // TASKS.csv #3959
 
 // TASKS.csv #2869 (GSC review B21) — the printed row heights and label widths of a Layout legend (moved from LayoutModule's legend element,
 // which still uses them), so a new legend can be placed at the size it draws at. #2747's picture colour bar is up to 120 px tall.
@@ -30,21 +31,22 @@ export function legendBoxSize(items) {
 // heading kept with its first row, a row never split), the columns share its width (boxW), and only what the box still cannot hold is
 // left out, counted on the note row. Auto (cols null) takes as many columns as the rows need, as many as fit the width (150 px each). A
 // legend with neither keeps legendFit below (#1480 / #2134), so a page made before draws as it did. -> { cols, shown, left, box: true, colW }
-export const isLegendBox = (el) => Number(el?.h) > 0 || [1, 2, 3, 4].includes(Number(el?.legendCols));
+export const isLegendBox = (el) => Number(el?.h) > 0 || [1, 2, 3, 4].includes(Number(el?.legendCols)) || hasColumnBreaks(el?.items); // breaks: #3959
 export function legendBoxFit(items, { boxW = null, boxH = null, cols = null, pageH = 794, y = 0, margin = 30, rowH, labelW, maxCols = 4, gap = 18, pad = 24, head = 40, noteH = 16 } = {}) {
   const list = items || [];
   const heights = list.map(rowH);
   const blocks = []; // a heading with the row after it: a column never ends on a heading
   for (let i = 0; i < list.length; i++) {
-    if (list[i]?.[2]?.heading && i + 1 < list.length) { blocks.push({ to: i + 2, h: heights[i] + heights[i + 1] }); i++; }
-    else blocks.push({ to: i + 1, h: heights[i] });
+    // TASKS.csv #3959 — brk: the block's first row starts a new column (the user's 'Start a new column here')
+    if (list[i]?.[2]?.heading && i + 1 < list.length) { blocks.push({ to: i + 2, h: heights[i] + heights[i + 1], brk: startsColumn(list[i]) }); i++; }
+    else blocks.push({ to: i + 1, h: heights[i], brk: startsColumn(list[i]) });
   }
   const colH = Math.max(20, (Number(boxH) > 0 ? Number(boxH) : pageH - y - margin) - head);
   // the first k blocks poured into columns of colH: the column reached (c), its height used, and the items shown in n columns
   const fill = (n, k = blocks.length) => {
     let c = 0, used = 0, shown = 0;
     for (let j = 0; j < k; j++) {
-      if (used > 0 && used + blocks[j].h > colH) { c++; used = 0; }
+      if (used > 0 && (used + blocks[j].h > colH || blocks[j].brk)) { c++; used = 0; } // brk: #3959
       if (c >= n) break;
       used += blocks[j].h; shown = blocks[j].to; // a block taller than a column alone is drawn and clipped by the box
     }
