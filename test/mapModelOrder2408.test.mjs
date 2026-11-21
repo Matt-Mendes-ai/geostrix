@@ -12,7 +12,7 @@ test("404 holes pass from Channel down into Basement, against an order with Base
 
 test("the panel keeps a hand order and shows the warning", () => {
   const p = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8");
-  assert.match(p, /if \(!orderByHand\) \{ setOrder\(suggestion\.order\); setRoles\(suggestion\.roles\); return; \}/);
+  assert.match(p, /if \(!orderByHand\) \{ const out = new Set\(cut\?\.out \|\| \[\]\); setOrder\(suggestion\.order\.filter\(\(u\) => !out\.has\(u\)\)\);/ /* #3936: a taken cut's left-out units stay out */);
   assert.match(p, /const move = \(i, d\) => \{ setOrderByHand\(true\);/);
   assert.match(p, /logged contacts run the other way/);
   assert.match(p, /orderCheck && orderCheck\.against > orderCheck\.agree && <div/); // most of them, not interfingering units
