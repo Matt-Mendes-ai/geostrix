@@ -76,7 +76,7 @@ test("wiring: the No density column, the footnote, the density model's line, the
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
     for (const k of ["No density", "Blocks at this cutoff with no density: left out of the row (its blocks, volume, grade and tonnes)", "no density and are counted apart, in the No density column",
-      "Mean grade is tonnage-weighted (each block's volume times its density) over the blocks with a density at or above each cutoff; blocks with none are left out of the row.",
+      "Mean grade is tonnage-weighted (volume times density) over blocks with a density at or above each cutoff; blocks with none are left out of the row.",
       "Enter a Density to give the blocks with none a value: no default is assumed."]) assert.ok(d[k], `${l}: ${k}`);
   }
 });

@@ -43,13 +43,13 @@ test("#3513 the unsampled wording follows the hole type in the pit panes, Grade-
     const s = read(`../src/components/${f}.jsx`);
     assert.match(s, /import \{ unsampledWord \} from "\.\.\/lib\/holeType\.js";/, f);
     assert.match(s, /const chips = unsampledWord\(collars\) === "chips";/, f);
-    assert.match(s, /chips \? "[^"\n]*unsampled chips[^\n]*" : "[^\n]*unsampled core/, `${f}: both wordings`);
+    assert.match(s, /chips \? "[^"\n]*[Uu]nsampled chips[^\n]*" : "[^\n]*[Uu]nsampled core/, `${f}: both wordings`); // #3899: a sentence may now start with it
   }
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
-    const chipsKeys = Object.keys(d).filter((k) => /unsampled chips/.test(k) && /ore is in blocks|metal at the \{c\} cutoff|Composites are anchored/.test(k));
+    const chipsKeys = Object.keys(d).filter((k) => /[Uu]nsampled chips/.test(k) && /ore is in blocks|metal at the \{c\} cutoff|Composites are anchored/.test(k)); // #3899: a sentence may now start with it
     assert.equal(chipsKeys.length, 3, `${lang}: three new keys`);
-    for (const k of chipsKeys) assert.notEqual(d[k], d[k.replace("unsampled chips", "unsampled core")], `${lang}: translated differently from the core wording`);
+    for (const k of chipsKeys) assert.notEqual(d[k], d[k.replace("unsampled chips", "unsampled core").replace("Unsampled chips", "Unsampled core")], `${lang}: translated differently from the core wording`);
   }
 });
 

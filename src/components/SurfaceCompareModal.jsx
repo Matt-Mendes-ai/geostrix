@@ -122,7 +122,7 @@ export default function SurfaceCompareModal({
         </div>
 
         {multiVersionLineages.length === 0 ? (
-          <div style={{ padding: "24px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 560 }}>{tr("No surface has more than one version yet. Re-run a modelling tool with different parameters, then expand the new surface in the Generated surfaces list and set")}{" "}<em>{tr("“New version of…”")}</em>{" "}{tr("to the run it replaces. Both runs stay in the project — linking them only records that one descends from the other, so they can be compared here.")}</div>
+          <div style={{ padding: "24px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 560 }}>{tr("No surface has more than one version yet. Re-run a modelling tool with different parameters, then expand the new surface in the Generated surfaces list and set")}{" "}<em>{tr("“New version of…”")}</em>{" "}{tr("to the run it replaces. Both runs stay in the project; the link only records that one descends from the other.")}</div>
         ) : (
           <>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
@@ -170,7 +170,7 @@ export default function SurfaceCompareModal({
             )}
 
             {paramDiff && !paramDiff.sameTool && (
-              <div style={{ ...warnNote, marginBottom: 8 }}>{tr("These two were produced by")}{" "}<strong>{tr("different tools")}</strong>{" "}{tr("({v} vs {v2}). They can still be compared geometrically, but their parameter sets are not the same kind of thing, so “what changed” below is a list of two different vocabularies rather than a settings diff.", { v: paramDiff.toolA || tr("unknown"), v2: paramDiff.toolB || tr("unknown") })}</div>
+              <div style={{ ...warnNote, marginBottom: 8 }}>{tr("These two were produced by")}{" "}<strong>{tr("different tools")}</strong>{" "}{tr("({v} vs {v2}). They can still be compared geometrically, but “what changed” below lists two different sets of parameters, not a settings diff.", { v: paramDiff.toolA || tr("unknown"), v2: paramDiff.toolB || tr("unknown") })}</div>
             )}
 
             <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -180,7 +180,7 @@ export default function SurfaceCompareModal({
                 {!paramDiff ? <div style={muted}>{tr("Select two versions.")}</div> : (
                   <>
                     {paramDiff.changed.length === 0 && paramDiff.onlyA.length === 0 && paramDiff.onlyB.length === 0 ? (
-                      <div style={muted}>{tr("No recorded setting differs between these two runs{v}. If the geometry still differs, the inputs did — the drillhole data, a domain, or an excluded intercept changed between the runs, and none of those live in the parameter block.", { v: paramDiff.unchangedCount ? ` (${paramDiff.unchangedCount} compared)` : "" })}</div>
+                      <div style={muted}>{tr("No recorded setting differs between these two runs{v}. If the geometry still differs, the inputs did: the drillhole data, a domain or an excluded intercept.", { v: paramDiff.unchangedCount ? ` (${paramDiff.unchangedCount} compared)` : "" })}</div>
                     ) : (
                       <table style={tbl}>
                         <thead><tr><th style={th}>{tr("Setting")}</th><th style={th}>A</th><th style={th}>B</th></tr></thead>
@@ -214,7 +214,7 @@ export default function SurfaceCompareModal({
               <div style={{ flex: "1 1 330px", minWidth: 300 }}>
                 <div style={sectionLabel}>{tr("Geometry")}</div>
                 {error && <div style={warnNote}>{tr("Couldn’t compare: {error}", { error })}</div>}
-                {!result && !error && <div style={muted}>{tr("Press “Compare geometry”. This builds a spatial index over both meshes and measures the true point-to-surface distance for every vertex — a few hundred milliseconds on a full-size shell, so it runs on request rather than on every dropdown change.")}</div>}
+                {!result && !error && <div style={muted}>{tr("Press “Compare geometry” to measure the true point-to-surface distance at every vertex; it runs on request because it can take a moment.")}</div>}
                 {result && (
                   <>
                     {result.identical && (
@@ -239,7 +239,7 @@ export default function SurfaceCompareModal({
                         <div style={hint}>{tr("Exploration target volume only — not a Mineral Resource, in either version.")}</div>
                       </div>
                     ) : (
-                      <div style={{ ...warnNote, marginTop: 8 }}>{tr("At least one version is an")}{" "}<strong>{tr("open surface")}</strong>{" "}{tr("(a draped contact, a fault plane, or a shell clipped by a domain or the grid edge), so there is no enclosed volume to difference. The separation figures below are still exact.")}</div>
+                      <div style={{ ...warnNote, marginTop: 8 }}>{tr("At least one version is an")}{" "}<strong>{tr("open surface")}</strong>{" "}{tr("(a draped contact, fault plane, or shell clipped by a domain or grid edge), so there is no volume difference. The separations below are still exact.")}</div>
                     )}
 
                     <div style={{ ...sectionLabel, marginTop: 10 }}>{tr("How far the surface moved")}</div>
@@ -252,7 +252,7 @@ export default function SurfaceCompareModal({
                     </table>
                     <div style={{ ...bigStat, marginTop: 8 }}>{tr("Mean separation")}{" "}<strong>{fmt(result.meanSeparationM)} m</strong>{" "}{tr("· largest measured separation")}{" "}<strong>{fmt(result.maxSeparationM)} m</strong>
                     </div>
-                    <div style={hint}>{tr("Exact point-to-triangle distance (not nearest-vertex), measured both ways because a one-way figure misses anything the other version has and this one doesn’t. The maximum is a")}<strong>{" "}{tr("lower bound")}</strong>{" "}{tr("on the true worst-case difference: distances are measured from each mesh’s vertices, so a bulge in the middle of a large triangle with no vertex on it isn’t sampled.")}{result.sampledOnly && <>{" "}{tr("Vertices were")}{" "}<strong>{tr("subsampled")}</strong>{" "}{tr("at a fixed stride ({v} of {v2} on B, {v3} of {v4} on A) to keep this responsive — the stride is deterministic, so these numbers are reproducible, but the maximum is sampled more coarsely than the mesh allows.", { v: result.bToA?.sampled.toLocaleString(), v2: result.bToA?.totalVertices.toLocaleString(), v3: result.aToB?.sampled.toLocaleString(), v4: result.aToB?.totalVertices.toLocaleString() })}</>}
+                    <div style={hint}>{tr("Exact point-to-triangle distance (not nearest-vertex), measured both ways, since one way misses what only the other version has. The maximum is a")}<strong>{" "}{tr("lower bound")}</strong>{" "}{tr("on the true worst case: distances are measured from mesh vertices, so a bulge inside a large triangle with no vertex on it is missed.")}{result.sampledOnly && <>{" "}{tr("Vertices were")}{" "}<strong>{tr("subsampled")}</strong>{" "}{tr("at a fixed stride ({v} of {v2} on B, {v3} of {v4} on A) to stay responsive; the numbers are reproducible, but the maximum is coarser than the mesh allows.", { v: result.bToA?.sampled.toLocaleString(), v2: result.bToA?.totalVertices.toLocaleString(), v3: result.aToB?.sampled.toLocaleString(), v4: result.aToB?.totalVertices.toLocaleString() })}</>}
                       {" "}{tr("Computed in {ms} ms.", { ms: result.ms })}</div>
                   </>
                 )}
@@ -261,7 +261,7 @@ export default function SurfaceCompareModal({
 
             {/* ---------- OVERLAY + ACCEPT ---------- */}
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, paddingTop: 10, borderTop: "1px solid #eef0f3", flexWrap: "wrap" }}>
-              <button onClick={() => surfA && surfB && onOverlay?.(surfA.id, surfB.id)} disabled={!surfA || !surfB} style={{ ...ghostBtn, opacity: surfA && surfB ? 1 : 0.5 }} title={tr("Show both versions in the 3D view in contrasting colours (older grey-blue, newer orange) and hide the rest of the lineage. Uses the meshes already in the scene — no second viewport.")}>
+              <button onClick={() => surfA && surfB && onOverlay?.(surfA.id, surfB.id)} disabled={!surfA || !surfB} style={{ ...ghostBtn, opacity: surfA && surfB ? 1 : 0.5 }} title={tr("Show both versions in the 3D view in contrasting colours (older grey-blue, newer orange) and hide the rest of the lineage.")}>
                 <Layers size={12} />{" "}{tr("Overlay both in the 3D view")}</button>
               <button onClick={() => onClearOverlay?.()} style={ghostBtn} title={tr("Put the compared surfaces back to their own colours.")}>{tr("Reset colours")}</button>
               <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
@@ -269,7 +269,7 @@ export default function SurfaceCompareModal({
                 {surfB && <button onClick={() => onAccept?.(surfB.id)} style={acceptBtn} title={tr("Mark \"{name}\" as the accepted version of this lineage", { name: surfB.name })}><Check size={12} />{" "}{tr("Accept B")}</button>}
               </div>
             </div>
-            <div style={hint}>{tr("Accepting a version marks it as the one you are working from and hides the others in this lineage — it does")}{" "}<strong>{tr("not")}</strong>{" "}{tr("delete them, and it is not a statement that the accepted run is correct. Nothing in this dialog validates either version against the ground; it reports what differs between two records of two runs.")}</div>
+            <div style={hint}>{tr("Accepting a version marks it as the one you are working from and hides the others in this lineage — it does")}{" "}<strong>{tr("not")}</strong>{" "}{tr("delete them, nor say the accepted run is correct. Nothing here checks either version against the ground; it reports what differs between two runs.")}</div>
           </>
         )}
       </div>

@@ -52,11 +52,11 @@ export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, 
             <strong>{tr("Exploration target volume only — not a Mineral Resource.")}</strong>{" "}{tr("Public disclosure of a tonnage requires an estimate prepared by a Qualified Person.")}
             {" "}{from
               ? tr("In-situ, dry, undiluted tonnes. No mining dilution, mining recovery, metallurgical recovery or moisture is applied. The density is one mean for the whole body: a real estimate models measured SG by domain.")
-              : tr("In-situ, dry, undiluted tonnes at the density you entered. No mining dilution, mining recovery, metallurgical recovery or moisture is applied. Bulk density here is a single assumed value, not a measured one — a real estimate uses measured SG by domain.")}</div>
+              : tr("In-situ, dry, undiluted tonnes at the density you entered, with no mining dilution or recovery, metallurgical recovery or moisture applied. That density is one assumed value, not measured; a real estimate uses measured SG by domain.")}</div>
         </>
       ) : (
         <div style={muted}>{whole
-          ? tr("Enter a bulk density, or use the measured SG above, to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.")
+          ? tr("Enter a bulk density, or use the measured SG above, to compute tonnage. There is no default: tonnage is only as real as its density.")
           : tr("Enter a bulk density to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.")}</div>
       )}
     </>
