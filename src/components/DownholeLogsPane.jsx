@@ -30,7 +30,9 @@ const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "sp
 
 // xs / ys (TASKS.csv #3078): the pairs as two typed columns (the log against an element), read in place; pairs: [[x, y]] (against a model)
 function Scatter({ pairs = null, xs = null, ys = null, xLabel, yLabel, logX, logY, fit = null }) { // fit: TASKS.csv #2954 — the log = a + b x element line, drawn on linear axes
-  const w = 300, h = 220, pl = 44, pb = 30, pr = 8, pt = 8;
+  // TASKS.csv #3900 T2 — the 10 px floor: this plot is drawn in the side panel at about 0.85 of its 300 units (256 px at the default width), so its
+  // text is 12 units (10.2 px); the left margin widens for the longer tick labels
+  const w = 300, h = 220, pl = 56, pb = 30, pr = 8, pt = 8;
   const fx = logX ? (v) => Math.log10(v) : (v) => v, fy = logY ? (v) => Math.log10(v) : (v) => v;
   // TASKS.csv #2948 — the points, their box and the drawn subset are kept while the pairs and axes stay (0.4 s at 480,000 pairs, paid again on
   // every change of the pane, the ranking included)
@@ -68,12 +70,12 @@ function Scatter({ pairs = null, xs = null, ys = null, xLabel, yLabel, logX, log
         const ends = [y0, y1].map((y) => [fit.a + fit.b * y, y]).map(([x, y]) => (x < x0 && fit.b ? [x0, (x0 - fit.a) / fit.b] : x > x1 && fit.b ? [x1, (x1 - fit.a) / fit.b] : [x, y]));
         return <line x1={sx(ends[0][0])} y1={sy(ends[0][1])} x2={sx(ends[1][0])} y2={sy(ends[1][1])} stroke="#c0392b" strokeWidth="1.5" />;
       })()}
-      <text x={pl} y={h - pb + 12} fontSize="8" fill="#55606e">{lab(x0, logX)}</text>
-      <text x={w - pr} y={h - pb + 12} fontSize="8" fill="#55606e" textAnchor="end">{lab(x1, logX)}</text>
-      <text x={(pl + w - pr) / 2} y={h - 4} fontSize="9" fill="#55606e" textAnchor="middle">{xLabel}{logX ? ` (${tr("log scale")})` : ""}</text>
-      <text x={pl - 3} y={h - pb} fontSize="8" fill="#55606e" textAnchor="end">{lab(y0, logY)}</text>
-      <text x={pl - 3} y={pt + 8} fontSize="8" fill="#55606e" textAnchor="end">{lab(y1, logY)}</text>
-      <text x={10} y={(pt + h - pb) / 2} fontSize="9" fill="#55606e" textAnchor="middle" transform={`rotate(-90 10 ${(pt + h - pb) / 2})`}>{yLabel}{logY ? ` (${tr("log scale")})` : ""}</text>
+      <text x={pl} y={h - pb + 13} fontSize="12" fill="#55606e">{lab(x0, logX)}</text>
+      <text x={w - pr} y={h - pb + 13} fontSize="12" fill="#55606e" textAnchor="end">{lab(x1, logX)}</text>
+      <text x={(pl + w - pr) / 2} y={h - 3} fontSize="12" fill="#55606e" textAnchor="middle">{xLabel}{logX ? ` (${tr("log scale")})` : ""}</text>
+      <text x={pl - 3} y={h - pb} fontSize="12" fill="#55606e" textAnchor="end">{lab(y0, logY)}</text>
+      <text x={pl - 3} y={pt + 11} fontSize="12" fill="#55606e" textAnchor="end">{lab(y1, logY)}</text>
+      <text x={12} y={(pt + h - pb) / 2} fontSize="12" fill="#55606e" textAnchor="middle" transform={`rotate(-90 12 ${(pt + h - pb) / 2})`}>{yLabel}{logY ? ` (${tr("log scale")})` : ""}</text>
     </svg>
     {drawn.step > 1 && <div style={note}>{tr("{k} of {n} pairs drawn (one in every {s}, and the extremes); the statistics use all of them.", { k: fmtNum(drawn.points.length), n: fmtNum(pts.length), s: drawn.step })}</div>}
     </>
