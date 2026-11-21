@@ -14680,5 +14680,6 @@
   "The box drawn": "المستطيل المرسوم",
   "Draw a box…": "ارسم مستطيلًا…",
   "Drag on the view to draw it.": "اسحب على العرض لرسمه.",
-  "Drag a corner to change it.": "اسحب زاوية لتغييره."
+  "Drag a corner to change it.": "اسحب زاوية لتغييره.",
+  "Drag to move this row; a group heading moves its whole group": "اسحب لنقل هذا الصف؛ يحرّك عنوان المجموعة مجموعته كلها"
 }

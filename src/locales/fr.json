@@ -14680,5 +14680,6 @@
   "The box drawn": "Le rectangle dessiné",
   "Draw a box…": "Dessiner un rectangle…",
   "Drag on the view to draw it.": "Faites glisser dans la vue pour le dessiner.",
-  "Drag a corner to change it.": "Faites glisser un coin pour le modifier."
+  "Drag a corner to change it.": "Faites glisser un coin pour le modifier.",
+  "Drag to move this row; a group heading moves its whole group": "Faites glisser pour déplacer cette ligne ; un titre de groupe déplace tout son groupe"
 }

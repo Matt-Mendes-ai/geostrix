@@ -14680,5 +14680,6 @@
   "The box drawn": "O retângulo desenhado",
   "Draw a box…": "Desenhar um retângulo…",
   "Drag on the view to draw it.": "Arraste na vista para desenhá-lo.",
-  "Drag a corner to change it.": "Arraste um canto para alterá-lo."
+  "Drag a corner to change it.": "Arraste um canto para alterá-lo.",
+  "Drag to move this row; a group heading moves its whole group": "Arraste para mover esta linha; um cabeçalho de grupo move o grupo inteiro"
 }

@@ -14680,5 +14680,6 @@
   "The box drawn": "El rectángulo dibujado",
   "Draw a box…": "Dibujar un rectángulo…",
   "Drag on the view to draw it.": "Arrastre en la vista para dibujarlo.",
-  "Drag a corner to change it.": "Arrastre una esquina para cambiarlo."
+  "Drag a corner to change it.": "Arrastre una esquina para cambiarlo.",
+  "Drag to move this row; a group heading moves its whole group": "Arrastra para mover esta fila; un encabezado de grupo mueve todo su grupo"
 }
