@@ -5,6 +5,7 @@ import { orderElements } from "../lib/elementOrder.js"; // TASKS.csv #2032
 import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2032
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1394
 import React, { useState, useRef, useMemo, useEffect, Suspense } from "react";
+import { useLatestCallback } from "../lib/useLatestCallback.js"; // TASKS.csv #3931
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { joinBySampleId } from "../lib/surfaceJoin.js"; // TASKS.csv #1670
@@ -1241,6 +1242,8 @@ export default function GeochemModule() {
   // dem/srtm/elev heuristic for choosing terrain vs raster drape: a dropped filename containing
   // "pxrf" or "xrf" goes to the pXRF path, everything else defaults to the assay path (matching the
   // button layout's own ordering — "Import assays" is the primary action, pXRF is the secondary one).
+  // TASKS.csv #3931 — a drop while a project is coming forward (a tab switch expanding its tables) waits for it, then goes into that project (enqueueLatest: the latest render's queue)
+  const enqueueLatest = useLatestCallback((files) => enqueueAssayFiles(files));
   const handleDrop = (e) => {
     e.preventDefault(); setDragOver(false);
     // #2016 — a sample shapefile (with its .dbf / .prj / .cpg), GeoPackage or KML too
@@ -1248,6 +1251,7 @@ export default function GeochemModule() {
     const skipped = e.dataTransfer.files.length - files.length;
     if (!files.length) { setNotices((p) => [...p, errorNotice(tr("Only .csv, .xlsx, shapefile (.shp / .zip), GeoPackage or KML files can be dropped in directly."))]); return; }
     if (skipped) setNotices((p) => [...p, notice("{skipped} other file(s) skipped.", { skipped })]);
+    if (store.projectLoading && store.whenProjectLoaded) { setNotices((p) => [...p, notice("The project is still loading: the files are read when it has loaded.")]); store.whenProjectLoaded().then(() => enqueueLatest(files)); return; } // #3931
     enqueueAssayFiles(files); // #1652 — one after another (several at once all opened the one dialog)
   };
 

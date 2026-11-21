@@ -29,7 +29,11 @@ export function useImportPipeline(ctx) {
   const env = useRef(null);
   env.current = { ctx, h: { viewerUiState, addVoxelModel, addOmfObject, voxelCellBudget, fillCodeDictionary, recordImportLeftOut, storeAssays, layerPicker, setLayerPicker, batchRowsRef, commitBusyRef, importQueueRef, importQueueTotalRef, importActiveRef, assayHandoffRef, surfaceHandoffRef, queueLogRef, sampleLoading, setSampleLoading, undoCheckpoint } };
   // the body, built with the latest render's values, then the call; a failed chunk load is said, not swallowed
-  const run = (fn) => loadImportPipeline().then((m) => fn(m.makeImportPipeline(env.current.ctx, env.current.h)), (e) => { setNotices((p) => [...p, errorNotice(String(e?.message || e))]); });
+  // TASKS.csv #3931 — a drop while a project is coming forward (a tab switch expanding its tables) waits for it, then goes into that project: every pipeline call (a drop, Add data, a sample, the start dialog, a commit) runs after it, with the latest render's values
+  const { projectLoading, whenProjectLoaded } = useStore();
+  const loadingRef = useRef(false); loadingRef.current = !!projectLoading;
+  const waitLoad = () => { if (loadingRef.current) setNotices((p) => [...p, notice("The project is still loading: the files are read when it has loaded.")]); return whenProjectLoaded ? whenProjectLoaded() : Promise.resolve(); };
+  const run = (fn) => waitLoad().then(() => loadImportPipeline()).then((m) => fn(m.makeImportPipeline(env.current.ctx, env.current.h)), (e) => { setNotices((p) => [...p, errorNotice(String(e?.message || e))]); });
   useEffect(() => { // loaded on an idle moment after launch, so the first import does not wait for it
     const go = () => { loadImportPipeline().catch(() => {}); };
     const id = typeof requestIdleCallback === "function" ? requestIdleCallback(go, { timeout: 8000 }) : setTimeout(go, 3000);
