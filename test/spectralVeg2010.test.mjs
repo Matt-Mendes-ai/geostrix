@@ -18,5 +18,5 @@ test("the vegetation mask follows the NDVI the user enters", () => {
 test("wired: the threshold input, its use, the evidence pointer", () => {
   assert.match(s, /veg: vegOn \? \{ nir: sens\.nir, red: sens\.red, max: vegMaxN \} : null/);
   assert.match(s, /aria-label=\{tr\("NDVI above which a pixel is vegetated"\)\}/);
-  assert.match(e, /Maps > Spectral index makes iron oxide, clay \/ hydroxyl or your own ratio/);
+  assert.match(e, /make one under Maps > Spectral index and it is listed here/);
 });

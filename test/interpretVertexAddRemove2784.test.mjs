@@ -45,5 +45,5 @@ test("wiring: midpoint handles and Alt+click in the 3D view's edit hook; the pan
   const p = fs.readFileSync(new URL("../src/components/InterpretPane.jsx", import.meta.url), "utf8");
   assert.match(p, /onInsert: \(at, xy, tie\) => \{ if \(layer\) updateMapLayer\(layer\.id, \(l\) => \(\{ \.\.\.insertInterpretationVertex\(l, editIdx, at, xy, tie\)/);
   assert.match(p, /onRemove: \(vi\) => \{ if \(layer\) updateMapLayer\(layer\.id, \(l\) => \(\{ \.\.\.removeInterpretationVertex\(l, editIdx, vi\)/);
-  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(fs.readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))['Editing "{name}": drag a vertex (the orange points) in the 3D view to move it, drag a midpoint (the small yellow points) to add one, Alt+click a vertex to remove it. Top view works best.'], l);
+  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(fs.readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))['Editing "{name}": in the 3D view, drag a vertex (orange) to move it, a midpoint (small yellow) to add one, Alt+click a vertex to remove it.'], l);
 });

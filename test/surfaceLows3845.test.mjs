@@ -95,7 +95,7 @@ test("#3850 every other repeating unit is named with its counts, the larger firs
   const m = read("../src/components/MapModelPanel.jsx");
   assert.match(m, /\.slice\(1\)\.sort\(\(a, b\) => b\[1\]\.runs - a\[1\]\.runs\)\.slice\(0, 5\)/);
   assert.match(m, /Also met more than once down the holes: \{list\}\./);
-  hasKeys(["Also met more than once down the holes: {list}. A unit that repeats like this is the host between sheets, or an overprint (an alteration or deformation zone), not a bed: its contacts here are not stratigraphic tops.", "{unit} ({r} times in {h} hole(s), up to {max} in one)"]);
+  hasKeys(["Also met more than once down the holes: {list}. Such a unit is the host between sheets or an overprint (alteration, deformation), not a bed: its contacts here are not stratigraphic tops.", "{unit} ({r} times in {h} hole(s), up to {max} in one)"]);
 });
 
 test("#3851 slips: a repeated header row, the zero-elevation rule, the CRS sentence", () => {

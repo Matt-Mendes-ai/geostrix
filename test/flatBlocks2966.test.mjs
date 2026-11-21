@@ -43,7 +43,7 @@ test("#2966 the pane: the height field, the shell's own cells by default, the th
   assert.ok(p.includes('aria-label={tr("Block height (m)")}'));
   assert.ok(p.includes("const own = useMemo(() => shellOwnCells(unit), [unit]);"));
   assert.ok(p.includes("cellZM: cellZ > 0 ? cellZ : 0 /* #2966 */"));
-  assert.ok(p.includes("Three volumes of the same body:"));
+  assert.ok(p.includes("Three volumes of one body:"));
   const s = fs.readFileSync(new URL("../src/lib/surfaceSolids.js", import.meta.url), "utf8");
   assert.ok(s.includes("nz = Math.max(1, Math.round((zmax - zmin) / cz))"));
 });

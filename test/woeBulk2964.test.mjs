@@ -38,5 +38,5 @@ test("#2964 the pane: the metres field, the counts of the cells used, the circul
   assert.ok(!p.includes("trainingHoles"), "no project-wide count left");
   assert.match(p, /l\.kind === "numeric" && parseGtRef\(l\.ref\)\?\.symbol === training\.symbol/);
   assert.ok(p.includes("mostAreHits: !!drilled && ND / N > 0.5"));
-  assert.ok(p.includes("% of the drilled cells are occurrences: the weights have little to set them apart from"));
+  assert.ok(p.includes("% of the drilled cells are occurrences, so the posterior cannot rank them."));
 });

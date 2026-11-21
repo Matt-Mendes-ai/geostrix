@@ -19,7 +19,7 @@ test("(5) a horizontal reading is not turned to grid north: it has no direction"
 
 test("(1) one direction for an offline terrain; (2) the export where it is; (6) the drop that works", () => {
   const sm = rd("../src/components/SurfaceMappingPanel.jsx");
-  assert.ok(sm.includes("(make one in Maps > Terrain first: fetch one, import a DEM, or offline from points, from the project's samples and collars, or from a block model's top)"));
+  assert.ok(sm.includes("(make one in Maps > Terrain first)"));
   for (const f of ["../src/components/InterpretPane.jsx", "../src/components/UnitPolygonPane.jsx"]) {
     const s = rd(f);
     assert.ok(!s.includes("Show, hide, export or remove") && s.includes("export it from its right-click menu in StrixViewer's layer list (Map layers)"), f);

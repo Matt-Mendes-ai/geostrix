@@ -189,7 +189,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
             <SourceCrsField
               label={tr("Control points are in")} value={cpEpsg} onChange={(c) => setCpEpsg(c === "" ? "" : String(c))} mineGrid={mineChoice /* #2684 */}
               defaultText="Same as project (already project coordinates)"
-              title={tr("The CRS of the coordinates printed on the scanned map (e.g. WGS 84 latitude/longitude, BC Albers). They're reprojected into the project's CRS before the transform is fitted.")}
+              title={tr("The CRS of the coordinates printed on the scanned map (e.g. WGS 84, BC Albers); they are reprojected to the project's CRS before the fit.")}
             />
             {cpMine && mineChoice?.kind !== "local" && ( /* #2684 */
               <div style={{ fontSize: "var(--font-size-sm)", color: mineChoice?.kind === "tie" ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{mineSourceSentence(mineChoice, projectEpsg).trim()}</div>

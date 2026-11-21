@@ -21,5 +21,5 @@ test("#1447 Model it disabled without a polygon map; the message names only what
   const p = read("src/modules/viewer/ViewerParts.jsx");
   assert.ok(p.includes("disabled={!mapPolygons} disabledReason=\"Import a geology map (Geology map) or draw its units (Unit polygons) first"));
   assert.ok(read("src/modules/ViewerModule.jsx").includes('mapPolygons={(mapLayers || []).some((l) => l.geomType === "polygon")}'));
-  assert.ok(read("src/components/MapModelPanel.jsx").includes("the {n} outcrop measurement(s) are already loaded."));
+  assert.ok(read("src/components/MapModelPanel.jsx").includes("{n} outcrop measurement(s) are already loaded."));
 });

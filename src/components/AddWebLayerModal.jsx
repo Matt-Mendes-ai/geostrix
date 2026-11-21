@@ -80,7 +80,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
     setBusy(true); setResult(null);
     try {
       if (service === "wms") {
-        if (!bboxLonLat) throw new Error(tr("No area set — this layer has no declared extent and there's no project area to default to. Draw an area first."));
+        if (!bboxLonLat) throw new Error(tr("Draw an area first: this layer has no declared extent and there is no project area to default to."));
         const raster = await fetchWmsMapAsRaster({ baseUrl: url.trim(), layerName: selectedLayer.name, bboxLonLat, projectEpsg, longPx: WMS_DETAIL[wmsDetail].longPx,
           maxRequest: { width: selectedLayer.maxWidth, height: selectedLayer.maxHeight }, onProgress: (done, total) => setWmsProgress(total > 1 ? { done, total } : null) }); // #840
         addRaster({ name: `WMS: ${selectedLayer.title || selectedLayer.name}`, bbox: raster.bbox, dataUrl: raster.dataUrl });
@@ -133,7 +133,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
           <button onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Point this at a government/company OGC service URL (e.g. a provincial bedrock geology WMS, an airborne mag WMS, or a claim-tenure WFS) — the same kind of service you'd add in QGIS. WMS layers import as a raster drape for a chosen area; WFS layers import as a Map layer that keeps their attributes, or as boundary lines if you choose.")}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Point this at an OGC service URL, as in QGIS. A WMS imports as a raster drape for a chosen area; a WFS as a Map layer that keeps its attributes, or as boundary lines.")}</div>
           {/* TASKS.csv #1468 — common open services: picking one fills the URL and lists its layer */}
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)" }}>{tr("Common services")}
             <select value={preset ? presetId : ""} aria-label={tr("Common services")} style={{ ...sel, flex: 1 }}
@@ -186,12 +186,12 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
               <div style={{ ...labelStyle, marginTop: 10 }}>{tr("Detail")}</div>{/* TASKS.csv #840 */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
                 <select value={wmsDetail} onChange={(e) => setWmsDetail(e.target.value)} aria-label={tr("Image detail")} style={{ ...sel, width: "auto" }}
-                  title={tr("The longest side of the imported image. Larger images are fetched as several map requests and stitched; they take longer and make the project file bigger.")}>
+                  title={tr("The longest side of the imported image. Larger ones take several requests, take longer and make a bigger project file.")}>
                   {Object.entries(WMS_DETAIL).map(([k, d]) => <option key={k} value={k}>{tr("{label} ({px} px)", { label: tr(d.label), px: d.longPx.toLocaleString() })}</option>)}
                 </select>
                 {wmsPlan && <span style={{ opacity: 0.75 }}>{tr("~{m} m pixels · {w} × {h} px · {n} map requests", { m: fmtM(wmsPlan.m), w: wmsPlan.width, h: wmsPlan.height, n: wmsPlan.requests })}</span>}
               </div>
-              <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, marginTop: 4, lineHeight: 1.4 }}>{tr("Only as sharp as the service's own imagery: past its native resolution a higher detail just enlarges the same pixels. Use services whose terms allow you to save their images.")}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, marginTop: 4, lineHeight: 1.4 }}>{tr("Only as sharp as the service's own imagery: past its native resolution, more detail just enlarges pixels. Use services whose terms allow saving their images.")}</div>
             </div>
           )}
 

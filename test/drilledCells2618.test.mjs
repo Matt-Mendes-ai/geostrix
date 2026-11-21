@@ -21,5 +21,5 @@ test("the pane bins on the grid cell and the header names cells and holes", () =
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.match(p, /const cellBin = Math\.max\(0\.5, \(grid\?\.dx \|\| 25\) \/ 4\);/);
   assert.equal((p.match(/assayUnits, traces, cellBin\)/g) || []).length, 2);
-  assert.match(p, /drilled cells \(grid cells holding a \{sym\} sample, in \{h\} holes\): \{d\} with a sample at or over the cut-off \(in \{hh\} holes\)/);
+  assert.match(p, /drilled cells \(with a \{sym\} sample, in \{h\} holes\): \{d\} with a sample at or over the cut-off \(in \{hh\} holes\)/);
 });

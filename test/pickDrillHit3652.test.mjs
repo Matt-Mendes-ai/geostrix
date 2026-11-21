@@ -44,5 +44,5 @@ test("a hole's drawing is recognized (trace chunk hit, interval tube in a layer 
 test("with a terrain loaded (collars null) the pick is as it was, and the planned-hole form says what it did (source pins)", () => {
   const w = pickOnView(ray, [traceHit], toWorld, null, origin);
   assert.equal(w.on, "a drillhole");
-  assert.match(read("../src/components/PlannedHoleParts.jsx"), /pickedPoint\.fromHole && pickedPoint\.onCollarSurface && !underground \? tr\("You clicked hole \{id\}, which is under the ground:/);
+  assert.match(read("../src/components/PlannedHoleParts.jsx"), /pickedPoint\.fromHole && pickedPoint\.onCollarSurface && !underground \? tr\("You clicked hole \{id\}, under the ground:/);
 });

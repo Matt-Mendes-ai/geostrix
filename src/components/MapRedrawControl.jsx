@@ -17,12 +17,12 @@ export default function MapRedrawControl({ sel }) {
   return (
     <div style={{ marginBottom: 6 }}>
       {small && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The hole ids and labels on this picture print at about {pt} pt.", { pt: textPt })}</div>}
-      {textPt != null && <button type="button" onClick={goText} style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }} title={tr("The Maps plan draws this view again over the same ground at the frame's own size, so its hole ids and call-outs print at their screen size (about 7.5 pt) and are laid out for it, then Layout opens again.")}>{tr("Draw it again with the text at print size")}</button>}
+      {textPt != null && <button type="button" onClick={goText} style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }} title={tr("The Maps plan redraws this view at the frame's own size, so hole ids and call-outs print at their screen size (about 7.5 pt), then Layout opens again.")}>{tr("Draw it again with the text at print size")}</button>}
       {have != null && <div style={note}>{tr("This picture prints at about {dpi} dpi at this size.", { dpi: Math.round(have) })}</div>}
       {spec.ok ? (
         <>
           <button type="button" onClick={go} style={{ fontSize: "var(--font-size-sm)" }}
-            title={tr("The Maps plan draws this view again over the same ground, as it is now (its layers and colours), at {dpi} dpi for this frame, then Layout opens again.", { dpi: RECAPTURE_DPI })}>
+            title={tr("The Maps plan redraws this view as it is now (layers and colours) at {dpi} dpi for this frame, then Layout opens again.", { dpi: RECAPTURE_DPI })}>
             {tr("Draw it again at {dpi} dpi from Maps", { dpi: RECAPTURE_DPI })}
           </button>
           {spec.capped && <div style={note}>{tr("This frame is larger than a picture can be drawn at {dpi} dpi: it will be drawn at {got} dpi.", { dpi: RECAPTURE_DPI, got: spec.dpi })}</div>}

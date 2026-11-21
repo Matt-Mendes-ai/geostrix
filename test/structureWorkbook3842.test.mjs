@@ -71,7 +71,7 @@ test("#3842 wired: the import takes .xlsx, names other binary files, and the sam
   assert.match(p, /\{sampleStructs && !pendingStruct && \(/);
   hasKeys(["{name} could not be read as a workbook: {why}", "{name} has no sheet with a header row and data.", "{name} is an old Excel workbook (.xls), which GeoStrix does not read. Save it as .xlsx or .csv from Excel and import that.",
     "{name} is not a text table ({kind}). Measurements are read from a .csv or .xlsx table, or a MapInfo point table.", "Formats: .csv, .xlsx, MapInfo .tab / .mif",
-    "The samples already in the project that carry a Strike and a Dip: check the columns, then they are added as outcrop measurements at their sample positions.", "Add the {n} sample(s) with a strike and dip as structures"]);
+    "Samples already in the project with a Strike and a Dip: check the columns, then add them as outcrop measurements at their positions.", "Add the {n} sample(s) with a strike and dip as structures"]);
 });
 
 test("#3842 follow-up: a sample file's Strike / Dip columns are kept as attributes however many values they hold", async () => {

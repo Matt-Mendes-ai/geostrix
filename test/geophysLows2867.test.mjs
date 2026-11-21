@@ -33,7 +33,7 @@ test("#2867 wiring: the reductions box offers GRS67 and computes its free-air an
 
 test("#2870 gravity wording: the spectrum's depths below the observation level, mGal among the unit examples", () => {
   const r = read("../src/modules/RasterModule.jsx");
-  assert.match(r, /below the observation level: the ground for ground stations, the sensor for an airborne survey/);
+  assert.match(r, /below the observation level \(the ground, or the sensor if airborne: subtract its height\)/);
   assert.doesNotMatch(r, /below the sensor\. Subtract the survey's sensor height/);
   assert.match(read("../src/components/RasterColourControls.jsx"), /the unit, e\.g\. nT, mGal, mV\/V/);
 });

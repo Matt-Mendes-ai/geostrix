@@ -123,7 +123,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       const oldAddon = !addonHas(health, "trend"); // #692 — asked, not guessed from the version string
       // TASKS.csv #1158 — an add-on that cannot cap the inducing points would fill the memory and sit at 8 %: say so instead of starting
       if (kind === "domain" && (unitPlan?.inducingBuilt || 0) > INDUCING_LIMIT_NO_CAP && !addonHas(health, "max_inducing")) {
-        throw new Error(tr("This unit has {c} contacts, which needs {n} inducing points: more than this version of the add-on ({v}) can hold in memory. Merge thin codes into the unit, or choose fewer holes, or update the add-on when a newer version is available.", { c: unitPlan.contacts.toLocaleString(), n: unitPlan.inducingBuilt.toLocaleString(), v: health?.version || "?" }));
+        throw new Error(tr("Merge thin codes into the unit, choose fewer holes or update the add-on: {c} contacts need {n} inducing points, more than version {v} can hold.", { c: unitPlan.contacts.toLocaleString(), n: unitPlan.inducingBuilt.toLocaleString(), v: health?.version || "?" }));
       }
       if (trend) params = { ...params, trend: trendToGeoml(trend) };
       const res = await runJob(kind, params, (s) => { if (!getRun()?.cancelling) updateRun({ progress: s.progress, message: s.message, elapsed: s.elapsed }); toBar(s.progress); }, ctrl.signal);
@@ -175,8 +175,8 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       if (sizing) parts.push(sizing.focusM ? tr("only the {n} of {total} holes within {d} m of the unit were modelled", { n: sizing.holesSent, total: sizing.holesInProject, d: sizing.focusM.toLocaleString() }) : tr("spacing widened to {s} m to fit in memory", { s: sizing.trainSpacingM }));
       // #1158 — a finished run is not a good model: the fit to the logs, plainly (add-on 0.1.3+)
       // #1312 — that is on the points it trained on, which flatters it (PS_POR 66% there, 24% on unseen holes): said, and tested if asked
-      const unseen = res.held_out ? ` ${tr("On {k} of {n} holes held back from training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.", { k: res.held_out.holes_left_out, n: res.held_out.holes, a: Math.round(res.held_out.in_unit * 100), b: Math.round(res.held_out.other * 100) })}` : heldOut ? ` ${tr("The score on held-back holes did not run: it needs at least 4 holes with the unit and an up-to-date add-on.")}` : ` ${tr("Holes it has not trained on usually score lower: tick the score on held-back holes to measure it.")}`;
-      const fit = res.fit ? ` ${tr("On the points it trained on: {a}% of those in the unit come out inside it, {b}% of the others outside.", { a: Math.round(res.fit.in_unit * 100), b: Math.round(res.fit.other * 100) })}${res.fit.in_unit < 0.3 ? ` ${tr("That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.")}` : ""}` : "";
+      const unseen = res.held_out ? ` ${tr("On {k} of {n} held-back holes: {a}% of the unit's points come out inside it, {b}% of the others outside. The better guide to new holes.", { k: res.held_out.holes_left_out, n: res.held_out.holes, a: Math.round(res.held_out.in_unit * 100), b: Math.round(res.held_out.other * 100) })}` : heldOut ? ` ${tr("The score on held-back holes did not run: it needs at least 4 holes with the unit and an up-to-date add-on.")}` : ` ${tr("Holes it has not trained on usually score lower: tick the score on held-back holes to measure it.")}`;
+      const fit = res.fit ? ` ${tr("On the points it trained on: {a}% of those in the unit come out inside it, {b}% of the others outside.", { a: Math.round(res.fit.in_unit * 100), b: Math.round(res.fit.other * 100) })}${res.fit.in_unit < 0.3 ? ` ${tr("That is weak: the model does not reproduce the unit where it was logged. Try a higher quality, fewer holes or a merged code.")}` : ""}` : "";
       const reach = intercepts ? ` ${intercepts.missed.length ? tr("It reaches {a} of the {n} logged intercepts; the geoML panel lists the ones it misses, by hole and depth.", { a: intercepts.reached, n: intercepts.logged }) : tr("It reaches all {n} logged intercepts.", { n: intercepts.logged })}` : "";
       return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts.${reach}${fit}${unseen}`;
     });
@@ -244,12 +244,12 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
           <div style={h}>{tr("Install the add-on")}</div>
           {/* TASKS.csv #688 — what you get, what it costs and what the licence means, then ONE confirm step: the button
               used to start a 553 MB download on the click (wrong on a metered camp connection) */}
-          {modelableHoles === 0 && <div role="note" style={{ marginBottom: 6, color: "var(--color-warn-text)" }}>{tr("geoML models drillholes, and this project has no hole with a collar and a lithology log or assays yet, so it would have nothing to model here. Load the drillholes first; the add-on can be installed at any time.")}</div>}{/* #1845 */}
+          {modelableHoles === 0 && <div role="note" style={{ marginBottom: 6, color: "var(--color-warn-text)" }}>{tr("Load drillholes first: geoML needs a hole with a collar and a lithology log or assays; this project has none. You can install the add-on any time.")}</div>}{/* #1845 */}
           <div><strong>{tr("What you get:")}</strong>{" "}{tr("rock-unit and grade models with their uncertainty.")}</div>
-          <div style={{ marginTop: 4 }}><strong>{tr("What it costs:")}</strong>{" "}{tr("a download{v} from GitHub, {v2} (it carries TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most made since 2012; some budget Celeron / Pentium chips lack it).", { v: st.downloadBytes ? tr(" of about {v}", { v: fmtMB(st.downloadBytes) }) : "", v2: st.installedBytes ? tr("{v} on disk", { v: fmtMB(st.installedBytes) }) : tr("a few GB on disk") })}</div>
+          <div style={{ marginTop: 4 }}><strong>{tr("What it costs:")}</strong>{" "}{tr("a download{v} from GitHub, {v2} (with TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most since 2012).", { v: st.downloadBytes ? tr(" of about {v}", { v: fmtMB(st.downloadBytes) }) : "", v2: st.installedBytes ? tr("{v} on disk", { v: fmtMB(st.installedBytes) }) : tr("a few GB on disk") })}</div>
           <div style={{ marginTop: 4 }}><strong>{tr("Licence:")}</strong>{" "}{tr("free to use; it is GPL-3.0, which only matters if you redistribute it (")}<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">{tr("licence text")}</a>{tr("). GeoStrix itself stays MIT. You can remove it here (3D Modelling › geoML models) at any time.")}</div>
           {cpu?.avx === false && (
-            <div role="alert" style={{ marginTop: 8, padding: 8, borderRadius: 6, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)" }}>{tr("Windows reports that this computer's processor has no AVX instructions. TensorFlow, which the add-on runs on, needs them, so the add-on would download and then fail to start. GeoStrix's own modelling tools (implicit surfaces, halos, grade shells, estimation) don't need it.")}</div>
+            <div role="alert" style={{ marginTop: 8, padding: 8, borderRadius: 6, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)" }}>{tr("This processor has no AVX instructions, which the add-on's TensorFlow needs, so it would download and then fail to start. GeoStrix's own modelling tools don't need it.")}</div>
           )}
           <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
             {confirmInstall && !inst?.phase ? (
@@ -279,7 +279,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
               <select value={quality} onChange={(e) => setQuality(e.target.value)} aria-label={tr("Model quality")} style={{ ...smallSel, flex: 2 }}>
                 {Object.entries(QUALITY).map(([k, q]) => <option key={k} value={k}>{tr(q.label)}</option>)}
               </select>
-            </div>{tr("On a project of 20 to 40 holes, Fast and Standard take a few minutes. Time grows with the holes and the quality: start with Fast. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
+            </div>{tr("On 20 to 40 holes, Fast and Standard take a few minutes; time grows with holes and quality, so start with Fast. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
           </div>
 
           <div style={box}>
@@ -325,7 +325,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
                     <input type="checkbox" checked={useHidden} onChange={(e) => setUseHidden(e.target.checked)} />{" "}<span>{useHidden ? tr("Also using the {n} holes unchecked in the hole list", { n: hiddenCount }) : tr("Leaving out the {n} holes unchecked in the hole list (tick to use them)", { n: hiddenCount })}</span></label>
                 )}
                 {unitPlan?.focus?.available && (
-                  <label style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 6 }} title={tr("Trains on a point every {s} m in the unit and at its contacts, and a thinned sample of the other rock. It helped thin units on the projects tested, but one thick unit got worse: compare with the test on unseen holes.", { s: FOCUS_SPACING })}>
+                  <label style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 6 }} title={tr("Trains on a point every {s} m in the unit and its contacts, plus a thinned sample of other rock. It helped thin units but not a thick one: check unseen holes.", { s: FOCUS_SPACING })}>
                     <input type="checkbox" checked={!!unitPlan.denseOn} onChange={(e) => setDenseNear(e.target.checked)} />{" "}<span>{tr("Sample densely near the unit")}{unitPlan.focus.thin ? ` ${tr("(on by default: its runs are thin, median {m} m)", { m: unitPlan.focus.medianRunM })}` : ""}</span></label>
                 )}
                 <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }} title={tr("Trains again without every 4th hole and scores the model on those holes. About twice the time.")}>
@@ -338,7 +338,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
                       {unitPlan.factor > 1 && <>{" "}{tr("The spacing is widened to {s} m to fit.", { s: unitPlan.trainSpacing })}</>}
                     </div>}
                     <div style={{ color: "var(--color-text-muted)" }}>{tr("This run: {p} points, {t} of training on a recent laptop{v}. A rough guide; predicting the blocks comes after.", { p: unitPlan.points.toLocaleString(), t: roughTime(unitPlan.seconds), v: deep ? tr(", longer with folds") : "" })}</div>
-                    {unitPlan.capped && <div style={{ color: "var(--color-text-muted)" }}>{tr("{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.", { c: unitPlan.contacts.toLocaleString(), n: unitPlan.inducingBuilt.toLocaleString(), cap: INDUCING_CAP })}</div>}
+                    {unitPlan.capped && <div style={{ color: "var(--color-text-muted)" }}>{tr("{c} contacts need {n} inducing points; an up-to-date add-on keeps {cap} along the holes, so the model will be coarse. Check its fit to the logs.", { c: unitPlan.contacts.toLocaleString(), n: unitPlan.inducingBuilt.toLocaleString(), cap: INDUCING_CAP })}</div>}
                   </div>
                 )}
                 <button type="button" style={{ ...btn(true, !ready || !unit.size), marginTop: 8, width: "100%" }} disabled={!ready || !unit.size} onClick={runUnit}>{tr("Model {v}", { v: unit.size ? (unitName.trim() || [...unit].join(" + ")) : tr("the unit") })}</button>

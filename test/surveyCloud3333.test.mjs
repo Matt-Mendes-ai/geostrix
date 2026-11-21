@@ -54,7 +54,7 @@ test("wiring: a 3D survey is a Level card; the card says how it is read; 'Read a
   assert.match(p, /out\.levelUsed = levelSet\(level\) && layers\.some\(\(l\) => levelKind\(l\) && !\(l\.kind === "voxel" && \(l\.zMin != null \|\| l\.zMax != null\)\)\);/);
   assert.equal((p.match(/levelUsed=\{result\.levelUsed\}/g) || []).length, 2);
   assert.match(p, /levelUsed \? tr\("Read at \{band\} \(the Level\)\."/);
-  const keys = ["The Level ({band}) was not used: none of these cards reads elevations.", "A 3D survey (readings at RL {a} to {b} m): read inside the Level, {n} of its {total} readings.", "A 3D survey (readings at RL {a} to {b} m): each cell takes the readings nearest in plan at every depth, mixed. Set a Level to read one depth band."];
+  const keys = ["The Level ({band}) was not used: none of these cards reads elevations.", "A 3D survey (readings at RL {a} to {b} m): read inside the Level, {n} of its {total} readings.", "A 3D survey (readings at RL {a} to {b} m): each cell mixes the nearest readings at every depth. Set a Level to read one depth band."];
   for (const k of keys) assert.ok(p.includes(`tr("${k}"`), k);
   for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8")); for (const k of keys) assert.ok(d[k], `${l}: ${k}`); }
 });

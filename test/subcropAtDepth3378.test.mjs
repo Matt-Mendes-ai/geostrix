@@ -47,5 +47,5 @@ test("the layer is named for a depth down the holes, and the pane says which cov
   const s = fs.readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
   assert.ok(s.includes('tr("Units {d} m down the holes", { d: depth })') && !s.includes("m below the collars"));
   assert.ok(s.includes("if (depth != null) lo.coverOnly = 0;"));
-  assert.ok(s.includes("cover_along_hole_m is its length down the hole"));
+  assert.ok(s.includes("its length down the hole (cover_along_hole_m)"));
 });

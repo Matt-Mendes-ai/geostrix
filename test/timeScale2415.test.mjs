@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 test("the button says the colours are included (no longer online)", () => {
   const p = readFileSync(new URL("../src/components/SurfaceMappingPanel.jsx", import.meta.url), "utf8");
   assert.match(p, /\{tr\("Time-scale colours"\)\}<\/button>/);
-  assert.match(p, /\(Macrostrat, CC BY 4\.0, included with GeoStrix: no internet needed\)\. The others keep their colours\."\)\}/);
+  assert.match(p, /\(Macrostrat, CC BY 4\.0; works offline\)\. Other units keep their colours\."\)\}/);
   assert.doesNotMatch(p, /Time-scale colours \(online\)/);
   assert.doesNotMatch(p, /The time-scale colours come from Macrostrat over the internet/);
 });

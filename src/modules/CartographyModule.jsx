@@ -181,7 +181,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
       : named
       ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is {crs}, from the values of its {col} column: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x || "?", y: g.y || "?", crs: nameOf(named), col: frame.cols.join(" / ") })
       : frame?.mixed
-      ? tr("\"{name}\": {rows} rows. Its {col} column names more than one grid ({names}): the rows are not in one CRS, so From is left for you to choose. Check the X / Y columns, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), col: frame.cols.join(" / "), names: frame.groups.slice(0, 4).map((x) => `${x.name} (${x.rows.toLocaleString()})`).join(", ") })
+      ? tr("\"{name}\": {rows} rows from more than one grid ({names}, in {col}), so not one CRS. Choose From, check the X / Y columns, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), col: frame.cols.join(" / "), names: frame.groups.slice(0, 4).map((x) => `${x.name} (${x.rows.toLocaleString()})`).join(", ") })
       : srid
       ? tr("\"{name}\": {rows} rows. X / Y are {x} / {y}, and From is {crs}, from its {col} column: check both, then save.", { name: f.name, rows: t.rows.length.toLocaleString(), x: g.x || "?", y: g.y || "?", crs: nameOf(srid.epsg), col: srid.col })
       : implied && !g.geographic
@@ -263,7 +263,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                  scene, depths, distances and grids are metres, so collars in degrees put every hole on one point with
                  traces hundreds of "degrees" long (Matt's WGS 84 test: all holes fanned out of one spot). */
               <div role="alert" style={{ ...note, color: "var(--color-warn-text-strong)" }}>
-                {tr("{v} is geographic (latitude/longitude in degrees). The 3D view, hole depths, distances and grids all work in metres, so the project needs a projected CRS: {suggest}. To hand data to someone in WGS 84, use", { v: nameOf(newCrs), suggest: (() => { /* #2465 — where the collars are, not British Columbia everywhere */ const at = project?.crsSet !== false && project?.epsg ? collarCentreLonLat(store.collars, project.epsg) : null; const c = at ? crsCandidatesAt(at.lon, at.lat).slice(0, 2).map((x) => x.name) : []; return c.length ? tr("where the collars are, for example {names}", { names: c.join(tr(" or ")) }) : tr("a UTM zone or the national grid of the area"); })() })}{" "}<b>{tr("A file")}</b>{" "}{tr("in the ribbon above: it writes a reprojected copy and leaves the project as it is.")}</div>
+                {tr("{v} is geographic (degrees). The 3D view, depths and grids work in metres, so the project needs a projected CRS: {suggest}. To hand data to someone in WGS 84, use", { v: nameOf(newCrs), suggest: (() => { /* #2465 — where the collars are, not British Columbia everywhere */ const at = project?.crsSet !== false && project?.epsg ? collarCentreLonLat(store.collars, project.epsg) : null; const c = at ? crsCandidatesAt(at.lon, at.lat).slice(0, 2).map((x) => x.name) : []; return c.length ? tr("where the collars are, for example {names}", { names: c.join(tr(" or ")) }) : tr("a UTM zone or the national grid of the area"); })() })}{" "}<b>{tr("A file")}</b>{" "}{tr("in the ribbon above: it writes a reprojected copy and leaves the project as it is.")}</div>
             )}
             {/* TASKS.csv #2291 (review #2174) — the status-bar dialog's landing check, here too: the pane set GDA94 / MGA 51 on a local mine grid
                 with no word, and the 245 collars "were" in the Southern Ocean */}
@@ -282,7 +282,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
               const problems = <>
                 {at && odd ? " " + tr("That is near a pole: almost certainly not the CRS these coordinates are in.") : ""}
                 {at && !odd && !inside ? " " + tr("Read as {v}, these numbers fall outside the area it is used in ({area}): they are not in it.", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }), area: areaText(area) }) : ""}
-                {spread?.far ? " " + tr("{far} of the {total} collars land more than 50 km from the others (up to {km} km): they are not all in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() }) : ""}
+                {spread?.far ? " " + tr("{far} of the {total} collars are more than 50 km from the others (up to {km} km): they are not in one coordinate frame.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() }) : ""}
                 {small ? " " + tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.", { n: small.n, of: small.of, x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString() }) : ""}
               </>;
               if (both) return (
@@ -344,7 +344,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
         {pane === "file" && (
           <>
             <TaskPaneHeader icon={FileSpreadsheet} title="Reproject a file" />
-            <div style={note}>{tr("A CSV: its X/Y columns are converted and saved as a copy with two new columns. A zipped shapefile: every layer and vertex is converted and saved as a new zip with a .prj for the new CRS. A GeoTIFF: warped into the new CRS (bilinear for decimal grids such as DEMs, nearest for classes and imagery) and saved as a new GeoTIFF. Nothing is imported into the project.")}</div>
+            <div style={note}>{tr("A CSV: X/Y converted in a copy with two new columns. A zipped shapefile: converted into a new zip with a .prj. A GeoTIFF: warped (bilinear for decimal grids, nearest for classes and imagery) into a new GeoTIFF. Nothing is imported into the project.")}</div>
             <label style={{ ...btn, marginTop: 10 }}>
               <FileSpreadsheet size={14} /> {file ? file.name : tr("Choose a CSV, zipped shapefile or GeoTIFF…")}
               <input type="file" accept=".csv,.txt,.zip,.tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
@@ -391,7 +391,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 <div style={{ marginTop: 10 }}><CrsPicker label={tr("To")} value={fileTo} onChange={setFileTo} height={120} /></div>
                 {/* TASKS.csv #2461 — metres declared as degrees: said before Save, and Save held while most rows cannot be longitude / latitude */}
                 {fromDegrees && fromDegrees.outside > 0 && (
-                  <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so they are not longitude / latitude: check the From CRS. Such rows are left blank.", { n: fromDegrees.outside.toLocaleString(), m: fromDegrees.checked.toLocaleString(), x: fromDegrees.example[0].toLocaleString(), y: fromDegrees.example[1].toLocaleString() })}</div>
+                  <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Check the From CRS: {n} of {m} rows checked have X / Y outside ±180 / ±90 (e.g. {x}, {y}), so are not longitude / latitude. Such rows are left blank.", { n: fromDegrees.outside.toLocaleString(), m: fromDegrees.checked.toLocaleString(), x: fromDegrees.example[0].toLocaleString(), y: fromDegrees.example[1].toLocaleString() })}</div>
                 )}
                 {fromLanding && ( /* TASKS.csv #3460 */
                   <div role="note" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: fromLanding.off && fromLanding.off.km > 50 ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4 }}>
@@ -400,7 +400,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                   </div>
                 )}
                 {fromUtm && fromUtm.outside > 0 && ( /* TASKS.csv #2588 */
-                  <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{n} of {m} rows checked have X / Y that no UTM / MGA zone has (e.g. {x}, {y}): they look like a local mine grid, not {crs}. Check the X / Y columns and the From CRS. Such rows are left blank.", { n: fromUtm.outside.toLocaleString(), m: fromUtm.checked.toLocaleString(), x: fromUtm.example[0].toLocaleString(), y: fromUtm.example[1].toLocaleString(), crs: nameOf(fileFrom) })}</div>
+                  <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Check the X / Y columns and the From CRS: {n} of {m} rows checked fit no UTM / MGA zone (e.g. {x}, {y}), more like a local mine grid than {crs}. Such rows are left blank.", { n: fromUtm.outside.toLocaleString(), m: fromUtm.checked.toLocaleString(), x: fromUtm.example[0].toLocaleString(), y: fromUtm.example[1].toLocaleString(), crs: nameOf(fileFrom) })}</div>
                 )}
                 <button style={primary} disabled={busy || !file.xCol || !file.yCol || !fileFrom || !fileTo || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2) || (fromUtm && fromUtm.outside > fromUtm.checked / 2)} onClick={saveReprojected}>
                   {busy ? <Loader2 size={14} className="spin" /> : <FileSpreadsheet size={14} />}{" "}{tr("Save reprojected CSV…")}</button>
@@ -421,7 +421,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
         {project.crsSet === false && tieOf(project) ? ( /* TASKS.csv #2587 — a tied local grid is not 'not chosen yet' */
           <>
             <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>{project.localGrid?.name ? tr("Local mine grid \"{name}\"", { name: project.localGrid.name }) : tr("Local mine grid")}</div>
-            <div style={{ ...note, fontSize: "var(--font-size-base)" }}>{tr("The coordinates are the grid's own numbers, tied to {crs} (EPSG:{epsg}): files with their own coordinate system are brought into the grid through the tie on import.", { crs: crsName(tieOf(project).epsg) || "", epsg: tieOf(project).epsg })}</div>
+            <div style={{ ...note, fontSize: "var(--font-size-base)" }}>{tr("The coordinates are the grid's own numbers, tied to {crs} (EPSG:{epsg}); files in another coordinate system are brought in through the tie.", { crs: crsName(tieOf(project).epsg) || "", epsg: tieOf(project).epsg })}</div>
           </>
         ) : project.crsSet === false ? ( /* TASKS.csv #2289 — the placeholder is not the project's CRS: no name, code or location from it */
           <>

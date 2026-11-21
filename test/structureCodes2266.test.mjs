@@ -42,5 +42,5 @@ test("the card offers a class per unknown code, saved to the project; Model from
   assert.match(p, /setStructureCodeClasses\(picked\)/);
   assert.match(p, /parseStructureRows\(p\.rows, p\.cols, codeClasses\)/);
   assert.match(readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8"), /structureCodeClasses: \{ \.\.\.\(p\.structureCodeClasses \|\| \{\}\), \.\.\.m \}/);
-  assert.match(readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8"), /none of the \{n\} outcrop measurement\(s\) is in a class ticked/);
+  assert.match(readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8"), /none of the \{n\} outcrop measurement\(s\) is in a ticked 'Orientations from' class/);
 });

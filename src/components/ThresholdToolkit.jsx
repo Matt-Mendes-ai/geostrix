@@ -157,9 +157,9 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
             </select></label>
           </div>
           {drill
-            ? <div style={note}>{tr("Each assay counts by its length: a 3 m interval three times a 1 m one, so close sampling in the ore does not outweigh the background. Judge each domain against its own population: group by the lithology, alteration or weathering code each interval overlaps most. The histogram counts intervals.")}</div>
-            : <div style={note}>{tr("A soil over basalt and one over granite, or a B and a C horizon, have different backgrounds: judge each against its own population. Group by medium, by any column of your sample file (horizon, landform, lab, year...), or by the map unit each sample falls in.")}</div>}
-          {mixedSources && <div style={{ ...note, color: groupBy === "medium_source" || groupBy === "attr:source" ? undefined : "var(--color-warn-text)" }}>{tr("Public survey samples and your own are judged apart by default (medium and source): different labs, methods and decades. GeoStrix does not level one survey to another.")}</div>}
+            ? <div style={note}>{tr("Each assay counts by its length, so close sampling in the ore does not outweigh the background. Group by the lithology, alteration or weathering code each interval overlaps most. The histogram counts intervals.")}</div>
+            : <div style={note}>{tr("Soils over basalt and granite, or in B and C horizons, have different backgrounds: judge each on its own. Group by medium, any sample-file column, or map unit.")}</div>}
+          {mixedSources && <div style={{ ...note, color: groupBy === "medium_source" || groupBy === "attr:source" ? undefined : "var(--color-warn-text)" }}>{tr("Public survey samples and your own are judged apart by default, as labs, methods and decades differ. GeoStrix does not level one survey to another.")}</div>}
           {saved && (
             <div style={{ ...note, color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px" }}>
               {tr("Saved for {symbol}: {rule}, populations by {groups}, decided {date}.", { symbol, rule: tr(saved.methodLabel), groups: saved.groupLabel, date: saved.decided })}
@@ -174,7 +174,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>
-                      <th style={{ ...th, textAlign: "start" }}>{tr("Population")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No result in the file is flagged '<': this is the share on the column's lowest value, read as half a substituted limit (a guess from the data)") : tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("On the floor %")}</th>{/* #3243 */}
+                      <th style={{ ...th, textAlign: "start" }}>{tr("Population")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No result is flagged '<': this is the share on the column's lowest value, read as half a substituted limit (a guess).") : tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("On the floor %")}</th>{/* #3243 */}
                       {shownMethods.map((m) => (
                         <th key={m.id} style={{ ...th, cursor: "pointer", background: method === m.id ? "var(--color-selected-bg)" : undefined }} title={`${tr(m.label)}${m.ref ? ` (${m.ref})` : ""}: ${tr(m.assumption)}`} onClick={() => setMethod(m.id)}>
                           <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: METHOD_COLOURS[m.id], marginRight: 4 }} />{tr(m.label)}
@@ -196,11 +196,11 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
                   </tbody>
                 </table>
               </div>
-              <div style={note}>{tr("Values in {unit}. Click a column to choose its rule, a row to plot that population. Robust rules need at least {a} samples; the probability-plot break needs {b} and is suggested only where the plot really bends.", { unit: dispUnit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
+              <div style={note}>{tr("Values in {unit}. Click a column to pick its rule, a row to plot it. Robust rules need at least {a} samples, the probability-plot break {b}.", { unit: dispUnit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
               <label style={{ ...note, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><input type="checkbox" checked={logOn} onChange={(e) => setLogChoice({ key: scaleKey, on: e.target.checked })} />{tr("Log scale and the log rules")}</label>{/* #3070 */}
-              {!logOn && <div style={note}>{autoScale === "linear" ? tr("{symbol} reads as a major element here: per cent of the rock, not skewed like a trace element. The plots are arithmetic, and the rules are worked on the values themselves (mean ± 2 SD, the probability-plot break); the log rules, which assume a log-normal population, are behind the tick. A major is often read by its cut-offs too (Grade stats, Above cut-off).", { symbol }) /* #3173 */ : tr("Arithmetic scale: the log rules are not offered.")}</div>}
-              {unusableRules.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Struck through: {rules} land above every sample of their population (or over 100 %): such a rule finds no anomaly here, often a sign of two populations. The probability plot's break and the Populations selector separate them; these rules cannot be saved.", { rules: unusableRules.map((m) => tr(m.label)).join(", ") })}</div>}{/* #2507 */}
-              {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
+              {!logOn && <div style={note}>{autoScale === "linear" ? tr("{symbol} reads as a major element: the plots and rules use the values themselves, and the log rules are behind the tick. A major is often read by its cut-offs too (Grade stats, Above cut-off).", { symbol }) /* #3173 */ : tr("Arithmetic scale: the log rules are not offered.")}</div>}
+              {unusableRules.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Struck through: {rules} land above every sample (or over 100 %) and find no anomaly here, often a sign of two populations. Separate them with the Populations selector; these rules cannot be saved.", { rules: unusableRules.map((m) => tr(m.label)).join(", ") })}</div>}{/* #2507 */}
+              {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" are 0 in the source (below detection or not analyzed: the layer does not say) and are left out of n and every threshold. If below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
               {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: formatLimit(sh(floor.floor)), unit: dispUnit, dl: formatLimit(sh(floor.dl)) })}</div>}{/* #1520 */}
               {step && <div style={note}>{tr("{el} is reported to {step} {unit}, with {n} results of 0 below it: {step} is the reporting step, not half a limit, so it is not counted as <DL.", { el: symbol, step: formatLimit(sh(step.step)), unit: dispUnit, n: step.zeros.toLocaleString() })}</div>}{/* #2913 */}
               {view && view.summary.censoredPct > 30 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round(view.summary.censoredPct), symbol, pop: groupLabel(view.key) })}</div>}
@@ -231,7 +231,7 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
                     </React.Fragment>
                   ))}
                 </div>
-                <div style={{ ...note, marginTop: 6 }}>{tr("Geologists disagree on which rule is right, and none of them knows the geology. The threshold you save is a decision: it is stored with the project, with the date and rule, so it can be reviewed.")}</div>
+                <div style={{ ...note, marginTop: 6 }}>{tr("Geologists disagree on the right rule. The threshold you save is a decision, stored with its date and rule for review.")}</div>
               </div>
             </>
           )}
