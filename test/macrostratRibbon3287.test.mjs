@@ -9,8 +9,8 @@ const rd = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8").
 test("the Maps ribbon: a strata icon in Map layers, not Advanced-only, asking the Web layers pane for the dialog", () => {
   const m = rd("modules/MapsModule.jsx");
   const group = m.slice(m.indexOf('<RibbonGroup label="Map layers">'), m.indexOf("</RibbonGroup>", m.indexOf('<RibbonGroup label="Map layers">')));
-  assert.match(group, /<RibbonButton advanced icon=\{Layers3\} label="Geology \(Macrostrat\)" tone="data" title="[^"]+" \{\.\.\.btn\("web", "open-macrostrat"\)\} active=\{false\} \/>/);
-  assert.match(m, /import \{[^}]*\bLayers3\b[^}]*\} from "\.\.\/components\/icons\.js"/);
+  assert.match(group, /<RibbonButton advanced icon=\{GeologyIcon\} label="Geology \(Macrostrat\)" tone="data" title="[^"]+" \{\.\.\.btn\("web", "open-macrostrat"\)\} active=\{false\} \/>/);
+  assert.match(m, /import \{[^}]*\bGeologyIcon\b[^}]*\} from "\.\.\/components\/ribbonIcons\.js(x)?"/); // #3958: the drawn Geology icon
   assert.match(rd("components/icons.js"), /export const Layers3 = /);
 });
 
