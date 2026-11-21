@@ -55,7 +55,7 @@ export default function SectionTabs() {
   return (
     <div className="ge-section-host" style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#ffffff" }}>
       {tabs.length > 1 && (
-        <div className="ge-section-tabbar" role="tablist" aria-label={tr("Open sections")} style={{ display: "flex", flexShrink: 0, gap: 2, overflowX: "auto", scrollbarWidth: "thin", padding: "4px 8px 0", background: "#f4f5f7", borderBottom: "1px solid #d9dce1", fontFamily: "'Exo 2', system-ui, sans-serif", fontSize: 12, color: "#1a2028" }}>
+        <div className="ge-section-tabbar" role="tablist" aria-label={tr("Open sections")} style={{ display: "flex", flexShrink: 0, gap: 2, overflowX: "auto", scrollbarWidth: "thin", padding: "4px 8px 0", background: "#f4f5f7", borderBottom: "1px solid #d9dce1", fontFamily: "'Exo 2', system-ui, sans-serif", fontSize: "var(--font-size-base)", color: "#1a2028" }}>
           {tabs.map((t) => (
             <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, maxWidth: 220, padding: "4px 8px", borderRadius: "5px 5px 0 0", background: t.id === shown ? "#ffffff" : "transparent", border: "1px solid #d9dce1", borderBottomColor: t.id === shown ? "#ffffff" : "#d9dce1", marginBottom: -1 }}>
               <button type="button" role="tab" aria-selected={t.id === shown} onClick={() => setActive(t.id)} title={t.title} style={{ ...barBtn, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: t.id === shown ? 600 : 400 }}>{t.title || tr("Cross-section")}</button>

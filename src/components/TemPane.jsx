@@ -26,7 +26,8 @@ let LAST = null; // the pane's state between visits (the tab unmounts it)
 
 // the channels stacked along one line: log10 of each gate's positive readings against the distance along the line
 function Profiles({ line, mat, sel, onPick }) {
-  const W = 300, H = 190, pl = 34, pb = 18, pt = 4, m = mat.m;
+  // TASKS.csv #3900 T2 — the 10 px floor: drawn in the side panel at about 0.85 of 300 units, so the labels are 12 units (10.2 px), the left margin wider
+  const W = 300, H = 190, pl = 40, pb = 18, pt = 4, m = mat.m;
   const { lo, hi } = useMemo(() => {
     let a = Infinity, b = -Infinity;
     for (const i of line.idx) for (let k = 0; k < m; k++) { const v = mat.v[i * m + k]; if (v > 0) { const l = Math.log10(v); if (l < a) a = l; if (l > b) b = l; } }
@@ -50,17 +51,17 @@ function Profiles({ line, mat, sel, onPick }) {
   const ticks = []; for (let l = lo; l <= hi; l++) ticks.push(l);
   return (
     <svg ref={ref} viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", cursor: "crosshair", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4 }} onClick={pick} role="img" aria-label={tr("The TEM channels stacked along the line; click a station for its decay")}>
-      {ticks.map((l) => <g key={l}><line x1={pl} x2={W - 4} y1={sy(l)} y2={sy(l)} stroke="var(--color-border)" strokeWidth={0.5} /><text x={pl - 3} y={sy(l) + 3} fontSize={8} textAnchor="end" fill="var(--color-text-muted)">{`1e${l}`}</text></g>)}
+      {ticks.map((l) => <g key={l}><line x1={pl} x2={W - 4} y1={sy(l)} y2={sy(l)} stroke="var(--color-border)" strokeWidth={0.5} /><text x={pl - 3} y={sy(l) + 4} fontSize={12} textAnchor="end" fill="var(--color-text-muted)">{`1e${l}`}</text></g>)}
       {paths}
       {j >= 0 && <line x1={sx(line.d[j])} x2={sx(line.d[j])} y1={pt} y2={H - pb} stroke="var(--color-text)" strokeDasharray="3 2" strokeWidth={0.8} />}
-      <text x={W - 4} y={H - 4} fontSize={8} textAnchor="end" fill="var(--color-text-muted)">{tr("{d} m along the line", { d: Math.round(dMax).toLocaleString() })}</text>
+      <text x={W - 4} y={H - 4} fontSize={12} textAnchor="end" fill="var(--color-text-muted)">{tr("{d} m along the line", { d: Math.round(dMax).toLocaleString() })}</text>
     </svg>
   );
 }
 
 // one station's decay, log-log, with the fitted exponential over the gates it used
 function Decay({ times, vals, fit }) {
-  const W = 300, H = 150, pl = 34, pb = 18, pt = 4;
+  const W = 300, H = 150, pl = 40, pb = 18, pt = 4; // #3900: as Profiles
   const ok = times.map((t, k) => (t > 0 && vals[k] > 0 ? k : -1)).filter((k) => k >= 0);
   if (ok.length < 2) return <div style={note}>{tr("This station has fewer than two positive readings with a gate time.")}</div>;
   const lt = ok.map((k) => Math.log10(times[k])), lv = ok.map((k) => Math.log10(vals[k]));
@@ -70,8 +71,8 @@ function Decay({ times, vals, fit }) {
   if (fit) for (let s = 0; s <= 24; s++) { const t = times[fit.from] + (s / 24) * (times[fit.to] - times[fit.from]), v = Math.exp(fit.a - t / fit.tau); if (v > 0) fitPath += `${s ? "L" : "M"}${sx(Math.log10(t)).toFixed(1)},${sy(Math.log10(v)).toFixed(1)}`; }
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4 }} role="img" aria-label={tr("The decay at the station: each gate's reading against its time, with the fitted late-time exponential")}>
-      {Array.from({ length: y1 - y0 + 1 }, (_, i) => y0 + i).map((l) => <text key={`y${l}`} x={pl - 3} y={sy(l) + 3} fontSize={8} textAnchor="end" fill="var(--color-text-muted)">{`1e${l}`}</text>)}
-      {Array.from({ length: x1 - x0 + 1 }, (_, i) => x0 + i).map((l) => <text key={`x${l}`} x={sx(l)} y={H - 6} fontSize={8} textAnchor="middle" fill="var(--color-text-muted)">{`${10 ** l} ms`}</text>)}
+      {Array.from({ length: y1 - y0 + 1 }, (_, i) => y0 + i).map((l) => <text key={`y${l}`} x={pl - 3} y={sy(l) + 4} fontSize={12} textAnchor="end" fill="var(--color-text-muted)">{`1e${l}`}</text>)}
+      {Array.from({ length: x1 - x0 + 1 }, (_, i) => x0 + i).map((l, i, all) => <text key={`x${l}`} x={sx(l)} y={H - 5} fontSize={12} textAnchor={i === 0 ? "start" : i === all.length - 1 ? "end" : "middle"} fill="var(--color-text-muted)">{`${10 ** l} ms`}</text>)}{/* #3900: the end labels inside the plot */}
       {ok.map((k) => <circle key={k} cx={sx(Math.log10(times[k]))} cy={sy(Math.log10(vals[k]))} r={2.4} fill={gateColour(k, times.length)} />)}
       {fitPath && <path d={fitPath} fill="none" stroke="#b2182b" strokeWidth={1.4} />}
     </svg>

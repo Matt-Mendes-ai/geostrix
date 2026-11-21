@@ -26,7 +26,7 @@ test("#3558 the density track: 'Density (t/m³)', a scale from a little below th
   assert.match(src, /opacity=\{calc \? 0\.3 : 0\.75\} stroke=\{calc \? "#4a9be0" : undefined\} strokeDasharray=\{calc \? "2 1\.5" : undefined\}/);
   assert.match(src, /\$\{t\.unit \? ` \$\{t\.unit\}` : ""\}\$\{meth \? ` \(\$\{meth\}\$\{calc \? tr\(": calculated, not measured"\) : ""\}\)` : ""\}/);
   // the scale also under the header
-  assert.match(src, /y=\{PAD_TOP - 3\} fontSize="7" textAnchor="middle" fill="#65717e">\{barCaption\(t\)\}/);
+  assert.match(src, /y=\{PAD_TOP - 3\} fontSize="10" textAnchor="middle" fill="#65717e">\{barCaption\(t\)\}/); // #3900: 10 px
   // the Macpass densities (1.92 to 4.839 on NB23-019): the scale starts at 1.6, not 0
   assert.equal(densityLo([1.92, 2.6, 3.4, 4.839]), 1.6);
   assert.equal(densityLo([2.5, 2.5]), null, "one value: no spread, the plain scale");

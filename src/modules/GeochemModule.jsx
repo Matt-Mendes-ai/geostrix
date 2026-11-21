@@ -1450,10 +1450,10 @@ export default function GeochemModule() {
         <input ref={surfaceFileRef} type="file" multiple accept=".csv,.xlsx,.shp,.dbf,.prj,.cpg,.shx,.zip,.gpkg,.kml,.kmz" /* #2016 */ style={{ display: "none" }} onChange={(e) => { const f = SHP_GROUP(Array.from(e.target.files || []))[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
 
         <div className="ge-section-label">{tr("Assays & pXRF")}</div>
-        <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", margin: "10px 0 4px" }}>
           {assays.length ? (headCounts.qc || headCounts.calc ? headerCounts(headCounts) : tr(assayElements.length === 1 ? "{assays} intervals · 1 element" : "{assays} intervals · {assayElements} elements", { assays: assays.length, assayElements: assayElements.length })) : tr("No assays loaded")}{/* #2201 — a singular / plural pair; QC / calculated apart: #2035 */}
         </div>
-        {assays.length > 0 && <div style={{ margin: "0 0 6px" }}><button type="button" onClick={() => openDataTable({ source: "assays" })} style={{ background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", font: "inherit", fontSize: 11, textDecoration: "underline" }} title={tr("Every assay row as a table: the units in the headings, sort, filter, find")}>{tr("Assay table")}</button></div> /* TASKS.csv #3563 */}
+        {assays.length > 0 && <div style={{ margin: "0 0 6px" }}><button type="button" onClick={() => openDataTable({ source: "assays" })} style={{ background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", font: "inherit", fontSize: "var(--font-size-sm)", textDecoration: "underline" }} title={tr("Every assay row as a table: the units in the headings, sort, filter, find")}>{tr("Assay table")}</button></div> /* TASKS.csv #3563 */}
         {/* TASKS.csv #624 — remove what was imported: a whole file, one element, or everything (all undoable) */}
         {staleCalcs.length > 0 && ( /* TASKS.csv #3923 */
           <div role="status" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "6px 0", lineHeight: 1.4 }}>
@@ -1463,11 +1463,11 @@ export default function GeochemModule() {
         )}
         {assays.length > 0 && <AssayRemovePanel assays={assays} assayElements={assayElements} setAssays={setAssays} setAssayElements={setAssayElements} setNotices={setNotices} colorElement={colorElement} setColorElement={setColorElement} />}
         <div className="ge-section-label" style={{ marginTop: 14 }}>{tr("Surface samples")}</div>
-        <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", margin: "10px 0 4px" }}>
           {surfaceSamples.length ? tr("{surfaceSamples} samples · {surfaceElements} elements", { surfaceSamples: surfaceSamples.length, surfaceElements: surfaceElements.length }) : tr("No surface samples loaded")}
         </div>
-        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.")}</div>
-        {assayElements.length > 0 && <div style={{ fontSize: 10, color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>{tr("Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.")}</div>}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.")}</div>
+        {assayElements.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>{tr("Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.")}</div>}
 
         <SampleGridPanel setNotices={setNotices} />{/* TASKS.csv #1622 — a soil grid */}
 
@@ -1568,7 +1568,7 @@ export default function GeochemModule() {
           {diagramId === "xy" && ( /* TASKS.csv #1678 — the scatter's two axes */
             <>
               {[["X", xyKeyX, setXyX], ["Y", xyKeyY, setXyY]].map(([axis, value, set]) => (
-                <label key={axis} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{axis}
+                <label key={axis} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{axis}
                   <select aria-label={tr("{axis} axis", { axis })} value={value} onChange={(e) => set(e.target.value)} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 220 }}>
                     {!value && <option value="">{tr("— choose —")}</option>}{/* #2193 */}
                     <optgroup label={tr("Elements")}>{assayElements.map((e) => { const none = xyEmptyElements.has(e.symbol), name = e.unit ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol; return <option key={e.symbol} value={`el:${e.symbol}`} disabled={none && value !== `el:${e.symbol}`}>{none ? tr("{name} — no value in these samples", { name }) : name}</option>; })}</optgroup>{/* none: #2719 */}
@@ -1577,25 +1577,25 @@ export default function GeochemModule() {
                 </label>
               ))}
               {[["X", xyScaleX, setXyScaleX], ["Y", xyScaleY, setXyScaleY]].map(([axis, value, set]) => ( /* TASKS.csv #3585 — log / linear per axis: a grade axis went log whenever its values spanned a decade, with nothing to turn it off */
-                <label key={`scale${axis}`} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("{axis} scale", { axis })}
+                <label key={`scale${axis}`} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{tr("{axis} scale", { axis })}
                   <select aria-label={tr("{axis} axis scale", { axis })} value={value} onChange={(e) => set(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
                     {AXIS_SCALES.map((k) => <option key={k} value={k}>{k === "auto" ? tr("auto") : k === "log" ? tr("log") : tr("linear")}</option>)}
                   </select>
                 </label>
               ))}
               {/* TASKS.csv #2353 — a 1:1 line and the numbers a log-against-assay check reads */}
-              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}><input type="checkbox" checked={!!xyOne} onChange={(e) => setXyOne(e.target.checked)} />{tr("1:1 line")}</label>
-              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Statistics where X ≥")}<NumberInput allowEmpty value={xyMin} onChange={(v) => setXyMin(v == null ? "" : String(v))} aria-label={tr("Statistics where X is at least")} style={{ ...selectStyle, width: 80, padding: "4px 6px" }} /></label>
-              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("A least-squares line of Y on X over the samples counted below (X ≥ the value typed), with its equation and r²")}><input type="checkbox" checked={!!xyFit} onChange={(e) => setXyFit(e.target.checked)} />{tr("Fit line")}</label>{/* #3577 */}
-              {xyStat && !xyStat.ratioOk && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y {m} · mean Y {w}", { n: fmtNum(xyStat.n), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianY) ? +xyStat.medianY.toPrecision(4) : "—", w: Number.isFinite(xyStat.meanY) ? +xyStat.meanY.toPrecision(4) : "—" })}</span>}{/* #3577 — a density against a grade has no Y / X */}
-              {xyFit && xyStat?.fit && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}", { a: +xyStat.fit.slope.toPrecision(4), sign: xyStat.fit.intercept < 0 ? "−" : "+", b: +Math.abs(xyStat.fit.intercept).toPrecision(4), r2: xyStat.fit.r2.toFixed(3), n: xyStat.fit.n.toLocaleString() })}</span>}
-              {xyStat && xyStat.ratioOk && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}", { n: fmtNum(xyStat.n), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianRatio) ? axisFig(xyStat.medianRatio) : "—", w: Number.isFinite(xyStat.weightedRatio) ? axisFig(xyStat.weightedRatio) : "—" /* TASKS.csv #3293 — 1570, not 1.57e+3 */ })}{xyStat.inPpm ? ` ${tr("(ratios in ppm / ppm: the two axes are stored in different units)")}` : "" /* #3219 */}</span>}
+              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}><input type="checkbox" checked={!!xyOne} onChange={(e) => setXyOne(e.target.checked)} />{tr("1:1 line")}</label>
+              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{tr("Statistics where X ≥")}<NumberInput allowEmpty value={xyMin} onChange={(v) => setXyMin(v == null ? "" : String(v))} aria-label={tr("Statistics where X is at least")} style={{ ...selectStyle, width: 80, padding: "4px 6px" }} /></label>
+              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("A least-squares line of Y on X over the samples counted below (X ≥ the value typed), with its equation and r²")}><input type="checkbox" checked={!!xyFit} onChange={(e) => setXyFit(e.target.checked)} />{tr("Fit line")}</label>{/* #3577 */}
+              {xyStat && !xyStat.ratioOk && <span style={{ fontSize: "var(--font-size-sm)", color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y {m} · mean Y {w}", { n: fmtNum(xyStat.n), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianY) ? +xyStat.medianY.toPrecision(4) : "—", w: Number.isFinite(xyStat.meanY) ? +xyStat.meanY.toPrecision(4) : "—" })}</span>}{/* #3577 — a density against a grade has no Y / X */}
+              {xyFit && xyStat?.fit && <span style={{ fontSize: "var(--font-size-sm)", color: "#2a3444" }} role="status">{tr("Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}", { a: +xyStat.fit.slope.toPrecision(4), sign: xyStat.fit.intercept < 0 ? "−" : "+", b: +Math.abs(xyStat.fit.intercept).toPrecision(4), r2: xyStat.fit.r2.toFixed(3), n: xyStat.fit.n.toLocaleString() })}</span>}
+              {xyStat && xyStat.ratioOk && <span style={{ fontSize: "var(--font-size-sm)", color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y / X {m} · length-weighted Y / X {w}", { n: fmtNum(xyStat.n), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianRatio) ? axisFig(xyStat.medianRatio) : "—", w: Number.isFinite(xyStat.weightedRatio) ? axisFig(xyStat.weightedRatio) : "—" /* TASKS.csv #3293 — 1570, not 1.57e+3 */ })}{xyStat.inPpm ? ` ${tr("(ratios in ppm / ppm: the two axes are stored in different units)")}` : "" /* #3219 */}</span>}
             </>
           )}
           {diagramId === "ternary" && ( /* TASKS.csv #3051 — the three corners and their factors */
             <>
               {[tr("Top"), tr("Bottom left"), tr("Bottom right")].map((corner, i) => (
-                <label key={i} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{corner}
+                <label key={i} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{corner}
                   <select aria-label={tr("{corner} corner", { corner })} value={ternKeysNow[i]} onChange={(e) => setTernKeys(ternKeysNow.map((k, j) => (j === i ? e.target.value : k)))} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 180 }}>
                     {!ternKeysNow[i] && <option value="">{tr("— choose —")}</option>}
                     <optgroup label={tr("Elements")}>{assayElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.unit ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol}</option>)}</optgroup>
@@ -1607,19 +1607,19 @@ export default function GeochemModule() {
             </>
           )}
           {anhMajors.length >= MIN_MAJORS && !(ALL_DIAGRAMS[diagramId]?.spider) && ( /* TASKS.csv #2942 — volatile-free majors */
-            <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("Each sample's major oxides are scaled to sum to 100 % (the loss on ignition left out), as classification diagrams such as TAS are drawn. Samples missing a major oxide are left out. Ratios do not change.")}><input type="checkbox" checked={anhydrousOn} onChange={(e) => setAnhydrous(e.target.checked)} />{tr("Majors to 100 % volatile-free")}</label>
+            <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Each sample's major oxides are scaled to sum to 100 % (the loss on ignition left out), as classification diagrams such as TAS are drawn. Samples missing a major oxide are left out. Ratios do not change.")}><input type="checkbox" checked={anhydrousOn} onChange={(e) => setAnhydrous(e.target.checked)} />{tr("Majors to 100 % volatile-free")}</label>
           )}
           {hasPxrf && ( /* TASKS.csv #1673 — which rows the plot uses */
-            <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, a bad reading at 36,096 ppm Rb): plotted apart from the lab assays unless you choose both.")}>{tr("Samples:")}<select aria-label={tr("Samples plotted")} value={plotSource} onChange={(e) => setPlotSource(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, a bad reading at 36,096 ppm Rb): plotted apart from the lab assays unless you choose both.")}>{tr("Samples:")}<select aria-label={tr("Samples plotted")} value={plotSource} onChange={(e) => setPlotSource(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="lab">{tr("Lab assays")}</option><option value="pxrf">{tr("pXRF readings (screening)")}</option><option value="both">{tr("Lab + pXRF")}</option>
             </select></div>
           )}
           {qcInSource > 0 && ( /* TASKS.csv #2027 */
-            <label style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11.5, color: "#55606e", cursor: "pointer" }} title={tr("Standards, blanks and duplicates are left out of the diagrams, as they are of the grade tools. Tick to plot them, e.g. to see where a standard falls.")}>
+            <label style={{ display: "flex", gap: 5, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e", cursor: "pointer" }} title={tr("Standards, blanks and duplicates are left out of the diagrams, as they are of the grade tools. Tick to plot them, e.g. to see where a standard falls.")}>
               <input type="checkbox" checked={!!plotQc} onChange={(e) => setPlotQc(e.target.checked)} />{tr("Plot the {n} QC insert(s)", { n: qcInSource.toLocaleString() })}
             </label>
           )}
-          <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Colour:")}<select aria-label={tr("Colour by")} value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{tr("Colour:")}<select aria-label={tr("Colour by")} value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="hole">{tr("by hole")}</option>
               <option value="element">{tr("by element")}</option>
               <option value="lithology" disabled={!hasLithLog}>{tr("by logged lithology")}</option>
@@ -1662,7 +1662,7 @@ export default function GeochemModule() {
             {colorMode === "hole" && plottedHoles.length > KEY_MAX && <span style={{ fontSize: "var(--font-size-xs)", color: "#55606e" }}>{tr("{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)", { n: plottedHoles.length })}</span>}
           </div>
           {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
-          <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
+          <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
               title={hasLithLog ? tr("Plot only samples from the chosen logged lithologies") : tr("Load a lithology log in StrixViewer to filter by it")}
               style={{ ...selectStyle, padding: "5px 8px", cursor: hasLithLog ? "pointer" : "not-allowed", opacity: hasLithLog ? 1 : 0.55 }}>
               {!hasLithLog ? tr("no log loaded") : !lithFilter ? tr("all ({lithCounts})", { lithCounts: lithCounts.length }) : tr("{size} of {lithCounts} selected", { size: lithFilter.size, lithCounts: lithCounts.length })} ▾
@@ -1680,7 +1680,7 @@ export default function GeochemModule() {
                     const on = !lithFilter || lithFilter.has(code);
                     const toggle = () => setLithFilter((prev) => { const next = new Set(prev || lithCounts.map(([k]) => k)); if (next.has(code)) next.delete(code); else next.add(code); return next.size === lithCounts.length ? null : next; });
                     return (
-                      <label key={code} role="menuitemcheckbox" aria-checked={on} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 2px", cursor: "pointer", fontSize: 12, color: "var(--color-text)" }}>
+                      <label key={code} role="menuitemcheckbox" aria-checked={on} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 2px", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
                         <input type="checkbox" checked={on} onChange={toggle} />
                         <span style={{ width: 9, height: 9, borderRadius: 2, background: lithColors[code], flexShrink: 0 }} />
                         <span style={{ flex: 1 }}>{code === NOT_LOGGED ? tr("no code logged") /* #2510 */ : code}</span>
@@ -1694,13 +1694,13 @@ export default function GeochemModule() {
           </div>
         </div>
 
-        <div style={{ fontSize: 11, color: "#65717e", marginBottom: 10 }}>{tr(diagram.caption)}</div>
-        {carbonateNote && <div style={{ fontSize: 11, color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{carbonateNote}</div>} {/* #1392 */}
-        {volcanicNote && <div style={{ fontSize: 11, color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{volcanicNote}</div>} {/* #2911 */}
-        {(() => { const pd = partialDigestionFor(assayElements, diagram.requires); return pd.length ? <div style={{ fontSize: 11, color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })}</div> : null; })()}{/* #1518 */}
+        <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", marginBottom: 10 }}>{tr(diagram.caption)}</div>
+        {carbonateNote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{carbonateNote}</div>} {/* #1392 */}
+        {volcanicNote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{volcanicNote}</div>} {/* #2911 */}
+        {(() => { const pd = partialDigestionFor(assayElements, diagram.requires); return pd.length ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })}</div> : null; })()}{/* #1518 */}
 
         {assays.length > 0 && missingForDiagram.length > 0 && (
-          <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: 12, color: "#d8c080", marginBottom: 12 }}>{tr("This diagram needs {requires} — missing {missingForDiagram}. Points that can't be projected are dropped.", { requires: diagram.requires.join(", "), missingForDiagram: missingForDiagram.join(", ") })}</div>
+          <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: "var(--font-size-base)", color: "#d8c080", marginBottom: 12 }}>{tr("This diagram needs {requires} — missing {missingForDiagram}. Points that can't be projected are dropped.", { requires: diagram.requires.join(", "), missingForDiagram: missingForDiagram.join(", ") })}</div>
         )}
 
         {assays.length === 0 ? (
@@ -1902,9 +1902,9 @@ export default function GeochemModule() {
   );
 }
 
-const panelBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
+const panelBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: "var(--font-size-base)", cursor: "pointer" };
 const genBtn = { ...panelBtn, background: "#1e3629", border: "1px solid #3d6b52", color: "#8fd9ab" };
-const selectStyle = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 10px", color: "#1a2028", fontSize: 12.5 };
+const selectStyle = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 10px", color: "#1a2028", fontSize: "var(--font-size-base)" };
 
 // TASKS.csv #624 — "currently there is no way to deleted imported assays". The imported files (each interval
 // remembers which file it came from), the elements, and Remove all — every removal goes through the undo history.

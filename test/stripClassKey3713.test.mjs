@@ -13,6 +13,6 @@ test("the prop is the 3D View's class breaks per element", () => {
 
 test("one key row per assay bar with classes: <= first, a-b between, > last; the figure grows by 14 px a row", () => {
   assert.match(strip, /i === 0 \? `≤ \$\{fmtLegendValue\(b\.max\)\}` : i === br\.length - 1 \? `> \$\{fmtLegendValue\(br\[i - 1\]\.max\)\}` : `\$\{fmtLegendValue\(br\[i - 1\]\.max\)\}–\$\{fmtLegendValue\(b\.max\)\}`/);
-  assert.match(strip, /const keyH = \(hasCalc \? 34 : 0\) \+ classKeys\.length \* 14;/);
+  assert.match(strip, /const keyH = \(hasCalc \? 38 : 0\) \+ classKeys\.length \* 16;/); // #3900: the key rows at 10 px
   assert.match(strip, /\{classKeys\.map\(\(k, ki\) =>/);
 });

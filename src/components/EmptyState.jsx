@@ -37,7 +37,7 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
   return (
     <div style={wrap}>
       <div style={{ ...card, position: "relative" }}>
-        {onClose && <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")} style={{ position: "absolute", top: 8, right: 8, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, lineHeight: 1, padding: 2 }}>×</button>}{/* TASKS.csv #1327 */}
+        {onClose && <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")} style={{ position: "absolute", top: 8, right: 8, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xl)", lineHeight: 1, padding: 2 }}>×</button>}{/* TASKS.csv #1327 */}
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
           {icon ? <span style={{ display: "flex", color: "var(--color-text-muted)", flexShrink: 0 }}>{icon}</span> : null}
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", fontWeight: 600 }}>{trText(headline)}</div>

@@ -98,7 +98,9 @@
      standalone .svg/.png (StripLog, SectionWindow, StereonetModal, FenceDiagramModal,
      DownholeStructurePlot, GeochemModule, lib/striplogSvg.js) keep literal numbers. A var() does not
      survive leaving the document, and in those files a font size is drawing geometry tuned against
-     plot dimensions, not UI text. */
+     plot dimensions, not UI text.
+     TASKS.csv #3900 T2 — that holds for the text INSIDE their figures (SVG attributes, still numbers). Their window furniture (buttons, lists,
+     notes on ordinary HTML: 129 typed sizes) uses these tokens now and follows the text size; their colours stay typed. */
   /* TASKS.csv #3900 — the text size setting (lib/textSize.js, the status bar's "Aa"): one bump, 0 / 2 / 4 px (Normal / Large / Larger),
      added to each of the five steps; Large is the default. At bump 0 they are theme.js fontSizes, which figures keep. */
   --text-bump: 2px;

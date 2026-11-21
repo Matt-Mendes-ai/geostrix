@@ -185,7 +185,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     let sPerPx = Math.max(sSpan / PLOT_W, ((z1 - z0) * ve) / PLOT_H);
     // TASKS.csv #1375 — room above the collars for a stack of fan-hole labels (19 px a label): Silvertip's four PAD42 labels ran up
     // into the offset ribbon. The tallest stack, from the collars as drawn at the first scale.
-    const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: h.pts[0].s / sPerPx, y: (-h.pts[0].z * ve) / sPerPx })));
+    const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: h.pts[0].s / sPerPx, y: (-h.pts[0].z * ve) / sPerPx })), { dx: 52 }); // #3900: a 10 px id is about 52 px wide (40 was set for 8.6 px)
     const need = 26 + 19 * Math.min(FENCE_LABEL_SLOTS - 1, Math.max(0, ...Object.values(slots))); // #2327 — a stack of at most three labels
     const topCollar = Math.max(...panel.holes.map((h) => h.pts[0].z));
     const room = ((z1 - topCollar) * ve) / sPerPx;
@@ -246,7 +246,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={modalPanel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>{tr("Fence / panel diagram")}{panel && <span style={{ fontWeight: 400, fontSize: 11, color: "#65717e" }}>
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#1a2028" }}>{tr("Fence / panel diagram")}{panel && <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)", color: "#65717e" }}>
               {" "}{tr("— {holes} {v}, section {azimuth}°{v2}", { holes: panel.holes.length, v: tr(panel.holes.length === 1 ? "hole" : "holes"), azimuth: panel.line.azimuth.toFixed(1), v2: ve !== 1 ? tr(" · {ve}× vertical exaggeration", { ve }) : tr(" · true scale") })}
             </span>}
           </div>
@@ -254,7 +254,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
         </div>
 
         {!allIds.length ? (
-          <div style={{ padding: "28px 8px", fontSize: 12, color: "#55606e", lineHeight: 1.6, maxWidth: 520 }}>{tr("No desurveyed holes yet. Import collars and survey data (and a lithology layer) and this panel will fill in.")}</div>
+          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "#55606e", lineHeight: 1.6, maxWidth: 520 }}>{tr("No desurveyed holes yet. Import collars and survey data (and a lithology layer) and this panel will fill in.")}</div>
         ) : (
         <div style={{ display: "flex", gap: 16 }}>
           <div>
@@ -264,10 +264,10 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               {view && zTicks.map((z) => (
                 <g key={`z${z}`}>
                   <line x1={PAD_L} y1={view.yFor(z)} x2={PAD_L + PLOT_W} y2={view.yFor(z)} stroke="#f0f2f4" strokeWidth={1} />
-                  <text x={PAD_L - 5} y={view.yFor(z) + 3} textAnchor="end" fontSize={9} fill="#55606e">{z}</text>
+                  <text x={PAD_L - 5} y={view.yFor(z) + 3.5} textAnchor="end" fontSize={10} fill="#55606e">{z}</text>
                 </g>
               ))}
-              <text x={10} y={PAD_T - 6} fontSize={9} fill="#55606e">RL (m)</text>
+              <text x={10} y={PAD_T - 6} fontSize={10} fill="#55606e">RL (m)</text>
               <text x={PAD_L + PLOT_W / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="#55606e">
                 {tr("Distance along section (m) — bearing {v}°", { v: panel ? panel.line.azimuth.toFixed(1) : "—" })}
               </text>
@@ -279,7 +279,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 <g>
                   <rect x={PAD_L} y={22} width={PLOT_W} height={RIBBON_H - 6} fill="#f7f8fa" stroke="#e6e8ec" strokeWidth={1} />
                   <line x1={PAD_L} y1={22 + (RIBBON_H - 6) / 2} x2={PAD_L + PLOT_W} y2={22 + (RIBBON_H - 6) / 2} stroke="#c7ccd3" strokeWidth={1} strokeDasharray="4 3" />
-                  <text x={PAD_L + 4} y={22 - 3} fontSize={8.5} fill="#65717e">{tr("Offset from section plane (same scale as the section)")}</text>
+                  <text x={PAD_L + 4} y={22 - 3} fontSize={10} fill="#65717e">{tr("Offset from section plane (same scale as the section)")}</text>
                   {panel.holes.map((h) => {
                     const cy = 22 + (RIBBON_H - 6) / 2;
                     const dy = Math.max(-(RIBBON_H - 8) / 2, Math.min((RIBBON_H - 8) / 2, h.offset / view.sPerPx));
@@ -329,8 +329,8 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                       });
                     })()}</g>)}
               {/* ---- each hole: its projected trace, then its lithology intervals as a column ---- */}
-              {view && panel && (() => { const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: view.xFor(h.pts[0].s), y: view.yFor(h.pts[0].z) }))); return panel.holes.map((h) => {
-                const lift = 19 * (slots[h.hole_id] || 0); // #1375 — fan holes from one collar: their labels stacked, not printed over each other
+              {view && panel && (() => { const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: view.xFor(h.pts[0].s), y: view.yFor(h.pts[0].z) })), { dx: 52 }); /* #3900 */ return panel.holes.map((h) => {
+                const lift = 23 * (slots[h.hole_id] || 0); /* #3900: a 10 px id and sub-label are 21 px tall (was 19) */ // #1375 — fan holes from one collar: their labels stacked, not printed over each other
                 const labelled = (slots[h.hole_id] || 0) < FENCE_LABEL_SLOTS; // #2327 — past three in a stack: the name on hover only
                 const rows = lithoByHole[h.hole_id] || [];
                 const over = h.maxAbsOffset > offsetLimit;
@@ -356,15 +356,15 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                       );
                     })}
                     <circle cx={view.xFor(h.pts[0].s)} cy={view.yFor(h.pts[0].z)} r={2.6} fill="#1a2028"><title>{`${h.hole_id} — ${h.maxAbsOffset.toFixed(0)} m off section`}</title></circle>
-                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 12 - lift} textAnchor="middle" fontSize={8.6} fill="#1a2028">{h.hole_id}</text>}
+                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 15 - lift} textAnchor="middle" fontSize={10} fill="#1a2028">{h.hole_id}</text>} {/* #3900: 10 px, the id a little higher over its 10 px sub-label */}
                     {/* Offset printed ON the diagram, per hole — the projection's error bar, not a footnote. */}
-                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4 - lift} textAnchor="middle" fontSize={7.6} fill={over ? "#a8741a" : "#65717e"}>
+                    {labelled && <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4 - lift} textAnchor="middle" fontSize={10} fill={over ? "#a8741a" : "#65717e"}>
                       {h.maxAbsOffset < 0.05 ? tr("on section") : `${h.maxAbsOffset.toFixed(0)} m off`}
                     </text>}
                   </g>
                 );
               }); })()}
-              {track && track.n > 0 && <text x={PAD_L} y={H - 22} fontSize={8.6} fill="#7d3c98">{track.log ? tr(track.below === 0 ? "Track: {name}, log scale from {lo} to {hi}" : track.below === 1 ? "Track: {name}, log scale from {lo} to {hi}; {n} value at or under {lo} is drawn at zero width" : "Track: {name}, log scale from {lo} to {hi}; {n} values at or under {lo} are drawn at zero width", { name: trackSrc.label, lo: Number(track.lo.toPrecision(3)).toLocaleString(undefined, { maximumFractionDigits: 10 }), hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.below.toLocaleString() }) /* #2813 */
+              {track && track.n > 0 && <text x={PAD_L} y={H - 22} fontSize={10} fill="#7d3c98">{track.log ? tr(track.below === 0 ? "Track: {name}, log scale from {lo} to {hi}" : track.below === 1 ? "Track: {name}, log scale from {lo} to {hi}; {n} value at or under {lo} is drawn at zero width" : "Track: {name}, log scale from {lo} to {hi}; {n} values at or under {lo} are drawn at zero width", { name: trackSrc.label, lo: Number(track.lo.toPrecision(3)).toLocaleString(undefined, { maximumFractionDigits: 10 }), hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.below.toLocaleString() }) /* #2813 */
                 : track.above === 0 ? tr("Track: {name}, the full width is {hi} (the 98th percentile of the panel's values)", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString() })
                 : tr(track.above === 1 ? "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher value is drawn at full width" : "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher values are drawn at full width", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.above.toLocaleString() })}</text>}{/* #2786 */}
             </svg>
@@ -400,21 +400,21 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               </label>
             )}
             {initial.sectionId && azMode === "section" && sectionId === initial.sectionId && (
-              <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{tr("This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.", { n: allIds.length })}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{tr("This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.", { n: allIds.length })}</div>
             )}
             {initial.trimmed > 0 && azMode === "fit" && (
-              <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{initial.site ? tr("Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line through them): the holes here are drilled in fans from a few sites, so one fan is one panel. {n} others are in the list below, unticked.", { k: initial.ids.length, site: initial.site, n: initial.trimmed }) /* #2220 */ : tr("Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.", { k: initial.ids.length, n: initial.trimmed })}{usableSections.length ? " " + tr("Or draw the panel along a saved section.") : " " + tr("Or draw a cross-section in StrixViewer first and use it here.")}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{initial.site ? tr("Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line through them): the holes here are drilled in fans from a few sites, so one fan is one panel. {n} others are in the list below, unticked.", { k: initial.ids.length, site: initial.site, n: initial.trimmed }) /* #2220 */ : tr("Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.", { k: initial.ids.length, n: initial.trimmed })}{usableSections.length ? " " + tr("Or draw the panel along a saved section.") : " " + tr("Or draw a cross-section in StrixViewer first and use it here.")}</div>
             )}
             {azMode === "manual" && (
               <label style={rowLabel}>{tr("Azimuth (°)")}<input value={manualAz} onChange={(e) => setManualAz(e.target.value)} style={sel} />
               </label>
             )}
-            {areaIds?.size > 0 && <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{tr("Opened on the Model area's {n} checked holes (Model settings); the others are in the list below.", { n: areaIds.size })}</div>}{/* #3016 */}
+            {areaIds?.size > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{tr("Opened on the Model area's {n} checked holes (Model settings); the others are in the list below.", { n: areaIds.size })}</div>}{/* #3016 */}
             <label style={rowLabel} title={tr("1x is true scale — a 60° hole is drawn at 60° and you can measure a dip off the page. Any other value is labelled on the diagram itself.")}>{tr("Vertical scale")}<select value={ve} onChange={(e) => setVe(Number(e.target.value))} style={sel}>
                 {FENCE_VE.map((v) => <option key={v} value={v}>{v === 1 ? tr("1× (true scale)") : `${v}× exaggerated`}</option>)}{/* #2426 — up to 50× for a shallow flat deposit */}
               </select>
             </label>
-            {panel && suggestFenceVe(panel.sRange, panel.zRange) > ve && <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{tr("This section is {r} times longer than the holes are deep: {v}× makes the columns readable.", { r: Math.round((panel.sRange.max - panel.sRange.min) / Math.max(1e-6, panel.zRange.max - panel.zRange.min)), v: suggestFenceVe(panel.sRange, panel.zRange) })}{" "}<button onClick={() => setVe(suggestFenceVe(panel.sRange, panel.zRange))} style={miniBtn}>{tr("Use {v}×", { v: suggestFenceVe(panel.sRange, panel.zRange) })}</button></div>}{/* #2426 */}
+            {panel && suggestFenceVe(panel.sRange, panel.zRange) > ve && <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{tr("This section is {r} times longer than the holes are deep: {v}× makes the columns readable.", { r: Math.round((panel.sRange.max - panel.sRange.min) / Math.max(1e-6, panel.zRange.max - panel.zRange.min)), v: suggestFenceVe(panel.sRange, panel.zRange) })}{" "}<button onClick={() => setVe(suggestFenceVe(panel.sRange, panel.zRange))} style={miniBtn}>{tr("Use {v}×", { v: suggestFenceVe(panel.sRange, panel.zRange) })}</button></div>}{/* #2426 */}
             <label style={rowLabel}>{tr("Column width")}<select value={colWidth} onChange={(e) => setColWidth(Number(e.target.value))} style={sel}>
                 {[5, 7, 9, 13, 18].map((v) => <option key={v} value={v}>{tr("{v} px", { v })}</option>)}
               </select>
@@ -435,7 +435,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               </div>
             )}
 
-            <div style={{ fontSize: 10, color: "#55606e", fontWeight: 600, marginTop: 2 }}>{tr("Holes ({size}/{allIds})", { size: selected.size, allIds: allIds.length })}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", fontWeight: 600, marginTop: 2 }}>{tr("Holes ({size}/{allIds})", { size: selected.size, allIds: allIds.length })}</div>
             <div style={{ display: "flex", gap: 6 }}>
               <button onClick={() => setSelected(new Set(allIds))} style={miniBtn}>{tr("All")}</button>
               <button onClick={() => setSelected(new Set())} style={miniBtn}>{tr("None")}</button>
@@ -445,10 +445,10 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 const h = panel?.holes.find((x) => x.hole_id === id);
                 const over = h && h.maxAbsOffset > offsetLimit;
                 return (
-                  <label key={id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.2, color: over ? "#a8741a" : "#1a2028", padding: "1px 0" }}>
+                  <label key={id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: over ? "#a8741a" : "#1a2028", padding: "1px 0" }}>
                     <input type="checkbox" checked={selected.has(id)} onChange={() => toggle(id)} />
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{id}</span>
-                    {h && <span style={{ color: over ? "#a8741a" : "#65717e", fontSize: 9 }}>{h.maxAbsOffset.toFixed(0)}m</span>}
+                    {h && <span style={{ color: over ? "#a8741a" : "#65717e", fontSize: "var(--font-size-xs)" }}>{h.maxAbsOffset.toFixed(0)}m</span>}
                   </label>
                 );
               })}
@@ -456,10 +456,10 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
 
             {codes.length > 0 && (
               <>
-                <div style={{ fontSize: 10, color: "#55606e", fontWeight: 600, marginTop: 2 }}>{showSrc?.label || tr("Lithology")}</div>{/* #1745 */}
+                <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", fontWeight: 600, marginTop: 2 }}>{showSrc?.label || tr("Lithology")}</div>{/* #1745 */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {codes.map((c) => (
-                    <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9.6, color: "#55606e" }}>
+                    <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "#55606e" }}>
                       <div style={{ width: 8, height: 8, borderRadius: 2, background: colorOf(c) }} />{c}
                     </div>
                   ))}
@@ -470,7 +470,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               <div style={warnNote}>{showSrc && showSrc.key !== "litho" ? tr("No {layer} intervals for the selected holes — the panel shows the projected traces only.", { layer: showSrc.label }) : tr("No lithology intervals for the selected holes — the panel shows the projected traces only.")}</div>
             )}
 
-            <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10, color: "#55606e", lineHeight: 1.5 }}>
+            <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.5 }}>
               <div style={{ fontWeight: 600, color: "#1a2028", marginBottom: 3 }}>{tr("Reading this panel")}</div>{tr("Horizontal is distance along the section line; vertical is elevation. Each hole's whole trace is projected, so an inclined hole leans exactly as it does in the ground. The number under each collar is that hole's largest perpendicular distance from the section plane — the error this flattening introduces.")}</div>
 
             <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
@@ -484,8 +484,8 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
 
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
 const modalPanel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxWidth: "96vw", maxHeight: "95vh", overflow: "auto" };
-const rowLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
-const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 };
-const miniBtn = { padding: "3px 8px", borderRadius: 5, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: 10, cursor: "pointer" };
-const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: 11.5, cursor: "pointer" };
-const warnNote = { background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 };
+const rowLabel = { fontSize: "var(--font-size-xs)", color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
+const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: "var(--font-size-sm)" };
+const miniBtn = { padding: "3px 8px", borderRadius: 5, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: "var(--font-size-xs)", cursor: "pointer" };
+const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: "var(--font-size-sm)", cursor: "pointer" };
+const warnNote = { background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: "var(--font-size-xs)", color: "#6b4e20", lineHeight: 1.45 };

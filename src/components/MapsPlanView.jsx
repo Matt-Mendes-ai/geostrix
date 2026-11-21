@@ -4,6 +4,8 @@
 // layers, boundaries, collars and surface samples; wheel to zoom, drag to pan, Fit, the cursor's E / N and a scale bar. Pictures are
 // decoded once and map layers drawn once per style into a cached bitmap, so a pan redraws bitmaps; the 3D scene is not touched.
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { fontSizes, uiFontPx } from "../lib/theme.js"; // TASKS.csv #3900 T2
+import { useTextSize } from "../lib/useTextSize.js";
 import { useKept, planScope } from "../lib/planKept.js"; // TASKS.csv #3604
 import { useHoleVisibility, hiddenIn, checkedOnly } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3605
 import { useStore, useSetCursor } from "../lib/store.jsx"; // useSetCursor: TASKS.csv #3467 — the status bar's E / N follow the plan's cursor
@@ -115,6 +117,7 @@ export default function MapsPlanView() {
   const [liveSize, setSize] = useState({ w: 800, h: 600 });
   // TASKS.csv #3491 — while Layout's fresh capture is drawn the plan is drawn at the size and view it asked for (the picture's own, not the screen's)
   const [recapture, setRecapture] = useState(null); // { w, h, view } | null
+  const [textSizeNow] = useTextSize(); // TASKS.csv #3900 T2 — the labels redraw at a new text size
   const size = useMemo(() => (recapture ? { w: recapture.w, h: recapture.h } : liveSize), [recapture, liveSize]);
   const [view, setView] = useKept(scope, "view", null); // { cx, cy, mPerPx }
   const [cursor, setCursor] = useState(null);
@@ -230,6 +233,8 @@ export default function MapsPlanView() {
     const cv = canvasRef.current;
     if (!cv || !v) return;
     const dpr = captureDpr || window.devicePixelRatio || 1; // TASKS.csv #3228 step B — twice the pixels while Snapshot to Layout captures
+    // TASKS.csv #3900 T2 — map labels on screen follow the text size; a capture for Layout (captureDpr set) keeps the Normal sizes, as before
+    const labelPx = (step) => (captureDpr ? fontSizes[step] : uiFontPx(step));
     // TASKS.csv #3049 (measured first: a pan frame took 134 ms at Fit on a 6,390-collar project with five rasters and 1,040 contour lines, 17 ms
     // zoomed in) — while the mouse drags, the picture the plan showed when the drag began is moved instead of the layers being drawn again; the
     // strip the move uncovers is background until the button is released, which draws everything at the new place
@@ -293,7 +298,7 @@ export default function MapsPlanView() {
       xs.forEach((x) => { const px = Math.round(X(x)) + 0.5; ctx.moveTo(px, 0); ctx.lineTo(px, size.h); });
       ys.forEach((y) => { const py = Math.round(Y(y)) + 0.5; ctx.moveTo(0, py); ctx.lineTo(size.w, py); });
       ctx.stroke();
-      ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(30,40,52,0.7)"; ctx.textBaseline = "top";
+      ctx.font = `${labelPx("xs")}px sans-serif`; ctx.fillStyle = "rgba(30,40,52,0.7)"; ctx.textBaseline = "top";
       xs.forEach((x) => ctx.fillText(gridLabel(x, "E"), X(x) + 3, 3));
       ctx.textBaseline = "bottom";
       ys.forEach((y) => ctx.fillText(gridLabel(y, "N"), 3, Y(y) - 2));
@@ -303,7 +308,7 @@ export default function MapsPlanView() {
       const toLL = pointTransform(project.epsg, 4326), toXY = pointTransform(4326, project.epsg);
       const g = toLL && toXY ? graticule([left, top - size.h * v.mPerPx, left + size.w * v.mPerPx, top], toLL, toXY) : null;
       if (g) {
-        ctx.save(); ctx.strokeStyle = "rgba(30,90,170,0.55)"; ctx.setLineDash([5, 4]); ctx.lineWidth = 1; ctx.fillStyle = "rgba(20,70,140,0.95)"; ctx.font = "10px sans-serif";
+        ctx.save(); ctx.strokeStyle = "rgba(30,90,170,0.55)"; ctx.setLineDash([5, 4]); ctx.lineWidth = 1; ctx.fillStyle = "rgba(20,70,140,0.95)"; ctx.font = `${labelPx("xs")}px sans-serif`;
         ctx.beginPath();
         for (const ln of g.lines) ln.pts.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y))));
         ctx.stroke(); ctx.setLineDash([]);
@@ -329,7 +334,7 @@ export default function MapsPlanView() {
       if (b.contourLevels?.length && b.contourLabels !== false) {
         let spots = CONTOUR_SPOTS.get(b);
         if (!spots) { spots = contourLabelSpots(b); CONTOUR_SPOTS.set(b, spots); }
-        ctx.save(); ctx.font = "10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
+        ctx.save(); ctx.font = `${labelPx("xs")}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
         for (const s of spots) {
           const sx = X(s.x), sy = Y(s.y);
           if (sx < -20 || sy < -10 || sx > size.w + 20 || sy > size.h + 10) continue;
@@ -339,7 +344,7 @@ export default function MapsPlanView() {
       }
       // TASKS.csv #3234 — the parts' names at each part's centre, when the boundary's row asks for them (#2673's 'Label the parts'), as in 3D
       if (b.partLabels && b.partNames?.some(Boolean)) {
-        ctx.save(); ctx.font = "11px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
+        ctx.save(); ctx.font = `${labelPx("sm")}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
         (b.polylines || []).forEach((pl, i) => {
           const name = b.partNames[i];
           if (!name || !pl?.length || !polylineInView(pl, viewBox)) return;
@@ -368,7 +373,7 @@ export default function MapsPlanView() {
       if (sampleIds && s.sample_id != null && s.sample_id !== "") sampleLabels.push({ x: px + r + 2, y: py - 6, text: String(s.sample_id) });
     });
     if (sampleLabels.length) {
-      ctx.font = "10px 'Exo 2', system-ui, sans-serif"; ctx.textBaseline = "top"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
+      ctx.font = `${labelPx("xs")}px 'Exo 2', system-ui, sans-serif`; ctx.textBaseline = "top"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.fillStyle = "#1a2028";
       for (const { i } of declutterLabels(sampleLabels, 64, 12)) { const l = sampleLabels[i]; ctx.strokeText(l.text, l.x, l.y); ctx.fillText(l.text, l.x, l.y); }
     }
     if (figure) {
@@ -406,7 +411,7 @@ export default function MapsPlanView() {
       const cr = chipRef.current;
       if (cr) keepClear.push({ x0: cr.offsetLeft, y0: cr.offsetTop, x1: cr.offsetLeft + cr.offsetWidth, y1: cr.offsetTop + cr.offsetHeight });
       if (showGrid) keepClear.push({ x0: 0, y0: 0, x1: size.w, y1: 14 }, { x0: 0, y0: 0, x1: 58, y1: size.h });
-      drawCallouts(ctx, dotCollars /* #3832: the id beside the dot it names, at the intercept when the colour is drawn there */, X, Y, size, { colourOf: colouring ? (c) => colouring.colourOf(c) : undefined, dotR: ds.r, mPerPx: v.mPerPx, more: (n) => tr("+{n} more", { n }), keepClear, report: (r) => setIdsLeftOut(r.leftOut) });
+      drawCallouts(ctx, dotCollars /* #3832: the id beside the dot it names, at the intercept when the colour is drawn there */, X, Y, size, { colourOf: colouring ? (c) => colouring.colourOf(c) : undefined, dotR: ds.r, mPerPx: v.mPerPx, more: (n) => tr("+{n} more", { n }), keepClear, report: (r) => setIdsLeftOut(r.leftOut), fontPx: labelPx("xs") /* #3900 */ });
     }
     if (measuring && mPts.length) { // #2128 — the measured line
       ctx.strokeStyle = "#c2185b"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
@@ -415,7 +420,7 @@ export default function MapsPlanView() {
     }
     gridDrawn.current = showGrid; // #3194 — what the canvas holds now
     drawnDpr.current = dpr; // #3228
-  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, captureDpr /* #3228 */, chipOpen /* #3458: its size changes the callouts */, samplesOn /* #3830 */, sampleCol, sampleSized, sampleIds /* #3883 (#3830) */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax]); // gtPlan: #2755
+  }, [v?.cx, v?.cy, v?.mPerPx, size, lodReady /* #3252 */, captureDpr /* #3228 */, chipOpen /* #3458: its size changes the callouts */, samplesOn /* #3830 */, sampleCol, sampleSized, sampleIds /* #3883 (#3830) */, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure, colouring, spacingM /* #2989 */, showTraces, planT, dotCollars /* #3337 */, shapes, sizeBy /* #3456 / #3457 */, surveys, surveysHidden /* #3342 */, showIds, showGrid, showLonLat /* #3466 */, measuring, mPts, gtPlan, gtMax, textSizeNow /* #3900 */]); // gtPlan: #2755
 
   // TASKS.csv #3252 — once the view has settled (250 ms), ask for the detail tiles it shows; each one that arrives redraws the plan
   useEffect(() => {

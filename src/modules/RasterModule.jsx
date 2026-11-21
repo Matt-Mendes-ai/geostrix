@@ -83,8 +83,8 @@ function SpectrumPanel({ spectrum, onSplit }) {
         {k.map((v, i) => <circle key={i} cx={X(v)} cy={Y(y[i])} r="1.4" fill="var(--color-text-muted)" />)}
         <g stroke="var(--color-danger-fg)">{line(fit?.deep)}</g>
         <g stroke="var(--color-info)">{line(fit?.shallow)}</g>
-        <text x={(L + W) / 2} y={H - 5} textAnchor="middle" fontSize="9" fill="var(--color-text-muted)">{tr("wavenumber (rad/km)")}</text>
-        <text x={9} y={(H - B) / 2} textAnchor="middle" fontSize="9" fill="var(--color-text-muted)" transform={`rotate(-90 9 ${(H - B) / 2})`}>ln P</text>
+        <text x={(L + W) / 2} y={H - 4} textAnchor="middle" fontSize="11" fill="var(--color-text-muted)">{tr("wavenumber (rad/km)")}</text>{/* #3900: the 10 px floor (260 units in about 256 px) */}
+        <text x={10} y={(H - B) / 2} textAnchor="middle" fontSize="11" fill="var(--color-text-muted)" transform={`rotate(-90 10 ${(H - B) / 2})`}>ln P</text>
       </svg>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginTop: 4 }}>
         {!fit ? tr("The spectrum does not fall with wavenumber: no depth can be read from it.")

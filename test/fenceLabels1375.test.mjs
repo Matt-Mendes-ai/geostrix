@@ -22,5 +22,6 @@ test("labels of near-identical collars take successive slots; distant ones stay 
 
 test("wired: each label lifted by its slot", () => {
   const f = readFileSync(new URL("../src/components/FenceDiagramModal.jsx", import.meta.url), "utf8");
-  assert.ok(f.includes("const lift = 19 * (slots[h.hole_id] || 0);") && f.includes("y={view.yFor(h.pts[0].z) - 12 - lift}") && f.includes("y={view.yFor(h.pts[0].z) - 4 - lift}"));
+  // #3900: at the 10 px floor a label pair is 21 px tall, so the slots are 23 px apart and the id sits 15 px up
+  assert.ok(f.includes("const lift = 23 * (slots[h.hole_id] || 0);") && f.includes("y={view.yFor(h.pts[0].z) - 15 - lift}") && f.includes("y={view.yFor(h.pts[0].z) - 4 - lift}"));
 });
