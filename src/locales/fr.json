@@ -14487,5 +14487,16 @@
   "added a Best intercepts page ({n} intercepts of {symbol})": "a ajouté une page de meilleures intersections ({n} intersections en {symbol})",
   "QC samples (standards, blanks, duplicates) are excluded.": "Les échantillons de contrôle (étalons, blancs, doublons) sont exclus.",
   "added the satellite image '{name}'": "a ajouté l'image satellite « {name} »",
-  "added the terrain '{name}'": "a ajouté le terrain « {name} »"
+  "added the terrain '{name}'": "a ajouté le terrain « {name} »",
+  "drew the holes in one colour": "a dessiné les sondages d'une seule couleur",
+  "coloured the holes by {field}": "a coloré les sondages selon {field}",
+  "showed the {symbol} grades along the holes": "a affiché les teneurs en {symbol} le long des sondages",
+  "showed the {layer} log along the holes": "a affiché le log {layer} le long des sondages",
+  "showed {layers}": "a affiché {layers}",
+  "hid {layers}": "a masqué {layers}",
+  "opened the section '{name}'": "a ouvert la coupe « {name} »",
+  "zoomed to {hole}": "a zoomé sur {hole}",
+  "fitted the view to the data": "a ajusté la vue aux données",
+  "turned the view to the top": "a tourné la vue vers le dessus (plan)",
+  "turned the view to the bottom": "a tourné la vue vers le dessous"
 }

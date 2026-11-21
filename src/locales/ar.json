@@ -14487,5 +14487,16 @@
   "added a Best intercepts page ({n} intercepts of {symbol})": "أضاف صفحة أفضل التقاطعات ({n} تقاطعات لـ {symbol})",
   "QC samples (standards, blanks, duplicates) are excluded.": "تُستبعد عينات ضبط الجودة (المعايير والفراغات والمكررات).",
   "added the satellite image '{name}'": "أضاف صورة القمر الصناعي '{name}'",
-  "added the terrain '{name}'": "أضاف التضاريس '{name}'"
+  "added the terrain '{name}'": "أضاف التضاريس '{name}'",
+  "drew the holes in one colour": "رسم الثقوب بلون واحد",
+  "coloured the holes by {field}": "لوّن الثقوب حسب {field}",
+  "showed the {symbol} grades along the holes": "أظهر محتوى {symbol} على طول الثقوب",
+  "showed the {layer} log along the holes": "أظهر سجل {layer} على طول الثقوب",
+  "showed {layers}": "أظهر {layers}",
+  "hid {layers}": "أخفى {layers}",
+  "opened the section '{name}'": "فتح المقطع '{name}'",
+  "zoomed to {hole}": "قرّب العرض إلى {hole}",
+  "fitted the view to the data": "ضبط العرض على البيانات",
+  "turned the view to the top": "أدار العرض إلى الأعلى (مسقط أفقي)",
+  "turned the view to the bottom": "أدار العرض إلى الأسفل"
 }

@@ -177,5 +177,47 @@
     "description": "Makes a change in GeoStrix: downloads Copernicus GLO-30 terrain over the project area (around the drillholes, as Maps › Terrain opens on) and adds it as the project's terrain, with GeoStrix's check of the collars against the ground (a large misfit is reported, the project's coordinate system is never changed). Refused when a terrain is already loaded (nothing is overwritten). GeoStrix first asks the user, every time, whether to download. It can take a minute or more. The toast's Undo in GeoStrix removes it.",
     "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
     "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true }
+  },
+  {
+    "name": "colour_holes",
+    "description": "Makes a change in GeoStrix: changes how StrixViewer draws the holes. by 'field': the holes (collars and traces) coloured by a collar field, with a legend; 'element': that element's grades shown along the holes (StrixViewer's assay display, that element alone); 'layer': a logged layer (a key list_layers gives) shown along the holes, coloured by its codes; 'none': the holes in one colour. Only the view changes, nothing in the project's data. The toast's Undo in GeoStrix puts it back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "by": { "type": "string", "enum": ["element", "layer", "field", "none"], "description": "What colours the holes." },
+        "name": { "type": "string", "maxLength": 64, "description": "The element symbol, the layer key or the collar field (as list_holes shows the fields). Not needed with 'none'." }
+      },
+      "required": ["by"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "show_layers",
+    "description": "Makes a change in GeoStrix: shows or hides layers in StrixViewer: logged layers by the keys list_layers gives, 'assays' (the assay display) and 'terrain'. Only the view changes. A key that is not found is listed in the answer. The toast's Undo in GeoStrix puts it back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "layers": { "type": "array", "maxItems": 30, "items": { "type": "string", "maxLength": 64 }, "description": "The layer keys." },
+        "visible": { "type": "boolean", "description": "true to show them, false to hide them." }
+      },
+      "required": ["layers", "visible"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "set_view",
+    "description": "Makes a change in GeoStrix: points StrixViewer's 3D view: 'fit' (the Fit button: the data shown), 'top' (plan, looking down), 'bottom' (looking up), 'hole' (zoomed to one hole: 'target' is its id) or 'section' (opens a saved section in its own window, as its row in the list does: 'target' is its name). The toast's Undo in GeoStrix puts the camera back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "view": { "type": "string", "enum": ["fit", "top", "bottom", "section", "hole"], "description": "Where to point the view." },
+        "target": { "type": "string", "maxLength": 128, "description": "A hole id (view 'hole') or a section name (view 'section')." }
+      },
+      "required": ["view"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
   }
 ]

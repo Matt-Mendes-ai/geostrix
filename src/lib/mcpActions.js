@@ -103,6 +103,26 @@ export const ACTIONS = {
     return { ok: true, tracked: false, data: { changed: "layout page", name: tr("Best intercepts"), id: ids[0] || null, intercepts: d.total, on_the_page: shown.length },
       say: tr("added a Best intercepts page ({n} intercepts of {symbol})", { n: d.total, symbol: d.element }), revert: (st) => { const have = new Set((st?.layoutPages || []).map((p) => p.id)); const gone = ids.filter((x) => have.has(x)); if (gone.length) st.deleteLayoutPage(gone); } };
   },
+  // the view tools: StrixViewer's own setters and camera (modules/viewer/useMcpViewActions.js); the view is not in the undo history, so the toast's Undo puts it back
+  async colour_holes(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-view", { op: "colour", by: a.by, name: a.name });
+    if (!r.ok) return r;
+    const say = a.by === "none" ? tr("drew the holes in one colour") : a.by === "field" ? tr("coloured the holes by {field}", { field: r.name }) : a.by === "element" ? tr("showed the {symbol} grades along the holes", { symbol: r.name }) : tr("showed the {layer} log along the holes", { layer: r.name });
+    return { ok: true, tracked: false, data: { changed: r.changed, name: r.name }, say, revert: r.revert };
+  },
+  async show_layers(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-view", { op: "layers", layers: a.layers, visible: a.visible });
+    if (!r.ok) return r;
+    return { ok: true, tracked: false, data: { changed: "layers shown", layers: r.layers, visible: r.visible, ...(r.not_found ? { not_found: r.not_found } : {}) },
+      say: a.visible ? tr("showed {layers}", { layers: r.name }) : tr("hid {layers}", { layers: r.name }), revert: r.revert };
+  },
+  async set_view(a, s) {
+    if ((a.view === "hole" || a.view === "section") && !a.target) return fail(`'target' is needed with view: '${a.view}' (a ${a.view === "hole" ? "hole id" : "section name"}).`);
+    const r = await viaModule(s, "viewer", "mcp-view", { op: "view", view: a.view, target: a.target });
+    if (!r.ok) return r;
+    const say = a.view === "section" ? tr("opened the section '{name}'", { name: r.name }) : a.view === "hole" ? tr("zoomed to {hole}", { hole: r.name }) : a.view === "fit" ? tr("fitted the view to the data") : a.view === "top" ? tr("turned the view to the top") : tr("turned the view to the bottom");
+    return { ok: true, tracked: false, data: { changed: r.changed, name: r.name }, say, ...(r.revert ? { revert: r.revert } : {}) };
+  },
   // the network tools: the download was asked for in GeoStrix's main process (a native box, every time) before the call reached this window. Each runs the pane's own fetch
   // (Maps › Satellite image / Terrain) with its checks, and answers when it has finished.
   async fetch_satellite_image(a, s) {

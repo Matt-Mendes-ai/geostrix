@@ -8,7 +8,7 @@ import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // 
 import { markZoomedHole } from "./viewer/zoomMark.js"; // #3570
 import { useShowOnLoad } from "./viewer/useShowOnLoad.js"; // #3588 (1)
 import { azimuthNorthText } from "../lib/azimuthNorthText.js"; // #3588 (6)
-import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
+import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import { useMcpViewActions } from "./viewer/useMcpViewActions.js"; /* #3932 */ import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
 import { holesForFilter, holeSetsOf, fenceTracesOf } from "../lib/holeFilter.js"; // #1504; #1703; #3554; #3561
 import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
@@ -5466,6 +5466,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [addUndrilledSolid]);
   const voxelModelsForShell = useRef(voxelModels); voxelModelsForShell.current = voxelModels;
   useModuleAction(["voxel-shell"], (a, payload) => { makeVoxelShell(payload?.model || (voxelModelsForShell.current || []).find((x) => x.id === payload?.id), { largestOnly: !!payload?.largestOnly }); }); // payload.model: the card's own, current copy (this module's render can lag a store change made in another tab)
+  useMcpViewActions(() => ({ collars, layers, assayElements, terrain, updateTerrain, sections, holeColourBy, setHoleColourBy, layerVisible, setLayerVisible, assayVisible, setAssayVisible, assayDisplayElements, setAssayDisplayElements, toggleAssayElement, camState, cameraRef, fitButton, zoomToHole, reopenSection })); // TASKS.csv #3932 — an AI app's view tools
   // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modelling tab: select it, or — when
   // "connect" is armed — give it the first interval's code and draw the tie. Uses the same pick index as the
   // hover tooltip; the lithology layer must be visible to be picked.
