@@ -80,9 +80,9 @@ test("#3322 the proposed slice: the level with the most points, or the busiest r
 
 test("#3322 the pane uses the proposals", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(g, /const idwSliceProp = useMemo\(\(\) => \(idwShape\?\.is3D \? proposeSlice\(idwRows\) : null\)/);
+  assert.match(g, /const idwSliceProp = idwDefaults\?\.sliceProp \|\| null;/); // #3883 (#3803): proposeSlice runs in the survey-checks worker (surveyChecks.pointDefaults)
   assert.match(g, /const idwZAuto = !!idwSliceProp && idwZ\.lo === "" && idwZ\.hi === "";/);
-  assert.match(g, /surveyGridDefaults\(idwSlice, \{ stacked: !!idwShape\?\.is3D/ /* #3810 — a 3D cloud's slice reads its plan density */);
+  assert.match(readFileSync(new URL("../src/lib/surveyChecks.js", import.meta.url), "utf8"), /grid = sel\.length \? surveyGridDefaults\(sel, \{ stacked: !!shape\?\.is3D \}\) : null;/ /* #3810 — a 3D cloud's slice reads its plan density; #3803: in the worker */);
   assert.match(g, /const idwAutoBlank = idwSuggest \? blankForCell\(idwSuggest\.distance, idwCellSize\) : null;/);
   assert.match(g, /const blank = idwBlank === "" \? idwAutoBlank \?\? Infinity/);
   assert.match(g, /placeholder=\{idwSuggest \? String\(Math\.round\(idwAutoBlank\)\) : "none"\}/);

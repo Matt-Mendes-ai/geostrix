@@ -99,11 +99,11 @@ import { tableRefusal } from "../lib/tableRefusal.js"; // TASKS.csv #3320 — a 
 import { t as tr } from "../lib/i18n.js";
 import { decadesBetween, isLogSpaced, logViridisStops } from "../lib/pointSurveyScale.js"; // TASKS.csv #1787
 import { surveyMetaFor } from "../lib/surveyLegendDefault.js"; // TASKS.csv #3323
-import { sampleSurveyOnHoles, suggestHoleSampling } from "../lib/surveyOnHoles.js"; // TASKS.csv #3324
+import { sampleSurveyOnHoles } from "../lib/surveyOnHoles.js"; // TASKS.csv #3324
+import { pointDefaultsFor, surveyChecksKey } from "../lib/surveyChecksClient.js"; // TASKS.csv #3883 (#3803) — the Point survey defaults in the worker
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
 import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788; parseGradeLabel: #2667
-import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
-import { surveyGridDefaults, proposeSlice, blankForCell, levelSlices, inLevel } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322; levelSlices: #3420
+import { blankForCell, levelSlices, inLevel } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322; levelSlices: #3420
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { collarTerrainOffset, collarClusterAbove, collarClusterNote } from "../lib/terrainCheck.js"; // TASKS.csv #1620; cluster: #3882 follow-up
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
@@ -171,6 +171,23 @@ const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation, lon/lat) pl
 
 // TASKS.csv #749 — embedded: shown inside the Maps tab for one of its map panes (terrain, map layers, web layers,
 // boundaries, claims): no ribbon of its own (the Maps tab's ribbon picks the pane) and no main area.
+// TASKS.csv #3883 (#3803) — a survey's Point-survey defaults from the worker (lib/surveyChecksClient.js pointDefaultsFor): null while they are worked out
+// (the pane shows its plain defaults meanwhile), then { shape, sliceProp, hole, grid }; the same survey and options again come from the cache
+function usePointDefaults(rows, opts, on) {
+  const key = on ? `${surveyChecksKey("", rows, null, null)}|${JSON.stringify(opts)}` : "";
+  const [got, setGot] = useState(null);
+  const rowsRef = useRef(rows); rowsRef.current = rows;
+  const optsRef = useRef(opts); optsRef.current = opts;
+  useEffect(() => {
+    if (!key) { setGot(null); return undefined; }
+    let live = true;
+    setGot(null);
+    pointDefaultsFor(key, rowsRef.current, optsRef.current).then((r) => { if (live) setGot(r); }, () => { if (live) setGot(null); });
+    return () => { live = false; };
+  }, [key]);
+  return got;
+}
+
 export default function GeophysicsModule({ embedded = false, forcePane = null, onMain3d = null } = {}) {
   const [resultSlot, setResultSlot] = useState(null); // #1199
   // TASKS.csv #1979 — Matt: "can we also have the view in the geophysics module?" The main area shows the 3D View's own viewport
@@ -418,8 +435,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const manySurveys = measuredList.length > 1; // #3511 — measured surveys only: a positions-only one has no legend to edit
   const legendKey = measuredList.some((s) => s.key === legendSurvey) ? legendSurvey : measuredList[0]?.key || "";
   const legendRows = useMemo(() => (manySurveys ? rows.filter((r) => surveyKey(r) === legendKey) : measuredRows), [manySurveys, rows, measuredRows, legendKey]);
-  const holeShape = useMemo(() => (holeOpen && legendRows.length ? cloudShape(legendRows) : null), [holeOpen, legendRows]); // #3324
-  const holeSuggest = useMemo(() => (holeShape?.is3D ? suggestHoleSampling(legendRows) : null), [holeShape, legendRows]); // #3324 — from the cloud's 3D spacing
+  // TASKS.csv #3883 (#3803) — the cloud's shape and the hole-sampling proposals worked out in the survey-checks worker, kept per survey (they took 0.2-0.6 s each on the main thread)
+  const holeDefaults = usePointDefaults(legendRows, { holes: true }, holeOpen && legendRows.length > 0);
+  const holeShape = holeDefaults?.shape || null; // #3324
+  const holeSuggest = holeDefaults?.hole || null; // #3324 — from the cloud's 3D spacing
   // TASKS.csv #3324 (review #3195, Galore Creek) — 'does chargeability follow the sulphide?': the survey's value at each step down every hole
   // (the nearest point within the distance, or the inverse-distance mean of the points within it), a numeric layer 'On holes: <survey>'
   // that Downhole logs ('against a model'), the strip logs and sections read like a block model evaluated onto the holes (#323)
@@ -475,18 +494,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const idwKey = measuredList.some((s) => s.key === idwSurvey) ? idwSurvey : measuredList[0]?.key || ""; // #3511 — a positions-only survey is not gridded
   const idwRows = useMemo(() => (idwOpen ? rows.filter((r) => surveyKey(r) === idwKey) : []), [idwOpen, rows, idwKey]);
   // TASKS.csv #1783 (review #1646, Kodiak) — a 3D point cloud (an inversion model imported as points) is gridded one depth slice at a time
-  const idwShape = useMemo(() => (idwRows.length ? cloudShape(idwRows) : null), [idwRows]);
+  const idwDefaults = usePointDefaults(idwRows, {}, idwRows.length > 0); // TASKS.csv #3883 (#3803) — in the worker, kept per survey
+  const idwShape = idwDefaults?.shape || null;
   const [idwZ, setIdwZ] = useState({ lo: "", hi: "" });
   const [levelSet, setLevelSet] = useState({ step: "", lo: "", hi: "" }); // TASKS.csv #3420 — every N m between lo and hi
   // TASKS.csv #3322 — both boxes empty: the proposed slice (the level with the most points), not every depth at once; one typed: the other end of the cloud
-  const idwSliceProp = useMemo(() => (idwShape?.is3D ? proposeSlice(idwRows) : null), [idwRows, idwShape]);
+  const idwSliceProp = idwDefaults?.sliceProp || null;
   const idwZAuto = !!idwSliceProp && idwZ.lo === "" && idwZ.hi === "";
   const idwZLo = idwZAuto ? idwSliceProp.lo : idwZ.lo === "" ? -Infinity : Number(idwZ.lo), idwZHi = idwZAuto ? idwSliceProp.hi : idwZ.hi === "" ? Infinity : Number(idwZ.hi);
   const idwSlice = useMemo(() => {
     if (!idwShape?.is3D) return idwRows;
     return idwRows.filter((r) => Number.isFinite(r.z) && r.z >= idwZLo && r.z <= idwZHi);
   }, [idwRows, idwShape, idwZLo, idwZHi]);
-  const idwSuggest = useMemo(() => (idwSlice.length ? surveyGridDefaults(idwSlice, { stacked: !!idwShape?.is3D /* #3810 — a 3D cloud's slice: the plan density */ }) : null), [idwSlice, idwShape]); // the slice's own spacing (#1783); lines with no line column, the 4,000,000-cell limit (#3322)
+  const idwSuggest = usePointDefaults(idwRows, { slice: { lo: idwZLo, hi: idwZHi } }, !!idwDefaults && idwSlice.length > 0)?.grid || null; // #3883 (#3803) — the slice's grid defaults in the worker (stacked for a 3D cloud: #3810) // the slice's own spacing (#1783); lines with no line column, the 4,000,000-cell limit (#3322)
   const idwAutoCell = idwSuggest?.cell || 25; // #2562 — a quarter to a half of the spacing; #3322 — never over the cell limit
   const idwCellSize = idwCellText === "" ? idwAutoCell : Math.max(0.1, Number(idwCellText) || idwAutoCell);
   const idwAutoBlank = idwSuggest ? blankForCell(idwSuggest.distance, idwCellSize) : null; // #3322 — a typed cell carries the blanking: at least 1.5 cells
