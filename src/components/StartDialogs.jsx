@@ -35,7 +35,7 @@ function DropArea({ onFiles, multiple, accept, label, busy, picture }) {
   return (
     <div data-start-drop="" onDragOver={(e) => { stop(e); setOver(true); }} onDragLeave={() => setOver(false)}
       onDrop={(e) => { stop(e); setOver(false); const f = Array.from(e.dataTransfer?.files || []); if (f.length) onFiles(f); }}
-      style={{ border: `2px dashed ${over ? "var(--color-primary)" : "var(--color-border)"}`, borderRadius: 8, padding: "22px 16px", textAlign: "center", background: over ? "var(--color-selected-bg)" : "var(--color-bg-subtle)" }}>
+      style={{ border: `1.5px dashed ${over ? "var(--color-primary)" : "var(--color-tier-basic)"}`, borderRadius: 14, padding: "18px 16px", textAlign: "center", background: over ? "var(--color-selected-bg)" : "linear-gradient(160deg, var(--color-bg) 0%, var(--color-tier-basic-bg) 75%)", boxShadow: "var(--shadow-lift)" }}>{/* #3956: style A */}
       {picture && <div style={{ maxWidth: 240, margin: "0 auto 8px" }}><DropPicture picture={picture} /></div>}{/* TASKS.csv #3939 */}
       <div style={{ marginBottom: 10 }}>{label}</div>
       <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => input.current?.click()}>{busy ? tr("Reading…") : tr("Browse…")}</button>
@@ -170,8 +170,8 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   const noteLine = (n) => n && <div role="status" style={{ ...small, marginTop: 8, color: n.warn ? "var(--color-warn-text)" : "var(--color-text)" }}>{n.text}</div>;
 
   if (card) return ( // #3918 — screen 3: a small card, not a dialog; the project is usable behind it
-    <div data-start-card="" role="status" style={{ ...panel({ width: "min(380px, calc(100vw - 32px))" }), position: "fixed", right: 16, bottom: 40, zIndex: Z, padding: "12px 14px", gap: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+    <div data-start-card="" role="status" className="ge-card" style={{ ...panel({ width: "min(380px, calc(100vw - 32px))" }), borderRadius: 12, boxShadow: "var(--shadow-pop)", position: "fixed", right: 16, bottom: 40, zIndex: Z, padding: "12px 14px", gap: 6 }}>{/* #3956: the shared card */}
+      <div className="ge-card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, margin: "-12px -14px 2px", padding: "10px 14px 8px" }}>
         <b>{tr("Your project is in.")}</b>
         <button type="button" style={link} onClick={onClose}>{tr("Close")}</button>
       </div>
@@ -188,8 +188,8 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   return (
     <div data-start-dialog={step} style={{ position: "fixed", inset: 0, zIndex: Z, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(8,10,14,0.45)" }}
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="ge-start-title" style={{ ...panel({ width: "min(560px, calc(100vw - 32px))", maxHeight: "calc(100vh - 32px)" }), overflow: "auto", padding: "18px 20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="ge-start-title" className="ge-card" style={{ ...panel({ width: "min(560px, calc(100vw - 32px))", maxHeight: "calc(100vh - 32px)" }), borderRadius: 12, boxShadow: "var(--shadow-pop)", overflow: "auto", padding: "18px 20px" }}>{/* #3956: the shared card */}
+        <div className="ge-card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, margin: "-18px -20px 0", padding: "14px 20px 4px", borderBottom: "none" }}>
           <h2 id="ge-start-title" style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>{tr("Let's begin a project!")}</h2>
           <button type="button" style={link} onClick={onClose}>{tr("Close")}</button>
         </div>

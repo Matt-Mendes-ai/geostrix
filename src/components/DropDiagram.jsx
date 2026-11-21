@@ -80,6 +80,22 @@ const PICTURES = {
     <path d="M42 34 L62 26 L76 44 L100 36 L100 100 L48 100 Z" {...paint("text-muted", 0.32)} />
     <rect x="30" y="16" width="44" height="40" fill="none" style={{ stroke: V("text"), strokeWidth: 1.6, strokeDasharray: "4 3" }} />
   </>} />,
+  // #3956 (part 2) — Layout's four sheets, on the same block: a plan of the collars, a section through holes, one hole's log, a table of intercepts
+  plan: (id) => <Block id={id} top={[[18, 30], [30, 52], [44, 24], [52, 70], [66, 40], [74, 78], [86, 28], [38, 84]].map(([u, v], k) => <circle key={k} cx={u} cy={v} r="5" {...paint("tier-basic", 0.95, "bg", 1.2)} />)}
+    after={<path d="M188 4 V22 M182 10 L188 4 L194 10" {...paint(null, 1, "text", 2)} strokeLinecap="round" strokeLinejoin="round" />} />,
+  section: (id) => <Block id={id} after={<><path d="M46 20 L170 52 L170 112 L46 80 Z" {...paint("accent", 0.28, "accent-dark", 1.4)} />{holesOnFace([[84, 34, 1.1], [124, 44, 1.05]])}</>} />,
+  log: (id) => <Block id={id} after={<>
+    <rect x="160" y="2" width="16" height="104" rx="4" {...paint("bg", 1, "border-light", 1)} />
+    {[[6, 26, "accent"], [32, 14, "danger-solid"], [46, 30, "tier-basic"], [76, 26, "accent-dark"]].map(([y, h, c]) => <rect key={y} x="163" y={y} width="10" height={h} rx="2" {...paint(c, 0.9)} />)}
+    <path d="M184 6 L192 22 L186 40 L200 58 L188 76 L194 100" {...paint(null, 1, "tier-basic", 2)} strokeLinecap="round" strokeLinejoin="round" />
+  </>} />,
+  table: (id) => <Block id={id} after={<>
+    <ellipse cx="180" cy="66" rx="34" ry="4" {...paint("text-muted", 0.14)} />
+    <rect x="140" y="2" width="80" height="60" rx="8" {...paint("bg", 1, "border-light", 1)} />
+    <rect x="140" y="2" width="80" height="14" rx="8" {...paint("tier-basic", 0.85)} />
+    {[28, 40, 52].map((y) => <line key={y} x1="146" y1={y} x2="214" y2={y} style={{ stroke: V("border-light"), strokeWidth: 1 }} />)}
+    {[166, 192].map((x) => <line key={x} x1={x} y1="16" x2={x} y2="60" style={{ stroke: V("border-light"), strokeWidth: 1 }} />)}
+  </>} />,
   // a survey's stations on the ground, coloured by value
   points: (id) => <Block id={id} top={[18, 38, 58, 78].map((v, r) => [...Array(9)].map((_, i) => {
     const u = 8 + i * 10.5, val = Math.exp(-(((i - 5) / 2.2) ** 2) - (((r - 1.5) / 1.3) ** 2));
