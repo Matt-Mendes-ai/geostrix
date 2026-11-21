@@ -6,7 +6,14 @@
 const TOOLS = require("./mcpToolDefs.json");
 
 const SUPPORTED = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const LIMITS = { maxArgBytes: 4000, maxResultBytes: 100000, callsPerMinute: 60 };
+const LIMITS = { maxArgBytes: 4000, maxResultBytes: 100000, callsPerMinute: 60, changesPerMinute: 10, changeWaitMs: 30000 };
+// TASKS.csv #3932 (Matt's decision, 2026-11-21) — change tools: a tool whose MCP annotations say readOnlyHint: false makes a change in GeoStrix (through the store, one Undo step).
+// They are always listed, but refused HERE, before the window sees them, unless the user has ticked 'Allow AI apps to make changes' (Tools > AI App Access; off by default, off with
+// AI App Access); each AI app is asked once more about changes, they are capped at 10 a minute and only one runs at a time (across every connected app).
+const isChangeTool = (def) => def?.annotations?.readOnlyHint === false;
+// a change tool that downloads (MCP openWorldHint): asked for in a native box every time (askNetwork), refused offline
+const isNetworkTool = (def) => isChangeTool(def) && def?.annotations?.openWorldHint === true;
+const CHANGES_OFF = "Changes are switched off in GeoStrix. To allow them: Tools › AI App Access › Allow AI apps to make changes.";
 // a name that holds a secret (never accepted as an argument, never sent back)
 const CREDENTIAL_KEY = /pass(word|wd|phrase)?|secret|token|api[_-]?key|credential|authorization|private[_-]?key|connection[_-]?string|\bpwd\b|safestorage/i;
 // something that points at a file or a folder: a drive, a UNC share, an absolute or home path, a parent folder, a file: URL, a %VAR% or $VAR folder
@@ -16,7 +23,43 @@ const PATH_IN_TEXT = /([a-zA-Z]:[\\/]|\\\\[^\s\\]+\\)[^\s"',;]+|\/(Users|home|va
 
 const rpcError = (id, code, message, data) => JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message, ...(data !== undefined ? { data } : {}) } });
 const rpcResult = (id, result) => JSON.stringify({ jsonrpc: "2.0", id, result });
-const toolDef = (name) => TOOLS.find((t) => t.name === name) || null;
+const toolDef = (name, tools = TOOLS) => tools.find((t) => t.name === name) || null;
+
+// one value against its schema, strictly: text (with an optional enum), numbers, true / false, a list of texts, and (#3932) a small object of such values
+// with no other keys. -> null or why it is refused ('must be text' ...)
+function badValue(p, v, depth = 0) {
+  if (!p || typeof p !== "object") return "is not accepted";
+  if (p.type === "string") {
+    if (typeof v !== "string") return "must be text";
+    if (p.maxLength != null && v.length > p.maxLength) return `is too long (at most ${p.maxLength} characters)`;
+    if (p.minLength != null && v.length < p.minLength) return "is empty";
+    if (Array.isArray(p.enum) && !p.enum.includes(v)) return `must be one of: ${p.enum.join(", ")}`;
+    return null;
+  }
+  if (p.type === "integer" || p.type === "number") {
+    if (typeof v !== "number" || !Number.isFinite(v)) return "must be a number";
+    if (p.type === "integer" && !Number.isInteger(v)) return "must be a whole number";
+    if (p.minimum != null && v < p.minimum) return `must be at least ${p.minimum}`;
+    if (p.maximum != null && v > p.maximum) return `must be at most ${p.maximum}`;
+    return null;
+  }
+  if (p.type === "boolean") return typeof v === "boolean" ? null : "must be true or false";
+  if (p.type === "array") {
+    if (!Array.isArray(v)) return "must be a list";
+    if (p.maxItems != null && v.length > p.maxItems) return `has too many items (at most ${p.maxItems})`;
+    for (const x of v) { if (typeof x !== "string" || (p.items?.maxLength != null && x.length > p.items.maxLength) || (p.items?.minLength != null && x.length < p.items.minLength) || (Array.isArray(p.items?.enum) && !p.items.enum.includes(x))) return "must be a list of short texts"; }
+    return null;
+  }
+  if (p.type === "object" && depth < 1) { // one level only (make_section's { x, y })
+    if (!v || typeof v !== "object" || Array.isArray(v)) return "must be an object";
+    const props = p.properties || {};
+    for (const k of Object.keys(v)) if (!(k in props)) return `has an unknown field '${k}'`;
+    for (const r of p.required || []) if (v[r] === undefined) return `needs '${r}'`;
+    for (const [k, x] of Object.entries(v)) { const why = badValue(props[k], x, depth + 1); if (why) return `.${k} ${why}`; }
+    return null;
+  }
+  return "is not accepted";
+}
 
 // -> null when the arguments are acceptable, else { code: 'credential' | 'path' | 'schema', message }
 function refuseArgs(tool, args) {
@@ -35,19 +78,8 @@ function refuseArgs(tool, args) {
   for (const k of Object.keys(args)) if (!(k in props)) return { code: "schema", message: `Unknown argument '${k}'.` };
   for (const r of def.inputSchema?.required || []) if (args[r] === undefined) return { code: "schema", message: `'${r}' is required.` };
   for (const [k, v] of Object.entries(args)) {
-    const p = props[k];
-    const bad = (why) => ({ code: "schema", message: `'${k}' ${why}.` });
-    if (p.type === "string") { if (typeof v !== "string") return bad("must be text"); if (p.maxLength != null && v.length > p.maxLength) return bad(`is too long (at most ${p.maxLength} characters)`); if (p.minLength != null && v.length < p.minLength) return bad("is empty"); }
-    else if (p.type === "integer" || p.type === "number") {
-      if (typeof v !== "number" || !Number.isFinite(v)) return bad("must be a number");
-      if (p.type === "integer" && !Number.isInteger(v)) return bad("must be a whole number");
-      if (p.minimum != null && v < p.minimum) return bad(`must be at least ${p.minimum}`);
-      if (p.maximum != null && v > p.maximum) return bad(`must be at most ${p.maximum}`);
-    } else if (p.type === "array") {
-      if (!Array.isArray(v)) return bad("must be a list");
-      if (p.maxItems != null && v.length > p.maxItems) return bad(`has too many items (at most ${p.maxItems})`);
-      for (const x of v) { if (typeof x !== "string" || (p.items?.maxLength != null && x.length > p.items.maxLength) || (p.items?.minLength != null && x.length < p.items.minLength)) return bad("must be a list of short texts"); }
-    }
+    const why = badValue(props[k], v);
+    if (why) return { code: "schema", message: why.startsWith(".") ? `'${k}${why}.` : `'${k}' ${why}.` };
   }
   return null;
 }
@@ -75,11 +107,36 @@ function capText(data, maxBytes = LIMITS.maxResultBytes) {
 
 const cleanClientName = (n) => String(n ?? "").replace(/[^\p{L}\p{N} ._\-()]/gu, "").trim().slice(0, 60) || "An AI app";
 
-// One connection. callTool(name, args) -> Promise<{ ok, data } | { ok: false, error }> (the open project's side); askAllow(clientName) -> Promise<'once' | 'always' | 'refuse'>;
-// onActivity(entry) is told of each call (tool, ok, bytes, refused) and of the client that connected.
-function createSession({ callTool, askAllow, onActivity = () => {}, now = Date.now, limits = LIMITS }) {
-  let client = null, allowed = false, closed = false;
-  const stamps = [];
+// #3932 — one change at a time across every connection: run(fn) waits behind the change before it, and gives up (-> { waited: true }) when that one takes longer than waitMs
+function createChangeLock() {
+  let tail = Promise.resolve();
+  return {
+    run(fn, waitMs) {
+      const prev = tail; let release; const mine = new Promise((r) => { release = r; }); tail = prev.then(() => mine);
+      return new Promise((resolve) => {
+        let started = false, gaveUp = false;
+        const timer = setTimeout(() => { if (!started) { gaveUp = true; resolve({ waited: true }); } }, waitMs);
+        prev.then(async () => {
+          if (gaveUp) return release();
+          started = true; clearTimeout(timer);
+          try { resolve({ value: await fn() }); } catch (e) { resolve({ error: e }); } finally { release(); }
+        });
+      });
+    },
+  };
+}
+
+// One connection. callTool(name, args, { client, change }) -> Promise<{ ok, data } | { ok: false, error }> (the open project's side);
+// askAllow(clientName, { changes, again }) -> Promise<'once' | 'always' | 'refuse' | { answer, changes }> ('changes': the question said the app may also make changes;
+// 'again': an app already reading asks for changes; the object form says whether a remembered app is also remembered for changes);
+// changesAllowed() -> whether 'Allow AI apps to make changes' is on (#3932); onActivity(entry) is told of each call (tool, ok, bytes, refused) and of the client that connected.
+// askNetwork(clientName, toolName) -> Promise<boolean> (#3932: the download question; false = no), isOnline() -> boolean
+function createSession({ callTool, askAllow, changesAllowed = () => false, changeLock = createChangeLock(), askNetwork = async () => false, isOnline = () => true, tools = TOOLS, onActivity = () => {}, now = Date.now, limits = LIMITS }) {
+  let client = null, allowed = false, closed = false, changesOk = false;
+  const stamps = [], changeStamps = [];
+  const L = { ...LIMITS, ...limits };
+  const hasChanges = tools.some(isChangeTool);
+  const answerOf = (a) => (a && typeof a === "object" ? a.answer : a);
   const log = (e) => { try { onActivity({ at: now(), client, ...e }); } catch { /* the list is for the user only */ } };
   async function handleLine(line) {
     if (closed) return null;
@@ -88,30 +145,58 @@ function createSession({ callTool, askAllow, onActivity = () => {}, now = Date.n
     const { id, method, params } = msg, isNote = id === undefined;
     if (method === "initialize") {
       client = cleanClientName(params?.clientInfo?.name);
-      const answer = await askAllow(client);
+      const withChanges = hasChanges && !!changesAllowed();
+      const a = await askAllow(client, { changes: withChanges });
+      const answer = answerOf(a);
       if (answer !== "once" && answer !== "always") { closed = true; log({ event: "refused" }); return rpcError(id, -32000, "The user did not allow this AI app to read the project."); }
-      allowed = true; log({ event: "connected", always: answer === "always" });
+      allowed = true; changesOk = withChanges && (a && typeof a === "object" ? !!a.changes : true); log({ event: "connected", always: answer === "always" });
       const asked = params?.protocolVersion;
-      return rpcResult(id, { protocolVersion: SUPPORTED.includes(asked) ? asked : SUPPORTED[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: "geostrix", title: "GeoStrix", version: "1" }, instructions: "Read-only access to the project open in GeoStrix. Start with project_summary. Results are capped and paged; ask for the next page with 'offset'." });
+      const instructions = hasChanges
+        ? "Access to the project open in GeoStrix. Start with project_summary. Results are capped and paged; ask for the next page with 'offset'. The tools whose description begins 'Makes a change in GeoStrix' work only while the user has switched on 'Allow AI apps to make changes' in GeoStrix; each change shows in GeoStrix and is one step of Undo, and none deletes or overwrites anything."
+        : "Read-only access to the project open in GeoStrix. Start with project_summary. Results are capped and paged; ask for the next page with 'offset'.";
+      return rpcResult(id, { protocolVersion: SUPPORTED.includes(asked) ? asked : SUPPORTED[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: "geostrix", title: "GeoStrix", version: "1" }, instructions });
     }
     if (isNote) return null; // notifications/initialized, notifications/cancelled ...
     if (method === "ping") return rpcResult(id, {});
     if (!allowed) return rpcError(id, -32002, "Not initialized");
-    if (method === "tools/list") return rpcResult(id, { tools: TOOLS });
+    if (method === "tools/list") return rpcResult(id, { tools });
     if (method === "tools/call") {
       const name = params?.name;
-      const def = typeof name === "string" ? toolDef(name) : null;
+      const def = typeof name === "string" ? toolDef(name, tools) : null;
       if (!def) { log({ tool: String(name).slice(0, 40), ok: false, refused: "unknown tool" }); return rpcError(id, -32602, `Unknown tool: ${String(name).slice(0, 40)}`); }
+      const change = isChangeTool(def), refuse = (code, text) => { log({ tool: name, ok: false, refused: code, ...(change ? { change } : {}) }); return rpcResult(id, { content: [{ type: "text", text }], isError: true }); };
+      if (change && !changesAllowed()) return refuse("changes off", CHANGES_OFF); // #3932 — never reaches the window
       const why = refuseArgs(def, params?.arguments);
-      if (why) { log({ tool: name, ok: false, refused: why.code }); return rpcResult(id, { content: [{ type: "text", text: why.message }], isError: true }); }
+      if (why) return refuse(why.code, why.message);
       const t = now(); while (stamps.length && t - stamps[0] > 60000) stamps.shift();
-      if (stamps.length >= limits.callsPerMinute) { log({ tool: name, ok: false, refused: "rate" }); return rpcResult(id, { content: [{ type: "text", text: `Too many calls: at most ${limits.callsPerMinute} a minute. Wait a little and ask for larger pages instead.` }], isError: true }); }
+      if (stamps.length >= L.callsPerMinute) return refuse("rate", `Too many calls: at most ${L.callsPerMinute} a minute. Wait a little and ask for larger pages instead.`);
+      if (change) {
+        while (changeStamps.length && t - changeStamps[0] > 60000) changeStamps.shift();
+        if (changeStamps.length >= L.changesPerMinute) return refuse("rate", `Too many changes: at most ${L.changesPerMinute} a minute. Wait a little.`);
+        if (!changesOk) { // an app allowed to read (or remembered) before the switch was on is asked once about changes
+          const answer = answerOf(await askAllow(client, { changes: true, again: true }));
+          if (answer !== "once" && answer !== "always") return refuse("not allowed", "The user did not allow this AI app to make changes in GeoStrix.");
+          changesOk = true;
+          if (!changesAllowed()) return refuse("changes off", CHANGES_OFF); // switched off while the question was up
+        }
+        changeStamps.push(t);
+        if (isNetworkTool(def)) { // #3932 — every download is asked for in GeoStrix, before anything goes out; no 'always'
+          let online = true; try { online = isOnline() !== false; } catch { /* assume so: the fetch says otherwise */ }
+          if (!online) return refuse("offline", "No internet connection.");
+          let yes = false; try { yes = (await askNetwork(client, name)) === true; } catch { yes = false; }
+          if (!yes) return refuse("declined", "The user declined the download in GeoStrix.");
+          if (!changesAllowed()) return refuse("changes off", CHANGES_OFF);
+        }
+      }
       stamps.push(t);
-      let r; try { r = await callTool(name, params?.arguments || {}); } catch { r = { ok: false, error: "The tool could not read the project." }; } // what failed inside the app (a stack, a path) is not passed on
-      if (!r?.ok) { log({ tool: name, ok: false, refused: "error" }); return rpcResult(id, { content: [{ type: "text", text: scrub(String(r?.error || "The tool failed.").slice(0, 400)).value }], isError: true }); }
+      const run = async () => { try { return await callTool(name, params?.arguments || {}, change ? { client, change, ...(isNetworkTool(def) ? { network: true } : {}) } : { client }); } catch { return { ok: false, error: change ? "The change could not be made." : "The tool could not read the project." }; } }; // what failed inside the app (a stack, a path) is not passed on
+      let r;
+      if (change) { const out = await changeLock.run(run, L.changeWaitMs); if (out.waited) return refuse("busy", "Another change is still running in GeoStrix. Try again in a moment."); r = out.value; }
+      else r = await run();
+      if (!r?.ok) { log({ tool: name, ok: false, refused: "error", ...(change ? { change } : {}) }); return rpcResult(id, { content: [{ type: "text", text: scrub(String(r?.error || "The tool failed.").slice(0, 400)).value }], isError: true }); }
       const { value, removed } = scrub(r.data);
-      const capped = capText(value, limits.maxResultBytes);
-      log({ tool: name, ok: capped.ok, bytes: capped.bytes || 0, rows: r.rows ?? null, scrubbed: removed || undefined, refused: capped.ok ? undefined : "size" });
+      const capped = capText(value, L.maxResultBytes);
+      log({ tool: name, ok: capped.ok, bytes: capped.bytes || 0, rows: r.rows ?? null, scrubbed: removed || undefined, refused: capped.ok ? undefined : "size", ...(change ? { change } : {}) });
       return rpcResult(id, { content: [{ type: "text", text: capped.text }], isError: !capped.ok });
     }
     return rpcError(id, -32601, `Method not found: ${method.slice(0, 40)}`);
@@ -119,4 +204,4 @@ function createSession({ callTool, askAllow, onActivity = () => {}, now = Date.n
   return { handleLine, get client() { return client; }, close: () => { closed = true; } };
 }
 
-module.exports = { TOOLS, SUPPORTED, LIMITS, CREDENTIAL_KEY, PATH_LIKE, refuseArgs, scrub, capText, createSession, cleanClientName, toolDef };
+module.exports = { TOOLS, SUPPORTED, LIMITS, CREDENTIAL_KEY, PATH_LIKE, CHANGES_OFF, isChangeTool, isNetworkTool, refuseArgs, scrub, capText, createSession, createChangeLock, cleanClientName, toolDef };

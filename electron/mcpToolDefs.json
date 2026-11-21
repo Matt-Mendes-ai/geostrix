@@ -113,5 +113,111 @@
       "required": ["section"],
       "additionalProperties": false
     }
+  },
+  {
+    "name": "make_section",
+    "description": "Makes a change in GeoStrix: adds a new cross-section to the project (it shows in StrixViewer's section list), either between two points in the project's coordinates (list_holes gives the collars') or through one hole in its own plane. Nothing is replaced: a name already used gets ' (2)'. Undo in GeoStrix takes it back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 64, "description": "The section's name. Leave out for GeoStrix's own ('Section 1000E 2000N az 90°' / 'Section through DH-23-001 (az 90°)')." },
+        "from": { "type": "object", "properties": { "x": { "type": "number", "description": "Easting (project coordinates)." }, "y": { "type": "number", "description": "Northing (project coordinates)." } }, "required": ["x", "y"], "additionalProperties": false, "description": "The line's first end. Needs 'to'." },
+        "to": { "type": "object", "properties": { "x": { "type": "number", "description": "Easting (project coordinates)." }, "y": { "type": "number", "description": "Northing (project coordinates)." } }, "required": ["x", "y"], "additionalProperties": false, "description": "The line's second end. Needs 'from'." },
+        "along_hole": { "type": "string", "maxLength": 64, "description": "A hole id: the section runs through this hole along its bearing (instead of 'from' and 'to')." },
+        "corridor_m": { "type": "number", "minimum": 1, "maximum": 5000, "description": "The buffer: holes within this distance of the line are drawn (m). Default 100." }
+      },
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "make_sheet",
+    "description": "Makes a change in GeoStrix: adds a new Layout page, one of Layout's one-click sheets: 'plan' (every checked hole on a drill plan with a legend, north arrow and scale bar), 'section' (the newest section picture sent to Layout), 'log' (the newest strip log sent to Layout) or 'intercepts' (the newest Best intercepts table in Layout). The page is printed or exported by the user, from GeoStrix. The toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "enum": ["plan", "section", "log", "intercepts"], "description": "Which sheet." }
+      },
+      "required": ["kind"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "add_best_intercepts",
+    "description": "Makes a change in GeoStrix: computes the best intercepts of one element at a cut-off, exactly as the read tool best_intercepts does (the lab assays without the QC samples, uncut, best first by grade x length), and puts them as a table, with its caveats, on a new Layout page named 'Best intercepts'. The toast's Undo in GeoStrix removes the page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": { "type": "string", "minLength": 1, "maxLength": 32, "description": "The element symbol." },
+        "cutoff": { "type": "number", "minimum": 0, "description": "The cut-off grade, in the unit the project stores the element in." },
+        "min_length": { "type": "number", "minimum": 0, "description": "Shortest intercept to report (m). Default 0." },
+        "max_internal_dilution": { "type": "number", "minimum": 0, "description": "Longest run of below-cut-off material allowed inside an intercept (m). Default 2." }
+      },
+      "required": ["element", "cutoff"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "fetch_satellite_image",
+    "description": "Makes a change in GeoStrix: downloads the latest clear Copernicus Sentinel-2 natural-colour image over the project area and adds it as a new raster (Maps). The area is the loaded terrain's when there is one (so the image matches it), else around the drillholes. GeoStrix first asks the user, every time, whether to download; a refusal is answered 'The user declined the download in GeoStrix.'. It can take a minute or more. The toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "max_cloud_percent": { "type": "integer", "minimum": 0, "maximum": 100, "description": "The most cloud a scene's catalogue entry may report (%). Default 30." },
+        "area": { "type": "string", "enum": ["terrain", "holes"], "description": "'terrain' (the default, when a terrain is loaded) or 'holes' (around the drillholes)." }
+      },
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true }
+  },
+  {
+    "name": "fetch_terrain",
+    "description": "Makes a change in GeoStrix: downloads Copernicus GLO-30 terrain over the project area (around the drillholes, as Maps › Terrain opens on) and adds it as the project's terrain, with GeoStrix's check of the collars against the ground (a large misfit is reported, the project's coordinate system is never changed). Refused when a terrain is already loaded (nothing is overwritten). GeoStrix first asks the user, every time, whether to download. It can take a minute or more. The toast's Undo in GeoStrix removes it.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true }
+  },
+  {
+    "name": "colour_holes",
+    "description": "Makes a change in GeoStrix: changes how StrixViewer draws the holes. by 'field': the holes (collars and traces) coloured by a collar field, with a legend; 'element': that element's grades shown along the holes (StrixViewer's assay display, that element alone); 'layer': a logged layer (a key list_layers gives) shown along the holes, coloured by its codes; 'none': the holes in one colour. Only the view changes, nothing in the project's data. The toast's Undo in GeoStrix puts it back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "by": { "type": "string", "enum": ["element", "layer", "field", "none"], "description": "What colours the holes." },
+        "name": { "type": "string", "maxLength": 64, "description": "The element symbol, the layer key or the collar field (as list_holes shows the fields). Not needed with 'none'." }
+      },
+      "required": ["by"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "show_layers",
+    "description": "Makes a change in GeoStrix: shows or hides layers in StrixViewer: logged layers by the keys list_layers gives, 'assays' (the assay display) and 'terrain'. Only the view changes. A key that is not found is listed in the answer. The toast's Undo in GeoStrix puts it back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "layers": { "type": "array", "maxItems": 30, "items": { "type": "string", "maxLength": 64 }, "description": "The layer keys." },
+        "visible": { "type": "boolean", "description": "true to show them, false to hide them." }
+      },
+      "required": ["layers", "visible"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "set_view",
+    "description": "Makes a change in GeoStrix: points StrixViewer's 3D view: 'fit' (the Fit button: the data shown), 'top' (plan, looking down), 'bottom' (looking up), 'hole' (zoomed to one hole: 'target' is its id) or 'section' (opens a saved section in its own window, as its row in the list does: 'target' is its name). The toast's Undo in GeoStrix puts the camera back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "view": { "type": "string", "enum": ["fit", "top", "bottom", "section", "hole"], "description": "Where to point the view." },
+        "target": { "type": "string", "maxLength": 128, "description": "A hole id (view 'hole') or a section name (view 'section')." }
+      },
+      "required": ["view"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
   }
 ]

@@ -30,6 +30,7 @@ import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegen
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { planKeyItems } from "../lib/planKeyLegend.js"; // TASKS.csv #3419
 import { planSheet, sheetSources, sectionSheet, logSheet, interceptsSheet } from "../lib/layoutSheets.js"; // TASKS.csv #3912 — one-click sheets
+import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #3932 — an AI app's make_sheet
 import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #3912 — the Add menu's All-tools items
 import { tableTextFit, collarTableCells, splitHalvesFit } from "../lib/collarTable.js"; // TASKS.csv #3374; collarTableCells / splitHalvesFit: #3411
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
@@ -929,6 +930,8 @@ export default function LayoutModule() {
   // project holds (the store's addLayoutPages adds the data credit and opens it). The plan's key is read from the plan it lays out, then the
   // plan is laid out again beside a legend that wide.
   const sheetSrc = useMemo(() => sheetSources(layoutPages), [layoutPages]);
+  // #3932 — what each sheet needs, said to an AI app (English: it goes to the app, not on screen)
+  const SHEET_NEEDS = { plan: "There is no hole to show on a plan map.", section: "No section picture is in Layout yet: open a section in GeoStrix and press Snapshot in its window first.", log: "No strip log is in Layout yet: open a hole's strip log in GeoStrix and press Add to Layout first.", intercepts: "No Best intercepts table is in Layout yet: add_best_intercepts makes one." };
   const makeSheet = (kind) => {
     const fmt = activePage?.format || null, stamp = Date.now();
     let res = null, name = "";
@@ -943,10 +946,13 @@ export default function LayoutModule() {
     if (kind === "section") { res = sectionSheet({ format: fmt, credit: credits, source: sheetSrc.section, presets: SCALE_PRESETS, stamp }); name = tr("Cross-section"); }
     if (kind === "log") { res = logSheet({ format: { ...pageFormatOf(activePage), orientation: "portrait" }, credit: credits, source: sheetSrc.log, stamp }); name = tr("Hole log"); if (res) res.format = { ...pageFormatOf(activePage), orientation: "portrait" }; }
     if (kind === "intercepts") { res = interceptsSheet({ format: fmt, credit: credits, source: sheetSrc.intercepts, stamp }); name = tr("Intercepts table"); }
-    if (!res) { setExportNote({ text: tr("Nothing to lay out for this sheet yet."), error: true }); return; }
+    if (!res) { setExportNote({ text: tr("Nothing to lay out for this sheet yet."), error: true }); return { ok: false, error: SHEET_NEEDS[kind] || "Nothing to lay out for this sheet yet." }; }
     undoCheckpoint?.();
-    addPagesOnPaper(addLayoutPages, setLayoutPageFormat, [{ name, elements: res.elements }], res.format || fmt); // a hole log: portrait
+    const ids = addPagesOnPaper(addLayoutPages, setLayoutPageFormat, [{ name, elements: res.elements }], res.format || fmt); // a hole log: portrait
+    return { ok: true, name, ids }; // #3932 — for an AI app's make_sheet
   };
+  // TASKS.csv #3932 — an AI app's make_sheet (lib/mcpActions.js, only while 'Allow AI apps to make changes' is on): the same sheet as the button, its result handed back
+  useModuleAction(["mcp-make-sheet"], (_a, p) => { let r; try { r = ["plan", "section", "log", "intercepts"].includes(p?.kind) ? makeSheet(p.kind) : { ok: false, error: "Unknown sheet." }; } catch { r = { ok: false, error: "The sheet could not be made." }; } p?.reply?.(r); });
   // TASKS.csv #3912 — Text, North arrow, Scale bar, Legend, Title block and Collar table under one Add button (the Basic ribbon's nine); Logo and
   // Samples table in its menu with All tools
   const basicToolsOn = useUiMode()?.mode === "simple";

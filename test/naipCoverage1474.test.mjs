@@ -13,6 +13,6 @@ test("a coarse box around the contiguous USA, no network", () => {
 
 test("the picker says so and the fetch refuses before searching", () => {
   const s = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.match(s, /if \(satSource === "naip" && naipCoverage\(bboxLonLat\) === "outside"\) \{ setError\(/);
+  assert.match(s, /if \(src === "naip" && naipCoverage\(bboxLonLat\) === "outside"\) \{ setError\(/);
   assert.match(s, /\{naip && bbox && naipCoverage\(bbox\) !== "inside" && <span/);
 });

@@ -49,18 +49,23 @@ const fieldOf = (layer, layerStyles) => layerStyles?.[`custom:${layer?.id}`]?.co
 // from 318 to 7,464 ppm one yellow). The layer's style may now set the range (rampMin / rampMax), the scale ('linear' / 'log'; auto: log when the
 // range spans more than a decade) and classes (2-12 equal steps on that scale); the default stays p2-p98. Cached per style object and rows.
 const styled = new WeakMap();
+// TASKS.csv #3813 (Matt's decision, 2026-11-21) — a layer evaluated from a block model ('On holes: <model>') carries the model's own scale
+// (layer.defaultRampScale 'linear' / 'log'): it starts on it instead of the auto rule, which drew a linear chargeability model's values on a log
+// ramp; the layer's style (Scale) still overrides it
 export function customScale(layer, field, st) {
   const base = scaleOf(layer, field);
-  if (!base.numeric || !st || (!Number.isFinite(st.rampMin) && !Number.isFinite(st.rampMax) && !st.rampScale && !(st.classes >= 2))) return base;
-  let byRows = styled.get(st); if (!byRows) { byRows = new WeakMap(); styled.set(st, byRows); }
+  const rs = st?.rampScale || (field === "value" ? layer?.defaultRampScale : null) || null;
+  if (!base.numeric || (!rs && (!st || (!Number.isFinite(st.rampMin) && !Number.isFinite(st.rampMax) && !(st.classes >= 2))))) return base;
+  const key = st || layer;
+  let byRows = styled.get(key); if (!byRows) { byRows = new WeakMap(); styled.set(key, byRows); }
   const rows = rowsRefOf(layer) || [];
   let byField = byRows.get(rows); if (!byField) { byField = new Map(); byRows.set(rows, byField); }
   let s = byField.get(field);
   if (s) return s;
-  const min = Number.isFinite(st.rampMin) ? st.rampMin : base.min, max = Number.isFinite(st.rampMax) ? st.rampMax : base.max;
+  const min = Number.isFinite(st?.rampMin) ? st.rampMin : base.min, max = Number.isFinite(st?.rampMax) ? st.rampMax : base.max;
   if (!(max > min)) { byField.set(field, base); return base; }
-  const log = st.rampScale === "linear" ? false : st.rampScale === "log" ? min > 0 : min > 0 && max / min > 10;
-  s = { ...base, min, max, log, classes: st.classes >= 2 ? Math.min(12, Math.round(st.classes)) : 0, clipLo: min > base.dataMin, clipHi: max < base.dataMax };
+  const log = rs === "linear" ? false : rs === "log" ? min > 0 : min > 0 && max / min > 10;
+  s = { ...base, min, max, log, classes: st?.classes >= 2 ? Math.min(12, Math.round(st.classes)) : 0, clipLo: min > base.dataMin, clipHi: max < base.dataMax };
   byField.set(field, s);
   return s;
 }
@@ -112,18 +117,19 @@ export function customLegendGroups(customLayers, customVisible = {}, layerStyles
     const label = field === "value" ? `${L.name}${unit}` : `${L.name} · ${field}`;
     if (st.color) { out.push({ key: `custom_${L.id}`, label, items: [[label, st.color]] }); continue; }
     const s = customScale(L, field, st); // #2367
+    const logLabel = s.numeric && s.log && L.defaultRampScale ? `${label} · log scale` : label; // #3813 — a layer evaluated from a model says when its ramp is log (project text: English)
     if (s.numeric && s.classes) { // #2367 — one row per class, its value range
       const items = [];
       for (let i = 0; i < s.classes; i++) {
         const lo = atT(s, i / s.classes), hi = atT(s, (i + 1) / s.classes);
         items.push([i === s.classes - 1 && s.clipHi ? `≥ ${fmt(lo)}` : i === 0 && s.clipLo ? `< ${fmt(hi)}` : `${fmt(lo)} – ${fmt(hi)}`, magColor(i / (s.classes - 1), 0, 1)]); // an end class past the data's range is open
       }
-      out.push({ key: `custom_${L.id}`, label, items: items.reverse() });
+      out.push({ key: `custom_${L.id}`, label: logLabel, items: items.reverse() });
       continue;
     }
     if (s.numeric) {
       const colors = Array.from({ length: 17 }, (_, i) => magColor(i / 16, 0, 1));
-      out.push({ key: `custom_${L.id}`, label, items: [], ramp: { kind: "ramp", log: s.log, min: s.min, max: s.max, minLabel: `${s.clipLo ? "≤ " : ""}${fmt(s.min)}`, maxLabel: `${s.clipHi ? "≥ " : ""}${fmt(s.max)}`, colors, ticks: [] } }); // #1539
+      out.push({ key: `custom_${L.id}`, label /* #3813 — a ramp's legend says "· log scale" itself (ViewportFigureOverlay, Layout): only the classed legend carries it in its label */, items: [], ramp: { kind: "ramp", log: s.log, min: s.min, max: s.max, minLabel: `${s.clipLo ? "≤ " : ""}${fmt(s.min)}`, maxLabel: `${s.clipHi ? "≥ " : ""}${fmt(s.max)}`, colors, ticks: [] } }); // #1539
       continue;
     }
     const counts = new Map(); let none = 0;

@@ -1750,9 +1750,12 @@ export function StoreProvider({ children }) {
   // TASKS.csv #3184 (from #3028 (9)) — four Layout inserts and a duplicate made half a second apart were one burst, so one
   // Ctrl+Z took back all five. An insert / duplicate / paste now calls undoCheckpoint first, so each is its own step; a drag
   // still coalesces into one.
-  const commitUndoBurst = useLatestCallback(() => {
+  // TASKS.csv #3932 — a label (a string: what an AI app did, "Claude Desktop: added section 'A-A'") names the step for the Undo button's tooltip (peekUndo)
+  const undoStepLabels = useRef(new WeakMap()); // #3932 — step (its before-snapshot) -> label
+  const commitUndoBurst = useLatestCallback((label) => {
     if (undoDebounceTimer.current) { clearTimeout(undoDebounceTimer.current); undoDebounceTimer.current = null; }
     if (!undoBeforeBurst.current) return;
+    if (typeof label === "string" && label) undoStepLabels.current.set(undoBeforeBurst.current, label.slice(0, 160));
     undoPast.current.push(undoBeforeBurst.current); undoPastAt.current.push(undoBurstAt.current);
     if (undoPast.current.length > UNDO_MAX) { undoPast.current.shift(); undoPastAt.current.shift(); }
     undoBeforeBurst.current = null;
@@ -1845,7 +1848,7 @@ export function StoreProvider({ children }) {
     const top = undoBeforeBurst.current || undoPast.current[undoPast.current.length - 1];
     if (!top) return null;
     const at = undoBeforeBurst.current ? undoBurstAt.current : undoPastAt.current[undoPast.current.length - 1] ?? 0;
-    return { keys: changedKeys(undoSnapshotRef.current(), top), viewFirst: lastViewChangeAt.current > at + 2000 && viewNoticeFor.current !== lastViewChangeAt.current };
+    return { keys: changedKeys(undoSnapshotRef.current(), top), viewFirst: lastViewChangeAt.current > at + 2000 && viewNoticeFor.current !== lastViewChangeAt.current, label: undoStepLabels.current.get(top) || null }; // label: #3932
   });
   const peekRedo = useLatestCallback(() => { const top = undoFuture.current[undoFuture.current.length - 1]; return top ? { keys: changedKeys(undoSnapshotRef.current(), top) } : null; });
 
