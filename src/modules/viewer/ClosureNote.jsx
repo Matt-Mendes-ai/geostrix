@@ -14,10 +14,10 @@ export function flatSearchAxes(params) {
 
 export default function ClosureNote({ type, params = null }) {
   const [head, body] = type === "unit_body"
-    ? [tr("This body was closed artificially."), tr("Part of its boundary is not a logged contact with another code — it is where the search radius ran out of intervals. Its volume therefore depends on the search radius, not only on the logs. Treat it as a picture of where the unit might extend, not a measured volume.")]
+    ? [tr("This body was closed artificially."), tr("Part of its boundary is not a logged contact with another code but where the search radius ran out of intervals: its volume depends on that radius. Treat it as where the unit might extend, not a measured volume.")]
     : type === "alteration_envelope"
-      ? [tr("This envelope was closed artificially."), tr("Part of its boundary is not a logged alteration boundary — it is where the search radius ran out of intervals. Its volume therefore depends on the search radius, not only on the logs. Treat it as a picture of where the alteration might extend, not a measured volume.")]
-      : [tr("This shell was closed artificially."), tr("Part of its boundary is not a grade boundary — it is where the search radius ran out of samples. The volume therefore depends on your search radius, not only on the data: doubling the search radius can multiply the volume by up to eight (less where the shell's top and base are real grade boundaries, as in a flat body). Treat it as a visualization of where grades might extend, not a measured volume.")];
+      ? [tr("This envelope was closed artificially."), tr("Part of its boundary is not a logged alteration boundary but where the search radius ran out of intervals: its volume depends on that radius. Treat it as where the alteration might extend, not a measured volume.")]
+      : [tr("This shell was closed artificially."), tr("Part of its boundary is not a grade boundary but where the search radius ran out of samples: the volume depends on your search radius, and doubling it can multiply the volume by up to eight (less where the shell's top and base are real grade boundaries). Treat it as where grades might extend, not a measured volume.")];
   return (
     <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>
       <strong>{head}</strong>{" "}{body}

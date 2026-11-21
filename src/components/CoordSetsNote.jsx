@@ -37,7 +37,7 @@ export default function CoordSetsNote({ modal, project }) {
       )}
       {small && (
         <div role="alert" style={{ ...note, color: "var(--color-warn-text)" }}>
-          {tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has, though the project is in {crs}: they look like local mine-grid numbers. Map Easting and Northing to the file's map-grid columns, or tick \"X/Y are on a local mine grid\" below.", { n: small.n.toLocaleString(), of: small.of.toLocaleString(), x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString(), crs: crsName(project.epsg) || `EPSG:${project.epsg}` })}
+          {tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has (project: {crs}). Map Easting and Northing to the file's map-grid columns, or tick \"X/Y are on a local mine grid\" below.", { n: small.n.toLocaleString(), of: small.of.toLocaleString(), x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString(), crs: crsName(project.epsg) || `EPSG:${project.epsg}` })}
         </div>
       )}
     </div>

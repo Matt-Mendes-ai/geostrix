@@ -114,7 +114,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Connects directly to the database — the same one DBeaver points at — rather than going through DBeaver itself. The password is used for this session only unless you tick \"Remember the password\" (then it is kept encrypted on this computer, never in the project file). Once connected it stays open for the rest of the session (see the new Browser panel in StrixViewer sidebar) so you won't be asked again until you disconnect.")}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Connects to the database directly, not through DBeaver. The password is used for this session only unless you tick \"Remember the password\" (then it is kept encrypted on this computer, never in the project file). Once connected, it stays open in the Browser panel for the session, so you are not asked again until you disconnect.")}</div>
 
           {dbConnections.length > 0 && (
             <select onChange={(e) => loadSaved(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>
@@ -176,14 +176,14 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
             </label>
           )}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 10 }}>
-            {/* TASKS.csv #477 — honest wording: the read-only session is a guard, not a guarantee */}{tr("GeoStrix opens the database in read-only mode, one statement at a time, and stops any query after 2 minutes. That guards against accidental changes, but it is not a security boundary: for a real guarantee, connect as a database user that only has read permission.")}</div>
+            {/* TASKS.csv #477 — honest wording: the read-only session is a guard, not a guarantee */}{tr("GeoStrix opens the database read-only, one statement at a time, and stops any query after 2 minutes. This guards against accidental changes but is not a security boundary: for a real guarantee, connect as a database user with read permission only.")}</div>
 
           <button onClick={test} disabled={testing} style={{ ...btn(true), width: "100%" }}>
             {testing ? <Loader2 size={14} className="spin" /> : liveEntry ? tr("Reconnect") : tr("Test connection")}
           </button>
 
           {liveEntry && !status && (
-            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", background: "#12241a", border: "1px solid #2d5a3d", color: "var(--color-success-text)" }}>{tr("Already connected as \"{name}\" — stays open in the Browser panel too, so you won't be asked for the password again this session unless you disconnect it there.", { name: config.name })}</div>
+            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", background: "#12241a", border: "1px solid #2d5a3d", color: "var(--color-success-text)" }}>{tr("Already connected as \"{name}\". It stays open in the Browser panel, so the password is not asked again this session unless you disconnect there.", { name: config.name })}</div>
           )}
           {status && (
             <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", background: status.ok ? "#12241a" : "#2a1a1a", border: `1px solid ${status.ok ? "#2d5a3d" : "var(--color-danger-border-strong)"}`, color: status.ok ? "var(--color-success-text)" : "var(--color-danger-text)" }}>
@@ -194,7 +194,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
           {tables && (
             <div style={{ marginTop: 12 }}>
               <div style={label}>{tr("Tables & views ({tables})", { tables: tables.length })}</div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.45 }}>{tr("Click a table to import all of it: its row count is checked first, and a table over {n} rows asks before loading. The query box below is for your own SQL.", { n: ROW_WARN_THRESHOLD.toLocaleString() })}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.45 }}>{tr("Click a table to import all of it (a table over {n} rows asks first). Use the query box below for your own SQL.", { n: ROW_WARN_THRESHOLD.toLocaleString() })}</div>
               {pullError && <div style={{ color: "var(--color-danger-text)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{pullError}</div>}
               <TablePullConfirm pending={pending} onFirst={() => fetchTable(pending.t, pending.total, ROW_WARN_THRESHOLD)} onAll={() => fetchTable(pending.t, pending.total, null)} onCancel={() => setPending(null)} />
               {/* TASKS.csv #177 — a DBeaver-managed company database is exactly the case where the

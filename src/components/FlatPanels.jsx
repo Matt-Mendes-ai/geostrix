@@ -25,7 +25,7 @@ export default function FlatPanels({ model, cutoff, density, unit, element, inpu
       {res && <div style={{ ...note, color: "var(--color-text-secondary)" }}>{res.totals.orePanels
         ? tr("{n} of {m} panels reach it: {a} ha, {t} t at {g} {u} over a mean {h} m.", { n: res.totals.orePanels, m: res.totals.panels, a: sig(res.totals.area / 10000), t: big(res.totals.tonnes), g: sig(res.totals.grade), u, h: sig(res.totals.thick) })
         : tr("None of the {m} panels reaches it.", { m: res.totals.panels })}</div>}
-      {res && <div style={note}>{tr("From the block model: the panels are squares on the model's plan, not a mine design. For panels from the drillholes' own grade × thickness: 3D Modelling › Grade estimation › Grade × thickness in plan, its Panel side.")}</div>}
+      {res && <div style={note}>{tr("From the block model: squares on its plan, not a mine design. For panels from the drillholes' own grade × thickness: 3D Modelling › Grade estimation › Grade × thickness in plan, its Panel side.")}</div>}
     </div>
   );
 }

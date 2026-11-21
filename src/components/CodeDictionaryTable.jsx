@@ -17,7 +17,7 @@ export default function CodeDictionaryTable({ layerKey, rows, categories, legend
   const labelOf = (value) => categoryLabel(legendOverride?.[value] || {}, meta, value);
   const fill = () => {
     const n = fillCodeDictionary(layerKey, rows);
-    setNotice(n ? (n === 1 ? tr("1 code took its meaning from the description logged beside it.") : tr("{n} codes took their meaning from the description logged beside them.", { n })) : tr("No code without a meaning has a description logged beside it more often than any other (notes that differ on every row describe intervals, not the code)."));
+    setNotice(n ? (n === 1 ? tr("1 code took its meaning from the description logged beside it.") : tr("{n} codes took their meaning from the description logged beside them.", { n })) : tr("No code without a meaning has one most frequent description beside it (notes that differ on every row describe intervals, not the code)."));
   };
   const toLegend = () => {
     const labels = labelsFromDictionary(dict, categories, labelOf);
@@ -27,7 +27,7 @@ export default function CodeDictionaryTable({ layerKey, rows, categories, legend
   const withMeaning = categories.filter(([v]) => entryOf(dict, v)).length;
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "10px 14px" }}>
-      <div style={note}>{tr("What each code means in this project, saved with it. The same code can mean different rocks in different reports, so nothing comes from other projects: a meaning is the description logged beside the code in the file, or what you type here.")}</div>
+      <div style={note}>{tr("What each code means in this project, saved with it: the description logged beside the code in the file, or what you type here. Nothing comes from other projects, as one code can mean different rocks in different reports.")}</div>
       <div style={{ display: "flex", gap: 6, margin: "8px 0", alignItems: "center", flexWrap: "wrap" }}>
         <button onClick={fill} style={btn} title={tr("Codes with no meaning yet take the description logged beside them, when one is logged more often than any other. Meanings already set are kept.")}>{tr("Fill from the logged descriptions")}</button>
         <button onClick={toLegend} style={btn} disabled={!withMeaning} title={tr("Each code's legend label (every legend, section key and strip log) becomes its meaning; the colours stay.")}>{tr("Use as legend labels")}</button>

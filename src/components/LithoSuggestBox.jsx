@@ -50,7 +50,7 @@ export default function LithoSuggestBox({ pBtn }) {
   return (
     <div role="group" aria-label={tr("Suggested groups")} style={box}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Suggested groups")}</div>
-      <div style={{ marginBottom: 6 }}>{tr("Each code is read by what it means: its meaning in the code dictionary, the code as a rock name, then a common abbreviation. A close spelling, or a code whose descriptions name different rocks, starts unticked. Nothing changes until you apply.")}</div>
+      <div style={{ marginBottom: 6 }}>{tr("Each code is read by its meaning in the code dictionary, then as a rock name, then as a common abbreviation. A near spelling, or a code whose descriptions name different rocks, starts unticked. Nothing changes until you apply.")}</div>
       {!byGroup.length && <div>{tr("Nothing to suggest: no ungrouped code names a rock that another code names too, or that a group already holds.")}</div>}
       {byGroup.slice(0, SHOWN_GROUPS).map((g) => (
         <div key={g.name + (g.id || "")} style={{ marginBottom: 6 }}>

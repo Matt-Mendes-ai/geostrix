@@ -70,7 +70,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
                 </select>
               </label>
               <label style={row}>{tr("Neighbours within (m)")}<NumberInput min="1" step="10" value={cfg.hotRadius} onChange={(v) => set({ hotRadius: Math.max(1, v ?? 250) })} style={{ ...selStyle, width: 70 }} /></label>
-              <div style={{ color: "var(--color-text-muted)" }}>{tr("A hot spot is a sample whose neighbours are high with it; a lone spike among background is not one. Use a radius that reaches a few neighbours.")}</div>
+              <div style={{ color: "var(--color-text-muted)" }}>{tr("A hot spot is a sample that is high along with its neighbours, not a lone spike among background. Use a radius that reaches a few neighbours.")}</div>
             </>
           )}
           {cfg.mode === "index" && (

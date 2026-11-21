@@ -26,7 +26,7 @@ export default function DegreesProjectBanner({ btnStyle }) {
   return (
     <div role="alert" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "8px 14px", background: "var(--color-warn-bg)", borderBottom: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)", fontSize: "var(--font-size-base)" }}>
       <span style={{ flex: 1, minWidth: 240 }}>
-        {tr("This project is in latitude and longitude ({name}), but elevations are in metres, so terrain draws as spikes and distances and volumes come out wrong. Use a coordinate system in metres.", { name: crsName(project.epsg) || `EPSG:${project.epsg}` })}
+        {tr("Use a coordinate system in metres. In latitude and longitude ({name}), with elevations in metres, terrain draws as spikes and distances and volumes come out wrong.", { name: crsName(project.epsg) || `EPSG:${project.epsg}` })}
         {err && <>{" "}{tr("The move failed: {message}", { message: err })}</>}
       </span>
       {target && <button type="button" disabled={busy} onClick={move} style={btnStyle}>{busy ? tr("Moving…") : tr("Move to {name}", { name: target.name })}</button>}

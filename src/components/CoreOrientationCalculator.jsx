@@ -163,7 +163,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{tr("Core orientation calculator (alpha-beta method)")}</div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: 12 }}>{tr("Recovers a non-oriented structure's true dip/dip-direction by calibrating against a second structure on the same core run whose true attitude you already know from a field/outcrop reading — alpha and beta for both are measured on the core against the SAME arbitrary scribed line, exactly as logged.")}</div>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: 12 }}>{tr("Finds a non-oriented structure's true dip/dip direction from a second structure on the same core run whose true attitude you know (a field/outcrop reading). Alpha and beta of both are measured against the SAME scribed line, as logged.")}</div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <div>

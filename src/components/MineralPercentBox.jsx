@@ -66,7 +66,7 @@ export default function MineralPercentBox({ modal, onChange, sel = {} }) {
       ) : (
         <>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontWeight: 600, marginTop: 10 }}>{tr("Total sulphides (optional)")}</div>
-          <div style={note}>{tr("Tick the columns that are sulphides to add a layer of their total per interval (a blank column counts as none logged). Nothing is assumed: which minerals count is your choice.")}</div>
+          <div style={note}>{tr("Tick the sulphide columns to add a layer of their total per interval (a blank column counts as none logged). Nothing is assumed: which minerals count is your choice.")}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 14px", marginTop: 4 }}>
             {withValues.map((c) => (
               <label key={c.col} style={{ fontSize: "var(--font-size-sm)", display: "flex", gap: 5, alignItems: "center" }}>

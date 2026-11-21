@@ -77,7 +77,7 @@ function MeasureCard({ mode, pts, onClear, onSwitchMode }) {
   // is that level's, so a Δelev of 0 between two such points is not flat ground. Said whenever a point is one.
   const onPlane = pts.filter((p) => p.plane);
   const planeNote = onPlane.length > 0 && (
-    <span style={{ color: "var(--color-warn-text)" }} title={tr("Nothing was under the click (no terrain, hole or model there), so the point was put on the flat reference level of the view. Load terrain or click on a surface to measure the ground.")}>
+    <span style={{ color: "var(--color-warn-text)" }} title={tr("Nothing was under the click (no terrain, hole or model), so the point is on the view's flat reference level. Load terrain or click a surface to measure the ground.")}>
       {tr(onPlane.length === 1 ? "{n} point is on the reference level at {z} m (no ground under the click): its elevation is that level's" : "{n} points are on the reference level at {z} m (no ground under the click): their elevations are that level's", { n: onPlane.length, z: onPlane[0].z.toFixed(1) })}
     </span>
   );

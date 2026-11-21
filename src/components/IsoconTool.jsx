@@ -151,7 +151,7 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Isocon / mass-change calculator")}</div>
             <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
           </div>
-          <div role="note" style={{ padding: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Isocon compares a multi-element suite between a precursor and an altered rock, anchored on an element that stayed put (Al, Ti, Zr, Nb or Y). This project's assays have {list} only, so there is nothing to calculate.", { list: concSymbols.join(", ") || "—" })}</div>
+          <div role="note" style={{ padding: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Isocon compares an altered rock with its precursor, anchored on an element that stayed put (Al, Ti, Zr, Nb or Y). This project's assays have {list} only, so there is nothing to calculate.", { list: concSymbols.join(", ") || "—" })}</div>
         </div>
       </div>
     );
@@ -168,8 +168,8 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          {!immobileKnown.length && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("None of Al, Ti, Zr, Nb or Y is in this project's assays. Isocon rests on an element that stayed put: pick one you know was immobile here, or the result means little.")}</div>}{/* #2197 */}
-          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Check intervals into a")}{" "}<b style={{ color: "var(--color-success-fg)" }}>{tr("precursor")}</b>{" "}{tr("group (least-altered equivalent of the protolith) and an")}{" "}<b style={{ color: "var(--color-danger-fg)" }}>{tr("altered")}</b>{" "}{tr("group (the rock you want the mass change of). Each group is averaged in ppm. Pick which elements were immobile during alteration — Al, Ti, Zr are reasonable first choices for many hydrothermal systems, but confirm with an immobile-element plot (e.g. Th/Yb vs Nb/Yb, or the Zr/TiO₂ vs Nb/Y diagram) first if unsure.")}</div>
+          {!immobileKnown.length && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("None of Al, Ti, Zr, Nb or Y is in this project's assays. Pick an element you know was immobile here: Isocon rests on it, or the result means little.")}</div>}{/* #2197 */}
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Check intervals into a")}{" "}<b style={{ color: "var(--color-success-fg)" }}>{tr("precursor")}</b>{" "}{tr("group (least-altered equivalent of the protolith) and an")}{" "}<b style={{ color: "var(--color-danger-fg)" }}>{tr("altered")}</b>{" "}{tr("group (the rock you want the mass change of). Each group is averaged in ppm. Pick the elements that were immobile during alteration: Al, Ti and Zr are reasonable first choices in many hydrothermal systems, but if unsure, check first with an immobile-element plot (e.g. Zr/TiO₂ vs Nb/Y).")}</div>
 
           <input
             placeholder={tr("Filter by hole ID…")}
@@ -236,7 +236,7 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
                 <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Immobile-set agreement:")}</span> <b style={{ color: result.spread < 0.1 ? "var(--color-success-fg)" : "#d8c080" }}>{tr("±{v}% CV", { v: (result.spread * 100).toFixed(0) })}</b></div>
               </div>
               {result.spread >= 0.1 && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "#8a6a3a" }}>{tr("The immobile elements you picked don't agree tightly (ratio spread ≥10%) — one of them may not actually be immobile in this system, or the two groups aren't a real precursor/altered pair. Treat the numbers below cautiously.")}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "#8a6a3a" }}>{tr("Treat the numbers below with caution: the immobile elements you picked disagree (ratio spread ≥10%). One may not be immobile in this system, or the two groups are not a real precursor/altered pair.")}</div>
               )}
 
               {/* TASKS.csv #2348 — which samples the means come from */}

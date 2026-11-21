@@ -290,7 +290,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
         <div style={note}>{tr("No downhole log yet: import mag susc, SG, RQD or recovery readings as a drillhole layer (StrixViewer > Add layer), or a custom layer with a numeric column.")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={note}>{tr("Petrophysics from the holes: a log by the logged code at each reading (magnetite destruction shows as a low mag-susc class), and against an assay element reading by reading.")}</div>
+          <div style={note}>{tr("Petrophysics from the holes: a log by logged code (magnetite destruction shows as a low mag-susc class) and against an assay element, reading by reading.")}</div>
           <label style={row}>{tr("Log")}
             <select value={source?.key || ""} onChange={(e) => setSourceKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Downhole log")}>
               {sources.map((s) => <option key={s.key} value={s.key}>{s.label} ({fmtNum(s.n)})</option>)}
@@ -315,7 +315,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {layerNotes && <div style={{ ...note, color: "var(--color-text-muted)", whiteSpace: "pre-wrap" }}>{tr("Layer notes: {v}", { v: layerNotes })}</div>}{/* TASKS.csv #2775 — the import's notes (what was left out, where readings sit), as the 3D View's row shows them (#2432); English project text */}
           {assays.length > 0 && source && ( /* TASKS.csv #2968 */
             <div style={{ ...note, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-              <button type="button" onClick={composite} style={{ ...smallSel, cursor: "pointer" }} title={tr("Average this log over each assay sample of its hole (length-weighted, after its valid range and despike, every hole) and add the result as a numeric layer, beside the grades sample by sample")}>{tr("Composite to the assay intervals")}</button>
+              <button type="button" onClick={composite} style={{ ...smallSel, cursor: "pointer" }} title={tr("Average this log over each assay sample (length-weighted, after its valid range and despike, all holes) and add it as a numeric layer, beside the grades sample by sample")}>{tr("Composite to the assay intervals")}</button>
               {compositeMsg?.key === source.key && <div role="status">{compositeMsg.text}</div>}
             </div>
           )}
@@ -389,8 +389,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 <>
                   <Scatter pairs={vm.pairs} xLabel={`${source.label}${unitOf(source.unit) && !source.label.includes(`(${unitOf(source.unit)})`) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={modelLayer.unit ? `${tr("Model")} (${modelLayer.unit})` : tr("Model")} logX={logScale && vmLogX} logY={logScale && vmLogY} />
                   <div style={note}>{logScale
-                    ? tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson on log10 values {rLog} ({k} pairs above zero). Median of the log {a}, of the model {b}, each in its own unit.", { n: fmtNum(vm.n), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLog: Number.isFinite(vm.rLog) ? vm.rLog.toFixed(2) : "—", k: fmtNum((vm.nLog ?? 0)), a: sig3(vm.medianLog), b: sig3(vm.medianModel) })
-                    : tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson {rLin}. Median of the log {a}, of the model {b}, each in its own unit.", { n: fmtNum(vm.n), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLin: Number.isFinite(vm.rLin) ? vm.rLin.toFixed(2) : "—", a: sig3(vm.medianLog), b: sig3(vm.medianModel) })}</div>
+                    ? tr("{n} readings in model cells their hole crosses. Spearman rank correlation {r} (unit-free); Pearson on log10 {rLog} ({k} pairs above zero). Medians: log {a}, model {b}, each in its own unit.", { n: fmtNum(vm.n), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLog: Number.isFinite(vm.rLog) ? vm.rLog.toFixed(2) : "—", k: fmtNum((vm.nLog ?? 0)), a: sig3(vm.medianLog), b: sig3(vm.medianModel) })
+                    : tr("{n} readings in model cells their hole crosses. Spearman rank correlation {r} (unit-free); Pearson {rLin}. Medians: log {a}, model {b}, each in its own unit.", { n: fmtNum(vm.n), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLin: Number.isFinite(vm.rLin) ? vm.rLin.toFixed(2) : "—", a: sig3(vm.medianLog), b: sig3(vm.medianModel) })}</div>
                   {Number.isFinite(vm.r) && Math.abs(vm.r) < 0.2 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The model hardly follows the logged values along the holes (|Spearman| under 0.2): its cells may be too coarse, or it images something the core does not record.")}</div>}
                 </>
               ) : <div style={note}>{tr("Fewer than three readings fall inside a cell of this model.")}</div>}

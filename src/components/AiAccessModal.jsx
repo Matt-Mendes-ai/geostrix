@@ -43,7 +43,7 @@ export default function AiAccessModal({ onClose }) {
         <div style={{ padding: "8px 16px 14px", overflow: "auto" }}>
           {!isDesktop && <div role="status" style={{ ...small, color: "var(--color-warn-text)" }}>{tr("AI App Access needs the desktop app.")}</div>}
           <div role="note" style={{ margin: "6px 0 10px", padding: "8px 10px", border: "1px solid var(--color-warn-border, var(--color-border))", borderRadius: 6, background: "var(--color-bg-subtle)", ...small, color: "var(--color-text)" }}>
-            {tr("What the AI app reads leaves GeoStrix: it goes to that app and from there to its own AI provider (for example Anthropic for Claude), under that provider's terms. GeoStrix itself sends nothing over the network. Switch this on only for a project you may share with that provider.")}
+            {tr("What the AI app reads goes to it and on to its AI provider (e.g. Anthropic for Claude), under that provider's terms; GeoStrix itself sends nothing over the network. Switch this on only for a project you may share with that provider.")}
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: isDesktop ? "pointer" : "default" }}>
             <input type="checkbox" checked={on} disabled={!isDesktop} onChange={(e) => flip(e.target.checked)} aria-label={tr("Let my AI app read this project")} />
@@ -58,9 +58,9 @@ export default function AiAccessModal({ onClose }) {
             <input type="checkbox" checked={!!st?.changes} disabled={!isDesktop || !on} onChange={async (e) => { setMsg(""); const r = await mcpSetChanges(e.target.checked); if (!r?.ok) setMsg(r?.error || tr("It could not be switched on.")); }} aria-label={tr("Allow AI apps to make changes")} />
             {tr("Allow AI apps to make changes")}
           </label>
-          <div style={{ ...small, marginLeft: 24 }}>{tr("Off by default. With it on, the AI app can also colour the holes, show or hide layers, point the view, and add sections, best-intercept sets and Layout pages. Each change shows here and is one step of Undo; nothing is deleted, overwritten or saved, and each download is asked for, every time. It turns off with AI App Access.")}</div>
+          <div style={{ ...small, marginLeft: 24 }}>{tr("Off by default. When on, the AI app can also colour the holes, show or hide layers, point the view, and add sections, best-intercept sets and Layout pages. Each change shows here and is one Undo step; nothing is deleted, overwritten or saved, and each download is asked for. Turns off with AI App Access.")}</div>
           {msg && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 6 }}>{msg}</div>}
-          <div style={{ ...small, marginTop: 8 }}>{tr("It can list holes, assays, logs and sections and compute grade statistics and best intercepts. It changes nothing unless you also tick 'Allow AI apps to make changes' below, and it cannot open files or use any password. It works over a private connection on this computer only (no network port), and each AI app is asked about once.")}{/* #3932 — was 'Read-only … It cannot change the project', above the changes switch */}</div>
+          <div style={{ ...small, marginTop: 8 }}>{tr("It can list holes, assays, logs and sections and compute grade statistics and best intercepts. It changes nothing unless you also tick 'Allow AI apps to make changes' below, and cannot open files or use any password. It works over a private connection on this computer only (no network port); each AI app is asked about once.")}{/* #3932 — was 'Read-only … It cannot change the project', above the changes switch */}</div>
           {/* TASKS.csv #3932 (Main) — each change an AI app made this session, with its own Undo (the same as its toast's): it is not lost when the toast is dismissed, nor when access is switched off */}
           {changes.length > 0 && (
             <>
