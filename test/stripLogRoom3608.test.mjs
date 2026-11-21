@@ -21,7 +21,7 @@ test("a tall picture beside a title block, a legend and a scale bar finds no fre
 test("wired: the picture with no free room takes a new page with its own notice, in four languages", () => {
   const src = fs.readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(src, /if \(!free\) noRoom\.add\(img\.id\)/);
-  const key = "The picture has no free room on this page (it would cover the title block, legend, scale bar or text), so it is on a new page, \"{name}\".";
-  assert.ok(src.includes('tr("The picture has no free room on this page (it would cover the title block, legend, scale bar or text), so it is on a new page, \\"{name}\\".", { name })'));
+  const key = "The picture is on a new page, \"{name}\": on this one it would cover the title block, legend, scale bar or text.";
+  assert.ok(src.includes('tr("The picture is on a new page, \\"{name}\\": on this one it would cover the title block, legend, scale bar or text.", { name })'));
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(fs.readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))[key], l);
 });

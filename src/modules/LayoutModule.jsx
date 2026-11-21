@@ -250,10 +250,10 @@ export default function LayoutModule() {
       if (cut.length) past.push(tr("on {page}: {list}", { page: pp.id === activeLayoutPageId ? tr("this page") : pp.name, list: cut.map((f) => (f.box ? tr("Legend: {n} row(s) left out, its box is too small", { n: f.left }) : tr("Legend: {n} row(s) left out, no room on the sheet", { n: f.left }))).join(", ") }));
     }
     if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("on {page}: {list}", { page: o.name, list: o.items.map(namePast).join(", ") }));
-    if (past.length && !window.confirm(tr("Some elements reach past the sheet's edge: {list}. The export leaves out whatever lies outside a sheet; every page still prints at its true size. Export anyway?", { list: past.join("; ") }) /* #3703 — says plainly what is left out */)) return;
+    if (past.length && !window.confirm(tr("Some elements reach past the sheet's edge ({list}): what lies outside is left out, and pages print at true size. Export anyway?", { list: past.join("; ") }) /* #3703 — says plainly what is left out */)) return;
     // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
     const staleLegends = staleBoundLegends(layoutPages).length;
-    if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport: the viewport was refreshed after the legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?" : "{n} legends are out of step with their viewports: each viewport was refreshed after its legend was loaded, and the legend's rows were edited, so they were kept. Export anyway?", { n: staleLegends }))) return;
+    if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport, which was refreshed after its edited rows were loaded; they were kept. Export anyway?" : "{n} legends are out of step with their viewports, refreshed after their edited rows were loaded; they were kept. Export anyway?", { n: staleLegends }))) return;
     // TASKS.csv #3636 — the project has a data credit and a page that is about to print does not carry it: say which, and let the user add it or export anyway
     if (creditsRef.current) {
       const toCheck = layoutPrintRequest.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages;
@@ -261,11 +261,11 @@ export default function LayoutModule() {
       // TASKS.csv #3707 — the credit is on the page but under an opaque element (a drill plan over the whole sheet): it prints without it
       const hidden = pagesWithHiddenCredit(toCheck, activeLayoutPageId, elements);
       if (hidden.length && !window.confirm(hidden.length === 1
-        ? tr("\"{page}\" has its data credit under another element, so the sheet prints without it. Send that element to the back (or move it) so the data owner is credited. Export without the credit?", { page: hidden[0] })
-        : tr("{n} pages have their data credit under another element, so they print without it ({list}). Send that element to the back (or move it) so the data owner is credited. Export without the credit?", { n: hidden.length, list: hidden.slice(0, 5).join(", ") + (hidden.length > 5 ? ", …" : "") }))) return;
+        ? tr("Send the element over \"{page}\"'s data credit to the back (or move it) so the data owner is credited. Export without the credit?", { page: hidden[0] })
+        : tr("Send the elements over the data credit of {n} pages ({list}) to the back (or move them) so the data owner is credited. Export without the credit?", { n: hidden.length, list: hidden.slice(0, 5).join(", ") + (hidden.length > 5 ? ", …" : "") }))) return;
       if (bare.length && !window.confirm(bare.length === 1
-        ? tr("\"{page}\" prints no data credit, and this project has one. Add a text with {credits} to it (or a title block, which has a Data row) so the data owner is credited. Export without it?", { page: bare[0] })
-        : tr("{n} pages print no data credit ({list}), and this project has one. Add a text with {credits} to them (or a title block, which has a Data row) so the data owner is credited. Export without it?", { n: bare.length, list: bare.slice(0, 5).join(", ") + (bare.length > 5 ? ", …" : "") }))) return;
+        ? tr("Add a text with {credits} (or a title block, which has a Data row) to \"{page}\" so the data owner is credited. Export without it?", { page: bare[0] })
+        : tr("Add a text with {credits} (or a title block, which has a Data row) to {n} pages ({list}) so the data owner is credited. Export without it?", { n: bare.length, list: bare.slice(0, 5).join(", ") + (bare.length > 5 ? ", …" : "") }))) return;
     }
     // TASKS.csv #2303 — the page's viewports are 200 dpi captures: the export renders each again at 300 dpi first (in the 3D View, as an
     // atlas batch), then prints from those images; the page keeps its own
@@ -507,7 +507,7 @@ export default function LayoutModule() {
       const moved = atTop.map((a) => { const l = legends.find((g) => g.boundViewportId === a.id); if (!l) return null; const right = a.x + a.w + 16; return { ...l, x: right + 170 <= P.w ? right : a.x, y: right + 170 <= P.w ? a.y : a.y + a.h + 16 }; }).filter(Boolean);
       const name = tr("Snapshot {n}", { n: layoutPages.length + 1 });
       addPagesOnPaper(addLayoutPages, setLayoutPageFormat, [{ name, elements: [...atTop, ...moved] }], paper);
-      const whereNote = frames.length && additions.some(overlapsFrame) ? tr("The snapshot would have covered a frame on this page, so it is on a new page, \"{name}\".", { name }) : tr("The picture has no free room on this page (it would cover the title block, legend, scale bar or text), so it is on a new page, \"{name}\".", { name }); setSyncNotice(whereNote); setExportNote({ text: whereNote, error: false }); // #3608; TASKS.csv #3857 — also in the page bar: nothing is selected on the open page, and the notice in an element's panel was never seen
+      const whereNote = frames.length && additions.some(overlapsFrame) ? tr("The snapshot would have covered a frame on this page, so it is on a new page, \"{name}\".", { name }) : tr("The picture is on a new page, \"{name}\": on this one it would cover the title block, legend, scale bar or text.", { name }); setSyncNotice(whereNote); setExportNote({ text: whereNote, error: false }); // #3608; TASKS.csv #3857 — also in the page bar: nothing is selected on the open page, and the notice in an element's panel was never seen
       additions.forEach((img) => consumeLayoutImage(img.id));
       return;
     }
@@ -1320,7 +1320,7 @@ export default function LayoutModule() {
 
     // TASKS.csv #948 — a viewport captured from the current view (no theme) carries that view's own settings
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
-    if (!theme) { say(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
+    if (!theme) { say(tr("Rebind this viewport to a theme in its panel, or resave the theme, then sync again: its saved theme is gone (renamed or deleted).")); return; }
     const frameHoles = holesInFrame(vp, collars); // #1633 — a top-down true-scale frame: what it shows; else the whole view
     const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp), perGroup: perGroup ?? legend.codesPerLayer ?? (isLegendBox(legend) ? "all" : 12) /* #3395 — a sized box shows what fits */, orders: projectCodeOrders(layoutPages, activeLayoutPageId, elements, legendId) /* #3130 */ }); // frame: #2134; perGroup: #3021
     if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, ...stamp([]) } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
@@ -1455,12 +1455,12 @@ export default function LayoutModule() {
           </div>
         )}
 
-        <label style={{ display: "block", marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }} title={tr("Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it.")}>{/* TASKS.csv #3611 / #3612 */}
+        <label style={{ display: "block", marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }} title={tr("Printed as {project} on every sheet (title and title block) and as the PDF's title. Blank: the file's name; saving or renaming the file does not change it.")}>{/* TASKS.csv #3611 / #3612 */}
           {tr("Project title")}<input type="text" value={project?.title ?? ""} placeholder={project?.name || ""} onChange={(e) => setProjectTitle(e.target.value)} style={{ ...inp, marginTop: 4 }} aria-label={tr("Project title")} />
         </label>
         {!sel && multiSelected.size <= 1 && ( /* TASKS.csv #993 — the page's interactions, said once where they are used */
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 14 }}>
-            {elements.length ? tr("Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.") : tr("The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.")}
+            {elements.length ? tr("Click an element to edit it, Ctrl+click for several. Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.") : tr("The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.")}
           </div>
         )}
         {multiSelected.size > 1 && ( /* TASKS.csv #909 — align / distribute the multi-selection */
@@ -1509,7 +1509,7 @@ export default function LayoutModule() {
             )}
             {sel.type === "titleblock" && <TitleBlockControls sel={sel} updateSelected={updateSelected} />}{/* TASKS.csv #1868 */}
             {(sel.type === "title" || sel.type === "text") && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for, which north the maps are drawn to, and the angle from grid to true north.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits} {north} {convergence}")}
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in on show and print: project name, date, page number and name, page count, viewport scale, CRS, data credits, the maps' north and the grid-to-true angle.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits} {north} {convergence}")}
                 {/* TASKS.csv #1777 — the atlas's tokens, same single-brace syntax, listed here too */}
                 <div title={tr("Left as written on this page; Atlas… fills them on each page it generates, from that page's hole or section.")}>{tr("On atlas pages also: {list}", { list: [...new Set([...HOLE_TOKENS, ...SECTION_TOKENS])].map((k) => `{${k}}`).join(" ") })}</div></div>
             )}{/* TASKS.csv #909 */}
@@ -1570,11 +1570,11 @@ export default function LayoutModule() {
                     {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A space ends a term: did you mean {term}? (_ stands for a space in a value.)", { term: sg })}</div> : null; })()}{/* TASKS.csv #3716 (3) — the collar table's box says it as the drill plan's does */}
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
                     {/* TASKS.csv #2770 — two table columns per page: twice the rows at the same height, twice the width (up to the sheet's) */}
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: noSplit ? "var(--color-text-muted)" : "var(--color-text-secondary)", marginBottom: noSplit ? 2 : 8, cursor: noSplit ? "default" : "pointer" }} title={tr("The rows read down the left column, then the right one. The row limit doubles and the table is as tall as before, so a long list takes half the pages.")}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: noSplit ? "var(--color-text-muted)" : "var(--color-text-secondary)", marginBottom: noSplit ? 2 : 8, cursor: noSplit ? "default" : "pointer" }} title={tr("Rows read down the left column, then the right; the row limit doubles at the same height, so a long list takes half the pages.")}>
                       <input type="checkbox" disabled={noSplit} checked={sel.split === 2} onChange={(e) => { const on = e.target.checked, lim = Math.max(1, Math.round(Number(sel.maxRows) || 40)), w = Number(sel.w) || 520; updateSelected(on ? { split: 2, maxRows: lim * 2, w: Math.min(A4.w - 80, w * 2), ...growInPlace(elements.filter((x) => x.id !== sel.id), elementBox(sel), Math.min(A4.w - 80, w * 2), A4) /* TASKS.csv #3865 — kept on the sheet */ } : { split: 1, maxRows: Math.max(1, Math.ceil(lim / 2)), w: Math.max(260, Math.round(w / 2)) }); }} />
                       {tr("Two table columns side by side")}
                     </label>
-                    {noSplit && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Not available: the two halves with these columns would not fit the doubled frame even at 5 pt. Drop a column, or keep one column and let the rest carry on to the next page.")}</div>}
+                    {noSplit && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Drop a column, or keep one and let the rest carry on to the next page: two halves with these columns do not fit even at 5 pt.")}</div>}
                     {(() => { const choices = collarTableFieldChoices(tableCollars); return choices.length > 0 && ( /* TASKS.csv #2717 — collar fields as extra columns */
                       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8 }}>{tr("Also as columns:")}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 2 }}>{choices.map((k) => (
@@ -1596,7 +1596,7 @@ export default function LayoutModule() {
                     {ts.map((v) => <option key={v.id} value={v.id}>{v.type === "drillplan" ? tr("Drill plan") : v.type === "viewport" ? viewportName(v, elements.filter((e) => e.type === "viewport").findIndex((e) => e.id === v.id), themes) /* #1489 */ : tr("{v} (cross-section)", { v: v.label || v.id })}</option>)}
                   </select>
                 </label>
-                {!sel.boundTo && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).")}</div>}
+                {!sel.boundTo && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Bind it to a view above to follow that view's scale: not tied to one, its length is no distance on this page's maps.")}</div>}
               </>);
             })()}
             {"meters" in sel && (
@@ -1627,7 +1627,7 @@ export default function LayoutModule() {
               const date = sel.declDate || drill?.date || localDate();
               const compute = () => {
                 // TASKS.csv #2299 — not from the placeholder CRS: true and magnetic north need the map's real location
-                if (project?.crsSet === false) { updateSelected({ decl: null, declError: tr("This project has no coordinate system set, so true and magnetic north can't be computed. Set the CRS in the status bar; the plain arrow shows grid north.") }); return; }
+                if (project?.crsSet === false) { updateSelected({ decl: null, declError: tr("Set the CRS in the status bar to compute true and magnetic north; until then the plain arrow shows grid north.") }); return; }
                 const o = at && project?.epsg ? azimuthToGridOffset("magnetic", at.x, at.y, project.epsg, date) : null;
                 if (!o) { updateSelected({ decl: null, declError: at ? "Couldn't compute it for this project's coordinate system or date." : "Needs a viewport capture or collars to know where the map is." }); return; }
                 // TASKS.csv #2478 — the yearly change at this place, from IGRF a year later (the caption printed a fixed 0.1-0.2°/yr)
@@ -1685,7 +1685,7 @@ export default function LayoutModule() {
                       <div style={{ fontSize: "var(--font-size-xs)", color: fit.box && fit.left ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>
                         {fit.box && fit.left > 0 ? tr("{n} row(s) do not fit in this box: make it taller, add a column or widen it.", { n: fit.left })
                           : fit.box ? tr("The rows fill {c} column(s) top to bottom; drag the bottom edge for its height.", { c: fit.cols })
-                          : tr("Blank height: it grows with its rows and flows into columns to stay on the sheet. Give it a height or a number of columns to size it yourself.")}
+                          : tr("Give it a height or a number of columns to size it yourself; blank, it grows with its rows and flows into columns on the sheet.")}
                         {Number(sel.h) > 0 && <>{" "}<button type="button" onClick={() => updateSelected({ h: undefined })} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit to its rows")}</button></>}
                       </div>
                     </div>
@@ -1716,7 +1716,7 @@ export default function LayoutModule() {
                 )}
                 {legendSyncState(sel, elements.find((el) => el.id === sel.boundViewportId)) === "stale" && ( /* TASKS.csv #2471 */
                   <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", margin: "4px 0 8px", lineHeight: 1.4 }}>
-                    {tr("Out of step with its viewport: the viewport was refreshed after these rows were loaded, and they were edited (or loaded before this check existed), so they were kept. Load from view to update them.")}</div>
+                    {tr("Load from view to update these rows: the viewport was refreshed after they were loaded and edited, so they were kept.")}</div>
                 )}
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
                 {!!(sel.codeOrder || sel.loadedGroups?.length) && (() => { /* TASKS.csv #3199 — a recorded code order can be forgotten */
@@ -1843,7 +1843,7 @@ export default function LayoutModule() {
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.")}>{/* TASKS.csv #3611 — a typed scale, as the section picture has */}
                   {tr("Typed scale 1 :")}<NumberInput min="1" step="100" value={Math.round(sel.scale) || ""} onChange={asEvent((e) => { const v = Number(e.target.value); if (v >= 1) updateSelected({ scale: v }); })} style={{ ...inp, marginBottom: 0, flex: 1, minWidth: 0 }} />
                 </label>
-                <button type="button" onClick={() => { updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM }); reorderSelected("back"); /* TASKS.csv #3707 — behind the page's title, north arrow, scale bar, title block and credit, which it covered */ }} title={tr("The frame takes the whole page inside 10 mm margins, behind the page's other elements (the title, north arrow, scale bar, title block and credit stay on top of it).")} style={{ ...pBtn, width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
+                <button type="button" onClick={() => { updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM }); reorderSelected("back"); /* TASKS.csv #3707 — behind the page's title, north arrow, scale bar, title block and credit, which it covered */ }} title={tr("The frame fills the page inside 10 mm margins, behind the title, north arrow, scale bar, title block and credit.")} style={{ ...pBtn, width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<NumberInput allowEmpty min="0" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={asEvent((e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) }))} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<NumberInput value={Math.round(sel.centre?.x || 0)} onChange={asEvent((e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } }))} style={inp} /></label>
@@ -2002,7 +2002,7 @@ export default function LayoutModule() {
         )}
 
         <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("Adding views")}</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>{tr("Use")}{" "}<b>{tr("Current view")}</b>{" "}{tr("or")}{" "}<b>{tr("Theme view")}</b>{" "}{tr("on this tab's ribbon,")}{" "}<b>{tr("Snapshot")}</b>{" "}{tr("on StrixViewer ribbon (Output), or the snapshot button in a cross-section pop-out, to put a view on the page below — drag to place it, drag its handles to resize it, and pick its scale in the sidebar.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>{tr("Use")}{" "}<b>{tr("Current view")}</b>{" "}{tr("or")}{" "}<b>{tr("Theme view")}</b>{" "}{tr("on this tab's ribbon,")}{" "}<b>{tr("Snapshot")}</b>{" "}{tr("on StrixViewer ribbon (Output), or a cross-section pop-out's snapshot button, to put a view on the page below; drag it to place and resize it.")}</div>
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
@@ -2332,7 +2332,7 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
     return (
       <div style={{ marginTop: 4, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>
         {tr("Page {i} of {n} of this strip log, {from}-{to} m, at 1 : {d}.", { i: s.page, n: s.of, from: f(s.from), to: f(s.to), d: Math.round(depthScaleDenom(sel) || 0).toLocaleString() })}
-        {s.page === 1 && onWhole && <> {" "}<button type="button" onClick={onWhole} title={tr("Put the whole log back on this page as one picture. The other pages stay: delete them from one of them (the generated pages go in one action).")} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Whole log again")}</button></>}
+        {s.page === 1 && onWhole && <> {" "}<button type="button" onClick={onWhole} title={tr("Put the whole log back on this page as one picture. The other pages stay: delete them from one of them, in one action.")} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Whole log again")}</button></>}
       </div>
     );
   }
@@ -2370,18 +2370,18 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
       {(() => { // TASKS.csv #3861 — a scale that enlarges the picture past what it was drawn at cannot be split: it has to be sent again at that scale
         const adv = d > 0 && !sel.slice ? redrawAdvice(sel, d) : null;
         if (adv && adv.enlarge > 1.15 && !(split && !split.error && split.pages?.length > 1)) return (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("This picture was drawn at {now} px per metre. At 1 : {d} it is enlarged {x} times and its labels print at about {pt} pt. For this scale send it again from the strip log window with Vertical scale {need} px/m ('Add to Layout'): a log drawn at that scale can be split over pages.", { now: +adv.ppmNow.toPrecision(3), d: n.toLocaleString(), x: +adv.enlarge.toFixed(1), pt: adv.pt.toFixed(0), need: +adv.ppmNeeded.toPrecision(3) })}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Send it again from the strip log window at Vertical scale {need} px/m ('Add to Layout'): drawn at {now} px/m, at 1 : {d} it is enlarged {x} times, labels about {pt} pt.", { now: +adv.ppmNow.toPrecision(3), d: n.toLocaleString(), x: +adv.enlarge.toFixed(1), pt: adv.pt.toFixed(0), need: +adv.ppmNeeded.toPrecision(3) })}</div>
         );
-        return sel.h > pageH ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.")}</div> : null;
+        return sel.h > pageH ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Use a larger depth scale (1 : N, bigger N) or a taller page: at this scale the log is taller than the page.")}</div> : null;
       })()}
-      {(() => { const adv = d > 0 && !sel.slice && onRedraw ? redrawAdvice(sel, d) : null; return adv && adv.enlarge > 1.15 ? (<div style={{ marginTop: 4 }}>{/* TASKS.csv #3873 (a) */}<button type="button" onClick={() => onRedraw(adv.ppmNeeded)} title={tr("Opens this strip log in StrixViewer with the tracks, depth range and key it was sent with, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture on this page, at the same depth scale.")} style={pBtn}>{tr("Draw it again at {need} px/m", { need: +adv.ppmNeeded.toPrecision(3) })}</button></div>) : null; })()}{/* TASKS.csv #3873 (a) — also when a split is offered: the enlarged picture prints its labels far over size */}
+      {(() => { const adv = d > 0 && !sel.slice && onRedraw ? redrawAdvice(sel, d) : null; return adv && adv.enlarge > 1.15 ? (<div style={{ marginTop: 4 }}>{/* TASKS.csv #3873 (a) */}<button type="button" onClick={() => onRedraw(adv.ppmNeeded)} title={tr("Open this strip log in StrixViewer as it was sent, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture.")} style={pBtn}>{tr("Draw it again at {need} px/m", { need: +adv.ppmNeeded.toPrecision(3) })}</button></div>) : null; })()}{/* TASKS.csv #3873 (a) — also when a split is offered: the enlarged picture prints its labels far over size */}
       {split && !split.error && split.pages?.length > 1 && (split.wanted || split.small) && ( /* TASKS.csv #3372 — at the page's width */
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 4 }}>{split.wanted
           ? tr("At 1 : {want} the log is {mm} mm wide, wider than the page; at 1 : {d} it fits the page's width, with its labels at about {pt} pt.", { want: Math.round(split.wanted).toLocaleString(), mm: Math.round((split.wantedW * 25.4) / 96), d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })
           : tr("At 1 : {d}, the page's width, its labels print at about {pt} pt.", { d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })}</div>
       )}
       {split && !split.error && split.pages?.length > 1 && onSplit && ( /* TASKS.csv #3372 */
-        <button type="button" onClick={onSplit} title={tr("Lay the log out over new pages at this depth scale: each page repeats the track headers and the axis captions, and the key stays on this page.")} style={{ ...pBtn, marginTop: 6 }}>
+        <button type="button" onClick={onSplit} title={tr("Lay the log out over new pages at this depth scale, each repeating the track headers and axis captions; the key stays on this page.")} style={{ ...pBtn, marginTop: 6 }}>
           {tr("Split over {n} pages at 1 : {d}", { n: split.pages.length, d: Math.round(split.denom).toLocaleString() })}</button>
       )}
       {split?.error === "too-wide" && !split.wanted && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginTop: 4 }}>{tr("At 1 : {d} the log is {mm} mm wide, wider than the page: a larger depth scale or a wider page fits it.", { d: Math.round(split.denom).toLocaleString(), mm: Math.round((split.w * 25.4) / 96) })}</div>}
@@ -2433,7 +2433,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
       })()}
       {tooBig && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.")}</div>}
       {sel.mapsView && <MapRedrawControl sel={sel} /> /* #3491 */}
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{sel.mapsView ? tr("A view of the Maps tab, drawn as it was when sent: to change it, send it again from Maps. It is north up; resizing it changes its scale.") /* #3194 */ : sel.planMap ? tr("A plan map from Geochem, drawn as it was when sent: to change it, make a new one from Geochem > Plan map. Resizing it changes its scale.") : tr("A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.")}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{sel.mapsView ? tr("A Maps view as it was when sent, north up: send it again from Maps to change it. Resizing it changes its scale.") /* #3194 */ : sel.planMap ? tr("A Geochem plan map as it was when sent: make a new one from Geochem > Plan map to change it. Resizing it changes its scale.") : tr("A drawing of the section as it was when taken: take a new snapshot from the cross-section window to change it. The scale runs along the section; resizing changes it.")}</div>
     </div>
   );
 }
@@ -2453,7 +2453,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
   return (
     <div style={{ marginTop: 4 }}>
       {sel.samplesUnplaced > 0 && ( // TASKS.csv #1864 — the 3D view could not place these, so no capture holds them
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr(sel.samplesUnplaced === 1 ? "{n} surface sample is not in this frame: it lies over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y." : "{n} surface samples are not in this frame: they lie over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y.", { n: sel.samplesUnplaced.toLocaleString() })}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr(sel.samplesUnplaced === 1 ? "{n} surface sample is not in this frame: it lies over a terrain void. Geochem > Plan map draws every sample by X / Y." : "{n} surface samples are not in this frame: they lie over a terrain void. Geochem > Plan map draws every sample by X / Y.", { n: sel.samplesUnplaced.toLocaleString() })}</div>
       )}
       {/* TASKS.csv #2716 — a page with frames at several scales: each frame can print its own scale in its corner */}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: scaleText ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: "pointer" }}
@@ -2505,7 +2505,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
           <button style={{ ...smallBtn, marginTop: 4 }} onClick={onLiveView} disabled={sel.refreshing}>{tr("Use the live 3D view again")}</button>
         </div>
       )}
-      {sel.fixedScale > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.", { s: Number(sel.fixedScale).toLocaleString() })}</div>}{/* TASKS.csv #1486 */}
+      {sel.fixedScale > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("Set Scale to \"free (as framed)\" to use the 3D view's zoom: at the fixed 1:{s} only where you centre it counts.", { s: Number(sel.fixedScale).toLocaleString() })}</div>}{/* TASKS.csv #1486 */}
       {/* TASKS.csv #1486 — what the zoom in 'Enter & adjust view' framed, when it was far from the fixed scale: one click uses it */}
       {sel.fixedScale > 0 && sel.adjustZoomScale > 0 && Math.abs(sel.adjustZoomScale / sel.fixedScale - 1) > 0.05 && (() => { const z = roundScale(sel.adjustZoomScale); return (
         <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Your zoom in the 3D view framed about 1:{z}; the frame kept 1:{s}.", { z: z.toLocaleString(), s: Number(sel.fixedScale).toLocaleString() })}{" "}
@@ -2518,7 +2518,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       {/* TASKS.csv #398 / #907 — the plot scale. The frame's size on the paper is the ground it shows at 1:N (#906:
           the capture is drawn at the frame's own aspect), centred where the camera looks or, with Fit, on the data. */}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 4 }}
-        title={tr("Plot this viewport at an exact scale. The frame's size on the paper is the ground it shows: resize it for more or less ground, then refresh. Turns on true scale.")}>{tr("Scale 1 :")}
+        title={tr("Plot this viewport at an exact scale (true scale): resize the frame for more or less ground, then refresh.")}>{tr("Scale 1 :")}
         <select value={scaleChoice} aria-label={tr("Plot scale")} onChange={(e) => {
           const v = e.target.value;
           if (v === "") { setCustomScale(false); onRescale(0); } // #1007 — applied at once
@@ -2547,7 +2547,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       {sel.overviewOf && !overviewPolygon(sel, others.find((o) => o.id === sel.overviewOf)) && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>{tr("The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.")}</div>
       )}
-      <button onClick={onFit} disabled={sel.refreshing} title={hasHoles ? tr("Pick the round scale at which the drillholes this view shows (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh") : tr("Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
+      <button onClick={onFit} disabled={sel.refreshing} title={hasHoles ? tr("Fit this view's drillholes (or surface samples / boundaries) to the frame at a round scale, centred, and refresh") : tr("Fit the visible block models (else surface samples, map layers or boundaries) to the frame at a round scale, centred, and refresh")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <Maximize2 size={14} />{" "}{hasHoles ? tr("Fit the holes at a round scale") : tr("Fit the data at a round scale")}</button>
       {sel.fitInfo && sel.fitInfo.scale === sel.fixedScale && ( /* TASKS.csv #2132 — what the fit framed */
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.fitInfo.drilledScale ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
@@ -2557,16 +2557,16 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
           {sel.fitInfo.of > 0 && onFitAll && <> <button type="button" onClick={onFitAll} disabled={sel.refreshing} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit all {n}", { n: sel.fitInfo.of.toLocaleString() })}</button></>}
           {sel.fitInfo.allHoles && sel.fitInfo.hidden > 0 && <> {tr("{k} of them are hidden in this view.", { k: sel.fitInfo.hidden.toLocaleString() })}{" "}
             <button type="button" onClick={onFit} disabled={sel.refreshing} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit the {n} shown", { n: (sel.fitInfo.holes - sel.fitInfo.hidden).toLocaleString() })}</button></>}
-          {sel.fitInfo.drilledScale > 0 && " " + tr("{k} of them have no survey and no azimuth / dip (drawn as assumed vertical holes) and widen the frame: the drilled holes alone would fit at 1:{s}. Set the scale by hand, or remove those collars.", { k: sel.fitInfo.assumed.toLocaleString(), s: sel.fitInfo.drilledScale.toLocaleString() })}{/* #2304 — only when they do */}
+          {sel.fitInfo.drilledScale > 0 && " " + tr("Set the scale by hand, or remove those collars: {k} of them are assumed vertical (no survey or azimuth / dip) and widen the frame; the rest fit at 1:{s}.", { k: sel.fitInfo.assumed.toLocaleString(), s: sel.fitInfo.drilledScale.toLocaleString() })}{/* #2304 — only when they do */}
           {sel.fitInfo.turnedScale > 0 && sel.w !== sel.h && <> {tr("They run the other way: the frame turned ({w} × {h} mm) would show them at 1:{s}.", { w: Math.round(sel.h / PX_PER_MM), h: Math.round(sel.w / PX_PER_MM), s: sel.fitInfo.turnedScale.toLocaleString() })}{" "}
             <button type="button" onClick={() => updateSelected({ w: sel.h, h: sel.w, fitInfo: null })} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Turn the frame")}</button></>}{/* #2737 — then Fit again */}
         </div>
       )}
-      {steepHoles && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Every hole in this frame is steeper than {d}°, so a top-down view draws each one as a point. Insert > Drill plan draws a collar map, coloured by a collar field or a grade if you like.", { d: STEEP_DIP })}</div>}{/* TASKS.csv #2473 */}
+      {steepHoles && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Use Insert > Drill plan for a collar map (coloured by a field or grade): every hole here is steeper than {d}°, so a top-down view shows points.", { d: STEEP_DIP })}</div>}{/* TASKS.csv #2473 */}
       {sel.fixedScale > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
           {sel.capturedFixedScale === sel.fixedScale
-            ? oblique ? tr("Captured at 1 : {fixedScale} in the view plane (oblique view, not a map scale). Set the 3D view to Top and refresh for a map at this scale.", { fixedScale: sel.fixedScale.toLocaleString() })
+            ? oblique ? tr("Set the 3D view to Top and refresh for a map at this scale: 1 : {fixedScale} is in the oblique view's plane.", { fixedScale: sel.fixedScale.toLocaleString() })
             : tr("Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.", { fixedScale: sel.fixedScale.toLocaleString(), w: Math.round(groundFrameSize(sel.fixedScale, sel).w).toLocaleString(), h: Math.round(groundFrameSize(sel.fixedScale, sel).h).toLocaleString() })
             : tr("Refresh to capture at this scale.")}</div>
       )}
@@ -2597,10 +2597,10 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
         {oblique ? tr("Scale in the view plane") : sel.trueScale ? tr("Scale") : tr("Approx. scale")}: <span style={{ color: "var(--color-text)" }}>{scaleText || "—"}</span><br />
         <span style={{ color: "var(--color-text-muted)" }}>
           {oblique
-            ? tr("Oblique view: distances along the line of sight are foreshortened, so this is not a map scale. Set the 3D view to Top and refresh for one.")
+            ? tr("Set the 3D view to Top and refresh for a map scale: in an oblique view distances are foreshortened.")
             : sel.trueScale
             ? tr("Orthographic capture — this ratio is exact across the whole image, not just at one distance.")
-            : tr("Estimated at the theme's camera target distance — perspective view, so scale drifts slightly nearer/farther from that point. Check \"True scale\" above and refresh for an exact figure.")}
+            : tr("Check \"True scale\" above and refresh for an exact figure: this is estimated at the camera target and drifts nearer or farther in perspective.")}
         </span>
       </div>
       <button onClick={onSyncScaleBar} disabled={!scaleText} style={{ ...pBtn, opacity: scaleText ? 1 : 0.5 }}>
@@ -3016,7 +3016,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       }
       // #2133 — a collar azimuth that disagrees with the survey: the collar file's north reference, or a planned azimuth
       const differs = sl.rows.filter((c) => Number.isFinite(c.azSurvey));
-      if (differs.length) surveyNote = (surveyNote ? surveyNote + " " : "") + tr("† The collar record's azimuth, which differs from the hole's shallowest survey station (grid north) by more than 0.5°: {list}. The collar file may use another north reference, or hold the planned azimuth.", { list: differs.slice(0, 6).map((c) => `${c.hole_id} ${f(c.azSurvey, 1)}`).join(", ") + (differs.length > 6 ? ` (+${differs.length - 6})` : "") });
+      if (differs.length) surveyNote = (surveyNote ? surveyNote + " " : "") + tr("† The collar azimuth, over 0.5° from the shallowest survey station (grid north): {list}. The collar file may use another north, or the planned azimuth.", { list: differs.slice(0, 6).map((c) => `${c.hole_id} ${f(c.azSurvey, 1)}`).join(", ") + (differs.length > 6 ? ` (+${differs.length - 6})` : "") });
     }
     // TASKS.csv #1869 — the surface samples with one element, highest first (a rock-chip / soil results table on a pre-drilling project)
     if (el.source === "samples") {

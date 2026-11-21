@@ -40,5 +40,5 @@ test("wired into the export's pre-flight", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(m, /const rects = \[e, \.\.\.e\.querySelectorAll\("text, td, th"\) \/\* td \/ th: #3374 — a table\x27s cells \*\/\]\.map\(\(n\) => n\.getBoundingClientRect\(\)\); return \{ type: elementKind\(el\) \/\* #3028 \(3\) \*\/, caption: elementCaption\(el\), sides: rectSidesPast\(rects, r\), out: rectsWhollyOff\(rects, r\)/); // the sides it crosses: #2700; wholly outside: #3703
   assert.match(m, /if \(layoutPrintRequest\.kind !== "png"\) for \(const o of offSheetPages\(layoutPages, activeLayoutPageId,/);
-  assert.match(m, /Some elements reach past the sheet's edge: \{list\}\. The export leaves out whatever lies outside a sheet; every page still prints at its true size\. Export anyway\?/); // #3703
+  assert.match(m, /Some elements reach past the sheet's edge \(\{list\}\): what lies outside is left out, and pages print at true size\. Export anyway\?/); // #3703
 });

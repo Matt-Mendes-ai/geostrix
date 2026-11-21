@@ -8,7 +8,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\
 test("the section mode says it adds a name only, in its label, a standing line and the result", () => {
   const m = read("../src/components/GenerateAtlasModal.jsx");
   assert.match(m, /One page per section \(\{sections\}\): its name only, no drawing/);
-  assert.match(m, /mode === "section" && <div[^>]*>\{tr\("A section page takes the section's name in the page's text: the section itself is not drawn on it\./);
+  assert.match(m, /mode === "section" && <div[^>]*>\{tr\("To put a section's drawing on a page, use 'Snapshot to Layout' in its window: a section page only takes the section's name\./ /* #3899 */);
   assert.match(m, /\(mode === "section" \? " " \+ tr\("No section drawing was added: only its name\."\) : ""\)/);
   for (const l of ["es", "pt", "fr", "ar"]) for (const k of ["One page per section ({sections}): its name only, no drawing", "No section drawing was added: only its name."]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))[k], `${l} ${k}`);
 });

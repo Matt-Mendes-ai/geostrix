@@ -37,5 +37,5 @@ test("wired: insert uses it; the bar's sidebar binds and warns when free", () =>
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(m, /Object\.assign\(base, insertScaleBar\(base, elements, selected\)\)/);
   assert.match(m, /updateSelected\(v \? bindScaleBar\(sel, v\) : \{ boundTo: null \}\)/);
-  assert.match(m, /\{!sel\.boundTo && <div[^\n]*Not tied to a view/);
+  assert.match(m, /\{!sel\.boundTo && <div[^\n]*Bind it to a view above to follow that view's scale/);
 });
