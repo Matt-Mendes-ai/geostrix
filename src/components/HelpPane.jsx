@@ -7,13 +7,18 @@ import { t as tr, currentLanguage } from "../lib/i18n.js";
 import { HELP_AREAS, openShortcuts } from "../lib/help.js"; // openShortcuts: TASKS.csv #3534
 import { PAGES, pageById, searchPages } from "../help/content.js";
 import { DIAGRAMS } from "../help/diagrams/index.jsx"; // TASKS.csv #3899 — loaded with Help, never at startup
+import FirstSteps from "../help/FirstSteps.jsx"; // TASKS.csv #3887 — the First steps guide, a Help page
 
 const sectionHead = { fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)", margin: "14px 0 6px" };
 const muted = { color: "var(--color-text-muted)" };
+// TASKS.csv #3899 / #3887 — the page bodies are English for now: in an Arabic interface (dir="rtl") an English block takes its own direction
+// (dir="auto"), so its full stops and question marks stay at its end; an English run inside a translated line is isolated (dir="ltr")
+const EN = { lang: "en", dir: "auto" };
+const En = ({ children }) => <span lang="en" dir="ltr">{children}</span>;
 // TASKS.csv #3899 — detail kept behind a closed "More" (a page's, a field's or a warning's `more`); search still reads it
 function More({ text }) {
   if (!text) return null;
-  return <details style={{ marginTop: 3 }}><summary style={{ cursor: "pointer", color: "var(--color-info)", fontSize: "var(--font-size-xs)" }}>{tr("More")}</summary><div style={{ marginTop: 2 }}>{text}</div></details>;
+  return <details style={{ marginTop: 3 }}><summary style={{ cursor: "pointer", color: "var(--color-info)", fontSize: "var(--font-size-xs)" }}>{tr("More")}</summary><div {...EN} style={{ marginTop: 2 }}>{text}</div></details>;
 }
 const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", textAlign: "left", fontSize: "inherit", font: "inherit" };
 
@@ -61,6 +66,7 @@ function Contents({ onOpen }) {
   return (
     <div>
       <div style={{ ...muted, fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{/* TASKS.csv #3534 — what the status bar's ? used to open */}<button type="button" style={link} onClick={() => openShortcuts("shortcuts")}>{tr("Keyboard shortcuts")}</button> · <button type="button" style={link} onClick={() => openShortcuts("about")}>{tr("About GeoStrix")}</button></div>
+      <button type="button" data-first-steps-open="" style={{ ...link, display: "block", fontWeight: 600, textDecoration: "none", margin: "4px 0 8px", fontSize: "var(--font-size-base)" }} onClick={() => onOpen("first-steps")}>{tr("New here? First steps, in six screens")}</button>{/* TASKS.csv #3887 */}
       <div style={{ ...muted, fontSize: "var(--font-size-sm)", lineHeight: 1.45, marginBottom: 6 }}>{tr("One page per tool: what it does, what it is not, each field and how to choose a value, the warnings it can show, and a short walk-through. Works with no internet connection.")}</div>
       {byArea.map(([area, ps]) => (
         <div key={area}>
@@ -83,7 +89,7 @@ function Results({ results, query, onOpen }) {
         <div key={page.id} style={{ marginBottom: 10 }}>
           <button type="button" style={{ ...linkBtn, fontWeight: 600 }} onClick={() => onOpen(page.id)}>{tr(page.title)}</button>
           <span style={{ ...muted, fontSize: "var(--font-size-xs)" }}> · {tr(page.area)}</span>
-          {snippet && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 2 }}>{snippet}</div>}
+          {snippet && <div {...EN} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 2 }}>{snippet}</div>}
         </div>
       ))}
     </div>
@@ -97,20 +103,21 @@ function Page({ page, onOpen, onBack, backLabel }) {
       <button type="button" style={{ ...linkBtn, fontSize: "var(--font-size-xs)", marginBottom: 6 }} onClick={onBack}>← {backLabel}</button>
       <h2 style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", margin: "0 0 2px" }}>{tr(page.title)}</h2>
       <div style={{ ...muted, fontSize: "var(--font-size-xs)", marginBottom: 8 }}>{tr(page.area)}</div>
-      <p style={{ margin: 0, color: "var(--color-text)" }}>{page.summary}</p>
+      {page.guide ? <p style={{ margin: 0, color: "var(--color-text)" }}>{tr(page.summary)}</p> : <p {...EN} style={{ margin: 0, color: "var(--color-text)" }}>{page.summary}</p>}
+      {page.guide && <FirstSteps />}{/* #3887 */}
       {page.diagram && DIAGRAMS[page.diagram.id] && (() => { const D = DIAGRAMS[page.diagram.id]; return <figure role="img" aria-label={page.diagram.alt} style={{ margin: "10px 0 0" }}><D /></figure>; })()}{/* #3899 */}
       <More text={page.more} />
       {page.notFor?.length > 0 && (<>
         <div style={sectionHead}>{tr("What it is not")}</div>
-        <ul style={{ margin: 0, paddingLeft: 16 }}>{page.notFor.map((s, i) => <li key={i} style={{ marginBottom: 4 }}>{s}</li>)}</ul>
+        <ul style={{ margin: 0, paddingLeft: 16 }}>{page.notFor.map((s, i) => <li key={i} {...EN} style={{ marginBottom: 4 }}>{s}</li>)}</ul>
       </>)}
       {page.fields?.length > 0 && (<>
         <div style={sectionHead}>{tr("Fields")}</div>
         <dl style={{ margin: 0 }}>
           {page.fields.map((f, i) => (
             <div key={i} style={{ marginBottom: 8 }}>
-              <dt style={{ fontWeight: 600, color: "var(--color-text)" }}>{f.name}</dt>
-              <dd style={{ margin: "1px 0 0 0" }}>{f.what}{f.choose && <div style={{ marginTop: 2 }}><span style={{ fontWeight: 600 }}>{tr("How to choose:")}</span> {f.choose}</div>}<More text={f.more} /></dd>
+              <dt {...EN} style={{ fontWeight: 600, color: "var(--color-text)" }}>{f.name}</dt>
+              <dd style={{ margin: "1px 0 0 0" }}><div {...EN}>{f.what}</div>{f.choose && <div style={{ marginTop: 2 }}><span style={{ fontWeight: 600 }}>{tr("How to choose:")}</span> <En>{f.choose}</En></div>}<More text={f.more} /></dd>
             </div>
           ))}
         </dl>
@@ -120,16 +127,16 @@ function Page({ page, onOpen, onBack, backLabel }) {
         <div style={{ ...muted, fontSize: "var(--font-size-xs)", marginBottom: 4 }}>{tr("The names and numbers in a message are examples.")}</div>{/* TASKS.csv #3693 */}
         {page.warnings.map((w, i) => (
           <div key={i} style={{ marginBottom: 8, borderLeft: "3px solid var(--color-warn-border)", paddingLeft: 8 }}>
-            <div style={{ color: "var(--color-text)", fontStyle: "italic" }}>“{w.says}”</div>
-            {w.means && <div>{w.means}</div>}
-            {w.do && <div><span style={{ fontWeight: 600 }}>{tr("What to do:")}</span> {w.do}</div>}
+            <div {...EN} style={{ color: "var(--color-text)", fontStyle: "italic" }}>“{w.says}”</div>
+            {w.means && <div {...EN}>{w.means}</div>}
+            {w.do && <div><span style={{ fontWeight: 600 }}>{tr("What to do:")}</span> <En>{w.do}</En></div>}
             <More text={w.more} />
           </div>
         ))}
       </>)}
       {page.howto?.steps?.length > 0 && (<>
         <div style={sectionHead}>{page.howto.sample && !/^(any|your own)/i.test(page.howto.sample) ? tr("How to: on the {sample} sample", { sample: page.howto.sample }) : tr("How to")}</div>
-        <ol style={{ margin: 0, paddingLeft: 18 }}>{page.howto.steps.map((s, i) => <li key={i} style={{ marginBottom: 3 }}>{s}</li>)}</ol>
+        <ol style={{ margin: 0, paddingLeft: 18 }}>{page.howto.steps.map((s, i) => <li key={i} {...EN} style={{ marginBottom: 3 }}>{s}</li>)}</ol>
       </>)}
       {related.length > 0 && (<>
         <div style={sectionHead}>{tr("See also")}</div>
