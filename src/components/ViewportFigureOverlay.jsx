@@ -98,6 +98,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups: all
   const legendGroups = foldLegendGroups(allGroups, config.legendFolded); // #3398
   const barRectRef = useRef(null);
   const barTextRef = useRef(null);
+  const atCentreRef = useRef(null), nothingRef = useRef(null); // TASKS.csv #3927 — which caption shows (switched here, never through React state)
   const barMidRef = useRef(null);
   const barSvgRef = useRef(null);
   const barHalfRef = useRef(null);
@@ -122,6 +123,11 @@ export default function ViewportFigureOverlay({ config, title, legendGroups: all
     // when the canvas is resized, and ViewerModule's resize() is the one caller that passes
     // sizeChanged — so the cache cannot go stale without being invalidated.
     if (sizeChanged || !(heightRef.current > 0)) heightRef.current = mount.clientHeight;
+    // TASKS.csv #3927 — the point at the view centre closer than the near plane is cut away: the bar would measure nothing on screen (it read 1 cm)
+    const clipped = !(cs.radius > (cam.near || 0));
+    if (atCentreRef.current) atCentreRef.current.style.display = clipped ? "none" : "";
+    if (nothingRef.current) nothingRef.current.style.display = clipped ? "" : "none";
+    if (clipped) { lastRef.current = { px: -1, label: "" }; if (barTextRef.current) barTextRef.current.textContent = "—"; return; }
     const mpp = metresPerPixelAtTarget(cam.fov, cs.radius, heightRef.current);
     const bar = chooseScaleBar(mpp, MAX_BAR_PX);
     if (!bar) return;
@@ -312,7 +318,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups: all
           </svg>
           {/* The honesty label. This is not decoration: without it the bar claims a single scale for
               a perspective projection that does not have one. See figureScale.js's header. */}
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 1, letterSpacing: 0.2 }}>{tr("at view centre")}{veTag && <> · <b style={{ color: "var(--color-text)" }}>{veTag}</b></>}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 1, letterSpacing: 0.2 }}><span ref={atCentreRef}>{tr("at view centre")}</span><span ref={nothingRef} style={{ display: "none" }}>{tr("nothing under the view centre")}</span>{veTag && <> · <b style={{ color: "var(--color-text)" }}>{veTag}</b></>}</div>
         </div>
       )}
       {veTag && !showScale && <div style={{ ...card, position: "absolute", bottom: 12, left: SCALE_LEFT_PX, padding: "4px 9px", fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)" }}>{veTag}</div>}{/* #2623 */}

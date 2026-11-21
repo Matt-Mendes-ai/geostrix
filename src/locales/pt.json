@@ -14345,5 +14345,6 @@
   "of the {n} mineralised samples (≥ {cut})": "das {n} amostras mineralizadas (≥ {cut})",
   "of all samples": "de todas as amostras",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} m desses furos não tinham nenhum ponto a menos de {d} m e ficaram vazios.",
-  "Import as a block model": "Importar como modelo de blocos"
+  "Import as a block model": "Importar como modelo de blocos",
+  "nothing under the view centre": "nada sob o centro da vista"
 }

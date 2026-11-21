@@ -10,9 +10,12 @@ export const cameraSnapshot = (cs) => (cs && cs.target && [cs.theta, cs.phi, cs.
 export const cameraKey = (c) => (c ? `${c.theta}|${c.phi}|${c.radius}|${c.target.x}|${c.target.y}|${c.target.z}` : "");
 
 // a saved camera put back on the live one (camState: the ref); true when it was valid. The scene's first auto-fit is then not wanted (hasAutoFitRef).
+// TASKS.csv #3927 — a saved camera collapsed onto a surface (an orbit under half a metre, seen after a crash recovery: the view sat under the terrain with a
+// 1 cm scale bar) is not put back: the view then fits the data, as a project with no saved camera does
+export const MIN_RESTORED_RADIUS = 0.5;
 export function applySavedCamera(saved, camState, cameraRef, hasAutoFitRef) {
   const c = cameraSnapshot(saved && { ...saved, target: saved.target });
-  if (!c || !(c.radius > 0) || !camState.current?.target) return false;
+  if (!c || !(c.radius >= MIN_RESTORED_RADIUS) || !camState.current?.target) return false;
   const cs = camState.current;
   cs.theta = c.theta; cs.phi = c.phi; cs.radius = c.radius; cs.target.set(c.target.x, c.target.y, c.target.z);
   hasAutoFitRef.current = true;
