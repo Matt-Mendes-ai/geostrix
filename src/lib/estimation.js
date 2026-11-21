@@ -159,6 +159,20 @@ function withTrend(samplePoints, opts) {
   return { pts: samplePoints.map((p) => { const [x, y, z] = f(p.x, p.y, p.z); return { ...p, x, y, z, wx: p.x, wy: p.y, wz: p.z }; }), q: f };
 }
 
+// TASKS.csv #3938 (#3791's leftover: Estimation's time left read 'about 10 s' with 45 s to go, then climbed) — the run's progress was the share
+// of z-slices done, and the blocks within reach crowd into the middle slices: the near-empty top slices went by first and the run looked fast.
+// The share done is now the share of the blocks WITHIN REACH done (the work), slice by slice. mask: the reach mask (nx * ny * nz, x fastest);
+// -> a Float64Array of the cumulative share after each z-slice, or null (no mask, or nothing in reach: the slices' share, as before). Pure.
+export function reachProgress(mask, nx, ny, nz) {
+  if (!mask || !(nx > 0 && ny > 0 && nz > 0)) return null;
+  const per = nx * ny, out = new Float64Array(nz);
+  let cum = 0;
+  for (let iz = 0; iz < nz; iz++) { const a = iz * per, b = Math.min(mask.length, a + per); for (let i = a; i < b; i++) if (mask[i]) cum++; out[iz] = cum; }
+  if (!cum) return null;
+  for (let iz = 0; iz < nz; iz++) out[iz] /= cum;
+  return out;
+}
+
 export function estimateBlockModel(samplePoints, opts) {
   const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false, noCodeAsDomain = false } = opts; // noCodeAsDomain: #2541
   // TASKS.csv #1416 — the blocks any composite can reach (lib/blockReach.js): the budget counts them, the loop skips the rest
@@ -167,6 +181,7 @@ export function estimateBlockModel(samplePoints, opts) {
   const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks, reachInfo); // maxBlocks: #626
   const mask = reachInfo?.mask || null;
   if (!samplePoints.length) return { cells: [], blocksEstimated: 0, blocksSkipped: totalBlocks, singleHoleCells: 0 };
+  const doneAfter = opts.onProgress ? reachProgress(mask, nx, ny, nz) : null; // #3938 — the blocks within reach done, not the slices
   // TASKS.csv #3163 (split from #3014) — a set's members on the same sample points as this run: opts.members = { values: [per member, a value per
   // sample point, in samplePoints' order], unsampled: [per member, its unsampled drill points, or null] }. Each block then also gives every
   // member's value from the SAME search and weights (nearest-neighbour, IDW, MLS; not kriging, whose weights come from each member's own
@@ -313,7 +328,7 @@ export function estimateBlockModel(samplePoints, opts) {
         cells.push(cell);
       }
     }
-    opts.onProgress?.((iz + 1) / nz); // #520 — once per z-slice (the estimation worker relays it)
+    opts.onProgress?.(doneAfter ? doneAfter[iz] : (iz + 1) / nz); // #520 — once per z-slice (the estimation worker relays it); doneAfter: #3938
   }
   // #661 — trimmed to the blocks actually estimated (slice copies, so the spare capacity is freed with the originals)
   const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)]), ...(col.domainCode ? [["domainNames", domainNames]] : []), ...(mv ? [["mv", mv.map((a) => a.slice(0, n))], ["nu", mnu.map((a) => (a ? a.slice(0, n) : null))]] : [])]) : null; // domainNames: #3014; mv / nu: #3163
@@ -1381,6 +1396,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   // cubes needs every node, so the budget here is still the box's)
   const denseReach = opts.noReach ? null : reachOfComposites(samplePoints, bounds, { dx, dy, dz }, searchRadius, opts.trend); // #2694
   const denseMask = denseReach ? denseReach.mask : null;
+  const denseDone = opts.onProgress ? reachProgress(denseMask, nx, ny, nz) : null; // #3938
   const tw = twK || withTrend(samplePoints, opts); // #650
   const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: wantSupport, bracketTol: Math.min(dx, dy, dz) / 2 });
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
@@ -1413,7 +1429,7 @@ export function estimateDenseGrid(samplePoints, opts) {
         estimated++;
       }
     }
-    opts.onProgress?.((iz + 1) / nz); // #520
+    opts.onProgress?.(denseDone ? denseDone[iz] : (iz + 1) / nz); // #520; denseDone: #3938
   }
   out.estimated = estimated;
   out.skipped = totalBlocks - estimated;
