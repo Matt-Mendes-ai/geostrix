@@ -14645,5 +14645,9 @@
   "Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.": "ينعّم الدرجات المستقيمة على الأرض المستوية. وتبقى المنحدرات والحواف والجروف.",
   "Smoothing undone.": "أُلغي التنعيم.",
   "No steps found: nothing changed.": "لم يُعثر على درجات: لم يتغير شيء.",
-  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "نُعّمت الدرجات: تغيّرت {n} عقدة، بما يصل إلى {max} م (الوسيط {med} م)."
+  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "نُعّمت الدرجات: تغيّرت {n} عقدة، بما يصل إلى {max} م (الوسيط {med} م).",
+  "Elevation source": "مصدر الارتفاع",
+  "assumed: median": "مفترض: الوسيط",
+  "assumed: 0 m": "مفترض: 0 م",
+  "assumed: terrain": "مفترض: التضاريس"
 }

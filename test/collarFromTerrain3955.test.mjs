@@ -104,12 +104,29 @@ test("#3955 a collar file with no elevation column can be imported: Elevation is
   assert.match(choice, /From the terrain \\"\{name\}\\"/);
 });
 
-test("#3955 the action and the offer: mounted once in App, opened from Data QC, applying through the store's undoable setCollars, never while a project loads", () => {
-  assert.equal((read("../src/App.jsx").match(/<CollarZFromTerrain \/>/g) || []).length, 1);
+test("#3955 the action and the offer: the small gate is mounted once in App and loads the dialog, the card and the planner lazily; never offered while a project loads", () => {
+  assert.equal((read("../src/App.jsx").match(/<CollarZGate \/>/g) || []).length, 1);
+  assert.doesNotMatch(read("../src/App.jsx"), /import CollarZFromTerrain /, "the heavy half is not in the startup chunk");
   assert.match(read("../src/components/DataQCModal.jsx"), /onClick=\{requestCollarZFromTerrain\}/);
+  const g = read("../src/components/CollarZGate.jsx");
+  assert.match(g, /React\.lazy\(\(\) => import\("\.\/CollarZFromTerrain\.jsx"\)\)/);
+  assert.match(g, /if \(projectLoading\) \{ seen\.current = key; setOffer\(null\); return; \}/);
+  assert.doesNotMatch(g, /from "\.\.\/lib\/collarFromTerrain\.js"/, "the planner is only imported by the lazy half");
   const c = read("../src/components/CollarZFromTerrain.jsx");
   assert.match(c, /setCollars\(\(prev\) => applyCollarsFromTerrain\(prev, plan, terrain\)\)/);
-  assert.match(c, /if \(projectLoading\) \{ seen\.current = key; setOffer\(null\); return; \}/);
   assert.match(c, /which: "assumed"/);
   assert.match(c, /name="collarZWhich" checked=\{which === "all"\}/);
+  // the gate's count is the planner's rule
+  assert.match(g, /c\.zAssumed === "median" \|\| c\.zAssumed === "zero" \|\| !Number\.isFinite\(c\.z\)/);
+});
+
+test("#3955 the collars row menu offers the action, and Identify says where a collar's elevation came from", async () => {
+  const v = read("../src/modules/ViewerModule.jsx");
+  assert.match(v, /layerContextMenu\.key === "__collars__" && <ContextItem label=\{tr\("Collar elevations from the terrain…"\)\} onClick=\{\(\) => \{ requestCollarZFromTerrain\(\); setLayerContextMenu\(null\); \}\} \/>/);
+  const { elevationSourceField } = await import("../src/lib/viewer/identify.js");
+  assert.deepEqual(elevationSourceField({ z: 400, z_source: "terrain: made-up DEM", zAssumed: "terrain" }), ["Elevation source", "terrain: made-up DEM"]);
+  assert.deepEqual(elevationSourceField({ z: 420, zAssumed: "median" }), ["Elevation source", "assumed: median"]);
+  assert.deepEqual(elevationSourceField({ z: 0, zAssumed: "zero" }), ["Elevation source", "assumed: 0 m"]);
+  assert.equal(elevationSourceField({ z: 410 }), null, "a file's own elevation says nothing");
+  assert.match(read("../src/lib/viewer/identify.js"), /new Set\(\[\.\.\.SKIP, "z_source", "zAssumed", "z_before_snap"\]\)/);
 });

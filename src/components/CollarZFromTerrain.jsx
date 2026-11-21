@@ -3,12 +3,12 @@
 //      their file, placed at the median or 0 m by #2169: the default; or all), a preview (count, largest and median change, holes outside the terrain named),
 //      Apply; Ctrl+Z undoes it (the collars are in the store's history), and each hole keeps its old elevation in z_before_snap;
 //  (c) the one-click offer: a terrain arrives (a fetch, an import, not a project coming forward) while collars at an assumed elevation exist.
-// The rules are in lib/collarFromTerrain.js.
-import React, { useEffect, useMemo, useRef, useState } from "react";
+// The rules are in lib/collarFromTerrain.js. This file and that planner are a lazy chunk (the startup budget, #3955 follow-up): components/CollarZGate.jsx is the small
+// always-mounted half that decides when to load it.
+import React, { useMemo, useState } from "react";
 import { X } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { assumedForTerrain, planCollarsFromTerrain, applyCollarsFromTerrain, planBrief } from "../lib/collarFromTerrain.js";
-import { onCollarZRequest } from "../lib/collarTerrainRequests.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, rowBtn, backdropProps } from "../lib/modalStyles.js";
@@ -16,7 +16,6 @@ import { t as tr } from "../lib/i18n.js";
 
 const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const idList = (ids) => ids.slice(0, 8).join(", ") + (ids.length > 8 ? ", …" : "");
-const terrainKey = (t) => (t ? `${t.name || ""}|${(t.bbox || []).join(",")}|${t.gridW || ""}x${t.gridH || ""}` : "");
 
 // the result line: what moved, by how much, and what was left
 const resultLine = (plan, terrain) => {
@@ -71,20 +70,9 @@ function Dialog({ onClose, onDone }) {
   );
 }
 
-export default function CollarZFromTerrain() {
-  const { collars, terrain, setCollars, projectLoading } = useStore();
-  const [open, setOpen] = useState(false);
-  const [offer, setOffer] = useState(null); // { text, n, result } — the card
-  useEffect(() => onCollarZRequest(() => setOpen(true)), []);
-  // (c) a terrain arrives while assumed-elevation collars exist: offered once per terrain; a project coming forward (a file opened, a tab switched) is not "arriving"
-  const key = terrainKey(terrain), seen = useRef(key);
-  const assumed = useMemo(() => assumedForTerrain(collars), [collars]);
-  useEffect(() => {
-    if (projectLoading) { seen.current = key; setOffer(null); return; }
-    if (!key || key === seen.current) return;
-    seen.current = key;
-    if (assumed.length) setOffer({ n: assumed.length, name: terrain?.name || "DEM" });
-  }, [key, projectLoading, assumed.length]);
+// the lazy half (loaded when the action or the offer is first needed: CollarZGate.jsx): the state lives in the gate
+export default function CollarZFromTerrain({ open, setOpen, offer, setOffer }) {
+  const { collars, terrain, setCollars } = useStore();
   const placeThem = () => {
     const plan = planCollarsFromTerrain(collars, terrain, { which: "assumed" });
     if (!plan.count) { setOffer(null); return; }

@@ -14645,5 +14645,9 @@
   "Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.": "Adoucit les marches rectilignes sur terrain plat. Les pentes, crêtes et falaises restent.",
   "Smoothing undone.": "Adoucissement annulé.",
   "No steps found: nothing changed.": "Aucune marche trouvée : rien n'a changé.",
-  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "Marches adoucies : {n} nœuds modifiés, jusqu'à {max} m (médiane {med} m)."
+  "Steps smoothed: {n} nodes changed, up to {max} m (median {med} m).": "Marches adoucies : {n} nœuds modifiés, jusqu'à {max} m (médiane {med} m).",
+  "Elevation source": "Origine de l'élévation",
+  "assumed: median": "supposée : médiane",
+  "assumed: 0 m": "supposée : 0 m",
+  "assumed: terrain": "supposée : terrain"
 }

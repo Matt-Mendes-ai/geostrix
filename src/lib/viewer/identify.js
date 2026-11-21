@@ -51,6 +51,12 @@ export function assumedPositionField(span, m = (v) => num(v, 1)) {
     : tr("assumed: no survey station between {a} m and {b} m ({n} m apart), the path there is interpolated", { a: m(span.from), b: m(span.to), n: m(span.to - span.from) })];
 }
 const SURVEY_METHOD = new Set(["survey method"]);
+// TASKS.csv #3955 — where a collar's elevation came from, when it is not the file's own: taken from the terrain on request (z_source), or a guess made at import (zAssumed) -> [label, value] | null
+export function elevationSourceField(c) {
+  if (typeof c?.z_source === "string" && c.z_source) return [tr("Elevation source"), c.z_source];
+  const how = { median: tr("assumed: median"), zero: tr("assumed: 0 m"), terrain: tr("assumed: terrain") }[c?.zAssumed];
+  return how ? [tr("Elevation source"), how] : null;
+}
 export function attributeFields(row, skip = SKIP) {
   const out = [];
   for (const [k, v] of Object.entries(row || {})) {
@@ -201,8 +207,10 @@ function describe(hit, ctx) {
     const c = o.userData?.collar;
     if (collar) {
       // TASKS.csv #2809 — on a mine grid with an RL datum the collar's grid RL follows its elevation (z)
-      const own = c ? attributeFields(c) : [], rl = gridRlOf(c?.z, ctx.rlOffset), at = own.findIndex(([k]) => k === "z");
+      const own = c ? attributeFields(c, new Set([...SKIP, "z_source", "zAssumed", "z_before_snap"])) : [], rl = gridRlOf(c?.z, ctx.rlOffset), at = own.findIndex(([k]) => k === "z");
+      const zSrc = c ? elevationSourceField(c) : null; // #3955 — said in words, not as the raw z_source / zAssumed keys
       if (rl != null && at >= 0) own.splice(at + 1, 0, [tr("RL (grid)"), num(rl, 4)]);
+      if (zSrc && at >= 0) own.splice(at + 1, 0, zSrc);
       return { ...base, layer: tr("Collars"), title: hole, hole, fields: c ? [...fields, ...own, ...attributeFields(c.attrs, new Set())] : fields };
     }
     // #1821 — a surface sample: the element it is coloured by and its class first, every element, its own fields
