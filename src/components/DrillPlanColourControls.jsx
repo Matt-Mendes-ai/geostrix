@@ -8,6 +8,9 @@ import { drillPlanColourBy, colourByKind } from "../lib/drillPlan.js";
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #3026 — the grade colourings open on the project's commodity
 import { preferredElement } from "../lib/preferredElement.js";
 import { elementOptionLabel } from "../lib/geochem.js"; // TASKS.csv #3026 — 'Al as Al2O3', as the key's unit reads it (#2914)
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 const lab = { fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 };
 
@@ -54,7 +57,7 @@ export default function DrillPlanColourControls({ sel, updateSelected, collars, 
       {kind === "bi" && ( /* TASKS.csv #2685 — Best intercepts' rule, set on the plan */
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           {[["biCutoff", tr("Cut-off"), tr("P90")], ["biDilution", tr("Internal dilution (m)"), "2"], ["biMinLength", tr("Min. length (m)"), "0"]].map(([k, label, ph]) => (
-            <label key={k} style={{ ...lab, flex: 1, marginBottom: 0 }}>{label}<input type="number" min="0" step="any" value={sel[k] ?? ""} placeholder={ph} onChange={(e) => updateSelected({ [k]: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...inp, marginTop: 4 }} /></label>
+            <label key={k} style={{ ...lab, flex: 1, marginBottom: 0 }}>{label}<NumberInput allowEmpty min="0" value={sel[k] ?? ""} placeholder={ph} onChange={asEvent((e) => updateSelected({ [k]: e.target.value === "" ? null : Number(e.target.value) }))} style={{ ...inp, marginTop: 4 }} /></label>
           ))}
         </div>
       )}

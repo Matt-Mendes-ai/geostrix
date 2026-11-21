@@ -72,5 +72,5 @@ test("StrixViewer: the grid, the section buffer and ViewerModule's seven boxes (
 test("NumberInput takes a wrapper style (a box that fills a row), and nothing else changes", () => {
   const n = read("components/NumberInput.jsx");
   assert.match(n, /wrapStyle = null/);
-  assert.match(n, /<span style=\{\{ display: "inline-flex", flexDirection: "column", gap: 2, \.\.\.\(wrapStyle \|\| \{\}\) \}\}>/);
+  assert.match(n, /<span style=\{\{ display: fullRow \? "flex" : "inline-flex", flexDirection: "column", gap: 2, \.\.\.\(fullRow \? \{ width: "100%" \} : \{\}\), \.\.\.\(wrapStyle \|\| \{\}\) \}\}>/); // #3926 G6: a full-row box fills the row; wrapStyle last
 });

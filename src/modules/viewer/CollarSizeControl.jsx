@@ -7,6 +7,9 @@
 import React from "react";
 import { t as tr } from "../../lib/i18n.js";
 import { DEFAULT_COLLAR_RADIUS } from "../../lib/viewer/collarMarkerSize.js";
+import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 export default function CollarSizeControl({ figureOverlay, setFigureOverlay, label = null }) {
   const cms = figureOverlay.collarSize;
@@ -17,7 +20,7 @@ export default function CollarSizeControl({ figureOverlay, setFigureOverlay, lab
       <select aria-label={tr("Collar markers")} value={cms > 0 ? "m" : "auto"} onChange={(e) => set(e.target.value === "m" ? DEFAULT_COLLAR_RADIUS : "auto")} style={{ fontSize: "var(--font-size-sm)", padding: "2px 4px" }}>
         <option value="auto">{tr("Auto")}</option><option value="m">{tr("Radius (m)")}</option>
       </select>
-      {cms > 0 && <input type="number" min={0.01} step={0.1} aria-label={tr("Radius (m)")} value={cms} onChange={(e) => { const v = Number(e.target.value); if (v > 0) set(v); }} style={{ width: 56, fontSize: "var(--font-size-sm)" }} />}
+      {cms > 0 && <NumberInput min={0.01} step={0.1} aria-label={tr("Radius (m)")} value={cms} onChange={asEvent((e) => { const v = Number(e.target.value); if (v > 0) set(v); })} style={{ width: 56, fontSize: "var(--font-size-sm)" }} />}
     </label>
   );
 }

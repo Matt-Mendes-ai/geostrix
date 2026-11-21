@@ -105,6 +105,9 @@ const SCALE_PRESETS = [500, 1000, 1500, 2000, 2500, 5000, 7500, 10000, 15000, 20
 import { printPassItems, pagesWithPrintSrcs, PAGE_DPI } from "../lib/layoutPrintPass.js"; // TASKS.csv #2303
 import MapRedrawControl from "../components/MapRedrawControl.jsx"; // TASKS.csv #3491
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
+import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 let handledPrintSeq = null;
 // TASKS.csv #2303 — an export waiting for its print pass (this module unmounts while the 3D View renders the viewports at 300 dpi)
 let pendingPrint = null;
@@ -1510,7 +1513,7 @@ export default function LayoutModule() {
             {(sel.type === "text" || sel.type === "title") && (
               <div style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Size (pt)")}<input type="number" min="5" step="0.5" value={Math.round(((sel.fontSize ?? (sel.type === "title" ? 26 : printPx(printPt.body))) / PX_PER_PT) * 2) / 2} onChange={(e) => updateSelected({ fontSize: printPx(Math.max(5, Number(e.target.value) || printPt.body)) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Size (pt)")}<NumberInput min="5" step="0.5" value={Math.round(((sel.fontSize ?? (sel.type === "title" ? 26 : printPx(printPt.body))) / PX_PER_PT) * 2) / 2} onChange={asEvent((e) => updateSelected({ fontSize: printPx(Math.max(5, Number(e.target.value) || printPt.body)) }))} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.color || INK} onChange={(e) => updateSelected({ color: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
                   </label>
@@ -1535,16 +1538,16 @@ export default function LayoutModule() {
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Table title")}<input value={sel.title || ""} onChange={(e) => updateSelected({ title: e.target.value })} style={inp} /></label>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Note under the table")}<textarea rows={3} value={sel.note || ""} onChange={(e) => updateSelected({ note: e.target.value })} style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} /></label>{/* TASKS.csv #936 */}
                 <div style={{ display: "flex", gap: 6 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Text size (pt)")}<input type="number" min="5" max="14" step="0.5" value={sel.fontPt || printPt.small} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(14, Number(e.target.value) || printPt.small)) })} style={inp} /></label>
-                  {sel.source === "collars" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<input type="number" min="1" step="1" value={sel.maxRows || 40} onChange={(e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 40)) })} style={inp} /></label>}
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Text size (pt)")}<NumberInput min="5" max="14" step="0.5" value={sel.fontPt || printPt.small} onChange={asEvent((e) => updateSelected({ fontPt: Math.max(5, Math.min(14, Number(e.target.value) || printPt.small)) }))} style={inp} /></label>
+                  {sel.source === "collars" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<NumberInput min="1" step="1" value={sel.maxRows || 40} onChange={asEvent((e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 40)) }))} style={inp} /></label>}
                 </div>
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
                   {sel.source === "collars" ? tr("Kept up to date with the project's collars, sorted by hole; holes beyond the row limit are counted in the last line.") : sel.source === "samples" ? tr("Kept up to date with the project's surface samples, highest first; samples beyond the row limit are counted in the last line.") /* #1869 */ : tr("A copy of the results when it was sent (from {from}); send it again to update it.", { from: sel.from || tr("Best intercepts") })}</div>
                 {sel.source === "samples" && ( /* TASKS.csv #1869 — the element, a threshold, the rows */
                   <div style={{ display: "flex", gap: 6 }}>
                     <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Element")}<select value={sel.symbol || ""} onChange={(e) => updateSelected({ symbol: e.target.value })} style={inp}>{(surfaceElements || []).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}</select></label>
-                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("At or above")}<input type="number" step="any" value={sel.threshold ?? ""} placeholder={tr("all")} onChange={(e) => updateSelected({ threshold: e.target.value === "" ? null : Number(e.target.value) })} style={inp} /></label>
-                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<input type="number" min="1" step="1" value={sel.maxRows || 25} onChange={(e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 25)) })} style={inp} /></label>
+                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("At or above")}<NumberInput allowEmpty value={sel.threshold ?? ""} placeholder={tr("all")} onChange={asEvent((e) => updateSelected({ threshold: e.target.value === "" ? null : Number(e.target.value) }))} style={inp} /></label>
+                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<NumberInput min="1" step="1" value={sel.maxRows || 25} onChange={asEvent((e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 25)) }))} style={inp} /></label>
                   </div>
                 )}
                 {sel.source === "collars" && (() => { // TASKS.csv #1638 — an appendix of every hole: a first row, a filter, continuation pages
@@ -1555,7 +1558,7 @@ export default function LayoutModule() {
                   const noSplit = sel.split !== 2 && !splitHalvesFit({ columns: tableCols, rows: collarTableCells(collarTableSlice(sortedCollars(tableCollars || []), { firstRow: sel.firstRow, maxRows: (Number(sel.maxRows) || 40) * 2, filter: sel.holeFilter }).rows, extraCols), fontPt: sel.fontPt || printPt.small, widthPx: Math.min(A4.w - 80, (Number(sel.w) || 520) * 2) - 12 - 2 * (Number(sel.frameWidth) || 0), measure: measureTableText(layoutFontStack(sel.fontFamily)) }).fits;
                   return (<>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("First row")}<input type="number" min="1" step="1" value={sel.firstRow || 1} onChange={(e) => updateSelected({ firstRow: Math.max(1, Math.round(Number(e.target.value) || 1)) })} style={inp} /></label>
+                      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("First row")}<NumberInput min="1" step="1" value={sel.firstRow || 1} onChange={asEvent((e) => updateSelected({ firstRow: Math.max(1, Math.round(Number(e.target.value) || 1)) }))} style={inp} /></label>
                       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value, firstRow: 1 })} style={inp} /></label>
                     </div>
                     {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A space ends a term: did you mean {term}? (_ stands for a space in a value.)", { term: sg })}</div> : null; })()}{/* TASKS.csv #3716 (3) — the collar table's box says it as the drill plan's does */}
@@ -1591,7 +1594,7 @@ export default function LayoutModule() {
               </>);
             })()}
             {"meters" in sel && (
-              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Scale length (m)")}<input type="number" value={sel.meters} onChange={(e) => updateSelected({ meters: Number(e.target.value) })} style={inp} />
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Scale length (m)")}<NumberInput value={sel.meters} onChange={asEvent((e) => updateSelected({ meters: Number(e.target.value) }))} style={inp} />
               </label>
             )}
             {/* Manual rotation for elements other than "viewport" (which has its own Rotation field
@@ -1601,7 +1604,7 @@ export default function LayoutModule() {
               // TASKS.csv #1632 — a tied arrow shows its view's live angle; typing an angle unties it
               const live = sel.boundTo ? northRotationOf(elements.find((v) => v.id === sel.boundTo)) : null;
               return (<>
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<input type="number" value={Math.round((live ?? sel.rotation ?? 0) * 10) / 10} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0, boundTo: null })} style={inp} />
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<NumberInput value={Math.round((live ?? sel.rotation ?? 0) * 10) / 10} onChange={asEvent((e) => updateSelected({ rotation: Number(e.target.value) || 0, boundTo: null }))} style={inp} />
                 </label>
                 {live != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Follows its view's grid north (GN). Typing an angle frees it.") /* #2138 */}</div>}
               </>);
@@ -1660,12 +1663,12 @@ export default function LayoutModule() {
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
                         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("W (mm)")}{/* TASKS.csv #3874 (#3716 (1)) — a width box: the legend's long lines ('cut-off 5 %, at most 2 m internal dilution; classes: ...') made it 136 mm wide with no way to say less */}
-                          <input type="number" min="20" step="1" placeholder={tr("auto")} value={Number(sel.w) > 0 ? mm(sel.w) : ""} aria-label={tr("Legend width (mm)")}
-                            onChange={(e) => { const v = Number(e.target.value); updateSelected({ w: e.target.value === "" || !(v > 0) ? undefined : Math.max(20, v) * PX_PER_MM }); }}
+                          <NumberInput allowEmpty min="20" step="1" placeholder={tr("auto")} value={Number(sel.w) > 0 ? mm(sel.w) : ""} aria-label={tr("Legend width (mm)")}
+                            onChange={asEvent((e) => { const v = Number(e.target.value); updateSelected({ w: e.target.value === "" || !(v > 0) ? undefined : Math.max(20, v) * PX_PER_MM }); })}
                             style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }} /></label>
                         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("H (mm)")}
-                          <input type="number" min="10" step="1" placeholder={tr("auto")} value={Number(sel.h) > 0 ? mm(sel.h) : ""} aria-label={tr("Legend height (mm)")}
-                            onChange={(e) => { const v = Number(e.target.value); if (e.target.value === "" || !(v > 0)) { updateSelected({ h: undefined }); return; } const was = isLegendBox(sel); updateSelected({ h: Math.max(10, v) * PX_PER_MM }); if (!was) allCodes(); }}
+                          <NumberInput allowEmpty min="10" step="1" placeholder={tr("auto")} value={Number(sel.h) > 0 ? mm(sel.h) : ""} aria-label={tr("Legend height (mm)")}
+                            onChange={asEvent((e) => { const v = Number(e.target.value); if (e.target.value === "" || !(v > 0)) { updateSelected({ h: undefined }); return; } const was = isLegendBox(sel); updateSelected({ h: Math.max(10, v) * PX_PER_MM }); if (!was) allCodes(); })}
                             style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }} /></label>
                         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Columns")}
                           <select value={String(sel.legendCols ?? "auto")} aria-label={tr("Legend columns")} onChange={(e) => { const v = e.target.value === "auto" ? undefined : Number(e.target.value); const was = isLegendBox(sel); updateSelected({ legendCols: v }); if (!was && v) allCodes(); }}
@@ -1832,13 +1835,13 @@ export default function LayoutModule() {
                   {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
                 </select></label>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.")}>{/* TASKS.csv #3611 — a typed scale, as the section picture has */}
-                  {tr("Typed scale 1 :")}<input type="number" min="1" step="100" value={Math.round(sel.scale) || ""} onChange={(e) => { const v = Number(e.target.value); if (v >= 1) updateSelected({ scale: v }); }} style={{ ...inp, marginBottom: 0, flex: 1, minWidth: 0 }} />
+                  {tr("Typed scale 1 :")}<NumberInput min="1" step="100" value={Math.round(sel.scale) || ""} onChange={asEvent((e) => { const v = Number(e.target.value); if (v >= 1) updateSelected({ scale: v }); })} style={{ ...inp, marginBottom: 0, flex: 1, minWidth: 0 }} />
                 </label>
                 <button type="button" onClick={() => { updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM }); reorderSelected("back"); /* TASKS.csv #3707 — behind the page's title, north arrow, scale bar, title block and credit, which it covered */ }} title={tr("The frame takes the whole page inside 10 mm margins, behind the page's other elements (the title, north arrow, scale bar, title block and credit stay on top of it).")} style={{ ...pBtn, width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<input type="number" min="0" step="any" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={(e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) })} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<NumberInput allowEmpty min="0" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={asEvent((e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) }))} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
                 <div style={{ display: "flex", gap: 6 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<input type="number" value={Math.round(sel.centre?.x || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } })} style={inp} /></label>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre N")}<input type="number" value={Math.round(sel.centre?.y || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, y: Number(e.target.value) } })} style={inp} /></label>
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<NumberInput value={Math.round(sel.centre?.x || 0)} onChange={asEvent((e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } }))} style={inp} /></label>
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre N")}<NumberInput value={Math.round(sel.centre?.y || 0)} onChange={asEvent((e) => updateSelected({ centre: { ...sel.centre, y: Number(e.target.value) } }))} style={inp} /></label>
                 </div>
                 <button onClick={() => { const fit = fitDrillPlan(holesToFit(sel, tableCollars || [], plannedHoles) /* #2259 */, sel.w, sel.h, SCALE_PRESETS, traces /* #3367 */); if (fit) updateSelected(fit); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "6px 10px", marginBottom: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" }}><Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
                 {(() => { const t = turnedFrameFit(filterHoles(tableCollars || [], sel.holeFilter), sel.w, sel.h, SCALE_PRESETS, traces /* #3367 */); return t && sel.scale >= t.from ? ( /* TASKS.csv #2305 — the holes run the other way: offer the turned frame */
@@ -1866,7 +1869,7 @@ export default function LayoutModule() {
                 {plannedHoles.length > 0 && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The program's planned holes, dashed in the planned colour and labelled '(planned)', as in the 3D view and on sections")}>
                   <input type="checkbox" checked={showsPlanned(sel)} onChange={(e) => updateSelected({ showPlanned: e.target.checked })} />{tr("Show the planned holes ({n} in the frame)", { n: dd.planned.length })}</label>}{/* TASKS.csv #2259 */}
                 <DrillPlanColourControls sel={sel} updateSelected={updateSelected} collars={tableCollars || []} assayElements={assayElements} colouring={dd.colouring} inp={inp} />{/* TASKS.csv #2473 — replaces the series tick */}
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Text size (pt)")}<input type="number" min="5" max="12" step="0.5" value={sel.fontPt || 7} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(12, Number(e.target.value) || 7)) })} style={{ ...inp, marginTop: 4 }} /></label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Text size (pt)")}<NumberInput min="5" max="12" step="0.5" value={sel.fontPt || 7} onChange={asEvent((e) => updateSelected({ fontPt: Math.max(5, Math.min(12, Number(e.target.value) || 7)) }))} style={{ ...inp, marginTop: 4 }} /></label>
                 {(dd.keyOriginal.title || dd.keyOriginal.rows.length > 0) && (() => { /* TASKS.csv #3415 — the key's lines, editable like a legend's rows; a blank box is the plan's own wording */
                   const ke = sel.keyEdits || {}, edited = !!(ke.title || ke.note || Object.values(ke.rows || {}).some(Boolean));
                   const setEdit = (k, v) => updateSelected({ keyEdits: { ...ke, [k]: v } }), setRow = (orig, v) => updateSelected({ keyEdits: { ...ke, rows: { ...(ke.rows || {}), [orig]: v } } });
@@ -1890,7 +1893,7 @@ export default function LayoutModule() {
             {sel.type === "rect" && (
               <>
                 <ColorRow label={tr("Stroke")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<input type="number" min="0" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0, Number(e.target.value) || 0) })} style={inp} />
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<NumberInput min="0" value={sel.strokeWidth} onChange={asEvent((e) => updateSelected({ strokeWidth: Math.max(0, Number(e.target.value) || 0) }))} style={inp} />
                 </label>
                 <ColorRow label={tr("Fill")} value={sel.fill} onChange={(v) => updateSelected({ fill: v })} />
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -1900,13 +1903,13 @@ export default function LayoutModule() {
             {sel.type === "arrow" && (
               <>
                 <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Length")}<input type="number" min="10" value={sel.length} onChange={(e) => updateSelected({ length: Math.max(10, Number(e.target.value) || sel.length) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Length")}<NumberInput min="10" value={sel.length} onChange={asEvent((e) => updateSelected({ length: Math.max(10, Number(e.target.value) || sel.length) }))} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Angle (°)")}<input type="number" value={sel.angle} onChange={(e) => updateSelected({ angle: Number(e.target.value) || 0 })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Angle (°)")}<NumberInput value={sel.angle} onChange={asEvent((e) => updateSelected({ angle: Number(e.target.value) || 0 }))} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
                 </div>
                 <ColorRow label={tr("Colour")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<NumberInput min="0.5" value={sel.strokeWidth} onChange={asEvent((e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) }))} style={inp} />
                 </label>
               </>
             )}
@@ -1919,7 +1922,7 @@ export default function LayoutModule() {
             {sel.type === "freehand" && (
               <>
                 <ColorRow label={tr("Colour")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<NumberInput min="0.5" value={sel.strokeWidth} onChange={asEvent((e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) }))} style={inp} />
                 </label>
               </>
             )}
@@ -1963,12 +1966,12 @@ export default function LayoutModule() {
           <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: showGrid ? "var(--color-text)" : "var(--color-text-faint)" }}>{tr("Grid + snap")}</div>
           {metersPerPx ? (
             <>
-              <input type="number" min={1} value={gridMeters} onChange={(e) => setGridMeters(Math.max(1, Number(e.target.value) || 100))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
+              <NumberInput min={1} value={gridMeters} onChange={asEvent((e) => setGridMeters(Math.max(1, Number(e.target.value) || 100)))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>m</span>
             </>
           ) : (
             <>
-              <input type="number" min={1} value={gridMm} onChange={(e) => setGridMm(Math.max(1, Number(e.target.value) || 10))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
+              <NumberInput min={1} value={gridMm} onChange={asEvent((e) => setGridMm(Math.max(1, Number(e.target.value) || 10)))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("mm")}</span>
             </>
           )}
@@ -2308,7 +2311,7 @@ function TitleBlockControls({ sel, updateSelected }) {
       ))}
       <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
         <button type="button" onClick={() => updateSelected({ rows: [...rows, ["Label", ""]] })} style={{ ...btn, padding: "2px 8px" }}>{tr("Add row")}</button>
-        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>{tr("Size (pt)")}<input type="number" min="5" max="16" step="0.5" value={sel.fontPt || 8} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(16, Number(e.target.value) || 8)) })} style={{ ...small, width: 52 }} /></label>
+        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>{tr("Size (pt)")}<NumberInput min="5" max="16" step="0.5" value={sel.fontPt || 8} onChange={asEvent((e) => updateSelected({ fontPt: Math.max(5, Math.min(16, Number(e.target.value) || 8)) }))} style={{ ...small, width: 52 }} /></label>
       </div>
     </div>
   );
@@ -2347,9 +2350,8 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
           <option value="custom">{tr("custom…")}</option>
         </select>
         {choice === "custom" && (
-          <input type="number" min="1" step="any" defaultValue={n || ""} aria-label={tr("Strip log depth scale denominator")}
-            onBlur={(e) => setScale(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-            style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
+          <NumberInput min={1} value={n || ""} aria-label={tr("Strip log depth scale denominator")} /* #3926 — taken on leaving or Enter, as before; '0,5' reads too */
+            onChange={(v) => setScale(v)} style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
       {d > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("{mm} mm of paper per 10 m of hole", { mm: +(10000 / d).toPrecision(3) })}</div>}
@@ -2404,9 +2406,8 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
           <option value="custom">{tr("custom…")}</option>
         </select>
         {choice === "custom" && (
-          <input type="number" min="1" step="any" defaultValue={n || ""} aria-label={tr("Section plot scale denominator")}
-            onBlur={(e) => setScale(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-            style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
+          <NumberInput min={1} value={n || ""} aria-label={tr("Section plot scale denominator")} /* #3926 — taken on leaving or Enter, as before; '0,5' reads too */
+            onChange={(v) => setScale(v)} style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{sectionScaleText(sel)}</div>
@@ -2463,7 +2464,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
         title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport.")}>
         <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM; #2484: nor is MGA / any other projection: the caption names the grid */}{gridOk && sel.utmGrid && (
-          <input type="number" min="1" step="any" placeholder={tr("auto")} value={sel.utmGridStep || ""} onChange={(e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 })}
+          <NumberInput min="1" placeholder={tr("auto")} value={sel.utmGridStep || ""} onChange={asEvent((e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 }))}
             aria-label={tr("Grid spacing (m)")} title={tr("Grid spacing in metres (blank = automatic)")} style={{ width: 60, marginLeft: "auto", fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
@@ -2523,10 +2524,9 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
           <option value="custom">{tr("custom…")}</option>
         </select>
         {scaleChoice === "custom" && (
-          <input type="number" min="1" step="any" value={sel.fixedScale || ""} aria-label={tr("Fixed plot scale denominator")}
-            onChange={(e) => { const n = Number(e.target.value) || 0; updateSelected(n > 0 ? { fixedScale: n, trueScale: true } : { fixedScale: 0 }); }}
-            onBlur={() => { if (sel.fixedScale > 0 && sel.capturedFixedScale !== sel.fixedScale) onRescale(sel.fixedScale); }} // #1007 — a typed scale applies on leaving the box or Enter
-            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          <NumberInput allowEmpty min={1} value={sel.fixedScale || ""} aria-label={tr("Fixed plot scale denominator")}
+            // #1007 — a typed scale applies on leaving the box or Enter (#3926: NumberInput commits there, so the rescale goes with it); blank: free
+            onChange={(v) => { const n = v || 0; if (n > 0 && sel.capturedFixedScale !== n) onRescale(n); else updateSelected(n > 0 ? { fixedScale: n, trueScale: true } : { fixedScale: 0 }); }}
             style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
@@ -2573,10 +2573,10 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       {frameChanged && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The frame was resized since its capture: the image keeps its scale and size until you refresh, which fills the frame.")}</div>
       )}
-      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
+      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<NumberInput value={sel.rotation || 0} onChange={asEvent((e) => updateSelected({ rotation: Number(e.target.value) || 0 }))} style={inp} />
       </label>
       <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Frame width")}<input type="number" min="0" value={sel.frameWidth ?? 1} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4 }} />
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Frame width")}<NumberInput min="0" value={sel.frameWidth ?? 1} onChange={asEvent((e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...inp, marginTop: 4 }} />
         </label>
         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.frameColor || INK} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
@@ -2615,13 +2615,13 @@ function PlaceControls({ sel, updateSelected }) {
   const toPx = (v) => Number(v) * PX_PER_MM;
   const field = (label, key, min) => (
     <label key={key} style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1, minWidth: 0 }}>{label}
-      <input type="number" step="0.1" value={mm(sel[key] || 0)} onChange={(e) => {
+      <NumberInput step="0.1" value={mm(sel[key] || 0)} onChange={asEvent((e) => {
         const v = Number(e.target.value);
         if (!Number.isFinite(v)) return;
         const px = min != null ? Math.max(min * PX_PER_MM, toPx(v)) : toPx(v);
         if (key === "w" && ASPECT_LOCKED.has(sel.type) && sel.aspect) updateSelected({ w: px, h: px / sel.aspect });
         else updateSelected({ [key]: px });
-      }} style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }} />
+      })} style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }} />
     </label>
   );
   const hasW = sel.w != null && (BOX_TYPES.has(sel.type) || WIDTH_ONLY.has(sel.type)), hasH = sel.h != null && BOX_TYPES.has(sel.type);
@@ -3137,7 +3137,7 @@ function FrameControls({ sel, updateSelected }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Frame width")}<input type="number" min="0" value={sel.frameWidth ?? 0} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Frame width")}<NumberInput min="0" value={sel.frameWidth ?? 0} onChange={asEvent((e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
         </label>
         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.frameColor || INK} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>

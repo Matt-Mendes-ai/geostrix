@@ -24,6 +24,9 @@ import { t as tr } from "../lib/i18n.js";
 import { topCutText } from "../lib/topCutText.js"; // TASKS.csv #3794
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import StringManager from "./StringManager.jsx"; // TASKS.csv #1968 — many strings at once
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -40,8 +43,9 @@ let nextId = 1;
 // a number taken when you leave the cell (#1363)
 function Cell({ value, onCommit, width = 60, ariaLabel, placeholder }) {
   const [reset, setReset] = useState(0);
-  return <input type="number" step="any" key={`${value}|${reset}`} defaultValue={value ?? ""} placeholder={placeholder} aria-label={ariaLabel} style={{ ...smallSel, width }}
-    onBlur={(e) => { const v = num0(e.target.value); if (v !== (value ?? null) && onCommit(v) === false) setReset((k) => k + 1); }} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />;
+  // TASKS.csv #3926 — NumberInput reads '0,05' as well as '0.05' and commits on leaving or Enter, as this cell did; null when emptied
+  return <NumberInput allowEmpty key={`${value}|${reset}`} value={value} placeholder={placeholder} aria-label={ariaLabel} style={{ ...smallSel, width }}
+    onChange={(v) => { if (v !== (value ?? null) && onCommit(v) === false) setReset((k) => k + 1); }} />;
 }
 
 // view: { scene, camera, renderer, activity, dragHook, origin, worldPointAt } (refs; worldPointAt(clientX, clientY) -> world point
@@ -377,10 +381,10 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
         <div style={label}>{tr("Draw")}</div>
         <label style={row}>{tr("Clicks land on")}<select value={target} onChange={(e) => setTarget(e.target.value)} style={{ ...smallSel, width: 150 }} aria-label={tr("Where a click lands")}>{groundAt && <option value="ground">{terrain ? tr("the ground (terrain)") : tr("the ground (between the collars)")}</option>}<option value="hit">{tr("what is under the cursor")}</option><option value="plane">{tr("an elevation plane")}</option></select></label>{/* ground: #1905 */}
         {!terrain && groundAt && target === "ground" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
-        {target === "plane" && <label style={row}>{tr("Plane elevation (m)")}<input type="number" step="any" value={planeZ} onChange={(e) => setPlaneZ(e.target.value)} placeholder={tr("last vertex")} style={num} aria-label={tr("Elevation of the drawing plane")} /></label>}
+        {target === "plane" && <label style={row}>{tr("Plane elevation (m)")}<NumberInput allowEmpty value={planeZ} onChange={asEvent((e) => setPlaneZ(e.target.value))} placeholder={tr("last vertex")} style={num} aria-label={tr("Elevation of the drawing plane")} /></label>}
         <div style={{ ...row, justifyContent: "flex-start", gap: 10 }}>
           <label style={{ ...note, display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }} title={tr("Within about 12 pixels of another vertex, a collar, the midpoint of another string's segment or a crossing of two strings, the click takes that point. Shift holds the grid directions; Alt squares off the last segment (parallel or perpendicular to it).")}><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to vertices and collars")}</label>
-          <label style={{ ...note, display: "flex", alignItems: "center", gap: 3 }}>{tr("Grid (m)")}<input type="number" min={0} step="any" value={grid} onChange={(e) => setGrid(e.target.value)} placeholder={tr("off")} style={{ ...smallSel, width: 52 }} aria-label={tr("Grid the clicks snap to")} /></label>
+          <label style={{ ...note, display: "flex", alignItems: "center", gap: 3 }}>{tr("Grid (m)")}<NumberInput allowEmpty min={0} value={grid} onChange={asEvent((e) => setGrid(e.target.value))} placeholder={tr("off")} style={{ ...smallSel, width: 52 }} aria-label={tr("Grid the clicks snap to")} /></label>
         </div>
         <button onClick={() => setDrawing((d) => !d)} aria-pressed={drawing} style={{ ...pBtn, marginTop: 6, background: drawing ? "var(--color-selected-bg)" : undefined }}>
           <PenTool size={14} /> {drawing ? tr("Click points in the view. Shift: a grid direction; Alt: square to the last segment. Esc stops; right-drag moves the view") : tr("Draw in the 3D view")}
@@ -459,7 +463,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
         <label style={row}>{tr("Block model")}<select value={solid.modelId} onChange={(e) => setSolid((s) => ({ ...s, modelId: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model counted inside the solid")}><option value="">{tr("— none —")}</option>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
         {model && alsoCandidates.length > 0 && <details style={{ marginTop: 2 }}><summary style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{alsoChosen.length ? tr("Report these grades too ({n})", { n: alsoChosen.length }) : tr("Report these grades too")}</summary>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3, fontSize: "var(--font-size-sm)" }}>{alsoCandidates.map((m) => { const id = m.id ?? m.name; return <label key={id} style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={alsoIds.includes(id)} onChange={(e) => setAlsoIds((p) => (e.target.checked ? [...p, id] : p.filter((x) => x !== id)))} />{m.name}{m.property ? ` (${m.property})` : ""}</label>; })}</div></details>}{/* #3084 */}
-        <label style={row}>{tr("Density (t/m³)")}<input type="number" min={0} step="any" value={solid.density} onChange={(e) => setSolid((s) => ({ ...s, density: e.target.value }))} style={num} aria-label={tr("Density of the rock in the solid")} /></label>
+        <label style={row}>{tr("Density (t/m³)")}<NumberInput allowEmpty min={0} value={solid.density} onChange={asEvent((e) => setSolid((s) => ({ ...s, density: e.target.value })))} style={num} aria-label={tr("Density of the rock in the solid")} /></label>
         {string?.closed && string.vertices.length > 2 && (
           <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
             <span style={note}>{tr("Extrude \"{name}\"", { name: string.name })}</span>
