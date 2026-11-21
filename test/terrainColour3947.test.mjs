@@ -50,7 +50,7 @@ test("wired: the 3D meshes, the colour picker, the sidebar icon, the section gro
   assert.match(read("../src/modules/GeophysicsModule.jsx"), /<input type="color" value=\{terrainColour\(terrain\)\} onChange=\{\(e\) => updateTerrain\(\{ color: e\.target\.value \}\)\}/);
   assert.match(read("../src/modules/viewer/TerrainCard.jsx"), /color: terrainColour\(terrain\) === TERRAIN_GREY \? "var\(--color-terrain-line\)" : terrainColour\(terrain\)/);
   const sw = read("../src/components/SectionWindow.jsx");
-  assert.match(sw, /fill=\{colors\.terrain\} fillOpacity="0\.55"/);
+  assert.doesNotMatch(sw, /fillOpacity="0\.55"/); // #3949: the ground is a line only (no fill); its line keeps #3947's colour
   assert.match(sw, /stroke=\{colors\.terrainLine\} strokeWidth="1\.6"/);
   const st = read("../src/lib/store.jsx");
   assert.match(st, /setTerrain\(\{ visible: true, opacity: 1, \.\.\.t, id \}\);/);
