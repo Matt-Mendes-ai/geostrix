@@ -18,6 +18,8 @@
 //                    messages / problems / issues / reasons / notices, a variable or property named …Note / …Msg / …Message / …Warning / …Notice / …Problem
 //      interface     every other tr string, by working area (AREAS below, matched on the file's path, first match wins)
 //    A string used in two places counts twice: it is shown in two places.
+//    TASKS.csv #3939 — a string in the body of a closed fold (a <MoreFold> or a <details>, not its <summary> or an attribute) is "behind More":
+//    left out of the surfaces above and counted apart (interfaceBehindMore), as Help's `more` is.
 // Not counted: strings that are not translated (data, keys, codes), the locale files, Help bodies in other languages (there are none), a project's own text.
 // Re-run it after any rewording; the "before" report of #3899 is the first run of this file.
 import fs from "node:fs";
@@ -112,6 +114,23 @@ function categoryOf(p) { // climb from a tr() call to the position it sits in
   return "interface";
 }
 
+// TASKS.csv #3939 — is this call in the body of a closed fold? (MoreFold / details children; a summary or an attribute is seen first)
+function behindFold(p) {
+  let viaAttr = false;
+  for (let q = p.parentPath; q; q = q.parentPath) {
+    const n = q.node;
+    if (n.type === "JSXAttribute") { viaAttr = true; continue; }
+    if (n.type === "JSXElement") {
+      const nm = n.openingElement.name, name = nm.type === "JSXIdentifier" ? nm.name : "";
+      if (name === "summary") return false;
+      if ((name === "MoreFold" || name === "details") && !viaAttr) return true;
+      viaAttr = false;
+    }
+    if (n.type === "FunctionDeclaration" || n.type === "Program") return false;
+  }
+  return false;
+}
+
 function listFiles(dir) {
   const out = [];
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -139,8 +158,8 @@ export function trStringsOf(file) {
     CallExpression(p) {
       const c = p.node.callee;
       if (c.type !== "Identifier" || !(names.has(c.name) || richNames.has(c.name))) return;
-      const cat = categoryOf(p);
-      for (const s of stringsOf(p.node.arguments[0])) out.push({ cat, text: s });
+      const cat = categoryOf(p), more = behindFold(p);
+      for (const s of stringsOf(p.node.arguments[0])) out.push({ cat, text: s, more });
     },
   });
   return out;
@@ -148,14 +167,15 @@ export function trStringsOf(file) {
 
 export function collectInterface() {
   const src = path.join(ROOT, "src");
-  const acc = { files: {}, strings: { tooltip: [], info: [], notice: [], interface: [] } };
+  const acc = { files: {}, strings: { tooltip: [], info: [], notice: [], interface: [] }, more: [] };
   const info = {}; // file -> { n, words }
   for (const file of listFiles(src)) {
     const rel = path.relative(src, file).split(path.sep).join("/");
     const area = areaOf(rel);
-    for (const { cat, text } of trStringsOf(file)) {
+    for (const { cat, text, more } of trStringsOf(file)) {
       const w = wordsOf(text);
       if (!w) continue;
+      if (more) { acc.more.push({ file: rel, area, words: w }); continue; } // #3939 — behind a closed fold
       acc.strings[cat].push({ file: rel, area, words: w });
       const f = (acc.files[rel] ||= { area, count: 0, words: 0, long: 0, longWords: 0 });
       f.count++; f.words += w; if (w > LONG_WORDS) { f.long++; f.longWords += w; }
@@ -165,7 +185,7 @@ export function collectInterface() {
   const sum = (arr) => { const words = arr.reduce((t, x) => t + x.words, 0), ws = arr.map((x) => x.words), long = arr.filter((x) => x.words > LONG_WORDS); return { count: arr.length, words, median: median(ws), long: long.length, longWords: long.reduce((t, x) => t + x.words, 0) }; };
   const byArea = {};
   for (const [name] of AREAS) byArea[name] = sum(acc.strings.interface.filter((x) => x.area === name));
-  return { tooltips: sum(acc.strings.tooltip), infoPopups: { ...sum(acc.strings.info), files: Object.keys(info).length }, notices: sum(acc.strings.notice), interface: { ...sum(acc.strings.interface), byArea }, all: sum(Object.values(acc.strings).flat()), files: acc.files };
+  return { tooltips: sum(acc.strings.tooltip), infoPopups: { ...sum(acc.strings.info), files: Object.keys(info).length }, notices: sum(acc.strings.notice), interface: { ...sum(acc.strings.interface), byArea }, all: sum(Object.values(acc.strings).flat()), interfaceBehindMore: sum(acc.more), files: acc.files };
 }
 
 export async function collect() {
@@ -195,7 +215,8 @@ export function markdown(r, stamp = "") {
   L.push(row("Info pop-ups", n(r.infoPopups.words), n(r.infoPopups.words), `${n(r.infoPopups.count)} in ${r.infoPopups.files} files`, n(r.infoPopups.long)));
   L.push(row("Notices and warnings on screen", n(r.notices.words), n(r.notices.words), n(r.notices.count), n(r.notices.long)));
   L.push(row("Other interface strings", n(r.interface.words), n(r.interface.words), n(r.interface.count), `${n(r.interface.long)} (${n(r.interface.longWords)} words)`));
-  L.push(row("**All interface strings outside Help**", `**${n(r.all.words)}**`, `**${n(r.all.words)}**`, n(r.all.count), `${n(r.all.long)} (${n(r.all.longWords)} words)`), "");
+  L.push(row("**All interface strings outside Help**", `**${n(r.all.words)}**`, `**${n(r.all.words + (r.interfaceBehindMore?.words || 0))}**`, n(r.all.count), `${n(r.all.long)} (${n(r.all.longWords)} words)`));
+  L.push(row("Interface text behind a closed More (not in the rows above)", "", n(r.interfaceBehindMore?.words || 0), n(r.interfaceBehindMore?.count || 0), ""), ""); // #3939
   L.push("## Help by page", "", row("Page", "Topics", "Settings", "Warnings", "Seen first", "Behind More", "Total"), row("---", "---:", "---:", "---:", "---:", "---:", "---:"));
   for (const p of Object.values(r.help.pages).sort((a, b) => b.total - a.total)) L.push(row(p.id + (p.mineDesign ? " (hidden)" : ""), p.topics, p.settings, p.warnings, n(p.first), n(p.more), n(p.total)));
   L.push("", "## Help by field", "", row("Field", "Words"), row("---", "---:"));
