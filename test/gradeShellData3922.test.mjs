@@ -96,3 +96,13 @@ test("the run boxes a Tight shell round the grades and refits at the data's cell
   const guided = readFileSync(new URL("../src/modules/viewer/guided/guidedTools.js", import.meta.url), "utf8");
   assert.match(guided, /api\.runNumericModel\(values\?\.fromData \? \{ cellFromData: values\.list\[2\] \} : undefined\)/);
 });
+
+test("the guided card says the cell the run used against the one chosen, and the run's own grid round the grades", async () => {
+  const { GRADE } = await import("../src/modules/viewer/guided/guidedTools.js");
+  const api = { numeric: { now: ["Au", 0.5, 20, "", 120, 2] } };
+  const lines = GRADE.result([{ name: "Au shell", params: { cellSizeM: 25, volumeM3: 5000, gradeAreas: { grids: 3, nodes: 700000, drilledNodes: 1000000 } } }], {}, api);
+  assert.match(lines[0], /^The run used 25 m cells, not 20 m:/);
+  assert.match(lines[1], /^The grid covers only the ground within the search of the grades above the cut-off: 700,000 blocks in 3 areas, not the 1,000,000/);
+  const same = GRADE.result([{ name: "Au shell", params: { cellSizeM: 20, volumeM3: 5000, gradeAreas: { grids: 1, nodes: 1000, drilledNodes: 1000 } } }], {}, api);
+  assert.ok(!same.some((l) => /run used|grid covers/.test(l)), same.join(" | "));
+});

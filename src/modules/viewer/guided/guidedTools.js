@@ -281,7 +281,9 @@ export const GRADE = {
     // grid only round the grades, counted under the block budget (lib/auto/autoGradeShell.js); GeoStrix's standard 50 m / 200 m (#3921) only when
     // the drilling gives no spacing, and said so. autoBlockModel still gives the verdicts, the holes per block and the density note (its blocks
     // and search, sized over the whole project, are not used: 500 m on Macpass's 21 km spread)
-    const reasons = [...gs.reasons, ...bm.reasons.filter((r) => r.field === "minHoles")];
+    // the grid's own count is said after the run, from the run's record (result below): the estimate here counts the raw samples, the run its
+    // composites and the unsampled core (Macpass: 621,149 here, 735,652 in the run)
+    const reasons = [...gs.reasons.filter((r) => r.field !== "box"), ...bm.reasons.filter((r) => r.field === "minHoles")];
     const notes = [...gs.notes, ...bm.notes];
     if (ctx.gradeTrend) reasons.push({ field: "trend", text: tr("It follows the trend set with the trend helper.") });
     else notes.push(tr("No trend is set, so the shell grows the same way in every direction. If the grade runs one way, set a trend first."));
@@ -310,6 +312,11 @@ export const GRADE = {
       // the cell the run used: a run over the block budget refits it (#1416), said here instead of the cell chosen (#3922: the one set before the run)
       const chosen = Number(api?.numeric?.now?.[2]) > 0 ? Number(api.numeric.now[2]) : NUMERIC_CELL_DEFAULT;
       if (Number(s.params?.cellSizeM) > chosen) out.push(tr("The run used {c} m cells, not {d} m: at {d} m this area needs more blocks than the block budget allows (the messages under the sidebar say how many).", { c: s.params.cellSizeM, d: chosen }));
+      // #3922 — the grid round the grades, as the run made it (its record's gradeAreas), when it saved blocks
+      const ga = s.params?.gradeAreas;
+      if (ga?.nodes > 0 && ga.drilledNodes > 1.05 * ga.nodes) out.push(ga.grids === 1
+        ? tr("The grid covers only the ground within the search of the grades above the cut-off: {n} blocks in one area, not the {d} the drilled ground would need.", { n: fmtNum(ga.nodes), d: fmtNum(ga.drilledNodes) })
+        : tr("The grid covers only the ground within the search of the grades above the cut-off: {n} blocks in {a} areas, not the {d} the drilled ground would need.", { n: fmtNum(ga.nodes), a: ga.grids, d: fmtNum(ga.drilledNodes) }));
       const geo = api?.meshOf?.(s.id)?.geometry, vol = geo ? computeMeshVolume(geo).volumeM3 : Number(s.params?.volumeM3);
       if (vol > 0) out.push(tr("{name}: {v} m³ above the cut-off.", { name: s.name, v: fmtNum(Number(vol.toPrecision(3))) }));
       if (s.closure === "artificial") out.push(tr("Part of this shell is closed at the search radius, so its volume depends on that radius as well as on the grades."));
