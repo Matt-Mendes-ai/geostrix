@@ -896,7 +896,7 @@ export default function GeochemModule() {
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
-      chosen.some((e) => e.asSupplied) ? tr("Kept as supplied, not recalculated: {list}.", { list: chosen.filter((e) => e.asSupplied).map((e) => `${e.symbol} (${e.unitLabel || e.unit})`).join(", ") }) : null, // #3923
+      chosen.some((e) => e.asSupplied) ? tr("Kept as supplied, not recalculated: {list}.", { list: chosen.filter((e) => e.asSupplied).map((e) => `${e.symbol} (${gradeUnitLabel(e.symbol, e.unitLabel || e.unit)})`).join(", ") }) : null, // #3923
       mixedUnitsList(assayElements, chosen) ? tr("This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.", { list: mixedUnitsList(assayElements, chosen) }) : null, // #3923
       converted.length ? tr("Converted {list} to match the unit already used in this project.", { list: converted.map((e) => `${e.symbol} ${importStoreUnit(e)} → ${existingUnit[e.symbol]}`).join(", ") }) : null, // #2490: the unit actually read
       negBdl ? tr("{n} negative value(s) read as below detection (e.g. -0.005 → \"<0.005\", stored at half).", { n: negBdl }) : null,

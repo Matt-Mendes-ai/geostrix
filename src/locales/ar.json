@@ -14405,7 +14405,7 @@
   "The picture has no height in metres.": "لا ارتفاع للصورة بالأمتار.",
   " (fitted at {n} points)": " (مُلاءمة عند {n} نقاط)",
   "Only readings in the view": "القراءات الظاهرة في العرض فقط",
-  "Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)": "فقط القراءات التي تقع فوهتها أو نقطة تكشفها في نافذة العرض ثلاثي الأبعاد الآن (نقطة أرضية عند مستوى المشهد)",
+  "Only the readings whose collar or outcrop point is in the 3D view's window now (a ground point at the scene's level)": "فقط القراءات التي تقع فوهتها أو نقطة تكشفها في نافذة العرض ثلاثي الأبعاد الآن (نقطة أرضية عند مستوى المشهد)",
   "Inside a boundary": "داخل حدّ",
   "Boundary the readings are inside": "الحدّ الذي تقع القراءات داخله",
   "Anywhere": "في أي مكان",

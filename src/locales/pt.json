@@ -14405,7 +14405,7 @@
   "The picture has no height in metres.": "A imagem não tem altura em metros.",
   " (fitted at {n} points)": " (ajustada em {n} pontos)",
   "Only readings in the view": "Somente leituras na vista",
-  "Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)": "Somente as leituras cujo colar ou ponto de afloramento está agora na janela da vista 3D (um ponto do terreno no nível da cena)",
+  "Only the readings whose collar or outcrop point is in the 3D view's window now (a ground point at the scene's level)": "Somente as leituras cujo colar ou ponto de afloramento está agora na janela da vista 3D (um ponto do terreno no nível da cena)",
   "Inside a boundary": "Dentro de um limite",
   "Boundary the readings are inside": "Limite dentro do qual estão as leituras",
   "Anywhere": "Em qualquer lugar",
