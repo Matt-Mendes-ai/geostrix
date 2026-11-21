@@ -71,7 +71,7 @@ test("the view says how many holes are shown, and the fence series follows them 
   assert.match(note, /\{shown\} of \{total\} holes shown/);
   assert.match(vm, /<HiddenHolesNote collars=\{collars\} visibleHoles=\{visibleHoles\} setVisibleHoles=\{setVisibleHoles\} \/>/);
   assert.match(vm, /const shownT = fenceTracesOf\(tracesRef\.current, visibleHolesRef\.current\);/);
-  assert.match(vm, /fenceLinesWithData\(pts, sliceSeriesAzimuth, width, shownT\)/);
+  assert.match(vm, /fenceLinesInBox\(pts, sliceSeriesAzimuth, width, shownT, /); // #3971: fenceLinesWithData within the series box
   assert.match(vm, /useDrillLineDefaults\(shownCollars(, survey)?\)/);
   assert.match(vm, /fitView\(shown\.length && shown\.length < \(tracesRef\.current \|\| \[\]\)\.length \? shown : hole\)/, "#3555: the first view frames the holes shown");
   assert.match(read("../src/modules/viewer/FenceOptions.jsx"), /Over the \{shown\} of \{total\} holes shown\./);

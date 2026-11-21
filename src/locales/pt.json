@@ -14675,5 +14675,10 @@
   "Surface and shell names": "Nomes de superfícies e envoltórias",
   "Ground surface label": "Rótulo da superfície do terreno",
   "{n} holes: offsets and depth ticks off.": "{n} furos: distâncias e marcas de profundidade ocultas.",
-  "The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.": "O quadro foi redimensionado: a imagem anterior é ampliada para preenchê-lo até ser capturada de novo neste tamanho."
+  "The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.": "O quadro foi redimensionado: a imagem anterior é ampliada para preenchê-lo até ser capturada de novo neste tamanho.",
+  "All the drilling": "Toda a sondagem",
+  "The box drawn": "O retângulo desenhado",
+  "Draw a box…": "Desenhar um retângulo…",
+  "Drag on the view to draw it.": "Arraste na vista para desenhá-lo.",
+  "Drag a corner to change it.": "Arraste um canto para alterá-lo."
 }

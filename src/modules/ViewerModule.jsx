@@ -55,7 +55,7 @@ import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1
 import SampleButtons from "./viewer/SampleButtons.jsx"; // TASKS.csv #3541
 import { sampleCardsFor, sampleFootnote, askSampleDownload, emptyCardSamples } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133; emptyCardSamples: #3948
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
-import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
+import { sectionFromCentre, sectionThroughHole, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData (#2040): through lib/fenceBox.js (#3971), loaded with the series
 import { TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
 const ModeRibbons = lazyPart(() => import("./viewer/ModeRibbons.jsx")); // TASKS.csv #3904; #3961: Modelling / Mine design / Targeting only, loaded after the first frame
 const BackgroundColourBox = lazyPart(() => import("./viewer/BackgroundColourBox.jsx")); // TASKS.csv #3966 — Edit > Background colour...
@@ -1231,6 +1231,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [modelDomainId, setModelDomainId] = useState("");
   // TASKS.csv #1546 — Model area: "all" | "checked" (the checked holes only feed the modelling tools)
   const [modelArea, setModelArea] = useState("all");
+  const [fenceArea, setFenceArea] = useState(null); // TASKS.csv #3971 — the fence series' area: null (all the drilling) | { kind: "box", box } | { kind: "boundary", id } (lib/fenceBox.js)
   const { unitLayers, unitField, setUnitField, unitFields } = useUnitSource(layers, customLayers); // #2378, #2529 — which Lithology field is the unit
   // TASKS.csv #3266 — the interval angles with a beta (a fault-zone layer, the Veins layer) oriented as the structure picks are: they join the
   // structure picks the modelling tools, the Structures menu, the Stereonet and the Downhole plot read (lib/layerPickOrientation.js)
@@ -1590,6 +1591,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     setLayerStyles(s.layerStyles || {}); // #635
     setModelArea(s.modelArea === "checked" ? "checked" : "all"); // #2535 — saved with the project
     setHoleFilter(s.holeFilter || ""); // #3624
+    setFenceArea(s.fenceArea || null); // #3971 — saved with the project, so a rerun uses the same box
   }, [viewerUiStateSeq, viewerUiState, lastCamState]);
 
   // Push local UI state up to the store on every relevant change, so it's captured whenever
@@ -1614,10 +1616,11 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       layerStyles, // TASKS.csv #635
       holeFilter, camera: savedCamera, // #3624 — the rule that made the checks; the camera
       modelArea, // #2535
+      fenceArea, // #3971
     };
     setViewerUiState(ui);
     if (baselineFor.current !== hydratedFor) { baselineFor.current = hydratedFor; markViewerUiBaseline?.(ui, hydratedFor); } // #1656 — this project's own styling
-  }, [hydratedFor, viewerUiStateSeq, layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState, markViewerUiBaseline, modelArea, holeFilter, savedCamera]);
+  }, [hydratedFor, viewerUiStateSeq, layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState, markViewerUiBaseline, modelArea, holeFilter, savedCamera, fenceArea]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further
@@ -6087,7 +6090,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv — "slice series": "I wanna be able to slice the voxel in equal parts on a specified azi and width." Parallel lines at the
   // azimuth, `width` m apart (each corridor width/2, so the slabs tile the extent), added to the saved sections rather than opened. Points
   // project to s = p·dir, t = p·perp with dir = (sin az, cos az), perp = (cos az, -sin az): the extent to cover and each line's ends.
-  const generateSliceSeries = useCallback(() => {
+  const generateSliceSeries = useCallback(async () => {
+    const { fenceLinesInBox, areaBox } = await import("../lib/fenceBox.js"); // TASKS.csv #3971 — the series over a box: off the startup bundle
     const az = toRad(((sliceSeriesAzimuth % 360) + 360) % 360);
     const width = Math.max(1, sliceSeriesWidth);
     const dirX = Math.sin(az), dirY = Math.cos(az);
@@ -6112,7 +6116,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     sMin -= alongPad; sMax += alongPad;
 
     // TASKS.csv #393 — lines on round multiples of the spacing, as on a paper plan. #2040 — only the slabs that hold data
-    const { lines, empty: emptySlabs } = fenceLinesWithData(pts, sliceSeriesAzimuth, width, shownT);
+    const { lines, empty: emptySlabs, s0, s1 } = fenceLinesInBox(pts, sliceSeriesAzimuth, width, shownT, areaBox(fenceArea, sliceSeriesAzimuth, boundaries)); if (s0 != null) { sMin = s0; sMax = s1; } // #3971 — only across the box, each line cut at its edges
     const n = lines.length;
     if (n > 50 && !window.confirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
 
@@ -6130,7 +6134,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
     if (emptySlabs) setNotices((p) => [...p, notice("{e} slab(s) with no hole or model cell were skipped.", { e: emptySlabs })]); // #2040
     setNotices((p) => [...p, notice(created === 1 ? "Generated {created} section at azimuth {sliceSeriesAzimuth}° — in the Cross-sections list." : "Generated {created} sections spaced {width}m apart at azimuth {sliceSeriesAzimuth}° — grouped together in the Cross-sections list.", { created, width, sliceSeriesAzimuth: sliceSeriesAzimuth.toFixed(0) })]);
-  }, [fenceCoverModels, sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]); // visibleHolesRef: #3561
+  }, [fenceCoverModels, sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup, fenceArea, boundaries]); // visibleHolesRef: #3561; fenceArea: #3971
 
   // TASKS.csv #441 — any commit of this component may have changed the scene (its effects just ran), so
   // wake the render loop from deep idle. Deliberately no dependency array.
@@ -6235,7 +6239,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
 
-        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} />
+        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} area={fenceArea} setArea={setFenceArea} boundaries={boundaries} topView={() => sectionTopView(camState.current, cameraRef.current, setNotices)} view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} /* #3971 */ />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         <RastersTerrainSection {...{ rasters, terrain, updateTerrain, updateRaster, removeRaster, openRowMenu, zoomToObject, terrainMeshRef, rasterMeshesRef, goToModule, lodTiles }} />{/* #3891: first */}

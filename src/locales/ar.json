@@ -14675,5 +14675,10 @@
   "Surface and shell names": "أسماء الأسطح والأغلفة",
   "Ground surface label": "تسمية سطح الأرض",
   "{n} holes: offsets and depth ticks off.": "{n} ثقبًا: البعد وعلامات العمق مخفية.",
-  "The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.": "غُيّر حجم الإطار: تُكبَّر صورته السابقة لتملأه إلى أن يُعاد التقاطها بهذا الحجم."
+  "The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.": "غُيّر حجم الإطار: تُكبَّر صورته السابقة لتملأه إلى أن يُعاد التقاطها بهذا الحجم.",
+  "All the drilling": "كل الحفر",
+  "The box drawn": "المستطيل المرسوم",
+  "Draw a box…": "ارسم مستطيلًا…",
+  "Drag on the view to draw it.": "اسحب على العرض لرسمه.",
+  "Drag a corner to change it.": "اسحب زاوية لتغييره."
 }
