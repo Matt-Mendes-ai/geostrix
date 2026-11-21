@@ -219,7 +219,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
         </div>
 
         {!holeIds.length ? (
-          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "#55606e", lineHeight: 1.6 }}>{tr("No hole has any structure picks with a dip and dip direction (or a measured alpha) yet. Import a structure layer (or save picks from the Core Orientation calculator) and this plot will fill in.")}</div>
+          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "#55606e", lineHeight: 1.6 }}>{tr("No hole has structure picks with a dip and dip direction (or a measured alpha) yet. Import a structure layer, or save picks from the Core Orientation calculator.")}</div>
         ) : (
         <div style={{ display: "flex", gap: 16 }}>
           <div>
@@ -331,13 +331,13 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 {holeIds.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
             </label>
-            <label style={rowLabel} title={tr("Alpha is the angle between the structure and the core axis — what is measured on core, and what makes a run of hole-parallel structures obvious. True dip is the geological angle from horizontal. In an inclined hole these are genuinely different numbers.")}>{tr("X axis")}<select value={xMode} onChange={(e) => setXMode(e.target.value)} style={sel}>
+            <label style={rowLabel} title={tr("Alpha: the angle to the core axis, as measured on core, which makes runs of hole-parallel structures obvious. True dip: the angle from horizontal. In an inclined hole they differ.")}>{tr("X axis")}<select value={xMode} onChange={(e) => setXMode(e.target.value)} style={sel}>
                 <option value="alpha">{tr("Alpha (to core axis)")}</option>
                 <option value="dip">{tr("True dip")}</option>
               </select>
             </label>
             {oriLayer && ( // TASKS.csv #1545 — the orientation-line quality logged as an interval table (Lawyers' OriCore 1 / 2 / 3)
-              <label style={rowLabel} title={tr("The custom layer \"{name}\" logs the orientation-line quality per interval; a pick inside an interval above this quality is left out. Picks with no logged quality are kept.", { name: oriLayer.name })}>{tr("Orientation quality ≤")}<select value={qualityMax} onChange={(e) => setQualityMax(e.target.value)} style={sel} aria-label={tr("Orientation quality ≤")}>
+              <label style={rowLabel} title={tr("The layer \"{name}\" logs orientation-line quality per interval; picks in an interval above this quality are left out. Picks with no logged quality are kept.", { name: oriLayer.name })}>{tr("Orientation quality ≤")}<select value={qualityMax} onChange={(e) => setQualityMax(e.target.value)} style={sel} aria-label={tr("Orientation quality ≤")}>
                   <option value="">{tr("Any quality")}</option>
                   {qualityLevels(qIndex).map((q) => <option key={q} value={q}>{q}</option>)}
                 </select>
@@ -375,7 +375,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
             <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: "var(--font-size-xs)", color: "#1a2028", lineHeight: 1.55 }}>
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{tr("Reading this plot")}</div>
               <div style={{ color: "#55606e" }}>{tr("Each dot sits at its {v} angle and its depth. The tail points in the structure's dip direction,", { v: effectiveMode === "alpha" ? tr("alpha") : tr("dip") })}{" "}<b>{tr("north up the page")}</b>{" "}{tr("— so a tail pointing right is dipping east.")}</div>
-              <div style={{ color: "#55606e", marginTop: 4 }}>{tr("A hollow dot is an alpha-only pick (core not oriented): it has no dip direction, so no tail.")}{" "}{/* #527 */}{tr("Clustered tails = a consistent set. Tails fanning through 360° over a short interval usually means a core-orientation problem rather than real geology. Alpha does not depend on the orientation line, so alpha jumping wildly between adjacent picks points to a logging or depth error instead.")}</div>
+              <div style={{ color: "#55606e", marginTop: 4 }}>{tr("A hollow dot is an alpha-only pick (core not oriented): it has no dip direction, so no tail.")}{" "}{/* #527 */}{tr("Clustered tails = a consistent set. Tails fanning through 360° over a short interval usually mean a core-orientation problem. Alpha does not depend on the orientation line, so alpha jumping between adjacent picks points to a logging or depth error.")}</div>
             </div>
 
             {types.length > 1 && (

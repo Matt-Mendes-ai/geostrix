@@ -19,7 +19,7 @@ export default function QcPairReview({ assays, symbol, unit, elementUnits, unitL
   return (
     <div role="region" aria-label={tr("Repeated intervals")} style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 10, margin: "8px 0", fontSize: "var(--font-size-sm)" }}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Repeated intervals: which are duplicates?")}</div>
-      <div style={{ color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 6 }}>{tr("These assay rows have no sample ids. Two rows over the same hole and interval may be a field duplicate and its original, a lab re-assay, or the same file imported twice: nothing is marked until you tick it. The earlier row is the original.")}</div>
+      <div style={{ color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 6 }}>{tr("With no sample ids, two rows over one hole and interval may be a field duplicate and its original, a lab re-assay or a double import. Nothing is marked until you tick it; the earlier row is the original.")}</div>
       {pairs.length === 0 ? <div>{tr("No pair of rows over one hole and interval was found.")}</div> : (
         <>
           <div style={{ maxHeight: 220, overflowY: "auto" }}>
