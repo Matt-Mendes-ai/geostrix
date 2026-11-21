@@ -7,6 +7,9 @@ import { markSampleDownloaded } from "./lib/sampleCards.js"; // TASKS.csv #3100
 import { onDataTableOpen } from "./lib/dataTableRequests.js"; // TASKS.csv #3563
 import { openHelp, onHelpOpen, onShortcutsOpen } from "./lib/help.js"; // TASKS.csv #1966; shortcuts from the Help panel: #3534
 import { t as tr, LANGUAGES, currentLanguage, setLanguage, fmtNum } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
+import { TEXT_SIZES, applyTextSize } from "./lib/textSize.js"; // TASKS.csv #3900 — the text size setting
+import { useTextSize } from "./lib/useTextSize.js";
+applyTextSize(); // before the first paint: --text-bump from this computer's setting (Large when none)
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
 import { requestModuleAction, useModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565; useModuleAction: #3888
 import { shouldShowStart, startOptedOut, LAUNCH_SETTLE_MS } from "./lib/startFlow.js"; // TASKS.csv #3888 — whether the start dialogs show (the dialogs load on demand)
@@ -103,6 +106,8 @@ const MODULES = [
 // mounted (hidden via CSS, not unmounted) across all three instead of three separate conditional JSX
 // expressions each occupying their own position in the render tree (which is what forced the
 // unmount/remount in the first place).
+// TASKS.csv #3900 — the top row's fit steps, in order (App's fitToolbar adds them one by one until the row fits; app.css says what each does)
+const TOOLBAR_FIT_STEPS = ["ge-toolbar-snug", "ge-toolbar-compact", "ge-toolbar-smalltabs", "ge-toolbar-noicons", "ge-toolbar-initials"];
 const VIEWER_MODES = { viewer: "view", surface: "surface", modelling: "modelling", targeting: "targeting", minedesign: "minedesign" }; // surface: #820 // #750 — Predictive is a Modelling tool now
 
 // TASKS.csv #1163 — one crash-recovery check per window (the store's checkAutosave is bound at mount)
@@ -159,12 +164,15 @@ export default function App() {
   // window, whatever the language or text scaling. Re-measured on resize and when the labels change, not per render.
   const toolbarRef = useRef(null);
   const toolbarKey = useRef("");
+  // TASKS.csv #3900 — larger text needs more steps (plan_fable 2.5, measured: French at Large, 1,280 px, Larger): after the output names (snug, #1293:
+  // New, Open and Save keep their names longest) and then every file action's name (compact), the tab names go one step smaller, then the tabs
+  // lose their icons, then the Basic / Advanced captions shrink to their first letter (the word stays in the tooltip). Each step only when needed.
+  const [textSizeNow] = useTextSize();
   const fitToolbar = useCallback(() => {
     const el = toolbarRef.current;
     if (!el) return;
-    el.classList.remove("ge-toolbar-compact", "ge-toolbar-snug");
-    if (el.scrollWidth > el.clientWidth + 1) el.classList.add("ge-toolbar-snug"); // #1293 — New, Open and Save keep their names longest
-    if (el.scrollWidth > el.clientWidth + 1) el.classList.add("ge-toolbar-compact");
+    el.classList.remove(...TOOLBAR_FIT_STEPS);
+    for (const step of TOOLBAR_FIT_STEPS) { if (el.scrollWidth <= el.clientWidth + 1) break; el.classList.add(step); }
   }, []);
   useEffect(() => {
     const el = toolbarRef.current;
@@ -176,7 +184,7 @@ export default function App() {
   }, [fitToolbar]);
   useEffect(() => {
     const el = toolbarRef.current;
-    const key = el ? `${el.clientWidth}|${el.textContent}` : "";
+    const key = el ? `${el.clientWidth}|${el.textContent}|${textSizeNow}` : ""; // #3900 — a new text size re-fits the row
     if (key !== toolbarKey.current) { toolbarKey.current = key; fitToolbar(); }
   });
   if (VIEWER_MODES[active]) lastViewerModeRef.current = VIEWER_MODES[active];
@@ -630,7 +638,8 @@ export default function App() {
           <React.Fragment key={g.tier}>
           {gi > 0 && <div className="ge-tool-sep ge-tier-sep" />}
           <div className="ge-tier-group" role="group" aria-label={tr(TIER_GROUP_LABEL[g.tier])} data-tier={g.tier}>
-          <span className="ge-tier-cap" aria-hidden="true">{tr(TIER_CAPTION[g.tier])}</span>
+          {(() => { const cap = [...tr(TIER_CAPTION[g.tier])]; /* #3900 — the last fit step keeps the first letter; the word stays in the tooltip */ return (
+            <span className="ge-tier-cap" aria-hidden="true" title={cap.join("")}><span>{cap[0]}</span><span className="ge-tier-cap-rest">{cap.slice(1).join("")}</span></span>); })()}
         {g.modules.map((m) => {
           const Icon = m.icon;
           return (
@@ -782,6 +791,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
 }
 
 function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, worldCursor = true }) {
+  const [textSizeNow, setTextSizeNow] = useTextSize(); // TASKS.csv #3900
   // TASKS.csv #3190 — while AI App Access is on, the bar says so (and which AI app is connected); a click opens the window with its Stop button
   const [ai, setAi] = useState(null);
   useEffect(() => { let live = true; mcpStatus().then((s) => { if (live) setAi(s); }); const off = onMcpStatus((s) => live && setAi(s)); return () => { live = false; off(); }; }, []);
@@ -942,6 +952,14 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
       </span>
       {/* TASKS.csv #786 — interface language (a per-computer preference). In the status bar, not the ribbon row: the
           ribbon needs every pixel at 1,024 px, and the language names are written in their own language. */}
+      {/* TASKS.csv #3900 — the text size, beside the language and like it a setting on this computer: Normal (the sizes of before), Large (the
+          default, +2 px) or Larger (+4 px). Figures, the Layout sheet and exports keep their sizes. */}
+      <label className="ge-textsize" title={tr("Text size — remembered on this computer. Figures, the Layout page and exports keep their sizes.")}>
+        <span aria-hidden="true">Aa</span>
+        <select className="ge-lang" value={textSizeNow} onChange={(e) => setTextSizeNow(e.target.value)} aria-label={tr("Text size")}>
+          {TEXT_SIZES.map((s) => <option key={s.id} value={s.id}>{tr(s.label)}</option>)}
+        </select>
+      </label>
       <select className="ge-lang" value={currentLanguage()} onChange={(e) => setLanguage(e.target.value)} aria-label={tr("Language")} title={tr("Language — remembered on this computer")}>
         {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
       </select>

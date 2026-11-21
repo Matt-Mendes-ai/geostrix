@@ -95,6 +95,7 @@
 //   • bg #ffffff / bgSubtlest #fafbfc / bgInset #fbfbfc — the last two differ by one unit on one
 //     channel and are almost certainly the same intent, but merging them is a (tiny) visual change
 //     and so is out of scope for a refactor pass.
+import { textBump } from "./textSize.js"; // TASKS.csv #3900 — uiFontPx
 export const colors = {
   // Core surfaces
   bg: "#ffffff",
@@ -190,6 +191,9 @@ export const exportScale = (width, basePx = 11, pt = printPt.small) => Math.max(
 // TASKS.csv #3892 — mirrors app.css :root --font-weight-title: the side-panel section headings are bold
 export const fontWeights = { title: 700 };
 
+// TASKS.csv #3900 — FROZEN: these are now the sizes of text INSIDE figures (charts, SVG plots, exports), which do not follow the window's text
+// size setting. They equal app.css's five tokens at --text-bump 0 (Normal). Text a canvas or three.js draws as window furniture on screen takes
+// uiFontPx(step) instead: the same step plus the setting's bump (a capture for the Layout sheet or a file keeps fontSizes).
 export const fontSizes = {
   xs: 10, // captions, counts, units, badges
   sm: 11, // secondary labels, uppercase section captions
@@ -197,3 +201,4 @@ export const fontSizes = {
   lg: 14, // panel and modal titles
   xl: 17, // the one-per-screen heading
 };
+export const uiFontPx = (step) => fontSizes[step] + textBump();

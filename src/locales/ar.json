@@ -14451,5 +14451,10 @@
   "Sample ids": "معرّفات العينات",
   "Sample legend": "مفتاح العينات",
   "A grey ring: no value ({n}).": "حلقة رمادية: بلا قيمة ({n}).",
-  "Other: {n} values ({count} samples)": "أخرى: {n} قيم ({count} عينات)"
+  "Other: {n} values ({count} samples)": "أخرى: {n} قيم ({count} عينات)",
+  "Text size": "حجم النص",
+  "Text size — remembered on this computer. Figures, the Layout page and exports keep their sizes.": "حجم النص: يُحفظ على هذا الحاسوب. تحتفظ الأشكال وصفحة التخطيط والملفات المُصدَّرة بأحجامها.",
+  "Normal": "عادي",
+  "Large": "كبير",
+  "Larger": "أكبر"
 }
