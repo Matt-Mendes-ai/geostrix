@@ -3006,7 +3006,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
           samplePoints: points.length, cellsEstimated: gridSum.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
           singleHoleCells: gridSum.singleHoleCells, meanGradeInShell,
           ...(grids.length > 1 ? { drilledAreas: { grids: grids.length, nodes: boxTotal, wholeBoxNodes: boxBlocks(bounds, cs), note: "one grid per drilled cluster: the box round all the samples would have had wholeBoxNodes" } } : {}),
-          ...(!envelopeMode ? { gradeAreas: { grids: gridBoxes.length, nodes: boxTotal, drilledNodes: drilledBoxList.reduce((n, b) => n + boxBlocks(b.bounds, cs), 0), note: "the grid only round the composites at or above the cut-off, within the search and the pad of them (TASKS.csv #3922); drilledNodes: the drilled clusters' boxes" } } : {}), // #3922
+          ...(!envelopeMode ? { gradeAreas: { grids: gridBoxes.length, nodes: boxTotal, drilledNodes: drilledBoxList.reduce((n, b) => n + boxBlocks(b.bounds, cs), 0), note: "the grid only round the composites at or above the cut-off, within the search and the pad of them ; drilledNodes: the drilled clusters' boxes" } } : {}), // #3922
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
           ...(alongHoles ? { alongHoles } : {}), // #3785
           ...(gsBeyond ? { beyondDrilling: { share: +gsBeyond.share.toFixed(3), holeSpacingM: Math.round(gsSpacing), spacingAt: gsSampleSpacing > 0 ? "samples" : "collars" } } : {}), // #2757; spacingAt: #3654 (4)

@@ -11,6 +11,7 @@
 // the section window and the exports draw it as they draw any section image. The bitmap and corners it was georeferenced with are kept for "Back".
 // Pure (no DOM): the resampling's maths are here (sourceRow); the dialog runs them over the pixels. Picture pixels: x across, y down.
 import { imageFrame, pxToWorld } from "./sectionVertical.js";
+import { arrMax } from "./arrayStats.js"; // no Math.min/max spread (#3031)
 
 // linear interpolation through the vertices [{ px, v }] sorted by px, held at the ends
 export function interp(vertices, px) {
@@ -37,11 +38,11 @@ export function warpPlan(im, rows, { depthM } = {}) {
   const mean = pts.reduce((t, r) => t + r.diff, 0) / pts.length;
   const bend = pts.map((r) => ({ px: r.px, v: (r.diff - mean) / mPerPx })); // the bend at each click, in pixels, up positive
   const ground = pts.map((r) => ({ px: r.px, v: r.py })); // the drawn ground's row
-  const maxBendPx = Math.max(...bend.map((b) => Math.abs(b.v)));
+  const maxBendPx = arrMax(bend.map((b) => Math.abs(b.v)));
   // the bend fades over fadePx: at least twice the largest bend, so no column folds back on itself
   const wanted = Number(depthM) > 0 ? Number(depthM) / mPerPx : f.H / 5;
   const fadePx = Math.max(wanted, 2 * maxBendPx, 1);
-  const upPx = Math.ceil(Math.max(0, ...bend.map((b) => b.v))), downPx = Math.ceil(Math.max(0, ...bend.map((b) => -b.v)));
+  const upPx = Math.ceil(Math.max(0, arrMax(bend.map((b) => b.v)))), downPx = Math.ceil(Math.max(0, arrMax(bend.map((b) => -b.v))));
   // residuals: each click's distance from the straight trend (least squares of the difference along the picture) through all the clicks. The warp
   // passes through every click, so this is what it bends to reach each one: a large one marks a click off the drawn line, or a sharp kink there
   const n = pts.length, mx = pts.reduce((t, r) => t + r.px, 0) / n, sxx = pts.reduce((t, r) => t + (r.px - mx) ** 2, 0);

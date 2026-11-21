@@ -129,7 +129,8 @@ export function terrainTileGeometry(heightsRead, box, origin, skirtM) {
   const idx = [];
   for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) { const a = j * N + i, b = a + 1, c = a + N, d = c + 1; idx.push(a, c, b, b, c, d); } // the terrain's diagonal (syncTerrain)
   const gridTris = idx.length;
-  for (let r = 0; r < R; r++) { const a = N * N + r, b = N * N + ((r + 1) % R), a2 = a + R, b2 = b + R; idx.push(a, a2, b, b, a2, b2); }
+  // TASKS.csv #3896 — the skirt faces outward (it was inward): drawn one-sided, it is the face seen across a crack from the next tile
+  for (let r = 0; r < R; r++) { const a = N * N + r, b = N * N + ((r + 1) % R), a2 = a + R, b2 = b + R; idx.push(a, b, a2, b, b2, a2); }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   geometry.setAttribute("normal", new THREE.BufferAttribute(nrm, 3));
@@ -158,7 +159,7 @@ function overlayMesh(tile, ov) {
   g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
   g.setIndex(idx);
   g.computeBoundingSphere();
-  const m = new THREE.MeshBasicMaterial({ map: ov.texture, transparent: true, opacity: ov.opacity, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 - ov.layer, polygonOffsetUnits: -2 - ov.layer });
+  const m = new THREE.MeshBasicMaterial({ map: ov.texture, transparent: true, opacity: ov.opacity, side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 - ov.layer, polygonOffsetUnits: -2 - ov.layer });
   m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", "if (vMapUv.x < -0.0004 || vMapUv.x > 1.0004 || vMapUv.y < -0.0004 || vMapUv.y > 1.0004) discard; /* #3517 a sliver past the edge: neighbours leave no hairline */\n#include <map_fragment>"); };
   m.customProgramCacheKey = () => "lodTerrainOverlay";
   if (ov.underImagery) { m.stencilWrite = true; m.stencilRef = 1; m.stencilFuncMask = 1; m.stencilFunc = THREE.NotEqualStencilFunc; m.stencilZPass = THREE.KeepStencilOp; } // #3509 on the tile too
@@ -178,6 +179,20 @@ export function hideUnderTerrainTiles(material, alsoBit1 = false) {
 
 // One per 3D View: sync() with the scene's state, tick() from the render loop. ctx: { group, terrain, terrainMesh, epsg, origin, rasters,
 // rasterCache, mapLayers, mapLayerCache, lodDrape: () => the imagery tiles' instance or null, wake }
+// TASKS.csv #3896 — a tile's skirt is drawn only while the camera is above the tile's lowest point: seen from under the ground the outward skirts
+// would hang as curtains at every tile edge. The camera's world position is in the exaggerated frame (verticalExaggeration.js scales about the
+// orbit target's elevation), so the tile's height is taken into that frame first.
+export function tileLowestY(geometry, gridIndexCount) {
+  const p = geometry.getAttribute("position"), ix = geometry.index.array;
+  let lo = Infinity;
+  for (let k = 0; k < gridIndexCount; k++) { const y = p.getY(ix[k]); if (y < lo) lo = y; }
+  return lo;
+}
+export function cameraBelow(camera, y) {
+  if (!camera || !Number.isFinite(y)) return false;
+  const ud = camera.userData || {}, ve = ud.ve > 1 ? ud.ve : 1, pivot = ve > 1 && ud.vePivotY ? ud.vePivotY() : 0;
+  return camera.position.y < (ve > 1 ? pivot + ve * (y - pivot) : y);
+}
 export function createLodTerrain({ read = null } = {}) {
   let ctx = null, lod = null, dirty = true, lastAt = 0, camSig = "", dsigLast = "", store = null, lastHash = 0, lastFactor = 1;
   const memory = new TileLru(DEM_MEMORY_BYTES, () => {});
@@ -286,7 +301,7 @@ export function createLodTerrain({ read = null } = {}) {
           const h = memory.get(d.key);
           const skirt = Math.max(2, (d.box[2] - d.box[0]) / 16);
           const { geometry, wx, wy, gridTris } = terrainTileGeometry(h, d.box, origin, skirt);
-          const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.DoubleSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
+          const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
           const ground = new THREE.Mesh(geometry, material);
           ground.userData = { lodTerrainTile: d.key, z: d.z, nodeM: (d.box[2] - d.box[0]) / DEM_CELLS };
           // the twin: stencil bit 2 where this tile is, drawn before anything else (no colour, no depth)
@@ -295,10 +310,11 @@ export function createLodTerrain({ read = null } = {}) {
           mark.renderOrder = -20; mark.userData.lodMark = true;
           ground.add(mark);
           group.add(ground);
-          t = { ground, mark, overlays: new Map(), box: d.box, wx, wy, gridTris };
+          t = { ground, mark, overlays: new Map(), box: d.box, wx, wy, gridTris, minY: tileLowestY(geometry, gridTris) };
           tiles.set(d.key, t);
         }
         t.ground.material.opacity = terrain.opacity ?? 1;
+        t.ground.geometry.setDrawRange(0, cameraBelow(camera, t.minY) ? t.gridTris : Infinity); // #3896 — no skirt seen from under the ground
         // the drapes on this tile's own surface
         const mine = overlaysAll.filter((ov) => ov.box[0] < t.box[2] && t.box[0] < ov.box[2] && ov.box[1] < t.box[3] && t.box[1] < ov.box[3]);
         const want_ = new Set(mine.map((ov) => ov.key));

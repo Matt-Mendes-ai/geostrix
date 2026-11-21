@@ -1,3 +1,4 @@
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 import React, { useMemo, useState } from "react";
 import { X, Plus, Trash2, RotateCcw } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -119,7 +120,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
 
           <label style={row}>
             <span style={rowLabel} title={tr("Samples below this grade aren't drawn at all — declutters low/background values.")}>{tr("Ignore below")}</span>
-            <input type="number" step="any" placeholder={tr("none")} value={local.minCutoff} onChange={(e) => commit({ ...local, minCutoff: e.target.value })} style={{ ...inp, width: 100 }} />
+            <NumberInput allowEmpty placeholder={tr("none")} value={local.minCutoff === "" ? null : local.minCutoff} onChange={(v) => commit({ ...local, minCutoff: v == null ? "" : v })} aria-label={tr("Ignore below")} style={{ ...inp, width: 100 }} />{/* TASKS.csv #3926 — a comma reads too */}
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{unitLbl}</span>
           </label>
 

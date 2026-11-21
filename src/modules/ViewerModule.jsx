@@ -162,6 +162,7 @@ import { holeZoomPhi } from "./viewer/zoomHole.js"; // TASKS.csv #2375
 import { sortVoxelInstancesBackToFront, sortFacesBackToFront } from "../lib/viewer/voxelSort.js"; // TASKS.csv #434; faces: #3354
 import { assayValueCounts, orderAssayChips, filterAssayChips, CHIP_FILTER_MIN } from "../lib/viewer/assayChipOrder.js"; // TASKS.csv #2374; filter: #2785
 import { scoreRasterLegendGroups } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2670
+import { makeStereonetLocate } from "../lib/viewer/stereonetLocate.js"; // TASKS.csv #3843
 import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
@@ -229,7 +230,7 @@ import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { snapMeasurePoint } from "../lib/viewer/measureSnap.js"; // TASKS.csv #3643
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
-import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
+import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems, setStructureFloor /* #3844 */ } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
 import RastersTerrainSection from "./viewer/RastersTerrainSection.jsx"; // TASKS.csv #3891
@@ -237,7 +238,7 @@ import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS
 import { useModelling } from "./viewer/useModelling.js";
 import { useUnitSource } from "./viewer/useUnitSource.js"; // TASKS.csv #2378
 import { wheelZoom } from "./viewer/wheelZoom.js"; // #2368
-import { makeWheelAnchors, wheelBoxes } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669
+import { makeWheelAnchors, wheelBoxes, sceneFloor } from "./viewer/wheelAnchors.js"; // TASKS.csv #3247; #3669; sceneFloor: #3927
 import { useDrillLineDefaults } from "./viewer/drillLines.js"; // #2366
 import { useSliceModelFace } from "./viewer/useSliceModelFace.js"; // #3765
 const ImportedSurfaceRows = React.lazy(() => import("./viewer/ImportedSurfaceRows.jsx")); // TASKS.csv #3762 — loads when a surface has been imported
@@ -1007,7 +1008,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const contextMenuByKeyRef = useRef(false);
   const onViewKeyDown = (e) => {
     if (e.target !== e.currentTarget) return; // a control inside the view (Fit, Top…) keeps its own keys
-    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(0.05, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
+    if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(sceneFloor(tracesRef.current, visibleHolesRef.current, [voxelGroupRef.current, omfGroupRef.current, layerGroupsRef.current.geophys_pts, layerGroupsRef.current.surface_samples]) /* #3927: the wheel's floor */, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
     if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
     e.preventDefault(); // no second, browser-dispatched contextmenu event
     const r = e.currentTarget.getBoundingClientRect();
@@ -2322,6 +2323,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
             else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; go(); }
           }
         }
+        if (surfStructGroupRef.current?.children.length) setStructureFloor(surfStructGroupRef.current, metresPerPixel(camera, camState.current?.radius, mount.clientHeight)); // #3844 — the strike symbols' readable floor: one uniform a set
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
         lodTiles.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles (viewer/useLodTiles.js)
         { const sl = sectionLinesGroupRef.current?.userData.labels; if (sl?.children.length) { fitScreenLabels(sl, camera, mount.clientHeight); declutterHoleLabels(sl, camera, mount.clientWidth, mount.clientHeight); } } // #1126 section end labels; #3246
@@ -3022,6 +3024,7 @@ ${describeTrend(t)}` };
   // meshes) — it just asks "which of these picks are in domain X". Deliberately the SAME
   // filterRowsByDomain the GemPy orientation feed uses (#89/#231), so a domain means one thing app-wide
   // and a pick can't be inside "Fault block A" for modelling but outside it for QC.
+  const stereonetLocate = () => (stereonetOpen ? makeStereonetLocate(cameraRef.current, mountRef.current, originRef.current, boundaries, collars) : null); // TASKS.csv #3843
   const domainStereonetFilter = useCallback(
     (rows, domainId) => filterRowsByDomain(rows, tracesRef.current, (s) => s.depth, domainId || ""),
     [domains, implicitSurfaces]
@@ -4566,7 +4569,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // moved to lib/viewer/sceneBuilders.js syncSurfaceStructures (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */ }); drawSymbolsOnTop(surfStructGroupRef.current); /* #3844 */ const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
+  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */, mpp: metresPerPixel(cameraRef.current, camState.current?.radius, mountRef.current?.clientHeight) }); drawSymbolsOnTop(surfStructGroupRef.current); /* #3844 */ const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // moved to lib/viewer/sceneBuilders.js syncOmfObjects (TASKS.csv #693); its comments explain the build
@@ -6575,6 +6578,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: im.visible === false ? "Show" : "Hide", onClick: () => updateSectionImage(im.id, { visible: im.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(sectionImageMeshesRef.current[im.id]) },
             { label: tr("Match to terrain…"), onClick: () => setSectionVerticalId(im.id) }, // TASKS.csv #3880
+            { label: tr("Move to another line…"), onClick: () => setSectionGeorefOpen({ moveId: im.id }) }, // TASKS.csv #3924
             { label: tr("Opaque"), onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
             { label: tr("Half transparent"), onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
             "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
@@ -7670,7 +7674,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} onZoomHole={(id) => { zoomToHole(id); setQcModalOpen(false); } /* TASKS.csv #3569 */} />}
       {sectionGeorefOpen && (
         <Suspense fallback={null}>
-          <SectionGeorefModal sections={sections} rlOffset={rlOffsetOf(project)} onClose={() => setSectionGeorefOpen(false)}
+          <SectionGeorefModal sections={sections} rlOffset={rlOffsetOf(project)} onClose={() => setSectionGeorefOpen(false)} collars={collars} images={sectionImages} /* #3924 */
+            moveImage={sectionImages.find((i) => i.id === sectionGeorefOpen?.moveId) || null} onMove={(patch) => { const im = sectionImages.find((i) => i.id === sectionGeorefOpen.moveId); updateSectionImage(sectionGeorefOpen.moveId, patch); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: moved to its new section line.", { name: im?.name || "" })]); }}
             onImport={(img) => { addSectionImage(img); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: placed in 3D on its section line{v} — listed under Section images.", { name: img.name, v: img.rmse != null ? tr(" (fit error {rmse} m)", { rmse: img.rmse.toFixed(1) }) : "" })]); }} />
         </Suspense>
       )}
@@ -7759,6 +7764,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           surfaceSets={surfaceStructures || []} // TASKS.csv #428; the file's type: #1440; class and area: #3843 (the modal builds the picks, lib/stereonetGroups.js)
           domains={domains}
           domainFilter={domainStereonetFilter}
+          locate={stereonetLocate()} /* TASKS.csv #3843 — in the window / inside a boundary */
           onClose={() => setStereonetOpen(false)}
           onUseAsTrend={({ azimuth, dip, terzaghi, name }) => {
             // TASKS.csv #650 — a new named trend from the mean plane (pitch 90 = down dip, the old behaviour); #1446 — named with its weighting,
