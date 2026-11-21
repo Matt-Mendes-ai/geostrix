@@ -14620,5 +14620,6 @@
   "Clip to the outline": "Découper au contour",
   "Same as the satellite image": "Comme l'image satellite",
   "Same as the satellite image: {name}": "Comme l'image satellite : {name}",
-  "Claim: {name}": "Claim : {name}"
+  "Claim: {name}": "Claim : {name}",
+  "Margin (m)": "Marge (m)"
 }

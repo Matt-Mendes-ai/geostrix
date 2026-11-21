@@ -56,7 +56,8 @@ export function fetchAreaChoices(state, { marginM = FETCH_AREA_MARGIN_M, imagery
     const box = boxOf(outline.flat().map(([x, y]) => ({ x, y })));
     if (!box) continue;
     const claim = b.kind === "claim";
-    out.push({ id: `boundary_${b.id}`, kind: claim ? "claim" : "boundary", label: claim ? tr("Claim: {name}", { name: b.name }) : tr("Boundary: {name}", { name: b.name }), box: grow(box, Math.max(0, Number(marginM) || 0)), outline });
+    // core: the extent itself, so the chooser's Margin box can grow it again (#3954, Matt: "a margin box to the area choice")
+    out.push({ id: `boundary_${b.id}`, kind: claim ? "claim" : "boundary", label: claim ? tr("Claim: {name}", { name: b.name }) : tr("Boundary: {name}", { name: b.name }), box: grow(box, Math.max(0, Number(marginM) || 0)), core: box, outline });
   }
   return out;
 }
@@ -73,8 +74,8 @@ export async function boxToLonLat(box, lonLatOf) {
 // the choices in lon / lat for the pickers (BasemapView's list, AreaChooser): a far layer says so (#2590), one line per distinct box (#3477)
 export async function fetchAreaOptions(choices, lonLatOf, collars = []) {
   const opts = await Promise.all((choices || []).map(async (c) => {
-    const bboxLonLat = await boxToLonLat(c.box, lonLatOf);
-    return bboxLonLat ? { ...c, label: c.kind === "project" || c.kind === "collars" ? c.label : farLabel(c.label, farFromCollars(c.box, collars)), bboxLonLat } : null;
+    const bboxLonLat = await boxToLonLat(c.box, lonLatOf), coreLonLat = c.core ? await boxToLonLat(c.core, lonLatOf) : null;
+    return bboxLonLat ? { ...c, label: c.kind === "project" || c.kind === "collars" ? c.label : farLabel(c.label, farFromCollars(c.box, collars)), bboxLonLat, ...(coreLonLat ? { coreLonLat } : {}) } : null;
   }));
   return mergeSameBoxOptions(opts.filter(Boolean), (n) => tr("+{n} with the same box", { n }));
 }
@@ -124,9 +125,21 @@ export function clipRgbaToOutline(rgba, outline, box, w, h) {
   return out;
 }
 
+// a lon / lat box grown by m metres on every side (the Margin box: degrees at the box's middle latitude, as areaSizeText measures)
+export function growLonLat([lonMin, latMin, lonMax, latMax], m) {
+  const d = Math.max(0, Number(m) || 0), dLat = d / 110574, dLon = d / (111320 * Math.cos((((latMin + latMax) / 2) * Math.PI) / 180));
+  return [lonMin - dLon, latMin - dLat, lonMax + dLon, latMax + dLat];
+}
+// an option's box with this margin: a boundary or claim grows from its own extent; any other area is as it is
+export const optionBox = (o, marginM) => (o?.coreLonLat ? growLonLat(o.coreLonLat, marginM) : o?.bboxLonLat || null);
+
 // the choice a fetch used last on this computer (a preference, as the satellite level is), per fetch: macrostrat | terrain | satellite | spectral | web
 const KEY = (fetch) => `geostrix.fetchArea.${fetch}`;
 export function rememberedFetchArea(storage, fetch) { try { return storage?.getItem(KEY(fetch)) || null; } catch { return null; } }
 export function rememberFetchArea(storage, fetch, id) { try { if (id) storage?.setItem(KEY(fetch), id); } catch { /* private window: session only */ } }
+// the margin a fetch used last (metres, 0 allowed), else FETCH_AREA_MARGIN_M
+const MKEY = (fetch) => `geostrix.fetchAreaMargin.${fetch}`;
+export function rememberedFetchMargin(storage, fetch) { try { const v = Number(storage?.getItem(MKEY(fetch))); return storage?.getItem(MKEY(fetch)) != null && Number.isFinite(v) && v >= 0 ? v : FETCH_AREA_MARGIN_M; } catch { return FETCH_AREA_MARGIN_M; } }
+export function rememberFetchMargin(storage, fetch, m) { try { if (Number.isFinite(m) && m >= 0) storage?.setItem(MKEY(fetch), String(m)); } catch { /* private window: session only */ } }
 // the option to start on: the one used last when the project still has it, else the first
 export const startingOption = (options, rememberedId) => (options || []).find((o) => o.id === rememberedId) || (options || [])[0] || null;

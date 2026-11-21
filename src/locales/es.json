@@ -14620,5 +14620,6 @@
   "Clip to the outline": "Recortar al contorno",
   "Same as the satellite image": "Igual que la imagen satelital",
   "Same as the satellite image: {name}": "Igual que la imagen satelital: {name}",
-  "Claim: {name}": "Concesión: {name}"
+  "Claim: {name}": "Concesión: {name}",
+  "Margin (m)": "Margen (m)"
 }

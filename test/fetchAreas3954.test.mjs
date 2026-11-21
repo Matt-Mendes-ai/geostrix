@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { fetchAreaChoices, fetchAreaOptions, outlineMask, clipTerrainToOutline, clipRgbaToOutline, optionForBox, startingOption, rememberedFetchArea, rememberFetchArea, isSatelliteRaster } from "../src/lib/fetchAreas.js";
+import { fetchAreaChoices, fetchAreaOptions, outlineMask, clipTerrainToOutline, clipRgbaToOutline, optionForBox, startingOption, rememberedFetchArea, rememberFetchArea, isSatelliteRaster, growLonLat, optionBox, rememberedFetchMargin, rememberFetchMargin, FETCH_AREA_MARGIN_M } from "../src/lib/fetchAreas.js";
 import { b64ToBytes } from "../src/lib/base64.js";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
@@ -79,4 +79,26 @@ test("wiring: every fetch takes the shared list; terrain and images can clip", (
   assert.match(r, /clipImageToOutline\(p\.dataUrl, p\.bbox, o\.outline\)/);
   assert.match(read("../src/components/MacrostratModal.jsx"), /<AreaChooser options=\{options\} area=\{area\}/);
   assert.match(read("../src/components/AddWebLayerModal.jsx"), /<AreaChooser options=\{options\} area=\{area\}/);
+});
+
+test("the Margin box: a boundary or claim grows from its own extent by the margin typed (0 allowed), remembered per fetch", async () => {
+  const lonLatOf = (x, y) => ({ lon: -130 + x / 100000, lat: 56 + y / 100000 });
+  const c = fetchAreaChoices({ collars, boundaries: [{ id: "c1", name: "Test claim", kind: "claim", polylines: [sq(900, 1900, 1500, 2400)], closedFlags: [true] }] });
+  const o = await fetchAreaOptions(c, lonLatOf, collars), claim = o.find((x) => x.kind === "claim"), project = o.find((x) => x.kind === "project");
+  assert.deepEqual(claim.coreLonLat, [-129.991, 56.019, -129.985, 56.024], "the claim's own extent");
+  assert.deepEqual(optionBox(claim, 0), claim.coreLonLat, "0 m: the extent itself");
+  const g = optionBox(claim, 1000), dLat = 1000 / 110574;
+  assert.ok(Math.abs(g[1] - (56.019 - dLat)) < 1e-9 && Math.abs(g[3] - (56.024 + dLat)) < 1e-9, "1,000 m north and south");
+  assert.ok(g[0] < claim.coreLonLat[0] - dLat, "and east-west in longitude degrees, wider at 56° N");
+  assert.deepEqual(optionBox(project, 1000), project.bboxLonLat, "the project area takes no margin from the box");
+  assert.deepEqual(growLonLat([0, 0, 1, 1], -5), [0, 0, 1, 1], "a negative margin is none");
+  const mem = new Map(), storage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v) };
+  assert.equal(rememberedFetchMargin(storage, "macrostrat"), FETCH_AREA_MARGIN_M, "250 m until one is typed");
+  rememberFetchMargin(storage, "macrostrat", 0);
+  assert.equal(rememberedFetchMargin(storage, "macrostrat"), 0, "0 is kept");
+  assert.equal(rememberedFetchMargin(storage, "web"), FETCH_AREA_MARGIN_M, "per fetch");
+  const ch = read("../src/components/AreaChooser.jsx");
+  assert.match(ch, /\{area\.option\?\.coreLonLat && \(/, "shown only for an area that takes a margin");
+  assert.match(ch, /<NumberInput value=\{area\.margin\} min=\{0\}/, "comma or point, 0 allowed (NumberInput)");
+  assert.match(ch, /const bboxLonLat = id === "drawn" \? drawn : optionBox\(option, margin\);/, "the size line and the fetch read the margined box");
 });
