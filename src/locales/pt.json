@@ -14364,5 +14364,15 @@
   "Total rare earth oxides (TREO), from the rare earths in this project": "Óxidos de terras raras totais (TREO), a partir das terras raras deste projeto",
   "Each rare earth is read in ppm and multiplied by its oxide factor (shown in the formula; change any of them): {list}.": "Cada terra rara é lida em ppm e multiplicada pelo seu fator de óxido (mostrado na fórmula; você pode alterar qualquer um): {list}.",
   "Not in this project, so left out of the total: {list}.": "Não estão neste projeto, por isso ficam fora do total: {list}.",
-  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "Estão guardadas como óxido ou em uma unidade que não pode ser convertida, por isso não entram aqui: {list}."
+  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "Estão guardadas como óxido ou em uma unidade que não pode ser convertida, por isso não entram aqui: {list}.",
+  "Metal equivalent (you type the prices and recoveries)…": "Equivalente metálico (você digita os preços e as recuperações)…",
+  "Prices and recoveries are the ones you type: nothing is filled in. A sample missing any of the metals gets no equivalent.": "Os preços e as recuperações são os que você digita: nada é preenchido por conta própria. Uma amostra sem algum dos metais não recebe equivalente.",
+  "Base metal (the equivalent is in its unit)": "Metal base (o equivalente fica na sua unidade)",
+  "Base metal": "Metal base",
+  "Metals added to it": "Metais somados a ele",
+  "Add {s} to the equivalent": "Somar {s} ao equivalente",
+  "Tick at least one metal to add to the base metal.": "Marque pelo menos um metal para somar ao metal base.",
+  "Enter a price and recovery for every metal ticked: no equivalent is made until all are entered.": "Informe um preço e uma recuperação para cada metal marcado: o equivalente só é feito quando todos forem informados.",
+  "Pick the base metal.": "Escolha o metal base.",
+  "Metal equivalent from the prices and recoveries you typed: {text}. Nothing was filled in for you.": "Equivalente metálico com os preços e as recuperações que você digitou: {text}. Nada foi preenchido por conta própria."
 }

@@ -14364,5 +14364,15 @@
   "Total rare earth oxides (TREO), from the rare earths in this project": "Oxydes de terres rares totaux (TREO), à partir des terres rares de ce projet",
   "Each rare earth is read in ppm and multiplied by its oxide factor (shown in the formula; change any of them): {list}.": "Chaque terre rare est lue en ppm et multipliée par son facteur d'oxyde (visible dans la formule ; vous pouvez changer n'importe lequel) : {list}.",
   "Not in this project, so left out of the total: {list}.": "Absentes de ce projet, donc exclues du total : {list}.",
-  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "Stockées sous forme d'oxyde ou dans une unité non convertible, donc non ajoutées ici : {list}."
+  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "Stockées sous forme d'oxyde ou dans une unité non convertible, donc non ajoutées ici : {list}.",
+  "Metal equivalent (you type the prices and recoveries)…": "Équivalent métal (vous saisissez les prix et les récupérations)…",
+  "Prices and recoveries are the ones you type: nothing is filled in. A sample missing any of the metals gets no equivalent.": "Les prix et les récupérations sont ceux que vous saisissez : rien n'est rempli d'office. Un échantillon auquel il manque l'un des métaux n'a pas d'équivalent.",
+  "Base metal (the equivalent is in its unit)": "Métal de base (l'équivalent est dans son unité)",
+  "Base metal": "Métal de base",
+  "Metals added to it": "Métaux qui s'y ajoutent",
+  "Add {s} to the equivalent": "Ajouter {s} à l'équivalent",
+  "Tick at least one metal to add to the base metal.": "Cochez au moins un métal à ajouter au métal de base.",
+  "Enter a price and recovery for every metal ticked: no equivalent is made until all are entered.": "Saisissez un prix et une récupération pour chaque métal coché : aucun équivalent n'est fait tant que tout n'est pas saisi.",
+  "Pick the base metal.": "Choisissez le métal de base.",
+  "Metal equivalent from the prices and recoveries you typed: {text}. Nothing was filled in for you.": "Équivalent métal à partir des prix et des récupérations que vous avez saisis : {text}. Rien n'a été rempli d'office."
 }

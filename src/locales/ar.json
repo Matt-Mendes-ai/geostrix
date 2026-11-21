@@ -14364,5 +14364,15 @@
   "Total rare earth oxides (TREO), from the rare earths in this project": "إجمالي أكاسيد العناصر الأرضية النادرة (TREO)، من العناصر الأرضية النادرة في هذا المشروع",
   "Each rare earth is read in ppm and multiplied by its oxide factor (shown in the formula; change any of them): {list}.": "يُقرأ كل عنصر أرضي نادر بوحدة ppm ويُضرب في معامل أكسيده (يظهر في المعادلة؛ يمكنك تغيير أي منها): {list}.",
   "Not in this project, so left out of the total: {list}.": "غير موجودة في هذا المشروع، لذا تُستبعد من المجموع: {list}.",
-  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "مخزَّنة كأكسيد أو بوحدة لا يمكن تحويلها، لذا لا تُضاف هنا: {list}."
+  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "مخزَّنة كأكسيد أو بوحدة لا يمكن تحويلها، لذا لا تُضاف هنا: {list}.",
+  "Metal equivalent (you type the prices and recoveries)…": "مكافئ المعدن (تُدخل الأسعار ونسب الاستخلاص بنفسك)…",
+  "Prices and recoveries are the ones you type: nothing is filled in. A sample missing any of the metals gets no equivalent.": "الأسعار ونسب الاستخلاص هي ما تُدخله أنت: لا يُملأ شيء تلقائيًا. العينة التي ينقصها أحد المعادن لا تحصل على مكافئ.",
+  "Base metal (the equivalent is in its unit)": "المعدن الأساسي (يكون المكافئ بوحدته)",
+  "Base metal": "المعدن الأساسي",
+  "Metals added to it": "المعادن المضافة إليه",
+  "Add {s} to the equivalent": "إضافة {s} إلى المكافئ",
+  "Tick at least one metal to add to the base metal.": "حدّد معدنًا واحدًا على الأقل لإضافته إلى المعدن الأساسي.",
+  "Enter a price and recovery for every metal ticked: no equivalent is made until all are entered.": "أدخل سعرًا ونسبة استخلاص لكل معدن محدّد: لا يُنشأ المكافئ حتى تُدخل جميعها.",
+  "Pick the base metal.": "اختر المعدن الأساسي.",
+  "Metal equivalent from the prices and recoveries you typed: {text}. Nothing was filled in for you.": "مكافئ المعدن من الأسعار ونسب الاستخلاص التي أدخلتها: {text}. لم يُملأ أي شيء تلقائيًا."
 }

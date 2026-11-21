@@ -14364,5 +14364,15 @@
   "Total rare earth oxides (TREO), from the rare earths in this project": "Óxidos de tierras raras totales (TREO), a partir de las tierras raras de este proyecto",
   "Each rare earth is read in ppm and multiplied by its oxide factor (shown in the formula; change any of them): {list}.": "Cada tierra rara se lee en ppm y se multiplica por su factor de óxido (se muestra en la fórmula; puede cambiar cualquiera): {list}.",
   "Not in this project, so left out of the total: {list}.": "No están en este proyecto, así que quedan fuera del total: {list}.",
-  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "Están guardadas como óxido o en una unidad que no se puede convertir, así que no se suman aquí: {list}."
+  "Stored as an oxide or in a unit this cannot convert, so not added here: {list}.": "Están guardadas como óxido o en una unidad que no se puede convertir, así que no se suman aquí: {list}.",
+  "Metal equivalent (you type the prices and recoveries)…": "Equivalente metálico (usted ingresa los precios y las recuperaciones)…",
+  "Prices and recoveries are the ones you type: nothing is filled in. A sample missing any of the metals gets no equivalent.": "Los precios y las recuperaciones son los que usted ingresa: no se completa nada. Una muestra a la que le falta alguno de los metales no recibe equivalente.",
+  "Base metal (the equivalent is in its unit)": "Metal base (el equivalente queda en su unidad)",
+  "Base metal": "Metal base",
+  "Metals added to it": "Metales que se le suman",
+  "Add {s} to the equivalent": "Sumar {s} al equivalente",
+  "Tick at least one metal to add to the base metal.": "Marque al menos un metal para sumar al metal base.",
+  "Enter a price and recovery for every metal ticked: no equivalent is made until all are entered.": "Ingrese un precio y una recuperación para cada metal marcado: no se hace el equivalente hasta ingresarlos todos.",
+  "Pick the base metal.": "Elija el metal base.",
+  "Metal equivalent from the prices and recoveries you typed: {text}. Nothing was filled in for you.": "Equivalente metálico con los precios y las recuperaciones que ingresó: {text}. No se completó nada por usted."
 }
