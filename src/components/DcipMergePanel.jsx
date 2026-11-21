@@ -9,6 +9,7 @@ import { runEstimation } from "../lib/estimationClient.js";
 import { logStops, sequentialStops } from "../lib/inversion.js";
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const KINDS = { ip: { label: "Chargeability", unit: "mV/V", property: "Chargeability (mV/V)", line: "IP" }, dc: { label: "Resistivity", unit: "ohm·m", property: "Resistivity (ohm·m)", line: "DC" } };
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
@@ -89,10 +90,10 @@ export default function DcipMergePanel({ pBtn, numInput }) {
       )}
       {kinds.length === 1 && <div style={{ ...small, marginTop: 5 }}>{tr("{kind}: {n} inverted lines.", { kind: tr(KINDS[kind].label), n: byMethod[kind].length })}</div>}
       <div style={row} title={tr("How far across from a line a block still takes its values. The suggestion reaches the next line, so every block between two lines uses both.")}><span style={lbl}>{tr("Search radius (m)")}</span>
-        <input type="number" min={1} value={radius} placeholder={suggested ? String(suggested) : "m"} onChange={(e) => setRadius(e.target.value)} style={inp} aria-label={tr("Merge search radius")} />
+        <NumberInput allowEmpty min={1} value={radius} placeholder={suggested ? String(suggested) : "m"} onChange={(v) => setRadius((v == null ? "" : String(v)))} style={inp} aria-label={tr("Merge search radius")} />
       </div>
       <div style={row} title={tr("Block size in plan; the vertical size is the lines' own cell height.")}><span style={lbl}>{tr("Block size (m)")}</span>
-        <input type="number" min={1} value={cell} placeholder={String(lineCell)} onChange={(e) => setCell(e.target.value)} style={inp} aria-label={tr("Merge block size")} />
+        <NumberInput allowEmpty min={1} value={cell} placeholder={String(lineCell)} onChange={(v) => setCell((v == null ? "" : String(v)))} style={inp} aria-label={tr("Merge block size")} />
       </div>
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
         <button onClick={run} disabled={busy != null} style={{ ...pBtn, flex: 1, opacity: busy != null ? 0.5 : 1 }}><Play size={14} /> {busy != null ? tr("Merging… {v}%", { v: Math.round(busy * 100) }) : tr("Merge {label} lines", { label: KINDS[kind].label.toLowerCase() })}</button>

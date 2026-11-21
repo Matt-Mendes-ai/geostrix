@@ -16,6 +16,7 @@ import { overlay, backdropProps, sel, th, td, panel, header, rowBtn as btn } fro
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { DOMAIN_ATTR } from "../lib/geochemDomains.js"; // TASKS.csv #1390
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const panelBox = panel({ width: "min(720px, 96vw)", maxHeight: "92vh" });
 const ctl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -85,7 +86,7 @@ export default function LevellingPanel({ onClose }) {
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               <label style={ctl}>{tr("Level to (reference)")}<select value={reference} onChange={(e) => { setRefPick(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 280 }}>{surveys.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count})</option>)}</select></label>
               <label style={ctl}>{tr("Survey to adjust")}<select value={survey} onChange={(e) => { setSurPick(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 280 }}>{surveys.filter((s) => s.key !== reference).map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count})</option>)}</select></label>
-              <label style={ctl}>{tr("Same site within (m)")}<input type="number" min="1" step="5" value={radiusM} onChange={(e) => setRadiusM(Math.max(1, Number(e.target.value) || 1))} style={{ ...sel, display: "block", marginTop: 4, width: 70 }} /></label>
+              <label style={ctl}>{tr("Same site within (m)")}<NumberInput min={1} step={5} value={radiusM} onChange={(v) => setRadiusM(v)} style={{ ...sel, marginTop: 4, width: 70 }} wrapStyle={{ display: "flex" }} /></label>
             </div>
             {fit && (<>
               <div style={note}>
