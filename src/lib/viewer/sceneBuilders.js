@@ -18,6 +18,7 @@ import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
 import { collarGround, collarsLookUnderground } from "../collarGround.js"; // TASKS.csv #2447; #3159: not pitShell.js, which put the pit solver in startup; collarsLookUnderground: #3368
 import { outcropNoTerrainGround } from "./surfacePlacement.js"; // TASKS.csv #3368
 import { terrainDrapeGrid, adaptiveDrape, trianglesNear } from "./terrainDrape.js"; // TASKS.csv #3380; adaptiveDrape: #3449; trianglesNear: #3252
+import { STRUCTURE_MIN_PX } from "./symbolScale.js"; // TASKS.csv #3844
 import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
 
 // TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a
@@ -443,7 +444,23 @@ export function outcropZ(r, set, terrain, flatZ, oz) {
 // LineSegments and one Mesh of filled parts per set, coloured by the structure class. The set's size is the symbol's strike line (the
 // standard's 5.0 mm), so every part scales with it. An InstancedMesh of flat discs is kept for picking only (colour and depth writes
 // off): Identify still reads hit.instanceId as the row (lib/viewer/identify.js).
-export function syncSurfaceStructures(group, cache, surfaceStructures, { origin, terrain, flatZ = null, symbolByType = null /* #3094 */ }) {
+// TASKS.csv #3844 (Scottie review: a symbol is `size` m, a few pixels zoomed out) — a readable floor on screen applied by the shader, as the survey
+// points' (#3401): each vertex carries its symbol's anchor (aCentre); the symbol scales about it by max(1, uK), uK = floor metres / size,
+// one uniform per set, set from the zoom (setStructureFloor). No per-symbol work per frame.
+function floorMaterial(material, u) {
+  material.onBeforeCompile = (sh) => {
+    sh.uniforms.uK = u;
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute vec3 aCentre;\nuniform float uK;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\ntransformed = aCentre + (transformed - aCentre) * max(1.0, uK);");
+  };
+  material.customProgramCacheKey = () => "structFloor";
+}
+// the zoom's floor for every set: minPx across its strike line at `mpp` metres a pixel. Cheap: one value per set, skipped when unchanged.
+export function setStructureFloor(group, mpp, minPx = STRUCTURE_MIN_PX) {
+  if (!group || !(mpp > 0)) return;
+  for (const g of group.children) { const f = g.userData.floor; if (f) { const k = (minPx * mpp) / f.size; if (k !== f.u.value) f.u.value = k; } }
+}
+export function syncSurfaceStructures(group, cache, surfaceStructures, { origin, terrain, flatZ = null, symbolByType = null /* #3094 */, mpp = NaN }) {
   Object.values(cache).forEach((g) => { group.remove(g); g.children.forEach((c) => { c.geometry?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); }); }); // #433 — InstancedMesh buffers
   for (const id of Object.keys(cache)) delete cache[id]; // the caller owns the object: emptied, not replaced
   const { x: ox, y: oy, z: oz } = origin;
@@ -458,7 +475,8 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
     const g = new THREE.Group();
     const pick = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 20), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }), rows.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(size, size, size), col = new THREE.Color();
-    const lines = [], lineCol = [], tris = [], triCol = [];
+    const lines = [], lineCol = [], tris = [], triCol = [], lineCtr = [], triCtr = [];
+    const floorU = { value: Math.max(0, (STRUCTURE_MIN_PX * mpp) / size) || 0 };
     rows.forEach((r, i) => {
       const z = outcropZ(r, set, terrain, flatZ, oz), y = z - oz + 0.3 + size * 0.004; // just above the ground
       p.set(r.x - ox, y, -(r.y - oy));
@@ -467,8 +485,9 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
       col.set(STRUCTURE_CLASS_COLORS[r.cls] || STRUCTURE_CLASS_COLORS.other);
       const { symbol } = symbolForReading(r, choices), frame = symbolFrame(Number.isFinite(r.dipDir) ? r.dipDir : 0), geo = symbolGeometry(symbol);
       const at = (u, v) => { const [e, n] = frame(u, v); return [r.x - ox + e * perMm, y, -(r.y - oy + n * perMm)]; };
-      for (const [u1, v1, u2, v2] of geo.segments) { lines.push(...at(u1, v1), ...at(u2, v2)); lineCol.push(col.r, col.g, col.b, col.r, col.g, col.b); }
-      for (const [u1, v1, u2, v2, u3, v3] of [...geo.triangles, ...strokeTriangles(geo, lineScale)]) { tris.push(...at(u1, v1), ...at(u2, v2), ...at(u3, v3)); for (let k = 0; k < 3; k++) triCol.push(col.r, col.g, col.b); } // the ribbons: #3091
+      const ctr = [r.x - ox, y, -(r.y - oy)]; // #3844
+      for (const [u1, v1, u2, v2] of geo.segments) { lines.push(...at(u1, v1), ...at(u2, v2)); lineCol.push(col.r, col.g, col.b, col.r, col.g, col.b); lineCtr.push(...ctr, ...ctr); }
+      for (const [u1, v1, u2, v2, u3, v3] of [...geo.triangles, ...strokeTriangles(geo, lineScale)]) { tris.push(...at(u1, v1), ...at(u2, v2), ...at(u3, v3)); triCtr.push(...ctr, ...ctr, ...ctr); for (let k = 0; k < 3; k++) triCol.push(col.r, col.g, col.b); } // the ribbons: #3091
     });
     pick.instanceMatrix.needsUpdate = true;
     pick.computeBoundingSphere();
@@ -476,13 +495,18 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
     const lg = new THREE.BufferGeometry();
     lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(lines), 3));
     lg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(lineCol), 3));
-    g.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ vertexColors: true })));
+    lg.setAttribute("aCentre", new THREE.BufferAttribute(new Float32Array(lineCtr), 3));
+    const lm = new THREE.LineBasicMaterial({ vertexColors: true }); floorMaterial(lm, floorU);
+    g.add(new THREE.LineSegments(lg, lm));
     if (tris.length) {
       const tg = new THREE.BufferGeometry();
       tg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(tris), 3));
       tg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(triCol), 3));
-      g.add(new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+      tg.setAttribute("aCentre", new THREE.BufferAttribute(new Float32Array(triCtr), 3));
+      const tm = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }); floorMaterial(tm, floorU);
+      g.add(new THREE.Mesh(tg, tm));
     }
+    g.userData.floor = { u: floorU, size }; // #3844
     g.visible = set.visible !== false;
     group.add(g);
     cache[set.id] = g;

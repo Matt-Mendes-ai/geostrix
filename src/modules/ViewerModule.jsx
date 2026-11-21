@@ -229,7 +229,7 @@ import { hideTraceHoles } from "../lib/viewer/traceBatch.js"; // TASKS.csv #2176
 import { closedShellsOf } from "./viewer/estimationShells.js"; // TASKS.csv #2695
 import { snapMeasurePoint } from "../lib/viewer/measureSnap.js"; // TASKS.csv #3643
 import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
-import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
+import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems, setStructureFloor /* #3844 */ } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
 import RastersTerrainSection from "./viewer/RastersTerrainSection.jsx"; // TASKS.csv #3891
@@ -2322,6 +2322,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
             else if (now - zr.at > 400 && needsSymbolRebuild(builtRef.current, mpp) && floored(builtRef.current, mpp)) { zr.at = Infinity; go(); }
           }
         }
+        if (surfStructGroupRef.current?.children.length) setStructureFloor(surfStructGroupRef.current, metresPerPixel(camera, camState.current?.radius, mount.clientHeight)); // #3844 — the strike symbols' readable floor: one uniform a set
         if (gridGroupRef.current?.userData.labels) fitScreenLabels(gridGroupRef.current.userData.labels, camera, mount.clientHeight); // #2211
         lodTiles.tick(camera, mount.clientHeight); // TASKS.csv #3252 — the detail tiles (viewer/useLodTiles.js)
         { const sl = sectionLinesGroupRef.current?.userData.labels; if (sl?.children.length) { fitScreenLabels(sl, camera, mount.clientHeight); declutterHoleLabels(sl, camera, mount.clientWidth, mount.clientHeight); } } // #1126 section end labels; #3246
@@ -4566,7 +4567,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // moved to lib/viewer/sceneBuilders.js syncSurfaceStructures (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */ }); drawSymbolsOnTop(surfStructGroupRef.current); /* #3844 */ const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
+  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */, mpp: metresPerPixel(cameraRef.current, camState.current?.radius, mountRef.current?.clientHeight) }); drawSymbolsOnTop(surfStructGroupRef.current); /* #3844 */ const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain, flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, surfaceFlatZ /* #2753 */, store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // moved to lib/viewer/sceneBuilders.js syncOmfObjects (TASKS.csv #693); its comments explain the build
