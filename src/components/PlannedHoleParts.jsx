@@ -29,6 +29,7 @@ import { drilledSiteSpacing, holeTraces } from "../lib/evidenceSources.js";
 import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2976 — the minimum spacing starts from the drilling; #3820: the holes' own spacing
 import { traceSpacing } from "../lib/traceSpacing.js"; // TASKS.csv #3820
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
 
@@ -354,7 +355,8 @@ function NumField({ label, value, onChange, placeholder, limit }) {
   return (
     <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", color: "var(--color-text-faint)" }}>
       {label}
-      <input type="number" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} onBlur={limit ? (e) => { const v = e.target.value === "" ? NaN : Number(e.target.value); if (Number.isFinite(v) && limit(v) !== v) onChange(Math.round(limit(v) * 1000) / 1000); } : undefined} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 5px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} />
+      {/* #3926 — '0,05' read as 0.05; the value arrives when the box commits (blur / Enter), with the azimuth wrapped / the dip held then (#3824) */}
+      <NumberInput allowEmpty value={value === "" ? null : value} placeholder={placeholder} onChange={(v) => onChange(v == null ? "" : limit && limit(v) !== v ? Math.round(limit(v) * 1000) / 1000 : v)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 5px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} />
     </label>
   );
 }

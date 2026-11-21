@@ -5,7 +5,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { parseDecimal, decimalText } from "../lib/parseDecimal.js";
 import { t as tr } from "../lib/i18n.js";
 
-export default function NumberInput({ value, onChange, min = null, max = null, step = null, allowEmpty = false, placeholder, style, "aria-label": ariaLabel, title, id, disabled = false }) {
+// wrapStyle (#3926 G2): the wrapper's own style, for a box that fills a row (flex: 1) or a fixed column; the input fills the wrapper's width then
+export default function NumberInput({ value, onChange, min = null, max = null, step = null, allowEmpty = false, placeholder, style, wrapStyle = null, "aria-label": ariaLabel, title, id, disabled = false }) {
   const [text, setText] = useState(decimalText(value)), [error, setError] = useState(null), editing = useRef(false);
   useEffect(() => { if (!editing.current) { setText(decimalText(value)); setError(null); } }, [value]);
   const commit = (raw) => {
@@ -18,7 +19,7 @@ export default function NumberInput({ value, onChange, min = null, max = null, s
   };
   const nudge = (dir) => { const r = parseDecimal(text), base = r.ok && !r.empty ? r.value : Number(value) || 0, s = step || 1, v = +(base + dir * s).toPrecision(12); commit(String(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, v)))); };
   return (
-    <span style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
+    <span style={{ display: "inline-flex", flexDirection: "column", gap: 2, ...(wrapStyle || {}) }}>
       <input id={id} type="text" inputMode="decimal" value={text} placeholder={placeholder} disabled={disabled} title={title} aria-label={ariaLabel} aria-invalid={error ? true : undefined}
         onChange={(e) => { editing.current = true; setText(e.target.value); if (error) setError(null); }} onBlur={(e) => commit(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(e.currentTarget.value); } else if (e.key === "ArrowUp") { e.preventDefault(); nudge(1); } else if (e.key === "ArrowDown") { e.preventDefault(); nudge(-1); } }}

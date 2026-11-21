@@ -23,5 +23,5 @@ test("wiring: the auto VE reads the window; a step hands its VE to the next tab;
   const s = fs.readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(s, /defaultSectionVE\(len, maxZ - minZ, typeof window !== "undefined" \? plotAspect\(window\.innerWidth, window\.innerHeight, document\.querySelector\("\.ge-section-toolbar"\)\?\.offsetHeight\) : null\)/);
   assert.match(s, /const stepTo = \(msg\) => \{ if \(!msg\.refresh\) stepVE = \{ ve: vExag, kind: kindPick, unit: unitPick, at: Date\.now\(\) \};/);
-  assert.match(s, /setVExag\(Math\.min\(MAX_SECTION_VE, Math\.max\(0\.1, Number\(e\.target\.value\) \|\| 1\)\)\)/);
+  assert.match(s, /setVExag\(Math\.min\(MAX_SECTION_VE, Math\.max\(0\.1, Number\(e\.target\.value\) \|\| 1\)\)\)|<NumberInput min=\{0\.1\} max=\{MAX_SECTION_VE\} step=\{0\.5\} value=\{vExag \?\? null\} onChange=\{\(v\) => setVExag\(v\)\}/ /* #3926: the same limits, kept by the NumberInput */);
 });

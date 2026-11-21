@@ -15,6 +15,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const SECTION_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
 
@@ -65,7 +66,7 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
           <div>
             <label style={{ ...field, marginBottom: 6 }}>{tr("Corridor width (m)")}{" "}{sectionCount > 1 && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("— leave blank to keep each section's own width")}</span>}
             </label>
-            <input type="number" min="0" value={corridor} onChange={(e) => setCorridor(e.target.value)} placeholder={sectionCount > 1 ? tr("(unchanged)") : ""} style={inp} />
+            <NumberInput allowEmpty min={0} value={corridor === "" ? null : corridor} onChange={(v) => setCorridor(v == null ? "" : String(v))} placeholder={sectionCount > 1 ? tr("(unchanged)") : ""} style={inp} />
           </div>
 
           <div>
