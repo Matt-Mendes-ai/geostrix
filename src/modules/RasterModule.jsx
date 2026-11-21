@@ -52,8 +52,8 @@ import { rasterMethodOf, filterBlockedBy, ternaryChoices, fieldFilterNeedsMethod
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #2557 — the method's label
 import MiddleName from "../components/MiddleName.jsx"; // TASKS.csv #2852
 import { defaultFilterKind, magneticsFromName /* #2862 */ } from "../lib/filterDefault.js"; // TASKS.csv #1863
-import NumberInput from "../components/NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC

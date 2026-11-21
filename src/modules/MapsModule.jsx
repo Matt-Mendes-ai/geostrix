@@ -26,8 +26,8 @@ import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelper
 import { buildLayer, sameMapLayer, mapsDropRoutes } from "../lib/mapLayerBuild.js"; // TASKS.csv #2019
 import { guessEpsgFromPrjWkt } from "../lib/reprojectMore.js"; // TASKS.csv #3590
 import { featureCountText } from "../lib/featureCount.js";
-import { projectTargetEpsg } from "../lib/projectTarget.js";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
+import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 const GEO_PANES = new Set(["terrain", "web", "boundaries", "claims"]); // "maps" (geology map layers + outcrop structures) moved to the Surface Geology tab: #820
 const CRS_PANES = new Set(["crs", "layer", "file"]);

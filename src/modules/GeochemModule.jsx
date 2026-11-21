@@ -120,8 +120,8 @@ import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
 import { isMineSource, mineSourceOf, mineSourceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2684 — 'Local mine grid' as the samples' Source CRS
 import { flagColumns, flagQualifier, censoredSamples } from "../lib/assayFlags.js"; // TASKS.csv #2018
 import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2016
-import NumberInput from "../components/NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926
+import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 const VECTOR_FILE = /\.(shp|zip|gpkg|kml|kmz)$/i; // #2016 — sample points from GIS files
 const OWN_CRS = "(own CRS)"; // #2016 — sourceEpsgFrom when the CRS came from a .prj / GeoPackage SRS, not a column
 const SHP_GROUP = (list) => groupShapefileParts(list).files; // a .shp with its .dbf / .prj / .cpg as one file (#2121's rule)

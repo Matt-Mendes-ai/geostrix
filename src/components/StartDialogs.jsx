@@ -21,8 +21,8 @@ import { panel, rowBtn } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3887 — the First steps guide
 import { DropPicture } from "./DropDiagram.jsx"; // TASKS.csv #3939 — pictures first
-import { Rotate3d, Boxes, FileText } from "lucide-react";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3939 — the card's three lines
+import { Rotate3d, Boxes, FileText } from "lucide-react"; // TASKS.csv #3939 — the card's three lines
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 const Z = 55; // under every other dialog (60; the import's column matching 62): they open over this one
 const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };

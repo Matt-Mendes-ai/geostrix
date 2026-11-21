@@ -52,8 +52,8 @@ import { shellPaneMemory, memoryRef } from "./shellPaneMemory.js"; // TASKS.csv 
 import { ENVELOPE_RANGES } from "../../lib/viewer/shellEnvelope.js";
 import DomainUpdateSection from "./DomainUpdateSection.jsx"; // TASKS.csv #3673 phase 2 // TASKS.csv #3673 — the ranges said in the pane // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
-import NumberInput from "../../components/NumberInput.jsx";
-import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926
+import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
 const LithoSuggestBox = lazy(() => import("../../components/LithoSuggestBox.jsx")); // TASKS.csv #2004

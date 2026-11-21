@@ -16,8 +16,8 @@ import { colorForLithology, LAYER_META } from "../lib/layers.js";
 import { findOnTrace } from "../lib/viewer/modelHelpers.js";
 import { combineSelection, intervalTouchesBox, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../lib/intervalBox.js"; // TASKS.csv #1333, #1337
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
-import NumberInput from "./NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 const ROLE_HELP = {
   stratigraphic: "a layer in the pile: its top is a contact where it sits below a younger layer",

@@ -30,7 +30,7 @@ test("wiring: asked after the tie question; cancel stops the import; accepted, t
   const i = v.indexOf("const importSolidFile = useCallback");
   const body = v.slice(i, v.indexOf("}, [fitBox, project?.epsg, setTaskProgress]);", i));
   assert.ok(body.indexOf("solidTieGuess") < body.indexOf("solidFarFromHoles"), "the tie question first");
-  assert.match(body, /if \(farSolid\?\.far && !window\.confirm\(tr\("\\"\{name\}\\" lies about \{km\} km from your holes/);
+  assert.match(body, /if \(farSolid\?\.far && !await askConfirm\(tr\("\\"\{name\}\\" lies about \{km\} km from your holes/);
   assert.match(body, /import cancelled \(it lies about \{km\} km from the holes\)\./);
   assert.match(body, /if \(!farSolid\?\.far\) fitBox\(box\);/);
   for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8")); assert.ok(d["{name}: import cancelled (it lies about {km} km from the holes)."], l); assert.ok(Object.keys(d).some((k) => k.startsWith("\"{name}\" lies about {km} km")), l); }

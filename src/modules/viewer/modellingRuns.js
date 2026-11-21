@@ -67,8 +67,8 @@ import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
 import { captureInputs, implicitRequestRecord, withSolveFacts } from "../../lib/gempyInputs.js"; // TASKS.csv #1101; implicitRequestRecord: #2640
 import { inversionCheck, FOLD_CONTACT_TYPES, meshMeanDipDeg, STEEP_DIP_DEG, FOLD_EXPLAIN } from "../../lib/topology.js"; // TASKS.csv #2058 — the fold-back check in the run's own notice; the steep test and the one explanation: #3777
 import { shellBudgetAdvice, sharePct } from "../../lib/shellBudget.js"; // TASKS.csv #2223
-import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js";
-import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
+import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js"; // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
+import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->

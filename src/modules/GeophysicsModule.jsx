@@ -144,8 +144,8 @@ import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 
 import { pointsAlongOneLine, surveyLabel } from "../lib/rasterMethod.js"; // TASKS.csv #2557; surveyLabel: #2559
 import { collarTerrainOffsets, collarTerrainSide } from "../lib/dataQC.js"; // TASKS.csv #3807
 import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
-import { stopsAreLogSpaced } from "../lib/legendScale.js";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3813 — the model's own scale for its on-hole layer
+import { stopsAreLogSpaced } from "../lib/legendScale.js"; // TASKS.csv #3813 — the model's own scale for its on-hole layer
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 const APPARENT_METHODS = new Set(["ip_app", "res_app"]); // TASKS.csv #3808 — a DC / IP survey's apparent values at pseudo-depths
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
@@ -1193,9 +1193,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         setSrtmProgress(null);
         setTerrainError({ info: true, text: tr("The collars sit a median {v} m off this terrain — checking whether the project's CRS is one UTM zone off…", { v: Math.round(misfit.medianDz) }) });
         const better = await findBetterUtmZone(collars, targetEpsg, misfit);
+        const relabelOk = better && !ai ? await askConfirm(tr("The {n} collars sit a median {v} m off the terrain for {v2}, but within {v3} m as {name}: probably the wrong UTM zone.\n\nOK — relabel the project {name} (EPSG:{code}; no coordinates change) and fetch there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code })) : false; // TASKS.csv #3957 — asked before the landing check: a project that changed while the question was open lands nothing (#3953)
         if (!(await landed(job))) return; // TASKS.csv #3953 — again, before the relabel and the terrain
         if (ai) ai.misfit = { collar_misfit_m: Math.round(misfit.medianDz), ...(better ? { a_better_fit: `${better.name} (EPSG:${better.code}), within ${Math.round(better.medianDz)} m` } : {}) }; // #3932 — said, not relabelled
-        if (better && !ai && await askConfirm(tr("The {n} collars sit a median {v} m off the terrain for {v2}, but within {v3} m as {name}: probably the wrong UTM zone.\n\nOK — relabel the project {name} (EPSG:{code}; no coordinates change) and fetch there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code }))) {
+        if (relabelOk) {
           setEpsg(better.code);
           const T = pointTransform(better.code, 4326);
           const [bx0, by0, bx1, by1] = parsed.bbox;

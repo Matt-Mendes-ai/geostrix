@@ -16,8 +16,8 @@ import { codeDescriptions } from "../lib/codeDescriptions.js"; // TASKS.csv #177
 import CodeDictionaryTable from "./CodeDictionaryTable.jsx"; // TASKS.csv #2163
 import { entriesInCodeOrder } from "../lib/legendCodeOrder.js"; // TASKS.csv #3296
 import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3563
-import NumberInput from "./NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects

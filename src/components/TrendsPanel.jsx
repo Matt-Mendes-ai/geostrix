@@ -16,8 +16,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2779 — the drill spacing and the sample length
 import { trendThinness, trendContext } from "../lib/trendThin.js"; // TASKS.csv #2779
-import { parseDecimal } from "../lib/parseDecimal.js";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926
+import { parseDecimal } from "../lib/parseDecimal.js"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #3926 — these boxes keep their own draft (applied on blur / Enter, Escape cancels: #670, #3683), so they are not the shared NumberInput:
 // text boxes whose text is read with parseDecimal, so '0,05' is 0.05 as there; a text it cannot read is not applied (NaN)
 const numOf = (x) => { const r = parseDecimal(String(x ?? "")); return r.ok && !r.empty ? r.value : NaN; };

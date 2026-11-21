@@ -59,6 +59,6 @@ test("the import, the panel, the store and the status bar use it", () => {
 
 test("a local-grid project is never given a file's declared CRS (found live: an MGA file ended the grid)", () => {
   const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
-  const i = u.indexOf("const adoptCrsIfEmpty = (declared, fileName) => {"), j = u.indexOf("if (live.project?.crsSet === false && live.project?.localGrid) return null;", i), k = u.indexOf("live.setEpsg(d);", i);
+  const i = u.indexOf("const adoptCrsIfEmpty = async (declared, fileName) => {"), j = u.indexOf("if (live.project?.crsSet === false && live.project?.localGrid) return null;", i), k = u.indexOf("live.setEpsg(d);", i);
   assert.ok(i > 0 && j > i && j < k);
 });

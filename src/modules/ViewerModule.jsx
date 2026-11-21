@@ -272,8 +272,8 @@ import { useSavedCamera, applySavedCamera } from "./viewer/savedCamera.js"; // #
 import { decideLight, registerRenderer, lightDrawingNotice } from "../lib/viewer/lightDrawing.js"; // #3620
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
-import NumberInput from "../components/NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // #3926
+import NumberInput from "../components/NumberInput.jsx"; // #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641

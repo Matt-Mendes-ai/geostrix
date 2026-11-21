@@ -52,8 +52,8 @@ import { structureIconSet, lineScaleOf } from "../lib/structureKmzIcons.js"; // 
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts, surfaceFlatElevation, noTerrainGround } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; import { mapLayerOnCollars } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753; noTerrainGround, mapLayerOnCollars: #3368
-import NumberInput from "./NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926 — '0,05' and '0.05' both read
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
 export function skipReasons(w = {}, names = {}) { // names: the rows skipped for no direction (#2958)

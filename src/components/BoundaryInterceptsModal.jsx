@@ -10,8 +10,8 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
-import { usePrompt } from "./usePrompt.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #1779
+import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #84 — geological architecture layer 3 (drillhole -> geological-boundary intercepts as
 // explicit control points). `intercepts` is computed fresh by ViewerModule's computeIntercepts() every

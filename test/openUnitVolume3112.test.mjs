@@ -26,7 +26,7 @@ test("wiring: addUnitVolumes asks before building the open unit, names it, and s
   const f = v.slice(v.indexOf("const addUnitVolumes = async () => {"), v.indexOf("// TASKS.csv #1139 — the undrilled zones of a unit"));
   assert.match(f, /const ob = lb\.openBelow, openLabel = lb\.block\.labels\.find\(\(l\) => l != null && isOpenUnit\(ob, l\)\)/);
   assert.match(f, /const \{ isOpenUnit, openUnitText \} = await import\("\.\.\/lib\/viewer\/openUnitVolume\.js"\);/, "loaded on use, not at startup");
-  assert.match(f, /const withOpen = openLabel != null && window\.confirm\(tr\("\{unit\} has no modelled base: /);
+  assert.match(f, /const withOpen = openLabel != null && await askConfirm\(tr\("\{unit\} has no modelled base: /);
   assert.match(f, /if \(ot && !withOpen\) return;/);
   assert.match(f, /name: ot \? ot\.name : /);
   assert.match(f, /notice\("\{unit\} was left out: no base is modelled/);

@@ -40,8 +40,8 @@ import { timeAgo } from "./lib/timeAgo.js"; // TASKS.csv #1274
 import { recoveryTabNames } from "./lib/recoveryNames.js"; // TASKS.csv #3047
 import { HIDDEN_TABS } from "./lib/features.js"; // TASKS.csv #3897 — Mine Design switched off
 import { groupModules, TIER_CAPTION, TIER_GROUP_LABEL } from "./lib/moduleTiers.js"; // TASKS.csv #3890
-import { useImportGate } from "./lib/useImportGate.js";
-import { askConfirm, askAlert } from "./lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3931 — every file input waits while a project is coming forward
+import { useImportGate } from "./lib/useImportGate.js"; // TASKS.csv #3931 — every file input waits while a project is coming forward
+import { askConfirm, askAlert } from "./lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and

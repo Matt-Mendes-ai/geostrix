@@ -29,8 +29,8 @@ import { drilledSiteSpacing, holeTraces } from "../lib/evidenceSources.js";
 import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2976 — the minimum spacing starts from the drilling; #3820: the holes' own spacing
 import { traceSpacing } from "../lib/traceSpacing.js"; // TASKS.csv #3820
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
-import NumberInput from "./NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926 — '0,05' and '0.05' both read
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
 

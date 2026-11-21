@@ -6,8 +6,8 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { compileCalc } from "../lib/calcExpr.js"; // TASKS.csv #344
-import { t as tr } from "../lib/i18n.js";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #786
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #222 (QGIS-specialist audit finding: 652ms open + 702ms per-keystroke search block on a
 // 200-hole/8000-interval project, hard 500-row cap with no paging) — two separate fixes. (1) row

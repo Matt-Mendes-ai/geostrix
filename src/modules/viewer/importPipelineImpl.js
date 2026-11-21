@@ -74,8 +74,8 @@ import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
 import { perHoleJoinOf, perHoleAttrs } from "../../lib/perHoleJoin.js"; // TASKS.csv #2399
 import { MACPASS_CREDIT } from "../../lib/sampleCredits.js"; // TASKS.csv #3496
 import { isTable } from "../../lib/rowTable.js"; import { publishedLayers } from "../../lib/tableFields.js"; // TASKS.csv #3140 step 2 — a big log layer held as columns
-import { busyUntilQuiet } from "../../lib/busyUntilQuiet.js";
-import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3539
+import { busyUntilQuiet } from "../../lib/busyUntilQuiet.js"; // TASKS.csv #3539
+import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #3496 — the sample files whose dip sign the sample itself states (negative = down, with real up-holes: positive dips), by File object: the queue
 // goes in unseen on them although a dip is above 0 (#335 asks otherwise). Nothing a user drops is in it.

@@ -31,8 +31,8 @@ import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
 import { topCutCells, topCutRecord } from "../lib/topCutCells.js";
 import { stopeEconomicsSetup, stopeValue, stopeValueCells, NOT_INCLUDED } from "../lib/stopeEconomics.js"; // TASKS.csv #3797 — the optional economics
 import { currencyOf, withCurrency, moneyText } from "../lib/currency.js"; // TASKS.csv #3797 (b)
-import NumberInput from "./NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 

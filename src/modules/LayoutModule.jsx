@@ -110,8 +110,8 @@ const SCALE_PRESETS = [500, 1000, 1500, 2000, 2500, 5000, 7500, 10000, 15000, 20
 import { printPassItems, pagesWithPrintSrcs, PAGE_DPI } from "../lib/layoutPrintPass.js"; // TASKS.csv #2303
 import MapRedrawControl from "../components/MapRedrawControl.jsx"; // TASKS.csv #3491
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
-import NumberInput from "../components/NumberInput.jsx";
-import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926
+import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 let handledPrintSeq = null;

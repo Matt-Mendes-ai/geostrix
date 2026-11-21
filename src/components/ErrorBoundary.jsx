@@ -1,6 +1,6 @@
 import React from "react";
-import { t as tr } from "../lib/i18n.js";
-import { askAlert } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #786
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { askAlert } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // React 18's createRoot has no default error UI: an uncaught error during render unmounts the
 // WHOLE tree and leaves nothing behind but the page background — which in this app is a very dark

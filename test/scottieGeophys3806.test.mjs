@@ -44,7 +44,7 @@ test("#3809: conductivity to resistivity is a 1 / x copy, and relabelling one as
   assert.match(geo, /const reciprocalCopy = \(model\) =>/);
   assert.match(geo, /cells\.push\(\{ \.\.\.c, value: 1 \/ v \}\)/);
   assert.match(geo, /threshold: _t, rangeMax: _r, stretch: _st, \.\.\.rest \} = model;/); // the copy shows every block, not the source's band
-  assert.match(geo, /if \(flip && !window\.confirm\(/);
+  assert.match(geo, /if \(flip && !await askConfirm\(/);
   const bc = fs.readFileSync(new URL("../src/components/BlockCalculatorModal.jsx", import.meta.url), "utf8");
   assert.match(bc, /\{choices\.some\(\(c\) => c\.why\) && \(/);
 });

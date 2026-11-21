@@ -10,8 +10,8 @@ import { makeCompositor } from "./compositeOnRead.js"; // TASKS.csv #2345
 import { makeLogReader } from "./logOnRead.js"; // TASKS.csv #3038
 import { normalizeCommaDecimals } from "./numberLocale.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { arrMax } from "./arrayStats.js";
-import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3031
+import { arrMax } from "./arrayStats.js"; // TASKS.csv #3031
+import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
 
 // Bytes -> text. UTF-8 first (BOM stripped); if that produced replacement characters, the file was not
 // UTF-8 — almost always an Excel export on Windows (Windows-1252: degree signs, accented names).
