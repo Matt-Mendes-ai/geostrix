@@ -76,6 +76,10 @@
         "to": "mcp-bridge.ps1"
       },
       {
+        "from": "electron/mcpToolDefs.json",
+        "to": "mcpToolDefs.json"
+      },
+      {
         "from": "python-sidecar/dist",
         "to": "python-sidecar",
         "filter": [
