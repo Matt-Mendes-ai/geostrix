@@ -118,7 +118,7 @@ test("refusals: a path, a credential, an unknown tool, no project; nothing secre
   assert.ok(!/someone|hunter2|db_password|C:\\\\Users/.test(h), h);
   assert.match(h, /\[path removed\]/);
   assert.deepEqual(scrubbed({ ok: 1, dbPassword: "x", text: "in /home/geo/a.csv" }), { ok: 1, text: "in [path removed]" });
-  assert.deepEqual(TOOL_NAMES.sort(), TOOLS.map((t) => t.name).sort(), "the schemas and the implementation list the same tools");
+  assert.deepEqual(TOOL_NAMES.sort(), TOOLS.filter((t) => !proto.isChangeTool(t)).map((t) => t.name).sort(), "the schemas and the implementation list the same read tools"); // #3932 — the change tools are lib/mcpActions.js's (test/mcpTools3932)
 });
 
 // ---- the protocol and its second set of guards

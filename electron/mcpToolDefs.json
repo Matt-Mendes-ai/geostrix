@@ -113,5 +113,50 @@
       "required": ["section"],
       "additionalProperties": false
     }
+  },
+  {
+    "name": "make_section",
+    "description": "Makes a change in GeoStrix: adds a new cross-section to the project (it shows in StrixViewer's section list), either between two points in the project's coordinates (list_holes gives the collars') or through one hole in its own plane. Nothing is replaced: a name already used gets ' (2)'. Undo in GeoStrix takes it back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 64, "description": "The section's name. Leave out for GeoStrix's own ('Section 1000E 2000N az 90°' / 'Section through DH-23-001 (az 90°)')." },
+        "from": { "type": "object", "properties": { "x": { "type": "number", "description": "Easting (project coordinates)." }, "y": { "type": "number", "description": "Northing (project coordinates)." } }, "required": ["x", "y"], "additionalProperties": false, "description": "The line's first end. Needs 'to'." },
+        "to": { "type": "object", "properties": { "x": { "type": "number", "description": "Easting (project coordinates)." }, "y": { "type": "number", "description": "Northing (project coordinates)." } }, "required": ["x", "y"], "additionalProperties": false, "description": "The line's second end. Needs 'from'." },
+        "along_hole": { "type": "string", "maxLength": 64, "description": "A hole id: the section runs through this hole along its bearing (instead of 'from' and 'to')." },
+        "corridor_m": { "type": "number", "minimum": 1, "maximum": 5000, "description": "The buffer: holes within this distance of the line are drawn (m). Default 100." }
+      },
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "make_sheet",
+    "description": "Makes a change in GeoStrix: adds a new Layout page, one of Layout's one-click sheets: 'plan' (every checked hole on a drill plan with a legend, north arrow and scale bar), 'section' (the newest section picture sent to Layout), 'log' (the newest strip log sent to Layout) or 'intercepts' (the newest Best intercepts table in Layout). The page is printed or exported by the user, from GeoStrix. The toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "enum": ["plan", "section", "log", "intercepts"], "description": "Which sheet." }
+      },
+      "required": ["kind"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "add_best_intercepts",
+    "description": "Makes a change in GeoStrix: computes the best intercepts of one element at a cut-off, exactly as the read tool best_intercepts does (the lab assays without the QC samples, uncut, best first by grade x length), and puts them as a table, with its caveats, on a new Layout page named 'Best intercepts'. The toast's Undo in GeoStrix removes the page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": { "type": "string", "minLength": 1, "maxLength": 32, "description": "The element symbol." },
+        "cutoff": { "type": "number", "minimum": 0, "description": "The cut-off grade, in the unit the project stores the element in." },
+        "min_length": { "type": "number", "minimum": 0, "description": "Shortest intercept to report (m). Default 0." },
+        "max_internal_dilution": { "type": "number", "minimum": 0, "description": "Longest run of below-cut-off material allowed inside an intercept (m). Default 2." }
+      },
+      "required": ["element", "cutoff"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
   }
 ]

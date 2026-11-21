@@ -14481,5 +14481,9 @@
   "AI app: {names}, can make changes": "App d'IA : {names}, peut apporter des modifications",
   "AI app access: on, can make changes": "Accès IA : activé, modifications permises",
   "An AI app can read this project and make changes in it. Click to see what it asked for, or to stop it.": "Une application d'IA peut lire ce projet et y apporter des modifications. Cliquez pour voir ce qu'elle a demandé ou pour l'arrêter.",
-  "{client}: {what}": "{client} : {what}"
+  "{client}: {what}": "{client} : {what}",
+  "added section '{name}'": "a ajouté la coupe « {name} »",
+  "added the Layout page '{name}'": "a ajouté la page de mise en page « {name} »",
+  "added a Best intercepts page ({n} intercepts of {symbol})": "a ajouté une page de meilleures intersections ({n} intersections en {symbol})",
+  "QC samples (standards, blanks, duplicates) are excluded.": "Les échantillons de contrôle (étalons, blancs, doublons) sont exclus."
 }

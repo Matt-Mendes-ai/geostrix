@@ -78,7 +78,7 @@ test("#3932 with the switch off a change tool is listed but refused before the w
   assert.equal(parse(await s.handleLine(callLine(5, "peek", {}))).result.isError, false);
   assert.deepEqual(state.calls.map((c) => c[0]), ["peek"]);
   // the read-only server (no change tool) keeps its old instructions
-  const ro = proto.createSession({ callTool: async () => ({ ok: true, data: {} }), askAllow: async () => "once" });
+  const ro = proto.createSession({ tools: proto.TOOLS.filter((t) => !proto.isChangeTool(t)), callTool: async () => ({ ok: true, data: {} }), askAllow: async () => "once" });
   assert.match(parse(await init(ro)).result.instructions, /^Read-only access/);
 });
 
