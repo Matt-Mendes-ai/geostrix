@@ -43,5 +43,5 @@ test("the shell's params carry it, the notice says so for a thin estimate, and t
   assert.match(v, /const sup = unitSupport\(r\.support\);\n\s+if \(sup\?\.weak\) setNotices/);
   const u = read("src/components/UndrilledZonesPane.jsx");
   assert.match(u, /unit && !support && unit\.type === "geophysical_shell" && <div style=\{note\}>/);
-  assert.match(u, /records no drillhole support/);
+  assert.match(u, /with no drillhole support per cell/);
 });

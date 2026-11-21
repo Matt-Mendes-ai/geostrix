@@ -38,7 +38,7 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
       try { legend = await fetchMacrostratLegend({ bboxLonLat, onProgress: (d, n) => setBusy(tr("Fetching the legend… {d} of {n}", { d, n })) }); } catch (e) { legendErr = e.message; }
       addRaster({ name: "Macrostrat geology (CC BY 4.0)", bbox: r.bbox, dataUrl: r.dataUrl, opacity: 0.7, ...(legend ? { legend } : {}),
         provenance: { tool: "Macrostrat geologic map tiles", source: MACROSTRAT_TILE_URL("{z}", "{x}", "{y}"), zoom: r.zoom, areaLonLat: bboxLonLat, credit: MACROSTRAT_CREDIT, fetched: new Date().toISOString().slice(0, 10) } });
-      setMsg({ ok: !r.failedTiles && !legendErr, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a raster drape: {w} × {h} px, ~{m} m pixels, from {n} tiles at zoom {z}. Turn it off with its eye in GeoTIFF / GXF.", { w: r.width, h: r.height, m: Math.round(r.pixelM), n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: r.failedTiles, total: r.tiles }) : "")
+      setMsg({ ok: !r.failedTiles && !legendErr, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a raster drape: {w} × {h} px, ~{m} m pixels, {n} tiles at zoom {z}. Its eye in GeoTIFF / GXF turns it off.", { w: r.width, h: r.height, m: Math.round(r.pixelM), n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: r.failedTiles, total: r.tiles }) : "")
         + " " + (legend ? tr("Its legend lists {n} map units: open it under the layer, in Maps or in StrixViewer's layer list.", { n: legend.units.length }) : tr("Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.", { message: legendErr })) });
     } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
     setBusy(null);
@@ -49,7 +49,7 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
     try {
       const r = await fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgress: (d, n) => setBusy(tr("Fetching Macrostrat units… {d} of {n}", { d, n })) });
       addMapLayer(r.layer);
-      setMsg({ ok: !r.failedTiles, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a map layer: {p} polygons of {u} units from {n} tiles at zoom {z}. It is listed under Geological Mapping > Geology map, where Model it carries it underground; it drapes on the terrain in the 3D view.", { p: r.polygons, u: r.units, n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} tiles could not be read: their polygons are missing.", { n: r.failedTiles, total: r.tiles }) : "") });
+      setMsg({ ok: !r.failedTiles, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a map layer: {p} polygons of {u} units, {n} tiles at zoom {z}. Find it under Geological Mapping > Geology map; it drapes on the terrain in 3D.", { p: r.polygons, u: r.units, n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} tiles could not be read: their polygons are missing.", { n: r.failedTiles, total: r.tiles }) : "") });
     } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
     setBusy(null);
   };
@@ -66,8 +66,8 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
           <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={note}>{tr("Macrostrat compiles geologic maps from many surveys into one map of the world. Its map is a regional picture at the scale of its sources (often 1:250,000 to 1:1,000,000): use it for context, not for mapping at your property's scale.")}</div>
-          <div style={{ ...note, fontSize: "var(--font-size-xs)" }}>{tr("Data CC BY 4.0. Credit Macrostrat (Peters et al. 2018, doi:10.1029/2018GC007467; Quinn et al. 2023, doi:10.1002/gdj3.189) and the original maps listed below in figures you share.")}</div>
+          <div style={note}>{tr("Macrostrat compiles geologic maps from many surveys into one world map, at the scale of its sources (often 1:250,000 to 1:1,000,000): context, not mapping at your property's scale.")}</div>
+          <div style={{ ...note, fontSize: "var(--font-size-xs)" }}>{tr("Data CC BY 4.0: credit Macrostrat (Peters et al. 2018, doi:10.1029/2018GC007467; Quinn et al. 2023, doi:10.1002/gdj3.189) and the original maps below in shared figures.")}</div>
           {/* #2314 — which area the buttons fetch */}
           <div style={{ ...note, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }} aria-label={tr("Area")}>
             <span style={{ color: "var(--color-text)" }}>{drawn ? tr("Area: drawn on the map, {size}", { size: areaSizeText(drawn) }) : projectBbox ? tr("Area: the project area, {size}", { size: areaSizeText(projectBbox) }) : tr("Area: none yet")}</span>
@@ -77,7 +77,7 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
           {!bboxLonLat && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("No project area yet: draw an area on the map, or load holes, samples or a map first.")}</div>}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button type="button" disabled={!bboxLonLat || !!busy} onClick={addLayer} style={{ ...btn(true), width: "auto", padding: "6px 12px", opacity: bboxLonLat && !busy ? 1 : 0.5 }}>{tr(drawn ? "Add the geology for this area" : "Add the geology for the project area")}</button>
-            {addMapLayer && <button type="button" disabled={!bboxLonLat || !!busy} onClick={addUnits} style={{ ...btn(false), width: "auto", padding: "6px 12px", opacity: bboxLonLat && !busy ? 1 : 0.5 }} title={tr("The picture is the map as Macrostrat draws it, with relief shading. The map layer is its units as polygons: Model it, Identify and the legend can use them.")}>{tr("Add the units as a map layer (for Model it)")}</button>}{/* #2012 */}
+            {addMapLayer && <button type="button" disabled={!bboxLonLat || !!busy} onClick={addUnits} style={{ ...btn(false), width: "auto", padding: "6px 12px", opacity: bboxLonLat && !busy ? 1 : 0.5 }} title={tr("The picture is Macrostrat's own map with relief shading; the map layer is its units as polygons, for Model it, Identify and the legend.")}>{tr("Add the units as a map layer (for Model it)")}</button>}{/* #2012 */}
             <button type="button" disabled={!centre || !!busy} onClick={listUnits} style={{ ...btn(false), width: "auto", padding: "6px 12px", opacity: centre && !busy ? 1 : 0.5 }}>{tr(drawn ? "Map units at the centre of this area" : "Map units at the project centre")}</button>
           </div>
           {busy && <div role="status" style={{ ...note, display: "flex", alignItems: "center", gap: 6 }}><Loader2 size={14} className="spin" />{busy}</div>}

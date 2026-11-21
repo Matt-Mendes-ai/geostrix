@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 test("the no-map note names the logged holes the tool will use", () => {
   const m = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8");
   assert.doesNotMatch(m, /the \{n\} drillhole\(s\) are not used/);
-  assert.match(m, /loggedHoles > 0 \/\* TASKS\.csv #2053[^\n]*\n\s*\? tr\("Once a geological map with unit polygons is loaded, the \{n\} drillhole\(s\) with a lithology log \(of \{m\}\) can be matched to its units here/);
+  assert.match(m, /loggedHoles > 0 \/\* TASKS\.csv #2053[^\n]*\n\s*\? tr\("Once a geological map is loaded, the \{n\} drillhole\(s\) with a lithology log \(of \{m\}\) can be matched to its units here/);
   assert.match(m, /: tr\("None of the \{m\} drillhole\(s\) has a lithology log, so this tool builds from the map and the outcrop measurements only\.", \{ m: holeCount \}\)/);
 });
 

@@ -50,10 +50,10 @@ test("wiring: Undrilled zones, the Evidence reach and the Planned holes' note sa
   const u = read("../src/components/UndrilledZonesPane.jsx");
   assert.match(u, /const spacing = effectiveSpacing\(siteSpacing, holeSp\);/);
   assert.match(u, /defaultCoverM\(spacing\)/);
-  assert.match(u, /Drill sites are typically \{s\} m apart, the holes \{h\} m apart where they are/);
+  assert.match(u, /Drill sites are typically \{s\} m apart and holes \{h\} m apart \(nearest other hole, in 3D\)/);
   const e = read("../src/components/EvidenceOverlayPane.jsx");
   assert.match(e, /traceSpacing\(traces, \{ ids: areaHoleIds \? \[\.\.\.areaHoleIds\] : null \}\)/);
   assert.match(e, /const drillReach = reachSpacing > 0 \? Math\.round\(Math\.min\(1000, Math\.max\(50, 2 \* reachSpacing\)\)\)/);
-  assert.match(read("../src/components/PlannedHoleParts.jsx"), /the holes themselves are \{h\} m apart where they are/);
-  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))["Drill sites are typically {s} m apart, the holes {h} m apart where they are (the nearest other hole, in 3D); covered within starts at half the smaller."], l);
+  assert.match(read("../src/components/PlannedHoleParts.jsx"), /the holes themselves are \{h\} m apart \(nearest other hole, 3D\)/);
+  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))["Drill sites are typically {s} m apart and holes {h} m apart (nearest other hole, in 3D); covered within starts at half the smaller."], l);
 });

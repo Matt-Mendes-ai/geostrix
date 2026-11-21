@@ -13,7 +13,9 @@ test("#1973 no stale text", () => {
   assert.doesNotMatch(vm, /Cuts the visible voxel model\(s\)\/drilling/);
   assert.match(vm, /Also cover the visible block models\\" is ticked, or when there are no drillholes/);
   assert.doesNotMatch(sm, /Style button/);
-  assert.match(sm, /MapInfo TAB \(with its \.map\/\.id\/\.dat\) or MIF \(with its \.mid\), GPX, GeoJSON or KML \/ KMZ/);
-  assert.match(sm, /from a CSV or a MapInfo point table \(TAB or MIF\)/);
+  // the import buttons name every format they read (the info pop-ups no longer list them: #3899)
+  assert.match(sm, /Formats: GeoPackage, shapefile \(\.zip \/ \.shp\), MapInfo \.tab \/ \.mif, \.gpx, \.geojson, \.kml/);
+  assert.match(sm, /Formats: \.csv, \.xlsx, MapInfo \.tab \/ \.mif/);
+  assert.match(sm, /from a CSV or MapInfo point table/);
   for (const p of ["maps", "surface", "targeting"]) assert.doesNotMatch(read(`help/pages/${p}.js`), /Style button|range above \(in/);
 });

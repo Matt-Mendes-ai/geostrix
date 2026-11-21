@@ -95,7 +95,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
     <>
       <TaskPaneHeader title={tr("Unit polygons")} helpId="unit-polygons" icon={Shapes} tone="data" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        <div style={note}>{tr("Draw the outline of a map unit by clicking its corners in the 3D view (Top view works best); a click on the first corner, a double-click or Finish closes it. The polygons are a geology map layer with a unit field: it drapes on the terrain, exports as Shapefile or GeoPackage, prints in the Layout legend, and Model it can build a 3D model from it.")}</div>
+        <div style={note}>{tr("Click the corners of a map unit's outline in the 3D view (Top view works best); a click on the first corner, a double-click or Finish closes it. The polygons form a geology map layer: draped on the terrain, exported as Shapefile or GeoPackage, in the Layout legend, and used by Model it.")}</div>
         {/* TASKS.csv #3368 — with no terrain the polygons lie on the surface through the collars, as the interpretation lines do (#2768) */}
         {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the polygons are draped on the ground between the collars (a surface through the collar elevations), as the interpretation lines are.")}</div>}
         {plan && layer && (onCollars || layer.drapeMode === "flat") && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
@@ -106,7 +106,7 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
             <option value={NEW_LAYER}>{tr("New layer…")}</option>
             {imported.length > 0 && <optgroup label={tr("A copy of an imported layer (the original is not changed)")}>{imported.map((l) => <option key={l.id} value={`copy:${l.id}`}>{tr("Copy of \"{name}\" ({field})", { name: l.name, field: l.styleField })}</option>)}</optgroup>}{/* #2682 */}
           </select></label>
-        {copySrc && <div style={note}>{tr("The first polygon you finish makes a copy of \"{name}\" with all its features, and goes on the copy; the imported layer stays as it was. The unit goes in its {field} field.", { name: copySrc.name, field: copySrc.styleField })}</div>}
+        {copySrc && <div style={note}>{tr("Your first polygon goes on a copy of \"{name}\" with all its features; the imported layer is unchanged. The unit goes in its {field} field.", { name: copySrc.name, field: copySrc.styleField })}</div>}
         {layerId === NEW_LAYER && <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={tr("Geology (drawn)")} aria-label={tr("New layer name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />}
         <input value={unit} onChange={(e) => setUnit(e.target.value)} list="ge-unit-polygon-units" placeholder={tr("Unit (for example Basalt, Rhyolite)")} aria-label={tr("Unit")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         <datalist id="ge-unit-polygon-units">{knownUnits.map((u) => <option key={u} value={u} />)}</datalist>

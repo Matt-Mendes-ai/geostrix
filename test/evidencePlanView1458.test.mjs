@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 test("the pane and its rasters say plan view, and the depth the evidence came from", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.match(p, /<TaskPaneHeader title=\{tr\("Evidence overlay"\)\} helpId="evidence-overlay"/); // the title stays the help page's; the intro line says plan view
-  assert.match(p, /Plan view: every evidence is one value per map cell\./);
+  assert.match(p, /Plan view: each evidence is one value per map cell\./);
   assert.match(p, /The drillhole evidence here comes from holes between \{top\} and \{bottom\} m RL\./);
   assert.match(p, /const drillZ = useMemo\(\(\) => \{ let a = Infinity, b = -Infinity; for \(const t of traces\.values\(\)\)/);
   assert.match(p, /const DRILL_KINDS = new Set\(\["grade", "pxrf", "pick", "numeric", "zone"\]\);/);

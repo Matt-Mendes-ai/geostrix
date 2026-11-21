@@ -51,7 +51,7 @@ test("stacking counts only rasters whose footprint overlaps", () => {
 
 test("the georeferencer asks, and the fetch-area lists mark far layers", () => {
   const r = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.match(r, /if \(drape\.far && !window\.confirm\(tr\("These control points place the picture about \{km\} km from the \{n\} collars/);
+  assert.match(r, /if \(drape\.far && !window\.confirm\(tr\("These control points put the picture about \{km\} km from the \{n\} collars/);
   for (const f of ["../src/modules/RasterModule.jsx", "../src/modules/GeophysicsModule.jsx"]) {
     assert.match(readFileSync(new URL(f, import.meta.url), "utf8"), /label: farLabel\(j\.label, farFromCollars\(\[j\.xmin, j\.ymin, j\.xmax, j\.ymax\], collars\)\)/);
   }

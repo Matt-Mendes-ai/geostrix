@@ -18,5 +18,5 @@ test("A file pre-fills From from the values (after a srid column, before the hea
   assert.match(c, /const frame = !srid \? gridFrameFromRows\(t\.headers, t\.rows\) : null;/);
   assert.match(c, /let implied = srid \? srid\.epsg : named \|\| \(g\.geographic \? 4326 : fromForGridPrefix/);
   assert.match(c, /from the values of its \{col\} column: check both, then save\./);
-  assert.match(c, /names more than one grid \(\{names\}\): the rows are not in one CRS, so From is left for you to choose\./);
+  assert.match(c, /rows from more than one grid \(\{names\}, in \{col\}\), so not one CRS\. Choose From, check the X \/ Y columns, then save\./);
 });

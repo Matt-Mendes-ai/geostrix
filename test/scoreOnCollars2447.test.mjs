@@ -81,7 +81,7 @@ test("the Evidence overlay pane uses the placement and says where the map went",
   const s = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.match(s, /scoreRasterPlacement\(terrain, drilledCollars\(collars\)\.collars, survey, traces, voxelModels\)/ /* voxelModels: #1837 */);
   assert.match(s, /drapeMode: place\.drapeMode/);
-  assert.match(s, /on the ground interpolated between the collars because the project has no terrain; the holes are drawn over it/);
+  assert.match(s, /on the ground interpolated between the collars \(the project has no terrain\)/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /renderer: rendererRef\.current, collars \}\)/);
 });

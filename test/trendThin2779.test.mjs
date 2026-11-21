@@ -36,7 +36,7 @@ test("the context: the median site spacing and the assays' sample length (the in
 test("the Trends panel says it under each trend", () => {
   const m = readFileSync(new URL("../src/components/TrendsPanel.jsx", import.meta.url), "utf8");
   assert.match(m, /trendThinness\(t\.ratios, ctx\.spacingM, ctx\.sampleM\)/);
-  assert.ok(m.includes('tr("At {max} : {int} : {min}, a search that reaches the next drill site ({s} m away) in every direction of the plane is {t} m thick across it, less than a typical sample ({l} m): each block sees only the samples within that distance of its own plane in each hole, often one or none."'));
+  assert.ok(m.includes('tr("At {max} : {int} : {min}, a search reaching the next drill site ({s} m away) is only {t} m thick across the plane, less than a typical sample ({l} m): each block sees few samples, often one or none."'));
 });
 
 test("the grid-hashed site spacing equals a brute-force median nearest-site distance, and fans from one pad are one site", async () => {

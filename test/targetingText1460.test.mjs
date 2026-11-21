@@ -8,7 +8,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 
 test("the score sheet's height reads as an elevation", () => {
   const e = read("../src/components/EvidenceOverlayPane.jsx");
-  assert.ok(e.includes("flat at elevation {z} m (below the deepest hole)") && !e.includes("flat at {z} m below the holes"));
+  assert.ok(e.includes("flat at elevation {z} m below the deepest hole") && !e.includes("flat at {z} m below the holes"));
 });
 
 test("the ranges pane is not only geophysics, and its empty state names both routes", () => {

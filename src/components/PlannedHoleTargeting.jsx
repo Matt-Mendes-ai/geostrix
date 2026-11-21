@@ -137,7 +137,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
             {/* The add form above (TASKS.csv #188) can solve a target when a hole is first created, but
                 only then, and it keeps nothing. This does it for a hole that already exists — the target
-                is SAVED on the hole, so the miss readout stays live while you nudge the collar or angles. */}{tr("The 3D point you want this hole to reach — a modelled contact, the centre of a block-model anomaly, a projected intercept. The target is saved with the hole, so the miss distance below stays live as you edit the collar or angles above. A straight hole reaches any point at exactly its straight-line distance, so the solved orientation is also the shallowest way there.")}</div>
+                is SAVED on the hole, so the miss readout stays live while you nudge the collar or angles. */}{tr("The 3D point this hole should reach (a modelled contact, a block-model anomaly's centre, a projected intercept). It is saved with the hole, so the miss distance below stays live as you edit. The solved orientation is the shallowest way there.")}</div>
           {/* TASKS.csv #524 — expected deviation and a tail past the target */}
           <div style={rowStyle}>
             <TargetField label={tr("Lift °/100 m")} value={hole.lift} onChange={(v) => onUpdate(hole.id, { lift: v })} />

@@ -25,5 +25,5 @@ test("a larger area: the lowest level already at 10 m is named; at 44 km every l
 test("the picker says why, names the level, and what gives finer detail", () => {
   const m = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /const n = levelsAtNative\(bbox, naip \? NAIP_FINEST_M : undefined\);/);
-  assert.match(m, /tr\("Sentinel-2's pixels are 10 m, and \{level\} already fetches them for an area this size: the higher levels would give the same picture\. No finer free imagery is offered here \(NAIP covers the USA only\)\. For finer detail, import an orthophoto as a GeoTIFF \(Maps > GeoTIFF \/ GXF\)\.", \{ level \}\)/);
+  assert.match(m, /tr\("Sentinel-2's pixels are 10 m, and \{level\} already fetches them for an area this size\. For finer detail, import an orthophoto as a GeoTIFF \(Maps > GeoTIFF \/ GXF\)\.", \{ level \}\)/);
 });

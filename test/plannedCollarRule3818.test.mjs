@@ -47,5 +47,5 @@ test("wiring: the vertical-hole line and 'Solve collar' go through the rule; the
   assert.match(p, /if \(judged\?\.far\) \{/);
   assert.match(p, /`solved on \$\{judged \? judged\.source : /);
   assert.doesNotMatch(p, /Number\.isFinite\(ground\(Number\(target\.x\), Number\(target\.y\)\)\)/, "the raw ground is not read for the vertical hole any more");
-  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))["A vertical hole above the target: no collar Elev offered, the nearest collar is {d} away, over three times the site spacing ({s} m). Type the Elev and the length, or load a terrain."], l);
+  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))["Vertical hole above the target, no collar Elev: the nearest collar is {d} away (over 3 × {s} m). Type the Elev and length, or load a terrain."], l);
 });
