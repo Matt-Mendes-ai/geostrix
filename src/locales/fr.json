@@ -14614,5 +14614,6 @@
   "Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.": "Glissez les poignées pour redimensionner (Maj garde la forme, Alt ignore les repères) ; les flèches décalent de 1 mm, Maj+flèche 10 mm.",
   "A sheet in one click": "Une planche en un clic",
   "Or start from the 3D view:": "Ou partez de la vue 3D :",
-  "The sheet is empty: pick a sheet on the page.": "La planche est vide : choisissez une planche sur la page."
+  "The sheet is empty: pick a sheet on the page.": "La planche est vide : choisissez une planche sur la page.",
+  "Rock name (optional)": "Nom de la roche (facultatif)"
 }

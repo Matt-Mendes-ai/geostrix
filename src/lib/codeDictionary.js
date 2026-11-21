@@ -1,7 +1,8 @@
 // TASKS.csv #2163 (WA drillhole review #2148, T15) — a per-project code dictionary: what each logging code of a layer means IN THIS
 // PROJECT. The same code means different rocks in different reports (SA, MB, S, M, SMP...), so there is no global code -> rock table:
 // each entry is the project's own, filled from the description the file logged beside the code where it has one, and editable.
-// Saved with the project as project field `codeDictionary`: { [layerKey]: { [codeKey]: { code, desc, source: "file" | "user" } } }.
+// Saved with the project as project field `codeDictionary`: { [layerKey]: { [codeKey]: { code, desc, name?, source: "file" | "user" } } }
+// (name: the file's rock-name column, #3945; a typed entry has none).
 // Codes are case-folded (codeKey): "Smp" and "SMP" are one entry; `code` keeps the most used spelling. Pure.
 
 export const codeKey = (code) => String(code ?? "").trim().toLowerCase();
@@ -52,16 +53,66 @@ export function descriptionsAreFreeText(rows) {
   return described >= 20 && distinct.size * 2 > described;
 }
 
+// TASKS.csv #3945 (Matt's first-time test) — "it shouldn't add description on the legend. Just code and rock name." The legend, the layer pills, the
+// figure overlay and the section key show 'CODE — rock name': the file's rock-name column (rows' rock_name) where it has one, else the head of the
+// description (its first clause, before a comma, full stop, colon, semicolon or spaced dash, outside brackets), at most SHORT_WORDS words. A
+// description typed in the Code dictionary that is already short is used as written. The whole description stays in Identify, the layer's card
+// and the Code dictionary; the cover / casing role (#3840) still reads all of it (layers.js).
+export const SHORT_WORDS = 5;
+const tidy = (s) => String(s ?? "").trim().replace(/\s+/g, " ");
+const capWords = (s) => { const w = s.split(" "); return w.length <= SHORT_WORDS ? s : `${w.slice(0, SHORT_WORDS).join(" ").replace(/[\s,;:.(-]+$/, "")}…`; };
+export function descriptionHead(text) {
+  const s = tidy(text);
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === "(" || c === "[") depth++;
+    else if ((c === ")" || c === "]") && depth) depth--;
+    else if (depth) continue;
+    else if (c === "," || c === ";" || c === ":" || (c === "." && (i + 1 === s.length || s[i + 1] === " ")) || (c === " " && /^[-–—] /.test(s.slice(i + 1, i + 3)))) {
+      const head = s.slice(0, i).trim();
+      if (head) return head;
+    }
+  }
+  return s;
+}
+export function shortMeaning(entry) {
+  const name = tidy(entry?.name);
+  if (name) return capWords(name);
+  const d = tidy(entry?.desc);
+  if (!d) return "";
+  if (entry.source === "user" && d.split(" ").length <= SHORT_WORDS) return d;
+  return capWords(descriptionHead(d));
+}
+// The rock name the file logged for each code (rows' rock_name, #3945): the only one, or the most used when it is not tied -> Map codeKey -> name
+export function loggedNames(rows) {
+  const by = new Map();
+  for (const r of rows || []) {
+    const k = codeKey(r?.value), n = tidy(r?.rock_name);
+    if (!k || !n) continue;
+    const m = by.get(k) || new Map();
+    m.set(n, (m.get(n) || 0) + 1);
+    by.set(k, m);
+  }
+  const out = new Map();
+  for (const [k, m] of by) {
+    const top = [...m].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+    if (top.length === 1 || top[0][1] > top[1][1]) out.set(k, top[0][0]);
+  }
+  return out;
+}
+
 // The layer's dictionary with an entry added for each code that has none yet and an unambiguous description in rows.
 // Entries already there (from the file or typed) are never replaced. -> { dict (the same object when nothing was added), added }
 export function fillFromRows(dict, rows) {
   const base = dict && typeof dict === "object" ? dict : {};
   const add = {};
   const freeText = descriptionsAreFreeText(rows); // #3206
+  const names = loggedNames(rows); // #3945
   for (const [k, info] of loggedDescriptions(rows)) {
     if (base[k]) continue;
-    const desc = fileDescriptionOf(info, { freeText });
-    if (desc) add[k] = { code: info.code, desc, source: "file" };
+    const name = names.get(k) || "", desc = fileDescriptionOf(info, { freeText }) || name;
+    if (desc) add[k] = { code: info.code, desc, ...(name && name !== desc ? { name } : {}), source: "file" };
   }
   const added = Object.keys(add).length;
   return { dict: added ? { ...base, ...add } : dict || {}, added };

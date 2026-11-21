@@ -44,6 +44,7 @@ export function normInterval(r, mapping, customFields) {
     value: String(r[mapping.value] ?? "Unknown").trim(),
     extra: mapping.extra ? num(r[mapping.extra]) : undefined,
     description: mapping.description ? (String(r[mapping.description] ?? "").trim() || undefined) : undefined,
+    ...(mapping.rock_name ? { rock_name: String(r[mapping.rock_name] ?? "").trim() || undefined } : {}), // TASKS.csv #3945 — the lithology's rock name
     // TASKS.csv #604 — structural zones: intensity as logged (text), alpha in degrees
     ...(mapping.intensity ? { intensity: String(r[mapping.intensity] ?? "").trim() || undefined } : {}),
     ...(mapping.alpha ? { alpha: num(r[mapping.alpha]) } : {}),

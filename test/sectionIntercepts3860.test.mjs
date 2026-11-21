@@ -41,11 +41,11 @@ test("the key names a code from the project's dictionary, cut to the key's row",
   const payload = { intervals: [{ layer: "litho", code: "ALTX", label: "Lithology: ALTX" }, { layer: "litho", code: "AND", label: "Lithology: AND" }, { layer: "litho", code: "SLT", label: "Lithology: SLT" }],
     legendItems: [["Lithology: AND", "#f00"], ["Lithology: ALTX", "#0f0", null, 627], ["Lithology: SLT", "#00f"], ["Alteration: SER", "#999"]] };
   const out = withLithoMeanings(payload);
-  assert.deepEqual(out.legendItems.map((it) => it[0]), ["Lithology: AND — andesite", "Lithology: ALTX — altered, sheared and veined porp…", "Lithology: SLT", "Alteration: SER"]);
+  assert.deepEqual(out.legendItems.map((it) => it[0]), ["Lithology: AND — andesite", "Lithology: ALTX — altered", "Lithology: SLT", "Alteration: SER"]); // #3945: the description's first clause, not all of it
   assert.equal(out.legendItems[1][3], 627, "its pattern kept");
   assert.equal(payload.legendItems[0][0], "Lithology: AND", "the input is not changed");
   const rows = groupSectionLegend(out.legendItems).map((r) => r[0]);
-  assert.ok(rows.includes("ALTX — altered, sheared and veined porp…"), "listed, not counted as too long: " + rows.join(" | "));
+  assert.ok(rows.includes("ALTX — altered"), "listed, not counted as too long: " + rows.join(" | "));
   setLithologyMeanings({});
   assert.equal(withLithoMeanings(payload), payload, "no dictionary: as it was");
 });

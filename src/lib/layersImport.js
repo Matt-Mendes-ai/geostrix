@@ -57,7 +57,7 @@ export const TARGET_SCHEMAS = {
   ], dipConvention: true },
   // TASKS.csv #600 — Lith_Code / Lith1_Code / Rock_Code before the generic "unit": a real ARIS export has
   // Lith_Code (filled) beside Lith_Group_Unit (blank on every row), and "unit" picked the blank one.
-  litho: { label: "Lithology", fields: intervalFields(["lithology", "lith_code", "lith1_code", "lith1_gf_code", "lithcode", "lithology1", "lith1", "rock1", "geol_rock1", "maj_lithcode", "major_lithcode", /* #2153 */ "rock_code", "rock_type", "rocktype", "litho", "lith", "rock", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc", "lith_desc", "lith1_local_comments", /* #3735 */ "lith_name", "lithology_name", "rock_name"]) },
+  litho: { label: "Lithology", fields: intervalFields(["lithology", "lith_code", "lith1_code", "lith1_gf_code", "lithcode", "lithology1", "lith1", "rock1", "geol_rock1", "maj_lithcode", "major_lithcode", /* #2153 */ "rock_code", "rock_type", "rocktype", "litho", "lith", "rock", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc", "lith_desc", "lith1_local_comments", /* #3735 */ "lith_name", "lithology_name", "rock_name"]).concat(/* #3945 — the legend shows the code and this name */ { key: "rock_name", label: "Rock name (optional)", required: false, aliases: ["rock_name", "lith_name", "lithology_name", "lith1_name", "rockname", "lithname"] }) },
   // TASKS.csv #600 — the column names real logging exports use (acQuire / MX Deposit, seen in BC ARIS reports):
   // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
@@ -262,6 +262,7 @@ export function guessMapping(target, headers) {
   // TASKS.csv #2149 — the point-data Depth took FromDepth by substring ("depth" inside it) next to From = FromDepth: an interval table's
   // from / to column is never also its point depth
   if (mapping.depth && (mapping.depth === mapping.from || mapping.depth === mapping.to)) mapping.depth = "";
+  if (mapping.rock_name && mapping.rock_name === mapping.description) mapping.rock_name = ""; // TASKS.csv #3945 — a lone Lith_Name column is the Description (the dictionary reads its head)
   if (target === "custom" && !mapping.value && spectralColumns(headers) >= 4) mapping.value = spectralMineralColumn(headers); // #2339 — the dominant mineral
   // TASKS.csv #2338 — a custom layer with From and To found is an interval table: Casing_Depth is not its point depth
   if (target === "custom" && mapping.from && mapping.to && mapping.depth) mapping.depth = "";

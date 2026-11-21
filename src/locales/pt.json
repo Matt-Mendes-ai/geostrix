@@ -14614,5 +14614,6 @@
   "Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.": "Arraste as alças para redimensionar (Shift mantém a forma, Alt ignora as guias); as setas movem 1 mm, Shift+seta 10 mm.",
   "A sheet in one click": "Uma folha com um clique",
   "Or start from the 3D view:": "Ou comece pela vista 3D:",
-  "The sheet is empty: pick a sheet on the page.": "A prancha está vazia: escolha uma folha na página."
+  "The sheet is empty: pick a sheet on the page.": "A prancha está vazia: escolha uma folha na página.",
+  "Rock name (optional)": "Nome da rocha (opcional)"
 }

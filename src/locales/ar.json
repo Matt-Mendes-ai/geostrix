@@ -14614,5 +14614,6 @@
   "Drag handles to resize (Shift keeps the shape, Alt ignores guides); arrows nudge 1 mm, Shift+arrow 10 mm.": "اسحب المقابض لتغيير الحجم (Shift يحفظ الشكل، Alt يتجاهل الأدلة)؛ والأسهم تحرّك 1 مم، وShift+سهم 10 مم.",
   "A sheet in one click": "لوحة بنقرة واحدة",
   "Or start from the 3D view:": "أو ابدأ من العرض ثلاثي الأبعاد:",
-  "The sheet is empty: pick a sheet on the page.": "اللوحة فارغة: اختر لوحة على الصفحة."
+  "The sheet is empty: pick a sheet on the page.": "اللوحة فارغة: اختر لوحة على الصفحة.",
+  "Rock name (optional)": "اسم الصخر (اختياري)"
 }
