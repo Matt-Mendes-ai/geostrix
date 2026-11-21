@@ -215,6 +215,9 @@ Sign-File $exe
 $engine = @(Get-ChildItem (Join-Path $app "resources\python-sidecar") -Recurse -Filter *.exe)
 if ($engine.Count -eq 0) { Fail "The app has no Python engine executable." }
 foreach ($f in $engine) { Sign-File $f.FullName }
+# TASKS.csv #3925 — the AI-app bridge script (resources\mcp-bridge.ps1): signed like the executables, so a changed copy is told apart
+if (-not (Test-Path (Join-Path $app "resources\mcp-bridge.ps1"))) { Fail "The app has no resources\mcp-bridge.ps1." }
+Sign-File (Join-Path $app "resources\mcp-bridge.ps1")
 
 Step "Packaging and signing the installer and zip"
 $out = Join-Path $work "out"

@@ -1748,9 +1748,17 @@ ipcMain.handle("mcp-set-enabled", (e, req) => (fromMainWindow(e) ? mcp().setEnab
 ipcMain.handle("mcp-stop", (e) => (fromMainWindow(e) ? mcp().setEnabled(false, !!readPrefs().mcp?.remember) : { ok: false, error: "Not allowed." }));
 ipcMain.handle("mcp-forget-clients", (e) => (fromMainWindow(e) ? mcp().forgetClients() : { ok: false, error: "Not allowed." }));
 ipcMain.on("mcp-respond", (e, msg) => { if (fromMainWindow(e) && mcpHost && Number.isInteger(msg?.id)) mcpHost.respond(msg.id, msg.payload); });
-ipcMain.handle("mcp-config", (e) => { // the entry an AI app's config takes (Claude Desktop: claude_desktop_config.json): this executable run as Node on electron/mcpBridgeCli.js (a GUI program has no stdin; see that file)
+ipcMain.handle("mcp-config", (e) => { // the entry an AI app's config takes (Claude Desktop: claude_desktop_config.json)
   if (!fromMainWindow(e)) return null;
-  const args = [path.join(app.getAppPath(), "electron", "mcpBridgeCli.js")], env = { ELECTRON_RUN_AS_NODE: "1", GEOSTRIX_USER_DATA: app.getPath("userData") };
+  // TASKS.csv #3925 — on Windows the bridge is the bundled resources\mcp-bridge.ps1 run by Windows PowerShell: the entry used to run this executable as Node
+  // (ELECTRON_RUN_AS_NODE), and the packaged build's RunAsNode fuse is OFF (kept off, package.json electronFuses), so the exe booted as a second GUI app and
+  // never spoke MCP. The script relays stdin / stdout to the running app's pipe (endpoint.json), byte for byte, and never starts GeoStrix.
+  if (process.platform === "win32") {
+    const script = app.isPackaged ? path.join(process.resourcesPath, "mcp-bridge.ps1") : path.join(app.getAppPath(), "electron", "mcp-bridge.ps1");
+    const command = "powershell.exe", args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script], env = { GEOSTRIX_USER_DATA: app.getPath("userData") };
+    return { command, args, env, text: JSON.stringify({ mcpServers: { geostrix: { command, args, env } } }, null, 2) };
+  }
+  const args = [path.join(app.getAppPath(), "electron", "mcpBridgeCli.js")], env = { ELECTRON_RUN_AS_NODE: "1", GEOSTRIX_USER_DATA: app.getPath("userData") }; // elsewhere: as before (no Windows fuse build ships there)
   return { command: process.execPath, args, env, text: JSON.stringify({ mcpServers: { geostrix: { command: process.execPath, args, env } } }, null, 2) };
 });
 
