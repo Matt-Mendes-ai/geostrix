@@ -1,4 +1,5 @@
-import SaveRecoveredModal from "./components/SaveRecoveredModal.jsx"; // TASKS.csv #3638 — small, drawn only while the question is open
+import { lazyPart } from "./lib/lazyModal.jsx"; // TASKS.csv #3961
+const SaveRecoveredModal = lazyPart(() => import("./components/SaveRecoveredModal.jsx")); // TASKS.csv #3638 — drawn only while the question is open; #3961: loaded then
 import { prewarmAdaptiveMesh } from "./lib/viewer/sceneBuilders.js"; // TASKS.csv #3588 (8)
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { sampleStatus } from "./lib/desktop.js"; // TASKS.csv #3100
