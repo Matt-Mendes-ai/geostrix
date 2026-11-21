@@ -18,7 +18,7 @@ import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisCh
 import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
 import { capUndoTables, tableCapNotice } from "./undoTableCap.js"; // TASKS.csv #2894
-import { pageAfterUndo } from "./layoutPageUndo.js"; // TASKS.csv #3935
+import { pageAfterUndo, creditIntoSteps } from "./layoutPageUndo.js"; // TASKS.csv #3935
 import { calcUndoToken, applyCalcUndo } from "./calcUndo.js"; // TASKS.csv #3110
 import { rowsOf, isTable } from "./rowTable.js"; import { publishedLayers, internalLayers, elementsWithValuesOf } from "./tableFields.js"; // TASKS.csv #3424 — the store adapter
 import { noteRemovedLayers, releaseUnheld, noteRemovedItems, releaseUnheldItems, noteClosedTabs, releaseClosedTabs } from "./mapLayerRelease.js"; // TASKS.csv #2824; the others: #3881
@@ -423,7 +423,9 @@ export function StoreProvider({ children }) {
     : Promise.all([import("./credits.js"), import("./creditLine.js")]).then(([c, l]) => (creditModRef.current = { projectCredits: c.projectCredits, withCreditPages: l.withCreditPages })));
   // the pages, each given the {credits} text when the project has a credit and the page does not print one; null while the code is not here yet
   const creditedNow = (pages) => { const m = creditModRef.current; if (!m) return null; const st = creditStateRef.current; return m.withCreditPages(pages, m.projectCredits(st.terrain, st.rasters, st.dataCredit) || false); };
-  const creditLater = (ids) => loadCreditMod().then(() => setLayoutPages((pgs) => pgs.map((pg) => (ids.includes(pg.id) ? creditedNow([pg])[0] : pg)))).catch(() => { /* the export still warns of a page with no credit (#3636) */ });
+  // TASKS.csv #3935 — a system refresh, not an undo step: the undo watcher writes the credit into every step holding these pages (creditRefreshIds)
+  const creditRefreshIds = useRef(null);
+  const creditLater = (ids) => loadCreditMod().then(() => { creditRefreshIds.current = ids; setLayoutPages((pgs) => pgs.map((pg) => (ids.includes(pg.id) ? creditedNow([pg])[0] : pg))); }).catch(() => { /* the export still warns of a page with no credit (#3636) */ });
   useEffect(() => { loadCreditMod().catch(() => {}); }, []);
   const addRaster = useCallback((raster) => {
     const id = `raster_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -1775,6 +1777,12 @@ export function StoreProvider({ children }) {
   });
 
   useLayoutEffect(() => {
+    // TASKS.csv #3935 (Main) — the data credit added late to a page is not a step (Ctrl+Z must never take it off): it goes into every step that holds the page
+    if (creditRefreshIds.current) {
+      const ids = creditRefreshIds.current; creditRefreshIds.current = null;
+      creditIntoSteps([...undoPast.current, ...undoFuture.current, undoBeforeBurst.current, undoPrevSnapshot.current], ids, (pg) => creditedNow([pg])?.[0]);
+      if (!undoApplying.current) { undoPrevSnapshot.current = undoSnapshot(); return; }
+    }
     if (undoApplying.current) { undoPrevSnapshot.current = undoSnapshot(); setActiveTabDirty(true); return; }
     const current = undoSnapshot();
     if (undoRebaseline.current) { undoRebaseline.current = false; undoPrevSnapshot.current = current; return; } // #478 — a load / new is not an edit

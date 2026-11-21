@@ -4,7 +4,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { pageAfterUndo } from "../src/lib/layoutPageUndo.js";
+import { pageAfterUndo, creditIntoSteps } from "../src/lib/layoutPageUndo.js";
+import { withCreditPages, pagePrintsCredit } from "../src/lib/creditLine.js";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const pg = (id, elements = []) => ({ id, name: id, elements });
@@ -56,4 +57,56 @@ test("each step remembers its page; Undo and Redo show it; the history keeps the
   const snap = s.slice(s.indexOf("const undoSnapshot = () =>"), s.indexOf("\n", s.indexOf("const undoSnapshot = () =>")));
   assert.match(snap, /snap\[k\] = live\[k\]/);
   assert.doesNotMatch(snap, /structuredClone|JSON\.|\.\.\.live/);
+});
+
+// Main's rule (#3935): a data credit the store adds to a page late (its code arrived after the page) is a system refresh. Ctrl+Z must never take it
+// off a page: the credit is required on the pages of the licensed and CC BY samples.
+const credit = (p) => withCreditPages([p], "Contains data from a synthetic test source.")[0];
+const prints = (p) => pagePrintsCredit(p.elements);
+
+test("a late credit is written into every step that holds the page, and only those", () => {
+  const p1 = pg("p1", [{ id: "t", type: "text", text: "Title" }]), p2 = pg("p2");
+  const holds = { layoutPages: [p1, p2] }, other = { layoutPages: [p1] };
+  const n = creditIntoSteps([holds, other, holds, null], ["p2"], credit);
+  assert.equal(n, 1); // the same step met twice (the burst and the baseline can be one object) is changed once
+  assert.ok(prints(holds.layoutPages[1]));
+  assert.equal(holds.layoutPages[0], p1); // the other pages are the same objects: nothing copied
+  assert.equal(other.layoutPages[0], p1); assert.equal(other.layoutPages.length, 1);
+  const already = credit(pg("p3")), st = { layoutPages: [already] };
+  creditIntoSteps([st], ["p3"], credit);
+  assert.equal(st.layoutPages[0], already); // a page that prints the credit already stays as it is
+});
+
+test("an Undo or Redo never removes a credit the system added (a model of the store's history)", () => {
+  // the history as the store keeps it: past / future snapshots; an undo pushes the live state to future and puts the top of past back
+  let live = { layoutPages: [pg("p1")] };
+  const past = [], future = [];
+  const step = (next) => { past.push(live); future.length = 0; live = next; };
+  step({ layoutPages: [pg("p1", [{ id: "a", type: "text", text: "A" }])] }); // the user's edit on page 1
+  step({ layoutPages: [...live.layoutPages, pg("p2", [{ id: "plan", type: "drillplan" }])] }); // a sheet added before the credit's code arrived
+  step({ layoutPages: [live.layoutPages[0], { ...live.layoutPages[1], elements: [...live.layoutPages[1].elements, { id: "b", type: "text", text: "B" }] }] }); // an edit on it
+  // the credit arrives: the live page gets it, and so does every step holding the page; no step is added for it
+  const before = past.length;
+  live = { layoutPages: live.layoutPages.map((p) => (p.id === "p2" ? credit(p) : p)) };
+  creditIntoSteps([...past, ...future, live], ["p2"], credit);
+  assert.equal(past.length, before, "the credit is not an undo step of its own");
+  const check = (when) => { const p2 = live.layoutPages.find((p) => p.id === "p2"); if (p2) assert.ok(prints(p2), `${when}: page 2 lost its credit`); };
+  check("now");
+  let seen = 0;
+  while (past.length) { future.push(live); live = past.pop(); check(`undo, ${past.length} left`); if (live.layoutPages.some((p) => p.id === "p2")) seen++; }
+  assert.equal(seen, 1); // the step before the edit on page 2 holds the page, with its credit; the steps before the sheet have no page 2
+  while (future.length) { past.push(live); live = future.pop(); check(`redo, ${future.length} left`); }
+  assert.equal(live.layoutPages[1].elements.filter((e) => e.text === "{credits}").length, 1); // and once, not twice
+});
+
+test("the store marks the late credit as a system refresh, and its watcher folds it into the history without a step", () => {
+  const s = read("../src/lib/store.jsx");
+  assert.match(s, /const creditLater = \(ids\) => loadCreditMod\(\)\.then\(\(\) => \{ creditRefreshIds\.current = ids; setLayoutPages\(/);
+  const at = s.indexOf("  useLayoutEffect(() => {\n    // TASKS.csv #3935 (Main)");
+  assert.ok(at > 0, "the credit branch is the watcher's first check (before an Undo being applied)");
+  const branch = s.slice(at, s.indexOf("    if (undoApplying.current) {", at));
+  assert.match(branch, /creditIntoSteps\(\[\.\.\.undoPast\.current, \.\.\.undoFuture\.current, undoBeforeBurst\.current, undoPrevSnapshot\.current\], ids,/);
+  assert.match(branch, /creditRefreshIds\.current = null;/); // used once
+  assert.match(branch, /undoPrevSnapshot\.current = undoSnapshot\(\); return;/);
+  assert.doesNotMatch(branch, /commitUndoBurst|undoBeforeBurst\.current = /); // no step, and no burst started
 });
