@@ -19,7 +19,7 @@ test("every reader gets the project's map, and the panel writes it through the s
   const rd = (f) => fs.readFileSync(new URL(f, import.meta.url), "utf8");
   const v = rd("../src/modules/ViewerModule.jsx");
   assert.ok(v.includes("outcropLegendGroup({ surfaceStructures, symbolByType: store.project?.structureSymbolByType /* #3094 */ })"));
-  assert.ok(v.includes("flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */ })"));
+  assert.ok(v.includes("flatZ: surfaceFlatZ, symbolByType: store.project?.structureSymbolByType /* #3094 */, mpp: metresPerPixel("));  // #3844: the zoom's floor follows
   assert.ok(v.includes("store.project?.structureSymbolByType /* #3094 */, rebuildSeq, deferRound]"));
   assert.ok(rd("../src/modules/LayoutModule.jsx").includes("outcropLegendGroup({ surfaceStructures, symbolByType: project?.structureSymbolByType })"));
   assert.ok(rd("../src/lib/projectKmzExport.js").includes("symbolByType: project.structureSymbolByType /* #3094 */"));

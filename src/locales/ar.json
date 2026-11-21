@@ -14403,5 +14403,17 @@
   "Click at least 2 points along the drawn topography line to fit at each point.": "انقر نقطتين على الأقل على امتداد خط التضاريس المرسوم للملاءمة عند كل نقطة.",
   "Two clicks are in the same column of the picture: remove one of them.": "نقرتان في عمود الصورة نفسه: احذف إحداهما.",
   "The picture has no height in metres.": "لا ارتفاع للصورة بالأمتار.",
-  " (fitted at {n} points)": " (مُلاءمة عند {n} نقاط)"
+  " (fitted at {n} points)": " (مُلاءمة عند {n} نقاط)",
+  "Only readings in the view": "القراءات الظاهرة في العرض فقط",
+  "Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)": "فقط القراءات التي تقع فوهتها أو نقطة تكشفها في نافذة العرض ثلاثي الأبعاد الآن (نقطة أرضية عند مستوى المشهد)",
+  "Inside a boundary": "داخل حدّ",
+  "Boundary the readings are inside": "الحدّ الذي تقع القراءات داخله",
+  "Anywhere": "في أي مكان",
+  "Dip tick (type not given)": "علامة الميل (النوع غير محدد)",
+  "Breccia (small cross)": "بريشيا (صليب صغير)",
+  "Write the number with one decimal mark and no thousands separator, e.g. 1234.5": "اكتب الرقم بعلامة عشرية واحدة ودون فاصل للآلاف، مثل 1234.5",
+  "This is not a number: use digits and one decimal mark, e.g. 0.05 or 0,05": "هذا ليس رقماً: استخدم الأرقام وعلامة عشرية واحدة، مثل 0.05 أو 0,05",
+  "Enter a number from {min} to {max}": "أدخل رقماً من {min} إلى {max}",
+  "Enter a number of {min} or more": "أدخل رقماً {min} أو أكثر",
+  "Enter a number of {max} or less": "أدخل رقماً {max} أو أقل"
 }

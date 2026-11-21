@@ -37,6 +37,19 @@ export function areaEntries(picks) {
   return m.size < 2 ? [] : [...m].map(([key, n]) => ({ key, n })).sort((a, b) => b.n - a.n || (a.key < b.key ? -1 : 1));
 }
 
+// TASKS.csv #3843 (Matt's decision 2026-11-20) — where the readings are: the picks the view shows (a ground point in the window), and those inside a
+// project boundary. A downhole pick is placed at its hole's collar (collarXY: hole id -> { x, y }), an outcrop reading at its own x, y; a pick with no
+// position is kept out of a place filter. locate: { inView(x, y) -> bool | null, boundary: polylines | null, collarXY: Map }
+export function pickXY(p, collarXY) {
+  if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) return { x: p.x, y: p.y };
+  const c = collarXY?.get?.(p?.hole_id);
+  return c && Number.isFinite(c.x) && Number.isFinite(c.y) ? c : null;
+}
+export function keepWhere(picks, locate, pointInBoundary) {
+  if (!locate || (!locate.inView && !locate.boundary)) return picks;
+  return (picks || []).filter((p) => { const q = pickXY(p, locate.collarXY); return !!q && (!locate.inView || locate.inView(q.x, q.y)) && (!locate.boundary || pointInBoundary(q.x, q.y, locate.boundary)); });
+}
+
 // one pick against the Structure type value ('all', a type key, or 'class:<class>') and the area ('all' or an area)
 export function keepPick(p, typeFilter, area = "all") {
   if (area !== "all" && p.group !== area) return false;

@@ -14403,5 +14403,17 @@
   "Click at least 2 points along the drawn topography line to fit at each point.": "Haga clic en al menos 2 puntos a lo largo de la línea topográfica dibujada para ajustar en cada punto.",
   "Two clicks are in the same column of the picture: remove one of them.": "Dos clics están en la misma columna de la imagen: elimine uno.",
   "The picture has no height in metres.": "La imagen no tiene altura en metros.",
-  " (fitted at {n} points)": " (ajustada en {n} puntos)"
+  " (fitted at {n} points)": " (ajustada en {n} puntos)",
+  "Only readings in the view": "Solo lecturas en la vista",
+  "Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)": "Solo las lecturas cuyo collar o punto de afloramiento está ahora en la ventana de la vista 3D (un punto del terreno al nivel de la escena)",
+  "Inside a boundary": "Dentro de un límite",
+  "Boundary the readings are inside": "Límite dentro del cual están las lecturas",
+  "Anywhere": "En cualquier lugar",
+  "Dip tick (type not given)": "Marca de buzamiento (tipo no indicado)",
+  "Breccia (small cross)": "Brecha (cruz pequeña)",
+  "Write the number with one decimal mark and no thousands separator, e.g. 1234.5": "Escriba el número con una sola marca decimal y sin separador de miles, p. ej. 1234.5",
+  "This is not a number: use digits and one decimal mark, e.g. 0.05 or 0,05": "Esto no es un número: use dígitos y una marca decimal, p. ej. 0.05 o 0,05",
+  "Enter a number from {min} to {max}": "Escriba un número de {min} a {max}",
+  "Enter a number of {min} or more": "Escriba un número de {min} o más",
+  "Enter a number of {max} or less": "Escriba un número de {max} o menos"
 }
