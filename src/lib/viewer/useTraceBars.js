@@ -48,6 +48,6 @@ export function useTraceBars({ groupsRef, tracesRef, tracesSeq, mnlgy, mnlgyStyl
     }
     }).catch(() => { /* offline chunk: no bars */ });
     return () => { gone = true; };
-  }, [mnlgy, minChosen, mnlgyOn, assays, assaySyms, asOn, assayOn, assayElements, tracesSeq]); // eslint-disable-line react-hooks/exhaustive-deps -- the shown / colour callbacks are read when it builds
+  }, [mnlgy, minChosen, mnlgyOn, assays, assaySyms, asOn, assayOn, assayElements, tracesSeq]); // the shown / colour callbacks are read when it builds
   useEffect(() => () => { const g = groupRef.current; if (!g) return; while (g.children.length) dispose(g.children.pop()); g.parent?.remove(g); }, []);
 }
