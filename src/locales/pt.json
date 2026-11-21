@@ -14665,5 +14665,6 @@
   "Each group (Lithology, Alteration, ...) becomes a legend of its own, bound to the same view": "Cada grupo (Litologia, Alteração, ...) vira uma legenda própria, vinculada à mesma vista",
   "The legends bound to this view on this page become one again": "As legendas vinculadas a esta vista nesta página voltam a ser uma",
   "Split into {n} legends, one per group: each one is moved, sized and loaded from its view on its own.": "Dividida em {n} legendas, uma por grupo: cada uma é movida, dimensionada e carregada da sua vista separadamente.",
-  "Joined {n} legends into one.": "{n} legendas foram juntadas em uma."
+  "Joined {n} legends into one.": "{n} legendas foram juntadas em uma.",
+  "Drag to move this row; a group heading moves its whole group": "Arraste para mover esta linha; um cabeçalho de grupo move o grupo inteiro"
 }
