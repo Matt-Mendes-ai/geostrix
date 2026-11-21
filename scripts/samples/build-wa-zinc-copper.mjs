@@ -4,17 +4,19 @@
 // stream-sediment samples of the same year. The report also lists 49 older holes (1991 to 2006) as collars with no logs or assays in
 // the database; they are left out. Nothing is invented.
 //
-//   node scripts/samples/build-wa-zinc-copper.mjs "<path to the report's csv folder>"
+//   node scripts/samples/build-wa-zinc-copper.mjs "<path to the report's csv folder>" "<path to the review's profile collar.sqlite>"
 //
 // The folder is the WA drillhole review's per-report export (docs/ideas/wa-drillhole-database-review.md): collars.csv, survey.csv,
 // geology.csv, alteration.csv, mineralogy.csv, assays.csv, and surface.csv (the report's surface samples, one row per sample), all
-// with the company's column names and values verbatim.
+// with the company's column names and values verbatim. The second input is the review's collar profile (profile\collar.sqlite, read
+// with Node's built-in node:sqlite): the State's core CollarCoordinate rows, where the company's own MGAE / MGAN went (TASKS.csv #3884).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import Papa from "papaparse";
+import proj4 from "proj4";
 
-const src = process.argv[2];
-if (!src || !existsSync(src)) { console.error("usage: node scripts/samples/build-wa-zinc-copper.mjs <path to the report's csv folder>"); process.exit(1); }
+const src = process.argv[2], profile = process.argv[3];
+if (!src || !existsSync(src) || !profile || !existsSync(profile)) { console.error("usage: node scripts/samples/build-wa-zinc-copper.mjs <path to the report's csv folder> <path to the review's profile collar.sqlite>"); process.exit(1); }
 const out = path.resolve("sample_data/wa_zinc_copper");
 mkdirSync(out, { recursive: true });
 const read = (p) => Papa.parse(readFileSync(path.join(src, p), "utf8").replace(/^﻿/, ""), { header: true, skipEmptyLines: true }).data;
@@ -28,13 +30,29 @@ const write = (name, header, rows) => {
 
 // collars: the holes that have a log. GDA94 / MGA zone 50 (EPSG:28350) on every one of them (the source's DATUM / ORIG_COORD columns);
 // the company's RL; the prospect name kept as an attribute (the four prospects lie along 16 km).
+// TASKS.csv #3884 — x / y are the company's own MGAE / MGAN. The per-report collars.csv has only AMGE / AMGN, and those are AGD84 /
+// AMG zone 50 coordinates (read as MGA, every hole sat 211 m south-west of the State's position and of its own soils). MGAE / MGAN went
+// to the State's core CollarCoordinate table, so they are read from the review's profile; each is checked against AMGE / AMGN moved
+// from AGD84 to GDA94 (EPSG:1280, about 1 m) before it is used. The RL is the company's, untouched: the report header says AHD, yet
+// the RLs sit about 15-25 m below the public terrain, and the source does not say why.
 const geo = read("geology.csv");
 const logged = new Set(geo.map((r) => txt(r.HOLE)));
 const allCollars = read("collars.csv");
 const kept = allCollars.filter((r) => logged.has(txt(r.HOLE)));
 if (kept.some((r) => txt(r.DATUM) !== "GDA94" || txt(r.ORIG_COORD) !== "MGA50" || txt(r.ZONE) !== "50")) throw new Error("a logged hole is not on GDA94 / MGA50: decide how to bring it in");
-const collars = kept.map((r) => ({ hole_id: txt(r.HOLE), x: num(r.AMGE), y: num(r.AMGN), z: num(r.RL), length: num(r.TOTAL_DTH), hole_type: txt(r.DRILL_TYPE), prospect: txt(r.PROSPECT), epsg: 28350 }))
-  .filter((r) => r.hole_id && r.x != null && r.y != null && r.z != null && r.length != null);
+const { DatabaseSync } = await import("node:sqlite");
+const db = new DatabaseSync(profile, { readOnly: true });
+const mga = new Map(db.prepare("SELECT c.company_hole_id AS hole, cc.easting AS e, cc.northing AS n, cc.datum AS datum, cc.projection AS proj, cc.zone AS zone FROM collar c JOIN collar_coord cc ON cc.collar_id = c.id WHERE c.anumber = 77713").all().map((r) => [r.hole, r]));
+db.close();
+const AMG50 = "+proj=utm +zone=50 +south +ellps=aust_SA +towgs84=-117.763,-51.51,139.061,0.292,0.443,0.277,-0.191 +units=m +no_defs";
+const MGA50 = "+proj=utm +zone=50 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs";
+const collars = kept.map((r) => {
+  const h = txt(r.HOLE), m = mga.get(h);
+  if (!m || m.datum !== "GDA94" || m.proj !== "MGA" || String(m.zone) !== "50") throw new Error(`${h}: no GDA94 / MGA 50 coordinate in the profile`);
+  const [ex, ny] = proj4(AMG50, MGA50, [num(r.AMGE), num(r.AMGN)]);
+  if (Math.hypot(ex - m.e, ny - m.n) > 5) throw new Error(`${h}: MGAE / MGAN and AMGE / AMGN disagree by ${Math.hypot(ex - m.e, ny - m.n).toFixed(1)} m`);
+  return { hole_id: h, x: m.e, y: m.n, z: num(r.RL), length: num(r.TOTAL_DTH), hole_type: txt(r.DRILL_TYPE), prospect: txt(r.PROSPECT), epsg: 28350 };
+}).filter((r) => r.hole_id && r.x != null && r.y != null && r.z != null && r.length != null);
 write("collars.csv", ["hole_id", "x", "y", "z", "length", "hole_type", "prospect", "epsg"], collars);
 console.log(`  ${allCollars.length - collars.length} of the report's ${allCollars.length} collars have no log and are left out`);
 const holes = new Map(collars.map((c) => [c.hole_id, c]));
