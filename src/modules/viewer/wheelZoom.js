@@ -75,17 +75,43 @@ export function boxOnRay(ray, boxes) {
   return best < Infinity ? { x: o.x + d.x * best, y: o.y + d.y * best, z: o.z + d.z * best } : null;
 }
 
+// TASKS.csv #3927 — zoom stuck: each notch scales the orbit about the point under the cursor, so zooming in on the ground converged the camera ONTO
+// that point, down to a 5 cm orbit; the near plane (1 % of the orbit, at least 10 cm) then cut the ground away (the view looked up at the terrain's
+// underside), the scale bar read 1 cm, and each notch moved about a centimetre (some 80 notches to get back out). Now the closest the orbit and the
+// camera come to the point aimed at is tied to the scene's size (sceneMinRadius: 1 / 5,000 of the drawn holes' and models' extent, 0.5 m to 25 m),
+// and a step that would bring the camera closer than that to the point stops there; a camera already closer is lifted back out at the first notch.
+export const MIN_ORBIT_M = 0.5, MAX_MIN_ORBIT_M = 25;
+export const sceneMinRadius = (size) => Math.min(MAX_MIN_ORBIT_M, Math.max(MIN_ORBIT_M, (Number(size) || 0) / 5000));
+// the diagonal of the box around the anchors (x, y, z, ...) and the boxes (minx, miny, minz, maxx, maxy, maxz, ...); 0 with neither
+export function sceneSizeOf(anchors, boxes) {
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  const take = (x, y, z) => { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z; };
+  for (let i = 0; anchors && i + 2 < anchors.length; i += 3) take(anchors[i], anchors[i + 1], anchors[i + 2]);
+  for (let i = 0; boxes && i + 5 < boxes.length; i += 6) { take(boxes[i], boxes[i + 1], boxes[i + 2]); take(boxes[i + 3], boxes[i + 4], boxes[i + 5]); }
+  return x1 >= x0 ? Math.hypot(x1 - x0, y1 - y0, z1 - z0) : 0;
+}
+
 // e: the wheel event; el: the canvas; raycaster: a THREE.Raycaster; cs: { radius, target }; hitPoint(raycaster) -> a point or null
-export function wheelZoom(e, el, camera, raycaster, cs, hitPoint, { min = 0.05, max = 4000000, rate = 0.0012, anchors = null, boxes = null } = {}) {
-  const r0 = cs.radius, r1 = Math.max(min, Math.min(max, r0 * (1 + e.deltaY * rate)));
-  cs.radius = r1;
-  if (r1 === r0 || !el || !camera || !raycaster) return;
+// min: the closest orbit (default: from the scene's size, #3927)
+export function wheelZoom(e, el, camera, raycaster, cs, hitPoint, { min = null, max = 4000000, rate = 0.0012, anchors = null, boxes = null } = {}) {
+  let A = null, B = null;
+  try { A = typeof anchors === "function" ? anchors() : anchors; } catch { A = null; }
+  try { B = typeof boxes === "function" ? boxes() : boxes; } catch { B = null; }
+  const lo = Number.isFinite(min) ? min : sceneMinRadius(sceneSizeOf(A, B));
+  const r0 = cs.radius;
+  let r1 = Math.max(lo, Math.min(max, r0 * (1 + e.deltaY * rate)));
+  if (r1 === r0 || !el || !camera || !raycaster) { cs.radius = r1; return; }
   const rect = el.getBoundingClientRect();
-  if (!(rect.width > 0) || !(rect.height > 0)) return;
+  if (!(rect.width > 0) || !(rect.height > 0)) { cs.radius = r1; return; }
   raycaster.setFromCamera({ x: ((e.clientX - rect.left) / rect.width) * 2 - 1, y: -((e.clientY - rect.top) / rect.height) * 2 + 1 }, camera);
   let p = null;
   try { p = hitPoint ? hitPoint(raycaster) : null; } catch { p = null; }
-  if (!p && anchors) { try { p = anchorOnRay(raycaster.ray, camera, typeof anchors === "function" ? anchors() : anchors, rect, e.clientX, e.clientY); } catch { p = null; } } // #3247 — a miss: the holes' own depth before the plane
-  if (!p && boxes) { try { p = boxOnRay(raycaster.ray, typeof boxes === "function" ? boxes() : boxes); } catch { p = null; } } // #3669 — no hole near: a block model it crosses
-  scaleTargetAbout(cs.target, p || rayPlaneY(raycaster.ray, cs.target.y), r0, r1);
+  if (!p && A) { try { p = anchorOnRay(raycaster.ray, camera, A, rect, e.clientX, e.clientY); } catch { p = null; } } // #3247 — a miss: the holes' own depth before the plane
+  if (!p && B) { try { p = boxOnRay(raycaster.ray, B); } catch { p = null; } } // #3669 — no hole near: a block model it crosses
+  const q = p || rayPlaneY(raycaster.ray, cs.target.y);
+  // #3927 — the camera moves toward q by the same ratio as the orbit: never closer to it than the scene's minimum (so never through what it aimed at)
+  const cp = camera.position, d = q && cp ? Math.hypot(cp.x - q.x, cp.y - q.y, cp.z - q.z) : 0;
+  if (r1 < r0 && d > 0 && (d * r1) / r0 < lo) r1 = Math.min(r0, (r0 * lo) / d);
+  cs.radius = r1;
+  if (r1 !== r0) scaleTargetAbout(cs.target, q, r0, r1);
 }

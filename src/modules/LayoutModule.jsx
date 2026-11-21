@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { customLegendGroups } from "../lib/customColour.js"; // TASKS.csv #2472
+import RibbonMenu from "../components/RibbonMenu.jsx"; // TASKS.csv #3928
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { MapPinned, Sheet, Rows3, Scissors, Plus, X, Maximize2, Image as ImageIcon, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, Download, Upload, HardDrive } from "../components/icons.js";
@@ -1416,9 +1417,10 @@ export default function LayoutModule() {
           </RibbonGroup>
         </Ribbon>
         {addMenu && ( /* TASKS.csv #3912 — the Add button's menu (outside the ribbon, so the ribbon's buttons stay one tag each) */
-          <div data-add-menu role="menu" aria-label={tr("Add")} style={{ position: "fixed", left: addMenu.x, top: addMenu.y, zIndex: 50, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, boxShadow: "0 4px 14px rgba(0,0,0,0.15)", padding: 4, display: "flex", flexDirection: "column", minWidth: 160 }}>
+          <RibbonMenu data-add-menu="" label={tr("Add")} onClose={() => setAddMenu(null)} style={{ position: "fixed", left: addMenu.x, top: addMenu.y, zIndex: 50, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, boxShadow: "0 4px 14px rgba(0,0,0,0.15)", padding: 4, display: "flex", flexDirection: "column", minWidth: 160 }}>
             {addItems.map(([type, label]) => <button key={type} type="button" role="menuitem" className="ge-menu-item" style={{ textAlign: "start", padding: "6px 10px", background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)" }} onClick={() => { setAddMenu(null); addElement(type); }}>{tr(label)}</button>)}
-          </div>
+            {/* #3928: focus in, arrows, Escape back to Add */}
+          </RibbonMenu>
         )}
         {viewportBatchDone && ( /* TASKS.csv #1644 */
           <div role="status" style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8, padding: "7px 10px", background: viewportBatchDone.failed ? "var(--color-warn-bg)" : "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>

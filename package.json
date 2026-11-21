@@ -72,6 +72,10 @@
     ],
     "extraResources": [
       {
+        "from": "electron/mcp-bridge.ps1",
+        "to": "mcp-bridge.ps1"
+      },
+      {
         "from": "python-sidecar/dist",
         "to": "python-sidecar",
         "filter": [

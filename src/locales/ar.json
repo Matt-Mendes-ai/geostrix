@@ -14345,5 +14345,6 @@
   "of the {n} mineralised samples (≥ {cut})": "من العينات المتمعدنة الـ{n} (≥ {cut})",
   "of all samples": "من كل العينات",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} م من تلك الثقوب لم تكن فيها أي نقطة ضمن {d} م فتُركت فارغة.",
-  "Import as a block model": "استيراد كنموذج كتل"
+  "Import as a block model": "استيراد كنموذج كتل",
+  "nothing under the view centre": "لا شيء تحت مركز العرض"
 }
