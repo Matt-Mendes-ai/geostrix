@@ -15,6 +15,9 @@ import { t as tr } from "../lib/i18n.js";
 import DumpRunList from "../modules/viewer/DumpRunList.jsx"; // TASKS.csv #2285
 import { confirmDestructive } from "../lib/confirmDestructive.js";
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -77,7 +80,7 @@ export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onC
     finally { busy.current = false; }
   };
   const line = (label, val) => <div style={row}><span>{label}</span><b>{val}</b></div>;
-  const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
+  const field = (k, label, extra = {}) => <label style={row}>{label}<NumberInput allowEmpty value={f[k]} onChange={asEvent(set(k))} style={num} {...extra} /></label>;
 
   return (
     <div>
