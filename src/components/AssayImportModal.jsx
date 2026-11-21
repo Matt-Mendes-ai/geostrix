@@ -15,6 +15,7 @@ import { pxrfSignature } from "../lib/pxrfSignature.js"; // TASKS.csv #2198
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2391 — the row filter of the drillhole import (#2330), here too
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
 import { assayTextColumns, assayUsedColumns, chosenExtraColumns } from "../lib/assayExtraFields.js"; // TASKS.csv #3728
+import { otherNumericColumns, customAssayEntry, nameAndUnit } from "../lib/assayOtherColumns.js"; // TASKS.csv #3923
 
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit, onQcLinks = null, existingUnits = {} }) { // onQcLinks: TASKS.csv #3409
   // TASKS.csv #2037 — the columns an interval import cannot do without (a long file also needs its analyte and value columns)
@@ -26,6 +27,12 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   // TASKS.csv #3728 — the text columns kept with each sample (Zone, Target): offered, the groupable ones ticked
   const extraOffer = useMemo(() => assayTextColumns(modal.headers || [], modal.allRows || [], assayUsedColumns(modal.mapping, modal.qc, modal.elements)), [modal.headers, modal.allRows, modal.mapping, modal.qc, modal.elements]);
   const extraTicked = chosenExtraColumns(modal, extraOffer);
+  // TASKS.csv #3923 — the numeric columns that are not chemical elements (AuEq_gpt, TREO_ppm ...): offered as assays of their own, kept as supplied
+  const others = useMemo(() => (modal.format === "wide" ? otherNumericColumns(modal.headers || [], modal.allRows || [], assayUsedColumns(modal.mapping, modal.qc, modal.elements)) : []), [modal.format, modal.headers, modal.allRows, modal.mapping, modal.qc, modal.elements]);
+  const [showOthers, setShowOthers] = useState(null); // null: open when the file has an equivalent or a total, else closed
+  const othersOpen = showOthers ?? others.some((c) => c.kind);
+  const takenNames = () => [...ELEMENT_SYMBOLS, ...UNIT_ONLY_SYMBOLS, ...modal.elements.map((e) => e.symbol), ...Object.keys(existingUnits || {})];
+  const addOthers = (cols) => { const taken = takenNames(), made = []; for (const c of cols) { const e = customAssayEntry(c, modal.allRows, taken); taken.push(e.symbol); made.push(e); } if (made.length) onChange({ ...modal, elements: [...modal.elements, ...made] }); };
   // TASKS.csv #333 — count negative numbers in the columns being imported, so the user decides what they mean before they become grades;
   // #1677 exact zeros; #502 empty cells. TASKS.csv #2164 — one chunked pass over the rows for every candidate column (assayColumnScan.js),
   // so a 590,000-row file no longer freezes the window before the dialog paints; ticking an element re-sums per-column results (#583).
@@ -78,6 +85,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true, asLastTime: e.asLastTime && e.unit === unit } : e) }); // unitChosen: #718; asLastTime: #3217 (a change is the user's, not last time's)
   const setUnits = (syms, unit) => onChange({ ...modal, elements: modal.elements.map((e) => syms.includes(e.symbol) ? { ...e, unit, unitChosen: true, asLastTime: e.asLastTime && e.unit === unit } : e) }); // #3197
+  const setCustomUnit = (sym, v) => onChange({ ...modal, elements: modal.elements.map((e) => { if (e.symbol !== sym) return e; const { unitLabel, ...rest } = e; return { ...rest, unit: v === "g/t" ? "ppm" : v, ...(v === "g/t" ? { unitLabel: "g/t" } : {}), unitChosen: true }; }) }); // #3923 — g/t is ppm, kept as typed
   const setKeepOxide = (sym, keep) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, keepOxide: keep } : e) }); // #2487
   const setAllOxide = (keep) => onChange({ ...modal, elements: modal.elements.map((e) => (oxideOfHeader(e.header) ? { ...e, keepOxide: keep } : e)) }); // #2888 — every oxide column at once
   // TASKS.csv #2487 — the oxide columns and the basis each will be stored in, said before the commit
@@ -94,12 +102,14 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const addElement = () => {
     const sym = addSymbol.trim();
     if (!sym || !addHeader) return;
-    const unit = inferUnit(addHeader, sym);
+    // TASKS.csv #3923 — a name that is not a chemical element (AuEq, TREO): the unit as the column's name gives it (g/t stays g/t), kept as supplied
+    const custom = !ELEMENT_SYMBOLS.includes(sym) && !UNIT_ONLY_SYMBOLS.includes(sym) && !modal.elements.some((e) => e.symbol === sym), nu = custom ? nameAndUnit(addHeader) : null;
+    const unit = nu ? nu.unit : inferUnit(addHeader, sym);
     onChange({
       ...modal,
       elements: modal.elements.some((e) => e.symbol === sym)
         ? modal.elements.map((e) => e.symbol === sym ? { ...e, header: addHeader, checked: true } : e)
-        : [...modal.elements, { symbol: sym, header: addHeader, unit, checked: true }],
+        : [...modal.elements, { symbol: sym, header: addHeader, unit, checked: true, ...(nu ? { custom: true, asSupplied: true, ...(nu.unitLabel ? { unitLabel: nu.unitLabel } : {}) } : {}) }],
     });
     setAddSymbol(""); setAddHeader("");
   };
@@ -236,7 +246,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               {shownEls.map((e) => (
                 <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "var(--color-bg-subtle)" : "transparent", borderRadius: 5 }}>
                   <input type="checkbox" checked={e.checked} onChange={() => toggleEl(e.symbol)} />
-                  <span style={{ fontSize: "var(--font-size-base)", color: e.checked ? "var(--color-text)" : "var(--color-text-muted)", width: 28, flexShrink: 0 }}>{e.symbol}</span>
+                  <span style={{ fontSize: "var(--font-size-base)", color: e.checked ? "var(--color-text)" : "var(--color-text-muted)", ...(e.custom ? { minWidth: 28, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : { width: 28 }), flexShrink: 0 }} title={e.custom ? e.symbol : undefined}>{e.symbol}</span>
                   {e.n === 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flexShrink: 0 }} title={tr("This column is blank in every row of the file: left unticked so it does not appear in every element list.")}>{tr("no values")}</span>} {/* #1389 */}
                   {/* TASKS.csv #210 — reassign which raw column feeds this element, e.g. when a file has
                       more than one candidate column (Corrected vs. raw vs. Error) and the auto-pick
@@ -251,8 +261,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                     <input type="checkbox" checked={!!e.join} onChange={() => onChange({ ...modal, elements: modal.elements.map((x) => (x.symbol === e.symbol ? { ...x, join: !x.join } : x)) })} aria-label={tr("Join the method columns of {sym}", { sym: e.symbol })} />{tr("+{k} col.", { k: e.methodCols.length })}
                   </label>}
                   {assumedTag(e)}
-                  <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
-                    <option value="ppm">{tr("ppm")}</option><option value="%">%</option><option value="ppb">{tr("ppb")}</option>
+                  {e.asSupplied && <span title={tr("Kept as the file gives it: the lab's or the company's number, never recalculated here.")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", flexShrink: 0 }}>{tr("as supplied")}</span>}{/* TASKS.csv #3923 */}
+                  <select value={e.unitLabel === "g/t" && e.unit === "ppm" ? "g/t" : e.unit} onChange={(ev) => (e.custom ? setCustomUnit(e.symbol, ev.target.value) : setUnit(e.symbol, ev.target.value))} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
+                    <option value="ppm">{tr("ppm")}</option><option value="%">%</option><option value="ppb">{tr("ppb")}</option>{e.custom && <option value="g/t">{tr("g/t")}</option>}
                   </select>
                   {oxideOfHeader(e.header) && ( /* TASKS.csv #2487 — the basis this oxide column is stored in */
                     <select value={keepsOxide(e) ? "oxide" : "element"} onChange={(ev) => setKeepOxide(e.symbol, ev.target.value === "oxide")} aria-label={tr("Basis of {symbol}", { symbol: e.symbol })} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
@@ -280,6 +291,31 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   </select>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* TASKS.csv #3923 — the numeric columns that are not chemical elements: equivalents (AuEq, AgEq), totals (TREO), any measured number */}
+          {modal.format === "wide" && others.length > 0 && (
+            <div style={{ marginTop: 8, border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px" }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setShowOthers(!othersOpen)} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text)", display: "flex", justifyContent: "space-between", gap: 8 }} aria-expanded={othersOpen}>
+                <span>{tr(others.length === 1 ? "Other numeric column in this file: {n}" : "Other numeric columns in this file: {n}", { n: others.length })}</span>
+                <span style={{ color: "var(--color-text-muted)" }}>{othersOpen ? tr("hide this list") : tr("show this list")}</span>
+              </div>
+              {othersOpen && (<>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, margin: "4px 0 6px" }}>{tr("These are not chemical elements. Add one to import it as an assay of its own, with the name and unit the file gives it. Equivalents (AuEq, AgEq), totals (TREO) and any other measured number are kept as supplied: GeoStrix does not recalculate them.")}{" "}{tr("None is added for you: add the ones that are grades, such as AuEq or TREO, and leave out sample weight or recovery.")}</div>
+                {others.some((c) => c.kind) && <button type="button" onClick={() => addOthers(others.filter((c) => c.kind))} style={{ ...btn(true), width: "auto", padding: "4px 10px", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Add the equivalents and totals ({n})", { n: others.filter((c) => c.kind).length })}</button>}
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 180, overflowY: "auto" }}>
+                  {others.map((c) => (
+                    <div key={c.header} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)" }}>
+                      <span style={{ minWidth: 70, color: "var(--color-text)" }}>{c.name}</span>
+                      <span style={{ flex: 1, minWidth: 0, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.header}>{c.header}</span>
+                      {c.kind && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent-dark)" }}>{c.kind === "equivalent" ? tr("equivalent") : tr("total")}</span>}
+                      <span style={{ fontSize: "var(--font-size-xs)", color: c.assumed ? "var(--color-warn-text)" : "var(--color-text-secondary)" }} title={c.assumed ? tr("The column name does not say its unit: ppm is assumed. Set it after adding.") : undefined}>{c.unitLabel || c.unit}{c.assumed ? "?" : ""}</span>
+                      <button type="button" onClick={() => addOthers([c])} style={{ ...btn(false), width: "auto", padding: "2px 8px", fontSize: "var(--font-size-xs)" }} aria-label={tr("Add the column {header} as an assay", { header: c.header })}>{tr("Add")}</button>
+                    </div>
+                  ))}
+                </div>
+              </>)}
             </div>
           )}
 

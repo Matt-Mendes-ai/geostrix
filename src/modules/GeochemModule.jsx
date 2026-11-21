@@ -23,7 +23,7 @@ import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, Te
 const McdAnomalyPanel = React.lazy(() => import("../components/McdAnomalyPanel.jsx")); // TASKS.csv #1999 — a lazy chunk: opened rarely
 import { noticeText, noticeLevel, errorNotice, notice, infoNotice } from "../lib/notices.js"; // TASKS.csv #729; infoNotice: #3409
 import { readLinks, mergeLinks, applyLinks, linkReport, packLinks, unpackLinks, linkCount } from "../lib/qcLinks.js"; // TASKS.csv #3409
-import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset, mixedUnitReads } from "../lib/calcElement.js"; // mixedUnitReads: #3219 // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
+import { addCalculatedElement, CALC_PRESETS, presetUnitsFor, oxideTotalPreset, treoPreset, mixedUnitReads, staleCalculated, recalculateElement, freeCalcName } from "../lib/calcElement.js"; // mixedUnitReads: #3219 // TASKS.csv #401; presetUnitsFor: #2619; oxideTotalPreset: #2914
 import { majorOxides, MIN_MAJORS, anhydrousRows, sourceRow } from "../lib/oxideTotals.js"; // anhydrousRows / sourceRow: #2942 // TASKS.csv #2914 — the 'Oxide total' preset sums QAQC > Totals' majors
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #2164
 import { elementColumnStats } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
@@ -31,6 +31,9 @@ const ELEMENT_SCAN_CHUNKED_ROWS = 50000; // #2164 — below this the element col
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { assayImportFindings } from "../lib/assayImportFindings.js"; // TASKS.csv #2498
 import { assayTextColumns, assayUsedColumns, chosenExtraColumns, assayAttrs } from "../lib/assayExtraFields.js"; // TASKS.csv #3728
+import { mixedUnitsList } from "../lib/assayOtherColumns.js"; // TASKS.csv #3923
+import { equivalentFromInputs, suggestedBase } from "../lib/equivalentElement.js"; // TASKS.csv #3923 — the metal equivalent from typed prices
+import EquivalentBuilder from "../components/EquivalentBuilder.jsx";
 import { repeatColumns, columnDetectionLimit, isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, oxideUnit, importStoreUnit, oxideBasisUnit, oxideColumnUnit, surfaceAttrColumns, surfaceAttrs, surfaceDateReaders, surfaceAttrsDated /* #3200 */, mergeSurfaceSamples, otherMediumTwins } from "../lib/geochem.js"; // otherMediumTwins: #2085
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, noVolcanicCodes /* #2911 */, mergeClassRuns, FITTED_PROTOLITH, fitLeastAlteredBox, nameAiUpTrend , censoredOperand, censoredLeftOut, guessProtolith } from "../lib/geochemDiagrams.js"; // fitted: #2028; nameAiUpTrend: #2145
 import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
@@ -182,6 +185,16 @@ export default function GeochemModule() {
   const [plotQc, setPlotQc] = useKeptState(keptScope, "geochem.plotQc", false);
   // TASKS.csv #2035 (review #2013, Woodjam) — the header counted 214 zero-length QC inserts as intervals and a calculated CuEq as an element:
   // '1,750 intervals + 214 QC samples · 49 elements + 1 calculated'
+  // TASKS.csv #3923 — a calculated element (an index, a TREO, an AuEq) keeps its formula and says when the assays changed since: one click recalculates it
+  const staleCalcs = useMemo(() => staleCalculated(assays, assayElements), [assays, assayElements]);
+  const recalcStale = () => {
+    try {
+      let rows = assays; const done = new Map();
+      for (const e of staleCalcs) { const r = recalculateElement(rows, assayElements.map((x) => done.get(x.symbol) || x), e); rows = r.assays; done.set(e.symbol, r.element); }
+      setAssays(rows); setAssayElements((prev) => prev.map((x) => done.get(x.symbol) || x));
+      setNotices((p) => [...p, notice("Recalculated {list} on the assays as they are now.", { list: staleCalcs.map((e) => e.symbol).join(", ") })]);
+    } catch (err) { setNotices((p) => [...p, errorNotice(String(err?.message || err))]); }
+  };
   const headCounts = useMemo(() => { const qc = keptMemo([assays], "qcCount", () => { let k = 0; for (const a of assays) if (classifyQAQCRow(a) !== "regular") k++; return k; }); const calc = assayElements.filter((e) => e.calculated).length; return { n: assays.length - qc, qc, e: assayElements.length - calc, calc }; }, [assays, assayElements]);
   const qcInSource = useMemo(() => keptMemo([sourceAll], "qcIn", () => sourceAll.filter((a) => classifyQAQCRow(a) !== "regular").length), [sourceAll]);
   const sourceRows = useMemo(() => keptMemo([sourceAll], `rows|${plotQc}|${qcInSource}`, () => (plotQc || !qcInSource ? sourceAll : sourceAll.filter((a) => classifyQAQCRow(a) === "regular"))), [sourceAll, plotQc, qcInSource]);
@@ -883,6 +896,8 @@ export default function GeochemModule() {
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
+      chosen.some((e) => e.asSupplied) ? tr("Kept as supplied, not recalculated: {list}.", { list: chosen.filter((e) => e.asSupplied).map((e) => `${e.symbol} (${e.unitLabel || e.unit})`).join(", ") }) : null, // #3923
+      mixedUnitsList(assayElements, chosen) ? tr("This project's assays are in different units: {list}. Each is kept and shown in its own unit; a sum or a ratio of two of them needs the same unit.", { list: mixedUnitsList(assayElements, chosen) }) : null, // #3923
       converted.length ? tr("Converted {list} to match the unit already used in this project.", { list: converted.map((e) => `${e.symbol} ${importStoreUnit(e)} → ${existingUnit[e.symbol]}`).join(", ") }) : null, // #2490: the unit actually read
       negBdl ? tr("{n} negative value(s) read as below detection (e.g. -0.005 → \"<0.005\", stored at half).", { n: negBdl }) : null,
       negMissing ? tr("{n} negative value(s) treated as not assayed.", { n: negMissing }) : null,
@@ -931,7 +946,7 @@ export default function GeochemModule() {
           f.over100.length ? tr("Values over 100 % (a total or a unit to check in the file): {list}.", { list: list(f.over100, 6, (o) => tr("{symbol} {n} (up to {max} %, {where})", { symbol: o.symbol, n: o.n.toLocaleString(), max: o.max, where: o.where })) }) : null,
           // TASKS.csv #3729 — a round maximum held by many results: an upper reporting limit whose '>' was lost
           f.ceilings.length ? tr("Results on a round maximum, probably an upper reporting limit whose '>' was lost (their true grade is higher): {list}. Grade statistics can mark them as over the limit ('>').", { list: list(f.ceilings, 8, (c) => tr("{symbol} {n} at {max} {unit}", { symbol: c.symbol, n: c.n.toLocaleString(), max: c.ceiling.toLocaleString(), unit: c.unit })) }) : null,
-          f.notImported.length ? tr("Not imported (numeric, not an element): {cols}.", { cols: f.notImported.join(", ") }) : null,
+          f.notImported.length ? tr("Not imported (numeric, not an element): {cols}. To add one as an assay (an equivalent such as AuEq, a total such as TREO), import the file again and add it under \"Other numeric columns in this file\" in the import dialog.", { cols: f.notImported.join(", ") }) : null, // where to add them: #3923
           // TASKS.csv #3728 — the text columns: kept with each sample, or named as left out
           extraCols.length ? tr("Kept with each sample: {cols} (Grade statistics and Compositing offer them as domains).", { cols: extraCols.join(", ") }) : null,
           extraLeft.length ? tr("Not imported (text): {cols}.", { cols: extraLeft.join(", ") }) : null,
@@ -1439,6 +1454,12 @@ export default function GeochemModule() {
         </div>
         {assays.length > 0 && <div style={{ margin: "0 0 6px" }}><button type="button" onClick={() => openDataTable({ source: "assays" })} style={{ background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", font: "inherit", fontSize: 11, textDecoration: "underline" }} title={tr("Every assay row as a table: the units in the headings, sort, filter, find")}>{tr("Assay table")}</button></div> /* TASKS.csv #3563 */}
         {/* TASKS.csv #624 — remove what was imported: a whole file, one element, or everything (all undoable) */}
+        {staleCalcs.length > 0 && ( /* TASKS.csv #3923 */
+          <div role="status" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "6px 0", lineHeight: 1.4 }}>
+            <span style={{ flex: 1 }}>{tr(staleCalcs.length === 1 ? "The assays changed since {list} was calculated." : "The assays changed since {list} were calculated.", { list: staleCalcs.map((e) => e.symbol).join(", ") })}</span>
+            <button type="button" onClick={recalcStale} style={{ ...panelBtn, width: "auto", marginBottom: 0, padding: "4px 10px" }}>{tr("Recalculate")}</button>
+          </div>
+        )}
         {assays.length > 0 && <AssayRemovePanel assays={assays} assayElements={assayElements} setAssays={setAssays} setAssayElements={setAssayElements} setNotices={setNotices} colorElement={colorElement} setColorElement={setColorElement} />}
         <div className="ge-section-label" style={{ marginTop: 14 }}>{tr("Surface samples")}</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
@@ -1455,21 +1476,24 @@ export default function GeochemModule() {
           const onSurface = calc.source === "surface" && surfaceElements.length > 0, calcEls = onSurface ? surfaceElements : assayElements;
           // TASKS.csv #2914 — the presets, with the oxide total built from this project's majors; the oxide names a formula may use
           const oxTotal = onSurface ? null : oxideTotalPreset(assayElements, { majors: majorOxides(assayElements), minMajors: MIN_MAJORS });
-          const presets = oxTotal ? [...CALC_PRESETS, oxTotal] : CALC_PRESETS;
+          const treo = onSurface ? null : treoPreset(assayElements); // TASKS.csv #3923 — total rare earth oxides from the REEs the project holds
+          const presets = [...CALC_PRESETS, ...(oxTotal ? [oxTotal] : []), ...(treo ? [treo] : [])];
           const aliasNames = onSurface ? [] : oxideAliases(assayElements).map((a) => a.name);
           return (
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Calculated element")}</div>
               <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
                 {assayElements.length > 0 && surfaceElements.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Data source")}<select value={onSurface ? "surface" : "assays"} onChange={(e) => setCalc((c) => ({ ...c, source: e.target.value, msg: null }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Data source")}><option value="assays">{tr("Drillhole assays")}</option><option value="surface">{tr("Surface samples")}</option></select></label>}
-                <select value="" onChange={(e) => { const p = presets.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: p.name, expr: p.expr, unit: p.unit || "index" /* an oxide preset: its unit, #2357 */, preset: p, msg: { ok: true, preset: true, text: `${tr(p.label)}. ${tr(p.unitNote)}.${p.units ? " " + tr("Read in {list}, converted from the stored units where they differ.", { list: Object.entries(p.units).map(([s, u]) => `${s} ${u}`).join(", ") }) : ""}` } })); }} /* preset / units: #2500 */ style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
+                <select value="" onChange={(e) => { if (e.target.value === "__equivalent") { setCalc((c) => ({ source: c?.source, name: "", expr: "", unit: "index", preset: null, eq: { base: suggestedBase(calcEls), rows: {} }, msg: null })); return; } /* #3923 */ const p = presets.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: freeCalcName(p.name, calcEls) /* #3923 — not the name of an imported column */, expr: p.expr, unit: p.unit || "index" /* an oxide preset: its unit, #2357 */, preset: p, msg: { ok: true, preset: true, text: `${tr(p.label)}. ${tr(p.unitNote)}.${p.units ? " " + tr("Read in {list}, converted from the stored units where they differ.", { list: Object.entries(p.units).map(([s, u]) => `${s} ${u}`).join(", ") }) : ""}` } })); }} /* preset / units: #2500 */ style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
                   <option value="">{tr("Preset… (or write your own below)")}</option>
+                  <option value="__equivalent">{tr("Metal equivalent (you type the prices and recoveries)…")}</option>
                   {presets.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => calcEls.some((e) => e.symbol === s))}>{tr(p.label)}{p.needs.every((s) => calcEls.some((e) => e.symbol === s)) ? "" : tr(" — needs {list}", { list: p.needs.join(", ") })}</option>)}
                 </select>
-                <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value }))} placeholder={tr("Name, e.g. AI")} aria-label={tr("Calculated element name")} style={{ fontSize: "var(--font-size-sm)" }} />
+                {calc.eq && <EquivalentBuilder elements={calcEls} eq={calc.eq} result={equivalentFromInputs(calc.eq, calcEls)} onChange={(next) => { const d = equivalentFromInputs(next, calcEls); setCalc((c) => ({ ...c, eq: next, eqMeta: d.ready ? d.meta : null, ...(d.ready ? { expr: d.expr, unit: d.unit, name: c.nameTouched ? c.name : freeCalcName(d.name, calcEls), preset: null, msg: null } : { expr: "" }) })); }} />}{/* TASKS.csv #3923 */}
+                <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value, nameTouched: true }))} placeholder={tr("Name, e.g. AI")} aria-label={tr("Calculated element name")} style={{ fontSize: "var(--font-size-sm)" }} />
                 {/* TASKS.csv #1749 (review #1645, Copley) — a metal-equivalent (CuEq, AuEq) is a grade, not an index: with a grade unit its estimate can be priced in the pit shell */}
                 <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes the grade unit its formula gives, % or g/t, so an estimate of it can be priced in the pit shell.")}>{[...new Set(["index", "%", "g/t", "ppm", "ppb", ...((calc.source === "surface" ? surfaceElements : assayElements).map((e) => e.unit).filter((u) => u && unitBasis(u).oxide)) /* #3160 — the oxide units the project stores */, ...(calc.unit ? [calc.unit] : [])])].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
-                <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
+                <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value, eqMeta: null }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
                 {!presetUnitsFor(calc.preset, calc.expr) && mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements) && ( /* TASKS.csv #3219 — a ratio of elements stored in different units */
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}><input type="checkbox" checked={!!calc.readPpm} onChange={(e) => setCalc((c) => ({ ...c, readPpm: e.target.checked }))} />{tr("Read these elements in ppm: the formula divides elements stored in different units ({list})", { list: Object.keys(mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements)).map((sym) => `${sym} ${((calc.source === "surface" ? surfaceElements : assayElements).find((e) => e.symbol === sym) || {}).unit || ""}`).join(", ") })}</label>
                 )}
@@ -1484,8 +1508,9 @@ export default function GeochemModule() {
                       if (onSurface) { // #1799 — stored on the surface samples like an imported element: plan map, thresholds, grade stats take it
                         const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) || (calc.readPpm ? mixedUnitReads(calc.expr, surfaceElements) : null) /* #3219 */ }); // #2500; presetUnitsFor: #2619
                         setSurfaceSamples(r.assays);
-                        setSurfaceElements((prev) => [...prev, r.element]);
+                        setSurfaceElements((prev) => [...prev, calc.eqMeta ? { ...r.element, calculated: { ...r.element.calculated, equivalent: calc.eqMeta } } : r.element]); // equivalent: #3923 — the typed prices and recoveries stay with the element
                         setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} surface sample(s) (range {min}–{max}){v}. The plan map, thresholds, grade stats and correlation can use it. It is not recalculated if the samples are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: sigFig(r.min), max: sigFig(r.max) /* #3219 — 0.125, not 0.00 */, v: (r.skipped ? tr("; {skipped} sample(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ + (r.divZero ? tr("; {n} could not be computed from their values (a division by zero, the log or root of a negative number), so no value", { n: r.divZero.toLocaleString() }) : "") /* #3160; #3226 (2) — not only a division */ + (r.mixedUnits ? tr("; divided as stored, though {list} are in different units: tick 'Read these elements in ppm' to compare like with like", { list: r.mixedUnits.map((c) => `${c.sym} (${gradeUnitLabel(c.sym, c.unit)})`).join(", ") }) : "") /* #3219 */ })]);
+                        if (calc.eqMeta) setNotices((p) => [...p, notice("Metal equivalent from the prices and recoveries you typed: {text}. Nothing was filled in for you.", { text: calc.eqMeta.text })]); // #3923
                         setCalc(null);
                         return;
                       }
@@ -1493,10 +1518,11 @@ export default function GeochemModule() {
                       // TASKS.csv #3110 — a NEW element's Add is undone as 'remove it' (no copy of the old table in the history); a symbol some row
                       // already carries (a re-run, or an imported element of that name) keeps the plain snapshot, so an undo never deletes real data
                       if (setAssaysWithInverse && !symbolPresent(assays, r.element.symbol)) setAssaysWithInverse(r.assays, r.element.symbol); else setAssays(r.assays);
-                      setAssayElements((prev) => [...prev, r.element]);
+                      setAssayElements((prev) => [...prev, calc.eqMeta ? { ...r.element, calculated: { ...r.element.calculated, equivalent: calc.eqMeta } } : r.element]); // equivalent: #3923 — the typed prices and recoveries stay with the element
                       // TASKS.csv #3748 — a formula that reads an element on its half-limit floor (Ag / Au: 8,232 of 9,777 ratios had the silver floor as numerator) says how many rows do
                       const fl = floorInputs(assays, r.element.calculated.expr, assayElements.filter((e) => !e.calculated).map((e) => e.symbol), Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])));
                       setNotices((p) => [...p, notice(collars.length ? "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported." : "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. Every Geochem tool can use it now; it is drawn downhole once collars are loaded. It is not recalculated if assays are re-imported.", /* #1800 */ { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: sigFig(r.min), max: sigFig(r.max) /* #3219 — 0.125, not 0.00 */, v: (r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "") + (r.leftBdl ? tr("; {n} left out: a ratio with a below-detection operand is not a value", { n: r.leftBdl.toLocaleString() }) : "") + (r.flaggedLt ? tr("; {n} flagged below detection ('<'): every element in the formula was", { n: r.flaggedLt.toLocaleString() }) : "") /* #2505 */ + (r.divZero ? tr("; {n} could not be computed from their values (a division by zero, the log or root of a negative number), so no value", { n: r.divZero.toLocaleString() }) : "") /* #3160; #3226 (2) — not only a division */ + (r.mixedUnits ? tr("; divided as stored, though {list} are in different units: tick 'Read these elements in ppm' to compare like with like", { list: r.mixedUnits.map((c) => `${c.sym} (${gradeUnitLabel(c.sym, c.unit)})`).join(", ") }) : "") /* #3219 */ + (fl ? tr("; {k} of {n} use a value on the detection floor ({list}): a ratio or product of those is about the detection limit, not the rock", { k: fl.rows.toLocaleString(), n: fl.of.toLocaleString(), list: fl.inputs.map((i) => `${i.symbol} ${i.n.toLocaleString()}`).join(", ") }) : "") /* #3748 */ })]);
+                      if (calc.eqMeta) setNotices((p) => [...p, notice("Metal equivalent from the prices and recoveries you typed: {text}. Nothing was filled in for you.", { text: calc.eqMeta.text })]); // #3923
                       setCalc(null);
                     } catch (err) { setCalc((c) => ({ ...c, msg: { ok: false, text: err.message } })); }
                   }}>{tr("Add")}</button>

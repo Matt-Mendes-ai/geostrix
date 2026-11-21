@@ -76,6 +76,33 @@ export function oxideTotalPreset(assayElements, { majors, minMajors = 6 } = {}) 
 // #2500 — the units a preset reads, against the stored ones: [{ sym, from, to, factor }] for the ones that differ; throws when a stored unit
 // cannot be converted (an index, counts, a missing unit)
 const CONVERTIBLE = new Set(["%", "ppm", "ppb", "g/t"]);
+
+// TASKS.csv #3923 (user feedback: total rare earths) — 'TREO': the sum of the rare-earth oxides the project's REE assays make, each element times its oxide / element
+// mass ratio (from IUPAC atomic weights, below; Pr as Pr6O11 and Tb as Tb4O7, the usual convention for a total), read in ppm. The factors are IN the formula the dialog
+// shows, so the user sees and can change every one; the rare earths this project lacks are named as left out (the total is then short by them), never filled in.
+// Sc is not a lanthanide and not in a TREO by the usual definition; Y is. Rows missing any element in the formula get no value, so an element the user does not
+// want is taken out of the formula.
+const ATOMIC_WEIGHT = { La: 138.90547, Ce: 140.116, Pr: 140.90766, Nd: 144.242, Sm: 150.36, Eu: 151.964, Gd: 157.25, Tb: 158.92535, Dy: 162.5, Ho: 164.93033, Er: 167.259, Tm: 168.93422, Yb: 173.045, Lu: 174.9668, Y: 88.90584, O: 15.999 };
+export const REE_OXIDES = [["La", "La2O3", 2, 3], ["Ce", "CeO2", 1, 2], ["Pr", "Pr6O11", 6, 11], ["Nd", "Nd2O3", 2, 3], ["Sm", "Sm2O3", 2, 3], ["Eu", "Eu2O3", 2, 3], ["Gd", "Gd2O3", 2, 3], ["Tb", "Tb4O7", 4, 7], ["Dy", "Dy2O3", 2, 3], ["Ho", "Ho2O3", 2, 3], ["Er", "Er2O3", 2, 3], ["Tm", "Tm2O3", 2, 3], ["Yb", "Yb2O3", 2, 3], ["Lu", "Lu2O3", 2, 3], ["Y", "Y2O3", 2, 3]]
+  .map(([symbol, oxide, nEl, nO]) => ({ symbol, oxide, factor: +((nEl * ATOMIC_WEIGHT[symbol] + nO * ATOMIC_WEIGHT.O) / (nEl * ATOMIC_WEIGHT[symbol])).toFixed(4) }));
+export function treoPreset(assayElements, { minElements = 3 } = {}) {
+  const have = [], leftOut = [], asOxide = [];
+  for (const r of REE_OXIDES) {
+    const e = (assayElements || []).find((x) => x.symbol === r.symbol && !x.calculated);
+    if (!e) { leftOut.push(r.symbol); continue; }
+    if (unitBasis(e.unit).oxide) { asOxide.push(r.symbol); continue; } // stored as its oxide ('% La2O3'): its factor is already in the number
+    if (!CONVERTIBLE.has(String(e.unit || ""))) { asOxide.push(r.symbol); continue; } // an index, counts, an unknown basis
+    have.push(r);
+  }
+  if (have.length < minElements) return null;
+  const note = [
+    tr("Each rare earth is read in ppm and multiplied by its oxide factor (shown in the formula; change any of them): {list}.", { list: have.map((r) => `${r.symbol} → ${r.oxide} ×${r.factor}`).join(", ") }),
+    leftOut.length ? tr("Not in this project, so left out of the total: {list}.", { list: leftOut.join(", ") }) : null,
+    asOxide.length ? tr("Stored as an oxide or in a unit this cannot convert, so not added here: {list}.", { list: asOxide.join(", ") }) : null,
+  ].filter(Boolean).join(" ").replace(/\.$/, ""); // the preset menu adds the full stop
+  return { name: "TREO", label: "Total rare earth oxides (TREO), from the rare earths in this project", expr: have.map((r) => `${r.symbol}*${r.factor}`).join("+"), needs: have.map((r) => r.symbol), unitNote: note, units: Object.fromEntries(have.map((r) => [r.symbol, "ppm"])), unit: "ppm", treo: { oxides: have, leftOut, asOxide } };
+}
+
 export function presetConversions(assayElements, readUnits) {
   const out = [];
   for (const [sym, to] of Object.entries(readUnits || {})) {
@@ -143,5 +170,50 @@ export function addCalculatedElement(assays, assayElements, name, expr, unit = "
     return { ...a, values: { ...(a.values || {}), [n]: v } };
   });
   if (!computed) throw new Error(tr("The formula gave no value on any assay row — check that every element in it has results."));
-  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}) } }, computed, skipped, min, max, converted: conv, leftBdl, flaggedLt, divZero, mixedUnits: mixed ? Object.keys(mixed).map((sym) => ({ sym, unit: (assayElements || []).find((e) => e.symbol === sym)?.unit || "" })) : null };
+  return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim(), ...(readUnits ? { readUnits } : {}), sig: calcInputsSignature(assays, expr, symbols) /* #3923 */ } }, computed, skipped, min, max, converted: conv, leftBdl, flaggedLt, divZero, mixedUnits: mixed ? Object.keys(mixed).map((sym) => ({ sym, unit: (assayElements || []).find((e) => e.symbol === sym)?.unit || "" })) : null };
+}
+
+// TASKS.csv #3923 (Main) — a calculated element keeps its formula and the inputs it was made from, and says when the assays have changed since: a signature of the
+// rows (their number) and of every operand's values, taken when it was calculated and compared when the panel is shown. One click recalculates it. Imported
+// 'as supplied' columns have no formula and are never touched.
+export function calcInputsSignature(assays, expr, symbols) {
+  const ops = operandsOf(expr, symbols);
+  let h = 2166136261 ^ (assays || []).length;
+  for (const a of assays || []) {
+    for (const s of ops) {
+      const v = a?.values?.[s];
+      const x = typeof v === "number" && Number.isFinite(v) ? Math.round(v * 1e6) | 0 : v == null ? 7 : 11;
+      h = Math.imul(h ^ x, 16777619);
+    }
+  }
+  return (h >>> 0).toString(36) + ":" + ops.length;
+}
+// a default name no element of the project already has: 'TREO' -> 'TREO' or 'TREO_calc' ('TREO_calc2' ...) — the live pass found a calculated TREO / AuEq named like the
+// imported column (kept as supplied) failing with 'already exists' on the first click
+export function freeCalcName(name, elements) {
+  const taken = new Set((elements || []).map((e) => e.symbol));
+  if (!taken.has(name)) return name;
+  let n = `${name}_calc`, k = 1;
+  while (taken.has(n)) n = `${name}_calc${++k}`;
+  return n;
+}
+// the calculated elements (with a stored formula and signature) whose inputs have changed since they were calculated -> [element]
+export function staleCalculated(assays, assayElements) {
+  const symbols = (assayElements || []).map((e) => e.symbol);
+  return (assayElements || []).filter((e) => e.calculated?.expr && e.calculated.sig && e.calculated.sig !== calcInputsSignature(assays, e.calculated.expr, symbols));
+}
+// the element worked out again over the assays as they are now (its stored formula and reading units); the old values are dropped first so a row that no longer has
+// every operand does not keep an out-of-date number. -> { assays, element, computed, skipped } (throws like addCalculatedElement)
+export function recalculateElement(assays, assayElements, element) {
+  const sym = element.symbol, c = element.calculated || {};
+  const clean = (assays || []).map((a) => {
+    if (!a?.values || !(sym in a.values)) return a;
+    const { [sym]: dropV, ...values } = a.values;
+    const out = { ...a, values };
+    if (a.qualifiers && sym in a.qualifiers) { const { [sym]: dropQ, ...q } = a.qualifiers; out.qualifiers = q; }
+    if (Array.isArray(a.bdl)) out.bdl = a.bdl.filter((x) => x !== sym);
+    return out;
+  });
+  const r = addCalculatedElement(clean, (assayElements || []).filter((e) => e.symbol !== sym), sym, c.expr, element.unit, { readUnits: c.readUnits || null });
+  return { assays: r.assays, element: { ...element, calculated: { ...c, sig: r.element.calculated.sig } }, computed: r.computed, skipped: r.skipped };
 }
