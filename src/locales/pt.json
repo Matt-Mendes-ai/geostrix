@@ -14352,5 +14352,10 @@
   "Boundary the readings are inside": "Limite dentro do qual estão as leituras",
   "Anywhere": "Em qualquer lugar",
   "Dip tick (type not given)": "Traço de mergulho (tipo não informado)",
-  "Breccia (small cross)": "Brecha (cruz pequena)"
+  "Breccia (small cross)": "Brecha (cruz pequena)",
+  "Write the number with one decimal mark and no thousands separator, e.g. 1234.5": "Escreva o número com uma só marca decimal e sem separador de milhares, p. ex. 1234.5",
+  "This is not a number: use digits and one decimal mark, e.g. 0.05 or 0,05": "Isto não é um número: use dígitos e uma marca decimal, p. ex. 0.05 ou 0,05",
+  "Enter a number from {min} to {max}": "Digite um número de {min} a {max}",
+  "Enter a number of {min} or more": "Digite um número de {min} ou mais",
+  "Enter a number of {max} or less": "Digite um número de {max} ou menos"
 }

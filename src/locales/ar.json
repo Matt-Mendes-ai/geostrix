@@ -14352,5 +14352,10 @@
   "Boundary the readings are inside": "الحدّ الذي تقع القراءات داخله",
   "Anywhere": "في أي مكان",
   "Dip tick (type not given)": "علامة الميل (النوع غير محدد)",
-  "Breccia (small cross)": "بريشيا (صليب صغير)"
+  "Breccia (small cross)": "بريشيا (صليب صغير)",
+  "Write the number with one decimal mark and no thousands separator, e.g. 1234.5": "اكتب الرقم بعلامة عشرية واحدة ودون فاصل للآلاف، مثل 1234.5",
+  "This is not a number: use digits and one decimal mark, e.g. 0.05 or 0,05": "هذا ليس رقماً: استخدم الأرقام وعلامة عشرية واحدة، مثل 0.05 أو 0,05",
+  "Enter a number from {min} to {max}": "أدخل رقماً من {min} إلى {max}",
+  "Enter a number of {min} or more": "أدخل رقماً {min} أو أكثر",
+  "Enter a number of {max} or less": "أدخل رقماً {max} أو أقل"
 }
