@@ -9,6 +9,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
 
 // TASKS.csv #84 — geological architecture layer 3 (drillhole -> geological-boundary intercepts as
@@ -118,7 +119,8 @@ export default function BoundaryInterceptsModal({ intercepts: interceptsProp = n
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Each lithology/alteration interval's top, placed in 3D along its hole's desurveyed trace: the control points the implicit-modelling tools read on the Modelling tab. Untick one to keep it out of a surface without changing the imported data. Click the circle to make a point \"soft\": the run honours it only approximately (a GemPy nugget tolerance) instead of exactly. {intercepts} total{v}{v2}.", { intercepts: intercepts.length, v: excludedCount > 0 ? `, ${excludedCount} excluded` : "", v2: softCount > 0 ? `, ${softCount} soft` : "" })}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, lineHeight: 1.5 }}>{tr("Each lithology/alteration interval's top, placed in 3D along its hole's desurveyed trace: the control points the implicit-modelling tools read on the Modelling tab.")}{" "}{tr("{intercepts} total{v}{v2}.", { intercepts: intercepts.length, v: excludedCount > 0 ? `, ${excludedCount} excluded` : "", v2: softCount > 0 ? `, ${softCount} soft` : "" })}</div>
+          <MoreFold style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Untick one to keep it out of a surface without changing the imported data. Click the circle to make a point \"soft\": the run honours it only approximately (a GemPy nugget tolerance) instead of exactly.")}</MoreFold>{/* #3939 */}
 
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
             <select aria-label={tr("Filter by layer")} value={layerFilter} onChange={(e) => { setLayerFilter(e.target.value); setUnitFilter("all"); }} style={{ ...sel, flex: 1 }}>
@@ -140,7 +142,8 @@ export default function BoundaryInterceptsModal({ intercepts: interceptsProp = n
               <Layers size={14} color="#55606e" />
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", fontWeight: 600 }}>{tr("Intercept sets")}</div>
             </div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 7 }}>{tr("A named subset of these picks, so a unit that repeats in the pile can be modelled as the separate surfaces it is, not as one. Build a set here, then choose it on the Modelling tab to restrict a run to it. Sets are saved with the project and exclude nothing: a pick left out of the active set is just not used by that run.")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 3 }}>{tr("A named subset of these picks, so a unit that repeats in the pile can be modelled as the separate surfaces it is, not as one.")}</div>
+            <MoreFold style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 7 }}>{tr("Build a set here, then choose it on the Modelling tab to restrict a run to it. Sets are saved with the project and exclude nothing: a pick left out of the active set is just not used by that run.")}</MoreFold>{/* #3939 */}
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
               <select aria-label={tr("Intercept set being edited")} value={editingSetId} onChange={(e) => setEditingSetId(e.target.value)} style={{ ...sel, flex: 1 }}>
                 <option value="">{tr("— no set being edited —")}</option>

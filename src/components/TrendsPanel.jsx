@@ -13,6 +13,7 @@ import { samplesTrendByArea, samplesTrend } from "../lib/samplesTrend.js"; // TA
 import { planeVsDrilling } from "../lib/drillingPlane.js"; // TASKS.csv #3769 — is the plane the drilling's own?
 import { startingTrendPlane, MIN_TOP_HOLES } from "../lib/trendStart.js"; // TASKS.csv #2428
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2779 — the drill spacing and the sample length
 import { trendThinness, trendContext } from "../lib/trendThin.js"; // TASKS.csv #2779
 import { parseDecimal } from "../lib/parseDecimal.js"; // TASKS.csv #3926
@@ -214,7 +215,8 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
 
   return (
     <div>
-      <div style={{ ...small, marginBottom: 8 }}>{tr("A trend is the direction the geology is most continuous in: a plane (dip, dip azimuth), the line of greatest continuity in it (pitch, from the strike direction, dip azimuth − 90°, towards down dip: 90° = down dip) and how much more continuous it is along that line than across it (ratios). Each model below can follow one.")}</div>
+      <div style={{ ...small, marginBottom: 3 }}>{tr("A trend is the direction the geology is most continuous in. Each model below can follow one.")}</div>
+      <MoreFold style={{ ...small, marginBottom: 8 }}>{tr("It is a plane (dip, dip azimuth), the line of greatest continuity in it (pitch, from the strike direction, dip azimuth − 90°, towards down dip: 90° = down dip) and how much more continuous it is along that line than across it (ratios).")}</MoreFold>{/* #3939 */}
       {trends.map((t) => {
         const editing = editId === t.id;
         return (

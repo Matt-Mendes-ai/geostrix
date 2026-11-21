@@ -3,10 +3,10 @@
 import React from "react";
 import { t as tr } from "../lib/i18n.js";
 
-export default function MoreFold({ children, style, ...rest }) {
+export default function MoreFold({ children, style, summary, ...rest }) { // summary: a heading in place of "More"
   return (
     <details data-more-fold="" {...rest} style={{ marginBottom: 8, ...style }}>
-      <summary style={{ cursor: "pointer", color: "var(--color-info)", fontSize: "var(--font-size-sm)" }}>{tr("More")}</summary>
+      <summary style={{ cursor: "pointer", color: "var(--color-info)", fontSize: "var(--font-size-sm)" }}>{summary || tr("More")}</summary>
       <div style={{ marginTop: 4 }}>{children}</div>
     </details>
   );

@@ -13,6 +13,7 @@ import { requestModuleAction } from "../lib/menuRequests.js"; // #2640 Stage 2 �
 import { movableSurfaces, propertyUnits, modelProblem, buildStructfitRequest, everyNth, resultRows, verdictPoints, recordIsFull, buildFitRequest, fitRows, fitPointsCsv, FIT_STOPPED, MAX_FIT_POINTS, recordWithFit } from "../lib/structFit.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { t as tr } from "../lib/i18n.js";
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? "–" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number(v.toPrecision(d)).toLocaleString());
@@ -94,7 +95,8 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
 
   return (
     <div style={{ paddingLeft: 4 }}>
-      <div style={small}>{tr("Which contacts of your model can this survey see? Each marked point is nudged up and the response recomputed; the table gives the data change per metre (in survey uncertainty) and the move the data would notice. Potential fields cannot fix a depth, so it never says where a contact is.")}</div>
+      <div style={small}>{tr("Which contacts of your model can this survey see? Potential fields cannot fix a depth, so it never says where a contact is.")}</div>
+      <MoreFold style={{ ...small, marginBottom: 4 }}>{tr("Each marked point is nudged up and the response recomputed; the table gives the data change per metre (in survey uncertainty) and the move the data would notice.")}</MoreFold>{/* #3939 */}
       <div style={small}>{tr("Points move vertically only. Points from drillhole contacts are observations and never move.")}{" "}{recordIsFull(record) ? tr("The model is rebuilt from this project's last model run as sent: relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.") : tr("The model is rebuilt from this project's last model run with each unit eroding those below; a run with onlap, conformable packages or a custom range may differ.")}</div>
       {!method ? <div style={small}>{tr("Choose magnetics or gravity first.")}</div> : problem ? <div role="status" style={{ ...small, color: "var(--color-text)" }}>{tr(problem)}</div> : (<>
         <div style={{ ...small, marginTop: 4 }}>{tr("Model from the run \"{tool}\" ({n} surfaces).", { tool: record.tool || tr("last run"), n: record.surfaces.length })}</div>
