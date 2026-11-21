@@ -5,6 +5,7 @@
 // Pure: callers pass their state (live viewer state, or a saved theme).
 import { SYMBOLS, FAMILIES, familyFor, projectSymbolChoices, symbolSvg, typeKey } from "./structureSymbols.js"; // TASKS.csv #3066
 import { lineScaleOf } from "./structureSymbols.js"; // TASKS.csv #3091
+import { fieldRamp, fieldRampLegend } from "./customColour.js"; // TASKS.csv #3941
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
@@ -57,13 +58,16 @@ export const fmtLegendValue = (v) => fmtSig3(v);
 // colour layer style (#635). labelFor / colorFor(key, value): with the user's overrides applied.
 // placed (TASKS.csv #1867 / #1813): the hole ids that have a collar; intervals of any other hole draw nothing and are left out (null = all)
 const isFiltered = (h) => (h instanceof Set ? h.size > 0 : Array.isArray(h) ? h.length > 0 : false);
-export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, visibleHoles = {}, singleColor = {}, labelFor, colorFor, placed = null }) {
+export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, visibleHoles = {}, singleColor = {}, labelFor, colorFor, placed = null, styles = {} }) {
   const groups = [];
   keys.forEach((key) => {
     if (!layerVisible?.[key]) return;
     const rows = layers?.[key] || [];
     if (!rows.length) return;
     if (singleColor[key]) { groups.push({ key, label: LAYER_META[key].label, items: [["all (one colour)", singleColor[key]]] }); return; }
+    // TASKS.csv #3941 — coloured by a number field (Total sulphides): its ramp
+    const byField = styles?.[key]?.colourBy ? fieldRamp(rows, styles[key].colourBy, styles[key]) : null;
+    if (byField) { groups.push(fieldRampLegend(key, `${LAYER_META[key].label} · ${styles[key].colourBy}`, byField.scale)); return; }
     const h = hidden[key];
     const isHidden = h instanceof Set ? (v) => h.has(v) : Array.isArray(h) ? ((s) => (v) => s.has(v))(new Set(h)) : () => false;
     const seen = new Map(); // value -> its row in `items` (#1633: and how many intervals carry it)

@@ -1650,7 +1650,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const singleColor = Object.fromEntries(CATEGORY_LAYER_KEYS.filter((k) => layerStyles[k]?.color).map((k) => [k, layerStyles[k].color])); // #635
     const groups = [
       // TASKS.csv #3296 — the codes in one order with the inspector: the project's set order (#3130) first, then by count (the figure's cut keeps the commonest)
-      ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
+      ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, styles: layerStyles, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
       ...assayLegendGroups({ withNote: true /* #3588 (2) */, assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
       ...importedSurfaceLegendGroups(implicitSurfaces, (id) => surfaceHex(implicitMeshesRef.current[id])), // #3762
@@ -5338,7 +5338,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       >
         <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()} colorOf={effectiveColor} labelOf={effectiveLabel}
           onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)}
-          numericSym={numericSymbology[key]}
+          numericSym={numericSymbology[key]} style={layerStyles[key]} onStyle={(p) => setLayerStyle(key, "point", p)}
           onNumericSymChange={(next) => setNumericSymbology((p) => { const n = { ...p }; if (next) n[key] = next; else delete n[key]; return n; })} />
       </LayerRow>
     );

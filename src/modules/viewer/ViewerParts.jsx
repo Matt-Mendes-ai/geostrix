@@ -33,6 +33,7 @@ import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the colla
 import AssayStaleBadge from "../../components/AssayStaleBadge.jsx"; // TASKS.csv #3686
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #3914 — Add data hands files to the drop import
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import TotalSulphidesBox from "../../components/TotalSulphidesBox.jsx"; // TASKS.csv #3941
 import { useTextSize } from "../../lib/useTextSize.js"; // TASKS.csv #3900 — the hole rows grow with the text size
 import { TEXT_BUMP } from "../../lib/textSize.js";
 // TASKS.csv #1702 (review #1645, Copley) — "Intercepts" opened lithology boundary picks; to a geologist an intercept is "24 m @ 0.44 % Cu".
@@ -490,7 +491,7 @@ export function LayerRow({ label, count, shown = null, visible, onToggle, onUplo
 // Deliberately terser than that modal (chips instead of rows with color pickers/labels/counts) since
 // the point of this view is a quick glance + quick toggle, not the full editing surface.
 
-export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategory, onIsolate, onRemoveSource, numericSym, onNumericSymChange, colorOf, labelOf }) {
+export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategory, onIsolate, onRemoveSource, numericSym, onNumericSymChange, colorOf, labelOf, style, onStyle }) {
   const categories = meta.numeric ? [] : distinctValues(rows);
   const sources = (() => {
     const counts = new Map();
@@ -529,6 +530,7 @@ export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggle
           })}
         </div>
       )}
+      {layerKey === "mnlgy" && rows.length > 0 && <TotalSulphidesBox rows={rows} style={style} onStyle={onStyle} /> /* TASKS.csv #3941 */}
       {sources.length > 1 && (
         <div>
           {sources.map(([src, count]) => (
