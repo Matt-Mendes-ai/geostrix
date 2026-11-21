@@ -10,7 +10,7 @@ test("#3956 every picture is the geology block", () => {
   const d = read("../src/components/DropDiagram.jsx");
   const body = d.slice(d.indexOf("const PICTURES = {"), d.indexOf("\n};", d.indexOf("const PICTURES = {")));
   const kinds = [...body.matchAll(/^ {2}(\w+): \(id\) => <Block id=\{id\}/gm)].map((m) => m[1]);
-  assert.deepEqual(kinds.sort(), ["grid", "holes", "map", "plot", "points", "terrain", "units"]);
+  assert.deepEqual(kinds.sort(), ["grid", "holes", "log", "map", "plan", "plot", "points", "section", "table", "terrain", "units"]);
   for (const user of ["../src/modules/viewer/EmptyViewerBody.jsx", "../src/modules/GeochemModule.jsx", "../src/modules/GeophysicsModule.jsx", "../src/modules/MapsModule.jsx", "../src/components/StartDialogs.jsx", "../src/components/MacrostratModal.jsx"]) {
     for (const m of read(user).matchAll(/picture=\{?["']?(\w+)["']?/g)) if (!["noDrill", "picture"].includes(m[1])) assert.ok(kinds.includes(m[1]), `${user}: ${m[1]}`);
   }
@@ -33,4 +33,17 @@ test("#3956 tokens only: colours and shadows; no words in the SVG; app.css and t
   assert.match(read("../src/components/DropDiagram.jsx"), /boxShadow: "var\(--shadow-lift\)"/);
   assert.match(read("../src/components/EmptyState.jsx"), /<div className="ge-card" style=\{\{ \.\.\.card, position: "relative" \}\}>/, "the empty cards use the shared card class");
   assert.match(read("../src/styles/app.css"), /\.ge-card \{ background: var\(--color-bg\); border: 1px solid var\(--color-border\); border-radius: 12px; box-shadow: var\(--shadow-card\); \}/);
+});
+
+test("#3956 (part 2) the other first-screen cards share the style: the Start dialog and its card, Layout's sheets, Macrostrat, the samples, the tool info card", () => {
+  const sd = read("../src/components/StartDialogs.jsx"), lay = read("../src/components/LayoutStartCard.jsx"), mac = read("../src/components/MacrostratModal.jsx"), smp = read("../src/modules/viewer/SampleButtons.jsx"), tip = read("../src/components/HoverToolInfo.jsx");
+  assert.equal((sd.match(/className="ge-card"/g) || []).length, 2, "the dialog and the 'Your project is in' card");
+  assert.equal((sd.match(/className="ge-card-head"/g) || []).length, 2);
+  assert.match(sd, /borderRadius: 14, padding: "18px 16px", textAlign: "center", background: over \? "var\(--color-selected-bg\)" : "linear-gradient\(160deg, var\(--color-bg\) 0%, var\(--color-tier-basic-bg\) 75%\)", boxShadow: "var\(--shadow-lift\)"/, "the lifted drop area");
+  assert.match(lay, /className="ge-card"/); assert.match(lay, /className="ge-card-head"/);
+  assert.match(lay, /<DropPicture picture=\{s\.kind === "intercepts" \? "table" : s\.kind\}/, "each sheet's picture is the block");
+  assert.match(mac, /className="ge-card" style=\{panel\(\{[^}]*boxShadow: "var\(--shadow-pop\)"/); assert.match(mac, /<div className="ge-card-head" style=\{header\}>/);
+  assert.match(smp, /borderRadius: 10, boxShadow: "var\(--shadow-chip\)"/);
+  assert.match(tip, /className="ge-tool-info ge-card"/); assert.match(tip, /boxShadow: "var\(--shadow-pop\)"/); assert.match(tip, /<div className="ge-card-head"/);
+  for (const [f, s] of [["MacrostratModal", mac], ["HoverToolInfo", tip], ["LayoutStartCard", lay]]) assert.doesNotMatch(s, /rgba?\(/, `${f}: shadows are tokens`);
 });

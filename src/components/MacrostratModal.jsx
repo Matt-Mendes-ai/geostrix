@@ -71,8 +71,8 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
       {/* TASKS.csv #3952 (Matt's first-time test: "we should have a nice card here for macrostrat geology. all the writing can go in more") — the dialog had
           no background: it spread modalStyles' panel, which is a function (panel(sizing)), so the title, text and buttons sat on the dimmed map. Now an
           opaque card in #3939's kit: the picture, one line of scale, the area, the buttons; what Macrostrat is and its credit behind More. */}
-      <div role="dialog" aria-modal="true" aria-label={tr("Macrostrat geology")} data-macrostrat-card="" style={panel({ width: 520, maxWidth: "94vw", maxHeight: "86vh", boxShadow: "0 6px 24px rgba(0,0,0,0.18)" })}>
-        <div style={header}>
+      <div role="dialog" aria-modal="true" aria-label={tr("Macrostrat geology")} data-macrostrat-card="" className="ge-card" style={panel({ width: 520, maxWidth: "94vw", maxHeight: "86vh", borderRadius: 12, boxShadow: "var(--shadow-pop)" })}>{/* #3956: the shared card */}
+        <div className="ge-card-head" style={header}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}><Globe size={16} />{tr("Macrostrat geology")}</span>
           <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
         </div>
