@@ -963,7 +963,7 @@ function DipSweep({ runs, unit }) {
     <>
       <svg width={W} height={H} role="img" aria-label={tr("Residual RMS by dip; lowest {lo} {unit} at {dip} degrees", { lo: lo.toFixed(2), unit, dip: best.dip })} style={{ display: "block", marginTop: 6 }}>
         <path d={runs.map((q, i) => `${i ? "L" : "M"}${x(i)},${y(q.rmsResidual)}`).join(" ")} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} />
-        {runs.map((q, i) => <g key={i}><circle cx={x(i)} cy={y(q.rmsResidual)} r={2.2} fill="var(--color-accent)" /><text x={x(i)} y={H - 4} textAnchor="middle" style={{ fontSize: 8, fill: "var(--color-text-muted)" }}>{q.dip}°</text></g>)}
+        {runs.map((q, i) => <g key={i}><circle cx={x(i)} cy={y(q.rmsResidual)} r={2.2} fill="var(--color-accent)" /><text x={x(i)} y={H - 3} textAnchor="middle" style={{ fontSize: 10, fill: "var(--color-text-muted)" }}>{q.dip}°</text></g>)}
       </svg>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Best fit at {dip}° (residual RMS {lo} {unit}, after removing a best-fit base level of {v} {unit}). {v2}", { dip: best.dip, lo: lo.toFixed(2), unit, v: best.baseLevel?.toFixed(1), v2: spread < 0.05 ? tr("The curve is almost flat — these data cannot tell the dip of this body.") : tr("Residual varies {v}% across dips.", { v: (spread * 100).toFixed(0) }) })}
       </div>
