@@ -99,3 +99,21 @@ test("#3940 TitleCards: one listener for the window, mounted once in App.jsx; th
   assert.match(read("../src/App.jsx"), /import TitleCards from "\.\/components\/TitleCards\.jsx";[^\n]*\n/);
   assert.equal((read("../src/App.jsx").match(/<TitleCards \/>/g) || []).length, 1);
 });
+
+// ---- follow-ups: the section window and the long titles
+test("#3940 the section window mounts TitleCards too, so its buttons get the card", () => {
+  const m = read("../src/main.jsx");
+  assert.match(m, /import TitleCards from "\.\/components\/TitleCards\.jsx";/);
+  assert.match(m, /<SectionTabs \/><\/Suspense>\n\s*<TitleCards \/>/);
+});
+
+test("#3940 no ribbon title is over 25 words: it is the card's body, one sentence", () => {
+  const long = [];
+  for (const d of ["../src/modules/", "../src/modules/viewer/"]) for (const f of readdirSync(new URL(d, import.meta.url)).filter((x) => x.endsWith(".jsx"))) {
+    for (const m of read(d + f).matchAll(/<RibbonButton\b[^\n]*?\btitle="([^"]*)"/g)) {
+      const words = (m[1].replace(/\{[^{}]*\}/g, " ").match(/[\p{L}\p{N}][\p{L}\p{N}'%/.-]*/gu) || []).length;
+      if (words > 25) long.push(`${f}: ${words} words: ${m[1].slice(0, 60)}`);
+    }
+  }
+  assert.deepEqual(long, []);
+});

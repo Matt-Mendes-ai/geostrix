@@ -74,7 +74,7 @@ export function ViewToolbar({
       {/* TASKS.csv #3914 — one door for every file: the picked files go through the same import as files dropped on the view */}
       <RibbonGroup label="Data">
         <input ref={addDataRef} type="file" multiple hidden onChange={(e) => { const files = Array.from(e.target.files || []); e.target.value = ""; if (files.length) requestModuleAction("import-dropped-files", { files }); }} />
-        <RibbonButton icon={Upload} label="Add data" tone="data" title="Add files to the project: collars, surveys, logs, assays, maps, grids, terrain, models. Each is read the same way as a file dropped on the view." onClick={() => addDataRef.current?.click()} />
+        <RibbonButton icon={Upload} label="Add data" tone="data" title="Add collars, surveys, logs, assays, maps, grids, terrain or models, read the same way as a file dropped on the view." onClick={() => addDataRef.current?.click()} />
       </RibbonGroup>
       {/* TASKS.csv #3908 (Matt, 2026-11-18) — the guided modelling tools, in StrixViewer: one Basic button, a small menu (guided/GuidedTool.jsx,
           loaded on first use). The ids are guided/guidedTools.js's; the labels stay here so the menu costs the startup chunk nothing. */}
@@ -319,7 +319,7 @@ export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPoly
         <RibbonButton advanced icon={Target} label="Stereonet" tone="analyse" title="Stereonet of the outcrop measurements (and any downhole structure picks)" onClick={onStereonet} />
       </RibbonGroup>
       <RibbonGroup advanced label="Draw">
-        <RibbonButton icon={Shapes} label="Unit polygons" tone="data" active={interpretOpen === "polygon"} title="Draw the outline of a map unit by clicking in the 3D view: a geology map layer with a unit field, which Model it can use" onClick={onPolygons} />
+        <RibbonButton icon={Shapes} label="Unit polygons" tone="data" active={interpretOpen === "polygon"} title="Draw a map unit's outline by clicking in the 3D view: a geology map layer with a unit field, for Model it." onClick={onPolygons} />
         <RibbonButton icon={PenTool} label="Interpret" tone="analyse" active={interpretOpen === true} title="Draw faults, contacts and lineaments by clicking in the 3D view; each set of lines is a map layer" onClick={onInterpret} />
       </RibbonGroup>
       <RibbonGroup label="Field data">
