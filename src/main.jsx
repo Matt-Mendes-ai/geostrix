@@ -17,6 +17,7 @@ import "@fontsource/exo-2/500.css";
 import "@fontsource/exo-2/600.css";
 import "@fontsource/exo-2/700.css";
 import "./styles/app.css";
+import TitleCards from "./components/TitleCards.jsx"; // TASKS.csv #3940
 
 const route = window.location.hash.replace(/^#/, "").split("?")[0];
 
@@ -65,6 +66,7 @@ if (route === "/section") {
   root.render(
     <ErrorBoundary>
       <Suspense fallback={null}><SectionTabs /></Suspense>
+      <TitleCards />{/* TASKS.csv #3940 — the section window's buttons get the info card too */}
     </ErrorBoundary>
   );
 } else {
