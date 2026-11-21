@@ -90,7 +90,7 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
       // filtering only helps texels that ARE there look crisper at a grazing angle, it can't invent
       // resolution the source grid didn't have (see raster.js's MAX_TEXTURE_SIZE comment).
       texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: r.opacity ?? 0.85, side: THREE.DoubleSide, depthWrite: false });
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: r.opacity ?? 0.85, side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, depthWrite: false });
       if (ground) collarDrapeMaterial(material); // #2447
       let geometry;
       if (ground) { // #2447 — sampled on the collar surface, lifted clear of the collars' own discs
@@ -325,7 +325,7 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 1;
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: l.opacity ?? 0.6, side: THREE.DoubleSide, depthWrite: false,
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: l.opacity ?? 0.6, side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, depthWrite: false,
         polygonOffset: drapeOnTerrain, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); // #3380 — on the ground, ahead of it in the depth test
       let geometry;
       if (drapeOnTerrain) {
@@ -685,7 +685,7 @@ export function syncTerrain(group, previous, terrain, { origin }) {
     geometry.setIndex(new THREE.BufferAttribute(am.indices, 1));
     geometry.computeVertexNormals();
     geometry.userData.adaptive = { triangles: am.triangles, maxError: am.maxError, nodes: gridW * gridH };
-    const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.DoubleSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
+    const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.visible = terrain.visible !== false;
     group.add(mesh);
@@ -720,7 +720,9 @@ export function syncTerrain(group, previous, terrain, { origin }) {
   geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
-  const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.DoubleSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
+  // TASKS.csv #3896 (Matt: "It should not be able to look from below and see above ground") — the terrain and every drape on it are drawn from
+  // above only (their triangles face up: test/terrainFromBelow3896.test.mjs); from below the user sees the holes, solids and sections
+  const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.FrontSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.visible = terrain.visible !== false;
   group.add(mesh);
