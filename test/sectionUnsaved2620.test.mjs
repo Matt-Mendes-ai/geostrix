@@ -16,7 +16,7 @@ test("main answers 'may close' synchronously with the Unsaved lines question; pr
 test("every action that replaces the project asks first, and stops on Cancel", () => {
   const s = src("../src/lib/store.jsx");
   assert.match(s, /if \(!sectionWindowsMayClose\(\)\) return \{ cancelled: true \}; \/\/ #2620/); // reproject
-  assert.match(s, /if \(!target\) return;\s+if \(!sectionWindowsMayClose\(\)\) return; \/\/ #2620/); // switch tab
+  assert.match(s, /if \(!target\) (?:return;|\{ endProjectLoad\(\); return; \})\s+if \(!sectionWindowsMayClose\(\)\) (?:return;|\{ endProjectLoad\(\); return; \}) \/\/ #2620/); // switch tab (#3931 also ends the load it began)
   assert.match(s, /const newWorkspaceTab = use(?:Callback|LatestCallback)\(\(\) => \{\s+if \(!sectionWindowsMayClose\(\)\) return false;/);
   assert.match(s, /if \(!sectionWindowsMayClose\(\)\) return \{ ok: false, canceled: true \}; \/\/ #2620/); // open
   assert.match(s, /if \(tabId === activeTabId && !sectionWindowsMayClose\(\)\) return;/); // close the shown tab
