@@ -18,7 +18,7 @@ export default function VolcanicCodesModal({ label, codes, onCancel, onRun }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onCancel}>
       <div role="dialog" aria-modal="true" aria-label={tr("Which logged codes are volcanic?")} onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", borderRadius: 8, padding: 16, width: 440, maxHeight: "80vh", overflowY: "auto", boxShadow: "0 8px 30px rgba(0,0,0,0.25)" }}>
         <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}>{tr("Which logged codes are volcanic?")}</div>
-        <div style={{ ...small, marginTop: 4 }}>{tr("{label} names volcanic rocks only. Tick the logged codes that are volcanic: the samples logged as anything else are left unclassified, and the notice says how many. A code is ticked to start with only when its name reads as a volcanic rock.", { label })}</div>
+        <div style={{ ...small, marginTop: 4 }}>{tr("{label} names volcanic rocks only. Tick the logged codes that are volcanic; samples logged as anything else are left unclassified (the notice gives the count). Codes whose names read as volcanic start ticked.", { label })}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 10 }}>
           {codes.map((c) => (
             <label key={c.code} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>

@@ -92,11 +92,11 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
         {[tr("Thickness interval (m)"), tr("Grade interval ({u})", { u: shownGrade }), tr("GT interval ({u})", { u: gtLabel })].map((l, k) => (
           <label key={k} style={field} title={tr("Blank: a round interval (1, 2 or 5 x 10^n) giving about six bands.")}>{l}<NumberInput min="0" allowEmpty value={steps[k] === "" || steps[k] == null ? null : steps[k]} placeholder={tr("round")} onChange={(n) => setSteps((p) => p.map((v, q) => (q === k ? (n == null ? "" : String(n)) : v)))} style={inp} aria-label={l} /></label>
         ))}
-        <label style={field}>{tr("Method")}<select value={method} onChange={(e) => { setMethod(e.target.value); setFig(null); }} style={{ ...inp, width: "auto" }} aria-label={tr("Section estimation method")} title={tr("Ordinary kriging fits a 2D variogram to the holes' GT, and another to their thickness, and weighs the nearest holes by it; inverse distance weighs them by distance alone. Both estimate the same nodes.")}>{/* #3122 */}
+        <label style={field}>{tr("Method")}<select value={method} onChange={(e) => { setMethod(e.target.value); setFig(null); }} style={{ ...inp, width: "auto" }} aria-label={tr("Section estimation method")} title={tr("Ordinary kriging weighs the nearest holes by 2D variograms fitted to their GT and thickness; inverse distance by distance alone. Both estimate the same nodes.")}>{/* #3122 */}
           <option value="idw">{tr("Inverse distance (squared)")}</option>
           <option value="ok">{tr("Ordinary kriging (a 2D variogram of each)")}</option>
         </select></label>
-        {method === "ok" && <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }} title={tr("The square root of each node's kriging variance: it depends on where the holes are and on the variogram, not on their values, so it shows where the kriged plan is least sure.")}><input type="checkbox" checked={showSd} onChange={(e) => { setShowSd(e.target.checked); setFig(null); }} />{tr("Add a panel of the GT kriging standard deviation")}</label>}
+        {method === "ok" && <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }} title={tr("The square root of each node's kriging variance: it depends on hole positions and the variogram, not their values, and shows where the kriged plan is least sure.")}><input type="checkbox" checked={showSd} onChange={(e) => { setShowSd(e.target.checked); setFig(null); }} />{tr("Add a panel of the GT kriging standard deviation")}</label>}
         <label style={field}>{tr("Panels stop at")}<select value={maskKind} onChange={(e) => { setMaskKind(e.target.value); setFig(null); }} style={{ ...inp, width: "auto" }} aria-label={tr("Where the panels stop")} title={tr("The convex outline of the pierce points spans the gap between two separate patches of drilling; a distance from the nearest pierce point does not.")}>{/* #3123 */}
           <option value="outline">{tr("the outline of the pierce points")}</option>
           <option value="distance">{tr("a distance from the nearest pierce point")}</option>
@@ -108,9 +108,9 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
       {frame.error === "azimuth" && <div style={note}>{tr("Type the azimuth along strike: none is chosen for you.")}</div>}
       {!frame.error && (
         <div style={note}>
-          {tr("{n} pierce point(s) on the section ({z} hole(s) assayed with no intercept, read as 0). Each is the intercepts' mid-point, weighted by length, projected on the vertical plane along {s}°.", { n: points.length, z: (zeros || []).length, s: Math.round(frame.strikeAz) })}
+          {tr("{n} pierce point(s) on the section ({z} hole(s) assayed with no intercept, read as 0), each at its intercepts' length-weighted mid-point, projected on the vertical plane along {s}°.", { n: points.length, z: (zeros || []).length, s: Math.round(frame.strikeAz) })}
           {" "}{tr("Thickness: {k}; GT is the grade times that thickness.", { k: kindLabel[kind] })}
-          {mode === "azimuth" && kind !== "downhole" ? " " + tr("Against a typed vertical plane, the thickness is measured across that plane: for a dipping lode it is not the lode's true thickness, which the best-fit plane gives.") : ""}
+          {mode === "azimuth" && kind !== "downhole" ? " " + tr("Against a typed vertical plane, thickness is measured across that plane, not the true thickness of a dipping lode; the best-fit plane gives that.") : ""}
           {points.noDir > 0 && kind !== "downhole" ? " " + tr("{n} hole(s) have no direction across their intercept (no survey): their downhole thickness is used.", { n: points.noDir }) : ""}
           {spacing ? " " + tr("Pierce points typically {s} m apart on the section: blank cell = a quarter of that, blank search = 2.5 times it.", { s: Math.round(spacing) }) : ""}
         </div>
@@ -126,7 +126,7 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
             <button type="button" onClick={toLayout} style={btn}>{tr("Add to Layout")}</button>
             <button type="button" onClick={saveCsv} style={btn}>{tr("Export the pierce points (CSV)")}</button>
           </div>
-          <div style={note}><b>{tr("Not a resource estimate.")}</b>{" "}{fig.ok ? tr("Ordinary kriging of the pierce points' thickness and GT on the section (a variogram fitted to each), grade as GT over thickness: no declustering, no classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and a hole assayed with no intercept counts as 0.") : tr("Inverse-distance interpolation of the pierce points' thickness and GT on the section, grade as GT over thickness: no declustering, no variogram, no classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and a hole assayed with no intercept counts as 0.")}{/* #3122 */}</div>
+          <div style={note}><b>{tr("Not a resource estimate.")}</b>{" "}{fig.ok ? tr("Ordinary kriging of the pierce points' thickness and GT on the section (a variogram fitted to each), grade as GT over thickness; no declustering or classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and an assayed hole with no intercept counts as 0.") : tr("Inverse-distance interpolation of the pierce points' thickness and GT on the section, grade as GT over thickness; no declustering, variogram or classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and an assayed hole with no intercept counts as 0.")}{/* #3122 */}</div>
         </>
       )}
     </>

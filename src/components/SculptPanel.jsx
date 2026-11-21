@@ -22,7 +22,7 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
       {/* Provenance, stated where the geologist works, not only in the export file. */}
       {surface.editCount > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 6, lineHeight: 1.45 }}>
-          <strong>{tr("This surface has been hand-edited.")}</strong> {tr("{editCount} {v} applied after generation, so it is no longer purely the output of the parameters listed above. Every mesh export of it carries the same statement. Last edit {v2}", { editCount: surface.editCount, v: tr(surface.editCount === 1 ? "manual edit" : "manual edits"), v2: edits.length ? new Date(edits[edits.length - 1].at).toLocaleString() : "—" })}
+          <strong>{tr("This surface has been hand-edited.")}</strong> {tr("{editCount} {v} applied after generation, so it is no longer only the output of the parameters above; every mesh export says so. Last edit {v2}", { editCount: surface.editCount, v: tr(surface.editCount === 1 ? "manual edit" : "manual edits"), v2: edits.length ? new Date(edits[edits.length - 1].at).toLocaleString() : "—" })}
           {edits.length > 0 && (
             <span>
               {" "}{tr("({v} m {v2}, {radiusM} m brush, {verticesMoved} vertices).", { v: num(edits[edits.length - 1].offsetM, 2), v2: edits[edits.length - 1].axis === "vertical" ? tr("vertical") : tr("along the normal"), radiusM: edits[edits.length - 1].radiusM, verticesMoved: edits[edits.length - 1].verticesMoved.toLocaleString() })}</span>
@@ -84,7 +84,7 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
           )}
           {info && info.flipped > 0 && (
             <div style={{ fontSize: "var(--font-size-xs)", color: "#8a3030", background: "#fbeeee", border: "1px solid #e6c4c4", borderRadius: 5, padding: "5px 6px", marginBottom: 6, lineHeight: 1.45 }}>
-              <strong>{tr(info.flipped === 1 ? "{flipped} triangle is now inside out." : "{flipped} triangles are now inside out.", { flipped: info.flipped })}</strong>{" "}{tr("This offset has pushed the patch through the surface. The mesh will still report as watertight (nothing about its connectivity changed) but the enclosed volume — and therefore any tonnage — is no longer meaningful. Reduce the offset or widen the radius.")}</div>
+              <strong>{tr(info.flipped === 1 ? "{flipped} triangle is now inside out." : "{flipped} triangles are now inside out.", { flipped: info.flipped })}</strong>{" "}{tr("Reduce the offset or widen the radius: the patch went through the surface, so the volume and any tonnage are meaningless, though the mesh still reports watertight.")}</div>
           )}
 
           <div style={{ display: "flex", gap: 4 }}>
@@ -102,7 +102,7 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
               title={tr("Leave sculpt mode")}><XIcon size={12} /></button>
           </div>
 
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 6, lineHeight: 1.45 }}>{tr("Moving vertices never changes which triangles share which edges, so a watertight shell stays watertight and an open surface stays exactly as open as it was. Undo history is for this session only — once the project is saved, an edit is permanent (and coordinates round to 1 cm in the project file). Vertex/triangle deletion and pinning are not implemented yet.")}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 6, lineHeight: 1.45 }}>{tr("Moving vertices keeps a watertight shell watertight and an open surface as open as it was. Undo lasts this session only: once saved, an edit is permanent (coordinates round to 1 cm). Deleting and pinning vertices or triangles is not available yet.")}</div>
         </div>
       )}
     </div>

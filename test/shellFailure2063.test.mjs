@@ -13,7 +13,7 @@ test("the failure carries the facts and the advice that fits the run", () => {
   // above-cutoff cells with nothing to close against (the live run: 36 cells, the highest 8,330 ppm, 'never crosses' was wrong)
   assert.match(block, /const isolated = hi >= numericCutoff && !numericCloseShell;/);
   assert.match(block, /isolated \? tr\("No \{symbol\} shell at \{numericCutoff\} \{unit\}: the grid has no surface to extract\."/);
-  assert.match(block, /: mh > 1\n\s+\? tr\("With Min holes \{k\}/);
+  assert.match(block, /: mh > 1\n\s+\? tr\("Try Min holes 1 \(one hole\x27s grade, flagged in the result\) or a wider search: with Min holes \{k\}/ /* #3899: the action first */);
   assert.match(block, /cellRefit \? tr\("Try a lower cutoff or a larger search radius\."\)/);
   assert.match(r, /cs = fit; blocksNeeded = blocksOf\(cs\); cellRefit = true;/);
 });

@@ -28,7 +28,7 @@ export default function MiningWidthIntercepts({ element, unit, cutoff, minWidth,
   return (
     <details style={{ marginTop: 6 }} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Intercepts diluted to the minimum mining width")}</summary>
-      <div style={note}>{tr("For a body narrower than the model's columns: each intercept at the cut-off, its true width from the dip of the body, and its grade spread over the minimum mining width with no grade in the rest.")}</div>
+      <div style={note}>{tr("For a body narrower than the model's columns: each intercept at the cut-off, at its true width from the body's dip, diluted to the minimum mining width at no grade.")}</div>
       {!el && <div style={note}>{tr("No assays of {el} are loaded.", { el: element || "?" })}</div>}
       {el && !sameUnit && <div style={note}>{tr("The assays of {el} are in {u1} and the model's cut-off is in {u2}: not compared here.", { el: element, u1: el.unit, u2: unit })}</div>}
       {el && sameUnit && !(minWidth > 0) && <div style={note}>{tr("Type a minimum mining width above.")}</div>}

@@ -137,4 +137,37 @@ function BuildModel() {
   );
 }
 
-export const DIAGRAMS = { workflow: Workflow, filesWhere: FilesWhere, sectionFenceLog: SectionFenceLog, buildModel: BuildModel, basicAdvanced: BasicAdvanced, layoutSheet: LayoutSheet };
+// D4 (plan_fable 3.3; TASKS.csv #3899 T6) — how a surface, a shell and a block model are built, side by side in section: a surface passes
+// through the contacts logged down the holes, a shell closes around the grades above a cut-off, a block model gives every block a value
+function SurfaceShellBlock() {
+  const holes = (x0) => [0, 28, 56].map((dx) => <line key={dx} x1={x0 + dx} y1={14} x2={x0 + dx + 6} y2={104} style={{ stroke: "var(--color-text-muted)" }} strokeWidth={1.2} />);
+  const dot = (x, y, hot = false) => <circle cx={x} cy={y} r={hot ? 3.2 : 2.4} style={{ fill: hot ? "#c0504d" : "var(--color-text)" }} />;
+  const blocks = [];
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 4; c++) {
+    const hot = (r === 2 && (c === 1 || c === 2)) || (r === 1 && c === 2) || (r === 3 && c === 1);
+    blocks.push(<rect key={`${r}-${c}`} x={214 + c * 18} y={16 + r * 18} width={18} height={18} style={{ fill: hot ? "#c0504d" : r < 2 ? "#d9b44a" : "#7aa95c", stroke: "var(--color-border)" }} opacity={hot ? 0.9 : 0.6} />);
+  }
+  return (
+    <div dir="ltr" style={ltr}>
+      <svg viewBox="0 0 300 150" width="100%" aria-hidden="true">
+        <g>{holes(14)}
+          {dot(16, 48)}{dot(45, 56)}{dot(74, 66)}
+          <path d="M6 44 C 30 50, 50 56, 86 70" style={{ fill: "none", stroke: "var(--color-accent)" }} strokeWidth={2} />
+        </g>
+        <g>{holes(114)}
+          {dot(118, 40)}{dot(119, 62, true)}{dot(120, 84)}{dot(146, 50, true)}{dot(147, 70, true)}{dot(175, 44)}{dot(176, 66, true)}{dot(177, 92)}
+          <ellipse cx={148} cy={62} rx={36} ry={20} style={{ fill: "none", stroke: "#c0504d" }} strokeWidth={1.8} strokeDasharray="4 3" />
+        </g>
+        <g>{blocks}</g>
+        <text x={50} y={124} textAnchor="middle" style={svgText()}>{tr("Surface")}</text>
+        <text x={50} y={139} textAnchor="middle" style={muted()}>{tr("on contacts")}</text>
+        <text x={148} y={124} textAnchor="middle" style={svgText()}>{tr("Shell")}</text>
+        <text x={148} y={139} textAnchor="middle" style={muted()}>{tr("around grades")}</text>
+        <text x={250} y={124} textAnchor="middle" style={svgText()}>{tr("Block model")}</text>
+        <text x={250} y={139} textAnchor="middle" style={muted()}>{tr("per block")}</text>
+      </svg>
+    </div>
+  );
+}
+
+export const DIAGRAMS = { workflow: Workflow, filesWhere: FilesWhere, sectionFenceLog: SectionFenceLog, buildModel: BuildModel, surfaceShellBlock: SurfaceShellBlock, basicAdvanced: BasicAdvanced, layoutSheet: LayoutSheet };

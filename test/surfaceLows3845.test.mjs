@@ -105,10 +105,10 @@ test("#3851 slips: a repeated header row, the zero-elevation rule, the CRS sente
   assert.equal(surfaceFlatRule([], false, [{ x: 1, y: 1 }]), "zero");
   assert.equal(surfaceFlatRule([], false, [{ x: 1, y: 1, z: 30 }]), "samples");
   assert.equal(surfaceFlatRule([{ z: 100 }], false, [{ x: 1, y: 1 }]), "collars"); assert.equal(surfaceFlatRule([], false), "samples");
-  assert.match(read("../src/modules/viewer/SurfacePlacementNotices.jsx"), /counts\.flatRule === "zero" \? tr\("\{n\} surface sample\(s\) have no elevation, and no collar or sample gives one: drawn flat at 0 m\./);
+  assert.match(read("../src/modules/viewer/SurfacePlacementNotices.jsx"), /counts\.flatRule === "zero" \? tr\("Load a terrain \(Maps > Terrain\) to place \{n\} surface sample\(s\) on the ground: with no elevation from a collar or sample, they are drawn flat at 0 m\./ /* #3899: the action first */);
   assert.match(read("../src/components/ProjectCrsModal.jsx"), /Choose the CRS your coordinates \(collars, samples, maps\) are in\./);
   const p = read("../src/components/SurfaceMappingPanel.jsx");
   assert.match(p, /const usable = parseStructureRows\(pendingStruct\.rows, pendingStruct\.cols, project\?\.structureCodeClasses\)\.rows;/); // only the codes of the rows that are imported
-  hasKeys(["{n} repeated header row(s) inside the file", "{n} surface sample(s) have no elevation, and no collar or sample gives one: drawn flat at 0 m. Load a terrain (Maps > Terrain) to place them on the ground.",
+  hasKeys(["{n} repeated header row(s) inside the file", "Load a terrain (Maps > Terrain) to place {n} surface sample(s) on the ground: with no elevation from a collar or sample, they are drawn flat at 0 m.",
     "Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in."]);
 });

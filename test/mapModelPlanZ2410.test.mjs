@@ -22,7 +22,7 @@ test("the ground falls back to the flat elevation where the terrain has no data,
 test("the map model places off-terrain contacts at the layer's elevation, says so, and cuts at it", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /const ground = \(x, y\) => \{ const g = terrainGroundAt\(terrain, x, y\); if \(Number\.isFinite\(g\) \|\| planZ == null\) return g; onPlan\+\+; return planZ; \};/);
-  assert.match(r, /were placed at the map layer's elevation \(RL \{z\}\); the surfaces are cut there at that elevation too/);
+  assert.match(r, /were placed at the map layer's elevation \(RL \{z\}\), where the surfaces are also cut/ /* #3899 */);
   assert.match(r, /\.\.\.\(planZ != null \? \{ groundFallbackZ: planZ \} : \{\}\)/);
   assert.match(r, /modelGround\(clipTerrain, collars, survey, \{ fallbackZ: stackOpts\.groundFallbackZ \}\)/);
 });

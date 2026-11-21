@@ -16,5 +16,5 @@ test("the GemPy Run buttons' titles say what is missing, then the engine", () =>
 });
 
 test("the Correlation pane's Fence button says there are no holes when it is disabled for that", () => {
-  assert.match(src, /title=\{collars\.length \? tr\("Fence \/ panel diagram — project the holes[^"]*"\) : tr\("No holes with collars yet: import collars first\."\) \/\* #1844 \*\/\}/);
+  assert.match(src, /title=\{collars\.length \? tr\("Fence \/ panel diagram — correlate lithology hole to hole[^"]*"\) : tr\("No holes with collars yet: import collars first\."\) \/\* #1844 \*\/\}/);
 });

@@ -48,7 +48,7 @@ export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay,
   return (
     <div style={style}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Update an imported domain with new drilling")}</div>
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 6 }}>{tr("The domain stays where the holes drilled since agree with it and changes only near those that do not; the result says which holes agree, the grade just outside it and below the cut-off inside it, and the volume added and removed. The element, cut-off and probability are this pane's.")}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 6 }}>{tr("Changes the domain only near holes drilled since that disagree with it. The result gives which holes agree, the grade just outside it and below cut-off inside it, and the volume added and removed. Element, cut-off and probability are this pane's.")}</div>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
         <label style={{ ...fieldStyle, flex: 2 }}>{tr("Domain")}
           <select value={sid} onChange={(e) => setSurfaceId(e.target.value)} style={{ ...selectStyle, width: "100%" }} aria-label={tr("Imported domain to update")}>

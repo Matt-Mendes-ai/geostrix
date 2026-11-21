@@ -17,6 +17,6 @@ test("wiring: levelCollars, the stale-result signature, the search shape in the 
   assert.match(g, /<CollarLevelsNote collars=\{levelCollars\}/);
   assert.match(g, /resultSig !== settingsSig/);
   assert.match(g, /setResultSig\(runSig\.current\)/);
-  assert.match(g, /that search is \{shape\} through all the data/);
+  assert.match(g, /the search, \{shape\} through all the data, still smears grade/); // #3899: the action first
   assert.match(src("../src/modules/GeophysicsModule.jsx"), /samples from the \$\{p\.samplesFrom\}/);
 });

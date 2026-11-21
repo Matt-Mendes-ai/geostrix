@@ -361,7 +361,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     const fmt0 = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 });
     const done = notice("Sculpted \"{name}\": moved {count} vertices by up to {offset} m {how} within a {radius} m brush at {e} E / {n} N / {z} m. Enclosed volume {v0} → {v1} m³ ({dv} m³) — any tonnage shown for this surface has been recomputed from the new volume. The surface is now flagged as hand-edited and its mesh exports say so. Connectivity is untouched, so it is exactly as watertight as it was before.", { name: (mesh.userData?.tip || "surface").split("\n")[0], count: a.brush.count.toLocaleString(), offset: offset.toFixed(2), how: axis === "vertical" ? tr("vertically") : tr("along the surface normal"), radius: a.brush.radius,
       e: edit.anchorEasting.toFixed(1), n: edit.anchorNorthing.toFixed(1), z: edit.anchorElevation.toFixed(1), v0: fmt0(a.baseVolume), v1: fmt0(volAfter), dv: `${dV >= 0 ? "+" : ""}${fmt0(dV)}` });
-    notify(appendNotice(done, (flip.flipped ? tr(" WARNING: {n} triangle(s) are now inside out — the patch has been pushed through the surface. Undo and use a smaller offset or a larger radius; the volume above cannot be trusted while that is true.", { n: flip.flipped }) : "") + ` (${ms.toFixed(0)} ms)`)); // #1119
+    notify(appendNotice(done, (flip.flipped ? tr(" WARNING: {n} triangle(s) are now inside out. Undo and use a smaller offset or a larger radius; until then the volume above cannot be trusted.", { n: flip.flipped }) : "") + ` (${ms.toFixed(0)} ms)`)); // #1119
   }, [offset, axis, meshesRef, setImplicitSurfaces, onGeometryEdited, clearMarker, notify, sceneToWorld]);
 
   const cancelAnchor = useCallback(() => {
