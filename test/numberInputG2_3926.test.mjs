@@ -10,6 +10,8 @@ const DONE = [
   "components/PlannedHolePattern.jsx", "components/ModelAreaRange.jsx", "components/LocalGridPanel.jsx", "components/SectionImageVerticalModal.jsx",
   "components/SlicePlaceRow.jsx", "components/LevelPlanWindow.jsx", "components/ProjectCrsModal.jsx", "components/GeoreferencerModal.jsx",
   "components/InterpretPane.jsx", "components/ImportMappingModal.jsx", "components/AlterationBoxModal.jsx",
+  "components/PlanModelsList.jsx", "components/PlannedHoleParts.jsx", "components/PlannedHoleTargeting.jsx", "components/SectionEditModal.jsx",
+  "components/StereonetModal.jsx", "components/StripLog.jsx", "components/SurfaceGeologyProjection.jsx",
 ];
 
 test("every G2 box in these files is a NumberInput", () => {
@@ -17,7 +19,7 @@ test("every G2 box in these files is a NumberInput", () => {
     const s = read(f);
     assert.match(s, /import NumberInput from "\.\/NumberInput\.jsx";/, f);
     assert.doesNotMatch(s, /<input[^>]*type="number"/, f);
-    assert.match(s, /<NumberInput /, f);
+    assert.match(s, /<NumberInput\s/, f);
   }
 });
 
@@ -30,6 +32,13 @@ test("the wrapper and the rules: text state stays text, empty stays 'not set', m
   assert.match(a, /<NumberInput min=\{0\} max=\{100\} value=\{boxes\[p\]\[axis\]\[i\]\} onChange=\{\(v\) => setLimit\(p, axis, i, v\)\}/);
   const l = read("components/LevelPlanWindow.jsx");
   assert.match(l, /<NumberInput min=\{0\.1\} value=\{half === "" \? null : half\} onChange=\{\(v\) => setHalf\(String\(v\)\)\}/);
+});
+
+test("the planned hole's fields: the azimuth wrapped and the dip held when the box commits (#3824), as on blur before", () => {
+  const h = read("components/PlannedHoleParts.jsx");
+  assert.match(h, /<NumberInput allowEmpty value=\{value === "" \? null : value\} placeholder=\{placeholder\} onChange=\{\(v\) => onChange\(v == null \? "" : limit && limit\(v\) !== v \? Math\.round\(limit\(v\) \* 1000\) \/ 1000 : v\)\}/);
+  assert.match(read("components/PlannedHoleTargeting.jsx"), /allowEmpty value=\{value \?\? null\} placeholder="—"/);
+  assert.match(read("components/StereonetModal.jsx"), /<NumberInput min=\{0\} max=\{89\} step=\{5\} value=\{roseMinDip\}/);
 });
 
 test("NumberInput takes a wrapper style (a box that fills a row), and nothing else changes", () => {

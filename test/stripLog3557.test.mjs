@@ -56,7 +56,7 @@ test("#3559 a long hole opens on its sampled stretch when that is a small part o
 test("#3559 wired: Fit, Sampled and Whole hole buttons, the log opens fitted once, the scale box goes below 1, the dialog resizes", () => {
   assert.match(src, /const fit = \(\) => setPxPerMeter\(fitPxPerMetre\(d1 - d0, paneH\(\)\)\);/);
   assert.match(src, /useLayoutEffect\(\(\) => \{ \/\/ once, when the pane has its height/);
-  assert.match(src, /<input type="number" min=\{FIT_MIN_PX\} max=\{FIT_MAX_PX\} step="any" value=\{pxPerMeter\}/);
+  assert.match(src, /<input type="number" min=\{FIT_MIN_PX\} max=\{FIT_MAX_PX\} step="any" value=\{pxPerMeter\}|<NumberInput min=\{FIT_MIN_PX\} max=\{FIT_MAX_PX\} value=\{pxPerMeter\}/ /* #3926: a NumberInput, the same limits */);
   assert.match(src, /onClick=\{fit\}[^\n]*\{tr\("Fit"\)\}/); assert.match(src, /\{tr\("Sampled"\)\}/); assert.match(src, /\{ranged && <button type="button" onClick=\{wholeHole\}/);
   assert.match(src, /minWidth: 480, minHeight: 360, maxWidth: "98vw", maxHeight: "98vh", resize: "both"/);
   assert.match(src, /<div ref=\{scrollRef\} style=\{\{ flex: 1, overflow: "auto", padding: 16 \}\}>/);
