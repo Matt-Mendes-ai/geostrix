@@ -191,7 +191,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
       const name = tr("Ground from the {survey} stations", { survey: activeSurvey || tr("survey") });
       // #2638 — this run's ground; the project's terrain is left as it is
       setRunGround({ survey: activeSurvey, t: { name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "survey station elevations", survey: activeSurvey, ...t.stats } }, stats: t.stats });
-      setGroundNote(tr("This inversion uses a ground from {n} station elevations: {w} × {h} nodes at {cell} m, blanked beyond {blank} m of a station ({zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM.", { n: t.stats.stations.toLocaleString(), w: t.gridW, h: t.gridH, cell: +t.stats.cellM.toFixed(1), blank: Number.isFinite(t.stats.blankM) ? Math.round(t.stats.blankM) : "—", zmin: Math.round(t.stats.zmin), zmax: Math.round(t.stats.zmax) })
+      setGroundNote(tr("Ground from {n} station elevations (the survey's GPS heights, not a DEM): {w} × {h} nodes at {cell} m, blank beyond {blank} m of a station ({zmin} to {zmax} m).", { n: t.stats.stations.toLocaleString(), w: t.gridW, h: t.gridH, cell: +t.stats.cellM.toFixed(1), blank: Number.isFinite(t.stats.blankM) ? Math.round(t.stats.blankM) : "—", zmin: Math.round(t.stats.zmin), zmax: Math.round(t.stats.zmax) })
         + " " + (projectTerrain ? tr("The project's terrain (\"{name}\") is kept for everything else.", { name: projectTerrain.name || tr("loaded") }) : tr("The project has no terrain: this ground is used for this inversion only.")));
     } catch (e) { setGroundNote(e.message); }
   };
@@ -244,15 +244,15 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     if (!zModeEff) problems.push(tr("Say what the station z values mean."));
     if (zModeEff === "ground" && !(num(sensorHeight) > 0)) problems.push(tr("Enter the sensor height above the ground elevation in the z column.")); // #1969
     // TASKS.csv #1969 — a derivative, a filtered product or another method is not the field this inverts: blocked, not only warned
-    if (activeSurvey && geophysSurveys?.[activeSurvey]?.method && !methodIsInvertible(geophysSurveys[activeSurvey].method)) problems.push(tr("This survey is labelled {label}: only the measured total field and Bouguer gravity are inverted here. Change its Method in Point survey if the label is wrong.", { label: tr(SURVEY_METHODS[geophysSurveys[activeSurvey].method]?.label || geophysSurveys[activeSurvey].method) }));
+    if (activeSurvey && geophysSurveys?.[activeSurvey]?.method && !methodIsInvertible(geophysSurveys[activeSurvey].method)) problems.push(tr("This survey is labelled {label}: only measured total field and Bouguer gravity are inverted here. If the label is wrong, change its Method in Point survey.", { label: tr(SURVEY_METHODS[geophysSurveys[activeSurvey].method]?.label || geophysSurveys[activeSurvey].method) }));
     // TASKS.csv #1969 — the raw total field with nothing removed is not an anomaly: the run would model the Earth's field
-    if (method === "mag" && baseLevel === "none" && rows.length) { const mean = rows.reduce((a, r) => a + r.value, 0) / rows.length; if (Math.abs(mean) > 10000) problems.push(tr("These values average {v} nT: the raw total field. With no base level removed the inversion would model the Earth's own field. Choose Best-fit plane under Remove base level, or remove the regional field in your processing first.", { v: Math.round(mean).toLocaleString() })); }
+    if (method === "mag" && baseLevel === "none" && rows.length) { const mean = rows.reduce((a, r) => a + r.value, 0) / rows.length; if (Math.abs(mean) > 10000) problems.push(tr("Raw total field (mean {v} nT): choose Best-fit plane under Remove base level, or remove the regional first; otherwise the Earth's field is modelled.", { v: Math.round(mean).toLocaleString() })); }
     if (zModeEff === "drape" && !(num(sensorHeight) > 0)) problems.push(tr("Enter the sensor height above the terrain."));
     if (zModeEff === "drape" && !terrain) problems.push(tr("A terrain surface is needed to drape the stations on."));
     if (kind === "inversion" && !terrain) problems.push(tr("An inversion needs a terrain surface (Maps > Terrain) to know which cells are underground."));
     if (crsIssue) problems.push(crsIssue);
     if (checking) problems.push(tr("Still checking the survey's stations (spacing, height above the ground)…")); // #3803
-    if (downhole?.isDownhole) problems.push(tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m), so they are points at depth: a downhole log, or an inversion model or pseudo-section imported as points. A surface survey is inverted from stations on or above the ground; a downhole log goes in with the drillholes and the drillhole-constraint option.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })); // #1709
+    if (downhole?.isDownhole) problems.push(tr("Not survey stations: {pct}% sit over 10 m below the {ground} (typically {med} m): points at depth, a downhole log, an inversion model or a pseudo-section as points.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })); // #1709
     if (method === "mag") {
       if (!(num(field.strength) > 20000 && num(field.strength) < 70000)) problems.push(tr("Enter the field strength (nT, e.g. from IGRF for the survey date)."));
       if (!(Math.abs(num(field.inclination)) <= 90)) problems.push(tr("Enter the field inclination."));
@@ -290,7 +290,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     const cx = stations.reduce((s, p) => s + p[0], 0) / stations.length;
     const cy = stations.reduce((s, p) => s + p[1], 0) / stations.length;
     let decl = null;
-    if (method === "mag" && crsUnset) return { problems: [tr("A magnetic inversion needs the project CRS: the declination is turned to grid north at the survey's real location. Set the CRS in the status bar first.")] }; // #2238
+    if (method === "mag" && crsUnset) return { problems: [tr("Set the project CRS in the status bar first: a magnetic inversion turns the declination to grid north at the survey's real location.")] }; // #2238
     if (method === "mag") { decl = gridDeclination(num(field.declination), cx, cy, project.epsg); if (!decl) return { problems: [tr("Could not compute grid convergence for this CRS.")] }; }
     const cell = num(mesh.coreCell);
     const padReach = cell * (1.3 + 1.69 + 2.197 + 2.856 + 3.713 + 4.827) + 3 * cell;
@@ -325,11 +325,11 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     }
     const notes = [];
     // TASKS.csv #1196 — the confirm box says "anomaly"; a mean of 53,959 nT says raw total field. A warning, not a block: the field may be removed by the base level
-    if (method === "mag" && observed.length) { const mean = observed.reduce((a, b) => a + b, 0) / observed.length; if (Math.abs(mean) > 10000) notes.push(baseLevel === "plane" /* #1591 — it said 'Consider the best-fit plane' with the plane chosen */ ? tr("These values average {v} nT: the raw total field. The best-fit plane removes its level and tilt here, close to what subtracting the IGRF would do over a small area; over a larger one choose 'Subtract the IGRF field' instead.", { v: Math.round(mean).toLocaleString() }) : tr("These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.", { v: Math.round(mean).toLocaleString() })); }
+    if (method === "mag" && observed.length) { const mean = observed.reduce((a, b) => a + b, 0) / observed.length; if (Math.abs(mean) > 10000) notes.push(baseLevel === "plane" /* #1591 — it said 'Consider the best-fit plane' with the plane chosen */ ? tr("Raw total field (mean {v} nT): the best-fit plane works like the IGRF over a small area; over a larger one, subtract the IGRF.", { v: Math.round(mean).toLocaleString() }) : tr("Raw total field (mean {v} nT): use the best-fit plane, or remove the regional first. Removing the mean leaves the regional gradient.", { v: Math.round(mean).toLocaleString() })); }
     if (igrfSub) notes.push(tr("Subtracted the IGRF-14 total field for {date} from every reading ({lo} to {hi} nT across the stations), then the remaining mean.", { date: field.igrfPlane.date, lo: Math.round(igrfSub.lo).toLocaleString(), hi: Math.round(igrfSub.hi).toLocaleString() })); // #1591
     if (dhMeta && (dhMeta.skipped.noTrace || dhMeta.skipped.badValue || dhMeta.skipped.beyondTrace)) notes.push(tr("Drillhole constraints: {samples} samples from {holes} hole(s); left out {noTrace} log row(s) with no collar/trace, {badValue} with no value, {beyondTrace} sample(s) beyond the surveyed hole length.", { samples: dhMeta.samples, holes: dhMeta.holes, noTrace: dhMeta.skipped.noTrace, badValue: dhMeta.skipped.badValue, beyondTrace: dhMeta.skipped.beyondTrace }));
     if (dropped) notes.push(tr("{dropped} station(s) fell outside the terrain and were left out.", { dropped }));
-    if (topo && !topo.covers) notes.push(tr("The terrain does not cover the whole model mesh (padding included); cells beyond it follow the nearest terrain edge — load a larger terrain for an honest result near the edges."));
+    if (topo && !topo.covers) notes.push(tr("Load a larger terrain for honest edges: it does not cover the whole mesh, so cells beyond it follow its nearest edge."));
     if (topo && topo.spacing > cell) notes.push(tr("The terrain grid ({v} m) is coarser than the core cell ({cell} m), so ground level between terrain samples is interpolated.", { v: Math.round(topo.spacing), cell }));
     return { request, meta: { drillholeConstraints: dhMeta, stationsUsed: stations.length, stationsTotal: rows.length, thinnedTo: num(thin) > 0 ? num(thin) : null, dropped, convergence: decl?.convergence ?? null, gridDeclination: decl?.grid ?? null, centre: [cx, cy], topoSpacing: topo?.spacing ?? null, terrainCovers: topo?.covers ?? null }, notes, stations, observed };
   };
@@ -431,7 +431,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
         });
         // #466 — say where it went when that is not the open project
         if (where === "tab") setMsg({ ok: true, text: tr("The inversion finished and was added to the project tab it was started from (marked unsaved) — switch back to that tab to see it.") });
-        else if (where === "gone") setMsg({ ok: false, text: tr("The inversion finished, but the project it was started from is no longer open (its tab was closed or another project was opened in it), so the result was not added anywhere. Run it again in that project.") });
+        else if (where === "gone") setMsg({ ok: false, text: tr("Run it again in its own project: the inversion finished after that project was closed, so the result was not added anywhere.") });
         setLastResult({ result, prepared: p, verdict });
       },
     });
@@ -518,13 +518,13 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Invert a survey to a 3D model, or test a body against it")}</span>
           </span>
         </span>
-        <InfoButton title={tr("Magnetics / gravity modelling")} width={420} text={tr("Uses SimPEG (simpeg.xyz, MIT) in GeoStrix's Python engine, on the survey points loaded in Point survey. Test a body: forward-models a dipping plate you define and compares its response with your data — the most direct way to ask whether a mapped or drilled body explains the anomaly. A dip sweep shows whether the data can tell the dip at all. Invert: finds ONE smooth 3D susceptibility or density-contrast model that fits the data to the uncertainty you give it. Many other models fit equally well; the smooth one is simply the least complicated. Expect amplitudes to be underestimated and bodies to be blurred and deeper-looking than reality. Remanent magnetization (common in pyrrhotite-bearing rocks) breaks the assumption behind a susceptibility inversion. Nothing physical is assumed for you: data type, station heights, the inducing field and the data uncertainty must all be entered.")} />
+        <InfoButton title={tr("Magnetics / gravity modelling")} width={420} text={tr("Uses SimPEG in the Python engine on Point survey data. Test a body: compare a dipping plate's response with the data. Invert: one smooth model of many that fit; bodies look blurred, deeper, weaker. Remanence breaks susceptibility inversions.")} />
       </div>
       </>)}
       {open && (
         <div style={{ fontSize: "var(--font-size-sm)" }}>
           {engine === null && <div style={small}>{tr("Starting the Python engine…")}</div>}
-          {engine && !engine.ok && <div style={small}>{tr("Needs GeoStrix's Python engine, which could not be started (status bar: Py). The desktop app starts it when a feature needs it; if it never comes up, click \"Py\" in the status bar for what to check.")}</div>}
+          {engine && !engine.ok && <div style={small}>{tr("Needs GeoStrix's Python engine, which could not start. Click \"Py\" in the status bar for what to check.")}</div>}
           {engine && engine.ok && !engine.available && <div style={small}>{tr("The running Python engine has no SimPEG — update GeoStrix to a version that includes it.")}</div>}
           {/* TASKS.csv #1429 (review #1352, Silvertip) — what an inversion needs, up front: the terrain was found missing only after Estimate */}
           {engine?.available && (
@@ -537,7 +537,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 return "✓ " + tr("{k} survey(s) loaded; {u} can be inverted (magnetic or gravity): {list}.", { k: c.n, u: c.usable.length, list: c.usable.slice(0, 3).map((x) => `${x.key} (${x.count.toLocaleString()})`).join(", ") + (c.usable.length > 3 ? "…" : "") });
               })()}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span>{terrain ? "✓ " + tr("Terrain: {name}.", { name: terrain.name || tr("loaded") }) : "○ " + tr("Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.")}</span>
+                <span>{terrain ? "✓ " + tr("Terrain: {name}.", { name: terrain.name || tr("loaded") }) : "○ " + tr("Terrain: none yet. Fetch one, import a DEM, or make one from the samples and collars, so the inversion knows which cells are underground.")}</span>
                 {!terrain && <button type="button" onClick={() => { goToModule("maps"); requestModuleAction("maps-terrain"); }} style={{ ...pBtn, width: "auto", padding: "2px 8px", margin: 0 }}>{tr("Go to Maps › Terrain")}</button>}
               </div>
             </div>
@@ -549,7 +549,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
               <li>{tr("constrain that inversion with the {ms} mag-susc and {sg} SG log readings in the drillholes;", { ms: logCounts.ms.toLocaleString(), sg: logCounts.sg.toLocaleString() })}</li>
               <li>{tr("test a body or a geology block model against it.")}</li>
             </ul>
-            <div>{tr("To design that survey first, tick \"Forward model on a planned grid\" below: a block model given the log medians, or a plate, predicts the anomaly over the grid you would walk.")}</div>
+            <div>{tr("To design the survey first, tick \"Forward model on a planned grid\": a block model or plate predicts the anomaly over the grid you'd walk.")}</div>
           </div>}
           {/* TASKS.csv #364 — one survey per model; imported surveys are never mixed. */}
           {engine?.available && (<div style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{/* #1710 — outside the survey-gated form, so a drill-only project can switch it on */}
@@ -559,7 +559,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
               {planned.open && (
                 <div style={{ marginLeft: 6, marginTop: 4 }}>
                   <label style={{ ...row, cursor: "pointer" }}><input type="checkbox" checked={!!planned.on} onChange={(e) => { setPlanned((p) => ({ ...p, on: e.target.checked })); setPlan(null); }} /> <span style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use a planned station grid instead of a survey")}</span></label>
-                  <div style={small}>{tr("Survey design before the survey: the body or geology model below is forward-modelled at these stations, {h} m above the ground{v}. Blank extent = the collars' box, padded.", { h: planned.height, v: terrain ? tr(" (the terrain)") : tr(" (the collars' mean elevation; load a terrain for real ground)") })}</div>
+                  <div style={small}>{tr("Survey design: the body or geology model below is forward-modelled at these stations, {h} m above the ground{v}. Blank extent: the collars' box, padded.", { h: planned.height, v: terrain ? tr(" (the terrain)") : tr(" (the collars' mean elevation; load a terrain for real ground)") })}</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
                     {["xmin", "ymin", "xmax", "ymax"].map((k) => <label key={k} style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{k === "xmin" ? tr("E from") : k === "xmax" ? tr("E to") : k === "ymin" ? tr("N from") : tr("N to")}<NumberInput allowEmpty value={planned[k]} placeholder={plannedExtent ? String(plannedExtent[k]) : ""} onChange={(v) => setPlanned((p) => ({ ...p, [k]: (v == null ? "" : String(v)) }))} aria-label={k} style={{ ...numInput, width: 90 }} /></label>)}
                   </div>
@@ -582,12 +582,12 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           )}
           {/* TASKS.csv #1151 — a derivative, a filtered product or another method is not the field this tool inverts */}
           {engine?.available && activeSurvey && geophysSurveys?.[activeSurvey]?.method && !methodIsInvertible(geophysSurveys[activeSurvey].method) && (
-            <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("\"{survey}\" is labelled {label}. This tool inverts the measured total magnetic field and Bouguer gravity only; a derivative, a filtered product or another method must not be inverted as if it were the field.", { survey: activeSurvey, label: tr(SURVEY_METHODS[geophysSurveys[activeSurvey].method].label) })}</div>
+            <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("\"{survey}\" is labelled {label}. Only measured total magnetic field and Bouguer gravity are inverted: never a derivative, a filtered product or another method.", { survey: activeSurvey, label: tr(SURVEY_METHODS[geophysSurveys[activeSurvey].method].label) })}</div>
           )}
           {engine?.available && rows.length > 0 && (
             <>
               <div style={small}>{tr("{rows} survey stations loaded{v}. SimPEG {simpeg}.", { rows: rows.length.toLocaleString(), v: spacing ? tr(", median spacing {spacing} m", { spacing: spacing.toFixed(spacing < 10 ? 1 : 0) }) + (coreHint?.lineSpacing ? tr(" along lines {l} m apart", { l: Math.round(coreHint.lineSpacing) }) : "") : checking ? tr(" (checking the stations…)") : "", simpeg: engine.simpeg })}</div>
-              {downhole?.isDownhole && <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m), so they are points at depth: a downhole log, or an inversion model or pseudo-section imported as points. A surface survey is inverted from stations on or above the ground; a downhole log goes in with the drillholes and the drillhole-constraint option.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })}</div>}{/* #1709 */}
+              {downhole?.isDownhole && <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("Not survey stations: {pct}% sit over 10 m below the {ground} (typically {med} m): points at depth, a downhole log, an inversion model or a pseudo-section as points.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })}</div>}{/* #1709 */}
               {step(1, tr("Data"), <>
                 <div role="radiogroup" aria-label={tr("Survey type")} style={{ display: "flex", gap: 10, marginTop: 4 }}>
                   {Object.entries(METHODS).map(([k, m]) => (
@@ -611,7 +611,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   {(zMode === "drape" || zMode === "ground") && <div style={row}><span style={lbl}>{tr("Height above ground")}</span><NumberInput allowEmpty min={0} value={sensorHeight} onChange={(v) => setSensorHeight((v == null ? "" : String(v)))} style={inp} /> m</div>}
                   {/* TASKS.csv #369 — GPS heights are usually ellipsoidal; SRTM/most DEMs are geoid (EGM96) based. */}
                   {(zMode === "sensor" || zMode === "ground") && (
-                    <div style={row} title={tr("SRTM and most DEMs give heights above the geoid (EGM96). Raw GPS heights are above the ellipsoid, about 15-20 m different in northwest BC — 40-50% of a 30-40 m helicopter survey's clearance.")}>
+                    <div style={row} title={tr("SRTM and most DEMs give heights above the geoid (EGM96); raw GPS heights are above the ellipsoid, 15-20 m different in northwest BC.")}>
                       <span style={lbl}>{tr("z datum")}</span>
                       <select value={zDatum} onChange={(e) => setZDatum(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Vertical datum of the station z values")}>
                         <option value="same">{tr("Same as the terrain")}</option>
@@ -620,9 +620,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                       </select>
                     </div>
                   )}
-                  {(zMode === "sensor" || zMode === "ground") && zDatum !== "same" && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Station heights on a different datum from the terrain shift every clearance by the geoid height (roughly 15-20 m here). Check the clearance figures from \"Estimate size\" against the contractor's nominal survey height before trusting depths.")}</div>}
+                  {(zMode === "sensor" || zMode === "ground") && zDatum !== "same" && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Station heights and terrain on different datums shift every clearance by the geoid height (15-20 m here). Compare clearances with the contractor's survey height.")}</div>}
                 </div>
-                <div style={row} title={tr("Keep one station per cell of this size. Every station costs a row of the sensitivity matrix, and neighbouring readings along a line add little. Leave empty to use every station.")}>
+                <div style={row} title={tr("Keep one station per cell of this size: each station costs a row of the sensitivity matrix, and close readings add little. Empty: every station.")}>
                   <span style={lbl}>{tr("Thin to one per")}</span><NumberInput allowEmpty min={0} value={thin} onChange={(v) => setThin((v == null ? "" : String(v)))} style={inp} /> m
                   {num(thin) > 0 && <span style={small}>{tr("→ {n} stations", { n: thinStationIndices(xs, ys, num(thin)).length.toLocaleString() })}</span>}
                   {thinSuggestion && !(num(thin) >= thinSuggestion.spacing) && (
@@ -643,18 +643,18 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 {igrfMsg && <div role={igrfMsg.ok ? "status" : "alert"} style={{ ...small, marginTop: 4, color: igrfMsg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{igrfMsg.text}</div>}{/* #2563 */}
               </>)}
               {step(method === "mag" ? 3 : 2, tr("Uncertainty & mesh"), <>
-                <div style={row} title={tr("How far you trust each reading. Too small and the model invents detail to chase noise; too large and real bodies are smoothed away. There is no default.")}><span style={lbl}>{tr("Uncertainty floor")}</span><NumberInput allowEmpty min={0} value={unc.floor} onChange={(v) => setUnc((p) => ({ ...p, floor: (v == null ? "" : String(v)) }))} style={inp} /> {M?.unit || ""}</div>
+                <div style={row} title={tr("How far you trust each reading. Too small and the model chases noise; too large and real bodies are smoothed away. There is no default.")}><span style={lbl}>{tr("Uncertainty floor")}</span><NumberInput allowEmpty min={0} value={unc.floor} onChange={(v) => setUnc((p) => ({ ...p, floor: (v == null ? "" : String(v)) }))} style={inp} /> {M?.unit || ""}</div>
                 {/* TASKS.csv #775 — what SimPEG's own tutorials use, as a hint only */}
-                {method === "mag" && (() => { const h = simpegMagFloorHint(rows.map((r) => r.value)); return h ? <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("For reference: SimPEG's magnetic tutorials use a constant floor of 2% of the largest anomaly and no percentage — about {v} {unit} for these data (anomaly measured about the mean). Your survey's noise and levelling errors are the better guide.", { v: h < 10 ? h.toFixed(1) : Math.round(h), unit: M.unit })}</div> : null; })()}
+                {method === "mag" && (() => { const h = simpegMagFloorHint(rows.map((r) => r.value)); return h ? <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("SimPEG's magnetic tutorials use a floor of 2% of the largest anomaly, about {v} {unit} here; your survey's noise and levelling are the better guide.", { v: h < 10 ? h.toFixed(1) : Math.round(h), unit: M.unit })}</div> : null; })()}
                 <div style={row}><span style={lbl}>{tr("+ percent of value")}</span><NumberInput allowEmpty min={0} value={unc.percent} onChange={(v) => setUnc((p) => ({ ...p, percent: (v == null ? "" : String(v)) }))} style={inp} /> %</div>
                 <div style={row} title={tr("Cell size in the core of the model. Around half the station spacing is usual; smaller cells cost memory (data x cells).")}>
                   <span style={lbl}>{tr("Core cell")}</span><NumberInput allowEmpty min={1} value={mesh.coreCell} onChange={(v) => setMesh((p) => ({ ...p, coreCell: (v == null ? "" : String(v)) }))} style={inp} /> m
                   {coreHint && !mesh.coreCell && <button onClick={() => { setMesh((p) => ({ ...p, coreCell: String(coreHint.cell) })); if (coreHint.lineSpacing && !(num(thin) > 0)) setThin(String(coreHint.cell)); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{coreHint.lineSpacing ? tr("≈ quarter line spacing") : tr("≈ half spacing")}</button>}
                 </div>
-                {coreHint?.lineSpacing && !mesh.coreCell && <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("Readings {s} m apart along lines {l} m apart: the model cannot resolve more than the line spacing allows, so the core cell follows the lines ({c} m, about a quarter of their spacing), and the readings are thinned to the same distance.", { s: spacing.toFixed(spacing < 10 ? 1 : 0), l: Math.round(coreHint.lineSpacing), c: coreHint.cell })}</div>}{/* #1590 */}
+                {coreHint?.lineSpacing && !mesh.coreCell && <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("Readings {s} m apart on lines {l} m apart: the core cell follows the lines ({c} m, a quarter of their spacing) and readings are thinned to it.", { s: spacing.toFixed(spacing < 10 ? 1 : 0), l: Math.round(coreHint.lineSpacing), c: coreHint.cell })}</div>}{/* #1590 */}
                 <div style={row} title={tr("How deep below the stations the model extends. Potential-field data lose resolution quickly with depth.")}><span style={lbl}>{tr("Model depth")}</span><NumberInput allowEmpty min={1} value={mesh.depth} onChange={(v) => setMesh((p) => ({ ...p, depth: (v == null ? "" : String(v)) }))} style={inp} /> m</div>
                 {/* TASKS.csv #324 — adaptive (octree) mesh */}
-                <div style={row} title={tr("Uniform: every model cell is the core cell size (the same as before). Adaptive (octree): the core cell only in the top layers under the survey, then 2x, never coarser than 4x inside the model (adjustable below) — typically 4-6x fewer cells, so 4-6x less memory, for larger areas or finer cells on a modest computer. The cost is coarser cells at depth, where the data resolve little anyway. An adaptive model exports as a cell list and UBC-GIF OcTree files, not as a UBC tensor mesh, OMF or GeoTIFF slices (those need one regular grid).")}>
+                <div style={row} title={tr("Uniform: every cell at core size. Octree: fine cells near the surface only, 4-6× less memory; exports as a cell list and OcTree files.")}>
                   <span style={lbl}>{tr("Mesh")}</span>
                   <select value={mesh.type} onChange={(e) => setMesh((p) => ({ ...p, type: e.target.value }))} style={{ ...inp, width: "auto" }} aria-label={tr("Inversion mesh")}>
                     <option value="tensor">{tr("Uniform (tensor)")}</option>
@@ -663,7 +663,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 </div>
                 {/* TASKS.csv #324 follow-up — the octree's shape; the plan shows the resulting cells and memory */}
                 {mesh.type === "octree" && (
-                  <div style={row} title={tr("Layers of the core cell right under the terrain over the survey, then layers of 2x the core cell, then nothing coarser than the chosen size inside the model. More fine layers = more resolution near the surface and more memory; press 'Estimate size and memory' to see the effect.")}>
+                  <div style={row} title={tr("Layers of core cells under the survey, then 2× cells, then no coarser than the chosen size. More fine layers: more surface detail and memory.")}>
                     <span style={lbl}>{tr("Octree layers")}</span>
                     <NumberInput allowEmpty min={1} max={16} value={mesh.octree.fine} onChange={(v) => setMesh((p) => ({ ...p, octree: { ...p.octree, fine: (v == null ? "" : String(v)) } }))} style={{ ...inp, width: 40 }} aria-label={tr("Layers of the core cell")} /> ×1,
                     <NumberInput allowEmpty min={0} max={16} value={mesh.octree.fine2} onChange={(v) => setMesh((p) => ({ ...p, octree: { ...p.octree, fine2: (v == null ? "" : String(v)) } }))} style={{ ...inp, width: 40 }} aria-label={tr("Then layers of 2x the core cell")} />{" "}{tr("×2, then ≤")}<select value={mesh.octree.maxFactor} onChange={(e) => setMesh((p) => ({ ...p, octree: { ...p.octree, maxFactor: e.target.value } }))} style={{ ...inp, width: "auto" }} aria-label={tr("Coarsest cell inside the model")}>
@@ -671,7 +671,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                     </select>
                   </div>
                 )}
-                <div style={row} title={tr("Levelled TMI and Bouguer gravity carry an arbitrary base level. With susceptibility bounded at zero, an uncorrected positive level can only be fitted by inventing material near the edges. The value removed is stored with the model.")}>
+                <div style={row} title={tr("Removes the arbitrary base level of levelled TMI and Bouguer gravity, which the inversion would fit with false edge material. Stored with the model.")}>
                   <span style={lbl}>{tr("Remove base level")}</span>
                   <select value={baseLevel} onChange={(e) => setBaseLevel(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Base level removed before inverting")}>
                     <option value="mean">{tr("Mean of the data")}</option>
@@ -682,7 +682,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 </div>
                 {/* TASKS.csv #770 — induced only, or a vector inversion when remanence is possible */}
                 {method === "mag" && (
-                  <div style={row} title={tr("Induced: the rocks are magnetized along today's field, so the inversion solves for susceptibility (fast). Remanence possible: pyrrhotite- and magnetite-bearing rocks can carry their own magnetization in another direction; a susceptibility inversion then puts the body in the wrong place. The vector inversion solves for the magnetization's amplitude AND direction in each cell — about 3x the memory and 5-30x the time.")}>
+                  <div style={row} title={tr("Induced: solves for susceptibility (fast). Remanence possible: solves for magnetization amplitude and direction, for pyrrhotite- or magnetite-bearing rock; about 3× the memory, 5-30× the time.")}>
                     <span style={lbl}>{tr("Magnetization")}</span>
                     <select value={magModel} onChange={(e) => setMagModel(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Magnetization")}>
                       <option value="scalar">{tr("Induced (susceptibility)")}</option>
@@ -691,7 +691,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   </div>
                 )}
                 {/* TASKS.csv #769 — smooth (L2) or compact (sparse norms) */}
-                {!(method === "mag" && magModel === "vector") && <div style={row} title={tr("Smooth spreads the source out: bodies come out blurred, too deep and too weak. Compact assumes a few compact bodies with sharp edges: tighter and nearer the right depth, but the peak can overshoot, and it takes several times longer. Both fit the data equally well — run both and trust what they agree on.")}>
+                {!(method === "mag" && magModel === "vector") && <div style={row} title={tr("Smooth: bodies blurred, too deep, too weak. Compact: tighter, nearer the true depth, may overshoot, slower. Both fit equally: trust what they agree on.")}>
                   <span style={lbl}>{tr("Model style")}</span>
                   <select value={regStyle} onChange={(e) => setRegStyle(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Model style")}>
                     <option value="smooth">{tr("Smooth (L2)")}</option>
@@ -699,7 +699,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   </select>
                 </div>}
                 {/* TASKS.csv #323 — drillhole logs as constraints */}
-                <label style={{ ...row, cursor: "pointer" }} title={tr("Where a drillhole passes through a model cell, hold that cell close to what the hole logged. Cells no hole touches are inverted exactly as before.")}>
+                <label style={{ ...row, cursor: "pointer" }} title={tr("Holds each model cell a drillhole passes through close to what the hole logged. Cells no hole touches are inverted as before.")}>
                   <input type="checkbox" checked={dh.on} onChange={(e) => setDh((p) => ({ ...p, on: e.target.checked }))} />{tr("Constrain with drillhole {v} logs ({dhRows} rows)", { v: method === "grav" ? tr("specific gravity") : tr("susceptibility"), dhRows: dhRows.length.toLocaleString() })}</label>
                 {dh.on && dhSources.length > 0 && ( /* TASKS.csv #2950 — which log: the built-in layer or a custom log layer */
                   <div style={row}><span style={lbl}>{tr("Log")}</span>
@@ -726,21 +726,21 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                         <div style={{ color: "var(--color-danger-icon-strong)" }}>{tr("In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.", { unit: SUSC_UNITS[dh.units].label, v: +(suscHint.max * SUSC_UNITS[dh.units].factor).toPrecision(3), max: PHYSICAL_MAX_SI })}</div>
                       )}
                       {/* TASKS.csv #1713 — what goes into the constraint as read */}
-                      {suscHint.negative && <div style={{ color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are below 0 (down to {min}): a meter's noise or drift, not a rock. They constrain their cells as read; remove them from the log if they should not.", { n: suscHint.negative.n.toLocaleString(), min: +suscHint.negative.min.toPrecision(3) })}</div>}
+                      {suscHint.negative && <div style={{ color: "var(--color-warn-text)" }}>{tr("{n} reading(s) below 0 (down to {min}): instrument noise or drift, not rock. They constrain their cells as read unless removed from the log.", { n: suscHint.negative.n.toLocaleString(), min: +suscHint.negative.min.toPrecision(3) })}</div>}
                       {suscHint.extreme && <div style={{ color: "var(--color-warn-text)" }}>{tr("{n} reading(s) are more than {x} times the median (up to {max}): check them before they constrain their cells.", { n: suscHint.extreme.n.toLocaleString(), x: EXTREME_X, max: +suscHint.extreme.max.toPrecision(3) })}</div>}
                     </div>
                   )}
                   {method === "grav" && (
                     <div style={row} title={tr("The logged SG minus this is the density contrast the inversion models.")}><span style={lbl}>{tr("Background density")}</span><NumberInput allowEmpty step={0.01} value={dh.background} onChange={(v) => setDh((p) => ({ ...p, background: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Background density")} />{" "}{tr("g/cc")}</div>
                   )}
-                  <div style={row} title={tr("How far the model may depart from the logged value in cells a hole passes through. 0 = exactly the log; larger allows for the log sampling only part of a cell.")}><span style={lbl}>{tr("Allowed departure ±")}</span><NumberInput allowEmpty min={0} step={method === "grav" ? 0.01 : 0.001} value={dh.tolerance} onChange={(v) => setDh((p) => ({ ...p, tolerance: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Allowed departure from the logs")} /> {method === "grav" ? "g/cc" : "SI"}</div>
+                  <div style={row} title={tr("How far a cell a hole crosses may depart from the log: 0 = exactly; larger allows for a log sampling only part of the cell.")}><span style={lbl}>{tr("Allowed departure ±")}</span><NumberInput allowEmpty min={0} step={method === "grav" ? 0.01 : 0.001} value={dh.tolerance} onChange={(v) => setDh((p) => ({ ...p, tolerance: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Allowed departure from the logs")} /> {method === "grav" ? "g/cc" : "SI"}</div>
                 </>}
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAdv((p) => ({ ...p, open: !p.open }))} aria-expanded={adv.open} style={{ ...row, cursor: "pointer" }}>
                   {adv.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Advanced")}</div>
                 {adv.open && <>
                   {/* TASKS.csv #971 — the vector inversion runs fixed stages and ignores these three; compact runs at least 60 */}
                   {method === "mag" && magModel === "vector"
-                    ? <div style={{ ...small, marginBottom: 4 }}>{tr("Vector inversion: fixed 10 + 20 iterations, default smoothness lengths and an amplitude bound of 0 to 10; the iteration, smoothness and bounds settings do not apply to it.")}</div>
+                    ? <div style={{ ...small, marginBottom: 4 }}>{tr("Vector inversion: fixed 10 + 20 iterations, default smoothness and amplitude bounds of 0 to 10; the iteration, smoothness and bounds settings don't apply.")}</div>
                     : <>
                     <div style={row}><span style={lbl}>{tr("Max iterations")}</span><NumberInput allowEmpty min={1} max={40} value={adv.maxIter} onChange={(v) => setAdv((p) => ({ ...p, maxIter: (v == null ? "" : String(v)) }))} style={inp} /></div>
                     <div style={row} title={tr("Relative smoothness length along x (east), y (north), z (up). Larger along one axis = smoother (more elongated) that way.")}><span style={lbl}>{tr("Smoothness x/y/z")}</span>
@@ -749,7 +749,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                     <div style={row}><span style={lbl}>{tr("Bounds (optional)")}</span><NumberInput allowEmpty placeholder={tr("lower")} value={adv.lower} onChange={(v) => setAdv((p) => ({ ...p, lower: (v == null ? "" : String(v)) }))} style={{ ...inp, width: 60 }} aria-label={tr("Lower bound")} /><NumberInput allowEmpty placeholder={tr("upper")} value={adv.upper} onChange={(v) => setAdv((p) => ({ ...p, upper: (v == null ? "" : String(v)) }))} style={{ ...inp, width: 60 }} aria-label={tr("Upper bound")} /></div>
                       {regStyle === "compact" && <div style={{ ...small, marginBottom: 4 }}>{tr("Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.")}</div>}
                     </>}
-                  <div style={row} title={tr("Cells whose normalized sensitivity is below this are hidden in the 3D view: the data can barely see them, so their value says more about the regularization than about the rock. Display only — it does not change the inversion.")}><span style={lbl}>{tr("Hide cells below support")}</span><NumberInput allowEmpty min={0} max={1} step={0.01} value={adv.supportCutoff} onChange={(v) => setAdv((p) => ({ ...p, supportCutoff: (v == null ? "" : String(v)) }))} style={inp} /></div>
+                  <div style={row} title={tr("Hides cells whose normalized sensitivity is below this: the data barely see them, so their values reflect the regularization, not the rock. Display only.")}><span style={lbl}>{tr("Hide cells below support")}</span><NumberInput allowEmpty min={0} max={1} step={0.01} value={adv.supportCutoff} onChange={(v) => setAdv((p) => ({ ...p, supportCutoff: (v == null ? "" : String(v)) }))} style={inp} /></div>
                 </>}
               </>)}
               {rows.length > 0 && ( // TASKS.csv #1589
@@ -778,7 +778,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                     ? <>{tr("Sensitivity matrix {v} of the {v2} this machine can spare right now; peak memory ≈ {v3}, ~{v4} s to build it, then a few seconds per iteration.", { v: formatBytes(plan.sensitivityBytes), v2: formatBytes(plan.ramCapBytes), v3: formatBytes(plan.peakRamEstimateBytes), v4: Math.max(1, Math.round(plan.buildSecondsEstimate)) })}</>
                     : <>{tr("Forward only — no matrix is stored.")}</>}{" "}
                   {plan.ok ? tr("OK to run.") : ""}
-                  {plan.clearance && <div style={{ marginTop: 3 }}>{tr("Sensor clearance above the terrain: median {median} m, 5th percentile {p5} m, lowest {min} m ({n} stations). Compare with the survey's nominal height — a consistent offset usually means the station heights and the terrain are on different vertical datums.", { median: plan.clearance.median.toFixed(1), p5: plan.clearance.p5.toFixed(1), min: plan.clearance.min.toFixed(1), n: plan.clearance.n.toLocaleString() })}</div>}
+                  {plan.clearance && <div style={{ marginTop: 3 }}>{tr("Sensor clearance above the terrain: median {median} m, 5th percentile {p5} m, lowest {min} m ({n} stations). A steady offset from the survey height means different vertical datums.", { median: plan.clearance.median.toFixed(1), p5: plan.clearance.p5.toFixed(1), min: plan.clearance.min.toFixed(1), n: plan.clearance.n.toLocaleString() })}</div>}
                   {plan.notes?.map((n) => <div key={n} style={{ marginTop: 3 }}>⚠ {n}</div>)}
                 </div>
               )}
@@ -803,7 +803,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 {geo.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Test a geology model (forward model)")}</div>
               {geo.open && (
                 <div style={{ paddingLeft: 4 }}>
-                  <div style={small}>{tr("Gives each unit of a block model a {v} and computes the {v2} response it would produce at these stations, to compare with the data. Does a modelled intrusion or basin explain the anomaly before anyone drills it? Uses steps 1{v3} and the mesh settings; no inversion.", { v: method === "grav" ? tr("density") : tr("susceptibility"), v2: M ? M.unit : "", v3: method === "mag" ? "–2" : "" })}</div>
+                  <div style={small}>{tr("Gives each block-model unit a {v} and computes its {v2} response at these stations, to compare with the data. Uses steps 1{v3} and the mesh; no inversion.", { v: method === "grav" ? tr("density") : tr("susceptibility"), v2: M ? M.unit : "", v3: method === "mag" ? "–2" : "" })}</div>
                   {!M ? <div style={small}>{tr("Choose magnetics or gravity first.")}</div> : !geoModels.length ? (
                     <div style={small}>{tr("No block model has unit cells yet. In 3D Modelling, run a geology model and use Add as block model.")}</div>
                   ) : (<>
@@ -826,11 +826,11 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                       })}
                       <div style={row}><span style={lbl}>{tr("Background")}</span><NumberInput allowEmpty value={geo.background} onChange={(v) => setGeo((g) => ({ ...g, background: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Background value")} /><span style={small}>{method === "grav" ? "g/cm³" : "SI"}</span></div>
                       <div style={small}>{method === "grav"
-                        ? tr("Densities in g/cm³. The background is the rock around the model and in the space it leaves out (above its tops, outside its box) — usually the density used for the Bouguer correction. Typical: sediments 1.9–2.4, felsic rocks 2.5–2.7, mafic rocks 2.8–3.0, massive sulphide 3.5–4.5.")
-                        : tr("Susceptibilities in SI. The background is the rock around the model and in the space it leaves out. Typical: sediments under 0.001, felsic rocks 0.001–0.01, mafic rocks 0.01–0.1; magnetite-rich rock higher. Remanent magnetization is not modelled.")}</div>
+                        ? tr("Densities in g/cm³; background: rock around the model, often the Bouguer density. Sediments 1.9–2.4, felsic 2.5–2.7, mafic 2.8–3.0, massive sulphide 3.5–4.5.")
+                        : tr("Susceptibilities in SI; the background is the rock around the model. Typical: sediments under 0.001, felsic 0.001–0.01, mafic 0.01–0.1. Remanence is not modelled.")}</div>
                       {geoMedians?.needUnits && <div style={small}>{tr("A susceptibility log is loaded: choose its units under the drillhole constraints in the inversion settings to see each unit's median here.")}</div>}
                       {geoMedians?.by && Object.keys(geoMedians.by).length > 0 && (
-                        <button onClick={() => setGeo((g) => ({ ...g, props: { ...g.props, ...Object.fromEntries(Object.entries(geoMedians.by).map(([k, v]) => [k, String(+v.median.toPrecision(3))])) } }))} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }} title={tr("Fills each unit that has log samples with their median. A median of a few samples is a weak estimate; units without samples stay as entered.")}>{tr("Use the log medians")}</button>
+                        <button onClick={() => setGeo((g) => ({ ...g, props: { ...g.props, ...Object.fromEntries(Object.entries(geoMedians.by).map(([k, v]) => [k, String(+v.median.toPrecision(3))])) } }))} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }} title={tr("Fills each unit that has log samples with their median; a median of a few samples is weak. Units without samples stay as entered.")}>{tr("Use the log medians")}</button>
                       )}
                       <button onClick={runGeoForward} disabled={running || planBusy} style={{ ...pBtn, marginTop: 6, marginBottom: 0, opacity: running ? 0.5 : 1 }}><Activity size={14} />{" "}{tr("Forward model the geology")}</button>
                     </>)}
@@ -885,15 +885,15 @@ function FitView({ last, method, mapSize = 78 }) {
           const name = `${tr("Planned grid")}: ${tr("predicted")} ${method === "grav" ? "gz" : "TMI"}`;
           const add = () => { const pts = st.map((s, i) => ({ x: s[0], y: s[1], z: s[2], value: pred[i], _src: name, line: `L${Math.round(s[0])}` })); setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, pts).rows })); updateGeophysSurvey(name, { method: method === "grav" ? "grav" : "mag", units: SM[method === "grav" ? "grav" : "mag"].units, predicted: true }); setAddedPlanned(true); };
           return (<div style={small}>
-            {tr("Planned grid, no observed values: the predicted anomaly over the {n} stations runs from {lo} to {hi} {unit} (peak-to-peak {pp} {unit}). A survey is worth walking when that exceeds its noise and the diurnal residual by a clear margin.", { n: st.length.toLocaleString(), lo: Number.isFinite(lo) ? lo.toFixed(1) : "—", hi: Number.isFinite(hi) ? hi.toFixed(1) : "—", pp: Number.isFinite(hi - lo) ? (hi - lo).toFixed(1) : "—", unit })}
+            {tr("Predicted anomaly over the {n} planned stations: {lo} to {hi} {unit} (peak-to-peak {pp} {unit}). Worth walking if that clearly exceeds the noise and diurnal residual.", { n: st.length.toLocaleString(), lo: Number.isFinite(lo) ? lo.toFixed(1) : "—", hi: Number.isFinite(hi) ? hi.toFixed(1) : "—", pp: Number.isFinite(hi - lo) ? (hi - lo).toFixed(1) : "—", unit })}
             {" "}<button onClick={add} disabled={addedPlanned} style={{ ...small, cursor: "pointer", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)" }}>{addedPlanned ? tr("Added ✓") : tr("Add the predicted anomaly as a survey")}</button>
           </div>);
         })()}
-        {!last.meta?.plannedGrid && runs.length === 1 && result.body !== "model" && <div style={small}>{tr("RMS of the data about its mean {v} {unit}; RMS left over after subtracting the plate's response and a best-fit base level of {v2} {unit}: {v3} {unit} ({plateCells} cells). The closer the second is to zero, the more of the anomaly this body explains.", { v: result.rmsObserved?.toFixed(2), unit, v2: runs[0].baseLevel?.toFixed(2), v3: runs[0].rmsResidual?.toFixed(2), plateCells: runs[0].plateCells })}</div>}
+        {!last.meta?.plannedGrid && runs.length === 1 && result.body !== "model" && <div style={small}>{tr("RMS about the mean {v} {unit}; after the plate and a base level of {v2} {unit}: {v3} {unit} ({plateCells} cells). Nearer zero: this body explains more.", { v: result.rmsObserved?.toFixed(2), unit, v2: runs[0].baseLevel?.toFixed(2), v3: runs[0].rmsResidual?.toFixed(2), plateCells: runs[0].plateCells })}</div>}
         {runs.length > 1 && <DipSweep runs={runs} unit={unit} />}
         {/* TASKS.csv #367 — say how faithfully the mesh holds the plate (fractional cells keep its volume). */}
         {runs[0]?.thinnerThanCell && <div style={small}>{tr("The plate is thinner than a mesh cell, so it is represented by partly filled cells (modelled volume {v}% of the plate's true volume{v2}).", { v: Math.round((runs[0].volumeRatio || 0) * 100), v2: runs.length > 1 ? ` at ${runs[0].dip}°` : "" })}</div>}
-        {result.body !== "model" && runs.some((r) => r.volumeRatio != null && r.volumeRatio < 0.9) && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Part of the plate lies above the ground surface or outside the mesh at some dips (modelled volume as low as {v}%) — those responses are for a smaller body than the one entered.", { v: Math.round(arrMin(runs.map((r) => r.volumeRatio ?? 1)) * 100) })}</div>}
+        {result.body !== "model" && runs.some((r) => r.volumeRatio != null && r.volumeRatio < 0.9) && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Part of the plate is above the ground or outside the mesh at some dips ({v}% modelled at worst): those responses are for a smaller body.", { v: Math.round(arrMin(runs.map((r) => r.volumeRatio ?? 1)) * 100) })}</div>}
         {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={forwardMapValues(obs, runs[0]).predicted} unit={unit} size={mapSize} predictedOnly={!!last.meta?.plannedGrid} />}
         {runs.length === 1 && !last.meta?.plannedGrid && Number.isFinite(runs[0].baseLevel) && <div style={small}>{tr("Predicted map shown with the base level ({baseLevel} {unit}) added, so it is on the data's level and the residual map is what the RMS above measures.", { baseLevel: runs[0].baseLevel.toFixed(2), unit })}</div>}
       </div>
@@ -913,7 +913,7 @@ function FitView({ last, method, mapSize = 78 }) {
         <div style={small}>{tr("Drillhole constraints: {cells} cell(s) held within ±{tolerance} of the logs ({pointsUsed} of {points} samples used{v}{v2}{v3}).", { cells: result.constraintsApplied.cells, tolerance: result.constraintsApplied.tolerance, pointsUsed: result.constraintsApplied.pointsUsed, points: result.constraintsApplied.points, v: result.constraintsApplied.inAirOrInactive ? tr(", {inAirOrInactive} above the terrain", { inAirOrInactive: result.constraintsApplied.inAirOrInactive }) : "", v2: result.constraintsApplied.outsideMesh ? tr(", {outsideMesh} outside the model", { outsideMesh: result.constraintsApplied.outsideMesh }) : "", v3: result.constraintsApplied.clippedToBounds ? tr(", {clippedToBounds} cell(s) with a logged value outside the bounds held at the bound", { clippedToBounds: result.constraintsApplied.clippedToBounds }) : "" })}</div>
       )}
       {result.direction && <div role="status" style={{ ...small, color: "var(--color-text-secondary)", marginTop: 6 }}>{remanenceText(result.direction, prepared.meta?.convergence)}</div>}
-      <div style={{ ...small, marginTop: 6 }}>{tr("Added to Voxel / block models as \"{property}\". {v}; cells the data barely see are hidden. No volume or tonnage is computed from it.", { property: resultToVoxelModel({ ...result, cells: { value: [], x: [], y: [], z: [], dx: [], dy: [], dz: [], support: [] } }, { surveyName: "" }).property, v: result.magModel === "vector" ? tr("It is one vector model of many that fit these data — amplitude in each cell, with its own direction; depth is weakly resolved") : result.style === "compact" ? tr("It is one compact model of many that fit these data — it assumes a few sharp-edged bodies, so they come out tighter than in the smooth model and peak values can overshoot; compare the two") : tr("It is one smooth model of many that fit these data — amplitudes are underestimated and bodies smeared with depth") })}</div>
+      <div style={{ ...small, marginTop: 6 }}>{tr("Added to Voxel / block models as \"{property}\". {v}; cells the data barely see are hidden. No volume or tonnage is computed from it.", { property: resultToVoxelModel({ ...result, cells: { value: [], x: [], y: [], z: [], dx: [], dy: [], dz: [], support: [] } }, { surveyName: "" }).property, v: result.magModel === "vector" ? tr("It is one vector model of many that fit these data — amplitude in each cell, with its own direction; depth is weakly resolved") : result.style === "compact" ? tr("One compact model of many that fit: it assumes a few sharp-edged bodies, tighter than the smooth model, and peaks can overshoot; compare the two") : tr("It is one smooth model of many that fit these data — amplitudes are underestimated and bodies smeared with depth") })}</div>
     </div>
   );
 }
@@ -924,9 +924,9 @@ function GeoModelFit({ run, rmsObserved, geo, unit }) {
   const left = rmsObserved > 0 && Number.isFinite(run.rmsResidual) ? run.rmsResidual / rmsObserved : null;
   return (
     <>
-      <div role="status" style={{ ...small, color: "var(--color-text-secondary)" }}>{tr("RMS of the data about its mean {v} {unit}; left over after subtracting the model's response and a best-fit base level of {v2} {unit}: {v3} {unit}{v4}{v5}.{v6} A good fit does not prove the model (other geometries and properties can fit as well); a poor one says the geometry, the properties or both are wrong.", { v: rmsObserved?.toFixed(2), unit, v2: run.baseLevel?.toFixed(2), v3: run.rmsResidual?.toFixed(2), v4: left != null ? tr(" ({v}% of it)", { v: Math.round(100 * left) }) : "", v5: Number.isFinite(run.correlation) ? tr("; correlation between the data and the model's response {correlation}", { correlation: run.correlation.toFixed(2) }) : "", v6: left != null && (left < 0.5 ? tr(" The model explains most of the anomaly with these properties.") : left < 0.9 ? tr(" The model explains part of the anomaly.") : left <= 1.02 ? tr(" The model explains almost none of the anomaly.") : tr(" The model's response makes the fit WORSE than no model at all: its anomaly is in the wrong place or far too strong.")) })}</div>
+      <div role="status" style={{ ...small, color: "var(--color-text-secondary)" }}>{tr("RMS about the mean {v} {unit}; after the model and a base level of {v2} {unit}: {v3} {unit}{v4}{v5}.{v6} A good fit does not prove the model; a poor one disproves it.", { v: rmsObserved?.toFixed(2), unit, v2: run.baseLevel?.toFixed(2), v3: run.rmsResidual?.toFixed(2), v4: left != null ? tr(" ({v}% of it)", { v: Math.round(100 * left) }) : "", v5: Number.isFinite(run.correlation) ? tr("; correlation between the data and the model's response {correlation}", { correlation: run.correlation.toFixed(2) }) : "", v6: left != null && (left < 0.5 ? tr(" The model explains most of the anomaly with these properties.") : left < 0.9 ? tr(" The model explains part of the anomaly.") : left <= 1.02 ? tr(" The model explains almost none of the anomaly.") : tr(" The model's response makes the fit WORSE than no model at all: its anomaly is in the wrong place or far too strong.")) })}</div>
       {geo && <div style={small}>{tr("{modelName}: {v}; background {background}. {cells} mesh cells carry the model.", { modelName: geo.modelName, v: geo.units.map((u) => tr("{unit} {value} (contrast {contrast})", { unit: u.label, value: u.value, contrast: (u.contrast >= 0 ? "+" : "") + +u.contrast.toPrecision(3) })).join(", "), background: geo.background, cells: run.modelCells.toLocaleString() })}</div>}
-      {run.volumeRatio != null && run.volumeRatio < 0.9 && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Only {v}% of the model's contrast (by volume) is on the mesh below the ground — the rest is above the terrain or outside the mesh (widen the model depth or check the terrain).", { v: Math.round(100 * run.volumeRatio) })}</div>}
+      {run.volumeRatio != null && run.volumeRatio < 0.9 && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Only {v}% of the contrast is on the mesh underground; the rest is above the terrain or outside. Deepen the model or check the terrain.", { v: Math.round(100 * run.volumeRatio) })}</div>}
     </>
   );
 }

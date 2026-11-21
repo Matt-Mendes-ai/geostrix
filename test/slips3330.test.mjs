@@ -6,7 +6,7 @@ const rd = (f) => readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\
 
 test("#3330 (1) the Inversion refusal covers points at depth of any kind, not only a downhole log", () => {
   const p = rd("../src/components/InversionPanel.jsx");
-  assert.equal((p.match(/so they are points at depth: a downhole log, or an inversion model or pseudo-section imported as points/g) || []).length, 2);
+  assert.equal((p.match(/points at depth, a downhole log, an inversion model or a pseudo-section as points/g) || []).length, 2);
   assert.doesNotMatch(p, /A downhole log cannot be inverted as a surface survey; import it with the drillholes and use/);
 });
 
