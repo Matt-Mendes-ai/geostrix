@@ -15,6 +15,10 @@ import { startingTrendPlane, MIN_TOP_HOLES } from "../lib/trendStart.js"; // TAS
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2779 — the drill spacing and the sample length
 import { trendThinness, trendContext } from "../lib/trendThin.js"; // TASKS.csv #2779
+import { parseDecimal } from "../lib/parseDecimal.js"; // TASKS.csv #3926
+// TASKS.csv #3926 — these boxes keep their own draft (applied on blur / Enter, Escape cancels: #670, #3683), so they are not the shared NumberInput:
+// text boxes whose text is read with parseDecimal, so '0,05' is 0.05 as there; a text it cannot read is not applied (NaN)
+const numOf = (x) => { const r = parseDecimal(String(x ?? "")); return r.ok && !r.empty ? r.value : NaN; };
 
 export const TREND_USERS = [
   ["implicit", "Geology models (implicit surfaces, stacks)"], // stack faults follow the stack's trend
@@ -34,12 +38,12 @@ function DraftNumber({ value, onCommit, label, style, ...rest }) {
   const [draft, setDraft] = useState(null);
   const commit = () => {
     if (draft == null) return;
-    const v = Number(draft);
+    const v = numOf(draft); // #3926: '0,05' reads as 0.05
     setDraft(null);
-    if (draft.trim() !== "" && Number.isFinite(v) && v !== Number(value)) onCommit(v);
+    if (Number.isFinite(v) && v !== Number(value)) onCommit(v);
   };
   return (
-    <input type="number" step="any" value={draft ?? String(value)} aria-label={label} style={style} {...rest}
+    <input type="text" inputMode="decimal" value={draft ?? String(value)} aria-label={label} style={style} {...rest}
       onChange={(e) => setDraft(e.target.value)} onBlur={commit}
       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") setDraft(null); }} />
   );
@@ -59,7 +63,7 @@ function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
   const stored = `${trend.ratios.max}:${trend.ratios.int}:${trend.ratios.min}`;
   useEffect(() => { typed.current = false; setVals({ ...trend.ratios }); setMsg(null); }, [stored]); // the trend's ratios changed (a fit, an undo)
   const tryApply = (next) => {
-    const r = { max: Number(next.max), int: Number(next.int), min: Number(next.min) };
+    const r = { max: numOf(next.max), int: numOf(next.int), min: numOf(next.min) }; // #3926: '0,05' reads as 0.05
     if (![r.max, r.int, r.min].every((v) => Number.isFinite(v) && v > 0)) { setMsg(tr("Each ratio must be a number above zero — not applied yet.")); return; }
     if (!(r.max >= r.int && r.int >= r.min)) {
       setMsg(tr("Not applied yet: the ratios must go Maximum ≥ Intermediate ≥ Minimum (now {max} : {int} : {min}). Leapfrog lists its values per axis — if its largest one is the in-plane axis across the pitch, enter it as Maximum and add 90° to the pitch.", { max: r.max, int: r.int, min: r.min }));
@@ -70,7 +74,7 @@ function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
   };
   const box = (key, label) => (
     <label style={field}>{label}
-      <input type="number" step="any" min="0.01" value={vals[key]} aria-label={tr("{name} ratio {label}", { name: trend.name, label })} style={{ ...inputStyle, width: "100%" }}
+      <input type="text" inputMode="decimal" value={vals[key]} aria-label={tr("{name} ratio {label}", { name: trend.name, label })} style={{ ...inputStyle, width: "100%" }}
         onChange={(e) => { typed.current = true; setVals((v) => ({ ...v, [key]: e.target.value })); }}
         onBlur={() => { if (typed.current) tryApply(vals); }}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") { typed.current = false; setVals({ ...trend.ratios }); setMsg(null); } }} />

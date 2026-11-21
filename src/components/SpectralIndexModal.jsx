@@ -17,6 +17,7 @@ import BasemapView from "./BasemapView.jsx";
 import HyperspectralTab from "./HyperspectralTab.jsx"; // TASKS.csv #807
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { lastSummer } from "../lib/summerDates.js"; // TASKS.csv #2464 — the project's own hemisphere
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const CUSTOM = "custom";
 
@@ -172,7 +173,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
                 </select>
               </div>
               {source === "sentinel2" && (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8, ...small }}>{tr("From")}{" "}<input type="date" value={dates.from} onChange={(e) => setDates((d) => ({ ...d, from: e.target.value }))} style={sel} aria-label={tr("From date")} />{tr("to")}{" "}<input type="date" value={dates.to} onChange={(e) => setDates((d) => ({ ...d, to: e.target.value }))} style={sel} aria-label={tr("To date")} />{tr("cloud under")}{" "}<input type="number" min={0} max={100} value={maxCloud} onChange={(e) => setMaxCloud(e.target.value)} style={{ ...sel, width: 56 }} aria-label={tr("Maximum cloud cover")} />%
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8, ...small }}>{tr("From")}{" "}<input type="date" value={dates.from} onChange={(e) => setDates((d) => ({ ...d, from: e.target.value }))} style={sel} aria-label={tr("From date")} />{tr("to")}{" "}<input type="date" value={dates.to} onChange={(e) => setDates((d) => ({ ...d, to: e.target.value }))} style={sel} aria-label={tr("To date")} />{tr("cloud under")}{" "}<NumberInput min={0} max={100} allowEmpty value={maxCloud === "" || maxCloud == null ? null : maxCloud} onChange={(n) => setMaxCloud(n == null ? "" : String(n))} style={{ ...sel, width: 56 }} aria-label={tr("Maximum cloud cover")} />%
                 </div>
               )}
               <button onClick={search} disabled={!area || busy} style={{ ...btn(false), padding: "7px 12px", marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, opacity: !area || busy ? 0.5 : 1 }}><Search size={14} />{" "}{tr("Find scenes")}</button>
@@ -230,7 +231,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
             {reflective && sens.nir && maskVeg && ( /* TASKS.csv #2010 — the threshold is the user's */
               <label style={{ ...small, display: "flex", alignItems: "center", gap: 6, marginTop: 4, marginLeft: 22 }}>
                 {tr("Vegetated above NDVI")}
-                <input type="number" step="0.05" min="-1" max="1" value={vegMax} onChange={(e) => setVegMax(e.target.value)} aria-label={tr("NDVI above which a pixel is vegetated")} style={{ width: 64, fontSize: "var(--font-size-sm)" }} />
+                <NumberInput step="0.05" min="-1" max="1" allowEmpty value={vegMax === "" || vegMax == null ? null : vegMax} onChange={(n) => setVegMax(n == null ? "" : String(n))} aria-label={tr("NDVI above which a pixel is vegetated")} style={{ width: 64, fontSize: "var(--font-size-sm)" }} />
                 <span>{tr("(a common starting value is 0.4; dry or sparse cover reads lower)")}</span>
               </label>
             )}

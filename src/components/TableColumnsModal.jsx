@@ -8,6 +8,7 @@ import { subsetBytes, holesShare, compositeShare } from "../lib/tableSubsetReque
 import { FROM_COL, TO_COL } from "../lib/compositeOnRead.js"; // TASKS.csv #2345
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2321 — the project's holes
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const HOLE_COL = /^(hole|holeid|hole_id|hole_no|hole_name|bhid|dhid|ddh|site_?id)$/i; // TASKS.csv #2321
 // the columns most imports need, ticked first: ids, depths, coordinates (by name; the user changes them)
@@ -82,7 +83,7 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)" }}>
             <label style={{ display: "flex", gap: 5, alignItems: "center" }}>
               <input type="checkbox" checked={comp.on} onChange={(e) => setComp((c) => ({ ...c, on: e.target.checked }))} />{tr("Composite to")}
-              <input type="number" min={0.1} step={0.5} value={comp.lengthM} disabled={!comp.on} placeholder={tr("length")} onChange={(e) => setComp((c) => ({ ...c, lengthM: e.target.value }))} aria-label={tr("Composite length (m)")} style={{ ...inp, flex: "none", width: 70 }} />{tr("m as it is read (length-weighted)")}
+              <NumberInput min={0.1} step={0.5} allowEmpty value={comp.lengthM === "" || comp.lengthM == null ? null : comp.lengthM} disabled={!comp.on} placeholder={tr("length")} onChange={(n) => setComp((c) => ({ ...c, lengthM: n == null ? "" : String(n) }))} aria-label={tr("Composite length (m)")} style={{ ...inp, flex: "none", width: 70 }} wrapStyle={{ flex: "none" }} />{tr("m as it is read (length-weighted)")}
             </label>
             {comp.on && <>
               <label style={{ display: "flex", gap: 5, alignItems: "center" }}>{tr("From")}<select value={comp.from} onChange={(e) => setComp((c) => ({ ...c, from: e.target.value }))} aria-label={tr("Composite From column")} style={inp}><option value="">{tr("— pick a column —")}</option>{preview.headers.map((h) => <option key={h} value={h}>{h}</option>)}</select></label>

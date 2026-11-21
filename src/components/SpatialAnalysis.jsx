@@ -12,6 +12,7 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr, fmtNum } from "../lib/i18n.js"; // TASKS.csv #786; fmtNum: #3817
 import { isMetricProjectedEpsg } from "../lib/reproject.js"; // TASKS.csv #2247
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 // TASKS.csv #51 — Voronoi tessellation + polygonal declustering panel. Opened from GeophysicsModule
 // over whatever geophys_pts point cloud is currently loaded (needs x/y/value, which is exactly that
@@ -154,8 +155,8 @@ export default function SpatialAnalysis({ points, surveys = [], onClose }) {
             {shapeReady && shape?.is3D && <div style={{ color: "var(--color-warn-text)" }}>{tr("A 3D point cloud ({lo} to {hi} m elevation): a plan tessellation treats every point as if it lay on one surface. Give an elevation range to tessellate one level, or run it over the whole cloud.", { lo: Math.round(shape.zMin).toLocaleString(), hi: Math.round(shape.zMax).toLocaleString() })}</div>}
             {shapeReady && shape?.is3D && (
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)" }}>
-                <label style={{ display: "flex", gap: 5, alignItems: "center" }}>{tr("Elevation from (m)")}<input type="number" value={zFrom} onChange={(e) => setZFrom(e.target.value)} disabled={running} style={inp} /></label>
-                <label style={{ display: "flex", gap: 5, alignItems: "center" }}>{tr("to (m)")}<input type="number" value={zTo} onChange={(e) => setZTo(e.target.value)} disabled={running} style={inp} /></label>
+                <label style={{ display: "flex", gap: 5, alignItems: "center" }}>{tr("Elevation from (m)")}<NumberInput allowEmpty value={zFrom === "" || zFrom == null ? null : zFrom} onChange={(n) => setZFrom(n == null ? "" : String(n))} disabled={running} style={inp} /></label>
+                <label style={{ display: "flex", gap: 5, alignItems: "center" }}>{tr("to (m)")}<NumberInput allowEmpty value={zTo === "" || zTo == null ? null : zTo} onChange={(n) => setZTo(n == null ? "" : String(n))} disabled={running} style={inp} /></label>
                 <span>{tr("{n} of {all} points in the range", { n: sliced.length.toLocaleString(), all: valid.length.toLocaleString() })}</span>
               </div>
             )}

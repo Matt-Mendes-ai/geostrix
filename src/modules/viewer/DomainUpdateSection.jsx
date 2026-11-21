@@ -4,6 +4,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { t as tr } from "../../lib/i18n.js";
 import { holeYear, collarDateFields, newHoleIds, parseIdList } from "../../lib/viewer/domainUpdate.js";
 import { gridBlockCount, cellToFit } from "../../lib/estimationMeta.js"; // TASKS.csv #3674 — the cell the pane's budget leaves
+import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
 
 export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay, style, fieldStyle, selectStyle, buttonStyle }) {
   const imported = (ctx.implicitSurfaces || []).filter((s) => s.type === "imported");
@@ -62,7 +63,7 @@ export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay,
       </div>
       {mode === "year" && <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
         <label style={{ ...fieldStyle, flex: 1 }} title={tr("The holes drilled in this year or later are the new data (the year from a collar year field, else from ids like DH-25-012).")}>{tr("First year")}
-          <input type="number" min="1900" max="2200" step="1" value={fy} onChange={(e) => setFirstYear(e.target.value)} style={{ ...selectStyle, width: "100%" }} aria-label={tr("First year of the new drilling")} />
+          <NumberInput min="1900" max="2200" step="1" allowEmpty value={fy === "" || fy == null ? null : fy} onChange={(n) => setFirstYear(n == null ? "" : String(n))} style={{ ...selectStyle, width: "100%" }} aria-label={tr("First year of the new drilling")} />
         </label>
       </div>}
       {mode === "list" && <label style={{ ...fieldStyle, marginBottom: 6 }}>{tr("Hole ids (commas, spaces or lines)")}
@@ -79,10 +80,10 @@ export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay,
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{mode === "year" ? (years.length ? tr("{n} hole(s) drilled from {year} on.", { n: nNew, year: fy }) : tr("No hole has a drilling year (a collar year field, or ids like DH-25-012).")) : tr("{n} hole(s) chosen.", { n: nNew })}</div>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
         <label style={{ ...fieldStyle, flex: 1 }} title={tr("How far from the old surface the old domain still counts as sure, in metres. Blank: half the samples' spacing.")}>{tr("Prior width (m)")}
-          <input type="number" min="0" value={widthText} placeholder={tr("½ spacing")} onChange={(e) => setWidthText(e.target.value)} style={{ ...selectStyle, width: "100%" }} aria-label={tr("Width of the old domain's prior in metres")} />
+          <NumberInput min="0" allowEmpty value={widthText === "" || widthText == null ? null : widthText} placeholder={tr("½ spacing")} onChange={(n) => setWidthText(n == null ? "" : String(n))} style={{ ...selectStyle, width: "100%" }} aria-label={tr("Width of the old domain's prior in metres")} />
         </label>
         <label style={{ ...fieldStyle, flex: 1 }} title={tr("How far a new hole's grade reaches, in metres. Blank: one spacing between the samples.")}>{tr("New data reach (m)")}
-          <input type="number" min="0" value={reachText} placeholder={tr("1 spacing")} onChange={(e) => setReachText(e.target.value)} style={{ ...selectStyle, width: "100%" }} aria-label={tr("Reach of the new holes' grade in metres")} />
+          <NumberInput min="0" allowEmpty value={reachText === "" || reachText == null ? null : reachText} placeholder={tr("1 spacing")} onChange={(n) => setReachText(n == null ? "" : String(n))} style={{ ...selectStyle, width: "100%" }} aria-label={tr("Reach of the new holes' grade in metres")} />
         </label>
       </div>
       {budgetNote && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginBottom: 6 }}>{tr("The block budget ({budget}) makes {cell} m cells over this domain, not the {asked} m asked: raise the budget above for a finer update.", { budget: budgetNote.budget.toLocaleString(), cell: budgetNote.cell, asked: budgetNote.asked })}</div>}

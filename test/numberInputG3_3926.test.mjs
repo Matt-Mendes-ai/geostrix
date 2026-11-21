@@ -19,6 +19,13 @@ const DONE = {
   "components/SampleGridPanel.jsx": 4,
   "components/UndrilledZonesPane.jsx": 4,
   "components/SurfaceSolidsPanel.jsx": 3,
+  "modules/viewer/DomainUpdateSection.jsx": 3,
+  "components/SculptPanel.jsx": 2,
+  "components/SpatialAnalysis.jsx": 2,
+  "components/SpectralIndexModal.jsx": 2,
+  "modules/viewer/TrendHelper.jsx": 2,
+  "components/HyperspectralTab.jsx": 1,
+  "components/TableColumnsModal.jsx": 1,
 };
 
 test("every G3 box in these files is a NumberInput", () => {
@@ -78,4 +85,17 @@ test("the surface, codes, fitting, long section, catchments, gridding, undrilled
   assert.match(read("components/SampleGridPanel.jsx"), /<NumberInput min="0" max="1" step="0\.05" value=\{tension\} onChange=\{\(n\) => setTension\(n\)\}/);
   assert.match(read("components/UndrilledZonesPane.jsx"), /<NumberInput min="1" step="5" value=\{coverM\} onChange=\{\(n\) => setCoverM\(n\)\}/);
   assert.match(read("components/SurfaceSolidsPanel.jsx"), /style=\{\{ \.\.\.numInput, width: 80, flex: "none" \}\} wrapStyle=\{\{ flex: "none" \}\}/);
+});
+
+test("the last small panes; Trends keeps its draft boxes (Escape cancels) and reads them with parseDecimal", () => {
+  assert.match(read("modules/viewer/DomainUpdateSection.jsx"), /allowEmpty value=\{fy === "" \|\| fy == null \? null : fy\} onChange=\{\(n\) => setFirstYear\(n == null \? "" : String\(n\)\)\}/);
+  assert.match(read("modules/viewer/TrendHelper.jsx"), /onChange=\{\(n\) => \{ setTyped\(\(p\) => \(\{ \.\.\.p, dip: n == null \? "" : String\(n\) \}\)\); setSelId\("typed"\); \}\}/);
+  assert.match(read("components/TableColumnsModal.jsx"), /style=\{\{ \.\.\.inp, flex: "none", width: 70 \}\} wrapStyle=\{\{ flex: "none" \}\}/);
+  const t = read("components/TrendsPanel.jsx");
+  assert.doesNotMatch(t, /type="number"/);
+  assert.match(t, /const numOf = \(x\) => \{ const r = parseDecimal\(String\(x \?\? ""\)\); return r\.ok && !r\.empty \? r\.value : NaN; \};/);
+  assert.match(t, /const v = numOf\(draft\);/);
+  assert.match(t, /const r = \{ max: numOf\(next\.max\), int: numOf\(next\.int\), min: numOf\(next\.min\) \};/);
+  assert.match(t, /else if \(e\.key === "Escape"\) setDraft\(null\);/); // the draft is still cancelled with Escape
+  assert.equal((t.match(/<input type="text" inputMode="decimal"/g) || []).length, 2);
 });

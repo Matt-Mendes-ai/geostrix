@@ -10,6 +10,7 @@ import { FEATURES, parseWavelengths, wavelengthsFromGdalMetadata, featureBands, 
 import { parseSpectrum, resampleSpectrum, matchMap } from "../lib/spectralMatch.js"; // TASKS.csv #2003
 import { loadUsgsSubset, spectrumText, USGS_CREDIT } from "../lib/usgsSpectra.js"; // TASKS.csv #3514
 import { t as tr } from "../lib/i18n.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 export default function HyperspectralTab({ epsg, tie = null, defaultElevation, sourceEpsg, onImport, onClose }) { // tie: TASKS.csv #2648
   const fileInput = useRef(null), hdrInput = useRef(null);
@@ -148,7 +149,7 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 8, ...small }}>
           <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={products.depth} onChange={(e) => setProducts((p) => ({ ...p, depth: e.target.checked }))} />{tr("Depth map")}</label>
           <label style={{ display: "flex", alignItems: "center", gap: 5 }}><input type="checkbox" checked={products.wavelength} onChange={(e) => setProducts((p) => ({ ...p, wavelength: e.target.checked }))} />{tr("Wavelength map")}</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 5 }} title={tr("Below this depth there is no real feature: the wavelength is left blank there.")}>{tr("Minimum depth")}<input type="number" min="0" step="0.01" value={minDepth} onChange={(e) => setMinDepth(e.target.value)} style={{ ...sel, width: 64 }} aria-label={tr("Minimum depth")} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: 5 }} title={tr("Below this depth there is no real feature: the wavelength is left blank there.")}>{tr("Minimum depth")}<NumberInput min="0" step="0.01" allowEmpty value={minDepth === "" || minDepth == null ? null : minDepth} onChange={(n) => setMinDepth(n == null ? "" : String(n))} style={{ ...sel, width: 64 }} aria-label={tr("Minimum depth")} /></label>
         </div>
         {wl && win.length < 5 && <div style={{ ...small, marginTop: 4, color: "var(--color-danger-fg)" }}>{tr("Only {n} band(s) between {lo} and {hi} nm in this file: this feature cannot be mapped from it.", { n: win.length, lo: f.lo, hi: f.hi })}</div>}
         </>}
