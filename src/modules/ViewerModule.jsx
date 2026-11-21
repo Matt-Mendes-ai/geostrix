@@ -7364,7 +7364,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {!emptyCardClosed && !collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && !surfaceSamples.length && !voxelModels.length && !Object.values(layers).some((a) => a?.length) && (
           <EmptyState
             onClose={() => setEmptyCardClosed(true)}
-            headline={mode === "surface" ? tr("Import a geological map and outcrop measurements — or load the Perk-Rocky mapping sample") : mode === "modelling" ? tr("Load drillholes, or a geological map with outcrop measurements — modelling works from either") : mode === "targeting" ? tr("Load drillholes first — targeting plans holes against your drilling and models") : tr("Drill holes in 3D")} /* #567 */
+            headline={mode === "surface" ? tr("Geology maps in 3D") : mode === "modelling" ? tr("Load drill holes or a geology map to model") : mode === "targeting" ? tr("Load drill holes first to plan targets") : tr("Drill holes in 3D")} /* #567 */
             // TASKS.csv #1120 — the filled button is the sample that suits the tab (Perk-Rocky on Surface Geology, whose headline
             // offers it; Harry elsewhere); the other two are the outline buttons
             actionLabel={sampleLoading ? tr("Loading sample project…") : sampleCards[0].label}

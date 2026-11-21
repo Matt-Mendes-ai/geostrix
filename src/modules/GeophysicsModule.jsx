@@ -78,6 +78,9 @@ import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
+import DropDiagram from "../components/DropDiagram.jsx"; // TASKS.csv #3939
+import MoreFold from "../components/MoreFold.jsx"; // TASKS.csv #3939
+import { tx } from "../lib/i18nRich.js"; // TASKS.csv #3939
 import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
 import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC resistivity / IP
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
@@ -3470,10 +3473,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           onAction={geoPane === "dcip" ? null : () => fileInput.current?.click()}
           actionTitle={tr("Pick a point-cloud CSV — x/y/z plus a value column")}
           secondary={<InfoButton title={tr("Every supported format")} width={430} text={tr(FORMAT_REFERENCE)} />}
-          footnote={tr("Or drag a file straight onto this pane. Everything imported here renders in the 3D view alongside your drillholes.")}
+          footnote={tr("It all shows in the 3D view with your drill holes.")}
         >
           {geoPane === "dcip" && <div style={{ marginBottom: 12 }}>{tr("A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.")}</div>}
-          <div style={{ marginBottom: 12 }}>{tr("Point-cloud surveys (mag, IP, gravity, radiometrics), gridded geophysics, terrain and boundary geometry. Drag a CSV, GeoTIFF, Geosoft")}{" "}<code>.gxf</code>, <code>.ply</code>/<code>.dxf</code>{" "}{tr("or")}{" "}<code>.xyz</code>{" "}{tr("here, or use the buttons on the left — the")}{" "}<b>i</b>{" "}{tr("beside the button lists exactly what each format does on import.")}</div>
+          {/* TASKS.csv #3939 — pictures first: a survey file becomes coloured stations; the formats behind More */}
+          <DropDiagram picture="points" data-empty-diagram="points" drop={tr("Drop your survey file here")} caption={tr("The columns of a point survey")} cells={["x", "y", "z", tr("Value")]}
+            label={tr("A survey file dropped here becomes stations coloured by their value: x, y, z and a value column.")} tooltip={tr("Drag your survey file here to start.")} />
+          <div style={{ marginBottom: 8 }}>{tx("Grids, terrain and boundaries come in here too; the {i} button lists every format.", { i: <b>i</b> })}</div>
+          <MoreFold>{tx("Surveys: magnetics, IP, gravity, radiometrics. Files: CSV, GeoTIFF, Geosoft {gxf}, {ply} / {dxf} or {xyz}, dropped here or through the buttons on the left.", { gxf: <code>.gxf</code>, ply: <code>.ply</code>, dxf: <code>.dxf</code>, xyz: <code>.xyz</code> })}</MoreFold>
         </EmptyState>
         </div>
       </div>)}
