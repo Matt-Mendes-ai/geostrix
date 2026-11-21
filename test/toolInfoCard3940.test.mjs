@@ -71,3 +71,31 @@ test("#3940 no RibbonButton passes a native title through to the DOM; every titl
   }
   assert.ok(uses >= 100, `${uses} RibbonButton uses`);
 });
+
+// ---- the other buttons that had only a native title (second part of #3940)
+import { titleCardParts } from "../src/lib/titleCard.js";
+
+test("#3940 titleCardParts: heading = the button's own name when it is a real word and not the title again; a glyph button shows the title alone", () => {
+  assert.deepEqual(titleCardParts({ title: "Top view (plan)", ariaLabel: null, text: "Top" }), { heading: "Top", body: "Top view (plan)" });
+  assert.deepEqual(titleCardParts({ title: "Fit the view to the data", ariaLabel: "Fit", text: "Fit" }), { heading: "Fit", body: "Fit the view to the data" });
+  assert.deepEqual(titleCardParts({ title: "Remove this layer", ariaLabel: null, text: "×" }), { heading: "", body: "Remove this layer" });
+  assert.deepEqual(titleCardParts({ title: "Move up", ariaLabel: null, text: "▲" }), { heading: "", body: "Move up" });
+  assert.deepEqual(titleCardParts({ title: "Dismiss", ariaLabel: null, text: "Dismiss" }), { heading: "", body: "Dismiss" }, "the title again is not a heading");
+  assert.deepEqual(titleCardParts({ title: "Reset the view", ariaLabel: "Reset", text: "" }), { heading: "Reset", body: "Reset the view" });
+  assert.equal(titleCardParts({ title: "x", ariaLabel: null, text: "a very long label that is not a name for a button at all" }).heading, "");
+  assert.equal(titleCardParts({ title: "  ", ariaLabel: "A", text: "" }).body, "");
+});
+
+test("#3940 TitleCards: one listener for the window, mounted once in App.jsx; the native title comes off so the words are not shown twice, the name stays", () => {
+  const c = read("../src/components/TitleCards.jsx");
+  assert.match(c, /const SEL = "button\[title\], button\[data-geo-tip\], \[role=button\]\[title\], \[role=button\]\[data-geo-tip\]";/);
+  assert.match(c, /el\.removeAttribute\("title"\)/);
+  assert.ok(c.includes('el.setAttribute("aria-label", t.split("\\n")[0])'));
+  assert.match(c, /el\.setAttribute\("aria-description", t\)/);
+  assert.match(c, /el\.getAttribute\("aria-expanded"\) === "true"/, "never over the button's own menu (#3928)");
+  assert.match(c, /matches\(":focus-visible"\)/);
+  assert.match(c, /e\.key === "Escape"/);
+  assert.match(c, /const HOVER_MS = 350, FOCUS_MS = 80;/);
+  assert.match(read("../src/App.jsx"), /import TitleCards from "\.\/components\/TitleCards\.jsx";[^\n]*\n/);
+  assert.equal((read("../src/App.jsx").match(/<TitleCards \/>/g) || []).length, 1);
+});

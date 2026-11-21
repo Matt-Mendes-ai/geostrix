@@ -79,7 +79,7 @@ export function useToolInfo({ anchorRef, title, text, suppress = false, align = 
   return { handlers, descId, card };
 }
 
-function ToolInfoCard({ anchorRef, title, text, width, align }) {
+export function ToolInfoCard({ anchorRef, title, text, width, align }) {
   const ref = useRef(null);
   const [pos, setPos] = useState(null);
   useLayoutEffect(() => {
@@ -105,7 +105,7 @@ function ToolInfoCard({ anchorRef, title, text, width, align }) {
           {trText(title)}
         </div>
       )}
-      {text && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.55 }}>{trText(text)}</div>}
+      {text && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.55, whiteSpace: "pre-line" }}>{trText(text)}</div>}
     </div>,
     document.body,
   );

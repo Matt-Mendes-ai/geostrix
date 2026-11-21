@@ -30,6 +30,7 @@ import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
 const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
+import TitleCards from "./components/TitleCards.jsx"; // TASKS.csv #3940 — the info card for every button that has only a native title
 import { undoMessage, undoTooltip } from "./lib/undoLabels.js"; // TASKS.csv #1087; undoTooltip: #3616
 import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 import { timeAgo } from "./lib/timeAgo.js"; // TASKS.csv #1274
@@ -742,6 +743,7 @@ export default function App() {
           {importGate.held > 0 ? tr("The project is still loading: the files are read when it has loaded.") : <>{tr("The pane the files were chosen in closed while the project loaded: choose them again.")}{" "}<button type="button" onClick={importGate.clearLost} style={{ marginLeft: 6, fontSize: "var(--font-size-sm)" }}>{tr("OK")}</button></>}
         </div>
       )}
+      <TitleCards />
       {startDialog && <Suspense fallback={null}><StartDialogs reason={startDialog.reason} onClose={() => setStartDialog(null)} goTo={setActive} onOpenProject={doOpen} /></Suspense>}{/* TASKS.csv #3888 */}
       {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
