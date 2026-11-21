@@ -70,7 +70,7 @@ test("#3505: drawCallouts reports how many labels it left out; the plan says so 
   const none = drawCallouts(ctx, [{ hole_id: "A", x: 0, y: 0 }], (x) => 100 + x, (y) => 50 - y, { w: 300, h: 100 }, { dotR: 2, mPerPx: 1 });
   assert.equal(none.leftOut, 0);
   const p = read("../src/components/MapsPlanView.jsx");
-  assert.match(p, /report: \(r\) => setIdsLeftOut\(r\.leftOut\) \}\);/);
+  assert.match(p, /report: \(r\) => setIdsLeftOut\(r\.leftOut\), fontPx: labelPx\("xs"\) \/\* #3900 \*\/ \}\);/); // #3900 T2: the callouts' size on screen
   assert.match(p, /\{showIds && idsLeftOut > 0 && <span[^>]*> \{tr\("\(\{n\} left out: they overlap, zoom in\)", \{ n: idsLeftOut\.toLocaleString\(\) \}\)/);
   assert.match(p, /if \(b\.contourLevels\?\.length && b\.contourLabels !== false\) \{\n\s+let spots = CONTOUR_SPOTS\.get\(b\);\n\s+if \(!spots\) \{ spots = contourLabelSpots\(b\); CONTOUR_SPOTS\.set\(b, spots\); \}/);
   // the spots the plan writes are the 3D View's own

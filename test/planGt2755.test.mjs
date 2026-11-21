@@ -46,5 +46,5 @@ test("the modal sends holeTotals' per-hole totals and adds the contour; the plan
   assert.match(p, /const gtPlan = usePlanGt\(\);/);
   assert.match(p, /const r = gtRadius\(h\.gt, gtMax\);/);
   assert.match(p, /onClick=\{\(\) => showGtOnPlan\(null\)\}/);
-  assert.match(p, /measuring, mPts, gtPlan, gtMax\]\);/);
+  assert.match(p, /measuring, mPts, gtPlan, gtMax, textSizeNow \/\* #3900 \*\/\]\);/); // #3900 T2: a new text size redraws the labels
 });
