@@ -7,10 +7,10 @@
 //     (lib/startChecklist.js) fills itself in from what the project holds.
 // "I'm not using drill hole data" keeps only 'Anything else' and opens the project on Maps. "Do not show this when GeoStrix starts" is a personal
 // setting (lib/startFlow.js). Offline, or the download declined, the project keeps the collar heights and says so. Nothing is fetched without a click.
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../lib/store.jsx";
 import { requestModuleAction } from "../lib/menuRequests.js";
-import { startOptedOut, setStartOptOut } from "../lib/startFlow.js";
+import { startOptedOut, setStartOptOut, shouldCloseStart } from "../lib/startFlow.js"; // shouldCloseStart: #3930
 import { groundFileKind, terrainSummary, crsWords, groundStrip, startChecklist, startDestination, qcLine, parseEpsgInput, whatIsThis } from "../lib/startChecklist.js"; // qcLine, parseEpsgInput, whatIsThis: #3918
 import { crsName } from "../lib/reproject.js";
 import { projectEpsgChooser } from "../lib/adoptCrs.js";
@@ -57,7 +57,11 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   const [zoneAsk, setZoneAsk] = useState(null); // { better, misfit, parsed }
   const [card, setCard] = useState(null); // { qc } once Done: the small next-steps card, not a dialog
 
-  const sendFiles = (files) => { goTo?.("viewer"); requestModuleAction("import-dropped-files", { files }); }; // the 3D view's own entry (#2019)
+  // TASKS.csv #3930 — a sample, a project or a recovery copy loading under this dialog closes it (its backdrop covered the page); the dialog's own
+  // imports (a terrain, the files dropped in step 2, the made ground) do not, so they mark it engaged first
+  const engaged = useRef(false);
+  useEffect(() => { if (shouldCloseStart({ empty: projectIsEmpty, engaged: engaged.current, sampleRequested: !!store.sampleRequest })) onClose?.(); }, [projectIsEmpty, store.sampleRequest]);
+  const sendFiles = (files) => { engaged.current = true; goTo?.("viewer"); requestModuleAction("import-dropped-files", { files }); }; // the 3D view's own entry (#2019)
   const importFiles = (files) => { // #3918 — a file the import can't place is asked about here, the rest go in
     const odd = files.map((file) => ({ file, ...(whatIsThis(file.name) || {}) })).filter((x) => x.text);
     if (odd.length) setUnplaced((u) => [...u, ...odd]);
@@ -79,6 +83,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
 
   // step 1: a terrain file (GeoTIFF) through the terrain importer's parser; anything else waits for step 2
   const onGroundFiles = async (files) => {
+    engaged.current = true;
     const tifs = files.filter((f) => groundFileKind(f.name) === "terrain"), rest = files.filter((f) => groundFileKind(f.name) !== "terrain");
     if (rest.length) setCarried((c) => [...c, ...rest]);
     if (!tifs.length) { setNote({ text: tr(rest.length === 1 ? "That looks like a table or a map, not a terrain: it goes in the next step." : "Those look like tables or maps, not a terrain: they go in the next step.") }); return; }
@@ -101,6 +106,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
 
   // #3918 — a terrain with no coordinate system: its numbers are the project's, or in the CRS the user types (re-read through it)
   const pickCrs = async (code) => {
+    engaged.current = true;
     if (code == null) { setPicker((p) => ({ ...p, error: tr("Type the EPSG code as a number, for example 32609.") })); return; }
     if (!crsName(code)) { setPicker((p) => ({ ...p, error: tr("GeoStrix doesn't know EPSG:{code}. Check the number on the file's .prj or its notes.", { code }) })); return; }
     if (!epsg || Number(code) === Number(epsg)) { if (!epsg) setEpsg(code); setPicker(null); setNote({ text: crsWords(code, crsName(code)) }); return; }
@@ -117,6 +123,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   // step 2's strip: the Copernicus GLO-30 download for the collars' area, on a click; offline or failed: the collar heights, said
   const strip = step === 2 ? groundStrip({ choice: ground, collars: collars?.length || 0, terrain: !!terrain, epsg: tieOf(project) ? null : epsg }) : null;
   const makeGround = async (zoneEpsg = null) => {
+    engaged.current = true;
     const useEpsg = zoneEpsg || epsg;
     const offline = () => setStripDone({ text: tr("No internet connection: using the collar heights for now. Add a terrain later with Add data."), warn: true });
     if (typeof navigator !== "undefined" && navigator.onLine === false) { offline(); return; }

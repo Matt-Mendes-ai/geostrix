@@ -17,3 +17,10 @@ export function shouldShowStart({ reason = "launch", empty = true, optedOut = fa
   if (reason === "new" || reason === "button") return true;
   return !!empty && !optedOut && !recoveryOffered && !openedFile;
 }
+// TASKS.csv #3930 — once the dialog is up it gives way when the project stops being empty or a sample is asked for, whatever loaded it (an example from the
+// empty view's cards or File > Open Sample Project, a project opened, a recovery copy restored): its backdrop otherwise swallows every click on the page.
+// Not while the user is inside the dialog's own steps for bringing data in (engaged: they dropped a terrain or files here, so the project filling up is their doing).
+export function shouldCloseStart({ empty = true, engaged = false, sampleRequested = false } = {}) {
+  if (engaged) return false;
+  return !empty || !!sampleRequested;
+}
