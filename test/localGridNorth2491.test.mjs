@@ -37,7 +37,7 @@ test("wiring: the import converts through the tie, an untied grid says so, the n
   const u = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(u, /const live = importStateRef\.current\.project \|\| project, tie = tieOf\(live\);/);
   assert.match(u, /localGridAzimuthOffset\(azimuthRef, tie, loc\.x, loc\.y, azimuthDate\)/);
-  assert.match(u, /this project is on a local grid with no tie to a coordinate system, so the grid's own north is not known/);
+  assert.match(u, /Tie the local grid \(Maps > Coordinates\) and import this file again: its north is not known/); // #3899: the action first
   assert.equal((u.match(/north: azNorth\(azimuthRef, azs\)/g) || []).length, 2);
   assert.match(u, /res\.crsUnset \? tr\(ref === "true" \? "true north, left as in the file"/);
   const m = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");

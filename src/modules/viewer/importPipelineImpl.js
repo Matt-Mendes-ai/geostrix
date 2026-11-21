@@ -351,7 +351,7 @@ export function makeImportPipeline(ctx, h) {
     if (plan.composition) { // #3052
       if (!out.rows.length) { setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has a share in the ticked components.", { fileName }))]); return false; }
       const comp = plan.composition, mixed = out.rows.filter((r) => r[perMineralLib.MIN_CODE_COL] === perMineralLib.MIXED).length;
-      setNotices((p) => [...p, tr("{fileName}: a composition of {n} components (each row's shares sum to 100, median {median}): each interval is coded by its dominant component, MIXED where none reaches {t} % ({mixed} interval(s)); its share is kept as Dominant share (%), and every component as a field (Identify shows them).", { fileName, n: plan.cols.length, median: comp.median, t: plan.mixedBelow, mixed: mixed.toLocaleString() })
+      setNotices((p) => [...p, tr("{fileName}: {n} components summing to 100: each interval is coded by its dominant one, MIXED where none reaches {t} % ({mixed}); every component is kept as a field.", { fileName, n: plan.cols.length, median: comp.median, t: plan.mixedBelow, mixed: mixed.toLocaleString() })
         + (comp.off ? " " + tr("{n} interval(s) sum to more than 5 away from 100 ({holes}): check them in the file.", { n: comp.off.toLocaleString(), holes: comp.offHoles.join(", ") + (comp.offHoles.length >= 8 ? ", …" : "") }) : "")
         + (out.none ? " " + tr("{n} interval(s) with no component logged are not in the layer.", { n: out.none.toLocaleString() }) : "")
         + (plan.blank.length ? " " + tr("Left out, with no value in any row: {cols}.", { cols: plan.blank.join(", ") }) : "")]);
@@ -360,7 +360,7 @@ export function makeImportPipeline(ctx, h) {
     }
     if (!out.rows.length) { setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has an amount in the ticked mineral columns.", { fileName }))]); return false; }
     const codes = plan.cols.map((c) => perMineralLib.mineralCode(c.col));
-    setNotices((p) => [...p, tr("{fileName}: Mineralization from {n} mineral column(s) ({list}): each interval is coloured by {by}, and its value is Total min, the sum of those columns. Each mineral is kept as a field (Identify shows them).", { fileName, n: plan.cols.length, list: plan.cols.map((c, k) => `${c.col} = ${codes[k]}`).join(", "), by: plan.colourBy === "dominant" ? tr("its dominant mineral") : perMineralLib.mineralCode(plan.colourBy) })
+    setNotices((p) => [...p, tr("{fileName}: mineralization from {n} mineral column(s) ({list}), coloured by {by}; its value is Total min, their sum, and each mineral is kept as a field.", { fileName, n: plan.cols.length, list: plan.cols.map((c, k) => `${c.col} = ${codes[k]}`).join(", "), by: plan.colourBy === "dominant" ? tr("its dominant mineral") : perMineralLib.mineralCode(plan.colourBy) })
       + (out.none ? " " + tr("{n} interval(s) with none of them logged are not in the layer.", { n: out.none.toLocaleString() }) : "")
       + (out.outside ? " " + tr("{n} negative value(s) were left out.", { n: out.outside.toLocaleString() }) : "")
       + (plan.blank.length ? " " + tr("Left out, with no value in any row: {cols}.", { cols: plan.blank.join(", ") }) : "")]);
@@ -420,8 +420,8 @@ export function makeImportPipeline(ctx, h) {
             + (failed.size ? tr(" {size} hole(s) could not be converted (no collar location) and were left as-is: {v}.", { size: failed.size, v: [...failed].slice(0, 6).join(", ") }) : "");
           return { rows: out, note, converted: fixed > 0 };
         }
-        if (live?.localGrid) return { rows, note: tr(" The azimuths were left as they are in the file, measured from {north}: this project is on a local grid with no tie to a coordinate system, so the grid's own north is not known. Tie the grid in Maps > Coordinates (control points, or an origin and a rotation), then import this file again.", { north: azimuthRef === "magnetic" ? tr("magnetic north") : azimuthRef === "true" ? tr("true north") : tr("another grid's north") }), crsUnset: true }; // #2491
-        return { rows, note: tr(" The azimuths could not be converted to grid north and were left as they are in the file: that needs the project CRS, which isn't chosen yet (status bar). Choose it, then import this file again."), crsUnset: true };
+        if (live?.localGrid) return { rows, note: tr(" Tie the local grid (Maps > Coordinates) and import this file again: its north is not known, so the azimuths were left as in the file, from {north}.", { north: azimuthRef === "magnetic" ? tr("magnetic north") : azimuthRef === "true" ? tr("true north") : tr("another grid's north") }), crsUnset: true }; // #2491
+        return { rows, note: tr(" Choose the project CRS (status bar) and import this file again: the azimuths were left as in the file, not turned to grid north."), crsUnset: true };
       }
       if (!azimuthRef || azimuthRef === "grid") return applyGridOf(rows, locate);
       const epsg = (importStateRef.current.project || project)?.epsg;
@@ -582,7 +582,7 @@ export function makeImportPipeline(ctx, h) {
       rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y));
       const repeats = ranked.rankColumn ? { dropped: 0, holes: [] } : firstPerHole(rows); // TASKS.csv #2172 — a repeated hole id: the first row kept, counted
       if (repeats.dropped) rows = repeats.rows;
-      if (fromSurveyAtt) setNotices((p) => [...p, tr("{fileName}: {n} hole(s) had an azimuth or dip that the exporting project took from its survey (the attitude_from column): they are not stored as the collar's own, the survey gives them.", { fileName, n: fromSurveyAtt })]); // #3875
+      if (fromSurveyAtt) setNotices((p) => [...p, tr("{fileName}: {n} hole(s) had an azimuth or dip taken from their survey (attitude_from): the survey gives them, not the collar.", { fileName, n: fromSurveyAtt })]); // #3875
       if (dateReaders.size) setNotices((p) => [...p, tr("{fileName}: {cols} read as dates (stored as year-month-day); each also has a year field, to filter and colour the holes by.", { fileName, cols: [...dateReaders.keys()].join(", ") })]); // #3075
       if (ambiguousDates.length) setNotices((p) => [...p, tr("{fileName}: {cols} kept as written: every date there could be day/month or month/day.", { fileName, cols: ambiguousDates.join(", ") })]); // #3075
       if (noCoords.length) setNotices((p) => [...p, notice("{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.", { fileName, noCoords: noCoords.length, v: noCoords.slice(0, 8).join(", "), v2: noCoords.length > 8 ? ", …" : "" })]);
@@ -628,7 +628,7 @@ export function makeImportPipeline(ctx, h) {
         });
         reprojectNote = gridTie
           ? " " + tr("On import: {moved} row(s) brought into the local grid through its tie to EPSG:{tie}{v}.", { moved, tie: gridTie.epsg, v: failed ? tr("; {failed} could not be placed and kept their numbers", { failed }) : "" })
-          : " " + tr("The file declares a coordinate system, but this project is on a local mine grid with no tie to one: the {kept} row(s) keep their numbers. Tie the grid to a CRS in Maps > Project CRS to bring such files in.", { kept });
+          : " " + tr("Tie the mine grid to a CRS (Maps > Project CRS) to convert such files: this one declares a CRS, so its {kept} row(s) kept their numbers.", { kept });
       } else if (liveProject?.epsg && (perRowEpsgCol || (srcEpsg && Number(srcEpsg) !== Number(liveProject.epsg)))) {
         const toEpsg = liveProject.epsg;
         const groups = new Map(); // fromEpsg key ("" = fall back to global sourceEpsg) -> rows in that group
@@ -728,7 +728,7 @@ export function makeImportPipeline(ctx, h) {
       if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
       if (attrCols.length) parts.push(tr("{n} more column(s) kept with each hole (Identify shows them): {cols}", { n: attrCols.length, cols: attrCols.slice(0, 8).join(", ") + (attrCols.length > 8 ? "…" : "") })); // #1504
       // TASKS.csv #3733 — attribute values that are one value spelled two ways ('D zone' / 'D Zone', 'South' / 'South Zone'): two classes in the hole filter and Grade statistics
-      { const tw = attrTwinGroups(ranked.rows, attrCols).slice(0, 4); if (tw.length) parts.push(tr("{n} attribute value(s) look like one value spelled two ways and stay separate classes in the hole filter, the hole colours and Grade statistics (make them the same in the file to merge them): {list}", { n: tw.length, list: tw.map((g) => `${g.col}: ${g.values.map((v) => `'${v.value}' (${v.n})`).join(" / ")}`).join("; ") })); }
+      { const tw = attrTwinGroups(ranked.rows, attrCols).slice(0, 4); if (tw.length) parts.push(tr("Spell these the same in the file to merge them: {n} value(s) look like one value spelled two ways and stay separate classes: {list}", { n: tw.length, list: tw.map((g) => `${g.col}: ${g.values.map((v) => `'${v.value}' (${v.n})`).join(" / ")}`).join("; ") })); }
       if (notKept.length) parts.push(tr("{n} column(s) not imported, each with more than 100 different values (add one under Extra fields to keep it): {cols}", { n: notKept.length, cols: notKept.slice(0, 8).join(", ") + (notKept.length > 8 ? "…" : "") })); // #2492 / #2190
       // #2014 (review #2013, Woodjam) — 534 of 544 district collars had no azimuth / dip column and no survey: they were counted
       // ("Holes: 544") and never drawn, and this notice did not say so. They are now drawn as assumed vertical holes; say it here.
@@ -738,7 +738,7 @@ export function makeImportPipeline(ctx, h) {
       // list after the survey arrives. While files of this drop are still queued, the check waits for the end of the queue (deferredAssumed -> reportDeferredAssumed)
       const moreToCome = !!batchRowsRef.current && importQueueRef.current.length > 0;
       if (moreToCome) assumedVertical.forEach((c) => deferredAssumed.add(c.hole_id));
-      if (assumedVertical.length && !moreToCome) parts.push(tr("{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC", { n: assumedVertical.length }));
+      if (assumedVertical.length && !moreToCome) parts.push(tr("{n} hole(s) have no azimuth, dip or survey: drawn as ASSUMED vertical (a dashed stick of the hole's length), flagged in Data QC", { n: assumedVertical.length }));
       if (!surveyedHoles.size && assumedVertical.length < applied.length && !moreToCome) parts.push(tr("no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length")); // #1504
       { // TASKS.csv #2169 — said in the notice, with how each was placed
         const zc = zFill.counts, how = [];
@@ -754,7 +754,7 @@ export function makeImportPipeline(ctx, h) {
       if (suspectHere.length) { // #2896 — said here and in Data QC
         const byId = new Map(applied.map((r) => [r.hole_id, r])), list = suspectHere.slice(0, 5).map((id) => `${id} (${Math.round(byId.get(id)?.z)} m)`).join(", ");
         parts.push(zTrust.range
-          ? tr("{n} collar elevation(s) look like a missing value, far from the other collars ({lo}–{hi} m): {list}. They are placed as the file says, marked as suspect, and flagged in Data QC", { n: suspectHere.length, lo: Math.round(zTrust.range[0]), hi: Math.round(zTrust.range[1]), list: list + (suspectHere.length > 5 ? " …" : "") })
+          ? tr("Check {n} collar elevation(s) that look like a missing value, far from the others ({lo}–{hi} m): {list}. Placed as given, marked suspect in Data QC", { n: suspectHere.length, lo: Math.round(zTrust.range[0]), hi: Math.round(zTrust.range[1]), list: list + (suspectHere.length > 5 ? " …" : "") })
           : tr("{n} collar elevation(s) look like a missing value: {list}. They are placed as the file says, marked as suspect, and flagged in Data QC", { n: suspectHere.length, list }));
       }
       if (diff.duplicatesInFile.length) parts.push(tr("{duplicatesInFile} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: {v})", { duplicatesInFile: diff.duplicatesInFile.length, v: [...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ") }));
@@ -818,7 +818,7 @@ export function makeImportPipeline(ctx, h) {
         + (data.azimuthRefFrom && mapping.azimuth === data.azimuthRefFrom ? tr(" Azimuths read from the {col} column ({north}).", { col: mapping.azimuth, north: azNorth(azimuthRef, azs) }) : "") // #2015; magnetic: #2154
         + (data.azimuthRefFrom && mapping.azimuth !== data.azimuthRefFrom && azimuthRef ? tr(" North reference from the {col} column ({north}).", { col: data.azimuthRefFrom, north: azNorth(azimuthRef, azs) }) : "") // #2154 (AZIMUTHGRIDNAME)
         + svExtraNote
-        + (methodSum ? tr(" {col}: {assumed} of {n} hole(s) have only assumed survey stations (their direction was not measured), {measured} measured; each hole's collar now says 'survey method: assumed / measured' (hole list filter and colour, Identify).", { col: methodSum.key, assumed: methodSum.assumed.length, n: methodSum.counted, measured: methodSum.measured }) + (methodSum.unread.length ? tr(" {n} more hole(s) have only {list} stations, a tool it does not class as measured or assumed (no survey method is set on them).", { n: methodSum.unread.length, list: methodSum.unreadWords.slice(0, 3).join(", ") }) : "") + (methodFold.size ? tr(" Spellings folded: {list}.", { list: [...methodFold].map(([a, b]) => `${a} → ${b}`).join(", ") }) : "") : "") // #2494
+        + (methodSum ? tr(" {col}: {assumed} of {n} hole(s) have only assumed survey stations, {measured} measured; each collar now says which (filter, colour, Identify).", { col: methodSum.key, assumed: methodSum.assumed.length, n: methodSum.counted, measured: methodSum.measured }) + (methodSum.unread.length ? tr(" {n} more hole(s) have only {list} stations, a tool it does not class as measured or assumed (no survey method is set on them).", { n: methodSum.unread.length, list: methodSum.unreadWords.slice(0, 3).join(", ") }) : "") + (methodFold.size ? tr(" Spellings folded: {list}.", { list: [...methodFold].map(([a, b]) => `${a} → ${b}`).join(", ") }) : "") : "") // #2494
         + (unseen && !azimuthRef && !azimuthGridEpsg ? tr(" Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).") : "")]); // #1647
     } else if (target === "structure") {
       // TASKS.csv #719 — no sign convention for structure dips: the "negative = down" radio is shown only for collars and
@@ -861,7 +861,7 @@ export function makeImportPipeline(ctx, h) {
       if (badDip) setNotices((p) => [...p, { ...notice("{fileName}: {badDip} structure dip(s) outside 0-90° were set to unknown{v}.", { fileName, badDip, v: negDip ? tr(" ({negDip} negative: a structure's dip is 0-90° below horizontal, so a minus sign is read as an error, not as \"down\")", { negDip }) : "" }), level: "error" }]); // #1232 — data was dropped: it stays until read
       { // TASKS.csv #584 — say what the strike column did
         const ss = strikeStats(allRows, mapping);
-        if (ss.derived || ss.mismatches) setNotices((p) => [...p, `${fileName}:${ss.derived ? tr(" {derived} dip direction(s) derived from strike by the right-hand rule (dip direction = strike + 90°).", { derived: ss.derived }) : ""}${ss.mismatches ? tr(" {mismatches} row(s) have a strike and a dip direction that are not 90° apart (right-hand rule) — the dip direction was used; check whether those strikes follow another convention.", { mismatches: ss.mismatches }) : ""}`]);
+        if (ss.derived || ss.mismatches) setNotices((p) => [...p, `${fileName}:${ss.derived ? tr(" {derived} dip direction(s) derived from strike by the right-hand rule (dip direction = strike + 90°).", { derived: ss.derived }) : ""}${ss.mismatches ? tr(" Check the strike convention of {mismatches} row(s): their strike and dip direction are not 90° apart (right-hand rule); the dip direction was used.", { mismatches: ss.mismatches }) : ""}`]);
       }
       const keep = keepDerivedPicks(batchRowsRef.current); // #1234 — a pick worked out in the app is not the earlier file's data
       const replaced = replaceRowsByHole(importStateRef.current.layers?.structure, rows, keep);
@@ -929,7 +929,7 @@ export function makeImportPipeline(ctx, h) {
       }
       const layerName = String(data.customName || "").trim() || (mapping.value ? `${String(fileName).replace(/\.csv$/i, "")}: ${mapping.value}` : String(fileName).replace(/\.csv$/i, "")); // #2338
       if (!rows.length) {
-        setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added as a custom layer: no row has both a value and an interval (From and To) or a Depth, so there is nothing to draw down the holes.{v}", { fileName, v: skippedRowsText(cDropped, allRows.length) }))]);
+        setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing added: no row has both a value and an interval (From and To) or a Depth to draw down the holes.{v}", { fileName, v: skippedRowsText(cDropped, allRows.length) }))]);
       } else {
       const id = `custom_${Date.now()}`;
       const group = new THREE.Group(); group.name = id;
@@ -991,8 +991,8 @@ export function makeImportPipeline(ctx, h) {
           ? tr("Recovery % computed from {loss} and {run}: (run − loss) / run × 100.", { loss: recCalc.loss, run: recCalc.drilled || tr("To − From") })
           : tr("Recovery % computed from {rec} and {run}: recovered / run × 100.", { rec: recCalc.recovered, run: recCalc.drilled || tr("To − From") })) : "")
         + replaceNote(replaced, "rows") + skippedRowsText(blankRows ? dropped.filter((d) => d.reason !== "no code") : dropped, allRows.length) /* #2900 (3) — blank codes are said once, by blankCodeText */ + leftOutText(data, allRows, [...(sib?.codes || []), ...(recCalc ? [recCalc.loss, recCalc.recovered, recCalc.drilled].filter(Boolean) : [])]) /* #2341; the columns Recovery % was computed from: #2891 */
-        + (codesKept ? " " + tr("{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists. Hiding the first code in the legend shows such an interval in its next code's colour.", { n: codesKept, m: codesRows, cols: sib.codes.length > 1 ? `${sib.codes[0]}–${sib.codes[sib.codes.length - 1]}` : sib.codes[0], first: sib.first }) : "") // #1650; one column named once: #2153
-        + (idsFilled ? " " + tr("{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.", { n: idsFilled }) : "") // #1665
+        + (codesKept ? " " + tr("{n} more code(s) in {cols} on {m} interval(s) are not drawn (coloured by {first}); all are kept as all_codes, shown by Identify.", { n: codesKept, m: codesRows, cols: sib.codes.length > 1 ? `${sib.codes[0]}–${sib.codes[sib.codes.length - 1]}` : sib.codes[0], first: sib.first }) : "") // #1650; one column named once: #2153
+        + (idsFilled ? " " + tr("Check {n} row(s) with a blank hole id: each took the hole id of the row above, continuing its depths.", { n: idsFilled }) : "") // #1665
         + (blankRows ? " " + blankCodeText(mapping.value, blankRows, allRows.length, blankTookNext, blankKept) : "") // #2493 — always said
         + (dictAdded ? " " + (dictAdded === 1 ? tr("1 code took its meaning from the description logged beside it (the code dictionary in the layer's inspector, where it can be edited).") : tr("{n} codes took their meaning from the description logged beside them (the code dictionary in the layer's inspector, where they can be edited).", { n: dictAdded })) : "")]); // #2163
     }
@@ -1018,14 +1018,14 @@ export function makeImportPipeline(ctx, h) {
     const zones = !named && family && !frame?.local && !small ? family : null; // not over a local grid's own warning
     const fr = (g) => tr("{name}: {n} row(s)", { name: g.name, n: g.rows });
     const warn = [
-      frame?.mixed ? tr("The {col} column names more than one frame ({list}): these rows are not in one coordinate system, so no single CRS places them all. Import the groups as separate files.", { col: frame.cols.join(" / "), list: frame.groups.slice(0, 4).map(fr).join(", ") }) : "",
+      frame?.mixed ? tr("Import each group as its own file: the {col} column names more than one coordinate system ({list}).", { col: frame.cols.join(" / "), list: frame.groups.slice(0, 4).map(fr).join(", ") }) : "",
       !frame?.mixed && frame?.local ? tr("The {col} column names a local grid ({name}), not a map projection: no CRS here places these collars on the map.", { col: frame.cols.join(" / "), name: frame.groups[0].name }) : "",
       small && !frame?.local ? tr("{n} of {of} collars have eastings {x0}–{x1} and northings {y0}–{y1}, which no UTM / MGA zone has: they look like a local mine grid.", { n: small.n, of: small.of, x0: Math.round(small.x[0]).toLocaleString(), x1: Math.round(small.x[1]).toLocaleString(), y0: Math.round(small.y[0]).toLocaleString(), y1: Math.round(small.y[1]).toLocaleString() }) : "",
     ].filter(Boolean).join(" ");
     const chosen = await requestProjectCrs((named
-      ? (byHeader ? tr("{file}: the column names say these collars are in EPSG:{code}, chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.", { file, code: named })
+      ? (byHeader ? tr("{file}: check EPSG:{code} on the map, then use it: the column names say these collars are in it. No conversion is made.", { file, code: named })
         : tr("{file}: the {col} column says {name} (EPSG:{code}), chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.", { file, col: frame.cols.join(" / "), name: frame.groups[0].name, code: named }))
-      : zones ? tr("{file}: the {cols} column names say {grid} coordinates, but not the zone: each zone below shows where these collars would land. They are placed as they are, with no conversion.", { file, cols: zones.cols.join(" / "), grid: zones.grid }) // #2495
+      : zones ? tr("{file}: pick the zone where these collars land: the {cols} column names say {grid}, but not which zone. No conversion is made.", { file, cols: zones.cols.join(" / "), grid: zones.grid }) // #2495
       : `${file}: which coordinate system are these collar coordinates in? They are placed as they are, with no conversion.`) + (warn ? ` ${warn}` : ""), pts, named, { family: zones });
     if (chosen) importStateRef.current = { ...importStateRef.current, project: { ...importStateRef.current.project, epsg: chosen, crsSet: true } };
   };
@@ -1079,7 +1079,7 @@ export function makeImportPipeline(ctx, h) {
           const xc = importModal.mapping?.x, yc = importModal.mapping?.y;
           const landed = transformImportRows(importModal.allRows, importModal.mapping, { units, grid, zShift: 0 }).rows;
           const pts = xc && yc ? landed.map((r) => ({ x: parseFloat(String(r[xc])), y: parseFloat(String(r[yc])) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)) : null;
-          const chosen = await requestProjectCrs(tr("{fileName}: the control points turn these mine-grid coordinates into map coordinates. Which coordinate system are the control points' map coordinates in? The collars are placed in it.", { fileName: importModal.fileName }), pts, null, { noLocalGrid: true }); // noLocalGrid: #2621
+          const chosen = await requestProjectCrs(tr("{fileName}: which coordinate system are the control points' map coordinates in? The collars are placed in it.", { fileName: importModal.fileName }), pts, null, { noLocalGrid: true }); // noLocalGrid: #2621
           if (!chosen) { setNotices((p) => [...p, notice("{fileName}: the local-grid transform needs the coordinate system its control points are in, and none was chosen. Nothing was imported.", { fileName: importModal.fileName })]); return; }
           importStateRef.current = { ...importStateRef.current, project: { ...importStateRef.current.project, epsg: chosen, crsSet: true, localGrid: null } };
         }
@@ -1155,7 +1155,7 @@ export function makeImportPipeline(ctx, h) {
     setTimeout(() => {
       const live = importStateRef.current, surveyed = new Set((live.survey || []).map((sv) => sv.hole_id)), byId = new Map((live.collars || []).map((c) => [c.hole_id, c]));
       const still = ids.filter((id) => byId.has(id) && !surveyed.has(id) && holeAttitudeAssumed(byId.get(id), []));
-      if (still.length) setNotices((p) => [...p, tr("{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC", { n: still.length })]);
+      if (still.length) setNotices((p) => [...p, tr("{n} hole(s) have no azimuth, dip or survey: drawn as ASSUMED vertical (a dashed stick of the hole's length), flagged in Data QC", { n: still.length })]);
     }, 150);
   };
   const processImportQueue = () => { // #3159 split: a plain function here; the hook keeps the useCallback
@@ -1263,8 +1263,8 @@ export function makeImportPipeline(ctx, h) {
           made.push(`${prop.name} (${cells.length.toLocaleString()} blocks)`);
         } catch (err) { failed.push(err.message); }
       }
-      const parts = [made.length ? tr("Imported the GOCAD Voxet \"{name}\" as {n} block model(s): {list}; {nx} × {ny} × {nz} nodes, each a block of {dx} × {dy} × {dz} m centred on its node. Its coordinates are taken as the project's (GOCAD files carry no EPSG code).", { name: h.name || vo.name, n: made.length, list: made.join(", "), nx: g.nx, ny: g.ny, nz: g.nz, dx: +g.step[0].toFixed(2), dy: +g.step[1].toFixed(2), dz: +g.step[2].toFixed(2) }) : "",
-        made.length && lattice ? tr("The Voxet is rotated ({deg}° from east in plan), so it was resampled onto a lattice along east, north and up of {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m, each taking the value of the nearest voxet node (blocks outside the voxet are left empty).", { deg: +lattice.rotationDeg.toFixed(1), nx: g.nx, ny: g.ny, nz: g.nz, dx: +lattice.step[0].toFixed(2), dy: +lattice.step[1].toFixed(2), dz: +lattice.step[2].toFixed(2) }) : "",
+      const parts = [made.length ? tr("Imported the GOCAD Voxet \"{name}\" as {n} block model(s) ({list}): {nx} × {ny} × {nz} blocks of {dx} × {dy} × {dz} m, in the project's coordinates.", { name: h.name || vo.name, n: made.length, list: made.join(", "), nx: g.nx, ny: g.ny, nz: g.nz, dx: +g.step[0].toFixed(2), dy: +g.step[1].toFixed(2), dz: +g.step[2].toFixed(2) }) : "",
+        made.length && lattice ? tr("The Voxet is rotated {deg}° in plan, so it was resampled onto {nx} × {ny} × {nz} east-north blocks of {dx} × {dy} × {dz} m, each from its nearest node.", { deg: +lattice.rotationDeg.toFixed(1), nx: g.nx, ny: g.ny, nz: g.nz, dx: +lattice.step[0].toFixed(2), dy: +lattice.step[1].toFixed(2), dz: +lattice.step[2].toFixed(2) }) : "",
         coarse ? tr("Averaged {fx} × {fy} × {fz} nodes into each block to stay within the block budget.", coarse) : "",
         missing.length ? (fromFolder ? tr("Not found beside the .vo in its folder, so not read: {list}.", { list: missing.join(", ") }) : tr("Not in the drop, so not read: {list}. Drop the .vo together with the files its PROP_FILE lines name.", { list: missing.join(", ") })) : "",
         failed.length ? tr("Could not read: {list}.", { list: failed.join("; ") }) : ""].filter(Boolean).join(" ");
