@@ -14345,5 +14345,20 @@
   "of the {n} mineralised samples (≥ {cut})": "des {n} échantillons minéralisés (≥ {cut})",
   "of all samples": "de tous les échantillons",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de ces sondages n'avaient aucun point à moins de {d} m et sont restés vides.",
-  "Import as a block model": "Importer comme modèle de blocs"
+  "Import as a block model": "Importer comme modèle de blocs",
+  "How far the click sits from the straight trend through all the clicks: the bend the fit makes there. A large one marks a click off the drawn line.": "L'écart du clic à la tendance droite qui passe par tous les clics : la courbure que l'ajustement fait à cet endroit. Un grand écart signale un clic hors de la ligne dessinée.",
+  "Off the trend (m)": "Écart à la tendance (m)",
+  "Bend the picture so its drawn ground passes through the terrain at every click, for a drawing that is not to scale everywhere. The terrain is not changed.": "Courbe l'image pour que son sol dessiné passe par le terrain à chaque clic, pour un dessin qui n'est pas à l'échelle partout. Le terrain n'est pas modifié.",
+  "Fit at each point": "Ajuster à chaque point",
+  "Fit at each point bends the picture down to (m below the drawn ground)": "Ajuster à chaque point courbe l'image jusqu'à (m sous le sol dessiné)",
+  "Bend depth (m)": "Profondeur de la courbure (m)",
+  "Fit at each point: the picture moves {mean} m as a whole and bends up to {bend} m more at the clicks, fading to nothing {depth} m below the drawn ground; below that it is not bent, so holes drawn there stay straight. The drawn ground passes through the terrain at all {n} clicks.": "Ajuster à chaque point : l'image se déplace de {mean} m d'un bloc et se courbe jusqu'à {bend} m de plus aux clics, en s'estompant jusqu'à rien {depth} m sous le sol dessiné ; plus bas elle n'est pas courbée, donc les sondages dessinés là restent droits. Le sol dessiné passe par le terrain aux {n} clics.",
+  "The depth was raised to {d} m: at least twice the largest bend, so no part of the picture folds back.": "La profondeur a été portée à {d} m : au moins le double de la plus grande courbure, pour qu'aucune partie de l'image ne se replie.",
+  "Already fitted at {n} points (bends up to {b} m); Back to as georeferenced puts the original picture back.": "Déjà ajustée en {n} points (courbures jusqu'à {b} m) ; Revenir au géoréférencement remet l'image d'origine.",
+  "Apply the fit at each point": "Appliquer l'ajustement à chaque point",
+  "The picture has no georeference.": "L'image n'a pas de géoréférencement.",
+  "Click at least 2 points along the drawn topography line to fit at each point.": "Cliquez au moins 2 points le long de la ligne topographique dessinée pour ajuster à chaque point.",
+  "Two clicks are in the same column of the picture: remove one of them.": "Deux clics sont dans la même colonne de l'image : supprimez-en un.",
+  "The picture has no height in metres.": "L'image n'a pas de hauteur en mètres.",
+  " (fitted at {n} points)": " (ajustée en {n} points)"
 }

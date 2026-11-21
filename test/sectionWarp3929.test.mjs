@@ -64,3 +64,23 @@ test("the terrain is never edited: the warp only returns a picture's corners and
   const src = readFileSync(new URL("../src/lib/sectionWarp.js", import.meta.url), "utf8");
   assert.doesNotMatch(src, /terrain\s*\.\s*(z|data|values|grid)\s*\[|setTerrain/);
 });
+
+test("wired: the Match to terrain dialog offers Fit at each point, its depth and the residual column; Apply keeps the original for Back", () => {
+  const m = readFileSync(new URL("../src/components/SectionImageVerticalModal.jsx", import.meta.url), "utf8");
+  assert.match(m, /const w = warpPlan\(image, rows, \{ depthM: Number\(depthM\) \}\);/);
+  assert.match(m, /onApply\(\{ corners: warpedCorners\(image, warp\), dataUrl: warpedDataUrl\(bitmap, warp\), width: warp\.W, height: warp\.newH,/);
+  assert.match(m, /dataUrl0: image\.dataUrl0 \|\| image\.dataUrl, width0: image\.width0 \?\? image\.width, height0: image\.height0 \?\? image\.height,/);
+  assert.match(m, /\.\.\.\(image\.dataUrl0 \? \{ dataUrl: image\.dataUrl0, width: image\.width0, height: image\.height0,/); // Back restores the bitmap too
+  assert.match(m, /tr\("Off the trend \(m\)"\)/);
+  for (const lang of ["es", "pt", "fr", "ar"]) {
+    const d = JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
+    for (const k of ["Click at least 2 points along the drawn topography line to fit at each point.", "Two clicks are in the same column of the picture: remove one of them."]) assert.ok(d[k], `${lang}: ${k}`); // the lib's errors, through tr()
+  }
+});
+
+test("live-found: the warp's transparent margins are not painted black in 3D, and the sidebar says a warped picture is fitted, not 'adjusted undefined m'", () => {
+  const sb = readFileSync(new URL("../src/lib/viewer/sceneBuilders.js", import.meta.url), "utf8");
+  assert.match(sb, /transparent: true, opacity: im\.opacity \?\? 1, alphaTest: 0\.003 \}/); // under the opacity slider's 0.1 floor
+  const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  assert.match(vm, /im\.verticalAdjust\?\.warp \? tr\(" \(fitted at \{n\} points\)", \{ n: im\.verticalAdjust\.warp\.points \}\)/);
+});

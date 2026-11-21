@@ -14345,5 +14345,20 @@
   "of the {n} mineralised samples (≥ {cut})": "de las {n} muestras mineralizadas (≥ {cut})",
   "of all samples": "de todas las muestras",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} m de esos sondajes no tenían ningún punto a menos de {d} m y quedaron vacíos.",
-  "Import as a block model": "Importar como modelo de bloques"
+  "Import as a block model": "Importar como modelo de bloques",
+  "How far the click sits from the straight trend through all the clicks: the bend the fit makes there. A large one marks a click off the drawn line.": "Cuánto se aleja el clic de la tendencia recta que pasa por todos los clics: la curvatura que hace el ajuste allí. Un valor grande indica un clic fuera de la línea dibujada.",
+  "Off the trend (m)": "Fuera de la tendencia (m)",
+  "Bend the picture so its drawn ground passes through the terrain at every click, for a drawing that is not to scale everywhere. The terrain is not changed.": "Curva la imagen para que su terreno dibujado pase por el terreno en cada clic, para un dibujo que no está a escala en todas partes. El terreno no se modifica.",
+  "Fit at each point": "Ajustar en cada punto",
+  "Fit at each point bends the picture down to (m below the drawn ground)": "Ajustar en cada punto curva la imagen hasta (m bajo el terreno dibujado)",
+  "Bend depth (m)": "Profundidad de la curvatura (m)",
+  "Fit at each point: the picture moves {mean} m as a whole and bends up to {bend} m more at the clicks, fading to nothing {depth} m below the drawn ground; below that it is not bent, so holes drawn there stay straight. The drawn ground passes through the terrain at all {n} clicks.": "Ajustar en cada punto: la imagen se mueve {mean} m en bloque y se curva hasta {bend} m más en los clics, desvaneciéndose a nada {depth} m bajo el terreno dibujado; más abajo no se curva, así que los sondajes dibujados allí siguen rectos. El terreno dibujado pasa por el terreno en los {n} clics.",
+  "The depth was raised to {d} m: at least twice the largest bend, so no part of the picture folds back.": "La profundidad se aumentó a {d} m: al menos el doble de la mayor curvatura, para que ninguna parte de la imagen se pliegue.",
+  "Already fitted at {n} points (bends up to {b} m); Back to as georeferenced puts the original picture back.": "Ya ajustada en {n} puntos (curvaturas de hasta {b} m); Volver a como se georreferenció restituye la imagen original.",
+  "Apply the fit at each point": "Aplicar el ajuste en cada punto",
+  "The picture has no georeference.": "La imagen no tiene georreferencia.",
+  "Click at least 2 points along the drawn topography line to fit at each point.": "Haga clic en al menos 2 puntos a lo largo de la línea topográfica dibujada para ajustar en cada punto.",
+  "Two clicks are in the same column of the picture: remove one of them.": "Dos clics están en la misma columna de la imagen: elimine uno.",
+  "The picture has no height in metres.": "La imagen no tiene altura en metros.",
+  " (fitted at {n} points)": " (ajustada en {n} puntos)"
 }
