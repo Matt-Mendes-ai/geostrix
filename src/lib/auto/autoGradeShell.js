@@ -8,13 +8,30 @@
 // alone leans into the background). Otherwise there is no valley (one population, or a flat spread): the Otsu threshold is still given,
 // with a note that it is the best split, not a natural one, rather than drawn as a confident shell.
 //
-// input: { collars, samples: [{ hole_id, x, y, z, from, to, value }], unit: "g/t" | "%" | "ppm" ... (shown with the cut-off) }
-// -> values: { cutoff, cellSize, shareAbove (length-weighted, 0-1), holesAbove }
-import { thin, fin, niceNumber, twoFigures, metres, siteSpacing, holesOf, autoResult, because, say } from "./autoCommon.js";
+// TASKS.csv #3922 (Matt: "should GeoStrix offer values read from the data? I think that's a better way to do it") — the cell and the search
+// from the drilling, the grid only round the grade:
+//  - the drill spacing: the median distance from a drill site to the next (collars within 2 m are one site), over the holes that carry
+//    grades. A nearest-site distance is measured within a cluster, so clusters kilometres apart do not stretch it (#3898's block model boxed
+//    the whole 21 km of Macpass and grew 500 m blocks);
+//  - cells about half that spacing (rounded down to a whole 5 m above 20 m, a whole metre above 5 m), never under a quarter of it;
+//  - the search about three spacings (rounded to 5 m), so a block reaches the holes round it: tied to the spacing, never to the cell;
+//  - the blocks counted as the run counts them, over the boxes round the composites at or above the cut-off (lib/viewer/shellBoxes.js
+//    gradeBoxes; the drilled clusters' boxes for an envelope shell); over the block budget the cells grow until they fit, and the reason says so;
+//  - no measurable spacing (fewer than three drill sites carry grades): GeoStrix's standard settings (#3921: 50 m cells, a 200 m search),
+//    said as such.
+//
+// input: { collars, samples: [{ hole_id, x, y, z, from, to, value }] (positions: desurveyed sample centres; vertical below the collar will do
+//          for the cut-off, not for the blocks), unit: "g/t" | "%" | "ppm" ... (shown with the cut-off), tight (a Tight shell: default true),
+//          budget (the block budget: GRADE_SHELL_BLOCK_BUDGET), padM (GRADE_SHELL_PAD_DEFAULT) }
+// -> values: { cutoff, cellSize, searchRadius, fromData, spacing, blocks, areas, refit, shareAbove (length-weighted, 0-1), holesAbove }
+import { thin, fin, twoFigures, metres, siteSpacing, holesOf, autoResult, because, say } from "./autoCommon.js";
 import { fmtNum } from "../i18n.js";
+import { drilledBoxes, gradeBoxes, boxesBlocks } from "../viewer/shellBoxes.js";
+import { NUMERIC_CELL_DEFAULT, GRADE_SHELL_SEARCH_DEFAULT, GRADE_SHELL_PAD_DEFAULT, GRADE_SHELL_BLOCK_BUDGET } from "../estimationMeta.js";
 
 export const CLEAR_VALLEY = 0.5;
 const BINS = 64;
+export const CELL_SHARE = 0.5, SEARCH_SPACINGS = 3;
 
 // -> { cut (a log10 grade), clear (a valley between two peaks), valley (its height / the smaller peak's) } | null
 export function bestSplit(logs, weights) {
@@ -46,7 +63,24 @@ export function bestSplit(logs, weights) {
   return { cut: lo + (clear ? v + 0.5 : cutBin + 1) * width, clear, valley };
 }
 
-export function autoGradeShell({ collars = [], samples = [], unit = "" } = {}) {
+// a cell rounded DOWN to a step that reads as chosen (5 m from 20 m, 1 m from 5 m, else 0.5 m), and the next step up
+export const cellStep = (v) => (v >= 20 ? Math.floor(v / 5) * 5 : v >= 5 ? Math.floor(v) : Math.max(0.5, Math.floor(v * 2) / 2));
+const stepUp = (c) => (c >= 20 ? c + 5 : c >= 5 ? c + 1 : c + 0.5);
+const searchStep = (v) => (v >= 20 ? Math.round(v / 5) * 5 : Math.max(1, Math.round(v)));
+
+// the grid the run would make at a cell and a search: { blocks, areas, drilledBlocks } (lib/viewer/shellBoxes.js, as modellingRuns.js uses it)
+export function shellBlocks(points, cutoff, { cell, search, padM = GRADE_SHELL_PAD_DEFAULT, tight = true }) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const p of points) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; if (p.z < z0) z0 = p.z; if (p.z > z1) z1 = p.z; }
+  const bounds = { xmin: x0 - padM, xmax: x1 + padM, ymin: y0 - padM, ymax: y1 + padM, zmin: z0 - padM, zmax: z1 + padM };
+  const linkM = 2 * Math.max(search, padM);
+  const drilled = drilledBoxes(points, { bounds, padM, linkM }), drilledBlocks = boxesBlocks(drilled, cell);
+  if (!tight) return { blocks: drilledBlocks, areas: drilled.length, drilledBlocks };
+  const g = gradeBoxes(points, cutoff, { bounds, padM, linkM, drilled, marginM: search + Math.max(padM, cell) });
+  return { blocks: boxesBlocks(g, cell), areas: g.length, drilledBlocks };
+}
+
+export function autoGradeShell({ collars = [], samples = [], unit = "", tight = true, budget = GRADE_SHELL_BLOCK_BUDGET, padM = GRADE_SHELL_PAD_DEFAULT } = {}) {
   const pts = thin(samples.filter((s) => fin(s.value) && s.value > 0));
   const holes = holesOf(pts), problems = [], notes = [];
   if (holes < 3) problems.push(holes === 1 ? say("Grades in only one hole: a grade shell needs grades in three or more holes.") : say("Grades in only {n} holes: a grade shell needs grades in three or more holes.", { n: holes }));
@@ -68,9 +102,30 @@ export function autoGradeShell({ collars = [], samples = [], unit = "" } = {}) {
   reasons.push(because("cutoff", "Cut-off {c}: where these grades split best into a low background and a higher group ({p} % of the sampled length is above it, in {h} holes).",
     { c: `${fmtNum(cutoff)} ${unit}`.trim(), p: fmtNum(100 * shareAbove, { maximumFractionDigits: shareAbove < 0.1 ? 1 : 0 }), h: holesAbove }));
   if (!split.clear) notes.push(say("The grades do not split clearly into two groups: this cut-off is the best split, not a natural one. Check it against your geology, or choose one yourself."));
-  const { spacing } = siteSpacing(collars);
-  const cellSize = spacing ? niceNumber(spacing / 4) : null;
-  if (cellSize) reasons.push(because("cellSize", "Shell cells {x} m: about a quarter of the median spacing between drill sites ({s} m), so the shell bends between holes, not only at them.", { x: metres(cellSize), s: metres(spacing) }));
-  else notes.push(say("The drill sites are too few or too close to measure their spacing: the shell keeps its own cell size."));
-  return autoResult({ cutoff, cellSize, shareAbove, holesAbove }, reasons, notes, problems);
+
+  // #3922 — the drill spacing of the holes that carry grades
+  const graded = new Set(pts.map((s) => s.hole_id));
+  const { spacing } = siteSpacing(collars.filter((c) => graded.has(c?.hole_id)));
+  const placed = pts.filter((p) => fin(p.x) && fin(p.y) && fin(p.z));
+  if (!(spacing > 0) || placed.length < 2) {
+    reasons.push(because("cells", "Cells {c} x {c} m and a {r} m search: GeoStrix's standard grade-shell settings, because your data didn't give a clear drill spacing (fewer than three drill sites with grades). Change them in the grade shell pane.", { c: NUMERIC_CELL_DEFAULT, r: GRADE_SHELL_SEARCH_DEFAULT }));
+    return autoResult({ cutoff, cellSize: NUMERIC_CELL_DEFAULT, searchRadius: GRADE_SHELL_SEARCH_DEFAULT, fromData: false, spacing: null, blocks: null, areas: null, refit: false, shareAbove, holesAbove }, reasons, notes, problems);
+  }
+  const searchRadius = searchStep(SEARCH_SPACINGS * spacing);
+  const want = cellStep(CELL_SHARE * spacing); // rounded down, it stays above a quarter of the spacing
+  let cellSize = want, grid = shellBlocks(placed, cutoff, { cell: cellSize, search: searchRadius, padM, tight });
+  // over the budget: the cells grow until the blocks fit (a cube-root guess, then a step at a time)
+  for (let k = 0; k < 60 && grid.blocks > budget; k++) {
+    const guess = cellStep(cellSize * Math.cbrt(grid.blocks / budget));
+    cellSize = guess > cellSize ? guess : stepUp(cellSize);
+    grid = shellBlocks(placed, cutoff, { cell: cellSize, search: searchRadius, padM, tight });
+  }
+  const refit = cellSize > want;
+  if (refit) reasons.push(because("cellSize", "Cells {c} x {c} m: half your {s} m drill spacing ({w} m) would need more blocks than the {b}-block budget here, so the cells are the finest that fit.", { c: metres(cellSize), s: metres(spacing), w: metres(want), b: fmtNum(budget) }));
+  else reasons.push(because("cellSize", "Cells {c} x {c} m: about half your {s} m drill spacing (the median distance between the drill sites that carry grades), so the shell bends between holes, not only at them.", { c: metres(cellSize), s: metres(spacing) }));
+  reasons.push(because("searchRadius", "Search {r} m: about three drill spacings, so each block reaches the holes round it.", { r: metres(searchRadius) }));
+  if (tight && grid.blocks < 0.95 * grid.drilledBlocks) reasons.push(grid.areas === 1
+    ? because("box", "The grid covers only the ground within the search of the grades above the cut-off: {n} blocks in one area, not the {d} the drilled ground would need.", { n: fmtNum(grid.blocks), d: fmtNum(grid.drilledBlocks) })
+    : because("box", "The grid covers only the ground within the search of the grades above the cut-off: {n} blocks in {a} areas, not the {d} the drilled ground would need.", { n: fmtNum(grid.blocks), a: grid.areas, d: fmtNum(grid.drilledBlocks) }));
+  return autoResult({ cutoff, cellSize, searchRadius, fromData: true, spacing, blocks: grid.blocks, areas: grid.areas, refit, shareAbove, holesAbove }, reasons, notes, problems);
 }
