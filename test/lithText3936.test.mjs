@@ -22,6 +22,7 @@ test("wired: Macrostrat's unit names, the Identify card, the map legend and the 
   const m = read("components/MapModelPanel.jsx");
   assert.match(m, /<span style=\{\{ fontWeight: 600 \}\}>\{plainLith\(u\)\}<\/span>/);
   assert.match(m, /<option key=\{u\} value=\{u\}>\{plainLith\(u\)\}<\/option>/); // shown in words, the value kept
+  assert.match(m, /\{plainLith\(unitInfo\.get\(u\)\?\.description \|\| ""\)\} · \{why\(u\)\}/); // the description beside each unit, too (live: 56 blocks were left there)
 });
 
 test("the intrusion roles a map sets: plutonic suites and batholiths are intrusions; a minor lithology does not make one", async () => {

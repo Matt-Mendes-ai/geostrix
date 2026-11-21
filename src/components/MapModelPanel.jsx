@@ -243,7 +243,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           <button onClick={() => move(i, -1)} disabled={!i} aria-label={tr("Move up")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i ? 1 : 0.3 }}><ChevronUp size={13} /></button>
           <button onClick={() => move(i, 1)} disabled={i === order.length - 1} aria-label={tr("Move down")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i < order.length - 1 ? 1 : 0.3 }}><ChevronDown size={13} /></button>
           <span style={{ fontWeight: 600 }}>{plainLith(u)}</span>
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-muted)" }} title={unitInfo.get(u)?.description || ""}>{unitInfo.get(u)?.description || ""} · {why(u)}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-muted)" }} title={plainLith(unitInfo.get(u)?.description || "")}>{plainLith(unitInfo.get(u)?.description || "")} · {why(u)}</span>
           <select value={roles[u] || "stratigraphic"} onChange={(e) => setRole(u, e.target.value)} style={{ ...smallSel, width: 96 }} aria-label={tr("Role of {u}", { u })}>{ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select>
         </div>
         {i < order.length - 1 && (
@@ -385,7 +385,7 @@ function CutOffer({ plan, onTake, onChange }) {
       <div style={{ ...line, fontWeight: 600 }}>{tr("GemPy takes at most {max} units in one model, and this order has {n}. GeoStrix can cut it down to {k}:", { max: GEMPY_MAX_SURFACES, n: plan.before, k: plan.after })}</div>
       {outside.length > 0 && <div style={line}>{tr("Left out, mapped only outside the drilled area (the holes and {m} m round them): {list}.", { m: plan.marginM.toLocaleString(), list: names(outside.map((x) => x.unit)) })}</div>}
       {plan.merged.map((m) => <div key={m.name} style={line}>{m.why === "group" ? tr("Merged into {name}, one group or formation next to each other in the order: {list}.", { name: plainLith(m.name), list: names(m.members) }) : tr("Merged into {name}, the same mapped age ({age}) next to each other in the order: {list}.", { name: plainLith(m.name), age: m.key, list: names(m.members) })}</div>)}
-      {ranked.length > 0 && <div style={line}>{tr("Left out, with the least mapped area in the drilled area and the shortest contacts with other units: {list}.", { list: ranked.map((x) => tr("{unit} ({a} km², {c} km of contact)", { unit: plainLith(x.unit), a: x.areaKm2, c: x.contactKm })).join(", ") })}</div>}
+      {ranked.length > 0 && <div style={line}>{tr("Left out, with the least mapped area in the drilled area and the shortest contacts with other units: {list}.", { list: ranked.map((x) => tr("{unit} ({a} km², {c} km of contact)", { unit: plainLith(x.unit), a: x.areaKm2 >= 0.01 ? x.areaKm2 : "< 0.01", c: x.contactKm })).join(", ") })}</div>}
       <div style={{ ...line, color: "var(--color-text-muted)" }}>{tr("Left-out units are kept on the map as 'other (left out)'; nothing is deleted.")}</div>
       <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
         <button type="button" onClick={onTake} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", cursor: "pointer" }}>{tr("Cut the order down for me")}</button>
