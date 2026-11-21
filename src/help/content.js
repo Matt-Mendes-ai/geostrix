@@ -11,7 +11,11 @@
 //                                       //   (never a number that reads as the right answer for every project)
 //     warnings: [{ says, means, do }],   // a message the tool can show (as on screen, placeholders as {n}), what it means, what to do
 //     howto: { sample, steps: [string] }, // a short numbered walk-through on a sample project ("Woodjam", "Silvertip", ...)
-//     related: [id] }           // other pages
+//     related: [id],            // other pages
+//     diagram: { id, alt },     // TASKS.csv #3899 — a picture after the summary (src/help/diagrams), its alt sentence read aloud and by the search
+//     more }                    // #3899 — detail kept behind a closed "More" (also on a field or a warning); the search reads it
+// #3899 (plan_fable 3.2): a summary of about 25 words; a field's `what` is the control's own tooltip sentence where it has one; a warning's `means`
+// and `do` short (the on-screen message is not repeated); anything longer goes to `more`.
 // Text rules: Canadian spelling (colour, centre, metre, modelling; -ize), no backlog numbers, plain words, the labels exactly as the
 // interface shows them. English for now; the interface's own labels are translated where the panel shows them.
 import start from "./pages/start.js";
@@ -44,8 +48,9 @@ function pageText(p) {
   if (t) return t;
   const body = [
     ...(p.notFor || []),
-    ...(p.fields || []).flatMap((f) => [f.name, f.what, f.choose]),
-    ...(p.warnings || []).flatMap((w) => [w.says, w.means, w.do]),
+    p.diagram?.alt, p.more, // #3899
+    ...(p.fields || []).flatMap((f) => [f.name, f.what, f.choose, f.more]),
+    ...(p.warnings || []).flatMap((w) => [w.says, w.means, w.do, w.more]),
     ...(p.howto?.steps || []),
   ].filter(Boolean).join(" \n ");
   t = { title: String(p.title || "").toLowerCase(), summary: String(p.summary || "").toLowerCase(), body: body.toLowerCase(), raw: body };

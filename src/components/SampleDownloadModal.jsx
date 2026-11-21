@@ -40,7 +40,7 @@ export default function SampleDownloadModal({ id, onClose, onReady }) {
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={close} />
         </div>
         <div style={{ padding: "12px 16px" }}>
-          <p style={text}>{tr("{name} comes from BC's public assessment report {report}. BC's copyright terms do not let GeoStrix include assessment-report data in the installer, so it is downloaded from the Province's public server ({host}, {size} MB) and converted on this computer. It is kept there for next time.", { name: info.name, report: info.report, host: info.host, size: mb(info.bytes) })}</p>
+          <p style={text}>{tr("{name} comes from BC's public assessment report {report}. BC's terms keep it out of the installer, so it is downloaded from the Province's server ({host}, {size} MB), converted and kept on this computer.", { name: info.name, report: info.report, host: info.host, size: mb(info.bytes) })}</p>
           {info.note && <p style={note}>{info.note()}</p>}
           {state.phase === "download" && (
             <div style={{ margin: "10px 0 4px" }}>

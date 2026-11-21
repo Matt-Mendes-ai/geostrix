@@ -47,5 +47,5 @@ test("#1772 the atlas page applies it and the modal says what it did", () => {
   const a = readFileSync(new URL("../src/lib/atlas.js", import.meta.url), "utf8");
   assert.ok(a.includes("const r = makeRoomForStripLog(sized.list, box, { pageW: (page || {}).w || 1123 }); elements = withoutTextHeights(r.elements, sized.synthetic); narrowed = r.narrowed; overlapping = r.overlapping;")); // #3875: placed by the texts' drawn heights
   const m = readFileSync(new URL("../src/components/GenerateAtlasModal.jsx", import.meta.url), "utf8");
-  assert.ok(m.includes("the template's elements beside it were narrowed on {n} page(s)"));
+  assert.ok(m.includes("The elements beside the strip log were narrowed on {n} page(s)") /* #3899 */);
 });

@@ -57,7 +57,7 @@ test("#3535 a collar file of a multi-file drop does not claim 'no survey' while 
   const p = read("../src/modules/viewer/importPipelineImpl.js");
   assert.match(p, /const moreToCome = !!batchRowsRef\.current && importQueueRef\.current\.length > 0;/);
   assert.match(p, /if \(moreToCome\) assumedVertical\.forEach\(\(c\) => deferredAssumed\.add\(c\.hole_id\)\);/);
-  assert.match(p, /if \(assumedVertical\.length && !moreToCome\) parts\.push\(tr\("\{n\} hole\(s\) have no azimuth \/ dip and no survey/);
+  assert.match(p, /if \(assumedVertical\.length && !moreToCome\) parts\.push\(tr\("\{n\} hole\(s\) have no azimuth, dip or survey/); // #3899
   assert.match(p, /if \(!surveyedHoles\.size && assumedVertical\.length < applied\.length && !moreToCome\) parts\.push/);
   assert.match(p, /queueSummary\(\); \/\* #3071 \*\/ handOverAssays\(\); reportDeferredAssumed\(\); return; \}/);
   assert.match(p, /const still = ids\.filter\(\(id\) => byId\.has\(id\) && !surveyed\.has\(id\) && holeAttitudeAssumed\(byId\.get\(id\), \[\]\)\);/);

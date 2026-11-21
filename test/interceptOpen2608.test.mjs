@@ -15,7 +15,7 @@ test("open at the first sample, at the last sample or at the end of the hole", (
 test("the Layout table marks them, says why, does not point at a CSV, and steps a second table", () => {
   const b = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.match(b, /open\[i\]\.top \|\| open\[i\]\.bottom \? "\+" : ""/);
-  assert.match(b, /tr\("\+: the intercept starts at the hole's first sample/);
+  assert.match(b, /tr\("\+: the intercept reaches the hole's first or last sample/ /* #3899 */);
   assert.match(b, /tr\("… and \{n\} more intercept\(s\), not shown on this sheet"/);
   // #2479 — a second send takes the next free spot of the page (interceptTablePlan), not 24 px along from (60, 60)
   assert.match(b, /x: plan\.x, y: plan\.y/);

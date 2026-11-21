@@ -269,10 +269,10 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     const pt = ptAt(fh), pt1 = ptAt(fh - (d1 - d0) * (pxPerMeter - 1)); // the same log drawn at 1 px/m
     const wide = 700 * (fh / fw) <= 794 - 160; // Layout's 700 px width, not the sheet height, sets its size: many tracks
     const advice = (pt == null || pt >= 6 ? "" : wide
-      ? tr("Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.", { pt: pt.toFixed(1) })
+      ? tr("Sent to Layout. Drag its corner larger on the page, or draw fewer tracks: its labels print at about {pt} pt.", { pt: pt.toFixed(1) })
       : pt1 >= 6
       ? tr("Sent to Layout. Its labels print at about {pt} pt there: lower the vertical scale (px/m) and send it again for a readable log.", { pt: pt.toFixed(1) })
-      : tr("Sent to Layout. A {m} m log is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): set a shorter depth range, or use the SVG or PNG for a full-size log.", { m: Math.round(d1 - d0), pt: pt.toFixed(1), pt1: pt1.toFixed(1) }));
+      : tr("Sent to Layout. Set a shorter depth range, or use the SVG or PNG: a {m} m log prints its labels at about {pt} pt ({pt1} pt at 1 px/m).", { m: Math.round(d1 - d0), pt: pt.toFixed(1), pt1: pt1.toFixed(1) }));
     // #1641 — the window closes after a send (it stayed open behind Layout and was still there on the next visit to the 3D View); the
     // advice about the printed text size goes with the image to Layout, as a notice there
     onAdvice?.(advice);
@@ -290,7 +290,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     if (!svg || !dims) return;
     const { markup: xml0, width: fw, height: fh } = exportSvgMarkup(svg, { furniture: furniture() });
     const { scale, reduced } = pngScaleFor(fw, fh); // #1048 — under the canvas size limit
-    setPngNote(reduced ? tr("This log is too tall for a full-resolution PNG: it was saved at {s}× instead of 2× (use SVG for full detail, or lower the vertical scale).", { s: scale.toFixed(2) }) : "");
+    setPngNote(reduced ? tr("Saved at {s}× instead of 2×, as the log is too tall for a full PNG: use SVG for full detail, or lower the vertical scale.", { s: scale.toFixed(2) }) : "");
     embedFigureFont(xml0).catch(() => xml0).then((xml) => { // #2610
     const img = new Image();
     const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
@@ -378,7 +378,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 );
               })}
             </div>
-            <div>{tr("Patterns follow the FGDC geologic map standard (public domain). Automatic picks one from the code, its name or its logged description; a choice here is saved with the project and used by Atlas too.")}</div>
+            <div>{tr("FGDC patterns (public domain). Automatic picks one from the code, name or description; a choice here is saved with the project and used by Atlas.")}</div>
           </details>
         )}
         {pngNote && <div role="status" style={{ padding: "6px 16px", fontSize: "var(--font-size-sm)", color: "#7a4a1f", background: "#fdf4e6", borderBottom: "1px solid #edd9b7" }}>{pngNote}</div>}

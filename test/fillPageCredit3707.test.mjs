@@ -42,8 +42,8 @@ test("wired: Fill the page sends the plan to the back; the export asks about a h
   assert.match(l, /updateSelected\(\{ x: 10 \* PX_PER_MM, y: 10 \* PX_PER_MM, w: A4\.w - 20 \* PX_PER_MM, h: A4\.h - 20 \* PX_PER_MM \}\); reorderSelected\("back"\);/);
   assert.match(l, /const hidden = pagesWithHiddenCredit\(toCheck, activeLayoutPageId, elements\);/);
   for (const k of [
-    "The frame takes the whole page inside 10 mm margins, behind the page's other elements (the title, north arrow, scale bar, title block and credit stay on top of it).",
-    '"{page}" has its data credit under another element, so the sheet prints without it. Send that element to the back (or move it) so the data owner is credited. Export without the credit?',
-    "{n} pages have their data credit under another element, so they print without it ({list}). Send that element to the back (or move it) so the data owner is credited. Export without the credit?",
+    "The frame fills the page inside 10 mm margins, behind the title, north arrow, scale bar, title block and credit.",
+    "Send the element over \"{page}\"'s data credit to the back (or move it) so the data owner is credited. Export without the credit?",
+    "Send the elements over the data credit of {n} pages ({list}) to the back (or move them) so the data owner is credited. Export without the credit?",
   ]) for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
 });

@@ -18,5 +18,5 @@ test("the fit says how many holes it framed and how many are only assumed vertic
   assert.match(body, /fitInfo: nHoles \? \{ scale, holes: nHoles, assumed, (.*?\/\* #3371 \*\/, )?\.\.\.\(assumed && scaleDrilled < scale \? \{ drilledScale: scaleDrilled \} : \{\}\), \.\.\.\(turnedScale < scale \? \{ turnedScale \} : \{\}\) \} : null/); /* turnedScale: #2737 */ // #2304: blamed only when they widen it
   // shown under the button while the scale is still the fitted one (a notice was cleared by the refresh re-selecting the frame)
   assert.match(L, /\{sel\.fitInfo && sel\.fitInfo\.scale === sel\.fixedScale && \(/);
-  assert.match(L, /drawn as assumed vertical holes\) and widen the frame/);
+  assert.match(L, /are assumed vertical \(no survey or azimuth \/ dip\) and widen the frame/);
 });

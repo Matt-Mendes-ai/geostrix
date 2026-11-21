@@ -16,7 +16,7 @@ test("a field duplicate pair is one line, worded from the sample ids", () => {
     { hole_id: "H3", from: 0, to: 2, sample_id: "RCA2", values: { Fe: 41 } },
   ];
   const t = texts(runDataQC({ collars, survey: [], layers: {}, assays }));
-  assert.ok(t.some((x) => /^Two samples at 42–44m \(RCA0470791, RCB0470791\): a field or lab duplicate pair, not a double import/.test(x)), t.join(" | "));
+  assert.ok(t.some((x) => /^Two samples at 42–44m \(RCA0470791, RCB0470791\): a field or lab duplicate pair\./ /* #3899 */.test(x)), t.join(" | "));
   assert.ok(!t.some((x) => /Overlapping assay intervals/.test(x)), "not also an overlap");
   assert.ok(!t.some((x) => /likely imported twice/.test(x)));
 });

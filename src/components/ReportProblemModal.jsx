@@ -85,7 +85,7 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
         ) : (
           <div style={{ padding: 18 }}>
             <p style={{ marginTop: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-              {tr("{v}What you write here goes, with the details below, into a .zip in your Downloads folder, and an email opens to {SUPPORT_EMAIL} — you attach the file and send it. Nothing is sent without you.", { v: crashed ? tr("GeoStrix didn't close normally last time. ") : "", SUPPORT_EMAIL })}</p>
+              {tr("{v}What you write here and the details below go into a .zip in Downloads, and an email to {SUPPORT_EMAIL} opens: you attach and send it. Nothing is sent without you.", { v: crashed ? tr("GeoStrix didn't close normally last time. ") : "", SUPPORT_EMAIL })}</p>
             <label style={lbl} htmlFor="rp-what">{tr("What went wrong? *")}</label>
             <textarea id="rp-what" rows={3} value={what} onChange={(e) => setWhat(e.target.value)} style={area} placeholder={tr("e.g. The grade shell never finishes; the window can't be clicked after an import")} autoFocus />
             <label style={{ ...lbl, marginTop: 10 }} htmlFor="rp-steps">{tr("What were you doing just before? (steps help a lot)")}</label>
@@ -110,7 +110,7 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
                   {files.map((f, i) => <li key={`${f.name}-${i}`}>{f.name} ({fmtMB(f.size)}) <button type="button" onClick={() => setFiles((p) => p.filter((_, k) => k !== i))} aria-label={tr("Remove {name}", { name: f.name })} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-danger-icon)" }}>{tr("remove")}</button></li>)}
                 </ul>
               )}
-              {attachBytes > EMAIL_LIMIT && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 6 }}>{tr("Attachments add up to {v} — over what most email services accept (~20 MB). The report will still be made; you may need to share it through a cloud link.", { v: fmtMB(attachBytes) })}</div>}
+              {attachBytes > EMAIL_LIMIT && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 6 }}>{tr("Attachments add up to {v}, over most email limits (~20 MB): the report is still made, but you may need to share it by a cloud link.", { v: fmtMB(attachBytes) })}</div>}
               <details style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
                 <summary style={{ cursor: "pointer" }}>{tr("Always included: system details and recent errors")}</summary>
                 <div style={{ marginTop: 4, lineHeight: 1.5 }}>{tr("GeoStrix {version}{v}{v2}{v3}{v4}. {v5} No passwords, no account details.", { version, v: info?.os ? ` · ${info.os}` : "", v2: info?.memoryGB ? tr(" · {total} GB RAM", { total: info.memoryGB.total }) : "", v3: info?.cpu ? ` · ${info.cpu}` : "", v4: info?.display ? ` · display ${info.display}` : "", v5: errors.length ? tr("{errors} error(s) recorded this session.", { errors: errors.length }) : tr("No errors recorded this session.") })}</div>

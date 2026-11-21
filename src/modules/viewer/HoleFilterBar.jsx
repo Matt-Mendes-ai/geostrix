@@ -66,7 +66,7 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
       </div>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3 }}>{tr("{ticked} of {total} checked", { ticked, total: ids.length })}</div>
       {!shown.length && filter.trim() && ( /* TASKS.csv #3554 — nothing listed: say what the box reads (it said nothing for 'year>=2017') */
-        <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 2, lineHeight: 1.4 }}>{found.hint?.kind === "set" ? tr("No data called {name} here: has:assays, no:assays, or the name of a layer of this project.", { name: found.hint.names.join(", ") }) : tr("No hole matches. The box reads part of a hole id, field=value, a number test such as year>=2017, length>300 or year=2017..2023, and has:assays or no:assays.")}</div>
+        <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 2, lineHeight: 1.4 }}>{found.hint?.kind === "set" ? tr("No data called {name} here: has:assays, no:assays, or the name of a layer of this project.", { name: found.hint.names.join(", ") }) : tr("No hole matches. Type part of a hole id, field=value, a test such as year>=2017, length>300 or year=2017..2023, or has:assays / no:assays.")}</div>
       )}
       {found.byField && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("No hole id contains this text: listing the {n} hole(s) with it in a collar field.", { n: shown.length })}</div>}{/* #1703 */}
     </div>

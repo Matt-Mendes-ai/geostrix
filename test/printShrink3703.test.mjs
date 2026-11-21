@@ -49,7 +49,7 @@ test("the warnings say plainly what is left out, in every language", () => {
   const keys = [
     "{what} wholly outside the sheet (past the {sides}): not printed",
     "{what} past the {sides}: the part outside is cut off",
-    "Some elements reach past the sheet's edge: {list}. The export leaves out whatever lies outside a sheet; every page still prints at its true size. Export anyway?",
+    "Some elements reach past the sheet's edge ({list}): what lies outside is left out, and pages print at true size. Export anyway?",
     "This element lies wholly outside the sheet (past its {sides}): it is left out of the export. Move it back onto the sheet, or delete it.",
     "Part of this element reaches past the sheet's {sides}: that part is left out of the export, the rest prints. Move it, or make it smaller.",
   ];

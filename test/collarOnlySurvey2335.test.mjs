@@ -20,7 +20,7 @@ test("WA uranium: 430 collar-only vertical holes make one note, no per-hole warn
   assert.equal(note.length, 1);
   assert.equal(note[0].severity, "info");
   const lens = collars.map((c) => c.length).filter((v) => v > 30); // the rule's own gap threshold
-  assert.match(note[0].message, new RegExp(`^${lens.length} hole\\(s\\), ${lens.length} of them vertical, have a survey station at the collar only \\(\\d+-${Math.round(Math.max(...lens))} m deep\\)`));
+  assert.match(note[0].message, new RegExp(`^${lens.length} hole\\(s\\), ${lens.length} vertical, have a survey station at the collar only \\(\\d+-${Math.round(Math.max(...lens))} m deep\\)`));
   console.log(note[0].message);
 });
 
@@ -37,5 +37,5 @@ test("a survey that stops partway, and a long inclined collar-only hole, are sti
   const iss = qc(collars, survey);
   assert.deepEqual(iss.filter((i) => /survey ends at/.test(i.message)).map((i) => i.holeId).sort(), ["L", "P"]);
   const note = iss.find((i) => /collar only/.test(i.message));
-  assert.match(note.message, /^3 hole\(s\), 2 of them vertical, have a survey station at the collar only \(80-500 m deep\)/);
+  assert.match(note.message, /^3 hole\(s\), 2 vertical, have a survey station at the collar only \(80-500 m deep\)/);
 });

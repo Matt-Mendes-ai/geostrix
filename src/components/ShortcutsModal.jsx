@@ -94,7 +94,7 @@ function PythonHelp({ pyStatus }) {
   const p = { margin: "0 0 10px" };
   return (
     <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6, overflowY: "auto" }}>
-      <p style={p}>{tr("GeoStrix has a built-in Python engine for its heaviest calculations. It is installed with the app, runs only on this computer, and starts the first time a feature needs it (the first start can take up to a minute on a slow machine).")}</p>
+      <p style={p}>{tr("A built-in Python engine runs the heaviest calculations, only on this computer. It starts when first needed (up to a minute on a slow machine).")}</p>
       <p style={p}><b style={{ color: "var(--color-text)" }}>{tr("Status:")}</b> {PY_STATUS_TEXT[pyStatus] || PY_STATUS_TEXT.unavailable}</p>
       <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>{tr("Features that use it")}</div>
       <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
@@ -131,7 +131,7 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
 
         {tab === "python" ? <PythonHelp pyStatus={pyStatus} /> : tab === "shortcuts" ? (
           <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("Most of GeoStrix is a point-and-click tool by design — this is the small, real set of keyboard shortcuts that exist today, not an aspirational list. Undo/Redo step back through content changes (imports, deletes, moves, edits) — while a text field has focus, Ctrl/Cmd+Z instead does that field's own native text-undo, as expected.")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("The keyboard shortcuts that exist today. Undo / Redo step through content changes (imports, deletes, moves, edits); in a text field, Ctrl/Cmd+Z undoes typing.")}</div>
             {SHORTCUT_GROUPS.map((g) => (
               <div key={g.title}>
                 <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 6 }}>{g.title}</div>
@@ -171,7 +171,7 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
               </div>
             </div>
             {/* TASKS.csv #648 — refreshed: what GeoStrix covers today, who it is for, and credit for geoML */}
-            <div>{tr("Made for exploration geologists, especially small teams on modest budgets and ordinary laptops: drillholes and geochemistry, geophysics and inversions, implicit and predictive 3D modelling, targeting, maps and print-ready layouts, in one free desktop app that works offline.")}</div>
+            <div>{tr("For exploration geologists on ordinary laptops: drillholes, geochemistry, geophysics, 3D modelling, targeting, maps and layouts, in one free desktop app that works offline.")}</div>
             <div style={{ marginTop: 8, color: "var(--color-text-muted)" }}>{tr("Predictive modelling is powered by")}{" "}<a href={GEOML_URL} target="_blank" rel="noreferrer" style={link}>{tr("geoML")}</a>{tr(", created by Ítalo Gonçalves (optional add-on, GPL-3.0).")}</div>
             {/* TASKS.csv #310 — the licence and the repository were mentioned in prose but not reachable.
                 electron/main.js's setWindowOpenHandler (added in the same row) sends these to the user's

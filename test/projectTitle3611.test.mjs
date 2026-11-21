@@ -78,6 +78,6 @@ test("wired in the store: kept in the file written by the first save, and in the
   assert.match(s, /projectPartsSliced\(keptTitle \? \{ \.\.\.liveRef\.current, project: withProjectTitle\(liveRef\.current\.project, keptTitle\) \} : liveRef\.current\)/);
   assert.match(s, /setProject\(\(p\) => \(\{ \.\.\.withProjectTitle\(p, keptTitle \|\| p\.title\), name: displayName \}\)\)/);
   assert.match(s, /const setProjectTitle = useCallback\(\(title\) => setProject\(\(p\) => withProjectTitle\(p, title\)\), \[\]\);/);
-  for (const k of ["Project title", "Printed as {project} on every sheet (the sheet's title and the title block's Project row), and as the PDF's title. Blank: the file's name. A Save or a rename of the file does not change it."])
+  for (const k of ["Project title", "Printed as {project} on every sheet (title and title block) and as the PDF's title. Blank: the file's name; saving or renaming the file does not change it."])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 30)}`);
 });

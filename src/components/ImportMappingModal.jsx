@@ -163,14 +163,14 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               replaces (Ctrl+Z undoes it), and Custom layer is one choice away */}
           {modal.pointDensity && ( /* TASKS.csv #3665 — point density readings (From = To) stay a Custom layer, and the dialog says why and what to do */
             <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "-10px 0 12px", lineHeight: 1.45 }}>
-              {tr("This looks like a table of point density readings: From equals To on every row, so it opens as a Custom layer. A zero-length density reading cannot be length-weighted, so the density summary and the tonnage would leave it out. To use it as Specific gravity, give each reading a From–To interval and import it again; or keep it as a Custom layer to view.")}
+              {tr("To use these as Specific gravity, give each reading a From–To interval: point readings (From = To) cannot be length-weighted, so they open as a Custom layer.")}
             </div>
           )}
           {perHole && ( /* TASKS.csv #2659 */
             <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "-10px 0 12px", lineHeight: 1.4 }}>
               {perHole.noXY /* #2399 */
-                ? tr("Per-hole values: every row is one of the project's holes ({n}), and the file has no coordinates. Importing joins its other columns ({cols}) onto those holes as attributes (Identify shows them); blanks and no-data codes such as -999 are left out, and no new hole is added.", { n: perHole.n.toLocaleString(), cols: perHole.columns.slice(0, 6).join(", ") + (perHole.columns.length > 6 ? "…" : "") })
-                : tr("Per-hole values: all {n} hole(s) are already in the project at these coordinates. Importing joins the file's other columns ({cols}) onto those holes, on the hole id; no new hole is added.", { n: perHole.n.toLocaleString(), cols: perHole.columns.slice(0, 6).join(", ") + (perHole.columns.length > 6 ? "…" : "") })}
+                ? tr("Per-hole values for {n} of the project's holes: importing adds {cols} to those holes as attributes (blanks and -999 left out); no hole is added.", { n: perHole.n.toLocaleString(), cols: perHole.columns.slice(0, 6).join(", ") + (perHole.columns.length > 6 ? "…" : "") })
+                : tr("Per-hole values: all {n} hole(s) are already in the project; importing adds {cols} to them by hole id, and no hole is added.", { n: perHole.n.toLocaleString(), cols: perHole.columns.slice(0, 6).join(", ") + (perHole.columns.length > 6 ? "…" : "") })}
             </div>
           )}
           {/* TASKS.csv #2338 — a custom layer's name: two columns of one file were two layers both called after the file */}
@@ -202,7 +202,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 </div>
               )}
               {f.key === "value" && modal.target === "mnlgy" && numericCodes(modal.allRows || modal.sampleRows || [], modal.mapping.value) && ( /* TASKS.csv #3307 — numbers as mineral codes: a legend row per number */
-                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{col} holds numbers, not mineral names: each different number would be its own legend row. Choose a column of mineral names, or a file's per-mineral amount columns (they are offered as minerals, with Total min as the value).", { col: modal.mapping.value })}</div>
+                <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Choose a column of mineral names (or the per-mineral amount columns): {col} holds numbers, and each number would be its own legend row.", { col: modal.mapping.value })}</div>
               )}
               {f.key === "value" && modal.valueGuess?.numeric && modal.mapping.value === modal.valueGuess.col && ( /* TASKS.csv #3204 — a number column guessed, said as one */
                 <div role="note" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No column name matched, so {col} was chosen: the file's only number column left. Check it is the one to draw.", { col: modal.valueGuess.col })}</div>
@@ -236,7 +236,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
           {!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels) && <MineralPercentBox modal={modal} onChange={onChange} sel={sel} />}{/* #3205 */}
           <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}
-          {densityDoubt && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "0 0 12px", lineHeight: 1.4 }}>{tr("The middle value of this column is {m}, which is not a density in t/m³ (usually 1.5 to 6): the Specific gravity layer is the density the tonnes use. If it is in kg/m³, divide it by 1000 in the file first.", { m: String(+densityDoubt.median.toPrecision(4)) })}</div> /* #3529 */}
+          {densityDoubt && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "0 0 12px", lineHeight: 1.4 }}>{tr("Divide by 1000 in the file if this is kg/m³: the middle value, {m}, is not a density in t/m³ (usually 1.5 to 6), and tonnes use this layer.", { m: String(+densityDoubt.median.toPrecision(4)) })}</div> /* #3529 */}
           {uncollared && ( /* TASKS.csv #3202 */
             <label style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "0 0 12px", lineHeight: 1.4, cursor: "pointer" }}>
               <input type="checkbox" checked={modal.dropUncollared !== false} onChange={(e) => onChange({ ...modal, dropUncollared: e.target.checked })} style={{ marginTop: 2 }} />
@@ -290,7 +290,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c) })} mineGrid={modal.target === "collars" ? mineSourceOf(storeProject) : null /* #2811 — collars are what this import reprojects */}
                 defaultText={perRowCrsText ? perRowCrsText /* TASKS.csv #3542 — the file's own CRS column says it */ : crsUnset ? tr("The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import") : tr("Same as project — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
               />
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("If this file's x/y is in another CRS (a collar list or claim boundary in a different UTM zone or datum), pick it here and it is reprojected into the project CRS on import so it lines up with everything else.")}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("The file's coordinate system, when it is not the project's (another UTM zone or datum): its x/y are reprojected on import.")}</div>
 
               {/* TASKS.csv #205 — a merged/regional dataset can have DIFFERENT rows in different
                   EPSGs (e.g. one collar list spanning two UTM zones), which the single Source CRS
@@ -308,7 +308,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   <option value="">{tr("— none, use one Source CRS for the whole file —")}</option>
                   {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
                 </select>
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("If this dataset's own column already tags each row with its EPSG (e.g. a merged regional database export with rows in more than one UTM zone), map it here instead — each row is reprojected from its own value in that column. Rows with a blank or unrecognized value fall back to the Source CRS field above.")}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("A column giving each row's EPSG (a regional export over several UTM zones): each row is reprojected from its own; blank rows use the Source CRS above.")}</div>
               </div>
             </div>
           )}
@@ -320,7 +320,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <input type="text" value={modal.altStyle ?? alterationStyleFromName(modal.fileName)} placeholder={tr("e.g. Oxidation")} onChange={(e) => onChange({ ...modal, altStyle: e.target.value })}
                   style={{ display: "block", marginTop: 4, width: 220, fontSize: "var(--font-size-base)" }} aria-label={tr("Alteration style")} />
               </label>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.")}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("One table per logging style (oxidation, silicification…)? Name the style: its codes come in as 'Style: code' (Oxidation: Pchy). Blank keeps them as they are.")}</div>
             </div>
           )}
 
@@ -334,7 +334,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   <input type="radio" checked={modal.dipConvention === "pos_down"} onChange={() => onChange({ ...modal, dipConvention: "pos_down" })} />{" "}{tr("Positive = down")}</label>
               </div>
               {modal.dipGuess && modal.dipConvention === "pos_down" && ( // TASKS.csv #2886 — the file decided it: say why
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("Every dip in this file is positive, and steep ({n} row(s)): read as Positive = down, so the holes go into the ground. Choose Negative = down for underground up-holes.", { n: modal.dipGuess.n.toLocaleString() })}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("Choose Negative = down for underground up-holes: every dip here is positive and steep ({n} row(s)), so it is read as Positive = down.", { n: modal.dipGuess.n.toLocaleString() })}</div>
               )}
             </div>
           )}
@@ -365,7 +365,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             return (
               <div style={{ marginTop: 14 }}>
                 <div style={label}>{tr("Units")}</div>
-                {modal.depthUnitHint && ((modal.depthUnitHint.kind === "feet") === ((modal.units || "m") === "m")) && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.45 }}>{/* TASKS.csv #3692 */}{modal.depthUnitHint.kind === "feet" ? tr("The deepest depth of {n} of the {total} holes in this file is about {ratio} times the hole's length in the collar file: are these depths in feet? Choose Feet if so; they are converted to metres.", { n: modal.depthUnitHint.holes, total: modal.depthUnitHint.total, ratio: modal.depthUnitHint.ratio.toFixed(2) }) : tr("The deepest depth of {n} of the {total} holes in this file is about {ratio} times the hole's length in the collar file: are these lengths already in metres, and is Feet chosen by mistake?", { n: modal.depthUnitHint.holes, total: modal.depthUnitHint.total, ratio: modal.depthUnitHint.ratio.toFixed(2) })}</div>}
+                {modal.depthUnitHint && ((modal.depthUnitHint.kind === "feet") === ((modal.units || "m") === "m")) && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.45 }}>{/* TASKS.csv #3692 */}{modal.depthUnitHint.kind === "feet" ? tr("Choose Feet if these depths are in feet: in {n} of {total} holes the deepest is about {ratio} times the collar file's length.", { n: modal.depthUnitHint.holes, total: modal.depthUnitHint.total, ratio: modal.depthUnitHint.ratio.toFixed(2) }) : tr("Choose Metres if these depths are already in metres: in {n} of {total} holes the deepest is about {ratio} times the collar file's length.", { n: modal.depthUnitHint.holes, total: modal.depthUnitHint.total, ratio: modal.depthUnitHint.ratio.toFixed(2) })}</div>}
                 <div style={{ display: "flex", gap: 14, fontSize: "var(--font-size-base)" }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                     <input type="radio" name="units" checked={(modal.units || "m") === "m"} onChange={() => onChange({ ...modal, units: "m" })} />{" "}{tr("Metres")}</label>
@@ -380,7 +380,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                       <input type="checkbox" checked={!!modal.localGridOn} onChange={(e) => onChange({ ...modal, localGridOn: e.target.checked })} />{" "}{tr("X/Y are on a local mine grid")}</label>
                     {modal.localGridOn && (
                       <div style={{ marginTop: 6, marginLeft: 22 }}>
-                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Two or more control points, one per line:")}{" "}<code>local_x local_y project_x project_y</code>{" "}{(crsUnset ? tr("— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in the project CRS, which isn't chosen yet: choose it first (status bar). Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.") : tr("— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:{v}. Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.", { v: projectEpsg ?? "?" }))}</div>
+                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Two or more control points, one per line:")}{" "}<code>local_x local_y project_x project_y</code>{" "}{(crsUnset ? tr("— choose the project CRS first (status bar): each point is one place on both grids (a surveyed pin, a re-located hole). Leave Source CRS blank.") : tr("— each point is one place on both grids (a surveyed pin, a re-located hole), its project coordinates in EPSG:{v}. Leave Source CRS blank; scale and rotation are fitted.", { v: projectEpsg ?? "?" }))}</div>
                         <textarea value={modal.localGridText || ""} onChange={(e) => onChange({ ...modal, localGridText: e.target.value })} rows={4} spellCheck={false} placeholder={"10000 5000 463000.0 6178000.0" + String.fromCharCode(10) + "12500 5200 463629.0 6178421.5"} style={{ ...sel, width: "100%", fontFamily: "monospace", resize: "vertical" }} aria-label={tr("Local grid control points")} />
                         <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: fitErr ? "var(--color-danger-icon-strong)" : "var(--color-text-secondary)" }}>
                           {fitErr || (fit && tr("Fitted from {n} points: scale {scale}, rotation {rotationDeg}° counter-clockwise from the local grid to the map, RMS misfit {rmsM} m{v}. Residuals: {v2} m.", { n: fit.n, scale: fit.scale.toFixed(6), rotationDeg: fit.rotationDeg.toFixed(3), rmsM: fit.rmsM.toFixed(2), v: fit.n === 2 ? tr(" (two points fit exactly — add a third to check the fit)") : fit.rmsM > 2 ? tr(" — large: check the control points") : "", v2: fit.residuals.map((r) => r.toFixed(2)).join(", ") }))}
@@ -399,9 +399,9 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ marginTop: 14 }}>
               <div style={label}>{tr("Azimuths in this file are measured from")}</div>
               {modal.azimuthRefFrom && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Set from the file's {col} column.", { col: modal.azimuthRefFrom })}</div>}{/* #1647 */}
-              {modal.azimuthRefShare && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("A gyro is named on {n} of {of} stations ({others} on the rest): a gyro usually reads true north, so true north is chosen. Change it if these azimuths are in grid north.", { n: modal.azimuthRefShare.n.toLocaleString(), of: modal.azimuthRefShare.of.toLocaleString(), others: modal.azimuthRefShare.others.join(", ") })}</div>}{/* #3734 */}
+              {modal.azimuthRefShare && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Change to grid north if that is what these azimuths are: true north is chosen because {n} of {of} stations name a gyro ({others} on the rest).", { n: modal.azimuthRefShare.n.toLocaleString(), of: modal.azimuthRefShare.of.toLocaleString(), others: modal.azimuthRefShare.others.join(", ") })}</div>}{/* #3734 */}
               {modal.azimuthToolsCol && !modal.azimuthRefFrom && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("The file's {col} column names both gyro and magnetic tools, which read different norths: choose the north these azimuths are in.", { col: modal.azimuthToolsCol })}</div>}{/* #3209 */}
-              {modal.azimuthRefAlso?.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("This file has more than one azimuth column: {list}. {col} is read. To read another, pick it as the Azimuth column above and set the north below to match.", { list: [modal.azimuthRefFrom, ...modal.azimuthRefAlso.map((a) => a.col)].join(", "), col: modal.azimuthRefFrom })}</div>}{/* #2154 */}
+              {modal.azimuthRefAlso?.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("{col} is read of the azimuth columns {list}: pick another as the Azimuth column above, and set its north below, to read it.", { list: [modal.azimuthRefFrom, ...modal.azimuthRefAlso.map((a) => a.col)].join(", "), col: modal.azimuthRefFrom })}</div>}{/* #2154 */}
               <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--font-size-base)" }}>
                 {Object.entries(AZIMUTH_REFS).map(([k, text]) => (
                   <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
@@ -412,14 +412,14 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 {/* TASKS.csv #2491 — true / magnetic north with no project CRS: said here, before Import, not only in the notice after */}
                 {crsUnset && (modal.azimuthRef === "true" || modal.azimuthRef === "magnetic") && (() => {
                   const tie = tieOf(storeProject);
-                  if (!tie && fileCrsTurn && modal.azimuthRef === "true") return <div role="note" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("The file's own coordinate system (EPSG:{epsg}) becomes the project's: at the first hole true north lies {deg}° {dir} of grid north, and these azimuths are turned by that.", { epsg: fileCrsTurn.epsg, deg: Math.abs(fileCrsTurn.deg).toFixed(2), dir: fileCrsTurn.deg > 0 ? tr("east") : tr("west") })}</div>; // #3740
+                  if (!tie && fileCrsTurn && modal.azimuthRef === "true") return <div role="note" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("The file's coordinate system (EPSG:{epsg}) becomes the project's: these azimuths are turned by true north's {deg}° {dir} of grid north.", { epsg: fileCrsTurn.epsg, deg: Math.abs(fileCrsTurn.deg).toFixed(2), dir: fileCrsTurn.deg > 0 ? tr("east") : tr("west") })}</div>; // #3740
                   return tie
                     ? <div role="note" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Converted to the local grid's north through its tie to EPSG:{epsg} (grid rotation {rot}°), at each hole's collar.", { epsg: tie.epsg, rot: tie.rotationDeg.toFixed(2) })}</div>
                     : <div role="alert" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{storeProject?.localGrid
-                      ? tr("This project is on a local grid with no tie to a coordinate system, so its north is not known: these azimuths will be left as they are in the file. Tie the grid in Maps > Coordinates first (control points, or an origin and a rotation).")
+                      ? tr("Tie the local grid first (Maps > Coordinates): its north is not known, so these azimuths would be left as they are in the file.")
                       : modal.target === "collars" // #2900 (1) — a collar import asks for the CRS first, and the azimuths are converted then
                         ? tr("The project has no coordinate system yet: importing these collars asks for it first, and these azimuths are then converted to grid north.")
-                        : tr("The project has no coordinate system yet, so these azimuths cannot be converted to grid north and will be left as they are in the file. Choose the project CRS first.")}</div>;
+                        : tr("Choose the project CRS first: without it these azimuths cannot be turned to grid north and are left as they are in the file.")}</div>;
                 })()}
                 {/* TASKS.csv #490 — which grid "grid north" is. Collars: the Source CRS above (their azimuths are
                     turned with their coordinates). Survey / structure files have no coordinates: pick the CRS here. */}
@@ -432,7 +432,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                       label={tr("Grid of")} value={modal.azimuthGridEpsg || ""}
                       onChange={(c) => onChange({ ...modal, azimuthGridEpsg: c === "" ? "" : String(c) })} mineGrid={mineSourceOf(storeProject) /* #2811 */}
                       defaultText={crsUnset ? tr("The project CRS — not chosen yet") /* #2179: not the placeholder's name */ : tr("The project CRS — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
-                      title={tr("If these azimuths were measured against another CRS's grid (e.g. the neighbouring UTM zone), pick it: each one is turned to the project grid at its hole's collar.")}
+                      title={tr("The grid these azimuths were measured on, if not the project's (the next UTM zone): each is turned to the project grid at its collar.")}
                     />
                   </div>
                 )}

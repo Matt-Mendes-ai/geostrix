@@ -157,7 +157,7 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{moveImage ? tr("Move “{name}” to another line", { name: moveImage.name }) : tr("Georeference a section image")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{moveImage ? tr("Choose the section line this figure belongs on.") : tr("Put a cross-section figure (a PDF page, PNG or JPG) upright in the 3D view, in two steps: where its section line is on the map, then points on the figure and what they read.")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{moveImage ? tr("Choose the section line this figure belongs on.") : tr("Stand a cross-section figure (PDF page, PNG or JPG) in the 3D view: place its section line on the map, then read points on the figure.")}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
@@ -168,7 +168,7 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
               drawing={drawing} onPick={(id) => { setLineSrc(id); setDrawing(false); }} onDrawn={drawn} size={360} />
             <div style={{ flex: 1, minWidth: 300, display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={label}>{tr("1. Where is this section on the map?")}</div>
-              <div style={note}>{tr("Each figure stands on its own section line. The points you click on the figure in the next step only set where it sits along this line and how high: they never move it to another line.")}</div>
+              <div style={note}>{tr("Each figure stands on its own section line: the points of the next step only set where along it and how high it sits.")}</div>
               <select value={lineSrc} onChange={(e) => { setLineSrc(e.target.value); setDrawing(false); }} style={inputFull} aria-label={tr("Section line")}>
                 <option value="" disabled>{sections.length ? tr("Choose a saved section, or type its ends…") : tr("Choose…")}</option>
                 {sections.map((s) => <option key={s.id} value={s.id}>{tr("Saved section: {name}", { name: s.name })}</option>)}
@@ -228,7 +228,7 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
                 onAdd={(px, py) => setPoints((p) => [...p, { id: `sp_${Date.now()}_${p.length}`, px, py, h: "", z: "" }])}
                 onMove={(id, px, py) => updatePoint(id, { px, py })} />
             ) : pdf ? null : (
-              <div style={{ width: DISPLAY_MAX, maxWidth: "100%", height: 360, border: "1px dashed var(--color-border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", textAlign: "center", padding: 12 }}>{tr("Load the section figure — a page of a PDF report, or a PNG/JPG. Tip: points where labelled grid lines cross (an elevation line and a distance or easting tick) are the easiest to read.")}</div>
+              <div style={{ width: DISPLAY_MAX, maxWidth: "100%", height: 360, border: "1px dashed var(--color-border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", textAlign: "center", padding: 12 }}>{tr("Load the section figure: a page of a PDF report, or a PNG / JPG. Where labelled grid lines cross is the easiest point to read.")}</div>
             )}
           </div>
 
@@ -241,11 +241,11 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
             {onLine.length > 0 && <div style={warnBox}>{tr("{names} already stands on this line. If this figure shows a different section, choose or draw that section's own line.", { names: onLine.map((m) => `“${m.name}”`).join(", ") })}</div>}
 
             <div style={label}>{tr("2. Points on the figure ({points})", { points: points.length })}</div>
-            {rlOffset ? <div style={note}>{tr("This project's grid RL is the elevation plus {off} m: type the RLs the figure shows; they are placed at RL − {off} m, where the terrain and the holes are.", { off: rlOffset })}</div> : <div style={note}>{tr("Type the elevations as the figure's scale gives them, above the same datum as the terrain (usually sea level). A height that is off can be corrected afterwards: Section images > Match to terrain.")}</div>}{/* TASKS.csv #3880 */}
+            {rlOffset ? <div style={note}>{tr("Type the RLs the figure shows: this project's grid RL is the elevation plus {off} m, so they are placed at RL − {off} m.", { off: rlOffset })}</div> : <div style={note}>{tr("Type the elevations as the figure's scale gives them, above the terrain's datum (usually sea level). Fix a height later in Section images > Match to terrain.")}</div>}{/* TASKS.csv #3880 */}
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center" }}>{tr("Horizontal values are")}<select value={hKind} onChange={(e) => setHKind(e.target.value)} style={{ ...numInput, width: "auto" }}>{H_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select>
             </label>
             {points.length === 0 ? (
-              <div style={note}>{tr("Click the image to place a point, then type what the figure says there. Two opposite corners of the grid are enough for a clean figure; use 3 or more for a scan that's slightly rotated.")}</div>
+              <div style={note}>{tr("Click the image to place a point, then type what the figure says there: two opposite grid corners, or 3 or more for a slightly rotated scan.")}</div>
             ) : (
               <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                 <thead><tr><th style={th}>#</th><th style={th}>{hLabel}</th><th style={th}>{rlOffset ? tr("RL (m)") : tr("Elevation (m)")}</th><th style={th}>{tr("Error (m)")}</th><th style={th} /></tr></thead>

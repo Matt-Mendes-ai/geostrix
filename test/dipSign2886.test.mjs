@@ -37,7 +37,7 @@ test("the dialog and the import use it", () => {
   assert.match(m, /\{modal\.dipGuess && modal\.dipConvention === "pos_down" && \(/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
-    assert.ok(d["Every dip in this file is positive, and steep ({n} row(s)): read as Positive = down, so the holes go into the ground. Choose Negative = down for underground up-holes."], l);
+    assert.ok(d["Choose Negative = down for underground up-holes: every dip here is positive and steep ({n} row(s)), so it is read as Positive = down."] /* #3899 */, l);
     assert.ok(d["{n} hole(s) point upward (a dip above horizontal: right for underground up-holes; for surface drilling, re-import with the other dip sign convention): {list}"], l);
   }
 });

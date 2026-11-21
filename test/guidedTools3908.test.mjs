@@ -89,7 +89,7 @@ test("#3908 Intrusions and bodies: one rock, suggested from the logs, built by t
   assert.deepEqual(BODIES.contacts(ctx, "DYK"), [{ unit: "DYK", hole_id: "L1" }]);
   assert.match(BODIES.check(ctx, ""), /Choose a rock first/);
   assert.equal(BODIES.check(ctx, "DYK"), null);
-  assert.match(BODIES.check(ctx, "SST"), /reads SST as a layered rock, so it would draw its top, not a body/); // the live finding on WA lode gold
+  assert.match(BODIES.check(ctx, "SST"), /^Mark SST as an intrusion .* read as a layered rock, only its top would be drawn/); // the live finding on WA lode gold
   assert.deepEqual(BODIES.notes(ctx), []);
   const calls = [];
   const plain = { target: (v) => v }, coded = { target: (v) => `mcode:${v}` };
@@ -108,7 +108,7 @@ test("#3908 Cover and weathering: the code that starts the holes; its base, and 
   assert.equal(COVER.suggest(ctx).value, "TILL");
   assert.deepEqual(COVER.contacts(ctx, "TILL").map((c) => c.hole_id), ["L0", "L1"]);
   assert.equal(COVER.check(ctx, "TILL"), null);
-  assert.match(COVER.check(ctx, "SST"), /reads SST as a rock, so it would draw its top, not its base/);
+  assert.match(COVER.check(ctx, "SST"), /^Mark SST as overburden .* read as a rock, its top would be drawn, not its base/);
   assert.match(COVER.notes(ctx)[0], /ground is taken from the collar heights/);
   assert.deepEqual(COVER.notes({ ...ctx, hasTerrain: true }), []);
 });
@@ -196,7 +196,7 @@ test("#3909 live fixes: a vein set is stopped plainly and offered last; the shel
   for (let h = 0; h < 4; h++) veins.push({ hole_id: `L${h}`, value: "MAIN" });
   const ctx = { rows: [], veins, roleOf: () => "stratigraphic" };
   assert.deepEqual(VEINS.choices(ctx), ["MAIN", "QTZ"]);
-  assert.match(VEINS.auto(ctx, "QTZ").verdict[0], /^QTZ is logged about 8 times down each hole: a set of veins, not one sheet\./);
+  assert.match(VEINS.auto(ctx, "QTZ").verdict[0], /^Split QTZ into single veins .* it is logged about 8 times down each hole\./ /* #3899: the action first */);
   // a closed 1 m cube mesh: 1 m3
   const p = [0,0,0, 1,0,0, 1,1,0, 0,1,0, 0,0,1, 1,0,1, 1,1,1, 0,1,1], idx = [0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7];
   const geometry = { attributes: { position: { count: 8, getX: (i) => p[3 * i], getY: (i) => p[3 * i + 1], getZ: (i) => p[3 * i + 2] } }, index: { count: idx.length, getX: (i) => idx[i] } };

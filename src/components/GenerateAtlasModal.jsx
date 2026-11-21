@@ -107,7 +107,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
         : await generateAtlasPages({ mode, items: chosen, templateElements, collars, layers, includeStripLog, legendOverride, page });
       // #1478 — a long hole squeezed onto one page prints its depth labels too small to read: said, with the size
       const smallest = Math.min(...pages.map((pg) => pg.textPt).filter(Number.isFinite));
-      const smallText = Number.isFinite(smallest) && smallest < 6 ? ` ${tr("The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.", { pt: smallest.toFixed(1) })}` : "";
+      const smallText = Number.isFinite(smallest) && smallest < 6 ? ` ${tr("Use a larger page, or the strip log window for a full-size log: the longest strip log prints its labels at about {pt} pt here.", { pt: smallest.toFixed(1) })}` : "";
       const batch = `atlas_${Date.now()}`; // TASKS.csv #1636 — removable as one batch
       const pageIds = addLayoutPages(pages.map((pg) => ({ ...pg, batch })));
       // #1644 — then each page's map, centred on its hole: the 3D View renders them one by one and Layout comes back at the end
@@ -117,7 +117,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
       const noLog = pages.filter((pg) => pg.noStripLog).length; // TASKS.csv #3710 — pages made with no strip log, counted in the notice
       // #1772 — what making room for the strip log did to the template's elements
       const narrowedPages = pages.filter((pg) => pg.narrowed > 0).length, coveredPages = pages.filter((pg) => pg.overlapping > 0).length;
-      const room = (narrowedPages ? ` ${tr("To make room for the strip log, the template's elements beside it were narrowed on {n} page(s); a map keeps its scale and shows less ground.", { n: narrowedPages })}` : "")
+      const room = (narrowedPages ? ` ${tr("The elements beside the strip log were narrowed on {n} page(s) to make room; a map keeps its scale and shows less ground.", { n: narrowedPages })}` : "")
         + (coveredPages ? ` ${tr("On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.", { n: coveredPages })}` : "");
       if (pages.length) { try { localStorage.setItem("geostrix.atlasMsPerPage", String(Math.round((performance.now() - runStart) / pages.length))); } catch { /* no storage: no estimate next time */ } } // #2607
       setRanOn(selectedIds); // #3180
@@ -139,12 +139,12 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           <button onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Creates one new Layout page per item below, using the CURRENT page as a template. Any {v} in a text/title element gets filled in per item — available tokens for this mode: {v2}.", { v: "{token}", v2: tokens.map((t) => `{${t}}`).join(", ") })}{" "}{tr("The page's own placeholders ({project}, {date}, {scale}, {crs}...) are filled on every generated page as well; the older double-brace form still works.")}</div>{/* #1777 — one syntax: single braces */}
+          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Make one Layout page per item below from the CURRENT page; each {v} in a text or title is filled in per item. Tokens here: {v2}.", { v: "{token}", v2: tokens.map((t) => `{${t}}`).join(", ") })}{" "}{tr("The page's own placeholders ({project}, {date}, {scale}, {crs}...) are filled on every generated page as well; the older double-brace form still works.")}</div>{/* #1777 — one syntax: single braces */}
           {mode === "hole" && untraced > 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("{n} collar(s) with no depth (no trace) are left out of the list: their pages would show a point and an empty log.", { n: untraced })}</div>}{/* #2136 */}
           {mode === "hole" && includeStripLog && templateElements.some(isStripLogImage) && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("The template's own strip log is left off the generated pages: each page gets its own hole's.")}</div>}{/* #2136 */}
-          {mode === "section" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("A section page takes the section's name in the page's text: the section itself is not drawn on it. To put the drawing on a page, use 'Snapshot to Layout' in that section's window.")}</div>}{/* TASKS.csv #3862 (Scottie Gold review) — 'Generated 1 page(s).' gave a sheet named for the section with no picture of it */}
+          {mode === "section" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("To put a section's drawing on a page, use 'Snapshot to Layout' in its window: a section page only takes the section's name.")}</div>}{/* TASKS.csv #3862 (Scottie Gold review) — 'Generated 1 page(s).' gave a sheet named for the section with no picture of it */}
           {!hasPlaceholders && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr("The current page has no {v} placeholders in any text — every generated page will look identical except its name{v2}. Add a text element with e.g. {v3} first if you want per-item text.", { v: "{token}", v2: mode === "hole" && includeStripLog ? tr(" (and its strip log image)") : "", v3: mode === "hole" ? "{hole_id}" : "{name}" })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr("Add a text with e.g. {v3} for per-item text: the current page has no {v} placeholders, so the pages differ only by name{v2}.", { v: "{token}", v2: mode === "hole" && includeStripLog ? tr(" (and its strip log image)") : "", v3: mode === "hole" ? "{hole_id}" : "{name}" })}</div>
           )}
           <div style={{ display: "flex", gap: 8 }}>
             <select value={mode} onChange={(e) => switchMode(e.target.value)} style={{ ...sel, flex: 1 }}>
@@ -153,7 +153,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
             </select>
           </div>
           {mode === "hole" && hasPlanMap && ( /* TASKS.csv #1644 */
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={tr("Each page's top-down map is rendered again in StrixViewer, centred on its hole at the template's scale: about a second per page. Off: every page shows the template's map, with its hole marked.")}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={tr("Redraw each page's map centred on its hole at the template's scale (about a second a page). Off: every page shows the template's map, its hole marked.")}>
               <input type="checkbox" checked={centreMaps} onChange={(e) => setCentreMaps(e.target.checked)} />{tr("Centre each page's map on its hole")}</label>
           )}
           {mode === "hole" && (
@@ -186,7 +186,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
               ))}
             </div>
           )}
-          {mode === "hole" && includeStripLog && !assayTracks && (() => { const n = [...selectedIds].filter((h) => !holesWithLogs.has(h)).length; return n > 0 ? <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr(n === 1 ? "{n} of the selected holes has no logs and no density, and no assay track is chosen: its page will have no strip log. Choose an assay track above." : "{n} of the selected holes have no logs and no density, and no assay track is chosen: their pages will have no strip log. Choose an assay track above.", { n })}</div> : null; })()}{/* TASKS.csv #3710 — said before it runs */}
+          {mode === "hole" && includeStripLog && !assayTracks && (() => { const n = [...selectedIds].filter((h) => !holesWithLogs.has(h)).length; return n > 0 ? <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr(n === 1 ? "Choose an assay track above: {n} of the selected holes has no logs or density, so its page would have no strip log." : "Choose an assay track above: {n} of the selected holes have no logs or density, so their pages would have no strip log.", { n })}</div> : null; })()}{/* TASKS.csv #3710 — said before it runs */}
           <div>
             <div style={{ ...labelStyle, display: "flex", justifyContent: "space-between" }}>
               <span>{mode === "hole" && holeFilter.trim() ? tr("{selectedCount} selected; {n} of {all} holes listed", { selectedCount, n: items.length, all: holeIds.length }) : tr("{selectedCount} of {items} selected", { selectedCount, items: items.length })}</span>

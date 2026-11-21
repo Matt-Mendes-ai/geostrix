@@ -15,7 +15,7 @@ test("DH-23-299: 0 m, 339 m, then every 3 m to 491 m of a 497 m hole is named, w
   const out = validateSurveyAndTrajectory(collars, survey);
   const rows = out.filter((i) => i.holeId === "DH-23-299" && /No survey station between/.test(i.message));
   assert.equal(rows.length, 1);
-  assert.match(rows[0].message, /between 0 m and 339 m \(68% of the hole; the stations are usually 3 m apart\)/);
+  assert.match(rows[0].message, /between 0 m and 339 m \(68% of the hole; usually 3 m apart\)/);
   assert.equal(rows[0].severity, "warning");
   assert.equal(out.filter((i) => /No survey station between/.test(i.message)).length, 1, "the evenly surveyed holes are not flagged");
 });

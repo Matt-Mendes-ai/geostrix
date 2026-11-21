@@ -6,7 +6,7 @@ import { importCheckSummary } from "../src/lib/dataQC.js";
 test("no collars: one line with the hole count and examples", () => {
   const rows = [{ hole_id: "AXE-23-001", from: 0, to: 2 }, { hole_id: "AXE-23-001", from: 2, to: 4 }, { hole_id: "AXE-23-002", from: 0, to: 3 }];
   const msg = importCheckSummary(rows, [], [], "assay rows");
-  assert.match(msg, /^No collars are loaded, so these assay rows for 2 hole\(s\) \(AXE-23-001, AXE-23-002\) cannot be drawn yet/);
+  assert.match(msg, /^Import the collars to draw these assay rows for 2 hole\(s\) \(AXE-23-001, AXE-23-002\)/ /* #3899: the action first */);
 });
 
 test("with collars the old checks are unchanged", () => {

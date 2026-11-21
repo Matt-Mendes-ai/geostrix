@@ -44,7 +44,7 @@ export default function LocalGridPanel() {
   if (!lg) {
     return (
       <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", marginTop: 10 }}>
-        <div style={note}>{tr("No CRS chosen. If the coordinates are a local mine grid, keep them as one: nothing is asked again on import, and the grid can be tied to a real CRS later.")}</div>
+        <div style={note}>{tr("No CRS chosen. For a local mine grid, keep it as one: imports stop asking, and you can tie it to a real CRS later.")}</div>
         <button type="button" onClick={() => setLocalGrid("")} style={{ ...pBtn, marginTop: 6, marginBottom: 0, justifyContent: "center" }}>{tr("Keep the coordinates as a local mine grid")}</button>
       </div>
     );
@@ -60,11 +60,11 @@ export default function LocalGridPanel() {
       <label style={row}>{tr("Name")}<input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setLocalGrid(name)} placeholder={tr("e.g. Wallaby mine grid")} aria-label={tr("Local grid name")} style={{ ...smallSel, flex: 1, minWidth: 0 }} /></label>
       {/* TASKS.csv #2691 / #2661 — the grid's RL datum and, with no tie, its north */}
       <label style={row} title={tr("Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.")}>{tr("RL datum: grid RL = elevation +")}<NumberInput allowEmpty value={rl === "" ? null : rl} onChange={(v) => { const s = v == null ? "" : String(v); setRl(s); setLocalGridDatum({ rlOffset: s }); }} placeholder={tr("blank")} aria-label={tr("RL datum offset (m)")} style={{ ...smallSel, width: 80 }} />{tr("m")}</label>
-      <label style={row} title={tr("For a grid not tied to a CRS: how far grid north is turned from true north, east positive (west negative). A true-north survey is converted with it on import. A tie, when there is one, knows its own rotation.")}>{tr("Grid north is")}<NumberInput allowEmpty value={north === "" ? null : north} disabled={!!saved} onChange={(v) => { const s = v == null ? "" : String(v); setNorth(s); setLocalGridDatum({ northDeg: s }); }} placeholder={saved ? tr("from the tie") : tr("blank")} aria-label={tr("Grid north from true north (degrees, east positive)")} style={{ ...smallSel, width: 80 }} />{tr("° east of true north")}</label>
+      <label style={row} title={tr("For an untied grid: grid north's turn from true north, east positive. True-north surveys are converted with it on import; a tie knows its own rotation.")}>{tr("Grid north is")}<NumberInput allowEmpty value={north === "" ? null : north} disabled={!!saved} onChange={(v) => { const s = v == null ? "" : String(v); setNorth(s); setLocalGridDatum({ northDeg: s }); }} placeholder={saved ? tr("from the tie") : tr("blank")} aria-label={tr("Grid north from true north (degrees, east positive)")} style={{ ...smallSel, width: 80 }} />{tr("° east of true north")}</label>
       {north !== "" && !(Math.abs(Number(north)) <= 180) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Between -180 and 180°.")}</div>}
       <div style={{ ...note, marginTop: 8 }}>{saved
         ? tr("Tied to {crs} (EPSG:{epsg}): rotation {rot}°, scale {scale}{rms}.", { crs: crsName(saved.epsg) || "", epsg: saved.epsg, rot: saved.rotationDeg.toFixed(4), scale: saved.scale.toFixed(6), rms: saved.rmsM != null ? tr(", {rms} m RMS over {n} control points", { rms: saved.rmsM.toFixed(3), n: saved.n }) : "" })
-        : tr("Not tied to a real CRS. Optional: a tie brings files with their own CRS (an MGA collar file, a .prj) into this grid. Exports with a coordinate system stay unavailable on a local grid.")}</div>
+        : tr("Not tied to a real CRS. A tie (optional) brings files with their own CRS into this grid; exports with a coordinate system need one.")}</div>
       <div style={{ marginTop: 6 }}><CrsPicker label={tr("Tie to")} value={epsg} onChange={setEpsgTie} height={140} hideMap /></div>
       <label style={row}>{tr("From")}<select value={mode} onChange={(e) => setMode(e.target.value)} style={{ ...smallSel, flex: 1 }} aria-label={tr("How the tie is given")}>
         <option value="points">{tr("2-3 control points (least squares)")}</option>
@@ -72,7 +72,7 @@ export default function LocalGridPanel() {
       </select></label>
       {mode === "points" ? (
         <>
-          <div style={{ ...note, marginTop: 6 }}>{tr("One point per line: local easting, local northing, then the same point's easting and northing in the CRS above (a surveyed pin, a hole tied in by both).")}</div>
+          <div style={{ ...note, marginTop: 6 }}>{tr("One point per line: local easting, northing, then its easting and northing in the CRS above (a pin or hole surveyed in both).")}</div>
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} spellCheck={false} placeholder={"32000 808000 412345.6 6612345.6\n32500 808400 412810.2 6612770.9"} aria-label={tr("Control points")} style={{ ...smallSel, width: "100%", boxSizing: "border-box", marginTop: 4, fontFamily: "monospace" }} />
         </>
       ) : (
