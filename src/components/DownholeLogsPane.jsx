@@ -23,6 +23,7 @@ import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #2953 — th
 import { implausibleReadings } from "../lib/logUnits.js"; // TASKS.csv #2953
 import { someWhere, rowSome } from "../lib/layerColumns.js"; // TASKS.csv #3140 — a log layer may be held as columns
 import { rowsRefOf } from "../lib/tableFields.js"; // TASKS.csv #3140 step 2
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
@@ -146,16 +147,7 @@ function LogUnitField({ layer, onSet }) {
 // TASKS.csv #3116 — the same field for a built-in log (project.logValidRange[key].range): range / idKey instead of the layer
 function ValidRangeField({ range, idKey, onSet }) {
   const [lo, hi] = Array.isArray(range) ? range : [null, null];
-  const layer = { id: idKey };
-  const read = (form) => { const a = form.querySelector('[data-end="lo"]').value.trim(), b = form.querySelector('[data-end="hi"]').value.trim(); return [a === "" ? null : Number(a), b === "" ? null : Number(b)]; };
-  const commit = (e) => {
-    const [a, b] = read(e.currentTarget.closest("label"));
-    if ((a != null && !Number.isFinite(a)) || (b != null && !Number.isFinite(b))) return;
-    if (a === (lo ?? null) && b === (hi ?? null)) return;
-    onSet(a == null && b == null ? undefined : [a, b]);
-  };
-  const box = (end, v) => <input key={`${layer?.id}:${end}:${v ?? ""}`} data-end={end} type="number" step="any" defaultValue={v ?? ""} placeholder={end === "lo" ? tr("from") : tr("to")}
-    onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit(e); }} style={{ ...smallSel, width: 70 }} aria-label={end === "lo" ? tr("Valid range from") : tr("Valid range to")} />;
+  const box = (end, v) => <NumberInput allowEmpty value={v ?? null} onChange={(n) => { const a = end === "lo" ? n : (lo ?? null), b = end === "hi" ? n : (hi ?? null); if (a === (lo ?? null) && b === (hi ?? null)) return; onSet(a == null && b == null ? undefined : [a, b]); }} placeholder={end === "lo" ? tr("from") : tr("to")} style={{ ...smallSel, width: 70 }} aria-label={end === "lo" ? tr("Valid range from") : tr("Valid range to")} />;
   return (
     <label style={{ ...row, justifyContent: "flex-start", gap: 6 }} title={tr("Readings outside this range are left out of Downhole logs, Estimation and Grade shell. Blank: no limit at that end.")}>
       {tr("Valid range")}{box("lo", lo)}{box("hi", hi)}
@@ -169,14 +161,9 @@ function ValidRangeField({ range, idKey, onSet }) {
 // TASKS.csv #3116 — the despike: a moving median along each hole over a typed window (m), stored with the range and applied in sourceAssays,
 // so Downhole logs, Estimation and Grade shell read the same readings. Blank or 0: none. Uncontrolled, as the range.
 function DespikeField({ value, idKey, onSet }) {
-  const commit = (e) => {
-    const t = e.currentTarget.value.trim(), v = t === "" ? 0 : Number(t);
-    if (!Number.isFinite(v) || v < 0 || v === (Number(value) || 0)) return;
-    onSet(v > 0 ? v : undefined);
-  };
   return (
     <label style={{ ...row, justifyContent: "flex-start", gap: 6 }} title={tr("Each reading becomes the median of its hole's readings within this many metres (centred on it): a lone spike takes its neighbours' level. Applied in Downhole logs, Estimation and Grade shell. Blank: none.")}>
-      {tr("Despike (m)")}<input key={`${idKey}:${value ?? ""}`} type="number" min="0" step="any" defaultValue={value || ""} placeholder={tr("none")} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit(e); }} style={{ ...smallSel, width: 70 }} aria-label={tr("Despike window (m)")} />
+      {tr("Despike (m)")}<NumberInput allowEmpty min="0" onChange={(n) => { const v = n ?? 0; if (v < 0 || v === (Number(value) || 0)) return; onSet(v > 0 ? v : undefined); }} value={value || null} placeholder={tr("none")} style={{ ...smallSel, width: 70 }} aria-label={tr("Despike window (m)")} />
     </label>
   );
 }
@@ -352,13 +339,13 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 <select value={rankStat} onChange={(e) => setRankStat(e.target.value)} style={smallSel} aria-label={tr("Rank codes by")}>
                   <option value="median">{tr("Median")}</option><option value="mean">{tr("Mean")}</option><option value="p90">P90</option><option value="above">{tr("Share above a value")}</option>
                 </select>
-                {rankStat === "above" && <input type="number" step="any" value={rankAbove} onChange={(e) => setRankAbove(e.target.value)} aria-label={tr("Value the share is counted above")} style={{ ...smallSel, width: 70 }} />}
+                {rankStat === "above" && <NumberInput allowEmpty value={rankAbove} onChange={(v) => setRankAbove(v == null ? "" : String(v))} aria-label={tr("Value the share is counted above")} style={{ ...smallSel, width: 70 }} />}
               </label>{/* #2393 */}
               <div style={note}>{rankStat === "above"
                 ? tr("Share of readings above {v} per code, highest first: {list}.", { v: rankAbove, list: (ranked.common.length ? ranked.common : groups).slice(0, 8).map((g) => `${g.key === NOT_LOGGED ? tr("(not logged)") : g.key} ${Math.round(g.value)}% (${fmtNum((g.nAbove ?? 0))} of ${fmtNum(g.n)})`).join(" · ") })
                 : tr(rankStat === "mean" ? "Mean per code, highest first: {list}." : rankStat === "p90" ? "P90 per code, highest first: {list}." : "Median per code, highest first: {list}.", { list: (ranked.common.length ? ranked.common : groups).slice(0, 8).map((g) => `${codeLabel(g.key)} ${Number(g.value.toPrecision(3))}`).join(" · ") /* #2401; #2951: codes under the minimum count left out */ })}</div>
               <label style={{ ...row, justifyContent: "flex-start", gap: 6 }}>{tr("Minimum count")}
-                <input type="number" min={1} step={1} value={minCountText} onChange={(e) => setMinCountText(e.target.value)} style={{ ...smallSel, width: 70 }} aria-label={tr("Minimum count of a code")} />
+                <NumberInput min={1} step={1} value={minCountText} onChange={(v) => setMinCountText(v == null ? "" : String(v))} style={{ ...smallSel, width: 70 }} aria-label={tr("Minimum count of a code")} />
               </label>
               {table.some((r) => r.n < minCount) && <div style={note}>{tr(source?.binM ? "{k} code(s) with fewer than {n} bins are greyed and listed last." : "{k} code(s) with fewer than {n} readings are greyed and listed last.", { k: table.filter((r) => r.n < minCount).length, n: fmtNum(minCount) })}</div>}{/* counted in the table: it lists every code, the box plot only those of 3 or more */}
               <CodeTable rows={table} order={ranked.all.map((g) => g.key)} minCount={minCount} unit={unitOf(source.unit)} binned={!!source?.binM} keptScope={keptScope} />

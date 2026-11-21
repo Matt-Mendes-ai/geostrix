@@ -8,6 +8,7 @@ import fs from "node:fs";
 const src = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const DONE = [
   "src/components/AssayStyleModal.jsx", "src/components/BestIntercepts.jsx", "src/components/CompositingModal.jsx",
+  "src/components/DataQCModal.jsx", "src/components/DomainCaps.jsx", "src/components/DownholeLogsPane.jsx", "src/components/EndInOreList.jsx",
 ];
 
 test("#3926 G1: converted files have no <input type=\"number\"> left and import NumberInput", () => {
@@ -25,6 +26,6 @@ test("#3926 G1: no step=\"any\" is passed on (the arrow keys use a numeric step)
     assert.ok(!/<NumberInput [^>]*step="any"/.test(s), `${f}: step any`);
   }
   const bi = src("src/components/BestIntercepts.jsx");
-  assert.match(bi, /<NumberInput allowEmpty value=\{includeCutoff === "" \? null/);
-  assert.match(bi, /<NumberInput allowEmpty value=\{topCutKept === "" \? null/);
+  assert.match(bi, /<NumberInput allowEmpty min="0" value=\{includeCutoff === "" \? null/);
+  assert.match(bi, /<NumberInput allowEmpty min="0" value=\{topCutKept === "" \? null/);
 });
