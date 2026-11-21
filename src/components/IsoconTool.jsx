@@ -18,6 +18,7 @@ import { codeIndex, codeAt } from "../lib/sampleLithology.js"; // TASKS.csv #276
 import { holesMatching } from "../lib/holeFilter.js"; // #1521
 import { LAYER_META } from "../lib/layers.js"; // #1521
 import { isoconRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 // TASKS.csv #23 — Isocon / mass-balance calculator (Grant 1986; MacLean & Barrett 1993).
 //
@@ -192,10 +193,10 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
               <select value={flt.sym} onChange={(e) => setFlt((f) => ({ ...f, sym: e.target.value }))} style={sel} aria-label={tr("Element")} title={tr("An element or index whose value must lie in the range")}>
                 <option value="">{tr("— any element —")}</option>{symbols.map((s) => <option key={s} value={s}>{elementOptionLabel(s, elementUnits[s]) /* #2914 */}</option>)}
               </select>
-              {flt.sym && <><input type="number" step="any" placeholder={tr("min")} value={flt.min} onChange={(e) => setFlt((f) => ({ ...f, min: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Minimum")} /><input type="number" step="any" placeholder={tr("max")} value={flt.max} onChange={(e) => setFlt((f) => ({ ...f, max: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Maximum")} /><span style={{ color: "var(--color-text-muted)" }}>{elementUnits[flt.sym] || "ppm"}</span></>}
+              {flt.sym && <><NumberInput allowEmpty placeholder={tr("min")} value={flt.min} onChange={(v) => setFlt((f) => ({ ...f, min: v == null ? "" : String(v) }))} style={{ ...sel, width: 80 }} aria-label={tr("Minimum")} /><NumberInput allowEmpty placeholder={tr("max")} value={flt.max} onChange={(v) => setFlt((f) => ({ ...f, max: v == null ? "" : String(v) }))} style={{ ...sel, width: 80 }} aria-label={tr("Maximum")} /><span style={{ color: "var(--color-text-muted)" }}>{elementUnits[flt.sym] || "ppm"}</span></>}
               <input placeholder={tr("Holes (PS-26, GS-21)")} value={flt.holes} onChange={(e) => setFlt((f) => ({ ...f, holes: e.target.value }))} style={{ ...sel, width: 140 }} aria-label={tr("Holes")} />
-              <input type="number" step="any" placeholder={tr("from m")} value={flt.from} onChange={(e) => setFlt((f) => ({ ...f, from: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Depth from (m)")} />
-              <input type="number" step="any" placeholder={tr("to m")} value={flt.to} onChange={(e) => setFlt((f) => ({ ...f, to: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Depth to (m)")} />
+              <NumberInput allowEmpty placeholder={tr("from m")} value={flt.from} onChange={(v) => setFlt((f) => ({ ...f, from: v == null ? "" : String(v) }))} style={{ ...sel, width: 80 }} aria-label={tr("Depth from (m)")} />
+              <NumberInput allowEmpty placeholder={tr("to m")} value={flt.to} onChange={(v) => setFlt((f) => ({ ...f, to: v == null ? "" : String(v) }))} style={{ ...sel, width: 80 }} aria-label={tr("Depth to (m)")} />
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <span>{tr("{n} intervals match", { n: matchIds.length.toLocaleString() })}</span>

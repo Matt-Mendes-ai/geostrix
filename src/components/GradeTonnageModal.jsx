@@ -35,6 +35,7 @@ import { sameLattice, densityFromModel, isDensityModel } from "../lib/densityFro
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #2550 — the code intervals placed in 3D
 import { setMembersOf } from "../lib/estimateSet.js"; // TASKS.csv #3014 part b
 import { setJoin, applyLimits, memberMeans, memberMeansByBench, memberMeanColumns, memberMetal, memberMetalColumns /* #3274 */ } from "../lib/setLimits.js"; // TASKS.csv #3014 part b
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : fmtNum(v, { maximumFractionDigits: d }));
 const sig = (v) => (v == null || !Number.isFinite(v) ? "—" : fmtNum(Number(v.toPrecision(3))));
@@ -251,7 +252,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           <label style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 260 }}>{tr("Cutoffs ({unit})", { unit: unitL || tr("no unit stated") })}
             <input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} style={{ ...inp, flex: 1 }} aria-label={tr("Cutoffs, separated by commas")} /></label>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Density (t/m³)")}
-            <input type="number" min={0} step={0.01} value={density} placeholder={tr("required for tonnes")} onChange={(e) => { setDensity(e.target.value); setFromSg(false); }} style={{ ...inp, width: 120 }} /></label>
+            <NumberInput allowEmpty min={0} step={0.01} value={density} placeholder={tr("required for tonnes")} onChange={(v) => { setDensity(v == null ? "" : String(v)); setFromSg(false); }} style={{ ...inp, width: 120 }} /></label>
           {(codeLayers.length > 0 || densityModels.length > 0) && <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={tr("A density per code of a logged layer: each block takes the nearest logged interval within {r} m; the Density field is the default for the rest", { r: Math.round(reachM) })}>{tr("Density by")}{/* #2550 */}
             <select value={densityLayer} onChange={(e) => setDensityLayer(e.target.value)} style={{ ...inp, maxWidth: 260 }} aria-label={tr("Density by")}><option value="">{tr("one value")}</option>{codeLayers.map((k) => <option key={k} value={k}>{k === "weath" ? tr("Weathering") : k === "litho" ? tr("Lithology") : tr("Alteration")}</option>)}{densityModels.map((m) => <option key={m.id} value={`model:${m.id}`}>{tr("the block model \"{name}\" (same blocks)", { name: m.name })}</option>)/* #3012 */}</select></label>}
           {sgLayer && <button type="button" style={{ ...inp, cursor: "pointer" }} title={(sgLayer.holes ? tr("The length-weighted mean of the {n} Specific gravity rows of the {h} holes this model was estimated from, {min} to {max}. One value for every block.", { n: sgLayer.n, h: sgLayer.holes, min: sgLayer.min, max: sgLayer.max }) : tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: sgLayer.n, min: sgLayer.min, max: sgLayer.max })) + (sgLayer.methods ? " " + sgMethodsText(sgLayer.methods) : "")} onClick={() => { setDensity(String(sgLayer.mean)); setFromSg(true); }}>{sgLayer.holes ? tr("Use the SG of this model's holes ({v})", { v: sgLayer.mean }) : tr("Use the SG layer's mean ({v})", { v: sgLayer.mean })}</button>}{/* #3595 */}
@@ -272,7 +273,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
             {members.map((m, i) => (
               <label key={m.element} style={{ display: "flex", alignItems: "center", gap: 4 }}>{m.element}
                 <select value={limitList[i].op} onChange={(e) => setLimits((p) => ({ ...p, [m.element]: { ...limitList[i], op: e.target.value } }))} style={inp} aria-label={tr("Limit on {el}", { el: m.element })}><option value="max">≤</option><option value="min">≥</option></select>
-                <input type="number" step="any" value={limitList[i].value} placeholder={tr("none")} onChange={(e) => setLimits((p) => ({ ...p, [m.element]: { ...limitList[i], value: e.target.value } }))} style={{ ...inp, width: 70 }} aria-label={tr("Limit value of {el}", { el: m.element })} />{m.unit ? gradeUnitLabel(m.element, m.unit) : ""}
+                <NumberInput allowEmpty value={limitList[i].value} placeholder={tr("none")} onChange={(v) => setLimits((p) => ({ ...p, [m.element]: { ...limitList[i], value: v == null ? "" : String(v) } }))} style={{ ...inp, width: 70 }} aria-label={tr("Limit value of {el}", { el: m.element })} />{m.unit ? gradeUnitLabel(m.element, m.unit) : ""}
               </label>
             ))}
           </div>
@@ -290,7 +291,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
         </div>}
         {densityLayer && layerCodes.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginBottom: 8, fontSize: "var(--font-size-sm)" }}>{/* #2550 */}
-            {layerCodes.map((code) => <label key={code} title={blockCodes.has(code) ? tr("{n} block(s) of this model take this code", { n: fmtNum(blockCodes.get(code)) }) : tr("No block of this model takes this code")} style={{ display: "flex", alignItems: "center", gap: 4 }}>{code}<input type="number" min={0} step={0.01} value={codeDensity[code] ?? ""} placeholder={density || tr("default")} onChange={(e) => setCodeDensity((p) => ({ ...p, [code]: e.target.value }))} aria-label={tr("Density of {code} (t/m³)", { code })} style={{ ...inp, width: 70 }} /></label>)}
+            {layerCodes.map((code) => <label key={code} title={blockCodes.has(code) ? tr("{n} block(s) of this model take this code", { n: fmtNum(blockCodes.get(code)) }) : tr("No block of this model takes this code")} style={{ display: "flex", alignItems: "center", gap: 4 }}>{code}<NumberInput allowEmpty min={0} step={0.01} value={codeDensity[code] ?? ""} placeholder={density || tr("default")} onChange={(v) => setCodeDensity((p) => ({ ...p, [code]: v == null ? "" : String(v) }))} aria-label={tr("Density of {code} (t/m³)", { code })} style={{ ...inp, width: 70 }} /></label>)}
             {layerCodesOrdered.length > 30 && <button type="button" onClick={() => setAllCodes((v) => !v)} style={{ ...inp, width: "auto", cursor: "pointer" }}>{allCodes ? tr("Show the first 30") : tr("Show all {n}", { n: layerCodesOrdered.length })}</button>}{/* #3013 */}
           </div>
         )}
@@ -301,8 +302,8 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           {solid && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Count")}
             <select value={insideMode} onChange={(e) => setInsideMode(e.target.value)} style={inp} aria-label={tr("How a block is counted inside")}><option value="centre">{tr("whole blocks by their centre")}</option><option value="share">{tr("the share of each block inside")}</option></select></label>}
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={byBench} onChange={(e) => setByBench(e.target.checked)} />{tr("By bench")}</label>
-          {byBench && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Bench height (m)")}<input type="number" min={0} step="any" value={benchH} onChange={(e) => setBenchH(e.target.value)} style={{ ...inp, width: 70 }} aria-label={tr("Bench height")} /></label>}
-          {byBench && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Datum (m)")}<input type="number" step="any" value={benchDatum} onChange={(e) => setBenchDatum(e.target.value)} placeholder="0" style={{ ...inp, width: 80 }} aria-label={tr("Bench datum")} /></label>}
+          {byBench && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Bench height (m)")}<NumberInput allowEmpty min={0} value={benchH} onChange={(v) => setBenchH(v == null ? "" : String(v))} style={{ ...inp, width: 70 }} aria-label={tr("Bench height")} /></label>}
+          {byBench && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Datum (m)")}<NumberInput allowEmpty value={benchDatum} onChange={(v) => setBenchDatum(v == null ? "" : String(v))} placeholder="0" style={{ ...inp, width: 80 }} aria-label={tr("Bench datum")} /></label>}
           {byBench && cutoffs.length > 1 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("at cutoff")}<select value={benchCut ?? ""} onChange={(e) => setBenchCutoff(e.target.value)} style={inp} aria-label={tr("Cutoff of the bench table")}>{cutoffs.map((c) => <option key={c} value={c}>{sig(c)}</option>)}</select></label>}
         </div>
         {solid && inside && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{insideMode === "share"

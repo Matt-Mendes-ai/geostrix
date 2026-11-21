@@ -7,6 +7,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2367 — the custom layer's rows, for its default range
 import { customScaleDefault } from "../lib/customColour.js"; // TASKS.csv #2367
 import { useDragPanel } from "../lib/useDragPanel.js"; // TASKS.csv #3058
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 // TASKS.csv #635 — "edit the styles of each layer, colour, size, type (circle, plane, cylinder)". A small floating
 // panel (not a blocking dialog) beside the 3D view, so every change is seen live; changes apply as they are made
@@ -34,7 +35,7 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
   const customId = String(target.key || "").startsWith("custom:") ? target.key.slice(7) : null;
   const customLayer = customId ? customLayers.find((l) => String(l.id) === customId) : null;
   const ramp = React.useMemo(() => (customLayer && !style?.color ? customScaleDefault(customLayer, style?.colourBy || "value") : null), [customLayer, style?.color, style?.colourBy]);
-  const numIn = (k) => (e) => onChange({ [k]: e.target.value === "" ? null : Number(e.target.value) });
+  const numIn = (k) => (v) => onChange({ [k]: v ?? null }); // TASKS.csv #3926 — NumberInput gives the number (null when emptied)
   const lbl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 74, flexShrink: 0 };
   const row = { display: "flex", alignItems: "center", gap: 8, marginBottom: 10 };
   // TASKS.csv #3058 — opens in the middle of the window (it was pinned at the far right, where it went unseen) and drags by its header
@@ -96,15 +97,15 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
             {ramp?.numeric && !st.color && ( /* TASKS.csv #2367 */
               <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Range")}
-                  <input type="number" step="any" value={style?.rampMin ?? ""} placeholder={String(+ramp.min.toPrecision(4))} onChange={numIn("rampMin")} aria-label={tr("Colour range from")} style={{ width: 70, padding: "2px 4px" }} />–
-                  <input type="number" step="any" value={style?.rampMax ?? ""} placeholder={String(+ramp.max.toPrecision(4))} onChange={numIn("rampMax")} aria-label={tr("Colour range to")} style={{ width: 70, padding: "2px 4px" }} />
+                  <NumberInput allowEmpty value={style?.rampMin ?? null} placeholder={String(+ramp.min.toPrecision(4))} onChange={numIn("rampMin")} aria-label={tr("Colour range from")} style={{ width: 70, padding: "2px 4px" }} />–
+                  <NumberInput allowEmpty value={style?.rampMax ?? null} placeholder={String(+ramp.max.toPrecision(4))} onChange={numIn("rampMax")} aria-label={tr("Colour range to")} style={{ width: 70, padding: "2px 4px" }} />
                 </label>
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Blank: the 2nd-98th percentile; the data run {a} to {b}.", { a: String(+ramp.dataMin.toPrecision(4)), b: String(+ramp.dataMax.toPrecision(4)) })}</div>
                 <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Scale")}
                   <select value={style?.rampScale || ""} onChange={(e) => onChange({ rampScale: e.target.value || null })} aria-label={tr("Colour scale")} style={{ padding: "2px 4px" }}>
                     <option value="">{tr("auto (log over a decade)")}</option><option value="linear">{tr("linear")}</option><option value="log">{tr("log")}</option>
                   </select>
-                  {tr("Classes")}<input type="number" min="0" max="12" step="1" value={style?.classes ?? ""} placeholder={tr("none")} onChange={numIn("classes")} aria-label={tr("Number of colour classes")} style={{ width: 64, padding: "2px 4px" }} />{/* #3280 (6) — 50 px cut "none" to "non" */}
+                  {tr("Classes")}<NumberInput allowEmpty min="0" max="12" step="1" value={style?.classes ?? null} placeholder={tr("none")} onChange={numIn("classes")} aria-label={tr("Number of colour classes")} style={{ width: 64, padding: "2px 4px" }} />{/* #3280 (6) — 50 px cut "none" to "non" */}
                 </label>
               </div>
             )}

@@ -4,6 +4,7 @@
 import React, { useMemo, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 import { oxideTotals, outsideTolerance, totalsHistogram, setTotalExclusion } from "../lib/oxideTotals.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : v.toFixed(2));
 const LIST_MAX = 50;
@@ -45,8 +46,8 @@ export default function OxideTotalsTab({ assays, majors, setAssays, sel, tabBtn 
         </svg>
       )}
       {!partial && <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>{/* no tolerance on a partial sum: #3225 */}
-        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Total below (%)")}<input type="number" step="any" value={lo} onChange={(e) => setLo(e.target.value)} placeholder={tr("none")} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
-        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Total above (%)")}<input type="number" step="any" value={hi} onChange={(e) => setHi(e.target.value)} placeholder={tr("none")} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
+        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Total below (%)")}<NumberInput allowEmpty value={lo} onChange={(v) => setLo(v == null ? "" : String(v))} placeholder={tr("none")} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
+        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Total above (%)")}<NumberInput allowEmpty value={hi} onChange={(v) => setHi(v == null ? "" : String(v))} placeholder={tr("none")} style={{ ...sel, display: "block", marginTop: 4, width: 90 }} /></label>
         <span style={{ fontSize: "var(--font-size-sm)" }}>{lo === "" && hi === "" ? tr("Type a tolerance to list the samples outside it.") : tr("{n} sample(s) outside the tolerance.", { n: out.length.toLocaleString() })}</span>
       </div>}
       {over.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{n} oxide value(s) over 100 % (impossible as wt%): {list}.", { n: over.length, list: over.slice(0, 5).map((o) => `${where(o.a)} ${o.oxide} ${fmt(o.value)} %`).join("; ") + (over.length > 5 ? " …" : "") })}</div>}

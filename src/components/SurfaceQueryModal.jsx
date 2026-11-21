@@ -16,6 +16,7 @@ import { excludeQAQC } from "../lib/qaqc.js";
 import { sampledByHole, sampledMetres } from "../lib/insideSampling.js"; // TASKS.csv #2626
 import { pointFromInputs } from "../lib/pointInput.js"; // TASKS.csv #1743
 import { buildVoxelLookup, sampleModelOnHoles, holesInBlockModel } from "../lib/voxelSample.js"; // TASKS.csv #2727
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 // TASKS.csv #146 — DISTANCE-TO-SURFACE / POINT-IN-DOMAIN QUERY AND REPORTING.
 //
@@ -291,7 +292,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
               <option value="">{tr("— none —")}</option>
               {blockModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select></label>
-            {bm && <label style={rowLabel}>{tr("Cutoff ({unit})", { unit: bmUnit || "—" })}<input type="number" step="any" value={bmCut} onChange={(e) => setBmCut(e.target.value)} placeholder={tr("none")} style={{ ...sel, width: 90 }} aria-label={tr("Cutoff of the block model")} /></label>}
+            {bm && <label style={rowLabel}>{tr("Cutoff ({unit})", { unit: bmUnit || "—" })}<NumberInput allowEmpty value={bmCut} onChange={(v) => setBmCut(v == null ? "" : String(v))} placeholder={tr("none")} style={{ ...sel, width: 90 }} aria-label={tr("Cutoff of the block model")} /></label>}
           </div>
           {bm && tab === "holes" && (bmRows.length ? <div style={{ maxHeight: "32vh", overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}><table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
             <thead><tr>{[tr("Hole"), tr("In the model (m)"), ...(bmCutoff != null ? [tr("At or above {c} {unit} (m)", { c: bmCutoff, unit: bmUnit }), tr("Mean there ({unit})", { unit: bmUnit })] : [])].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>

@@ -115,6 +115,7 @@ import { tieOf, fileToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
 import { isMineSource, mineSourceOf, mineSourceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2684 — 'Local mine grid' as the samples' Source CRS
 import { flagColumns, flagQualifier, censoredSamples } from "../lib/assayFlags.js"; // TASKS.csv #2018
 import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2016
+import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926
 const VECTOR_FILE = /\.(shp|zip|gpkg|kml|kmz)$/i; // #2016 — sample points from GIS files
 const OWN_CRS = "(own CRS)"; // #2016 — sourceEpsgFrom when the CRS came from a .prj / GeoPackage SRS, not a column
 const SHP_GROUP = (list) => groupShapefileParts(list).files; // a .shp with its .dbf / .prj / .cpg as one file (#2121's rule)
@@ -1584,7 +1585,7 @@ export default function GeochemModule() {
               ))}
               {/* TASKS.csv #2353 — a 1:1 line and the numbers a log-against-assay check reads */}
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}><input type="checkbox" checked={!!xyOne} onChange={(e) => setXyOne(e.target.checked)} />{tr("1:1 line")}</label>
-              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Statistics where X ≥")}<input type="number" step="any" value={xyMin} onChange={(e) => setXyMin(e.target.value)} aria-label={tr("Statistics where X is at least")} style={{ ...selectStyle, width: 80, padding: "4px 6px" }} /></label>
+              <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Statistics where X ≥")}<NumberInput allowEmpty value={xyMin} onChange={(v) => setXyMin(v == null ? "" : String(v))} aria-label={tr("Statistics where X is at least")} style={{ ...selectStyle, width: 80, padding: "4px 6px" }} /></label>
               <label style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("A least-squares line of Y on X over the samples counted below (X ≥ the value typed), with its equation and r²")}><input type="checkbox" checked={!!xyFit} onChange={(e) => setXyFit(e.target.checked)} />{tr("Fit line")}</label>{/* #3577 */}
               {xyStat && !xyStat.ratioOk && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("n {n} · Spearman {r} · median Y {m} · mean Y {w}", { n: fmtNum(xyStat.n), r: Number.isFinite(xyStat.r) ? xyStat.r.toFixed(2) : "—", m: Number.isFinite(xyStat.medianY) ? +xyStat.medianY.toPrecision(4) : "—", w: Number.isFinite(xyStat.meanY) ? +xyStat.meanY.toPrecision(4) : "—" })}</span>}{/* #3577 — a density against a grade has no Y / X */}
               {xyFit && xyStat?.fit && <span style={{ fontSize: 11.5, color: "#2a3444" }} role="status">{tr("Fit: Y = {a} × X {sign} {b} · r² {r2} · n {n}", { a: +xyStat.fit.slope.toPrecision(4), sign: xyStat.fit.intercept < 0 ? "−" : "+", b: +Math.abs(xyStat.fit.intercept).toPrecision(4), r2: xyStat.fit.r2.toFixed(3), n: xyStat.fit.n.toLocaleString() })}</span>}
@@ -1600,7 +1601,7 @@ export default function GeochemModule() {
                     <optgroup label={tr("Elements")}>{assayElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.unit ? `${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})` : e.symbol}</option>)}</optgroup>
                     {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unitLabel || c.unit})`) ? `${c.label} (${c.unitLabel || c.unit})` : c.label /* #3564 — one name and one unit for a log wherever it is listed */}</option>)}</optgroup>}
                   </select>
-                  <span aria-hidden="true">×</span><input type="number" min="0" step="any" value={ternK?.[i] ?? "1"} onChange={(e) => setTernK([0, 1, 2].map((j) => (j === i ? e.target.value : ternK?.[j] ?? "1")))} aria-label={tr("{corner} factor", { corner })} title={tr("A factor for this corner (0.01 for Ti/100, 3 for Y×3)")} style={{ ...selectStyle, width: 58, padding: "4px 6px" }} />
+                  <span aria-hidden="true">×</span><NumberInput allowEmpty min="0" value={ternK?.[i] ?? "1"} onChange={(v) => setTernK([0, 1, 2].map((j) => (j === i ? (v == null ? "" : String(v)) : ternK?.[j] ?? "1")))} aria-label={tr("{corner} factor", { corner })} title={tr("A factor for this corner (0.01 for Ti/100, 3 for Y×3)")} style={{ ...selectStyle, width: 58, padding: "4px 6px" }} />
                 </label>
               ))}
             </>
