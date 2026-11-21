@@ -9,6 +9,8 @@ const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8"
 // files whose number boxes are all converted (none left as <input type="number">), with how many NumberInputs each has
 const DONE = {
   "modules/viewer/ModellingPanes.jsx": 31,
+  "components/GradeEstimationModal.jsx": 18,
+  "components/VariogramModal.jsx": 11,
 };
 
 test("every G3 box in these files is a NumberInput", () => {
@@ -38,4 +40,17 @@ test("ModellingPanes: empty keeps 'auto' / 'fit' / 'none' / 'cubic'; the clamps 
   assert.match(p, /allowEmpty value=\{Number\.isFinite\(numericCapValue\) \? numericCapValue : null\} onChange=\{\(v\) => setNumericCapValue\(v == null \? NaN : v\)\}/);
   // the cell height: empty = cubic; 0 is refused by the min (it was cubic silently)
   assert.match(p, /allowEmpty value=\{gt \|\| numericCellHeight === "" \|\| numericCellHeight == null \? null : numericCellHeight\} disabled=\{!!gt\} placeholder=\{gt \? tr\("trend"\) : tr\("cubic"\)\} onChange=\{\(v\) => \{ setNumericCellHeight\(v == null \? "" : v\); setNumericBudgetHint\(null\); \}\}/);
+});
+
+test("Grade estimation and the variogram: the clamps are min / max; empty keeps none / fit / cubic / sphere; text state stays text", () => {
+  const g = read("components/GradeEstimationModal.jsx");
+  assert.match(g, /<NumberInput min="1" value=\{minSamples\} onChange=\{\(n\) => setMinSamples\(n\)\}/);
+  assert.match(g, /allowEmpty value=\{Number\.isFinite\(capValue\) \? capValue : null\} onChange=\{\(n\) => \{ const v = n == null \? NaN : n; capClearedFor\.current/);
+  assert.match(g, /allowEmpty value=\{hgMin === "" \|\| hgMin == null \? null : hgMin\} onChange=\{\(n\) => setHgMin\(n == null \? "" : String\(n\)\)\}/);
+  assert.match(g, /allowEmpty value=\{matched \|\| cellHeight === "" \|\| cellHeight == null \? null : cellHeight\}/);
+  assert.match(g, /setMemberCaps\(\(m\) => \(\{ \.\.\.m, \[el\]: x \}\)\); setResult\(null\);/);
+  const v = read("components/VariogramModal.jsx");
+  assert.match(v, /<NumberInput min="3" max="60" step="1" value=\{nLags\} onChange=\{\(n\) => setNLags\(Math\.round\(n\)\)\}/);
+  assert.match(v, /<NumberInput min="1" max="89" value=\{angleTol\} onChange=\{\(n\) => setAngleTol\(n\)\}/);
+  assert.match(v, /allowEmpty value=\{planeHalf === "" \|\| planeHalf == null \? null : planeHalf\} placeholder=\{String\(compositeLength\)\} onChange=\{\(n\) => setPlaneHalf\(n == null \? "" : n\)\}/);
 });

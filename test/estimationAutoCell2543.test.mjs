@@ -33,5 +33,5 @@ test("the dialog carries that rule", () => {
   const s = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(s, /if \(!cellTouched\.current\) \{ cellTouched\.current = true; setAutoCell\(fitCell\); setCellSize\(fitCell\); return; \}/);
   assert.match(s, /if \(!cellTyped\.current && \(autoCell == null \|\| cellSize === autoCell\) && fitCell > cellSize\) \{ setAutoCell\(fitCell\); setCellSize\(fitCell\); \}/); // #3706
-  assert.match(s, /onChange=\{\(e\) => \{ cellTouched\.current = true; cellTyped\.current = true; setAutoCell\(null\);/, "typing clears the auto cell and marks the cell typed");
+  assert.match(s, /onChange=\{\(n\) => \{ cellTouched\.current = true; cellTyped\.current = true; setAutoCell\(null\);/, "typing clears the auto cell and marks the cell typed");
 });

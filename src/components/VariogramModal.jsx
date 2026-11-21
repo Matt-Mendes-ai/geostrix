@@ -30,6 +30,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1841
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // TASKS.csv #1571; foldDomainRows: #2427
 import UnsampledChoice, { useUnsampled, unsampledResultLine } from "./UnsampledChoice.jsx"; // TASKS.csv #2417 / #2542
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 // TASKS.csv #147 — variogram / spatial-continuity analysis per domain.
 //
@@ -315,10 +316,10 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s] || "ppm")})</option>)}{/* #2429 */}
               </select>
             </label>
-            <label style={fieldLabel} title={tr("A variogram assumes a common support — every sample the same volume. Compositing to a fixed length is what provides that; raw ragged intervals do not.")}>{tr("Composite length (m)")}<input type="number" min="0.1" step="any" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
+            <label style={fieldLabel} title={tr("A variogram assumes a common support — every sample the same volume. Compositing to a fixed length is what provides that; raw ragged intervals do not.")}>{tr("Composite length (m)")}<NumberInput min="0.1" value={compositeLength} onChange={(n) => setCompositeLength(n)} style={inp} />
               <CompositeLengthNote assays={srcAssays} symbol={symbol} length={compositeLength} onUse={(m) => { setCompositeLength(m); setResult(null); }} variogram />{/* #2549 */}
             </label>
-            <label style={fieldLabel} title={tr("Minimum fraction of a composite that must be covered by real assay material.")}>{tr("Min coverage (%)")}<input type="number" min="0" max="100" step="1" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100)} style={inp} />{/* #3286 (7) — in %, as Estimation's */}
+            <label style={fieldLabel} title={tr("Minimum fraction of a composite that must be covered by real assay material.")}>{tr("Min coverage (%)")}<NumberInput min="0" max="100" step="1" value={Math.round(minCoverage * 100)} onChange={(n) => setMinCoverage(n / 100)} style={inp} />{/* #3286 (7) — in %, as Estimation's */}
             </label>
             <label style={fieldLabel}>{tr("Domain layer")}<select value={domainKey} onChange={(e) => { setDomainKey(e.target.value); setDomainValue("__all__"); }} style={inp}>
                 <option value="">{tr("(none)")}</option>
@@ -347,14 +348,14 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 <option value="dowd">{tr("Dowd (median, robust)")}</option>
               </select></label>{/* #1996 */}
             {transform === "cap" && (
-              <label style={fieldLabel}>{tr("Cap percentile")}<input type="number" min="50" max="100" step="0.5" value={capPercentile} onChange={(e) => setCapPercentile(Math.min(100, Math.max(50, Number(e.target.value) || 98)))} style={inp} />
+              <label style={fieldLabel}>{tr("Cap percentile")}<NumberInput min="50" max="100" step="0.5" value={capPercentile} onChange={(n) => setCapPercentile(n)} style={inp} />
               </label>
             )}
-            <label style={fieldLabel} title={tr("Bin width. Leave 0 for a quarter of the median spacing between holes (the distance from a composite to the nearest composite in another hole), as ordinary kriging's automatic fit uses, or, with downhole-only pairs, the downhole spacing.")}>{tr("Lag distance (m, 0 = auto)")}<input type="number" min="0" step="any" value={lagDistance} onChange={(e) => setLagDistance(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            <label style={fieldLabel} title={tr("Bin width. Leave 0 for a quarter of the median spacing between holes (the distance from a composite to the nearest composite in another hole), as ordinary kriging's automatic fit uses, or, with downhole-only pairs, the downhole spacing.")}>{tr("Lag distance (m, 0 = auto)")}<NumberInput min="0" value={lagDistance} onChange={(n) => setLagDistance(n)} style={inp} />
             </label>
-            <label style={fieldLabel} title={tr("Number of lag bins. lags x lag distance should be about half the field's extent — beyond that, pair counts collapse and the plot is noise.")}>{tr("Number of lags")}<input type="number" min="3" max="60" step="1" value={nLags} onChange={(e) => setNLags(Math.min(60, Math.max(3, Math.round(Number(e.target.value) || 12))))} style={inp} />
+            <label style={fieldLabel} title={tr("Number of lag bins. lags x lag distance should be about half the field's extent — beyond that, pair counts collapse and the plot is noise.")}>{tr("Number of lags")}<NumberInput min="3" max="60" step="1" value={nLags} onChange={(n) => setNLags(Math.round(n))} style={inp} />
             </label>
-            <label style={fieldLabel} title={tr("Half-width of a bin as a fraction of the lag distance. 0.5 = contiguous bins (the usual choice).")}>{tr("Lag tolerance")}<input type="number" min="0.1" max="1" step="0.05" value={lagTolerance} onChange={(e) => setLagTolerance(Math.min(1, Math.max(0.1, Number(e.target.value) || 0.5)))} style={inp} />
+            <label style={fieldLabel} title={tr("Half-width of a bin as a fraction of the lag distance. 0.5 = contiguous bins (the usual choice).")}>{tr("Lag tolerance")}<NumberInput min="0.1" max="1" step="0.05" value={lagTolerance} onChange={(n) => setLagTolerance(n)} style={inp} />
             </label>
             <label style={fieldLabel} title={tr("Downhole-only pairs are the classic way to resolve the nugget — only samples in the same hole get close enough together to see it.")}>{tr("Pairs")}<select value={holeMode} onChange={(e) => setHoleMode(e.target.value)} style={inp}>
                 <option value="all">{tr("All pairs")}</option>
@@ -373,13 +374,13 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               <input type="checkbox" checked={directional} onChange={(e) => setDirectional(e.target.checked)} />{tr("Directional variogram (same azimuth / dip convention as the anisotropy and search-ellipsoid fields)")}</label>
             {directional && (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
-                <label style={fieldLabel}>{tr("Azimuth (deg)")}<input type="number" step="any" value={azimuth} onChange={(e) => setAzimuth(Number(e.target.value) || 0)} style={inp} />
+                <label style={fieldLabel}>{tr("Azimuth (deg)")}<NumberInput value={azimuth} onChange={(n) => setAzimuth(n)} style={inp} />
                 </label>
-                <label style={fieldLabel}>{tr("Dip (deg below horizontal)")}<input type="number" step="any" value={dip} onChange={(e) => setDip(Number(e.target.value) || 0)} style={inp} />
+                <label style={fieldLabel}>{tr("Dip (deg below horizontal)")}<NumberInput value={dip} onChange={(n) => setDip(n)} style={inp} />
                 </label>
-                <label style={fieldLabel} title={tr("Half-angle of the cone of accepted pair directions. Too tight and there are no pairs; too wide and the direction means nothing.")}>{tr("Angular tolerance (deg)")}<input type="number" min="1" max="89" step="any" value={angleTol} onChange={(e) => setAngleTol(Math.min(89, Math.max(1, Number(e.target.value) || 22.5)))} style={inp} />
+                <label style={fieldLabel} title={tr("Half-angle of the cone of accepted pair directions. Too tight and there are no pairs; too wide and the direction means nothing.")}>{tr("Angular tolerance (deg)")}<NumberInput min="1" max="89" value={angleTol} onChange={(n) => setAngleTol(n)} style={inp} />
                 </label>
-                <label style={fieldLabel} title={tr("Caps how far a pair may sit off the direction line. Without it, a wide cone swallows far off-axis pairs at long lags. 0 = no cap.")}>{tr("Bandwidth (m, 0 = none)")}<input type="number" min="0" step="any" value={bandwidth} onChange={(e) => setBandwidth(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+                <label style={fieldLabel} title={tr("Caps how far a pair may sit off the direction line. Without it, a wide cone swallows far off-axis pairs at long lags. 0 = no cap.")}>{tr("Bandwidth (m, 0 = none)")}<NumberInput min="0" value={bandwidth} onChange={(n) => setBandwidth(n)} style={inp} />
                 </label>
               </div>
             )}
@@ -397,7 +398,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                     {flatSurfaces.length > 0 && <optgroup label={tr("Below a generated surface (flattened)")}>{flatSurfaces.map((x) => <option key={x.id} value={`surface:${x.id}`}>{flatLabels.get(x.id) ?? x.name}</option>)}</optgroup>}{/* #2710 */}
                   </select>
                 </label>
-                <label style={fieldLabel} title={tr("How far a pair may sit across the plane. Blank = the composite length.")}>{tr("Half-width across it (m)")}<input type="number" min="0" step="any" value={planeHalf} placeholder={String(compositeLength)} onChange={(e) => setPlaneHalf(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} style={inp} aria-label={tr("Half-width across the plane (m)")} />
+                <label style={fieldLabel} title={tr("How far a pair may sit across the plane. Blank = the composite length.")}>{tr("Half-width across it (m)")}<NumberInput min="0" allowEmpty value={planeHalf === "" || planeHalf == null ? null : planeHalf} placeholder={String(compositeLength)} onChange={(n) => setPlaneHalf(n == null ? "" : n)} style={inp} aria-label={tr("Half-width across the plane (m)")} />
                 </label>
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 200px" }}>{tr("Pairs within ± {w} m of the plane {p}.", { w: Number(planeHalf) > 0 ? Number(planeHalf) : compositeLength, p: pl.label })}</span>
               </div>); })()}
