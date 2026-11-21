@@ -20,7 +20,7 @@ test("outcrop-only types keep the file's own text", () => {
 
 test("the dialog filters by key, keeps the type across Source changes, and opens outcrop poles with Both", () => {
   const src = readFileSync(new URL("../src/components/StereonetModal.jsx", import.meta.url), "utf8");
-  assert.match(src, /domainScoped\.filter\(\(p\) => keepPick\(p, typeFilter, areaFilter\)\)/);
+  assert.match(src, /placed\.filter\(\(p\) => keepPick\(p, typeFilter, areaFilter\)\)/);
   assert.doesNotMatch(src, /setSource\(e\.target\.value\); setTypeFilter\("all"\)/);
   assert.match(src, /if \(typeFilter !== "all" && !types\.includes\(typeFilter\) && !classList\.some\(\(c\) => c\.key === typeFilter\)\) setTypeFilter\("all"\)/);
   assert.match(src, /open = both && p\.outcrop/);

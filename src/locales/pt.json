@@ -14345,5 +14345,10 @@
   "of the {n} mineralised samples (≥ {cut})": "das {n} amostras mineralizadas (≥ {cut})",
   "of all samples": "de todas as amostras",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} m desses furos não tinham nenhum ponto a menos de {d} m e ficaram vazios.",
-  "Import as a block model": "Importar como modelo de blocos"
+  "Import as a block model": "Importar como modelo de blocos",
+  "Only readings in the view": "Somente leituras na vista",
+  "Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)": "Somente as leituras cujo colar ou ponto de afloramento está agora na janela da vista 3D (um ponto do terreno no nível da cena)",
+  "Inside a boundary": "Dentro de um limite",
+  "Boundary the readings are inside": "Limite dentro do qual estão as leituras",
+  "Anywhere": "Em qualquer lugar"
 }

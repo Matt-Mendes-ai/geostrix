@@ -14345,5 +14345,10 @@
   "of the {n} mineralised samples (≥ {cut})": "من العينات المتمعدنة الـ{n} (≥ {cut})",
   "of all samples": "من كل العينات",
   "{m} m of those holes had no point within {d} m and were left empty.": "{m} م من تلك الثقوب لم تكن فيها أي نقطة ضمن {d} م فتُركت فارغة.",
-  "Import as a block model": "استيراد كنموذج كتل"
+  "Import as a block model": "استيراد كنموذج كتل",
+  "Only readings in the view": "القراءات الظاهرة في العرض فقط",
+  "Only the readings whose collar or outcrop point is in the 3D View's window now (a ground point at the scene's level)": "فقط القراءات التي تقع فوهتها أو نقطة تكشفها في نافذة العرض ثلاثي الأبعاد الآن (نقطة أرضية عند مستوى المشهد)",
+  "Inside a boundary": "داخل حدّ",
+  "Boundary the readings are inside": "الحدّ الذي تقع القراءات داخله",
+  "Anywhere": "في أي مكان"
 }
