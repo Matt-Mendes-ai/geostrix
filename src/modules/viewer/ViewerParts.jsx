@@ -86,7 +86,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${openPopover === "model" ? "active" : ""}`} aria-expanded={openPopover === "model"} aria-haspopup="menu" onClick={() => toggle("model")}><ModelIcon size={22} color={RIBBON_TONES.model} /><span className="ge-ribbon-label">{tr("Model")}</span></button>
           </HoverToolInfo>
           {openPopover === "model" && (
-            <RibbonMenu label={tr("Model")} onClose={() => setOpenPopover(null)} style={{ ...popoverStyle, width: 220, padding: 6 }}>{/* #3928: focus in, arrows, Escape */}
+            <RibbonMenu label={tr("Model")} onClose={() => setOpenPopover(null)} data-ribbon-popover="" style={{ ...popoverStyle, width: 220, padding: 6 }}>{/* #3928: focus in, arrows, Escape */}
               {GUIDED_MENU.map(([id, label]) => <button key={id} type="button" role="menuitem" onClick={() => { setOpenPopover(null); requestModuleAction("guided-open", { tool: id }); }}
                 style={{ display: "block", width: "100%", textAlign: "start", padding: "6px 8px", border: "none", background: "transparent", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)", fontWeight: id === "start" ? 600 : 400 }}>{tr(label)}</button>)}
             </RibbonMenu>
@@ -99,7 +99,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><GridIcon size={22} color={RIBBON_TONES.view} /><span className="ge-ribbon-label">{tr("Grid")}</span></button>
           </HoverToolInfo>
           {openPopover === "grid" && (
-            <div style={popoverStyle}>
+            <div data-ribbon-popover="" style={popoverStyle}>
               <div style={popoverHeader}>{tr("Grid")}<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), tr("Close the grid settings popover"))} /></div>
               <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>
@@ -128,7 +128,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-expanded={openPopover === "figure"} aria-haspopup="dialog" onClick={() => toggle("figure")}><FigureIcon size={22} color={RIBBON_TONES.view} /><span className="ge-ribbon-label">{tr("Figure")}</span></button>
           </HoverToolInfo>
           {openPopover === "figure" && (
-            <div style={{ ...popoverStyle, width: 268 }}>
+            <div data-ribbon-popover="" style={{ ...popoverStyle, width: 268 }}>
               <div style={popoverHeader}>{tr("Figure overlay")}<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), tr("Close the figure overlay popover"))} /></div>
               <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} style={{ cursor: "pointer", color: figureOverlay.enabled ? "var(--color-accent)" : "var(--color-text-disabled)" }} {...iconAction(() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled })), tr("Toggle the figure overlay"))}>
@@ -176,7 +176,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-expanded={openPopover === "themes"} aria-haspopup="dialog" onClick={() => toggle("themes")}><ThemesIcon size={22} color={RIBBON_TONES.view} /><span className="ge-ribbon-label">{tr("Themes")}</span></button>
           </HoverToolInfo>
           {openPopover === "themes" && (
-            <div style={{ ...popoverStyle, width: 260 }}>
+            <div data-ribbon-popover="" style={{ ...popoverStyle, width: 260 }}>
               <div style={popoverHeader}>{tr("Themes")}<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), tr("Close the themes popover"))} /></div>
               <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                 <input
