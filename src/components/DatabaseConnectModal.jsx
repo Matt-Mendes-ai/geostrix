@@ -12,6 +12,9 @@ import PromptModal from "./PromptModal.jsx";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+// TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
+const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
 // TASKS.csv #925 / #921 — clicking a table imports ALL of it through the Browser panel's guard rails (count first,
 // confirm when large, chunked cursor reads: lib/useTablePull.js). It used to write `SELECT * ... LIMIT 500` into the
@@ -134,7 +137,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
               <input value={config.host} onChange={(e) => set("host", e.target.value)} style={inp} />
             </Field>
             <Field label={tr("Port")}>
-              <input type="number" value={config.port} onChange={(e) => set("port", e.target.value)} style={inp} />
+              <NumberInput allowEmpty value={config.port} onChange={asEvent((e) => set("port", e.target.value))} style={inp} />
             </Field>
             <Field label={tr("Database")}>
               <input value={config.database} onChange={(e) => set("database", e.target.value)} style={inp} />
