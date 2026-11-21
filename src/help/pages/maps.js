@@ -136,8 +136,8 @@ export default [
     warnings: [
       { says: "No layers found in this service's capabilities — double check the URL.", do: "Check the URL, and that WMS or WFS matches the service." },
       { says: "Server response wasn't valid XML — check the URL points at a real WMS/WFS service.", do: "Use the service URL from its documentation, not a viewer page." },
-      { says: "Server didn't return valid GeoJSON — it may not support OUTPUTFORMAT=application/json (try a different layer, or this server may need GML support this app doesn't have).", do: "Try another layer or server, or download the data and import the file." },
-      { says: "This is only the server's first 1,000 features — the layer may have more here. Tick \"Limit to the current project area\", or work in a smaller area, to get all of them.", do: "Tick Limit to the current project area, or use a smaller area." },
+      { says: "Try another layer: the server did not return valid GeoJSON. …", means: "The server may not offer GeoJSON, or may need GML, which GeoStrix does not read.", do: "Try another layer or server, or download the data and import the file." },
+      { says: "Tick \"Limit to the current project area\", or work in a smaller area, to get them all: this is only the server's first 1,000 features, …", do: "Tick Limit to the current project area, or use a smaller area." },
       { says: "3 of 48 requests failed and are left transparent.", do: "Import again, or choose a lower Detail." },
       { says: "This server returned projected coordinates (metres) without saying which coordinate system they are in, so they can't be placed correctly. Try another layer or server.", do: "Try another layer or server, or download the data as a file with its CRS." },
     ],
