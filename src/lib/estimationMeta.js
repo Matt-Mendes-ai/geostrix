@@ -16,19 +16,11 @@ export const MAX_BLOCK_BUDGET = 50000000;
 // object per block (~330 bytes, read by 61 places in the app), so block models stop at 2 million (~0.9 GB with the
 // drawing buffers); the grade shell's dense grid is a Float64Array (40 MB at 5 million) and keeps BLOCK_BUDGETS.
 export const BLOCK_MODEL_BUDGETS = [200000, 1000000, 2000000];
-export const MAX_BLOCK_MODEL_BUDGET = 2000000;
 // what each block-model budget costs, for the menu (measured: ~330 B per block in the window + 72 MB per million drawn)
-// TASKS.csv #1074 (review #1016) — the "3D view cell budget" (imported OMF / UBC / block-model CSV voxels) stops at the
-// same 2 million: the number field's max was only a spinner hint, so one extra zero (10 million) was taken as typed,
-// ~3.3 GB in the window plus 0.7 GB of drawing buffers at the #661 figures. null / not a number -> null (the default).
-export const MIN_CELL_BUDGET = 10000;
-export const clampCellBudget = (v) => (Number.isFinite(v) && v > 0 ? Math.min(MAX_BLOCK_MODEL_BUDGET, Math.max(MIN_CELL_BUDGET, Math.round(v))) : null);
-// TASKS.csv #1970 — the budget is a setting of this computer (what its memory and GPU can take), remembered across restarts;
-// null (the default) is stored as no key. A private window or blocked storage keeps it for the session only.
-export const CELL_BUDGET_KEY = "geostrix.voxelCellBudget";
-const storageOr = (s) => s ?? (typeof localStorage !== "undefined" ? localStorage : null);
-export function readCellBudget(storage) { try { return clampCellBudget(Number(storageOr(storage)?.getItem(CELL_BUDGET_KEY))); } catch { return null; } }
-export function saveCellBudget(v, storage) { try { const c = clampCellBudget(v), st = storageOr(storage); if (c == null) st?.removeItem(CELL_BUDGET_KEY); else st?.setItem(CELL_BUDGET_KEY, String(c)); } catch { /* session only */ } }
+// TASKS.csv #3961 — MAX_BLOCK_MODEL_BUDGET, the cell budget (#1074 MIN_CELL_BUDGET / clampCellBudget, #1970 CELL_BUDGET_KEY / readCellBudget /
+// saveCellBudget), SUPPORT_COLORS and the grade-shell defaults (#1416 / #3920) live in estimationConsts.js (loaded at startup); re-exported here
+export { MAX_BLOCK_MODEL_BUDGET, MIN_CELL_BUDGET, clampCellBudget, CELL_BUDGET_KEY, readCellBudget, saveCellBudget, SUPPORT_COLORS, NUMERIC_CELL_DEFAULT,
+  GRADE_SHELL_SEARCH_DEFAULT, GRADE_SHELL_PAD_DEFAULT, GRADE_SHELL_BLOCK_BUDGET, GRADE_SHELL_MODE_DEFAULT } from "./estimationConsts.js";
 // TASKS.csv #3256 (Galore Creek review) — memory only: the time depends on the search radius and the composites in reach as much as on the
 // blocks ("200,000 blocks (fast)" ran over five minutes at a 500 m search on 14 holes); the run says its own time left as it goes
 export const blockModelBudgetNote = (b) => (b <= 200000 ? "~0.1 GB of memory" : b <= 1000000 ? "~0.4 GB of memory" : "~0.9 GB of memory");
@@ -64,8 +56,6 @@ export function cellToFit(bounds, budget, from = 0.5) {
   while (gridBlockCount(bounds, c) > budget && c < 1e5) c = Math.ceil((c * 1.02) * 2) / 2;
   return c;
 }
-
-export const SUPPORT_COLORS = { interpolated: "#3faf5a", extrapolated: "#e0a92b", unsupported: "#cc4b3c" };
 
 export const ESTIMATION_METHODS = [
   { id: "nn", label: "Nearest neighbour", exact: true, blurb: "Takes the nearest composite's value outright. No smoothing, no new values invented — the honest quick-look / validation-of-declustering method, and the usual sanity check against a smoothed estimate." },
@@ -119,9 +109,3 @@ export function overlapBox(a, b) {
   const o = { xmin: Math.max(a.xmin, b.xmin), xmax: Math.min(a.xmax, b.xmax), ymin: Math.max(a.ymin, b.ymin), ymax: Math.min(a.ymax, b.ymax), zmin: Math.max(a.zmin, b.zmin), zmax: Math.min(a.zmax, b.zmax) };
   return o.xmin < o.xmax && o.ymin < o.ymax && o.zmin < o.zmax ? o : null;
 }
-// TASKS.csv #1416 — the grade shell's starting cell size (m): left at it, an over-budget run takes the cell size that fits instead
-// Matt, 2026-11-20 (#3920 follow-up, from his Grade shell settings): 'should have this as default even if it means increasing cell budget to
-// 1000000' — cell 50 m (was 10), search 200 m (was 50), pad 25 m, the Tight shell searched along the composites' plane, a 1,000,000-block budget
-// (was 200,000). GeoStrix's standard settings, said as such (#264); a budget, shell kind or plane setting the user saved stays theirs.
-export const NUMERIC_CELL_DEFAULT = 50;
-export const GRADE_SHELL_SEARCH_DEFAULT = 200, GRADE_SHELL_PAD_DEFAULT = 25, GRADE_SHELL_BLOCK_BUDGET = 1000000, GRADE_SHELL_MODE_DEFAULT = "tight";

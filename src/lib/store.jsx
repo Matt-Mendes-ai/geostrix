@@ -4,9 +4,13 @@ import { defaultDrapeElevation } from "./drapeElevation.js"; // TASKS.csv #1823
 import { t as tr } from "./i18n.js"; // TASKS.csv #1285
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react"; // useMemo: #1679
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
-import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
-import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
 import { pagePx, pageFormatOf } from "./pageFormats.js"; // TASKS.csv #2740 — already in startup (desktop.js)
+// TASKS.csv #3961 (startup size) — Layout's page helpers (capturedFrameFields #906 / #961, tieStarterFurniture / sendElementWithFurniture #1320 /
+// #1634, freeSpot / viewportFrameOnPaper / spotIsFree #1484 / #3418 / #3451) are only needed once a 3D view is sent to a page or an element moved
+// between pages: loaded then (~30 kB of startup JavaScript, with collarTable / legendFit / northDiagram behind them), as Layout itself is.
+let layoutKit = null;
+const loadLayoutKit = () => (layoutKit ? Promise.resolve(layoutKit)
+  : Promise.all([import("./layoutGeometry.js"), import("./layoutLinks.js"), import("./layoutPlace.js")]).then(([g, l, p]) => (layoutKit = { ...g, ...l, ...p })));
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
@@ -26,9 +30,8 @@ import { useLatestCallback } from "./useLatestCallback.js"; // TASKS.csv #2769 f
 import { sectionWindowsMayClose, EXPORT_RESULT_EVENT } from "./desktop.js"; // TASKS.csv #2620; EXPORT_RESULT_EVENT: #2806
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
-import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
+import { readCellBudget, saveCellBudget } from "./estimationConsts.js"; // TASKS.csv #1970; estimationConsts: #3961
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles, setLithologyMeanings } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
-import { freeSpot, viewportFrameOnPaper /* #3418 */, spotIsFree /* #3451 */ } from "./layoutPlace.js"; // TASKS.csv #1484
 import { titleToKeep, withProjectTitle } from "./projectTitle.js"; // TASKS.csv #3611 / #3612 — the project's title, apart from its file's name
 
 const StoreContext = createContext(null);
@@ -850,7 +853,8 @@ export function StoreProvider({ children }) {
   const [layoutPrintRequest, setLayoutPrintRequest] = useState(null);
   const requestLayoutPrint = useCallback((opts = {}) => setLayoutPrintRequest({ seq: Date.now() + Math.random(), ...opts }), []);
 
-  const addViewportToPage = (els, view) => tieStarterFurniture([...els, view], view);
+  const addViewportToPage = (els, view) => layoutKit.tieStarterFurniture([...els, view], view); // #3961 — loaded by the effect below before it is called
+  const [layoutKitLoads, setLayoutKitLoads] = useState(0); // #3961 — the effect below runs again once Layout's helpers have loaded
   // TASKS.csv #1644 (review #1497) — an atlas's maps re-captured one page at a time, each centred on its hole at the template's scale:
   // a queue of { pageId, elementId, themeId, viewState, fixedScale, elementW, elementH, centreWorld }; each result is written to its
   // own page and the next request goes out from the 3D View (no hop back to Layout in between); Layout is shown once at the end
@@ -883,6 +887,9 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (!viewportRenderResult || !viewportPendingRequest) return;
     if (viewportRenderResult.requestId !== viewportPendingRequest.requestId) return;
+    // TASKS.csv #3961 — Layout's helpers come in with the first result (nothing has been changed yet: this run stops, the next one applies it)
+    if (!layoutKit) { loadLayoutKit().then(() => setLayoutKitLoads((n) => n + 1)); return; }
+    const { capturedFrameFields, freeSpot, viewportFrameOnPaper, spotIsFree } = layoutKit;
     const res = viewportRenderResult;
     const { targetElementId, elementW: reqW, elementH: reqH, targetPageId, printPass } = viewportPendingRequest;
     setViewportPendingRequest(null);
@@ -945,7 +952,7 @@ export function StoreProvider({ children }) {
     }
     if (continueViewportBatch(false)) return; // #1644 — the next atlas page
     goToModule("layout");
-  }, [viewportRenderResultSeq]);
+  }, [viewportRenderResultSeq, layoutKitLoads]);
 
   // ---- Layout snapshots (TASKS.csv #16/#17): a small queue of images (3D viewport PNGs, or
   // cross-section SVGs) waiting to be dropped onto the Layout page. LayoutModule drains this queue
@@ -1935,13 +1942,14 @@ export function StoreProvider({ children }) {
   // TASKS.csv #1484 (review #1352) — an element copied or moved from the active page to another (a section snapshot landed on the
   // plan's page with nowhere else to go); a copy gets a new id, a move keeps its own
   // #1634 — with what is bound to it (scale bar, legend, overview, north arrow); the destination's starter bar / arrow tie to it
-  const sendLayoutElement = useLatestCallback((elementId, toPageId, move = false) => setLayoutPages((pages) => {
+  // #3961 — Layout's helpers are loaded first (already in memory when Layout is open, as it is when this is called)
+  const sendLayoutElement = useLatestCallback((elementId, toPageId, move = false) => loadLayoutKit().then(({ sendElementWithFurniture }) => setLayoutPages((pages) => {
     const src = pages.find((p) => p.id === activeLayoutPageId), dst = pages.find((p) => p.id === toPageId);
     if (!src || !dst || toPageId === activeLayoutPageId) return pages;
     const r = sendElementWithFurniture(src.elements || [], dst.elements || [], elementId, move, undefined, pagePx(pageFormatOf(dst))); // page: #2740 — kept on the target's paper
     if (!r) return pages;
     return pages.map((p) => (p.id === toPageId ? { ...p, elements: r.to } : p.id === activeLayoutPageId ? { ...p, elements: r.from } : p));
-  }));
+  })));
   // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
   // with the page; a page without one is A4 landscape, exactly as before.
   const setLayoutPageFormat = useCallback((id, format) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, format } : pg))), []);
