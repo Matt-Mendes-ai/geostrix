@@ -1,6 +1,15 @@
 // TASKS.csv #1966 — the Getting started page of the offline help (see src/help/content.js for the page format)
 // TASKS.csv #3899 (T4) — rewritten to the rule of plan_fable 3.2: a short summary, the Basic / Advanced diagram, detail behind "More".
 export default [
+  { // TASKS.csv #3887 — the First steps guide: its screens are src/help/guide.js, shown (translated) by src/help/FirstSteps.jsx
+    id: "first-steps",
+    area: "Getting started",
+    title: "First steps",
+    summary: "The everyday path in six screens: your files, the 3D view, sections, a model and a printed sheet.",
+    guide: true,
+    notFor: [], fields: [], warnings: [],
+    related: ["first-project", "help-start"],
+  },
   {
     id: "help-start",
     area: "Getting started",

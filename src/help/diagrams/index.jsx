@@ -108,4 +108,33 @@ function LayoutSheet() {
   );
 }
 
-export const DIAGRAMS = { workflow: Workflow, filesWhere: FilesWhere, sectionFenceLog: SectionFenceLog, basicAdvanced: BasicAdvanced, layoutSheet: LayoutSheet };
+// D4 — build a model (TASKS.csv #3887, the First steps guide): the logs down two holes, the one question a guided tool asks, the model it builds
+function BuildModel() {
+  const units = ["#d9b44a", "#7aa95c", "#c0504d"];
+  const hole = (x, off) => [[0, 30 + off], [30 + off, 40], [70 + off, 30 - off]].map(([y0, h], i) => <rect key={`${x}-${i}`} x={x} y={14 + y0} width={12} height={h} style={{ fill: units[i], stroke: "var(--color-border)" }} />);
+  const arrow = (x1, x2, y) => (
+    <g>
+      <line x1={x1} y1={y} x2={x2 - 8} y2={y} style={{ stroke: "var(--color-text-muted)" }} strokeWidth={1.4} />
+      <path d={`M${x2 - 8} ${y - 4} L${x2} ${y} L${x2 - 8} ${y + 4} Z`} style={{ fill: "var(--color-text-muted)" }} />
+    </g>
+  );
+  return (
+    <div dir="ltr" style={ltr}>
+      <svg viewBox="0 0 300 150" width="100%" aria-hidden="true">
+        {hole(22, 0)}{hole(52, 10)}
+        {arrow(72, 104, 64)}
+        <rect x={106} y={42} width={88} height={44} rx={6} style={{ fill: "var(--color-tier-basic-bg)", stroke: "var(--color-border)" }} />
+        <text x={150} y={68} textAnchor="middle" style={svgText("xs")}>?</text>
+        {arrow(196, 226, 64)}
+        <rect x={230} y={14} width={62} height={30} style={{ fill: units[0], stroke: "var(--color-border)" }} />
+        <rect x={230} y={44} width={62} height={44} style={{ fill: units[1], stroke: "var(--color-border)" }} />
+        <rect x={230} y={88} width={62} height={26} style={{ fill: units[2], stroke: "var(--color-border)" }} />
+        <text x={43} y={134} textAnchor="middle" style={svgText()}>{tr("Your logs")}</text>
+        <text x={150} y={134} textAnchor="middle" style={svgText()}>{tr("One question")}</text>
+        <text x={261} y={134} textAnchor="middle" style={svgText()}>{tr("A model")}</text>
+      </svg>
+    </div>
+  );
+}
+
+export const DIAGRAMS = { workflow: Workflow, filesWhere: FilesWhere, sectionFenceLog: SectionFenceLog, buildModel: BuildModel, basicAdvanced: BasicAdvanced, layoutSheet: LayoutSheet };

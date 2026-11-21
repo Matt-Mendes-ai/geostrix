@@ -18,6 +18,7 @@ import { fetchAreaBox } from "../lib/dataExtent.js";
 import { tieOf } from "../lib/localGridTie.js";
 import { panel, rowBtn } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #3887 — the First steps guide
 
 const Z = 55; // under every other dialog (60; the import's column matching 62): they open over this one
 const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -171,6 +172,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       <div style={small}>{tr("Look around: drag to turn, wheel to zoom.")}</div>
       {!noDrill && <div>{tr("Build a model: the green Model button on the StrixViewer ribbon takes you through it one step at a time.")} <button type="button" style={link} onClick={() => { goTo?.("viewer"); onClose?.(); }}>{tr("Show me")}</button></div>}
       <div>{tr("Make a sheet: Layout's Sheets group (Plan map, Cross-section, Hole log, Intercepts table) lays out a page in one click.")} <button type="button" style={link} onClick={() => { goTo?.("layout"); onClose?.(); }}>{tr("Open Layout")}</button></div>
+      <div>{tr("New here? First steps shows the everyday path in six screens.")} <button type="button" style={link} data-start-guide="" onClick={() => openHelp("first-steps")}>{tr("First steps")}</button></div>{/* TASKS.csv #3887 */}
     </div>
   );
 
