@@ -14665,5 +14665,13 @@
   "Each group (Lithology, Alteration, ...) becomes a legend of its own, bound to the same view": "Chaque groupe (Lithologie, Altération, ...) devient une légende à part, liée à la même vue",
   "The legends bound to this view on this page become one again": "Les légendes liées à cette vue sur cette page redeviennent une seule",
   "Split into {n} legends, one per group: each one is moved, sized and loaded from its view on its own.": "Divisée en {n} légendes, une par groupe : chacune se déplace, se dimensionne et se charge depuis sa vue séparément.",
-  "Joined {n} legends into one.": "{n} légendes fusionnées en une."
+  "Joined {n} legends into one.": "{n} légendes fusionnées en une.",
+  "Hole IDs": "ID des sondages",
+  "End-of-hole depths": "Profondeurs de fin de sondage",
+  "Depth ticks": "Graduations de profondeur",
+  "Offset from the section": "Écart à la coupe",
+  "Grade / intercept labels": "Étiquettes de teneur / intersection",
+  "Surface and shell names": "Noms des surfaces et enveloppes",
+  "Ground surface label": "Étiquette de la surface du sol",
+  "{n} holes: offsets and depth ticks off.": "{n} sondages : écarts et graduations de profondeur masqués."
 }
