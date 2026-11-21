@@ -7,7 +7,9 @@
 //   wide form: one row per interval with a number field per mineral (the per-mineral import, lib/perMineralColumns.js); the ticked fields sum
 // A layer with codes but no per cent at all is said ('no percentage column'), never a column of zeros.
 
-import { fieldRamp } from "./customColour.js";
+import { TOTAL_SULPHIDES_FIELD } from "./mineralFields.js";
+import { CODE_PREFIX } from "./widthBy.js";
+export { TOTAL_SULPHIDES_FIELD, fieldStyler } from "./mineralFields.js"; // the startup part (the 3D build, the legend)
 
 // [name, codes]: the codes as logging databases write them (upper case, no spaces); names in English, Spanish and Portuguese are matched too
 export const SULPHIDE_MINERALS = [
@@ -128,8 +130,6 @@ export function totalSulphides(rows, ticked, info = layerMineralCodes(rows)) {
   return { values, status: "ok", counted, mixed };
 }
 
-// the field the total is kept in on each row (project data: English); Identify, the Data table and exports show it like any field
-export const TOTAL_SULPHIDES_FIELD = "Total sulphides (%)";
 const STANDARD = new Set(["hole_id", "from", "to", "depth", "value", "extra", "as_logged", "all_codes", "codes", "description", "intensity", "alpha", "modelColor", TOTAL_SULPHIDES_FIELD]);
 const AMOUNT_NAME = /(pct|percent|perc|%\)?|_sum|_total|_tot)$/i;
 // the wide form's per-mineral number fields (a per-mineral import keeps each ticked column as a field): numbers, named like an amount or a sulphide
@@ -153,11 +153,28 @@ export function withTotalSulphides(rows, ticked, info = mineralCodesOf(rows)) {
   return { ...t, rows: (rows || []).map((r, i) => ({ ...r, [TOTAL_SULPHIDES_FIELD]: Number.isFinite(t.values[i]) ? t.values[i] : null })) };
 }
 
-// how a coded layer's style draws it by a number field (the scene's part): -> null (as before) | { colourOf (or null: its codes' colours), shown(row) }
-//   colourBy: a number field of the rows (its ramp); sulphideMin: only intervals whose Total sulphides reaches it
-export function fieldStyler(rows, st) {
-  if (!st || (!st.colourBy && !(st.sulphideMin > 0))) return null;
-  const ramp = st.colourBy ? fieldRamp(rows, st.colourBy, st) : null, min = st.sulphideMin > 0 ? st.sulphideMin : null;
-  if (!ramp && min == null) return null;
-  return { colourOf: ramp ? ramp.colourOf : null, shown: min == null ? () => true : (r) => Number(r?.[TOTAL_SULPHIDES_FIELD]) >= min };
+
+// TASKS.csv #3942 — -> [{ id, label }] the layer can be widened by (project text: the field and code names as logged)
+export function widthChoices(rows) {
+  const list = rows || [], out = [];
+  if (list.some((r) => r && Number.isFinite(Number(r[TOTAL_SULPHIDES_FIELD])) && r[TOTAL_SULPHIDES_FIELD] !== null)) out.push({ id: TOTAL_SULPHIDES_FIELD, label: TOTAL_SULPHIDES_FIELD });
+  const wide = wideMineralFields(list);
+  if (wide.length) { for (const f of wide) out.push({ id: f.key, label: f.key }); return out; }
+  const codes = new Map();
+  for (const r of list) { if (r?.value == null || r.value === "" || !Number.isFinite(Number(r.extra)) || r.extra === null || r.extra === "") continue; codes.set(String(r.value), (codes.get(String(r.value)) || 0) + 1); }
+  for (const [c] of [...codes].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 40)) out.push({ id: CODE_PREFIX + c, label: `${c} %` });
+  return out;
+}
+
+
+// TASKS.csv #3943 — a Mineralization layer's choices: Total sulphides (once added), each mineral field (wide form) or each logged mineral (long form)
+export function mineralBarChoices(rows) {
+  const list = rows || [], out = [];
+  if (list.some((r) => r && r[TOTAL_SULPHIDES_FIELD] != null && r[TOTAL_SULPHIDES_FIELD] !== "")) out.push({ id: TOTAL_SULPHIDES_FIELD, label: "Total sulphides" });
+  const wide = wideMineralFields(list);
+  if (wide.length) { for (const f of wide) out.push({ id: f.key, label: f.key }); return out; }
+  const n = new Map();
+  for (const r of list) { if (r?.value == null || r.value === "" || r.extra == null || r.extra === "" || !Number.isFinite(Number(r.extra))) continue; const c = String(r.value); n.set(c, (n.get(c) || 0) + 1); }
+  for (const [c] of [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 40)) out.push({ id: CODE_PREFIX + c, label: c });
+  return out;
 }
