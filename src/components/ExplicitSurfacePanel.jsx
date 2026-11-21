@@ -31,6 +31,7 @@ import { saveFile } from "../lib/desktop.js"; // TASKS.csv #880
 import { eventPickOptions, defaultEventOption } from "../lib/downholeEvents.js"; // TASKS.csv #2317
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1550
 import { toCsv, FORMULA_LEAD, crsCell } from "../lib/tabular.js"; // TASKS.csv #1082; crsCell: #1053
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 // TASKS.csv #902 — the Unit select's "New unit..." value: a private-use character, not the NUL it used to be (a NUL byte made
@@ -1194,8 +1195,8 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           {def.downholeGuide?.on && (
             <div style={{ ...row, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
               <span>{tr("Readings within")}</span>
-              <input type="number" min={0.5} step={0.5} value={def.downholeGuide.windowM ?? 3} onChange={(e) => update({ downholeGuide: { ...def.downholeGuide, windowM: Math.max(0.5, Number(e.target.value) || 3) } })} style={{ ...numInput, width: 52 }} aria-label={tr("Readings within (m down-hole)")} /><span>{tr("m down-hole; lines")}</span>
-              <input type="number" min={5} step={5} value={def.downholeGuide.reachM ?? 25} onChange={(e) => update({ downholeGuide: { ...def.downholeGuide, reachM: Math.max(5, Number(e.target.value) || 25) } })} style={{ ...numInput, width: 52 }} aria-label={tr("Guide line length (m each way)")} /><span>{tr("m each way; type")}</span>
+              <NumberInput min={0.5} step={0.5} value={def.downholeGuide.windowM ?? 3} onChange={(n) => update({ downholeGuide: { ...def.downholeGuide, windowM: n } })} style={{ ...numInput, width: 52 }} aria-label={tr("Readings within (m down-hole)")} /><span>{tr("m down-hole; lines")}</span>
+              <NumberInput min={5} step={5} value={def.downholeGuide.reachM ?? 25} onChange={(n) => update({ downholeGuide: { ...def.downholeGuide, reachM: n } })} style={{ ...numInput, width: 52 }} aria-label={tr("Guide line length (m each way)")} /><span>{tr("m each way; type")}</span>
               <select value={def.downholeGuide.type ?? "contact"} onChange={(e) => update({ downholeGuide: { ...def.downholeGuide, type: e.target.value } })} style={smallSel} aria-label={tr("Structure type")}>
                 <option value="contact">{(() => { const c = contactLikeTypes((sc.structure || []).map((r) => r.value)); return c.length ? tr("contacts and bedding ({codes})", { codes: c.join(", ") }) : tr("contacts and bedding (none logged: choose a type)"); })()}</option>
                 <option value="">{tr("any type (fractures and veins too)")}</option>
@@ -1207,7 +1208,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         {sectionImages.length > 0 && ( /* TASKS.csv #950 */
           <label style={{ ...row, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Drawing on a section image snaps to the logged contacts of holes within this distance of the image. The point is the contact where it was logged, on the hole, not moved onto the image.")}>
             {tr("Section images: snap to contacts of holes within")}
-            <input type="number" min="0" step="1" value={imageSnapM} onChange={(e) => setImageSnapM(Math.max(0, Number(e.target.value) || 0))} style={{ ...numInput, width: 52 }} />{" m"}
+            <NumberInput min="0" step="1" value={imageSnapM} onChange={(n) => setImageSnapM(n)} style={{ ...numInput, width: 52 }} />{" m"}
           </label>
         )}
         <div style={row}>
@@ -1305,11 +1306,11 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
                 <>
                   <div style={row}>
                     <span style={{ width: 120, flexShrink: 0 }}>{tr("Guide depth")}</span>
-                    <input type="number" min={10} step={10} value={def.dipGuide.depth ?? 100} onChange={(e) => update({ dipGuide: { ...def.dipGuide, depth: Math.max(10, Number(e.target.value) || 100) } })} style={{ ...numInput, width: 64 }} aria-label={tr("Guide depth")} /><span>m</span>
+                    <NumberInput min={10} step={10} value={def.dipGuide.depth ?? 100} onChange={(n) => update({ dipGuide: { ...def.dipGuide, depth: n } })} style={{ ...numInput, width: 64 }} aria-label={tr("Guide depth")} /><span>m</span>
                   </div>
                   <div style={row} title={tr("A bedding measurement within this distance of the contact gives its dip; beyond it, the dip fitted to the contact's own trace is used")}>
                     <span style={{ width: 120, flexShrink: 0 }}>{tr("Measurements within")}</span>
-                    <input type="number" min={0} step={50} value={def.dipGuide.radius ?? 500} onChange={(e) => update({ dipGuide: { ...def.dipGuide, radius: Math.max(0, Number(e.target.value) || 0) } })} style={{ ...numInput, width: 64 }} aria-label={tr("Measurements within")} /><span>m</span>
+                    <NumberInput min={0} step={50} value={def.dipGuide.radius ?? 500} onChange={(n) => update({ dipGuide: { ...def.dipGuide, radius: n } })} style={{ ...numInput, width: 64 }} aria-label={tr("Measurements within")} /><span>m</span>
                   </div>
                   {/* TASKS.csv #872 — which readings may speak for this contact: the geologist decides (both off by default) */}
                   <label style={{ ...row, cursor: "pointer" }} title={tr("Off: only bedding inside the contact's two units is used. On: bedding of any unit within the radius.")}>
@@ -1335,7 +1336,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Surface settings")}</summary>
         <div style={row} title={tr("Auto: 15 % of the inputs' shorter span. Everything beyond the inputs is extrapolated, not data.") /* TASKS.csv #870 */}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Extend beyond picks")}</span>
-          <input type="number" min={0} step={10} value={def.margin ?? ""} placeholder={tr("auto")} onChange={(e) => update({ margin: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })} style={{ ...numInput, width: 64 }} aria-label={tr("Extend beyond picks")} /><span>m</span>
+          <NumberInput min={0} step={10} allowEmpty value={def.margin ?? null} placeholder={tr("auto")} onChange={(n) => update({ margin: n })} style={{ ...numInput, width: 64 }} aria-label={tr("Extend beyond picks")} /><span>m</span>
         </div>
         <label style={{ ...row, cursor: "pointer" }} title={tr("Off: a rectangle over the inputs' extent plus the margin. On: the mesh is cut at the outline of the inputs plus the margin, so less of it is extrapolated.")}>{/* #2921 */}
           <input type="checkbox" checked={def.extent === "hull"} onChange={(e) => update({ extent: e.target.checked ? "hull" : "box" })} />{tr("Stop at the inputs' outline (plus the margin)")}

@@ -46,5 +46,5 @@ test("turning the default off refits a cell the dialog chose (it went over the b
   assert.match(e, /cellTyped: cellTyped\.current \/\* #3706 \*\//);
   assert.match(e, /if \(!cellTyped\.current && \(autoCell == null \|\| cellSize === autoCell\) && fitCell > cellSize\)/);
   assert.match(e, /if \(!bounds \|\| matched \|\| cellTyped\.current \|\| \(autoCell != null && cellSize !== autoCell\)\) return undefined;/);
-  assert.match(e, /onChange=\{\(e\) => \{ cellTouched\.current = true; cellTyped\.current = true; setAutoCell\(null\);/);
+  assert.match(e, /onChange=\{\(n\) => \{ cellTouched\.current = true; cellTyped\.current = true; setAutoCell\(null\);/);
 });

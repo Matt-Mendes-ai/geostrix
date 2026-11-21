@@ -13,6 +13,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #3911 — the collars and the CRS, for the regional area
 import { fetchAreaBox } from "../../lib/dataExtent.js";
 import { regionalArea, regionalGrain, regionalCandidate, regionalNoneText } from "../../lib/regionalGrain.js"; // TASKS.csv #3911
+import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
 
 const FOLLOW = [["grade", "The grade model"], ["rock", "One rock or vein"], ["everything", "Everything"]];
 const USED = { grade: "The grade shell and the block estimate now use it.", rock: "The geology models, alteration halos and explicit surfaces now use it.", everything: "Every model except faults now uses it." };
@@ -200,8 +201,8 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
           </div>
         )}
         {how === "type" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-          <label style={small}>{tr("Tilts towards (°, dip direction)")} <input type="number" min="0" max="360" value={typed.dipDir} onChange={(e) => { setTyped((p) => ({ ...p, dipDir: e.target.value })); setSelId("typed"); }} style={{ ...inputStyle, width: 64 }} /></label>
-          <label style={small}>{tr("Tilt (°, dip)")} <input type="number" min="0" max="90" value={typed.dip} onChange={(e) => { setTyped((p) => ({ ...p, dip: e.target.value })); setSelId("typed"); }} style={{ ...inputStyle, width: 56 }} /></label>
+          <label style={small}>{tr("Tilts towards (°, dip direction)")} <NumberInput min="0" max="360" allowEmpty value={typed.dipDir === "" || typed.dipDir == null ? null : typed.dipDir} onChange={(n) => { setTyped((p) => ({ ...p, dipDir: n == null ? "" : String(n) })); setSelId("typed"); }} style={{ ...inputStyle, width: 64 }} /></label>
+          <label style={small}>{tr("Tilt (°, dip)")} <NumberInput min="0" max="90" allowEmpty value={typed.dip === "" || typed.dip == null ? null : typed.dip} onChange={(n) => { setTyped((p) => ({ ...p, dip: n == null ? "" : String(n) })); setSelId("typed"); }} style={{ ...inputStyle, width: 56 }} /></label>
         </div>}
         {how === "type" && typedCand && <div style={small} onMouseEnter={() => setHoverId("typed")} onMouseLeave={() => setHoverId(null)}>{describeCandidate(typedCand)} · {candidateNumbers(typedCand)}</div>}
       </details>

@@ -51,6 +51,7 @@ import { shellPaneMemory, memoryRef } from "./shellPaneMemory.js"; // TASKS.csv 
 import { ENVELOPE_RANGES } from "../../lib/viewer/shellEnvelope.js";
 import DomainUpdateSection from "./DomainUpdateSection.jsx"; // TASKS.csv #3673 phase 2 // TASKS.csv #3673 — the ranges said in the pane // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
+import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
 const LithoSuggestBox = lazy(() => import("../../components/LithoSuggestBox.jsx")); // TASKS.csv #2004
@@ -575,7 +576,7 @@ export default function ModellingPanes(props) {
           <input type="checkbox" checked={limitToContacts} onChange={(e) => setLimitToContacts(e.target.checked)} />{tr("Stop surfaces near their own contacts")}</label>
         {limitToContacts && (
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, marginLeft: 22 }}>
-            {tr("Extend past them by")}<input type="number" min={10} max={20000} step={50} value={contactReachM || ""} placeholder={tr("auto")} onChange={(e) => setContactReachM(Math.max(0, Math.min(20000, Number(e.target.value) || 0)))} aria-label={tr("How far a surface runs past its own contacts (m)")} style={{ ...smallSel, width: 64 }} />m
+            {tr("Extend past them by")}<NumberInput min={10} max={20000} step={50} allowEmpty value={contactReachM || null} placeholder={tr("auto")} onChange={(v) => setContactReachM(v ?? 0)} aria-label={tr("How far a surface runs past its own contacts (m)")} style={{ ...smallSel, width: 64 }} />m
           </label>
         )}
 
@@ -652,12 +653,12 @@ export default function ModellingPanes(props) {
           <InfoButton title={tr("Average picks per hole")} width={300} text={tr("GemPy honours every orientation it is given, one by one, and its run time grows with their number. Averaging the picks of each hole in depth windows sends a few representative orientations instead: much faster, and the scatter between neighbouring oriented-core picks no longer bends the surface. A window never mixes picks more than 30 degrees apart (a fold limb, an overturned pick, a different structure). Untick to send every pick as it is.")} />
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
-          <input type="checkbox" checked={thinPicks} onChange={(e) => setThinPicks(e.target.checked)} />{tr("Average picks per hole, in windows of")}<input type="number" min={5} max={500} step={5} value={thinWindowM} disabled={!thinPicks} onChange={(e) => setThinWindowM(Math.max(5, Math.min(500, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} aria-label={tr("Averaging window along the hole (m)")} /> m
+          <input type="checkbox" checked={thinPicks} onChange={(e) => setThinPicks(e.target.checked)} />{tr("Average picks per hole, in windows of")}<NumberInput min={5} max={500} step={5} value={thinWindowM} disabled={!thinPicks} onChange={(v) => setThinWindowM(v)} style={{ ...smallSel, width: 56 }} aria-label={tr("Averaging window along the hole (m)")} /> m
         </label>
 
         {/* TASKS.csv #1170 — blank = automatic (twice the contacts' spacing in plan); the run notice says which distance it used */}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
-          {tr("Only picks within")}<input type="number" min={10} max={20000} step={50} value={orientationReachM || ""} placeholder={tr("auto")} onChange={(e) => setOrientationReachM(Math.max(0, Math.min(20000, Number(e.target.value) || 0)))} aria-label={tr("Only picks within this distance of the unit's contacts (m)")} style={{ ...smallSel, width: 64 }} />{tr("m of the unit's contacts")}
+          {tr("Only picks within")}<NumberInput min={10} max={20000} step={50} allowEmpty value={orientationReachM || null} placeholder={tr("auto")} onChange={(v) => setOrientationReachM(v ?? 0)} aria-label={tr("Only picks within this distance of the unit's contacts (m)")} style={{ ...smallSel, width: 64 }} />{tr("m of the unit's contacts")}
         </label>
 
         {/* TASKS.csv #761 — automatic local smoothing of clustered contacts (off by default) */}
@@ -677,20 +678,20 @@ export default function ModellingPanes(props) {
         {searchEllipsoid.enabled && (
           <div style={{ opacity: searchEllipsoid.enabled ? 1 : 0.5, marginBottom: 8 }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <label style={miniField}>{tr("Azimuth°")}<input type="number" value={searchEllipsoid.azimuth} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, azimuth: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Azimuth°")}<NumberInput value={searchEllipsoid.azimuth} onChange={(v) => setSearchEllipsoid((p) => ({ ...p, azimuth: v }))} style={{ ...smallSel, width: "100%" }} />
               </label>
-              <label style={miniField}>{tr("Dip°")}<input type="number" value={searchEllipsoid.dip} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, dip: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Dip°")}<NumberInput value={searchEllipsoid.dip} onChange={(v) => setSearchEllipsoid((p) => ({ ...p, dip: v }))} style={{ ...smallSel, width: "100%" }} />
               </label>
             </div>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <label style={miniField}>{tr("Major (m)")}<input type="number" value={searchEllipsoid.major} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, major: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Major (m)")}<NumberInput min={1} value={searchEllipsoid.major} onChange={(v) => setSearchEllipsoid((p) => ({ ...p, major: v }))} style={{ ...smallSel, width: "100%" }} />
               </label>
-              <label style={miniField}>{tr("Semi-major (m)")}<input type="number" value={searchEllipsoid.semiMajor} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, semiMajor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Semi-major (m)")}<NumberInput min={1} value={searchEllipsoid.semiMajor} onChange={(v) => setSearchEllipsoid((p) => ({ ...p, semiMajor: v }))} style={{ ...smallSel, width: "100%" }} />
               </label>
-              <label style={miniField}>{tr("Minor (m)")}<input type="number" value={searchEllipsoid.minor} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, minor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Minor (m)")}<NumberInput min={1} value={searchEllipsoid.minor} onChange={(v) => setSearchEllipsoid((p) => ({ ...p, minor: v }))} style={{ ...smallSel, width: "100%" }} />
               </label>
             </div>
-            <label style={miniField}>{tr("Min. neighbours required")}<input type="number" value={searchEllipsoid.minSamples} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, minSamples: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...smallSel, width: 70 }} />
+            <label style={miniField}>{tr("Min. neighbours required")}<NumberInput min={0} step={1} value={searchEllipsoid.minSamples} onChange={(v) => setSearchEllipsoid((p) => ({ ...p, minSamples: Math.round(v) }))} style={{ ...smallSel, width: 70 }} />
             </label>
           </div>
         )}
@@ -935,17 +936,17 @@ export default function ModellingPanes(props) {
             ].map(([label, val, set, unit, ph]) => (
               <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
                 <span style={{ width: 108, flexShrink: 0 }}>{label}</span>
-                <input type="number" min={0} step="any" value={val} placeholder={ph} onChange={(e) => set(e.target.value)} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+                <NumberInput min={0} allowEmpty value={val === "" || val == null ? null : val} placeholder={ph} onChange={(v) => set(v == null ? "" : String(v))} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
                 <span>{unit} (1 σ)</span>
               </div>
             ))}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
               <span style={{ width: 108, flexShrink: 0 }}>{tr("Realizations")}</span>
-              <input type="number" min={3} max={50} value={sensN} onChange={(e) => setSensN(e.target.value)} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+              <NumberInput min={3} max={50} allowEmpty value={sensN === "" || sensN == null ? null : sensN} onChange={(v) => setSensN(v == null ? "" : String(v))} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7 }}>
               <span style={{ width: 108, flexShrink: 0 }}>{tr("Time budget")}</span>
-              <input type="number" min={10} step={30} value={sensBudget} onChange={(e) => setSensBudget(e.target.value)} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+              <NumberInput min={10} step={30} allowEmpty value={sensBudget === "" || sensBudget == null ? null : sensBudget} onChange={(v) => setSensBudget(v == null ? "" : String(v))} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
               <span>s</span>
             </div>
             {(() => {
@@ -1200,7 +1201,7 @@ export default function ModellingPanes(props) {
                     {[...new Map(altVocab.levels.map((l) => [l.rank, l])).values()].map((l) => <option key={l.rank} value={String(l.rank)}>{altVocab.levels.filter((x) => x.rank === l.rank).map((x) => x.label).join(" / ")}</option>)}
                   </select>
                 ) :
-                <input type="number" step="any" aria-label={tr("At least")} value={altSource.min} disabled={!altSource.field} onChange={(e) => setAltSource((s) => ({ ...s, min: e.target.value }))} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }} />}
+                <NumberInput aria-label={tr("At least")} allowEmpty value={altSource.min === "" || altSource.min == null ? null : altSource.min} disabled={!altSource.field} onChange={(v) => setAltSource((s) => ({ ...s, min: v == null ? "" : String(v) }))} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }} />}
               </label>
             )}
           </div>
@@ -1221,9 +1222,9 @@ export default function ModellingPanes(props) {
           >{alterationBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <><Layers3 size={14} />{tr("Build halo")}</>}</button>{/* #1421 — the only run control was an unlabelled icon */}
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <label style={{ ...miniField }} title={tr("Grid cell size for the indicator interpolation. 0 = auto (about 1/8 of the search radius).")}>{tr("Cell size (m)")}<input type="number" min={0} value={alterationCellSize} onChange={(e) => setAlterationCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Grid cell size for the indicator interpolation. 0 = auto (about 1/8 of the search radius).")}>{tr("Cell size (m)")}<NumberInput min={0} value={alterationCellSize} onChange={(v) => setAlterationCellSize(v)} style={{ ...smallSel, width: "100%" }} />
           </label>
-          <label style={{ ...miniField }} title={tr("Search radius for the indicator interpolation, and the padding the envelope is given to close outside the outermost altered sample. 0 = auto (about 1.2x the median hole spacing).")}>{tr("Search (m)")}<input type="number" min={0} value={alterationSearchRadius} onChange={(e) => setAlterationSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Search radius for the indicator interpolation, and the padding the envelope is given to close outside the outermost altered sample. 0 = auto (about 1.2x the median hole spacing).")}>{tr("Search (m)")}<NumberInput min={0} value={alterationSearchRadius} onChange={(v) => setAlterationSearchRadius(v)} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own hole spacing). The model domain and the structural trend chosen for alteration halos (Model settings → Structural trends) are honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop under-supported contact picks, which a closed envelope has none of.")}</div>
@@ -1252,15 +1253,15 @@ export default function ModellingPanes(props) {
           >{veinBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <><Layers3 size={14} />{" "}{tr("Build vein")}</>}</button>{/* #2540 (1): a worded button, as every other tool */}
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <label style={{ ...miniField }} title={tr("Grid spacing across the vein plane. 0 = auto (about 1/12 of the search radius).")}>{tr("Cell size (m)")}<input type="number" min={0} value={veinCellSize} onChange={(e) => setVeinCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Grid spacing across the vein plane. 0 = auto (about 1/12 of the search radius).")}>{tr("Cell size (m)")}<NumberInput min={0} value={veinCellSize} onChange={(v) => setVeinCellSize(v)} style={{ ...smallSel, width: "100%" }} />
           </label>
-          <label style={{ ...miniField }} title={tr("In-plane search radius for the midplane and thickness interpolation, and how far the modelled vein is allowed to extend past the outermost intercept. 0 = auto (about 1.5x the median intercept spacing).")}>{tr("Search (m)")}<input type="number" min={0} value={veinSearchRadius} onChange={(e) => setVeinSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("In-plane search radius for the midplane and thickness interpolation, and how far the modelled vein is allowed to extend past the outermost intercept. 0 = auto (about 1.5x the median intercept spacing).")}>{tr("Search (m)")}<NumberInput min={0} value={veinSearchRadius} onChange={(v) => setVeinSearchRadius(v)} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <label style={{ ...miniField }} title={tr("Optional. Leave both blank to fit the vein's attitude from the intercept midpoints. Required when every intercept lies on one section line, because collinear midpoints cannot fix a plane.")}>{tr("Dip (°)")}<input type="number" min={0} max={90} value={veinDip} placeholder={tr("fit")} onChange={(e) => setVeinDip(e.target.value)} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Optional. Leave both blank to fit the vein's attitude from the intercept midpoints. Required when every intercept lies on one section line, because collinear midpoints cannot fix a plane.")}>{tr("Dip (°)")}<NumberInput min={0} max={90} allowEmpty value={veinDip === "" || veinDip == null ? null : veinDip} placeholder={tr("fit")} onChange={(v) => setVeinDip(v == null ? "" : String(v))} style={{ ...smallSel, width: "100%" }} />
           </label>
-          <label style={{ ...miniField }} title={tr("Optional. Dip DIRECTION (not strike), 0-360. Only used when a dip is also entered.")}>{tr("Dip dir (°)")}<input type="number" min={0} max={360} value={veinDipDir} placeholder={tr("fit")} onChange={(e) => setVeinDipDir(e.target.value)} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Optional. Dip DIRECTION (not strike), 0-360. Only used when a dip is also entered.")}>{tr("Dip dir (°)")}<NumberInput min={0} max={360} allowEmpty value={veinDipDir === "" || veinDipDir == null ? null : veinDipDir} placeholder={tr("fit")} onChange={(v) => setVeinDipDir(v == null ? "" : String(v))} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own intercept spacing). Dip / dip direction blank = fitted from the data, or taken from the oriented-core measurements at the intercepts when they contradict that fit. Adds a hangingwall and a footwall, and a closed solid for volume when the two do not cross. Between holes the shape and thickness are interpolated, so treat the result as an interpretation — a pinch-out or swell no hole intersected will not be in it.")}</div>
@@ -1311,7 +1312,7 @@ export default function ModellingPanes(props) {
                     Numerically identical for a solid, but a cutoff typo of one order of magnitude is a
                     real risk, so show the unit the user actually thinks in and keep ppm in the tooltip. */}
                 <label style={{ ...miniField }} title={tr("Iso-value: the shell encloses every interpolated cell at or above this grade.{v}", { v: PRECIOUS_METALS.has(sym) && unit === "ppm" ? tr(" Displayed as g/t; stored as ppm — numerically identical for a solid (1 g/t = 1 ppm).") : "" })}>{tr("Cutoff ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
-                  <input type="number" step="any" value={numericCutoff} onChange={(e) => setNumericCutoff(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
+                  <NumberInput allowEmpty value={Number.isFinite(numericCutoff) ? numericCutoff : null} onChange={(v) => setNumericCutoff(v == null ? NaN : v)} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
               {shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellCutoffAuto.floor ? tr("Cutoff {v}: the 90th percentile of the {symbol} values above its detection floor: {pct}% of the {n} values are exactly {floor}, the half-limit, so the 90th percentile of all of them would be the floor itself. Type your own.", { v: shellCutoffAuto.value, pct: Math.round(shellCutoffAuto.floor.share * 100), n: shellCutoffAuto.n.toLocaleString(), floor: shellCutoffAuto.floor.value, symbol: sym }) /* #3788 */ : shellCutoffAuto.onOpen ? tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym }) : tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })}</div>}{/* #3025 (6); onOpen: #3272 */}
@@ -1323,16 +1324,16 @@ export default function ModellingPanes(props) {
                 </div>) : null; })()}
               {numSrc && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{numSrc.logScale ? tr("{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.", { label: numSrc.label, n: numSrc.n.toLocaleString() }) : tr("{label}: {n} readings, values as logged; the cutoff is in the same units.", { label: numSrc.label, n: numSrc.n.toLocaleString() })}</div>}{/* #1741 */}
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{numericCellHeight > 0 && !trendFor("gradeShell") ? tr("Cell E × N (m)") : tr("Cell (m)")}<input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{numericCellHeight > 0 && !trendFor("gradeShell") ? tr("Cell E × N (m)") : tr("Cell (m)")}<NumberInput min="0.5" value={numericCellSize} onChange={(v) => { setNumericCellSize(v); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 {/* TASKS.csv #292 — "0 = unlimited" actively invited the pathological setting: an
                     unbounded search made every sample a candidate for every cell (measured: 81 s of
                     blocked main thread at 62,500 cells x 5,000 points, 250 s at the block cap). 0 now
                     means "cap at the grid diagonal", which is a no-op mathematically and a real bound
                     computationally. */}
-                <label style={{ ...miniField }} title={tr("No sample within this distance of a grid cell leaves it un-estimated (no shell there) rather than extrapolating grade far from real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang — but a real radius is both faster and far more defensible.")}>{tr("Search (m)")}<input type="number" min="0" step="any" value={numericSearchRadius} onChange={(e) => { shellSearchTyped.current = true; /* #3607 (3) */ setNumericSearchRadius(Math.max(0, Number(e.target.value) || 0)); }} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("No sample within this distance of a grid cell leaves it un-estimated (no shell there) rather than extrapolating grade far from real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang — but a real radius is both faster and far more defensible.")}>{tr("Search (m)")}<NumberInput min="0" value={numericSearchRadius} onChange={(v) => { shellSearchTyped.current = true; /* #3607 (3) */ setNumericSearchRadius(v); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
-                <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<NumberInput min="0" value={numericPadding} onChange={(v) => setNumericPadding(v)} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
               {numericBudgetHint?.ranAt && numericCellSize === NUMERIC_CELL_DEFAULT && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The last run used {c} m cells: {cs} m cells did not fit its {b}-block budget. A larger budget below gives smaller cells; the box keeps {cs} m.", { c: numericBudgetHint.ranAt, cs: NUMERIC_CELL_DEFAULT, b: (numericBudgetHint.ranBudget || 0).toLocaleString() })}</div>}{/* TASKS.csv #3651 */}
@@ -1347,7 +1348,7 @@ export default function ModellingPanes(props) {
                     </select>
                   </label>
                   {shellMode !== "tight" && <label style={{ ...miniField, flex: 1 }} title={tr("The share of the neighbouring composites at or above the cut-off where the surface is drawn: 0.5 by default; lower takes in more dilution, higher keeps closer to the good intervals (0.3 to 0.7).")}>{tr("Probability")}
-                    <input type="number" min="0.3" max="0.7" step="0.05" value={shellEnvIso} onChange={(e) => setShellEnvIso(e.target.value)} style={{ ...smallSel, width: "100%" }} aria-label={tr("Envelope probability")} />
+                    <NumberInput min="0.3" max="0.7" step="0.05" value={shellEnvIso} onChange={(v) => setShellEnvIso(v)} style={{ ...smallSel, width: "100%" }} aria-label={tr("Envelope probability")} />
                   </label>}
                 </div>
                 {shellMode !== "tight" && shellSampleSpacing?.medianM > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The envelope's reach comes from the {s} m sample spacing: {a} m along the plane's long axis, {b} m across it and {c} m through it, with the plane fitted at each run. The Search box is the tight shell's.", { s: Math.round(shellSampleSpacing.medianM), a: Math.round(ENVELOPE_RANGES.major * shellSampleSpacing.medianM), b: Math.round(ENVELOPE_RANGES.semi * shellSampleSpacing.medianM), c: Math.round(ENVELOPE_RANGES.minor * shellSampleSpacing.medianM) })}</div>}
@@ -1362,9 +1363,9 @@ export default function ModellingPanes(props) {
                 const gt = trendFor("gradeShell"), reach = Number(numericFlatReach), flat = !gt && reach > 0 && numericSearchRadius > 0 && reach < numericSearchRadius;
                 return <>
                   <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                    <label style={{ ...miniField }} title={gt ? tr("Under the trend \"{name}\" the cell is a cube in its frame (see below); clear the trend to set a cell height.", { name: gt.name }) : tr("The block height on its own, for a flat, thin body: a seam, a palaeochannel, a laterite. Blank = the same as the cell size (cubic).")}>{tr("Cell height (m)")}<input type="number" min="0.25" step="any" value={gt ? "" : numericCellHeight} disabled={!!gt} placeholder={gt ? tr("trend") : tr("cubic")} onChange={(e) => { const v = Number(e.target.value); setNumericCellHeight(e.target.value === "" || !(v > 0) ? "" : Math.max(0.25, v)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Cell height (m)")} />
+                    <label style={{ ...miniField }} title={gt ? tr("Under the trend \"{name}\" the cell is a cube in its frame (see below); clear the trend to set a cell height.", { name: gt.name }) : tr("The block height on its own, for a flat, thin body: a seam, a palaeochannel, a laterite. Blank = the same as the cell size (cubic).")}>{tr("Cell height (m)")}<NumberInput min="0.25" allowEmpty value={gt || numericCellHeight === "" || numericCellHeight == null ? null : numericCellHeight} disabled={!!gt} placeholder={gt ? tr("trend") : tr("cubic")} onChange={(v) => { setNumericCellHeight(v == null ? "" : v); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Cell height (m)")} />
                     </label>
-                    <label style={{ ...miniField }} title={gt ? tr("The structural trend \"{name}\" shapes the search; clear it in 3D Modelling → Model settings to type a flat search here.", { name: gt.name }) : tr("Flatten the search: the reach up and down from a block, with the search radius across. Blank = a sphere of the search radius.")}>{tr("Vertical reach (m)")}<input type="number" min="0" step="any" value={gt ? "" : numericFlatReach} disabled={!!gt} placeholder={gt ? tr("trend") : tr("sphere")} onChange={(e) => { const v = Number(e.target.value); setNumericFlatReach(e.target.value === "" || !(v > 0) ? "" : v); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Vertical reach (m)")} />
+                    <label style={{ ...miniField }} title={gt ? tr("The structural trend \"{name}\" shapes the search; clear it in 3D Modelling → Model settings to type a flat search here.", { name: gt.name }) : tr("Flatten the search: the reach up and down from a block, with the search radius across. Blank = a sphere of the search radius.")}>{tr("Vertical reach (m)")}<NumberInput min="0" allowEmpty value={gt || numericFlatReach === "" || numericFlatReach == null ? null : numericFlatReach} disabled={!!gt} placeholder={gt ? tr("trend") : tr("sphere")} onChange={(v) => { setNumericFlatReach(v == null || !(v > 0) ? "" : v); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Vertical reach (m)")} />
                     </label>
                   </div>
                   {!gt && reach > 0 && !flat && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6 }}>{numericSearchRadius > 0 ? tr("Less than the search radius, or it is a sphere.") : tr("A flat search needs a search radius.")}</div>}
@@ -1397,7 +1398,7 @@ export default function ModellingPanes(props) {
                   </label>
                   {[["nugget", tr("Nugget")], ["sill", tr("Sill (total)")], ["range", tr("Range (m)")]].map(([k, l]) => (
                     <label key={k} style={{ ...miniField, width: 64, flex: "0 0 auto" }}>{l}
-                      <input type="number" min="0" step="any" value={numericVariogram[k]} placeholder={tr("fit")} onChange={(e) => setNumericVariogram((v) => ({ ...v, [k]: e.target.value }))} style={{ ...smallSel, width: "100%" }} aria-label={tr("Variogram {l}", { l })} />
+                      <NumberInput min="0" allowEmpty value={numericVariogram[k] === "" || numericVariogram[k] == null ? null : numericVariogram[k]} placeholder={tr("fit")} onChange={(v) => setNumericVariogram((x) => ({ ...x, [k]: v == null ? "" : String(v) }))} style={{ ...smallSel, width: "100%" }} aria-label={tr("Variogram {l}", { l })} />
                     </label>
                   ))}
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 100%" }}>{tr("Blank = fitted to the composites when you run; with a trend, the range is along its major axis.")}</div>
@@ -1405,7 +1406,7 @@ export default function ModellingPanes(props) {
               )}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation)")}>
                 <input type="checkbox" checked={numericUseComposites} onChange={(e) => setNumericUseComposites(e.target.checked)} />{tr("Composite first")}{numericUseComposites && (
-                  <input type="number" step="any" min="0.1" value={numericCompositeLength} onChange={(e) => setNumericCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={{ ...smallSel, width: 50, marginLeft: 4 }} title={tr("Composite length (m)")} />
+                  <NumberInput min="0.1" value={numericCompositeLength} onChange={(v) => setNumericCompositeLength(v)} style={{ ...smallSel, width: 50, marginLeft: 4 }} title={tr("Composite length (m)")} />
                 )}
                 {numericUseComposites && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>m</span>}
               </label>
@@ -1414,7 +1415,7 @@ export default function ModellingPanes(props) {
                 onUse={(g) => { setNumericCompositeLength(g.length); setNumericMinCoverage(g.minCoverage); setNumericCapValue(g.cap ?? NaN); }} />}{/* TASKS.csv #2224 */}
               {/* TASKS.csv #262 — minCoverage was hardcoded at 0.5 here with no way to tighten it. */}
               {numericUseComposites && (
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.")}>{tr("Min coverage")}<input type="number" step="1" min="0" max="100" value={Math.round(numericMinCoverage * 100)} onChange={(e) => setNumericMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={{ ...smallSel, width: 50 }} />
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.")}>{tr("Min coverage")}<NumberInput step="1" min="0" max="100" value={Math.round(numericMinCoverage * 100)} onChange={(v) => setNumericMinCoverage(v / 100)} style={{ ...smallSel, width: 50 }} />
                   <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>%</span>
                 </label>
               )}
@@ -1423,12 +1424,12 @@ export default function ModellingPanes(props) {
                     only into CompositingModal; the grade shell composited uncapped, so a single bonanza
                     assay drove IDW² across its whole search neighbourhood. */}
                 <label style={{ ...miniField }} title={tr("Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au, estimating without a cap overstates grade.")}>{tr("High-grade cap ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
-                  <input type="number" min="0" step="any" placeholder={tr("none")} value={Number.isFinite(numericCapValue) ? numericCapValue : ""} onChange={(e) => setNumericCapValue(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
+                  <NumberInput min="0" placeholder={tr("none")} allowEmpty value={Number.isFinite(numericCapValue) ? numericCapValue : null} onChange={(v) => setNumericCapValue(v == null ? NaN : v)} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 {/* TASKS.csv #258 — minSamples counts sample POINTS: one hole composited at 2 m supplies
                     ~25 of them inside a 50 m radius, so it can never express "at least two holes must
                     see this cell". This can. */}
-                <label style={{ ...miniField }} title={tr("A grid cell is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. 1 lets a single hole populate a whole 50m-radius sphere of 'mineralization' with continuity asserted rather than demonstrated; 2 (or 3) is the standard first sanity constraint.")}>{tr("Min holes")}<input type="number" min="1" step="1" value={numericMinHoles} onChange={(e) => setNumericMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("A grid cell is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. 1 lets a single hole populate a whole 50m-radius sphere of 'mineralization' with continuity asserted rather than demonstrated; 2 (or 3) is the standard first sanity constraint.")}>{tr("Min holes")}<NumberInput min="1" step="1" value={numericMinHoles} onChange={(v) => setNumericMinHoles(Math.round(v))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
               <ShellCapNote assays={shellAreaAssays /* #3272 — the holes the run uses */} symbol={sym} unit={unit} assayElements={assayElements} includeQAQC={numericIncludeQAQC} isAssay={!numSrc && symbols.includes(sym)} capValue={numericCapValue} setCapValue={setNumericCapValue} autoRef={shellCapAuto /* #3272 */} cutoff={numericCutoff /* #3781 */} />{/* #2222 */}

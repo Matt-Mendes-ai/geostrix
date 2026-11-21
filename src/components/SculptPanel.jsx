@@ -6,6 +6,7 @@
 import React from "react";
 import { Hand, Undo2, Check, X as XIcon } from "./icons.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const num = (v, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
 
@@ -51,8 +52,8 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
 
           <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
             <span style={{ width: 96, flexShrink: 0 }}>{tr("Brush radius (m)")}</span>
-            <input type="number" min={0.1} step={1} value={sculpt.radius}
-              onChange={(e) => sculpt.setRadius(e.target.value)} style={{ ...smallSel, width: 70 }} />
+            <NumberInput min={0.1} step={1} allowEmpty value={sculpt.radius === "" || sculpt.radius == null ? null : sculpt.radius}
+              onChange={(n) => sculpt.setRadius(n == null ? "" : String(n))} style={{ ...smallSel, width: 70 }} />
           </label>
 
           <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "block", marginBottom: 5 }}>
@@ -65,8 +66,8 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
 
           <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
             <span style={{ width: 96, flexShrink: 0 }}>{tr("Offset (m)")}</span>
-            <input type="number" step={0.5} value={sculpt.offset} disabled={!info}
-              onChange={(e) => sculpt.setOffset(e.target.value)} style={{ ...smallSel, width: 70 }} />
+            <NumberInput step={0.5} allowEmpty value={sculpt.offset === "" || sculpt.offset == null ? null : sculpt.offset} disabled={!info}
+              onChange={(n) => sculpt.setOffset(n == null ? "" : String(n))} style={{ ...smallSel, width: 70 }} />
           </label>
           <input
             type="range" min={-50} max={50} step={0.25} value={sculpt.offset} disabled={!info}

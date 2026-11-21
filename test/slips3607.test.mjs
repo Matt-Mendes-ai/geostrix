@@ -12,7 +12,7 @@ test("the slips: a prompt, a typed search kept, no backlog number, the calculato
   assert.match(r, /e\?\.prompt \? \{ text: e\.message, level: "info" \}/);
   assert.doesNotMatch(r, /capped \(#803\)/, "(4) no backlog number in the stored record");
   const p = read("modules/viewer/ModellingPanes.jsx");
-  assert.match(p, /onChange=\{\(e\) => \{ shellSearchTyped\.current = true;/);
+  assert.match(p, /onChange=\{\(v\) => \{ shellSearchTyped\.current = true;/); // #3926: NumberInput hands back the number
   assert.match(p, /if \(shellSearchAuto && !shellSearchTyped\.current && /);
   const c = read("components/BlockCalculatorModal.jsx");
   assert.match(c, /const unitSuffix = unit\.trim\(\) \? ` \$\{unit\.trim\(\)\}` : "";/);

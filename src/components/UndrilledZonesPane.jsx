@@ -22,6 +22,7 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { runUndrilledZonesAsync } from "../lib/undrilledZonesClient.js"; // TASKS.csv #2258 — off the UI thread
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -168,17 +169,17 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         {supportText && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 */}
         {unit && !support && unit.type === "geophysical_shell" && <div style={note}>{tr("\"{name}\" was cut from a block model that records no drillhole support per cell (an imported or geophysical model), so nothing here says how well drilled its shape is.", { name: unit.name })}</div>}{/* #2096 */}
         <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
-          <input type="number" min="1" step="5" value={coverM} onChange={(e) => setCoverM(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: 70 }} /></label>
+          <NumberInput min="1" step="5" value={coverM} onChange={(n) => setCoverM(n)} style={{ ...smallSel, width: 70 }} /></label>
         {siteSpacing > 0 && <div style={note}>{holeSp > 0 && holeSp < 0.9 * siteSpacing ? tr("Drill sites are typically {s} m apart, the holes {h} m apart where they are (the nearest other hole, in 3D); covered within starts at half the smaller.", { s: Math.round(siteSpacing), h: Math.round(holeSp) }) /* #3820 */ : tr("Drill sites are typically {s} m apart; covered within starts at half that.", { s: Math.round(siteSpacing) })}</div>}{/* #2452 */}
         <label style={row}>{tr("Block size (m)")}
-          <input type="number" min="0" step="any" value={cellText} placeholder={autoCell ? tr("auto {v}", { v: autoCell }) : tr("auto")} onChange={(e) => setCellText(e.target.value)} style={{ ...smallSel, width: 70 }} /></label>
+          <NumberInput min="0" allowEmpty value={cellText === "" || cellText == null ? null : cellText} placeholder={autoCell ? tr("auto {v}", { v: autoCell }) : tr("auto")} onChange={(n) => setCellText(n == null ? "" : String(n))} style={{ ...smallSel, width: 70 }} /></label>
         <label style={row} title={tr("Optional: a block height of its own, for a flat body. Blank: the block size (cubes), or the shell's own cell height for a shell of a block model's range.")}>{tr("Block height (m)")}
-          <input type="number" min="0" step="any" value={cellZText} placeholder={autoZ ? tr("auto {v}", { v: autoZ }) : tr("= block size")} onChange={(e) => setCellZText(e.target.value)} style={{ ...smallSel, width: 70 }} aria-label={tr("Block height (m)")} /></label>{/* #2966 */}
+          <NumberInput min="0" allowEmpty value={cellZText === "" || cellZText == null ? null : cellZText} placeholder={autoZ ? tr("auto {v}", { v: autoZ }) : tr("= block size")} onChange={(n) => setCellZText(n == null ? "" : String(n))} style={{ ...smallSel, width: 70 }} aria-label={tr("Block height (m)")} /></label>{/* #2966 */}
         {own && !(Number(cellText) > 0) && !(Number(cellZText) > 0) && <div style={note}>{tr("Blocks of {b} m: the shell's own cells.", { b: `${own.cellM} × ${own.cellM} × ${own.cellZM}` })}</div>}
         {cellsVol && unit && <div style={note}>{tr("Three volumes of the same body: its {n} cells in the range hold {c}; the shell drawn between the cell centres holds {s}; the run counts its blocks, so its volume depends on the block size.", { n: cellsVol.cells.toLocaleString(), c: mm3(cellsVol.volumeM3), s: mm3(choices.closed.find((x) => x.id === unit.id)?.volumeM3 ?? 0) })}</div>}{/* #2966 */}
         {blockCount > 0 && <div style={{ ...note, ...(blockCount > 1_000_000 ? { color: "var(--color-warn-text)" } : {}) }}>{tr("About {n} blocks in the unit's box at this size.", { n: blockCount.toLocaleString() })}</div>}{/* #2258 */}
         <label style={row} title={tr("Gaps smaller than this are left out of the zones (they are counted)")}>{tr("Ignore gaps under (m³)")}
-          <input type="number" min="0" step="any" value={minText} placeholder={minAuto ? tr("{n} blocks: {v}", { n: MIN_ZONE_BLOCKS, v: Math.round(minAuto).toLocaleString() }) : "0"} title={tr("Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).", { n: MIN_ZONE_BLOCKS })} onChange={(e) => setMinText(e.target.value)} style={{ ...smallSel, width: 90 }} /></label>
+          <NumberInput min="0" allowEmpty value={minText === "" || minText == null ? null : minText} placeholder={minAuto ? tr("{n} blocks: {v}", { n: MIN_ZONE_BLOCKS, v: Math.round(minAuto).toLocaleString() }) : "0"} title={tr("Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).", { n: MIN_ZONE_BLOCKS })} onChange={(n) => setMinText(n == null ? "" : String(n))} style={{ ...smallSel, width: 90 }} /></label>
         <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={insideOnly} onChange={(e) => setInsideOnly(e.target.checked)} />
           <span>{tr("Count only the parts of holes inside the unit")}<span style={{ ...note, display: "block" }}>{tr("Off: a hole just outside still tests the contact beside it.")}</span></span></label>
         <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={assayedOnly} onChange={(e) => setAssayedOnly(e.target.checked)} />{/* #3345 */}

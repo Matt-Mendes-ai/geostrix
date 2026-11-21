@@ -30,7 +30,7 @@ test("(2) the shell's spacing is Estimation's; (4) gold's metal named for it; (7
   const g = src("components/GradeTonnageModal.jsx");
   assert.equal((g.match(/\{element \? memberMetalLabel\(c, element\) : tr\(c\.label, c\.args\)\}/g) || []).length, 2);
   const v = src("components/VariogramModal.jsx");
-  assert.match(v, /\{tr\("Min coverage \(%\)"\)\}<input type="number" min="0" max="100" step="1" value=\{Math\.round\(minCoverage \* 100\)\}/);
+  assert.match(v, /\{tr\("Min coverage \(%\)"\)\}<NumberInput min="0" max="100" step="1" value=\{Math\.round\(minCoverage \* 100\)\}/);
   assert.ok(!v.includes('tr("Min coverage (0-1)")'));
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));

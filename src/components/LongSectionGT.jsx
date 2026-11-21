@@ -9,6 +9,7 @@ import { toCsv, FORMULA_LEAD } from "../lib/tabular.js";
 import { sectionFrame, projectPierces, sectionGrids, sectionGridsOK, sectionSpacing, contourLevels, pierceRows } from "../lib/longSection.js"; // sectionGridsOK: #3122
 import { layoutLongSection, drawLongSection } from "../lib/longSectionFigure.js";
 import { imagePdf, dataUrlBytes } from "../lib/imagePdf.js";
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const KIND_WORD = { true: "true", horizontal: "horizontal", downhole: "downhole" }; // in the figure (English, as every export)
 
@@ -80,16 +81,16 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
           <option value="fit" disabled={!!fitFrame.error}>{fitFrame.error ? tr("Along the intercepts' best-fit plane (they do not define one)") : tr("Along the intercepts' best-fit plane (strike {s}°, dip {d}°)", { s: Math.round(fitFrame.strikeAz), d: Math.round(fitFrame.dip) })}</option>
           <option value="azimuth">{tr("A vertical plane at a typed azimuth")}</option>
         </select></label>
-        {mode === "azimuth" && <label style={field} title={tr("The direction along strike, read left to right on the section (degrees from grid north).")}>{tr("Azimuth along strike (°)")}<input type="number" step="any" value={azText} placeholder={fitFrame.error ? tr("azimuth") : String(Math.round(fitFrame.strikeAz))} onChange={(e) => { setAzText(e.target.value); setFig(null); }} style={inp} aria-label={tr("Azimuth along strike (°)")} /></label>}
+        {mode === "azimuth" && <label style={field} title={tr("The direction along strike, read left to right on the section (degrees from grid north).")}>{tr("Azimuth along strike (°)")}<NumberInput allowEmpty value={azText === "" || azText == null ? null : azText} placeholder={fitFrame.error ? tr("azimuth") : String(Math.round(fitFrame.strikeAz))} onChange={(n) => { setAzText(n == null ? "" : String(n)); setFig(null); }} style={inp} aria-label={tr("Azimuth along strike (°)")} /></label>}
         <label style={field}>{tr("Thickness")}<select value={kind} onChange={(e) => { setKind(e.target.value); setFig(null); }} style={{ ...inp, width: "auto" }} aria-label={tr("Long section thickness")}>
           {Object.entries(kindLabel).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select></label>
-        <label style={field}>{tr("Cell (m)")}<input type="number" min="0" step="any" value={cell} placeholder={cellM ? String(cellM) : ""} onChange={(e) => setCell(e.target.value)} style={inp} aria-label={tr("Long section cell (m)")} /></label>
-        <label style={field} title={tr("No pierce point within this distance of a node leaves it out. Blank = 2.5 times their typical spacing on the section.")}>{tr("Search radius (m)")}<input type="number" min="0" step="any" value={radius} placeholder={radiusM ? String(radiusM) : ""} onChange={(e) => setRadius(e.target.value)} style={inp} aria-label={tr("Long section search radius (m)")} /></label>
+        <label style={field}>{tr("Cell (m)")}<NumberInput min="0" allowEmpty value={cell === "" || cell == null ? null : cell} placeholder={cellM ? String(cellM) : ""} onChange={(n) => setCell(n == null ? "" : String(n))} style={inp} aria-label={tr("Long section cell (m)")} /></label>
+        <label style={field} title={tr("No pierce point within this distance of a node leaves it out. Blank = 2.5 times their typical spacing on the section.")}>{tr("Search radius (m)")}<NumberInput min="0" allowEmpty value={radius === "" || radius == null ? null : radius} placeholder={radiusM ? String(radiusM) : ""} onChange={(n) => setRadius(n == null ? "" : String(n))} style={inp} aria-label={tr("Long section search radius (m)")} /></label>
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
         {[tr("Thickness interval (m)"), tr("Grade interval ({u})", { u: shownGrade }), tr("GT interval ({u})", { u: gtLabel })].map((l, k) => (
-          <label key={k} style={field} title={tr("Blank: a round interval (1, 2 or 5 x 10^n) giving about six bands.")}>{l}<input type="number" min="0" step="any" value={steps[k]} placeholder={tr("round")} onChange={(e) => setSteps((p) => p.map((v, q) => (q === k ? e.target.value : v)))} style={inp} aria-label={l} /></label>
+          <label key={k} style={field} title={tr("Blank: a round interval (1, 2 or 5 x 10^n) giving about six bands.")}>{l}<NumberInput min="0" allowEmpty value={steps[k] === "" || steps[k] == null ? null : steps[k]} placeholder={tr("round")} onChange={(n) => setSteps((p) => p.map((v, q) => (q === k ? (n == null ? "" : String(n)) : v)))} style={inp} aria-label={l} /></label>
         ))}
         <label style={field}>{tr("Method")}<select value={method} onChange={(e) => { setMethod(e.target.value); setFig(null); }} style={{ ...inp, width: "auto" }} aria-label={tr("Section estimation method")} title={tr("Ordinary kriging fits a 2D variogram to the holes' GT, and another to their thickness, and weighs the nearest holes by it; inverse distance weighs them by distance alone. Both estimate the same nodes.")}>{/* #3122 */}
           <option value="idw">{tr("Inverse distance (squared)")}</option>
@@ -100,7 +101,7 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
           <option value="outline">{tr("the outline of the pierce points")}</option>
           <option value="distance">{tr("a distance from the nearest pierce point")}</option>
         </select></label>
-        {maskKind === "distance" && <label style={field}>{tr("Distance (m)")}<input type="number" min="0" step="any" value={maskText} placeholder={radiusM ? String(radiusM) : ""} onChange={(e) => { setMaskText(e.target.value); setFig(null); }} style={inp} aria-label={tr("Mask distance (m)")} /></label>}
+        {maskKind === "distance" && <label style={field}>{tr("Distance (m)")}<NumberInput min="0" allowEmpty value={maskText === "" || maskText == null ? null : maskText} placeholder={radiusM ? String(radiusM) : ""} onChange={(n) => { setMaskText(n == null ? "" : String(n)); setFig(null); }} style={inp} aria-label={tr("Mask distance (m)")} /></label>}
         <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }}><input type="checkbox" checked={labels} onChange={(e) => { setLabels(e.target.checked); setFig(null); }} />{tr("Label the pierce points with their hole ids")}</label>{/* #3123 */}
         <button type="button" disabled={frame.error || points.length < 2 || !cellM || !radiusM} onClick={draw} style={btn}>{tr("Draw the long section")}</button>
       </div>

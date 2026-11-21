@@ -83,7 +83,7 @@ test("#2634: the closed-body run and its pane carry the assay cut-off (no defaul
   assert.match(s, /assayIndicatorInGaps\(un\.rows, resolvedSegments\(excludeQAQC\(assays\), aSym/);
   assert.match(s, /if \(bodyOpts\.unloggedOutside\) \(ai \? ai\.rest : un\.rows\)/);
   assert.match(pane, /aria-label=\{tr\("Element that decides where the log is blank"\)\}/);
-  assert.match(pane, /value=\{unitBody\.assayCutoff \?\? ""\} placeholder=\{tr\("cut-off"\)\}/);
+  assert.match(pane, /allowEmpty value=\{unitBody\.assayCutoff === "" \|\| unitBody\.assayCutoff == null \? null : unitBody\.assayCutoff\} placeholder=\{tr\("cut-off"\)\}/); // #3926: a NumberInput, empty = no cut-off
   assert.match(panes, /assayElements=\{assayElements\} \/\* #2634 \*\//);
   assert.match(panes, /useState\(\{ iso: 0\.5, largest: false, search: 0, cell: 0 \}\)/, "no assay element or cut-off by default");
 });

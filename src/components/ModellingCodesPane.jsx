@@ -16,6 +16,7 @@ import { colorForLithology, LAYER_META } from "../lib/layers.js";
 import { findOnTrace } from "../lib/viewer/modelHelpers.js";
 import { combineSelection, intervalTouchesBox, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../lib/intervalBox.js"; // TASKS.csv #1333, #1337
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 const ROLE_HELP = {
   stratigraphic: "a layer in the pile: its top is a contact where it sits below a younger layer",
@@ -384,8 +385,8 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           </label>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Search (m)")}<input type="number" min={0} step={50} value={unitBody.search || ""} placeholder={tr("auto")} onChange={(e) => setUnitBody((b) => ({ ...b, search: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...inputStyle, width: 64 }} /></label>
-          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Cell size (m)")}<input type="number" min={0} step={5} value={unitBody.cell || ""} placeholder={tr("auto")} onChange={(e) => setUnitBody((b) => ({ ...b, cell: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...inputStyle, width: 64 }} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Search (m)")}<NumberInput min={0} step={50} allowEmpty value={unitBody.search || null} placeholder={tr("auto")} onChange={(n) => setUnitBody((b) => ({ ...b, search: n ?? 0 }))} style={{ ...inputStyle, width: 64 }} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Cell size (m)")}<NumberInput min={0} step={5} allowEmpty value={unitBody.cell || null} placeholder={tr("auto")} onChange={(n) => setUnitBody((b) => ({ ...b, cell: n ?? 0 }))} style={{ ...inputStyle, width: 64 }} /></label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={unitBody.largest} onChange={(e) => setUnitBody((b) => ({ ...b, largest: e.target.checked }))} />{tr("Keep only the largest body")}</label>
           <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Drilled metres with no rock code (and holes with no log) count as outside the unit instead of unknown: right for grade-control holes logged only where the unit is")}><input type="checkbox" checked={!!unitBody.unloggedOutside} onChange={(e) => setUnitBody((b) => ({ ...b, unloggedOutside: e.target.checked }))} />{tr("Treat unlogged metres as outside")}</label>{/* #2531 */}
         </div>
@@ -397,7 +398,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
               {assayElements.map((el) => <option key={el.symbol} value={el.symbol}>{el.symbol}</option>)}
             </select>
             {unitBody.assaySymbol && (<label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("at or above ({unit})", { unit: gradeUnitLabel(unitBody.assaySymbol, (assayElements.find((el) => el.symbol === unitBody.assaySymbol) || {}).unit) })}
-              <input type="number" min={0} step="any" value={unitBody.assayCutoff ?? ""} placeholder={tr("cut-off")} onChange={(e) => setUnitBody((b) => ({ ...b, assayCutoff: e.target.value === "" ? "" : Math.max(0, Number(e.target.value)) }))} style={{ ...inputStyle, width: 70 }} aria-label={tr("Cut-off where the log is blank")} /></label>)}
+              <NumberInput min={0} allowEmpty value={unitBody.assayCutoff === "" || unitBody.assayCutoff == null ? null : unitBody.assayCutoff} placeholder={tr("cut-off")} onChange={(n) => setUnitBody((b) => ({ ...b, assayCutoff: n == null ? "" : n }))} style={{ ...inputStyle, width: 70 }} aria-label={tr("Cut-off where the log is blank")} /></label>)}
           </div>
         )}
         <div style={{ ...small, marginTop: 3 }}>{tr("Inside: the code's intervals. Outside: every other logged lithology interval (and, when ticked, the unlogged metres). It follows the geology trend in Model settings. A lower Inside at joins separate bodies; a larger search rarely does.")}</div>
@@ -456,10 +457,10 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
             <option value="typed">{tr("Attitude I type")}</option>
           </select>
           {sheetAtt.mode === "typed" && (<>
-            <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Dip")}<input type="number" min={0} max={90} step="any" value={sheetAtt.dip} onChange={(e) => setSheetAtt((a) => ({ ...a, dip: e.target.value }))} style={{ ...inputStyle, width: 56 }} aria-label={tr("Dip of the sheets")} /></label>
-            <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Dip direction")}<input type="number" min={0} max={360} step="any" value={sheetAtt.dipDir} onChange={(e) => setSheetAtt((a) => ({ ...a, dipDir: e.target.value }))} style={{ ...inputStyle, width: 60 }} aria-label={tr("Dip direction of the sheets")} /></label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Dip")}<NumberInput min={0} max={90} allowEmpty value={sheetAtt.dip === "" || sheetAtt.dip == null ? null : sheetAtt.dip} onChange={(n) => setSheetAtt((a) => ({ ...a, dip: n == null ? "" : String(n) }))} style={{ ...inputStyle, width: 56 }} aria-label={tr("Dip of the sheets")} /></label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Dip direction")}<NumberInput min={0} max={360} allowEmpty value={sheetAtt.dipDir === "" || sheetAtt.dipDir == null ? null : sheetAtt.dipDir} onChange={(n) => setSheetAtt((a) => ({ ...a, dipDir: n == null ? "" : String(n) }))} style={{ ...inputStyle, width: 60 }} aria-label={tr("Dip direction of the sheets")} /></label>
           </>)}
-          <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("The largest distance across the sheets between two runs of one sheet. Blank = the median logged run of the code.")}>{tr("Gap (m)")}<input type="number" min={0} step="any" value={sheetAtt.gap} placeholder={tr("auto")} onChange={(e) => setSheetAtt((a) => ({ ...a, gap: e.target.value }))} style={{ ...inputStyle, width: 56 }} aria-label={tr("Gap between sheets (m)")} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("The largest distance across the sheets between two runs of one sheet. Blank = the median logged run of the code.")}>{tr("Gap (m)")}<NumberInput min={0} allowEmpty value={sheetAtt.gap === "" || sheetAtt.gap == null ? null : sheetAtt.gap} placeholder={tr("auto")} onChange={(n) => setSheetAtt((a) => ({ ...a, gap: n == null ? "" : String(n) }))} style={{ ...inputStyle, width: 56 }} aria-label={tr("Gap between sheets (m)")} /></label>
         </div>
         <button disabled={!numberCodes.length || (sheetAtt.mode === "typed" && !(sheetAtt.dip !== "" && sheetAtt.dipDir !== ""))} onClick={() => {
           const { rows, assign, msgs } = computeSheets(); // #2722 — the same matching the preview shows
