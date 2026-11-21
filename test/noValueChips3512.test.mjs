@@ -47,7 +47,7 @@ test("#3513 the unsampled wording follows the hole type in the pit panes, Grade-
   }
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
-    const chipsKeys = Object.keys(d).filter((k) => /[Uu]nsampled chips/.test(k) && /ore is in blocks|metal at the \{c\} cutoff|Composites are anchored/.test(k)); // #3899: a sentence may now start with it
+    const chipsKeys = Object.keys(d).filter((k) => /[Uu]nsampled chips/.test(k) && /ore is in blocks|metal at the \{c\} cutoff|stepped at the length above from each hole/.test(k)); // #3899: a sentence may now start with it; the Compositing note was reworded (T9)
     assert.equal(chipsKeys.length, 3, `${lang}: three new keys`);
     for (const k of chipsKeys) assert.notEqual(d[k], d[k.replace("unsampled chips", "unsampled core").replace("Unsampled chips", "Unsampled core")], `${lang}: translated differently from the core wording`);
   }

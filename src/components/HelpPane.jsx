@@ -134,10 +134,14 @@ function Page({ page, onOpen, onBack, backLabel }) {
           </div>
         ))}
       </>)}
-      {page.howto?.steps?.length > 0 && (<>
-        <div style={sectionHead}>{page.howto.sample && !/^(any|your own)/i.test(page.howto.sample) ? tr("How to: on the {sample} sample", { sample: page.howto.sample }) : tr("How to")}</div>
-        <ol style={{ margin: 0, paddingLeft: 18 }}>{page.howto.steps.map((s, i) => <li key={i} {...EN} style={{ marginBottom: 3 }}>{s}</li>)}</ol>
-      </>)}
+      {page.howto?.steps?.length > 0 && (() => {
+        const head = page.howto.sample && !/^(any|your own)/i.test(page.howto.sample) ? tr("How to: on the {sample} sample", { sample: page.howto.sample }) : tr("How to");
+        const list = <ol style={{ margin: 0, paddingLeft: 18 }}>{page.howto.steps.map((s, i) => <li key={i} {...EN} style={{ marginBottom: 3 }}>{s}</li>)}</ol>;
+        // #3899 — a folded walk-through sits under its heading, closed, as the detail behind "More" does; the search still reads it
+        return page.howto.folded
+          ? <details data-howto-folded=""><summary style={{ ...sectionHead, cursor: "pointer" }}>{head}</summary>{list}</details>
+          : <><div style={sectionHead}>{head}</div>{list}</>;
+      })()}
       {related.length > 0 && (<>
         <div style={sectionHead}>{tr("See also")}</div>
         <ul style={{ margin: 0, paddingLeft: 16 }}>{related.map((r) => <li key={r.id}><button type="button" style={linkBtn} onClick={() => onOpen(r.id)}>{tr(r.title)}</button></li>)}</ul>

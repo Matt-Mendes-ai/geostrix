@@ -10,7 +10,8 @@
 //     fields: [{ name, what, choose }],  // each control by its on-screen label: what it means, and HOW TO CHOOSE a value
 //                                       //   (never a number that reads as the right answer for every project)
 //     warnings: [{ says, means, do }],   // a message the tool can show (as on screen, placeholders as {n}), what it means, what to do
-//     howto: { sample, steps: [string] }, // a short numbered walk-through on a sample project ("Woodjam", "Silvertip", ...)
+//     howto: { sample, steps: [string], folded }, // a short numbered walk-through on a sample project ("Woodjam", "Silvertip", ...);
+//                               // #3899 — folded: true shows it under its heading, closed (counted behind "More")
 //     related: [id],            // other pages
 //     diagram: { id, alt },     // TASKS.csv #3899 — a picture after the summary (src/help/diagrams), its alt sentence read aloud and by the search
 //     more,                     // #3899 — detail kept behind a closed "More" (also on a field or a warning); the search reads it

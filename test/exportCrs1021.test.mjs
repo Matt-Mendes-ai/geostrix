@@ -18,5 +18,5 @@ test("#1021 a chosen CRS is used as is; a never-chosen one is asked for, and put
   answer = null;
   assert.equal(await ensureExportCrs({ epsg: 3156, crsSet: false }), null);
   assert.equal(asked.length, 2);
-  assert.match(asked[0], /never chosen/);
+  assert.match(asked[0], /Choose the project's coordinate system first: this export places your data on Earth/); // #3899 (T9): the prompt now leads with the action
 });
