@@ -12,7 +12,7 @@ test("the store announces each autosave (and the clearing of it) and the status 
   assert.match(s, /autosaveClear\(\); lastAutosaveSigRef\.current = null; autosaveSentRef\.current = new Map\(\); try \{ window\.dispatchEvent\(new CustomEvent\("geostrix:autosaved", \{ detail: \{ at: null \} \}\)\)/);
   const a = read("../src/App.jsx");
   assert.match(a, /const h = \(e\) => setAutosavedAt\(e\.detail && "at" in e\.detail \? e\.detail\.at : Date\.now\(\)\);/);
-  assert.match(a, /\{autosavedAt && <span title=\{tr\("The unsaved work of this window was written to the recovery copy at \{time\}/);
+  assert.match(a, /\{autosavedAt && <span title=\{tr\("Save the project to keep it: the unsaved work was copied for recovery at \{time\}/); // #3899: shorter, the action first
   assert.match(a, /tr\("Autosaved \{time\}", \{ time: new Date\(autosavedAt\)\.toLocaleTimeString\(\[\], \{ hour: "2-digit", minute: "2-digit" \}\) \}\)/);
-  for (const lang of ["es", "pt", "fr", "ar"]) { const d = loc(lang); for (const k of ["Autosaved {time}", "The unsaved work of this window was written to the recovery copy at {time}: after a crash GeoStrix offers it back. Save the project to put it in its file."]) assert.ok(d[k], `${lang}: ${k.slice(0, 30)}`); }
+  for (const lang of ["es", "pt", "fr", "ar"]) { const d = loc(lang); for (const k of ["Autosaved {time}", "Save the project to keep it: the unsaved work was copied for recovery at {time}, offered back after a crash."]) assert.ok(d[k], `${lang}: ${k.slice(0, 30)}`); }
 });
