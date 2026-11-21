@@ -61,21 +61,24 @@ test("#3925 the PowerShell bridge, started as an AI app starts it, finishes init
   host.stop(); fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("#3925 GeoStrix not running: no endpoint, or one left by a GeoStrix that is gone: one plain MCP error per request, fast; ends with its input; nothing started", { skip: !win32 && "PowerShell bridge: Windows only" }, async () => {
+// #3964: the bridge now answers initialize and tools/list itself (so the AI app shows it Running) and keeps going; a tool call is what
+// needs GeoStrix, and gets the plain error (test/mcpBridgeAlways3964 has the rest)
+test("#3925 GeoStrix not running: no endpoint, or one left by a GeoStrix that is gone: a tool call gets one plain MCP error, fast; ends with its input; nothing started", { skip: !win32 && "PowerShell bridge: Windows only" }, async () => {
   for (const stale of [false, true]) {
     const dir = tempDir();
     if (stale) { fs.mkdirSync(path.join(dir, "mcp")); fs.writeFileSync(path.join(dir, "mcp", "endpoint.json"), JSON.stringify({ pipe: "\\\\.\\pipe\\geostrix-mcp-000000000000", token: "x".repeat(64), pid: 999999 })); }
     const b = startBridge(dir);
-    b.child.stdin.write(`${rpc(7, "initialize", { clientInfo: { name: "Test Client" } })}\n${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n${rpc("a", "tools/list")}\n`);
-    const got = await b.waitLines(2);
+    b.child.stdin.write(`${rpc(7, "initialize", { clientInfo: { name: "Test Client" } })}\n${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n${rpc("a", "tools/list")}\n${rpc("c", "tools/call", { name: "project_summary", arguments: {} })}\n`);
+    const got = await b.waitLines(3);
     const secs = (Date.now() - b.t0) / 1000;
     b.child.stdin.end();
     const code = await b.exited;
     const msgs = got.map((l) => JSON.parse(l));
-    assert.deepEqual(msgs.map((m) => m.id), [7, "a"], stale ? "stale endpoint" : "no endpoint");
-    for (const m of msgs) { assert.equal(m.error.code, -32000); assert.match(m.error.message, /^GeoStrix is not running, or AI App Access is switched off\./); }
+    assert.deepEqual(msgs.map((m) => m.id), [7, "a", "c"], stale ? "stale endpoint" : "no endpoint");
+    assert.ok(msgs[0].result?.serverInfo); assert.ok(msgs[1].result?.tools?.length > 0);
+    assert.equal(msgs[2].error.code, -32000); assert.match(msgs[2].error.message, /^GeoStrix is not running, or AI App Access is switched off\./);
     assert.ok(secs < 8, `answered in ${secs.toFixed(1)} s`);
-    assert.equal(code, 1);
+    assert.equal(code, 0);
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

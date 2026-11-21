@@ -22,6 +22,7 @@ export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay,
   const [widthText, setWidthText] = useState("");
   const [reachText, setReachText] = useState("");
   const noteCache = useRef({}); // the budget note's figures, worked out once per domain / budget / cell
+  const startProjectJob = useStore()?.startProjectJob; // TASKS.csv #3953 (before the early return: hooks run on every render)
   if (!imported.length) return null;
   const sid = imported.some((s) => s.id === surfaceId) ? surfaceId : imported[0].id;
   const fy = Number(firstYear) || (years.length ? years[years.length - 1] : "");
@@ -41,7 +42,6 @@ export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay,
     return { budget, cell: Math.round(cellToFit(b, budget, c0)), asked: c0 };
   })();
   noteCache.current = { key: noteKey, value: budgetNote };
-  const startProjectJob = useStore()?.startProjectJob; // TASKS.csv #3953
   const run = async () => {
     setBusy(true);
     const job = startProjectJob?.({ label: tr("Update an imported domain with new drilling") }) || null; // TASKS.csv #3953

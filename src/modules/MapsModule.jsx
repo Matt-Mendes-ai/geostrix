@@ -8,7 +8,7 @@ import { useLatestCallback } from "../lib/useLatestCallback.js"; // TASKS.csv #3
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx";
 import { SatelliteIcon, TerrainIcon, GeologyIcon } from "../components/ribbonIcons.jsx"; // TASKS.csv #3958
-import { Image, Satellite, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, FileSpreadsheet, Rainbow } from "../components/icons.js"; // Mountain, Layers3: drawn icons now (#3958)
+import { Image, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, FileSpreadsheet, Rainbow } from "../components/icons.js"; // Mountain, Layers3: drawn icons now (#3958)
 import { requestModuleAction, useModuleAction } from "../lib/menuRequests.js";
 import { useStore } from "../lib/store.jsx";
 import { crsName } from "../lib/reproject.js";

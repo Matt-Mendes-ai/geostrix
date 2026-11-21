@@ -12,11 +12,12 @@ import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceCheck
 import { holesForFilter, holeSetsOf, fenceTracesOf } from "../lib/holeFilter.js"; // #1504; #1703; #3554; #3561
 import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
-import FenceOptions from "./viewer/FenceOptions.jsx";
+const FenceOptions = lazyPart(() => import("./viewer/FenceOptions.jsx")); // TASKS.csv #3961: lazy (the slice-series pane)
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, Suspense } from "react";
 import { useDataGeneration, generationTables, useCallbackGen as useCallback, useMemoGen as useMemo } from "./viewer/dataGeneration.js"; // TASKS.csv #3483 — the memos made again when a big table is replaced (a leak of every earlier generation)
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
+import { requestCollarZFromTerrain } from "../lib/collarTerrainRequests.js"; // TASKS.csv #3955
 import { isPxrfRow } from "../lib/qaqcCore.js"; // TASKS.csv #1695; #3159: qaqcCore, not qaqc.js (the QAQC charts' code, not needed at startup)
 import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
 import { metresPerPixel, minSymbolRadiusM, cappedRadiusM, needsSymbolRebuild, GEOPHYS_MIN_PX } from "../lib/viewer/symbolScale.js"; // TASKS.csv #1597; GEOPHYS_MIN_PX: #2849
@@ -34,7 +35,7 @@ const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimati
 const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx")); // TASKS.csv #147  // TASKS.csv #301
 const LocatorMap = lazyPart(() => import("../components/LocatorMap.jsx")); // startup size: shown on request
 const BasemapView = lazyModal(() => import("../components/BasemapView.jsx"));  // TASKS.csv #301
-import PromptModal from "../components/PromptModal.jsx";
+const PromptModal = lazyPart(() => import("../components/PromptModal.jsx")); // TASKS.csv #3961: lazy (drawn only while a question is open)
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
 import { customLayerSync, detachCustomGroups } from "./viewer/customLayerSync.js"; // #2361
@@ -56,7 +57,7 @@ import { sampleCardsFor, sampleFootnote, askSampleDownload, emptyCardSamples } f
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
 import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
 import { TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import ModeRibbons from "./viewer/ModeRibbons.jsx"; // TASKS.csv #3904
+const ModeRibbons = lazyPart(() => import("./viewer/ModeRibbons.jsx")); // TASKS.csv #3904; #3961: Modelling / Mine design / Targeting only, loaded after the first frame
 import { Rows3, Crosshair, Target, SquareSplitVertical } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { tieOf } from "../lib/localGridTie.js"; // TASKS.csv #3186
@@ -88,7 +89,7 @@ import { createAxisGizmo } from "../components/AxisGizmo.js";
 import { legendLayout } from "../lib/legendLayout.js"; // TASKS.csv #2044; apart from the overlay component (startup size)
 const ViewportFigureOverlay = lazyPart(() => import("../components/ViewportFigureOverlay.jsx")); // TASKS.csv #311 — loaded with the first figure, not at startup
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
-import { fixedScaleHalfHeight, captureLongPx, scaleForHalfHeight } from "../lib/layoutGeometry.js"; // scaleForHalfHeight: #1486
+import { fixedScaleHalfHeight, captureLongPx, scaleForHalfHeight } from "../lib/captureScale.js"; // scaleForHalfHeight: #1486; captureScale: #3961
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -138,7 +139,7 @@ const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")
 const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPane.jsx")); // TASKS.csv #1876
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
-import StopeRunRows from "./viewer/StopeRunRows.jsx"; // TASKS.csv #1968
+const StopeRunRows = lazyPart(() => import("./viewer/StopeRunRows.jsx")); // TASKS.csv #1968; #3961: lazy (mine design only)
 import { collarGround } from "../lib/collarGround.js"; // TASKS.csv #1616 — the estimate's ground without a terrain; #3159: not pitShell.js, which put the pit solver in startup
 import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import SurfacePlacementNotices from "./viewer/SurfacePlacementNotices.jsx"; // TASKS.csv #2485
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
@@ -181,7 +182,7 @@ import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 �
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
-import { SUPPORT_COLORS, clampCellBudget, NUMERIC_CELL_DEFAULT, GRADE_SHELL_SEARCH_DEFAULT, GRADE_SHELL_BLOCK_BUDGET } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
+import { SUPPORT_COLORS, clampCellBudget, NUMERIC_CELL_DEFAULT, GRADE_SHELL_SEARCH_DEFAULT, GRADE_SHELL_BLOCK_BUDGET } from "../lib/estimationConsts.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625; estimationConsts: #3961
 import { rectilinearGrid, buildExposedFaces, voxelBands } from "../lib/voxelFaces.js"; // TASKS.csv #793; voxelBands: #3354
 const SurfaceSolidsPanel = React.lazy(() => import("../components/SurfaceSolidsPanel.jsx")); // TASKS.csv #802 — loads when opened (startup budget)
 const ExplicitSurfacePanel = React.lazy(() => import("../components/ExplicitSurfacePanel.jsx")); // TASKS.csv #811 — loads when opened
@@ -194,7 +195,7 @@ const MODELLING_PANES = new Set(["mapmodel", "settings", "gradeEst", "explicit",
 const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
 import { PRECIOUS_METALS, gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
-import ClosureNote from "./viewer/ClosureNote.jsx"; // TASKS.csv #1689
+const ClosureNote = lazyPart(() => import("./viewer/ClosureNote.jsx")); // TASKS.csv #1689; #3961: lazy (an artificially closed surface's card)
 const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); // TASKS.csv #1690; #3159: lazy (shown only for an expanded closed surface), it brought gradeTonnage.js into startup
 // TASKS.csv #1136 — off the startup chunk: the Targeting tab's planned-hole parts, the measure readout and the numeric
 // symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
@@ -7561,6 +7562,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {layerContextMenu.key !== "geophys_pts" && <ContextItem label={tr("Export CSV table (imports back)…")} onClick={() => { exportDrillholeTables(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
             <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database (Postgres COPY, MySQL LOAD DATA)")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
+            {layerContextMenu.key === "__collars__" && <ContextItem label={tr("Collar elevations from the terrain…")} onClick={() => { requestCollarZFromTerrain(); setLayerContextMenu(null); }} />}{/* #3955 */}
             {!isVector && <>
               {/* TASKS.csv #76 — sort this layer into a named group (or back out of one). */}
               {layerGroups.length > 0 && <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />}
