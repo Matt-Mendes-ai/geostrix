@@ -265,7 +265,8 @@ import { useSavedCamera, applySavedCamera } from "./viewer/savedCamera.js"; // #
 import { decideLight, registerRenderer, lightDrawingNotice } from "../lib/viewer/lightDrawing.js"; // #3620
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
-import NumberInput from "../components/NumberInput.jsx"; // #3926
+import NumberInput from "../components/NumberInput.jsx";
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // #3926
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641
@@ -3284,9 +3285,9 @@ ${describeTrend(t)}` };
   // shells from them (1.6 s at 1.9 M). Above 300,000 unit cells (~63 MB as a block model), say so and ask.
   const BIG_UNIT_BLOCKS = 300_000;
   const unitCellCount = (lb) => { let n = 0; const ids = lb?.block?.ids || []; for (let i = 0; i < ids.length; i++) if (ids[i] && lb.block.labels[ids[i] - 1] != null) n++; return n; };
-  const addLithBlockModel = () => {
+  const addLithBlockModel = async () => {
     const lb = lastLithBlock; if (!lb) return;
-    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !window.confirm(tr("The last model has {n} unit blocks, about {mb} MB of memory, which a modest computer may not spare; a larger block size keeps it light. Add them anyway?", { n: n.toLocaleString(), mb: Math.round((n * 210) / 1e6) }))) return; } // #891
+    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !await askConfirm(tr("The last model has {n} unit blocks, about {mb} MB of memory, which a modest computer may not spare; a larger block size keeps it light. Add them anyway?", { n: n.toLocaleString(), mb: Math.round((n * 210) / 1e6) }))) return; } // #891
     const cells = blockToCells(lb.block, lb.origin);
     if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return; }
     const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
@@ -3303,12 +3304,12 @@ ${describeTrend(t)}` };
   const addUnitVolumes = async () => {
     const lb = lastLithBlock; if (!lb) return;
     const { isOpenUnit, openUnitText } = await import("../lib/viewer/openUnitVolume.js"); // #3112, on use
-    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !window.confirm(tr("The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?", { n: n.toLocaleString() }))) return; } // #891
+    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !await askConfirm(tr("The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?", { n: n.toLocaleString() }))) return; } // #891
     const o = originRef.current, stamp = Date.now(), added = [], lines = [];
     const ust = blockUnitStats(lb.block); // TASKS.csv #877
     // #3112 — the run's lowest unit with no base (openBelow, #2917) is everything to the box floor: built only when asked, and named so
     const ob = lb.openBelow, openLabel = lb.block.labels.find((l) => l != null && isOpenUnit(ob, l)), whereTr = openLabel == null ? "" : ob.floorRL != null ? tr("below {top}, to the box floor at RL {rl}", { top: ob.top, rl: ob.floorRL }) : tr("below {top}, to the box floor", { top: ob.top });
-    const withOpen = openLabel != null && window.confirm(tr("{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?", { unit: openLabel, where: whereTr }));
+    const withOpen = openLabel != null && await askConfirm(tr("{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?", { unit: openLabel, where: whereTr }));
     lb.block.labels.forEach((label, k) => {
       if (label == null) return;
       const ot = openLabel != null && label === openLabel ? openUnitText(ob, label, lb.title, lb.when) : null;
@@ -3537,7 +3538,7 @@ ${describeTrend(t)}` };
       const layered = solid.parts.length > 1;
       // #483: the saved size is the compact form (compactSurfaces.js, ~10 MB per million triangles measured); an
       // upper estimate here, at ~3 bytes per coordinate and ~2 per index, base64
-      if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(tr("\"{name}\" has {triangleCount} triangles{v}: it can slow the 3D view and add about {v2} MB to the project. Import it anyway?", { name: file.name, triangleCount: solid.triangleCount.toLocaleString(), v: layered ? tr(" in {parts} layers", { parts: solid.parts.length }) : "", v2: Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6) }))) {
+      if (solid.triangleCount > SOLID_FACE_WARN && !await askConfirm(tr("\"{name}\" has {triangleCount} triangles{v}: it can slow the 3D view and add about {v2} MB to the project. Import it anyway?", { name: file.name, triangleCount: solid.triangleCount.toLocaleString(), v: layered ? tr(" in {parts} layers", { parts: solid.parts.length }) : "", v2: Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6) }))) {
         setNotices((p) => [...p, notice("{name}: import cancelled ({triangleCount} triangles).", { name: file.name, triangleCount: solid.triangleCount.toLocaleString() })]);
         return;
       }
@@ -3546,14 +3547,14 @@ ${describeTrend(t)}` };
       let viaTie = false;
       if (gridTie) {
         const g = (await import("../lib/solidTie.js")).solidTieGuess(solid.parts, gridTie, importStateRef.current?.collars);
-        viaTie = window.confirm(tr("Are the coordinates in \"{name}\" in EPSG:{epsg}, the CRS the local grid is tied to?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.", { epsg: gridTie.epsg, name: file.name, hint: g.suggest === "tie" ? tr("\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString(), epsg: gridTie.epsg }) : g.suggest === "local" ? tr("\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString() }) : "" }));
+        viaTie = await askConfirm(tr("Are the coordinates in \"{name}\" in EPSG:{epsg}, the CRS the local grid is tied to?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.", { epsg: gridTie.epsg, name: file.name, hint: g.suggest === "tie" ? tr("\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString(), epsg: gridTie.epsg }) : g.suggest === "local" ? tr("\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString() }) : "" }));
         if (viaTie) solid.parts = (await import("../lib/solidTie.js")).solidPartsToLocal(solid.parts, gridTie);
       }
       const bounds = solidBounds(solid.parts);
       // TASKS.csv #3428 — more than 100 km from the holes froze the view for about a minute (fitted, with a scene origin that far): asked first, and
       // when imported anyway the view stays where it is
       const farSolid = (await import("../lib/solidFar.js")).solidFarFromHoles(bounds, importStateRef.current?.collars);
-      if (farSolid?.far && !window.confirm(tr("\"{name}\" lies about {km} km from your holes (E {e}, N {n}): probably another coordinate system or a local grid. A solid that far can freeze the 3D view. Import it anyway? OK: import it and leave the view where it is. Cancel: don't import it.", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString(), e: Math.round(farSolid.solid[0]).toLocaleString(), n: Math.round(farSolid.solid[1]).toLocaleString() }))) {
+      if (farSolid?.far && !await askConfirm(tr("\"{name}\" lies about {km} km from your holes (E {e}, N {n}): probably another coordinate system or a local grid. A solid that far can freeze the 3D view. Import it anyway? OK: import it and leave the view where it is. Cancel: don't import it.", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString(), e: Math.round(farSolid.solid[0]).toLocaleString(), n: Math.round(farSolid.solid[1]).toLocaleString() }))) {
         setNotices((p) => [...p, notice("{name}: import cancelled (it lies about {km} km from the holes).", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString() })]);
         return;
       }
@@ -3789,9 +3790,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [implicitSurfaces]);
   const [lodSeq, setLodSeq] = useState(0); // TASKS.csv #795 — re-render the surface details when a drawing copy is ready
   // TASKS.csv #885 — an explicit surface is rebuilt from its picks, which go with it and come back with Ctrl+Z
-  const confirmRemoveSurface = (s) => (s.type === "explicit_surface"
-    ? confirmDestructive(tr("Remove the explicit surface \"{name}\" with its picks and lines?", { name: s.name }), { undoable: true })
-    : confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") }));
+  const confirmRemoveSurface = async (s) => (s.type === "explicit_surface"
+    ? await confirmDestructive(tr("Remove the explicit surface \"{name}\" with its picks and lines?", { name: s.name }), { undoable: true })
+    : await confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") }));
   const removeImplicitSurface = useCallback((id) => {
     stashSurface({ grave: surfaceGrave.current, meshes: implicitMeshesRef.current, group: implicitGroupRef.current, surfaces: surfacesNowRef.current }, id); // TASKS.csv #3494 — kept for Undo, not disposed (dropDrawLod: #795, inside)
     // TASKS.csv #83 — drop any relationship pointing AT the surface being removed too, so the
@@ -3942,9 +3943,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     setDomains((p) => [...p, { id, name: name || "New domain", constraints: [] }]);
     return id;
   }, []);
-  const deleteDomain = useCallback((id) => {
+  const deleteDomain = useCallback(async (id) => {
     const dom = (modelDomains || []).find((d) => d.id === id); // TASKS.csv #386
-    if (!confirmDestructive(tr("Delete model domain \"{v}\" and its fault-side constraints?", { v: dom?.name || "domain" }))) return;
+    if (!await confirmDestructive(tr("Delete model domain \"{v}\" and its fault-side constraints?", { v: dom?.name || "domain" }))) return;
     setDomains((p) => p.filter((d) => d.id !== id));
     if (modelDomainId === id) setModelDomainId("");
   }, [modelDomainId, modelDomains]);
@@ -5177,10 +5178,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #63 — "unload" a layer entirely (distinct from the per-source removal above): drops
   // every row at once, e.g. when a whole CSV's worth of data was imported to the wrong layer target
   // or just isn't wanted anymore, without deleting the drillholes it was hung off of.
-  const clearLayer = (layerKey) => {
+  const clearLayer = async (layerKey) => {
     const n = (layers[layerKey] || []).length;
     if (!n) return;
-    if (!confirmDestructive(tr("Remove all {n} row(s) from \"{label}\"?", { n, label: LAYER_META[layerKey].label }), { undoable: true })) return; // #386: layers are in Undo
+    if (!await confirmDestructive(tr("Remove all {n} row(s) from \"{label}\"?", { n, label: LAYER_META[layerKey].label }), { undoable: true })) return; // #386: layers are in Undo
     setLayers((p) => ({ ...p, [layerKey]: [] }));
     setNotices((p) => [...p, notice("Cleared {n} row(s) from {label}.", { n, label: LAYER_META[layerKey].label })]);
   };
@@ -5348,15 +5349,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // matters most to warn clearly about: every layer (litho/alt/.../geophys) stays in the project
   // untouched, but nothing renders without a matching collar to desurvey against, so this can look
   // like data loss even though it isn't — the warning says so explicitly.
-  const clearCollars = () => {
+  const clearCollars = async () => {
     if (!collars.length) return;
-    if (!confirmDestructive(tr("Remove all {collars} collar(s)? Every layer's data stays in the project, but nothing will render until collars are re-imported (there's nothing to desurvey against).", { collars: collars.length }), { undoable: true })) return; // #386
+    if (!await confirmDestructive(tr("Remove all {collars} collar(s)? Every layer's data stays in the project, but nothing will render until collars are re-imported (there's nothing to desurvey against).", { collars: collars.length }), { undoable: true })) return; // #386
     setCollars([]);
     setNotices((p) => [...p, notice("Cleared {collars} collar(s).", { collars: collars.length })]);
   };
-  const clearSurvey = () => {
+  const clearSurvey = async () => {
     if (!survey.length) return;
-    if (!confirmDestructive(tr("Remove all {survey} survey station(s)? Holes fall back to a straight-hole projection from each collar's own azimuth/dip.", { survey: survey.length }), { undoable: true })) return; // #386
+    if (!await confirmDestructive(tr("Remove all {survey} survey station(s)? Holes fall back to a straight-hole projection from each collar's own azimuth/dip.", { survey: survey.length }), { undoable: true })) return; // #386
     setSurvey([]);
     setNotices((p) => [...p, notice("Cleared {survey} survey station(s).", { survey: survey.length })]);
   };
@@ -6059,9 +6060,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       setVisibleHoles((p) => { if (!(holeId in p)) return p; const { [holeId]: v, ...rest } = p; return { ...rest, [next]: v }; });
       setNotices((p) => [...p, notice("Renamed {hole} to {next} in the collars, survey, layers and assays.", { hole: holeId, next })]);
     }) },
-    { label: tr("Delete hole…"), onClick: () => {
+    { label: tr("Delete hole…"), onClick: async () => {
       const n = holeRowCounts({ collars, survey, layers, assays, customLayers }, holeId);
-      if (!confirmDestructive(tr("Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?", { hole: holeId, total: n.collars + n.survey + n.intervals + n.assays + n.custom }), { undoable: true })) return;
+      if (!await confirmDestructive(tr("Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?", { hole: holeId, total: n.collars + n.survey + n.intervals + n.assays + n.custom }), { undoable: true })) return;
       deleteHole(holeId); setCustomLayers((p) => mapCustomLayers(p, (rows) => deleteInRows(rows, holeId)));
       setNotices((p) => [...p, notice("Deleted {hole} and its rows (Ctrl+Z restores it).", { hole: holeId })]);
     } },
@@ -6079,7 +6080,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv — "slice series": "I wanna be able to slice the voxel in equal parts on a specified azi and width." Parallel lines at the
   // azimuth, `width` m apart (each corridor width/2, so the slabs tile the extent), added to the saved sections rather than opened. Points
   // project to s = p·dir, t = p·perp with dir = (sin az, cos az), perp = (cos az, -sin az): the extent to cover and each line's ends.
-  const generateSliceSeries = useCallback(() => {
+  const generateSliceSeries = useCallback(async () => {
     const az = toRad(((sliceSeriesAzimuth % 360) + 360) % 360);
     const width = Math.max(1, sliceSeriesWidth);
     const dirX = Math.sin(az), dirY = Math.cos(az);
@@ -6106,7 +6107,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // TASKS.csv #393 — lines on round multiples of the spacing, as on a paper plan. #2040 — only the slabs that hold data
     const { lines, empty: emptySlabs } = fenceLinesWithData(pts, sliceSeriesAzimuth, width, shownT);
     const n = lines.length;
-    if (n > 50 && !window.confirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
+    if (n > 50 && !await askConfirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
 
     // TASKS.csv #240 — one groupId for the run, so the sidebar collapses it and it is removed in one action.
     const groupId = addSectionGroup(`Fence series (az ${sliceSeriesAzimuth.toFixed(0)}°, ${width}m)`);
@@ -6323,7 +6324,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 style={{ cursor: "pointer", color: g.keys.some((k) => layerVisible[k]) ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={tr("Toggle all layers in this group")}>
                 {g.keys.some((k) => layerVisible[k]) ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete group \"{name}\"? Its layers stay — they just go back to being ungrouped.", { name: g.name }))) deleteLayerGroup(g.id); }, tr("Delete group \"{name}\" (its layers stay, just ungrouped)", { name: g.name }))} />
+              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Delete group \"{name}\"? Its layers stay — they just go back to being ungrouped.", { name: g.name }))) deleteLayerGroup(g.id); }, tr("Delete group \"{name}\" (its layers stay, just ungrouped)", { name: g.name }))} />
             </div>
             {!g.collapsed && (
               <div style={{ padding: "6px 6px 2px" }}>
@@ -6380,7 +6381,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   { label: tr("Zoom to"), onClick: () => zoomToObject(boundaryLinesRef.current[b.id]) },
                   "-", ...overlayExportItems(b.name, async () => (await overlayLib()).boundaryFeatures(b), { kml: { colorOf: () => b.color, nameOf: () => b.name } }), // #1025
                   "-", { label: tr("Colour and style — Maps tab"), onClick: () => goToModule("maps") },
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -6388,7 +6389,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
                 <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("boundary")}</span>
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit boundary \"{name}\" in the Maps tab", { name: b.name }))} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }, tr("Remove boundary \"{name}\"", { name: b.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }, tr("Remove boundary \"{name}\"", { name: b.name }))} />
               </div>
             ))}
             {omfObjects.map((o) => <OmfObjectRow key={o.id} o={o} update={updateOmfObject} remove={removeOmfObject} zoom={() => zoomToObject(omfMeshesRef.current[o.id])} openRowMenu={openRowMenu} />)}{/* TASKS.csv #3895 */}
@@ -6397,7 +6398,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   { label: v.visible === false ? "Show" : "Hide", onClick: () => updateVoxelModel(v.id, { visible: v.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(voxelMeshesRef.current[v.id]) },
                   "-", { label: tr("Legend, classes and palette — Geophysics tab"), onClick: () => { goToModule("geophysics"); requestModuleAction("edit-block-model", { id: v.id }); } }, // #1417 — its own card
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {v.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -6410,7 +6411,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 />
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToObject(voxelMeshesRef.current[v.id]), tr("Zoom to \"{name}\"", { name: v.name }))} />{/* #2080 */}
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { goToModule("geophysics"); requestModuleAction("edit-block-model", { id: v.id }); }, tr("Edit legend / classify / palette for this model in the Geophysics tab"))} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); }, tr("Remove block/voxel model \"{name}\"", { name: v.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); }, tr("Remove block/voxel model \"{name}\"", { name: v.name }))} />
               </div>
             ))}
           </>
@@ -6536,12 +6537,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: customVisible[l.id] === false ? "Show" : "Hide", onClick: () => toggleCustom(l.id) },
             { label: tr("Zoom to"), onClick: () => zoomToCustom(l.id) },
             { label: tr("Style (colour, size, shape)…"), onClick: () => openCustomStyle(l) },
-            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            "-", { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.notes ? `${l.name}\n${l.notes}` : l.name}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({layerRowCount(l) /* #3424 */})</span>{l.notes && <span title={l.notes} style={{ display: "inline-flex", flexShrink: 0, color: "var(--color-text-muted)" }}><Info size={12} aria-label={tr("Layer notes: {v}", { v: l.notes })} /></span>}{/* #2432 — what the import left out or assumed */}
             </div>
             <Settings2 size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => openCustomStyle(l), tr("Style"))} /><Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), tr("Zoom to custom layer \"{name}\"", { name: l.name }))} />
-            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } /* #2338 — asks, as the menu does */, tr("Remove custom layer \"{name}\"", { name: l.name }))} />
+            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } /* #2338 — asks, as the menu does */, tr("Remove custom layer \"{name}\"", { name: l.name }))} />
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add CSV layer")}</div>
@@ -6560,12 +6561,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: tr("Zoom to"), onClick: () => zoomToObject(mapLayerMeshesRef.current[l.id]) },
             "-", ...overlayExportItems(l.name, async () => (await overlayLib()).mapLayerFeatures(l), { kml: async () => ({ colorOf: (await overlayLib()).mapLayerColorOf(l), nameOf: (f) => String(f.attributes?.[l.styleField] ?? l.name) }) }), // #1025
             "-", { label: tr("Colours, labels and draping — Geological Mapping tab"), onClick: () => goToModule("surface") },
-            { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }), { undoable: true })) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }), { undoable: true })) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} title={`${l.visible === false ? tr("Show") : tr("Hide")} "${l.name}"${l.crsNote ? `\n${l.crsNote}` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: l.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {l.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({featureCountText(l.features.length, l.geomType)})</span>
             </div>
             <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = mapLayerMeshesRef.current[l.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, tr("Zoom to map layer \"{name}\"", { name: l.name }))} />
-            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }), { undoable: true })) removeMapLayer(l.id); }, tr("Remove map layer \"{name}\"", { name: l.name }))} />
+            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }), { undoable: true })) removeMapLayer(l.id); }, tr("Remove map layer \"{name}\"", { name: l.name }))} />
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.mapLayer.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add map layer (.shp / .zip / .gpkg)")}</div>
@@ -6584,13 +6585,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: tr("Move to another line…"), onClick: () => setSectionGeorefOpen({ moveId: im.id }) }, // TASKS.csv #3924
             { label: tr("Opaque"), onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
             { label: tr("Half transparent"), onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
-            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            "-", { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateSectionImage(im.id, { visible: im.visible === false })} title={`${im.visible === false ? tr("Show") : tr("Hide")} "${im.name}"${im.rmse != null ? tr(" (fit error {rmse} m)", { rmse: im.rmse.toFixed(1) }) : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: im.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 {im.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{im.name}</span>
               </div>
               <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = sectionImageMeshesRef.current[im.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, tr("Zoom to section image \"{name}\"", { name: im.name }))} />
-              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); }, tr("Remove section image \"{name}\"", { name: im.name }))} />
+              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); }, tr("Remove section image \"{name}\"", { name: im.name }))} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Opacity")}{" "}<input type="range" min={0.1} max={1} step={0.05} value={im.opacity ?? 1} onChange={(e) => updateSectionImage(im.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} aria-label={tr("Opacity of \"{name}\"", { name: im.name })} />
             </label>
@@ -6632,7 +6633,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               </div>
               <Layers3 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }, tr("Edit what section \"{name}\" shows", { name: s.name }))} />
               <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); }), tr("Rename section \"{name}\"", { name: s.name }))} />
-              <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete \"{name}\" and any contacts drawn on it?", { name: s.name }))) deleteSection(s.id); }, tr("Delete section \"{name}\"", { name: s.name }))} />
+              <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Delete \"{name}\" and any contacts drawn on it?", { name: s.name }))) deleteSection(s.id); }, tr("Delete section \"{name}\"", { name: s.name }))} />
             </div>
           );
           return (
@@ -6657,7 +6658,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   </span>
                 )}
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}
-                  onClick={() => { if (confirmDestructive(tr("Delete all {sections} section(s) and any contacts drawn on them?", { sections: sections.length }), { undoable: true })) deleteAllSections(); }}
+                  onClick={async () => { if (await confirmDestructive(tr("Delete all {sections} section(s) and any contacts drawn on them?", { sections: sections.length }), { undoable: true })) deleteAllSections(); }}
                   style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }}
                   title={tr("Delete every section and section group")}
                 >{tr("Delete all")}</span>
@@ -6697,7 +6698,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
                         <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({members.length})</span>
                       </div>
-                      <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete \"{name}\" — all {members} section(s) in this group and any contacts drawn on them?", { name: g.name, members: members.length }))) deleteSectionGroup(g.id); }, tr("Delete section group \"{name}\" and all {members} section(s) in it", { name: g.name, members: members.length }))} />
+                      <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Delete \"{name}\" — all {members} section(s) in this group and any contacts drawn on them?", { name: g.name, members: members.length }))) deleteSectionGroup(g.id); }, tr("Delete section group \"{name}\" and all {members} section(s) in it", { name: g.name, members: members.length }))} />
                     </div>
                     {expanded && <div style={{ paddingLeft: 10, marginTop: 6 }}>{members.map(sectionRow)}</div>}
                   </div>
@@ -6819,7 +6820,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               { label: expanded ? "Close type & relationships" : "Type & relationships…", onClick: () => setExpandedSurfaceId(expanded ? null : s.id) },
               { label: tr("Style (colour, opacity)…"), onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
               { label: tr("Solid tools: clip by a surface, combine…"), onClick: () => setSolidToolsFor(s) }, // #1950 / #1951
-              "-", { label: tr("Remove…"), onClick: () => { if (confirmRemoveSurface(s)) removeImplicitSurface(s.id); } }])}
+              "-", { label: tr("Remove…"), onClick: async () => { if (await confirmRemoveSurface(s)) removeImplicitSurface(s.id); } }])}
               style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} aria-label={tr("Show or hide {name}", { name: surfaceLabels.get(s.id) ?? s.name })} aria-pressed={!!s.visible} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{/* #2058 */}{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
@@ -6843,7 +6844,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), tr("Zoom to surface \"{name}\"", { name: s.name }))} />
-                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmRemoveSurface(s)) removeImplicitSurface(s.id); }, tr("Remove surface \"{name}\"", { name: s.name }))} />
+                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmRemoveSurface(s)) removeImplicitSurface(s.id); }, tr("Remove surface \"{name}\"", { name: s.name }))} />
               </div>
               {stale && <div style={{ padding: "0 8px 6px", fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{stale}</div>}
               {expanded && (

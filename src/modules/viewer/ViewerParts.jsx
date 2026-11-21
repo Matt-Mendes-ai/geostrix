@@ -211,7 +211,7 @@ export function ViewToolbar({
                       </div>
                     )}
                     <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, tr("Rename theme \"{name}\"", { name: t.name }))} />
-                    <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Delete theme \"{name}\"?", { name: t.name }))) deleteTheme(t.id); }, tr("Delete theme \"{name}\"", { name: t.name }))} />
+                    <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Delete theme \"{name}\"?", { name: t.name }))) deleteTheme(t.id); }, tr("Delete theme \"{name}\"", { name: t.name }))} />
                   </div>
                 ))}
               </div>

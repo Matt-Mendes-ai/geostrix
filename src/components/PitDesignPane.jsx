@@ -152,8 +152,8 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     } finally { setBusy(false); job.current = null; }
   };
   const cancel = () => job.current?.cancel();
-  const removeDesign = (s) => {
-    if (!confirmDestructive(tr("Remove the design \"{name}\"?", { name: s.name }), { recover: tr("run it again with the same inputs.") })) return;
+  const removeDesign = async (s) => {
+    if (!await confirmDestructive(tr("Remove the design \"{name}\"?", { name: s.name }), { recover: tr("run it again with the same inputs.") })) return;
     onRemove?.(s.id);
     if (res?.designId === s.id) { setRes(null); kept = null; }
   };

@@ -6,6 +6,7 @@ import React, { useMemo, useState } from "react";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { isStopeString } from "../lib/stopeRuns.js";
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const btn = { ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" };
@@ -25,12 +26,12 @@ export default function StringManager({ strings, setStrings, surfaces = [], acti
   const [run, setRun] = useState("");
   if (strings.length < 2) return null;
   const tickedIds = strings.filter((s) => ticked.has(s.id)).map((s) => s.id);
-  const remove = (ids, what) => {
+  const remove = async (ids, what) => {
     if (!ids.length) return;
     const gone = new Set(ids), names = new Set(strings.filter((s) => gone.has(s.id)).map((s) => s.name));
     const solids = surfaces.filter((x) => Array.isArray(x.params?.strings) && x.params.strings.some((n) => names.has(n))).map((x) => x.name);
     const text = tr("Remove {n} string(s): {what}?", { n: ids.length, what }) + (solids.length ? " " + tr("Solids made from them keep their shape: {list}.", { list: solids.slice(0, 5).join(", ") + (solids.length > 5 ? ` (+${solids.length - 5})` : "") }) : "");
-    if (!window.confirm(text)) return;
+    if (!await askConfirm(text)) return;
     setStrings((L) => L.filter((s) => !gone.has(s.id)));
     if (gone.has(activeId)) setActiveId(strings.find((s) => !gone.has(s.id))?.id ?? null);
     setTicked((t) => new Set([...t].filter((id) => !gone.has(id))));

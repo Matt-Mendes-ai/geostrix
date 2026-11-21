@@ -16,7 +16,8 @@ import { codeDescriptions } from "../lib/codeDescriptions.js"; // TASKS.csv #177
 import CodeDictionaryTable from "./CodeDictionaryTable.jsx"; // TASKS.csv #2163
 import { entriesInCodeOrder } from "../lib/legendCodeOrder.js"; // TASKS.csv #3296
 import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3563
-import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import NumberInput from "./NumberInput.jsx";
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -171,7 +172,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                   <div key={src} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
                     <div style={{ flex: 1, minWidth: 0, color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={src}>{src}</div>
                     <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{count}</span>
-                    <Trash2 aria-label={tr("Remove the rows imported from \"{src}\"", { src })} title={tr("Remove the rows imported from \"{src}\"", { src })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove the {count} row(s) from \"{src}\"?", { count, src }))) onRemoveSource(src); }} />
+                    <Trash2 aria-label={tr("Remove the rows imported from \"{src}\"", { src })} title={tr("Remove the rows imported from \"{src}\"", { src })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove the {count} row(s) from \"{src}\"?", { count, src }))) onRemoveSource(src); }} />
                   </div>
                 ))}
               </>

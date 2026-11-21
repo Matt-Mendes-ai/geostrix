@@ -66,7 +66,8 @@ import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
 import { captureInputs, implicitRequestRecord, withSolveFacts } from "../../lib/gempyInputs.js"; // TASKS.csv #1101; implicitRequestRecord: #2640
 import { inversionCheck, FOLD_CONTACT_TYPES, meshMeanDipDeg, STEEP_DIP_DEG, FOLD_EXPLAIN } from "../../lib/topology.js"; // TASKS.csv #2058 — the fold-back check in the run's own notice; the steep test and the one explanation: #3777
 import { shellBudgetAdvice, sharePct } from "../../lib/shellBudget.js"; // TASKS.csv #2223
-import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js"; // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
+import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js";
+import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
@@ -463,7 +464,7 @@ export function createModellingRuns(ctx, mcRef) {
       const flat = thin && stackOpts.offerCake ? (await import("../../lib/layerCake.js")).stackIsFlat(specs) : null;
       if (flat?.flat) {
         setImplicitBusy(false);
-        if (window.confirm(tr("The tops are near-flat (steepest {d}°) and the units about {t} m thick, thinner than the {dz} m vertical cell, which one GemPy field cannot separate. A layer-cake builds each top as an elevation grid from the thicknesses, in order, in seconds. Run the stack as a layer-cake? (Cancel runs GemPy.)", { d: flat.steepest.toFixed(1), t: Math.round(thin.thick * 10) / 10, dz: cm[2] }))) {
+        if (await askConfirm(tr("The tops are near-flat (steepest {d}°) and the units about {t} m thick, thinner than the {dz} m vertical cell, which one GemPy field cannot separate. A layer-cake builds each top as an elevation grid from the thicknesses, in order, in seconds. Run the stack as a layer-cake? (Cancel runs GemPy.)", { d: flat.steepest.toFixed(1), t: Math.round(thin.thick * 10) / 10, dz: cm[2] }))) {
           return runSurfaceStack(rawSpecs, { ...stackOpts, engine: "layercake", offerCake: false });
         }
         setImplicitBusy(true);
@@ -499,7 +500,7 @@ export function createModellingRuns(ctx, mcRef) {
           return;
         }
         const words = { g: gb < 10 ? gb.toFixed(1) : Math.round(gb), warn: "", m: mins.toLocaleString(), how, x: x < 10 ? x.toFixed(1) : Math.round(x), p: solid.reduce((t, q) => t + q.points.length, 0).toLocaleString(), o: new Set(solid.flatMap((q) => q.orientations.map((r) => `${r.x},${r.y},${r.z},${r.dip},${r.azimuth}`))).size.toLocaleString(), s: solid.length, b: workOpts.blockCells.toLocaleString() };
-        if (!window.confirm(tr("This GemPy run is about {x} times a few-minute run ({p} contact points, {o} orientations, {s} surfaces, {b} cells): about {m} minutes {how} and {g} GB of memory{warn}. The 15-minute stop is off: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", words))) {
+        if (!await askConfirm(tr("This GemPy run is about {x} times a few-minute run ({p} contact points, {o} orientations, {s} surfaces, {b} cells): about {m} minutes {how} and {g} GB of memory{warn}. The 15-minute stop is off: Cancel on the status bar stops it. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it. Run it?", words))) {
           setImplicitBusy(false);
           setNotices((p) => [...p, notice("Not run: about {x} times the work of a run sized for a few minutes ({p} contact points, {o} orientations, {s} surfaces, a block of {b} cells): about {m} minutes {how}, and about {g} GB of memory{warn}. Fewer units, a smaller Model area or a lower Resolution (Model settings) shorten it.", words)]);
           return;
@@ -1721,7 +1722,7 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #1543 (review #1497, Lawyers) — what the picks say about a fault is known now: said before the solve too (it came 173 s
     // later), and a fault whose picks are no more aligned than random planes is asked about once, so minutes of GemPy can be saved
     if (faultWarnings.length) setNotices((p) => [...p, ...faultWarnings]);
-    if (randomFaults.length && !window.confirm(tr("{list}: the picks are no more aligned than random planes, so the fault surface from them is not a real plane. Run the stack anyway?", { list: randomFaults.map((r) => `\"${r.name}\" (k = ${Number(r.k).toFixed(1)})`).join(", ") }))) {
+    if (randomFaults.length && !await askConfirm(tr("{list}: the picks are no more aligned than random planes, so the fault surface from them is not a real plane. Run the stack anyway?", { list: randomFaults.map((r) => `\"${r.name}\" (k = ${Number(r.k).toFixed(1)})`).join(", ") }))) {
       setNotices((p) => [...p, notice("Stack run cancelled before solving: check the fault picks on the Stereonet, or give each structure its own name / ID.")]);
       return;
     }
@@ -1734,7 +1735,7 @@ export function createModellingRuns(ctx, mcRef) {
       if (ord.conflicts.length) {
         const list = ord.conflicts.slice(0, 4).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: specs[q.older].meshName, younger: specs[q.younger].meshName, against: q.against, of: q.of })).join("; ");
         const holesOrder = ord.order.map((k) => specs[k].meshName).join(", ");
-        if (!window.confirm(tr("The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first). Run in the order given anyway?", { list, order: holesOrder }))) {
+        if (!await askConfirm(tr("The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first). Run in the order given anyway?", { list, order: holesOrder }))) {
           setNotices((p) => [...p, notice("Stack run cancelled before solving: the holes give the order {order} (youngest first). 'Use the order from the holes' over the stack's units puts them in it; then run again.", { order: holesOrder }) /* #2926 */]);
           return;
         }
@@ -1744,7 +1745,7 @@ export function createModellingRuns(ctx, mcRef) {
       const rep = stackRepeats(layers.litho || [], kOf, specs.length);
       if (rep.holes >= 3 && rep.repeating >= rep.holes / 2) {
         const units = rep.byUnit.map((c, k) => [c, k]).filter(([c]) => c > 0).sort((a, b) => b[0] - a[0]).slice(0, 4).map(([c, k]) => tr("{unit} in {n}", { unit: specs[k].meshName, n: c })).join(", ");
-        if (!window.confirm(tr("In {r} of {h} holes logging two or more of these units, a unit returns after another (up to {m} times in one hole: {units}). Surfaces will cut through alternating units; the Vein / dyke tool or a closed body (Modelling codes) models them. Run the stack anyway?", { r: rep.repeating, h: rep.holes, m: rep.maxRuns, units }))) {
+        if (!await askConfirm(tr("In {r} of {h} holes logging two or more of these units, a unit returns after another (up to {m} times in one hole: {units}). Surfaces will cut through alternating units; the Vein / dyke tool or a closed body (Modelling codes) models them. Run the stack anyway?", { r: rep.repeating, h: rep.holes, m: rep.maxRuns, units }))) {
           setNotices((p) => [...p, notice("Stack run cancelled before solving: in {r} of {h} holes a unit comes back after another ({units}).", { r: rep.repeating, h: rep.holes, units })]);
           return;
         }
@@ -1963,7 +1964,7 @@ export function createModellingRuns(ctx, mcRef) {
       const why = [fs?.noPreferred ? tr("no preferred orientation (k = {k})", { k: Number(fs.k).toFixed(1) }) : null, group.length >= 4 && perHole > 2.5 ? tr("{n} picks per hole", { n: perHole.toFixed(1) }) : null].filter(Boolean);
       return why.length ? `"${id ? `${structType} — ${id}` : structType}" (${group.length} picks, ${why.join(", ")})` : null;
     }).filter(Boolean);
-    if (setLike.length && !window.confirm(tr("{list}: these picks behave like a vein set or fabric, not one surface; a surface through them defines no real structure. Model them anyway?", { list: setLike.join("; ") }))) {
+    if (setLike.length && !await askConfirm(tr("{list}: these picks behave like a vein set or fabric, not one surface; a surface through them defines no real structure. Model them anyway?", { list: setLike.join("; ") }))) {
       setNotices((p) => [...p, notice("Structure model cancelled before solving. For a vein set, its mean plane can be a structural trend (Stereonet > Add as structural trend), or give each structure its own name / ID.")]);
       return;
     }
@@ -2191,9 +2192,9 @@ export function createModellingRuns(ctx, mcRef) {
         if (past) {
           const km = (a) => +((a.max - a.min) / 1000).toFixed(1);
           const msg = tr("\"{label}\": to fit the grid limit, the {cs} m cells would become {cell} m, larger than the thickest logged run of {code} ({max} m), so the body will most likely not appear, or appear where {code} was not logged. The runs span {w} × {h} km: model a smaller area first (Model settings › Model area with one cluster's holes checked, a domain, or an intercept set).", { label, cs: +cs.toFixed(1), cell: cellZ !== cell ? cellText : +cell.toFixed(1) /* #2384 */, code: altValue, max: +past.maxRunM.toFixed(1), w: km(xr), h: km(yr) });
-          if (!window.confirm(`${msg}
+          if (!(await askConfirm(`${msg}
 
-${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg); stop.stopped = true; throw stop; }
+${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg); stop.stopped = true; throw stop; }
         }
         if (isCode && autoB.fromRuns && !(searchSetting > 0) && !(cellSetting > 0)) setNotices((p) => [...p, notice("\"{label}\": auto settings from the {n} logged run(s) of {code} (median {med} m, {max} m at most): {cs} m cells and a {r} m search{v}. The body follows the logged intervals; a larger search joins holes, but what it puts between them is an assumption.", { label, n: autoB.runs, code: altValue, med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), cs: +cs.toFixed(1), r: Math.round(autoB.radius), v: coarsened ? tr(" (coarsened to {cell} m cells to stay under the grid limit, the search raised to {r2} m)", { cell: cellZ !== cell ? cellText : +cell.toFixed(1) /* #2384 */, r2: Math.round(radius) }) : "" })]);
 

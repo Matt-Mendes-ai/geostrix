@@ -20,7 +20,8 @@ import { panel, rowBtn } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3887 — the First steps guide
 import { DropPicture } from "./DropDiagram.jsx"; // TASKS.csv #3939 — pictures first
-import { Rotate3d, Boxes, FileText } from "lucide-react"; // TASKS.csv #3939 — the card's three lines
+import { Rotate3d, Boxes, FileText } from "lucide-react";
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3939 — the card's three lines
 
 const Z = 55; // under every other dialog (60; the import's column matching 62): they open over this one
 const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -97,7 +98,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       const { parseDEMFiles } = await import("../lib/raster.js");
       const tie = tieOf(project);
       const parsed = await parseDEMFiles(tifs, tie ? null : epsg, null, { tie, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: tifs[0].name }) });
-      if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) { setBusy(false); return; }
+      if (terrain && !await askConfirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) { setBusy(false); return; }
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null });
       setGround("file");
       const sum = terrainSummary(parsed), crsNow = parsed.reprojectedTo || parsed.epsgTag || epsg;

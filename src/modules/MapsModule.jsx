@@ -25,7 +25,8 @@ import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelper
 import { buildLayer, sameMapLayer, mapsDropRoutes } from "../lib/mapLayerBuild.js"; // TASKS.csv #2019
 import { guessEpsgFromPrjWkt } from "../lib/reprojectMore.js"; // TASKS.csv #3590
 import { featureCountText } from "../lib/featureCount.js";
-import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
+import { projectTargetEpsg } from "../lib/projectTarget.js";
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 
 const GEO_PANES = new Set(["terrain", "web", "boundaries", "claims"]); // "maps" (geology map layers + outcrop structures) moved to the Surface Geology tab: #820
 const CRS_PANES = new Set(["crs", "layer", "file"]);
@@ -75,7 +76,7 @@ export default function MapsModule() {
         const text = await f.text();
         const head = Papa.parse(text, { preview: 1 }).data[0] || [];
         const cols = pointTableColumns(head);
-        if (!cols || !window.confirm(tr("{name} has coordinate columns ({x}, {y}) and no hole id: put its rows on the map as points?", { name: n, x: cols?.x, y: cols?.y }) + "\n\n" + tr("OK — a point layer in Map layers (stations, electrodes, sample sites).") + "\n" + tr("Cancel — open the drillhole import."))) { toViewer.push(f); continue; }
+        if (!cols || !await askConfirm(tr("{name} has coordinate columns ({x}, {y}) and no hole id: put its rows on the map as points?", { name: n, x: cols?.x, y: cols?.y }) + "\n\n" + tr("OK — a point layer in Map layers (stations, electrodes, sample sites).") + "\n" + tr("Cancel — open the drillhole import."))) { toViewer.push(f); continue; }
         const rows = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
         const layer = buildLayer(pointTableLayer(n.replace(/\.[^.]+$/, ""), rows, cols), { sourceName: n.replace(/\.[^.]+$/, ""), projectEpsg: projectTargetEpsg(project), qml: null, sourceOverride: null, mineGrid: mineGridOf(project), collars });
         if (!layer?.features?.length) { notes.push(tr("{name}: no rows with usable coordinates.", { name: n })); continue; }

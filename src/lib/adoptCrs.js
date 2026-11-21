@@ -13,6 +13,7 @@ export function medianLonLat(points) {
 import { crsName, isGeographicCrs } from "./reproject.js";
 import { crsCandidatesAt } from "./projectCrs.js";
 import { t as tr } from "./i18n.js";
+import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
 
 export function shouldOfferCrs({ isEmpty, currentEpsg, declaredEpsg }) {
   const cur = Number(currentEpsg), d = Number(declaredEpsg);
@@ -25,16 +26,16 @@ export function shouldOfferCrs({ isEmpty, currentEpsg, declaredEpsg }) {
 // crsSet (TASKS.csv #2833): the project's CRS was chosen (store project.crsSet); then a file never offers to replace it. Callers that pass
 // nothing keep the #607 behaviour. A geographic CRS with no `at` is never offered (#1148's rule, whatever the caller): before, a caller
 // without `at` offered EPSG:4269 to an empty project and OK made it the project CRS (GSC review B3).
-export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName, at = null, crsSet = false }, confirm = (m) => window.confirm(m)) {
+export async function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName, at = null, crsSet = false }, confirm = (m) => askConfirm(m)) {
   if (crsSet || !shouldOfferCrs({ isEmpty, currentEpsg, declaredEpsg })) return null;
   const cur = Number(currentEpsg), d = Number(declaredEpsg);
   if (isGeographicCrs(d) && !at) return null; // #2833 — degrees never become the project CRS
   if (at && isGeographicCrs(d)) {
     const m = crsCandidatesAt(at.lon, at.lat)[0];
     if (!m || m.code === cur) return null;
-    return confirm(tr("This project is empty and its CRS is {cur} (EPSG:{code}).\n{file} is in latitude and longitude, which cannot be a project CRS.\n\nOK: use {name} (EPSG:{m}) for this area and reproject the data into it.\nCancel: keep EPSG:{code}.", { cur: crsName(cur) || "?", code: cur, file: fileName, name: m.name, m: m.code })) ? m.code : null;
+    return (await confirm(tr("This project is empty and its CRS is {cur} (EPSG:{code}).\n{file} is in latitude and longitude, which cannot be a project CRS.\n\nOK: use {name} (EPSG:{m}) for this area and reproject the data into it.\nCancel: keep EPSG:{code}.", { cur: crsName(cur) || "?", code: cur, file: fileName, name: m.name, m: m.code }))) ? m.code : null;
   }
-  const ok = confirm(
+  const ok = await confirm(
     `This project is empty and its CRS is ${crsName(cur) || "?"} (EPSG:${cur}).\n` +
     `${fileName} is in ${crsName(d)} (EPSG:${d}).\n\n` +
     `OK — use EPSG:${d} as the project CRS (the data keeps its own coordinates).\n` +
@@ -47,14 +48,14 @@ export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName, at =
 // bbox (TASKS.csv #2678): the file's box in its own CRS. A geographic tag on numbers that are not degrees (a mis-tagged GeoTIFF in metres)
 // is not offered at all: it would have made the whole project EPSG:4326. A box in degrees is offered the metric CRS of its place (#1148).
 export function projectEpsgChooser({ isEmpty, setEpsg, fileName, notify }, confirm = undefined) {
-  return (sourceEpsg, currentEpsg, bbox = null) => {
+  return async (sourceEpsg, currentEpsg, bbox = null) => {
     let at = null;
     if (isGeographicCrs(Number(sourceEpsg)) && Array.isArray(bbox) && bbox.length === 4 && bbox.every(Number.isFinite)) {
       const [x0, y0, x1, y1] = bbox;
       if ([x0, x1].some((v) => Math.abs(v) > 180.5) || [y0, y1].some((v) => Math.abs(v) > 90.5)) return currentEpsg; // #2678 — not degrees
       at = { lon: (x0 + x1) / 2, lat: (y0 + y1) / 2 };
     }
-    const d = askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg: sourceEpsg, fileName, at }, ...(confirm ? [confirm] : []));
+    const d = await askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg: sourceEpsg, fileName, at }, ...(confirm ? [confirm] : []));
     if (!d) return currentEpsg;
     setEpsg(d);
     notify?.(`Project CRS set to ${crsName(d)} (EPSG:${d}) from ${fileName}.`);

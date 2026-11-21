@@ -52,7 +52,8 @@ import { structureIconSet, lineScaleOf } from "../lib/structureKmzIcons.js"; // 
 import { mineGridOf, mineSourceOf, isMineSource, mineChoiceToProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2684
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #2265
 import { structureGroundCounts, surfaceFlatElevation, noTerrainGround } from "../lib/viewer/surfacePlacement.js"; import { terrainGroundAt } from "../lib/viewer/geomath.js"; import { mapLayerOnCollars } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #2485 (2); surfaceFlatElevation: #2753; noTerrainGround, mapLayerOnCollars: #3368
-import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import NumberInput from "./NumberInput.jsx";
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 // TASKS.csv #2093 / #1826 — the structure import's skipped rows, one reason each (parseStructureRows' skipWhy)
 export function skipReasons(w = {}, names = {}) { // names: the rows skipped for no direction (#2958)
@@ -163,13 +164,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const addParsed = (parsed, sourceName, opts = {}) => { queued.push({ parsed, sourceName, opts }); };
     let colourAt = mapLayers.length, layersAdded = 0;
     const tableOnly = []; // #1325 — attribute tables: nothing wrong with them, but nothing to draw
-    const addNow = (parsed, sourceName, { wgs84 = false } = {}) => {
+    const addNow = async (parsed, sourceName, { wgs84 = false } = {}) => {
       // TASKS.csv #1250 — "wj — wj (points)": a family name that repeats the file name reads "wj — points", as the other importers' do
       if (parsed.name && String(parsed.name).startsWith(`${sourceName} (`)) parsed = { ...parsed, name: parsed.name.slice(sourceName.length + 2).replace(/\)$/, "") };
       const qml = qmlByBase[sourceName.toLowerCase()] || soleQml || null;
       // #1106 — a GPX / GeoJSON file is in longitude / latitude: never offered as the project CRS (not metric)
       const mineSrc = isMineSource(mapSourceEpsg), srcOv = wgs84 && mineSrc ? "" : mapSourceEpsg; // #2684 — a GPX / GeoJSON / KML is longitude / latitude, never on the mine grid
-      const adopted = wgs84 || mineSrc ? null : askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
+      const adopted = wgs84 || mineSrc ? null : await askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
       if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(tr("project CRS set to EPSG:{epsg}", { epsg: adopted })); }
       empty = false;
       // #1715 — clipped to the project area (collars, surface samples) when there is one
@@ -355,7 +356,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         if (!chosen) { release(); setBusy(false); setMapMsg(null); return; } // Cancel: nothing changes
         leftOut = tables.length - keep.size;
       }
-      for (const t of tables) if (keep.has(t.name)) for (const q of t.items) addNow(q.parsed, q.sourceName, q.opts);
+      for (const t of tables) if (keep.has(t.name)) for (const q of t.items) await addNow(q.parsed, q.sourceName, q.opts);
       release();
     }
     // TASKS.csv #1248 — a file no branch above takes vanished without a word
@@ -390,11 +391,11 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const v = { code: c.code, n: c.holes, m: c.maxM };
     return coverRoleSource(c.code, modellingCodes) !== "notes" ? tr("{code} in {n} hole(s), up to {m} m", v) : c.role === "overburden" ? tr("{code} in {n} hole(s), up to {m} m (overburden, from its notes)", v) : tr("{code} in {n} hole(s), up to {m} m (no recovery, from its notes)", v);
   }).join("; ") + (list.length > 8 ? "; …" : "") });
-  const makeSubcrop = (replace = null) => {
+  const makeSubcrop = async (replace = null) => {
     // TASKS.csv #2265 (review #2174) — on a project drilled from underground the 'top of each hole' is a drill position on a mine level,
     // not the surface: asked first, named for what it is. (Its NPRC / Unknown 'units' are cover since #2227: roleForLithology reads the notes.)
     const ug = collarsLookUnderground(collars, survey);
-    if (ug.underground && !window.confirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked). These points would sit on the mine levels, not form a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
+    if (ug.underground && !await askConfirm(tr("The collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked). These points would sit on the mine levels, not form a subcrop map. Make them anyway?", { upward: ug.upward, stacked: ug.stacked }))) return;
     const rep = { lateStart: [], gap: [] }; // #3841: gap = an unlogged stretch between the cover and the first rock; TASKS.csv #2411 / #2570 — logs that start below the collar
     const depth = String(subDepth).trim() === "" ? null : Number(subDepth); // #2956
     if (depth != null && !(depth >= 0)) { setMapMsg({ ok: false, text: tr("The depth below the collar must be a number of metres, 0 or more.") }); return; }
@@ -719,7 +720,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{featureCountText(l.features.length, l.geomType) /* #1448 — was '710 polygon' */}</span>
               {Array.isArray(l.bbox) && l.bbox.every(Number.isFinite) && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} /* TASKS.csv #2793 — as Maps' raster / boundary / claim cards (#2657) */
                 aria-label={tr("Zoom the plan to \"{name}\"", { name: l.name })} title={tr("Zoom the plan to \"{name}\"", { name: l.name })} onClick={() => { goToModule("maps"); requestPlanZoom(l.bbox); }} />}
-              <Trash2 aria-label={tr("Remove map layer \"{name}\"", { name: l.name })} title={tr("Remove map layer \"{name}\"", { name: l.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: l.name }))) removeMapLayer(l.id); }} />
+              <Trash2 aria-label={tr("Remove map layer \"{name}\"", { name: l.name })} title={tr("Remove map layer \"{name}\"", { name: l.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: l.name }))) removeMapLayer(l.id); }} />
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={l.drapeMode === "terrain" && !!terrain} disabled={!terrain} title={!terrain && l.drapeMode === "terrain" ? tr("Flat for now: it drapes on the terrain once one is loaded.") : undefined} /* #1606 */
@@ -935,7 +936,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <select value="" onChange={(e) => { const f = e.target.value; e.target.value = ""; if (f) exportStructSet(s, f); }} aria-label={tr("Export structure set \"{name}\"", { name: s.name })} title={tr("Export: dip, dip direction and strike (right-hand rule) in grid and true north")} style={{ ...select, width: "auto", flexShrink: 0, padding: "1px 2px", fontSize: "var(--font-size-xs)" }}>
                 <option value="">{tr("Export…")}</option><option value="gpkg">GeoPackage</option><option value="kml">{tr("KMZ (Google Earth, with strike symbols)") /* #2681 */}</option><option value="csv">CSV</option>
               </select>
-              <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: s.name }))) { removeSurfaceStructureSet(s.id); setStructMsg(null); /* #2573 — its import notice goes with it */ } }} />
+              <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: s.name }))) { removeSurfaceStructureSet(s.id); setStructMsg(null); /* #2573 — its import notice goes with it */ } }} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 7 }}>{/* #3066 — the symbol of each type, and the choice of it */}
               {[...types].map(([k, t]) => { const fam = familyFor(t.type, t.cls, symbolChoices), sym = SYMBOLS[FAMILIES[fam].inclined]; return (

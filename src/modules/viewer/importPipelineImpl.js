@@ -74,7 +74,8 @@ import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
 import { perHoleJoinOf, perHoleAttrs } from "../../lib/perHoleJoin.js"; // TASKS.csv #2399
 import { MACPASS_CREDIT } from "../../lib/sampleCredits.js"; // TASKS.csv #3496
 import { isTable } from "../../lib/rowTable.js"; import { publishedLayers } from "../../lib/tableFields.js"; // TASKS.csv #3140 step 2 — a big log layer held as columns
-import { busyUntilQuiet } from "../../lib/busyUntilQuiet.js"; // TASKS.csv #3539
+import { busyUntilQuiet } from "../../lib/busyUntilQuiet.js";
+import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3539
 
 // TASKS.csv #3496 — the sample files whose dip sign the sample itself states (negative = down, with real up-holes: positive dips), by File object: the queue
 // goes in unseen on them although a dip is above 0 (#335 asks otherwise). Nothing a user drops is in it.
@@ -153,7 +154,7 @@ export function makeImportPipeline(ctx, h) {
   // drillhole table: it used to fall to the collar guess and open the mapping dialog. It goes to Map layers
   // (the Geophysics tab's panel) through the same builder, draped on the terrain when there is one.
   // TASKS.csv #607 — an empty project may take the file's declared CRS (lib/adoptCrs.js). Returns the CRS to import into.
-  const adoptCrsIfEmpty = (declared, fileName) => {
+  const adoptCrsIfEmpty = async (declared, fileName) => { // async: the question is an in-app dialog now (#3957)
     const live = importStateRef.current;
     // TASKS.csv #2288 — a local-grid project (#2180) keeps its grid: a file's declared CRS is brought in through the tie, never adopted
     // (found live: an MGA collar file silently ended the local grid and set EPSG:28351 as the project CRS)
@@ -166,7 +167,7 @@ export function makeImportPipeline(ctx, h) {
       setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{d}), the CRS {fileName} declares.", { v: crsName(d), d, fileName })]);
       return d;
     }
-    const d = askAdoptCrs({ isEmpty: live.projectIsEmpty, currentEpsg: live.project?.epsg, declaredEpsg: declared, fileName });
+    const d = await askAdoptCrs({ isEmpty: live.projectIsEmpty, currentEpsg: live.project?.epsg, declaredEpsg: declared, fileName });
     if (!d || !live.setEpsg) return Number(live.project?.epsg);
     live.setEpsg(d);
     // the rest of this import (and of a queued drop, until the next render refreshes the ref) sees it now
@@ -175,8 +176,8 @@ export function makeImportPipeline(ctx, h) {
     return d;
   };
 
-  const sendToMapLayers = (file, parsed) => {
-    adoptCrsIfEmpty(guessEpsgFromPrjWkt(parsed.prjWkt), file.name); // #607
+  const sendToMapLayers = async (file, parsed) => { // async: the CRS question may be asked first (#3957)
+    await adoptCrsIfEmpty(guessEpsgFromPrjWkt(parsed.prjWkt), file.name); // #607
     const live = importStateRef.current;
     const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
     let layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: projectTargetEpsg(live.project), tie: tieOf(live.project) /* #2320 */, mineGrid: mineGridOf(live.project), collars: live.collars /* #2586 */, qml: null, sourceOverride: null });
@@ -235,7 +236,7 @@ export function makeImportPipeline(ctx, h) {
     if (/\.(tiff?|gxf|grd)$/.test(name)) { // grd: #1347
       try {
         const live = importStateRef.current;
-        const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
+        const chooseProjectEpsg = async (src, cur) => (await adoptCrsIfEmpty(src, file.name)) || cur; // #607
         // TASKS.csv #2901 — the side files dropped with it, read as the raster pane, the Maps plan drop and the Geophysics tab read them
         const rasterLib = await loadRaster();
         const worldFile = side.world ? rasterLib.parseWorldFile(await side.world.text(), side.world.name) : null;
@@ -367,7 +368,7 @@ export function makeImportPipeline(ctx, h) {
     const own = (data.customFields || []).filter((f) => !out.customFields.some((g) => g.column === f.column));
     return commitImportDataRaw({ ...data, allRows: out.rows, mapping: out.mapping, customFields: [...own, ...out.customFields], recordAs: data });
   };
-  const commitImportDataRaw = (data) => {
+  const commitImportDataRaw = async (data) => {
     const { target, mapping, allRows: allRowsIn, dipConvention, fileName: shownName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false, dbSource = null, reload = null } = data; // dbSource, reload: #1963 (reload: an object the collar diff is written to; no overwrite question)
     // TASKS.csv #1506 (review #1497) — the dialog's title carries the drop's queue count ("Min Domain.csv (10 more queued)"), and it
     // became the custom layer's name, each row's source (_src) and every notice: the bare file name from here on
@@ -605,7 +606,7 @@ export function makeImportPipeline(ctx, h) {
       // TASKS.csv #2811 — Source CRS 'Local mine grid (no CRS)': not a CRS to adopt or reproject from; the rows go through the mine grid below
       const mineSrc = isMineSource(sourceEpsg), srcEpsg = mineSrc ? "" : sourceEpsg;
       const declaredEpsg = rowCodes.length === 1 && (!srcEpsg || Number(srcEpsg) === Number(rowCodes[0])) ? rowCodes[0] : (!rowCodes.length ? srcEpsg : null);
-      if (declaredEpsg) adoptCrsIfEmpty(declaredEpsg, fileName);
+      if (declaredEpsg) await adoptCrsIfEmpty(declaredEpsg, fileName);
       const liveProject = importStateRef.current.project || project; // stale-closure fix, see liveCollars below
       // TASKS.csv #2288 — a local-grid project (#2180): rows that declare a CRS go INTO the grid through its tie; with no tie they stay as
       // they are (never 'reprojected' into the placeholder EPSG), and the notice says which
@@ -699,7 +700,7 @@ export function makeImportPipeline(ctx, h) {
           const moved = c.shift > 1e-6 ? ` — moves ${c.shift < 10 ? c.shift.toFixed(2) : c.shift.toFixed(0)} world units` : "";
           return `  • ${c.hole_id}: ${c.fields.join(", ")} differ${moved}`;
         }).join("\n");
-        overwriteExisting = window.confirm(
+        overwriteExisting = await askConfirm(
           tr("{fileName} contains {changed} hole(s) that already exist in this project with DIFFERENT values:\n\n{preview}", { fileName, changed: diff.changed.length, preview }) +
           `${diff.changed.length > 6 ? tr("\n  …and {v} more", { v: diff.changed.length - 6 }) : ""}\n\n` +
           tr("OK — overwrite those {changed} collar(s) with this file's values (the old ones are lost).\n", { changed: diff.changed.length }) +
@@ -1089,7 +1090,7 @@ export function makeImportPipeline(ctx, h) {
       modalData = { ...importModal, allRows: t.rows };
       setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? tr(" and elevations") : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? tr(" {moved} collar(s) moved from the local grid to EPSG:{v} (scale {scale}, rotation {rotationDeg}° counter-clockwise from the local grid to the map, RMS {rmsM} m over {n} control points){v2}.", { moved: t.moved, v: importStateRef.current.project?.epsg ?? project?.epsg /* #2489: the CRS just chosen, never a placeholder */, scale: grid.scale.toFixed(6), rotationDeg: grid.rotationDeg.toFixed(3), rmsM: grid.rmsM.toFixed(2), n: grid.n, v2: t.turned ? tr("; {turned} azimuth(s) turned with the grid ({v}°)", { turned: t.turned, v: (-grid.rotationDeg).toFixed(3) }) : "" }) : ""}${zShift ? tr(" Elevations shifted by {zShift} m.", { zShift }) : ""}`]);
     }
-    commitImportData(modalData);
+    await commitImportData(modalData); // awaited: the collar diff may ask first (an in-app dialog, #3957)
     const asked = (queueLogRef?.current || []).filter((e) => e.outcome === "asked").pop(); if (asked) asked.outcome = "imported"; // #3071
     setImportModal(null);
     processImportQueue();
@@ -1174,7 +1175,7 @@ export function makeImportPipeline(ctx, h) {
       // question or double-import the same file.
       if (meta?.layerOptions) { logQueue(file.name, "asked"); setLayerPicker({ file, options: meta.layerOptions }); return; } // logQueue: #3071
       if (err || !data || !data.length) { logQueue(file.name, "unread"); setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); processImportQueue(); return; }
-      if (isMapGeometry(meta)) { logQueue(file.name, "map"); sendToMapLayers(file, meta.vector); processImportQueue(); return; } // #609
+      if (isMapGeometry(meta)) { logQueue(file.name, "map"); sendToMapLayers(file, meta.vector).then(() => processImportQueue()); return; } // #609; the queue goes on when this one is done (#3957)
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
       if (looksLikeAssay(headers, file.name, data) || looksLikeSurfaceSamples(headers, data)) { // file.name: #1105; data: #2185; soils: #2268
@@ -1216,10 +1217,10 @@ export function makeImportPipeline(ctx, h) {
         // theirs as attrs, #1504; a survey has no others worth keeping)
         const comp = companionLayer(target, headers);
         const extras = target === "collars" ? [] : target === "survey" ? surveyMethodFields(headers, data) /* #2187 */ : queueExtraFields(target, headers, data, mapping, modalData, [modalData.perRowEpsgCol, comp?.column].filter(Boolean)); // #3544 (C2): the dialog's preset less these, not a second scan
-        askCrsForCollars(modalData).then(() => new Promise((r) => setTimeout(r, 0)) /* #3544 (C1): the commit in its own task, not the parse's */).then(() => {
+        askCrsForCollars(modalData).then(() => new Promise((r) => setTimeout(r, 0)) /* #3544 (C1): the commit in its own task, not the parse's */).then(async () => {
           logQueue(file.name, "imported"); // #3071
-          commitImportData({ ...modalData, customFields: extras, unseen: true }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
-          if (comp) commitImportData({ ...modalData, target: comp.target, mapping: { ...mapping, value: comp.column }, customFields: [], unseen: true });
+          await commitImportData({ ...modalData, customFields: extras, unseen: true }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
+          if (comp) await commitImportData({ ...modalData, target: comp.target, mapping: { ...mapping, value: comp.column }, customFields: [], unseen: true });
           const said = [extras.length ? tr("kept {n} more column(s) with each row (Identify shows them): {cols}", { n: extras.length, cols: extras.slice(0, 8).map((f) => f.column).join(", ") + (extras.length > 8 ? "…" : "") }) : "", comp ? tr("its \"{col}\" column also filled {layer}", { col: comp.column, layer: LAYER_META[comp.target]?.label || comp.target }) : ""].filter(Boolean);
           if (said.length) setNotices((p) => [...p, `${file.name}: ${said.join("; ")}.`]);
           processImportQueue();
@@ -1543,7 +1544,7 @@ export function makeImportPipeline(ctx, h) {
       const live = importStateRef.current;
       const before = rec.target === "collars" ? (live.collars || []).length : rec.target === "survey" ? (live.survey || []).length : (live.layers?.[rec.target] || []).length;
       const report = {};
-      const ok = commitImportData({ ...rec.choices, target: rec.target, fileName: rec.fileName, allRows: pulled.rows, headers: pulled.fields, unseen: true, dbSource: src, reload: report });
+      const ok = await commitImportData({ ...rec.choices, target: rec.target, fileName: rec.fileName, allRows: pulled.rows, headers: pulled.fields, unseen: true, dbSource: src, reload: report });
       lines.push(ok === false
         ? tr("{table} → {target}: the saved column mapping no longer fits the table (a column was renamed?) — reimport it once from the Browser panel.", { table: label, target: rec.target })
         : tr("{table} → {target}: {n} row(s) pulled{v} (the layer had {before} row(s) before){v2}.", { table: label, target: rec.target, n: pulled.rows.length.toLocaleString(), v: pulled.truncated ? tr(", the first {k} of {total}", { k: pulled.rows.length.toLocaleString(), total: pulled.total.toLocaleString() }) : "", before: before.toLocaleString(), v2: report.changedHoles != null ? tr("; {changed} existing hole(s) took the database's values, {fresh} new", { changed: report.changedHoles, fresh: report.newHoles }) : "" }));

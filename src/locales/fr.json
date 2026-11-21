@@ -14619,5 +14619,7 @@
   "Same as the satellite image": "Comme l'image satellite",
   "Same as the satellite image: {name}": "Comme l'image satellite : {name}",
   "Claim: {name}": "Claim : {name}",
-  "Margin (m)": "Marge (m)"
+  "Margin (m)": "Marge (m)",
+  "Please confirm": "Veuillez confirmer",
+  "Notice": "Avis"
 }

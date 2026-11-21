@@ -25,7 +25,7 @@ export default function RastersTerrainSection({ rasters, terrain, updateTerrain,
             { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(rasterMeshesRef.current[r.id]) },
             "-", { label: tr("Drape and elevation — Maps tab"), onClick: () => goToModule("maps") },
-            { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
           <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
             {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
           </div>
@@ -42,7 +42,7 @@ export default function RastersTerrainSection({ rasters, terrain, updateTerrain,
               for the two quick controls every layer type gets (visibility + opacity), same as
               the Geophysics section's own ArrowUpRight pattern right below this one. */}
           <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit drape mode / elevation for this raster in the Raster tab"))} />
-          <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); }, tr("Remove raster \"{name}\"", { name: r.name }))} />{/* #1088 — confirmed like its menu's Remove… (rasters are not undoable) */}
+          <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); }, tr("Remove raster \"{name}\"", { name: r.name }))} />{/* #1088 — confirmed like its menu's Remove… (rasters are not undoable) */}
         </div>
         <RasterLegend raster={r} updateRaster={updateRaster} compact />
         {r.lod && r.drapeMode === "terrain" && <DetailTilesToggle kind="imagery" on={lodTiles.prefs.imagery} chosen onChange={(v) => lodTiles.setPref("imagery", v)} />}{/* #3252 */}

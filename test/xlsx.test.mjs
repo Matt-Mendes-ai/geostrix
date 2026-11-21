@@ -40,7 +40,7 @@ function workbook() {
   return buildZip(files);
 }
 
-test("#605 isXlsxName", () => {
+test("#605 isXlsxName", async () => {
   assert.ok(isXlsxName("Drilling.XLSX"));
   assert.ok(!isXlsxName("Drilling.xls"));
   assert.ok(!isXlsxName("x.csv"));
@@ -72,7 +72,7 @@ test("#605 readXlsxSheets refuses a zip that is not a workbook", async () => {
   await assert.rejects(readXlsxSheets(buildZip([{ name: "a.txt", data: enc("hi") }])), /Not an Excel workbook/);
 });
 
-test("#605 sheet-name hints win only when that type's required columns map", () => {
+test("#605 sheet-name hints win only when that type's required columns map", async () => {
   assert.equal(targetFromName("Drilling - Specific Gravity.csv"), "sg");
   assert.equal(targetFromName("Drilling - Vein.csv"), "vein");
   assert.equal(targetFromName("Drilling - DH Survey.csv"), "survey");
@@ -87,7 +87,7 @@ test("#605 sheet-name hints win only when that type's required columns map", () 
   assert.equal(guessTargetFor(["Hole_ID", "Easting", "Northing", "Elevation"], "Book - Survey notes.csv"), "collars");
 });
 
-test("#605 mag sus point readings: Depth instead of From/To, placed at that depth", () => {
+test("#605 mag sus point readings: Depth instead of From/To, placed at that depth", async () => {
   const headers = ["Hole_ID", "Depth", "Mag_SI"];
   const target = guessTargetFor(headers, "Book - Mag Susc.csv");
   assert.equal(target, "magsusc");
@@ -168,10 +168,10 @@ test("#607 an empty project may adopt the file's declared CRS", async () => {
   assert.equal(shouldOfferCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: null }), false);   // nothing declared
   assert.equal(shouldOfferCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 999999 }), false); // unknown code
   let asked = "";
-  assert.equal(askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: "26910", fileName: "c.shp" }, (m) => { asked = m; return true; }), 26910);
+  assert.equal(await askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: "26910", fileName: "c.shp" }, (m) => { asked = m; return true; }), 26910);
   assert.match(asked, /EPSG:26910/);
-  assert.equal(askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 26910, fileName: "c.shp" }, () => false), null);
-  assert.equal(askAdoptCrs({ isEmpty: false, currentEpsg: 3156, declaredEpsg: 26910, fileName: "c.shp" }, () => { throw new Error("must not ask"); }), null);
+  assert.equal(await askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 26910, fileName: "c.shp" }, () => false), null);
+  assert.equal(await askAdoptCrs({ isEmpty: false, currentEpsg: 3156, declaredEpsg: 26910, fileName: "c.shp" }, () => { throw new Error("must not ask"); }), null);
 });
 
 test("#600 (40958Z) unit-suffixed / spaced headers map: To (m), Mag Avg, RQD %, Specific Gravity; domain and Vein Min logs", async () => {

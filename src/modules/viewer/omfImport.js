@@ -11,13 +11,14 @@ import { clampCellBudget } from "../../lib/estimationMeta.js";
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js";
 import { notice, errorNotice, infoNotice } from "../../lib/notices.js";
 import { t as tr, fmtNum } from "../../lib/i18n.js";
+import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957
 
 export const OMF_MAX_MB = 1024, BIG_BLOCKS = 500000;
 export const isOmfName = (name) => /\.omf$/i.test(String(name || ""));
 
 // env: { project, cellBudget, addOmfObject, addVoxelModel, setNotices, confirm, read } (read: the reader, replaceable in tests)
 export async function importOmfFile(file, env) {
-  const { project, cellBudget = null, addOmfObject, addVoxelModel, setNotices, confirm = (m) => window.confirm(m), read = omfToProjectObjectsAsync } = env;
+  const { project, cellBudget = null, addOmfObject, addVoxelModel, setNotices, confirm = (m) => askConfirm(m), read = omfToProjectObjectsAsync } = env;
   const say = (n) => setNotices((p) => [...p, n]);
   const mb = file.size / 1048576;
   if (mb > OMF_MAX_MB) { say(errorNotice(tr("{name} is {mb} MB, more than the {cap} MB an OMF can be read here in one go. Export a smaller area or fewer elements from the program that wrote it.", { name: file.name, mb: fmtNum(Math.round(mb)), cap: fmtNum(OMF_MAX_MB) }))); return { added: 0 }; }
@@ -31,7 +32,7 @@ export async function importOmfFile(file, env) {
     res = await read(await file.arrayBuffer(), clampCellBudget(cellBudget) || MAX_CELLS, {});
   } catch (err) { say(errorNotice(tr("{name}: couldn't read the OMF ({message}).", { name: file.name, message: err?.message || String(err) }))); return { added: 0 }; }
   const blocks = res.voxelModels.reduce((n, m) => n + (m.cells?.length || 0), 0);
-  if (blocks > BIG_BLOCKS && !confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while open, which can slow a laptop. Import it? (A lower cell budget coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) {
+  if (blocks > BIG_BLOCKS && !(await confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while open, which can slow a laptop. Import it? (A lower cell budget coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) })))) {
     say(notice(tr("\"{name}\" was not imported.", { name: file.name }))); return { added: 0 };
   }
   res.omfObjects.forEach((o) => addOmfObject(o));

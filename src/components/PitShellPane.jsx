@@ -97,10 +97,10 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   };
   // TASKS.csv #2109 (review #2013, Woodjam) — a shell's benched designs (params.pitId) go with it and the confirm names them: they stayed
   // in the project with no word, and could no longer be re-made (the Pit design picker no longer offered their shell)
-  const removePit = (s) => {
+  const removePit = async (s) => {
     const designs = surfaces.filter((g) => g.params?.pitId === s.id);
     const andDesigns = designs.length ? " " + tr("Its {n} benched design(s) go too: {names}.", { n: designs.length, names: designs.slice(0, 3).map((g) => `"${g.name}"`).join(", ") + (designs.length > 3 ? ` (+${designs.length - 3})` : "") }) : "";
-    if (!confirmDestructive(tr("Remove the pit \"{name}\"?", { name: s.name }) + andDesigns, { recover: tr("run it again with the same inputs (Edit keeps them until then).") })) return;
+    if (!await confirmDestructive(tr("Remove the pit \"{name}\"?", { name: s.name }) + andDesigns, { recover: tr("run it again with the same inputs (Edit keeps them until then).") })) return;
     if (editingId === s.id) setEditingId(null);
     onRemove?.(s.id);
     designs.forEach((g) => onRemove?.(g.id));

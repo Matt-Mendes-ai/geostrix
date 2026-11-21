@@ -196,10 +196,10 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     } catch (e) { setGroundNote(e.message); }
   };
   // #2638 — the old behaviour, now a choice: the station ground as the project's terrain (asks before replacing one)
-  const groundToProject = () => {
+  const groundToProject = async () => {
     if (!runGround) return;
     const t = runGround.t;
-    if (!confirmReplaceTerrain(projectTerrain, t.name)) return; // #2554
+    if (!(await confirmReplaceTerrain(projectTerrain, t.name))) return; // #2554
     const replaced = replacedTerrainNote(projectTerrain);
     addTerrain({ ...t });
     setRunGround(null);

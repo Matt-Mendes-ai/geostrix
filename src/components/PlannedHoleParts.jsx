@@ -29,7 +29,8 @@ import { drilledSiteSpacing, holeTraces } from "../lib/evidenceSources.js";
 import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2976 — the minimum spacing starts from the drilling; #3820: the holes' own spacing
 import { traceSpacing } from "../lib/traceSpacing.js"; // TASKS.csv #3820
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
-import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import NumberInput from "./NumberInput.jsx";
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926 — '0,05' and '0.05' both read
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
 
@@ -124,17 +125,17 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       // first, never assumed. The form's azimuth goes to grid as the form's own (a true / magnetic one needs its offset, else only a vertical dip)
       if (r.noOrientation && r.missing.join(",") === "azimuth,dip") {
         const d = Number(draft.dip), az = Number.isFinite(Number(draft.azimuth)) ? (azOffset ? wrap360(Number(draft.azimuth) + azOffset.offset) : Math.abs(Math.abs(d) - 90) < 1e-9 ? 0 : NaN) : NaN;
-        if (Number.isFinite(az) && Number.isFinite(d) && window.confirm(tr("{f} has no azimuth or dip column. Add every hole at the form's Az {a}° / Dip {d}°?", { f: file.name, a: Math.round(az * 10) / 10, d }))) r = plannedHolesFromRows(rows, headers, { fallback: { azimuth: az, dip: d }, groundAt: groundForZ });
+        if (Number.isFinite(az) && Number.isFinite(d) && await askConfirm(tr("{f} has no azimuth or dip column. Add every hole at the form's Az {a}° / Dip {d}°?", { f: file.name, a: Math.round(az * 10) / 10, d }))) r = plannedHolesFromRows(rows, headers, { fallback: { azimuth: az, dip: d }, groundAt: groundForZ });
       }
       if (r.missing.length) { setImportMsg({ warn: true, text: r.onlyNonGridAzimuth && r.missing.join(",") === "azimuth" ? tr("{f} has {col} but no grid azimuth column (azimuth, azimuth_grid, az): a true or magnetic bearing is not converted on import. Nothing was added.", { f: file.name, col: r.onlyNonGridAzimuth }) : tr("{f} lacks the column(s) {cols} (E / N / Elev, azimuth, dip, length are needed). Nothing was added.", { f: file.name, cols: r.missing.join(", ") }) }); return; }
       let holes = r.holes;
       // GeoStrix keeps a downward hole's dip negative; a sheet whose every dip is positive may count down as positive: asked, never assumed
-      if (r.allDipsPositive && window.confirm(tr("Every dip in {f} is positive, which GeoStrix reads as upward. Are these downward holes (flip the dips to negative)?", { f: file.name }))) holes = holes.map((h) => ({ ...h, dip: -h.dip }));
+      if (r.allDipsPositive && await askConfirm(tr("Every dip in {f} is positive, which GeoStrix reads as upward. Are these downward holes (flip the dips to negative)?", { f: file.name }))) holes = holes.map((h) => ({ ...h, dip: -h.dip }));
       // TASKS.csv #3824 (10) — Import CSV read every azimuth as grid north, said only in the button's tooltip, on a project whose own surveys were true north. With the form's 'Azimuth from' set to
       // true or magnetic north the sheet is asked about, and each hole converted at its own collar (kept beside it, as a typed one is); with grid north the notice says how they were read
       let northNote = "";
       if (holes.length && azRef !== "grid") {
-        if (window.confirm(tr("Are the azimuths in {f} measured from {ref} (the form's 'Azimuth from')? OK converts each to grid at its own collar; Cancel reads them as grid north.", { f: file.name, ref: azRef === "true" ? tr("true north") : tr("magnetic north (today)") }))) {
+        if (await askConfirm(tr("Are the azimuths in {f} measured from {ref} (the form's 'Azimuth from')? OK converts each to grid at its own collar; Cancel reads them as grid north.", { f: file.name, ref: azRef === "true" ? tr("true north") : tr("magnetic north (today)") }))) {
           if (azRef === "magnetic") await loadIgrf();
           holes = holes.map((h) => { try { const o = azimuthToGridOffset(azRef, Number(h.x), Number(h.y), epsg, today); return { ...h, azimuthEntered: { value: h.azimuth, ref: azRef, date: today }, azimuth: Math.round(wrap360(h.azimuth + o.offset) * 100) / 100 }; } catch { return h; } });
           northNote = " " + tr("Azimuths read as {ref} and converted to grid at each collar.", { ref: azRef === "true" ? tr("true north") : tr("magnetic north (today)") });
@@ -527,7 +528,7 @@ export function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { 
         </div>
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || tr("Planned hole")}</div>
         {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(false), tr("Collapse this planned hole"))} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(true), tr("Expand this planned hole"))} />}
-        <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Remove planned hole \"{v}\"?", { v: hole.name || hole.id }))) onRemove(hole.id); }, tr("Remove planned hole \"{v}\"", { v: hole.name || hole.id }))} />
+        <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Remove planned hole \"{v}\"?", { v: hole.name || hole.id }))) onRemove(hole.id); }, tr("Remove planned hole \"{v}\"", { v: hole.name || hole.id }))} />
       </div>
       <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Az {v}° / Dip {v2}° / {v3} m{v4}", { v: Math.round(wrap360(Number(hole.azimuth))) % 360 /* #2257 — 359.6 is 0°, not 360° */, v2: dipPrinted(hole.dip) /* TASKS.csv #3878 - one sign, one decimal */, v3: Math.round(hole.length), v4: toe ? tr(" — toe E {x} N {y} Elev {z}", { x: toe.x.toFixed(0), y: toe.y.toFixed(0), z: toe.z.toFixed(0) }) : "" })}
       </div>

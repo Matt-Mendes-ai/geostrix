@@ -143,7 +143,8 @@ import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 
 import { pointsAlongOneLine, surveyLabel } from "../lib/rasterMethod.js"; // TASKS.csv #2557; surveyLabel: #2559
 import { collarTerrainOffsets, collarTerrainSide } from "../lib/dataQC.js"; // TASKS.csv #3807
 import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
-import { stopsAreLogSpaced } from "../lib/legendScale.js"; // TASKS.csv #3813 — the model's own scale for its on-hole layer
+import { stopsAreLogSpaced } from "../lib/legendScale.js";
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3813 — the model's own scale for its on-hole layer
 const APPARENT_METHODS = new Set(["ip_app", "res_app"]); // TASKS.csv #3808 — a DC / IP survey's apparent values at pseudo-depths
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
@@ -411,14 +412,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #3319 — an import whose survey name is already loaded from ANOTHER file (another row count or extent: the Extension grid's
   // IP.xyz over the Main grid's) is asked about: OK replaces it, Cancel keeps both, the new one named 'IP.xyz (2)'. The same file read again
   // still replaces it (#600). -> { rows, note, renamed: { old key: new key } }
-  const keepOrReplace = (incoming) => {
+  const keepOrReplace = async (incoming) => {
     const clashes = surveyNameClashes(rows, incoming);
     if (!clashes.length) return { rows: incoming, note: "", renamed: {} };
     const keys = new Set([...rows.map(surveyKey), ...incoming.map(surveyKey)]), renamed = {};
     let out = incoming, note = "";
     const size = (e) => `${Math.round(e.xmax - e.xmin).toLocaleString()} × ${Math.round(e.ymax - e.ymin).toLocaleString()} m`;
     for (const c of clashes) {
-      if (window.confirm(tr("A survey \"{key}\" is already loaded ({n} points over {size}); this file has {n2} over {size2}, maybe another grid.\n\nOK replaces it. Cancel keeps both, naming this \"{name}\".", { key: c.key, n: c.loaded.n.toLocaleString(), size: size(c.loaded), n2: c.incoming.n.toLocaleString(), size2: size(c.incoming), name: uniqueSurveyKey(c.key, keys) }))) continue;
+      if (await askConfirm(tr("A survey \"{key}\" is already loaded ({n} points over {size}); this file has {n2} over {size2}, maybe another grid.\n\nOK replaces it. Cancel keeps both, naming this \"{name}\".", { key: c.key, n: c.loaded.n.toLocaleString(), size: size(c.loaded), n2: c.incoming.n.toLocaleString(), size2: size(c.incoming), name: uniqueSurveyKey(c.key, keys) }))) continue;
       const nk = uniqueSurveyKey(c.key, keys);
       keys.add(nk); renamed[c.key] = nk;
       out = out.map((r) => (surveyKey(r) === c.key ? { ...r, _src: nk } : r));
@@ -572,7 +573,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       return;
     }
     if (file.size > STREAM_FROM_BYTES) { await openStreamedCsv(file, head); return; } // #1351 — was refused above 150 MB
-    parseTableFile(file).then((t0) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+    parseTableFile(file).then(async (t0) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const hl = headerlessTable(t0.headers, t0.rows), t = hl ? { ...t0, headers: hl.headers, rows: hl.rows } : t0; // TASKS.csv #3805 — a first row of numbers is data, not the column names
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         { const r = tableRefusal(file.name, t.headers, t.rows, "point", head); if (r) { setError(r); return; } } // #3320 — before the column picker
@@ -632,7 +633,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             ? tr(" Couldn't resolve a proj4 definition for EPSG:{srcEpsg} or EPSG:{epsg} — no reprojection happened.", { srcEpsg, epsg: project.epsg })
             : tr(" Reprojected from EPSG:{srcEpsg}{v} to the project's EPSG:{epsg}.", { srcEpsg, v: !geophysSourceEpsg && cols.geographic ? tr(" (longitude/latitude columns)") : "", epsg: project.epsg });
         }
-        { const named = keepOrReplace(good); good = named.rows; reprojectNote += named.note; } // #3319 — another file of the same name: asked
+        { const named = await keepOrReplace(good); good = named.rows; reprojectNote += named.note; } // #3319 — another file of the same name: asked
         const replacedN = replaceSurveyPoints(rows, good).replaced; // #600 — for the notice; the update below does the same
         setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, good).rows }));
         // #3808 — the method once (the depth check below reads it); an IP or DC column at pseudo-depths is its apparent method
@@ -708,7 +709,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: the DEM comes into the grid through the tie
       const parsed = await parseDEMFiles(files, tie ? null : project?.epsg, demSourceEpsg.trim() || null, { cropTo, gridMax: terrainDetail, tie, mineSource: mineSourceOf(project) /* #2684 */, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
-      if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) {
+      if (terrain && !await askConfirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) {
         setTerrainBusy(false);
         return;
       }
@@ -748,7 +749,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const finishPointsTerrain = async ({ points, lines, what, name, sourceFile, reprojected, misfitAt = null, benchNote = "", leftOutNote = "", spacingFit = false, reach = null }) => {
     const { terrainFromPointsAsync } = await import("../lib/terrainFromPoints.js");
     const t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail, spacingFit, reach }); // #986 — in a worker; spacingFit: #3036; reach: #3338
-    if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — the shared question
+    if (!(await confirmReplaceTerrain(terrain, name))) return; // #2554 — the shared question
     const replaced = replacedTerrainNote(terrain);
     const built = { name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: sourceFile, points: t.stats.points, nodeM: t.stats.cellM, ...(t.stats.reachM ? { reachM: Math.round(t.stats.reachM) } : {}) } }; // reachM: #3338
     addTerrain(built);
@@ -839,7 +840,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // TASKS.csv #2263 (review #2174) — collars drilled from underground levels make a surface through the mine, not the ground (a TIN at
       // RL 102-351 under a surface near 400): ask, and name it for what it is
       const ug = collarsLookUnderground(collars, survey);
-      if (ug.underground && !window.confirm(tr("The collars look like underground collars ({upward} hole(s) drilled up, {stacked} stacked pair(s)): a surface through them follows mine levels, not ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
+      if (ug.underground && !await askConfirm(tr("The collars look like underground collars ({upward} hole(s) drilled up, {stacked} stacked pair(s)): a surface through them follows mine levels, not ground.", { upward: ug.upward, stacked: ug.stacked }) + "\n\n" + tr("OK — build it anyway, named 'Surface through the collars'.") + "\n" + tr("Cancel — don't build it (import a DEM or fetch SRTM for the real ground)."))) return;
       await finishPointsTerrain({ points, lines: [], what: tr("{s} surface sample(s) and {c} collar(s) of this project", { s: samples, c: nc }), name: ug.underground ? "Surface through the collars" : zUse === "collars" ? "Terrain from collars" : zUse === "samples" ? "Terrain from samples" : "Terrain from samples and collars" /* the source in the name: #3381 */, sourceFile: "project surface samples and collars", reprojected: false, misfitAt: picked.points, benchNote, leftOutNote: [collarsOutNote(projectZPoints.collarsOut), ugCollars.ids.size ? `${undergroundCollarsText(ugCollars)} ${ugMode === "out" ? tr("They were left out of the terrain; 'Underground collars' can keep them.") : tr("They were kept in the terrain, as chosen under 'Underground collars'.")}` : ""].filter(Boolean).join(" ") /* #3551 */, spacingFit: true, reach: Number(reachText) > 0 ? Number(reachText) : "auto" /* #3338 */ }); // name: #2263; misfitAt, benchNote: #2589; leftOutNote: #2987; spacingFit: #3036
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
@@ -935,7 +936,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const { inspectLidarFile } = await import("../lib/lidarImport.js");
       const info = await inspectLidarFile(file);
       let epsg = project?.epsg;
-      if (info.crs.epsg) { const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: epsg, declaredEpsg: info.crs.epsg, fileName: file.name }); if (adopted) { setEpsg(adopted); epsg = adopted; } }
+      if (info.crs.epsg) { const adopted = await askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: epsg, declaredEpsg: info.crs.epsg, fileName: file.name }); if (adopted) { setEpsg(adopted); epsg = adopted; } }
       setLidarPending({ file, info, epsg });
     } catch (err) {
       setTerrainError({ info: false, text: tr("Could not read {name}: {message}", { name: file.name, message: err.message }) });
@@ -943,7 +944,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   };
   const confirmLidar = async ({ wantTerrain, wantCloud, target, cloudClasses, colourBy }) => {
     const { file, info, epsg } = lidarPending, h = info.header, name = file.name.replace(/\.(copc\.)?la[sz]$/i, "");
-    if (wantTerrain && terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: name }))) return;
+    if (wantTerrain && terrain && !await askConfirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: name }))) return;
     setLidarBusy(true);
     const label = tr("Reading {name}", { name: file.name }), t0 = Date.now();
     try {
@@ -1133,7 +1134,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
     const tie = epsgOverride ? null : tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
     const targetEpsg = epsgOverride || (tie ? Number(tie.epsg) : project.epsg); // #614 — a zone fix re-fetches before the new label reaches this closure
-    if (terrain && !epsgOverride && !window.confirm(tr("Replace the current terrain (\"{name}\") with freshly fetched terrain for this area? Only one terrain surface is supported at a time.", { name: terrain.name }))) {
+    if (terrain && !epsgOverride && !await askConfirm(tr("Replace the current terrain (\"{name}\") with freshly fetched terrain for this area? Only one terrain surface is supported at a time.", { name: terrain.name }))) {
       return;
     }
     // TASKS.csv #3251 — over a quarter of this computer's memory: refused with the figures, before anything is fetched
@@ -1174,7 +1175,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         setTerrainError({ info: true, text: tr("The collars sit a median {v} m off this terrain — checking whether the project's CRS is one UTM zone off…", { v: Math.round(misfit.medianDz) }) });
         const better = await findBetterUtmZone(collars, targetEpsg, misfit);
         if (ai) ai.misfit = { collar_misfit_m: Math.round(misfit.medianDz), ...(better ? { a_better_fit: `${better.name} (EPSG:${better.code}), within ${Math.round(better.medianDz)} m` } : {}) }; // #3932 — said, not relabelled
-        if (better && !ai && window.confirm(tr("The {n} collars sit a median {v} m off the terrain for {v2}, but within {v3} m as {name}: probably the wrong UTM zone.\n\nOK — relabel the project {name} (EPSG:{code}; no coordinates change) and fetch there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code }))) {
+        if (better && !ai && await askConfirm(tr("The {n} collars sit a median {v} m off the terrain for {v2}, but within {v3} m as {name}: probably the wrong UTM zone.\n\nOK — relabel the project {name} (EPSG:{code}; no coordinates change) and fetch there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code }))) {
           setEpsg(better.code);
           const T = pointTransform(better.code, 4326);
           const [bx0, by0, bx1, by1] = parsed.bbox;
@@ -1469,7 +1470,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const res = /\.geoh5$/i.test(file.name) ? await (await import("../lib/geoh5Import.js")).geoh5ToProjectObjects(buf, effectiveMaxCells, { ...opts, baseName: file.name.replace(/\.geoh5$/i, "") }) : await omfToProjectObjectsAsync(buf, effectiveMaxCells, opts);
       // TASKS.csv #1202 — pillar 3: a budget the geologist raised once should not fill a modest laptop unasked (about 0.4 GB per million blocks, as the budget's own tooltip says)
       const blocks = res.voxelModels.reduce((n, m) => n + (m.cells?.length || 0), 0);
-      if (blocks > 500000 && !window.confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while open, which can slow a laptop. Import it? (A lower cell budget coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) { setOmfError({ info: true, text: tr("\"{name}\" was not imported.", { name: file.name }) }); return; }
+      if (blocks > 500000 && !await askConfirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while open, which can slow a laptop. Import it? (A lower cell budget coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) { setOmfError({ info: true, text: tr("\"{name}\" was not imported.", { name: file.name }) }); return; }
       const pointsCount = res.omfObjects.filter((o) => o.kind === "points").length, linesCount = res.omfObjects.filter((o) => o.kind === "lines").length;
       const surfacesCount = res.omfObjects.filter((o) => o.kind === "surface").length, volumesCount = res.voxelModels.length;
       res.omfObjects.forEach((o) => addOmfObject(o));
@@ -1719,7 +1720,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           if (pl.epsg) mineSrc = false; // the GPS file's own CRS places them
         }
         if (mineSrc) { const m = mineRowsToProject(mapped, project); mapped = m.rows; mineNote = m.note.trim(); }
-        if (srcEpsg && !asked) { asked = true; const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: srcEpsg, fileName: f.name, at: isGeographicCrs(Number(srcEpsg)) ? medianLonLat(mapped) : null, crsSet: project?.crsSet === true }); if (adopted) { setEpsg(adopted); target = adopted; } } // at, crsSet: #2833
+        if (srcEpsg && !asked) { asked = true; const adopted = await askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: srcEpsg, fileName: f.name, at: isGeographicCrs(Number(srcEpsg)) ? medianLonLat(mapped) : null, crsSet: project?.crsSet === true }); if (adopted) { setEpsg(adopted); target = adopted; } } // at, crsSet: #2833
         if (srcEpsg && target && Number(srcEpsg) !== Number(target)) mapped = mapped.map((r) => { const p = reprojectXY(r.x, r.y, srcEpsg, target); return p ? { ...r, x: p.x, y: p.y } : r; });
         kept += mapped.length;
         collected.push(mapped);
@@ -1729,7 +1730,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     }
     let points = collected.flat(), clashNote = "";
     if (points.length) {
-      const named = keepOrReplace(points); points = named.rows; clashNote = named.note.trim(); // #3319
+      const named = await keepOrReplace(points); points = named.rows; clashNote = named.note.trim(); // #3319
       setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, points).rows }));
       // #3319 — each survey's method from its own value column (a file read on another column guesses from that one)
       const colOf = new Map(ownColumns.map((o) => [o.file, o.col]));
@@ -1768,7 +1769,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       setXyzError({ info: false, text: tr("Could not read {name}: {message}", { name: file.name, message: err.message }) });
     }
   };
-  const confirmImportXYZ = (streamedRows = null, streamNote = "") => {
+  const confirmImportXYZ = async (streamedRows = null, streamNote = "") => {
     if (!xyzPending) return;
     if (xyzPending.batch) { confirmBatchXYZ(); return; } // #1329
     if (xyzPending.stream && !Array.isArray(streamedRows)) { confirmStreamed(); return; } // #1351 — read the whole file first, thinned
@@ -1839,7 +1840,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const statedEpsg = placed?.epsg || (mineSrc ? null : geophysSourceEpsg) || (mineSrc ? null : xyzPending.headerEpsg) || (pickerDegrees ? 4326 : null) || null; // headerEpsg: #1329 — a GEM file says, a Source CRS set by hand still wins; degrees: #2832
     // TASKS.csv #2833 — the stations' place for a CRS in degrees (the metric CRS there is offered, never the degrees themselves), and nothing asked
     // once the project's CRS was chosen (it was replaced by EPSG:4269 on OK)
-    const adopted = statedEpsg ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: statedEpsg, fileName, at: isGeographicCrs(Number(statedEpsg)) ? medianLonLat(mapped) : null, crsSet: project?.crsSet === true }) : null;
+    const adopted = statedEpsg ? await askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: statedEpsg, fileName, at: isGeographicCrs(Number(statedEpsg)) ? medianLonLat(mapped) : null, crsSet: project?.crsSet === true }) : null;
     if (adopted) { setEpsg(adopted); reprojectNote += tr(" Project CRS set to EPSG:{epsg}.", { epsg: adopted }); }
     const targetEpsg = adopted || project?.epsg;
     const sourceEpsgNow = statedEpsg;
@@ -1855,7 +1856,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         ? tr(" Couldn't resolve a proj4 definition for EPSG:{geophysSourceEpsg} or EPSG:{epsg} — no reprojection happened.", { geophysSourceEpsg, epsg: targetEpsg })
         : tr(" Reprojected from EPSG:{geophysSourceEpsg} to the project's EPSG:{epsg}.", { geophysSourceEpsg, epsg: targetEpsg });
     }
-    const named = keepOrReplace(mapped), keyOf = (k) => named.renamed[k] || k; // #3319 — another file of the same name: asked
+    const named = await keepOrReplace(mapped), keyOf = (k) => named.renamed[k] || k; // #3319 — another file of the same name: asked
     mapped = named.rows; reprojectNote += named.note;
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
@@ -1895,11 +1896,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const sd = collarTerrainSide(collarTerrainOffsets(collars, { bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask }));
     return sd?.side ? " " + tr(sd.side === "below" ? "{k} of the {n} collars inside it are {lo} to {hi} m below this ground (median {m} m): the holes start inside the model." : "{k} of the {n} collars inside it are {lo} to {hi} m above this ground (median {m} m): the model's top and the collar elevations disagree.", { k: sd.side === "below" ? sd.below : sd.above, n: sd.n, lo: sd.lo.toFixed(1), hi: sd.hi.toFixed(1), m: sd.med.toFixed(1) }) : "";
   };
-  const terrainFromModelTop = (model) => {
+  const terrainFromModelTop = async (model) => {
     const t = terrainFromBlockModel(model.cells);
     if (!t) { setVoxelError({ info: false, text: tr("\"{name}\" gives no terrain: fewer than 2 × 2 columns with a value.", { name: model.name }) }); return; }
     const name = tr("Top of {name} (block model)", { name: model.name });
-    if (!confirmReplaceTerrain(terrain, name)) return; // #2554 — it replaced the loaded terrain, said only after the fact
+    if (!(await confirmReplaceTerrain(terrain, name))) return; // #2554 — it replaced the loaded terrain, said only after the fact
     const replaced = replacedTerrainNote(terrain);
     addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "top of a block model", model: model.name, columns: t.stats.columns, nodeM: t.stats.nodeM.map((v) => Math.round(v * 10) / 10) } });
     setVoxelError({ info: true, text: replaced + tr("Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the mesh's top cells, {zmin} to {zmax} m{v}, only where the mesh is{v2}.", { name, w: t.gridW, h: t.gridH, dx: Math.round(t.stats.nodeM[0] * 10) / 10, dy: Math.round(t.stats.nodeM[1] * 10) / 10, cols: t.stats.columns.toLocaleString(), zmin: Math.round(t.stats.relief[0]), zmax: Math.round(t.stats.relief[1]), v: t.stats.empty ? tr(", {n} node(s) with no column marked as no ground", { n: t.stats.empty.toLocaleString() }) : "", v2: "" /* #2554: said by "Replaced the terrain" first */ }) + collarsUnderNote(t) });
@@ -2299,7 +2300,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     {/* TASKS.csv #2871 — buttons, not bare svg elements */}
                     <button type="button" aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={iconBtn} onClick={() => exportSurvey(sv.key)}><Download size={12} aria-hidden="true" /></button>{/* #1094 */}
                     <button type="button" aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={iconBtn}
-                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) { setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); setGeophysSurveys((m) => { const { [sv.key]: _gone, ...rest } = m || {}; return rest; }); const about = (e) => (e && typeof e === "object" && String(e.text || "").includes(`"${sv.key}"`) ? null : e); setXyzError(about); setError(about); /* #3442 (3) — 'Imported … from "x"' goes with x */ /* TASKS.csv #3330 (2) — its Method, units and legend go with its last point: a later import under that name inherited them */ } }}><Trash2 size={12} aria-hidden="true" /></button>
+                      onClick={async () => { if (await askConfirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) { setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); setGeophysSurveys((m) => { const { [sv.key]: _gone, ...rest } = m || {}; return rest; }); const about = (e) => (e && typeof e === "object" && String(e.text || "").includes(`"${sv.key}"`) ? null : e); setXyzError(about); setError(about); /* #3442 (3) — 'Imported … from "x"' goes with x */ /* TASKS.csv #3330 (2) — its Method, units and legend go with its last point: a later import under that name inherited them */ } }}><Trash2 size={12} aria-hidden="true" /></button>
                   </div>
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
                     {meta.positionsOnly ? tr("{count} points{v}, {withZ} with elevation · positions only, no measured value", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString() }) /* TASKS.csv #3447 */ : tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
@@ -2523,7 +2524,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <button onClick={() => goToModule("viewer")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("View in 3D")}{" "}<ArrowRight size={14} />
               </button>
               <button
-                onClick={() => { if (window.confirm(tr("Clear all {rows} geophysics point(s)?", { rows: rows.length }))) { replaceLayer("geophys_pts", []); setError(null); setXyzError(null); /* #2871 — no 'Imported 7809 point(s)' left on screen */ } }}
+                onClick={async () => { if (await askConfirm(tr("Clear all {rows} geophysics point(s)?", { rows: rows.length }))) { replaceLayer("geophys_pts", []); setError(null); setXyzError(null); /* #2871 — no 'Imported 7809 point(s)' left on screen */ } }}
                 style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-danger-fg)" }}
               >
                 <Trash2 size={14} />{" "}{tr("Clear")}</button>
@@ -2913,7 +2914,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={terrain.source?.nodeM ? tr("Nodes {n} m apart; the source's pixels {s} m", { n: terrain.source.nodeM.toFixed(1), s: Number(terrain.source.sourcePixelM || 0).toFixed(1) }) : undefined}>{terrain.gridW}×{terrain.gridH}{terrain.source?.nodeM ? ` · ${terrain.source.nodeM < 10 ? terrain.source.nodeM.toFixed(1) : Math.round(terrain.source.nodeM)} m` : ""}</span>{/* · m: #3251 */}
-              <Trash2 aria-label={tr("Remove terrain \"{name}\"", { name: terrain.name })} title={tr("Remove terrain \"{name}\"", { name: terrain.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove the terrain surface \"{name}\"? Any rasters draped on it will fall back to a flat elevation.", { name: terrain.name }))) removeTerrain(); }} />
+              <Trash2 aria-label={tr("Remove terrain \"{name}\"", { name: terrain.name })} title={tr("Remove terrain \"{name}\"", { name: terrain.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove the terrain surface \"{name}\"? Any rasters draped on it will fall back to a flat elevation.", { name: terrain.name }))) removeTerrain(); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Colour")}</span>
@@ -3071,7 +3072,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={b.partNames?.some(Boolean) ? b.partNames.filter(Boolean).join(", ") : undefined}>{tr("{v} part(s)", { v: b.polylines?.length || 0 })}</span>
               {polylinesBox(b.polylines) && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: b.name })} title={tr("Zoom the plan to \"{name}\"", { name: b.name })} onClick={() => requestPlanZoom(polylinesBox(b.polylines))} />}{/* TASKS.csv #2657 */}
-              <Trash2 aria-label={tr("Remove boundary \"{name}\"", { name: b.name })} title={tr("Remove boundary \"{name}\"", { name: b.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }} />
+              <Trash2 aria-label={tr("Remove boundary \"{name}\"", { name: b.name })} title={tr("Remove boundary \"{name}\"", { name: b.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }} />
             </div>
             {b.attributes?.length > 0 && ( /* TASKS.csv #3478 — the source's attributes, as a claim keeps them: the columns, and the first feature's values */
               <div style={{ marginTop: 4, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
@@ -3185,7 +3186,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", color: "var(--color-text)", fontSize: "var(--font-size-base)", padding: 0 }}
               />
               {polylinesBox(c.polylines) && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: c.name })} title={tr("Zoom the plan to \"{name}\"", { name: c.name })} onClick={() => requestPlanZoom(polylinesBox(c.polylines))} />}{/* TASKS.csv #2657 */}
-              <Trash2 aria-label={tr("Remove claim \"{name}\"", { name: c.name })} title={tr("Remove claim \"{name}\"", { name: c.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove claim \"{name}\"?", { name: c.name }))) removeBoundary(c.id); }} />
+              <Trash2 aria-label={tr("Remove claim \"{name}\"", { name: c.name })} title={tr("Remove claim \"{name}\"", { name: c.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove claim \"{name}\"?", { name: c.name }))) removeBoundary(c.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
               <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Tenure #")}</span>
@@ -3332,7 +3333,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0, textTransform: "capitalize" }}>{o.kind}</span>
-              <Trash2 aria-label={tr("Remove \"{name}\"", { name: o.name })} title={tr("Remove \"{name}\"", { name: o.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: o.name }))) removeOmfObject(o.id); }} />
+              <Trash2 aria-label={tr("Remove \"{name}\"", { name: o.name })} title={tr("Remove \"{name}\"", { name: o.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: o.name }))) removeOmfObject(o.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Colour")}</span>
@@ -3574,7 +3575,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
         <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={csvNames === "micromine" ? tr("Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)") : tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelCSV(withSet ? withSetColumns(model, others) : model, e, csvNames, stampChoice); }} />
         <Box role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as VTK", { name: model.name })} title={tr("Export as VTK for ParaView / PyVista (empty blocks are NaN)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelVTK(withSet ? withSetColumns(model, others) : model, e); }} />{/* TASKS.csv #798 */}
-        <Trash2 aria-label={tr("Remove block model \"{name}\"", { name: model.name })} title={tr("Remove block model \"{name}\"", { name: model.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: model.name }) + " " + tr("Undo does not bring a block model back."))) onRemove(model.id); }} />
+        <Trash2 aria-label={tr("Remove block model \"{name}\"", { name: model.name })} title={tr("Remove block model \"{name}\"", { name: model.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: model.name }) + " " + tr("Undo does not bring a block model back."))) onRemove(model.id); }} />
       </div>
       {/* TASKS.csv #711 — an OMF / UBC volume names no property or unit, so the legend, inspector and exports could only
           show the attribute name: the user says what the values are (stored as model.property). */}
@@ -3582,14 +3583,14 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
           <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Values are")}</span>
           <select value={model.params?.declaredGrade && !model.property ? "__grade" /* #2667 */ : VOXEL_PROPERTIES.includes(model.property) ? model.property : model.property ? "__other" : ""} aria-label={tr("What the values of \"{name}\" are", { name: model.name })}
-            onChange={(e) => { const v = e.target.value;
+            onChange={async (e) => { const v = e.target.value;
               // TASKS.csv #2667 — a grade: its element and unit (Grade-tonnage then offered on a CSV model); a property chosen after one drops it
               if (v === "__grade") { askPrompt(tr("Which element and unit are the values? (e.g. Cu ppm, Au g/t, Fe %)"), model.params?.declaredGrade ? `${model.params.element} ${model.params.unit}` : "", (txt) => { const g = parseGradeLabel(txt); if (g) onUpdate(model.id, { property: null, propertyChosen: true, params: { ...(model.params || {}), element: g.element, unit: g.unit, declaredGrade: true } }); }); return; }
               if (model.params?.declaredGrade) { const { element: _e, unit: _u, declaredGrade: _d, ...rest } = model.params; onUpdate(model.id, { params: rest }); }
               if (v === "__other") { askPrompt(tr("What are the values (property and unit)?"), model.property || "", (other) => { if (other && other.trim()) onUpdate(model.id, { property: other.trim(), propertyChosen: true }); }); return; }
               // TASKS.csv #3809 (Scottie Gold) — 'Resistivity' on a conductivity model (a .con, 0.0000086 to 11.1 S/m) only renamed it: asked first, with the 1 / x copy named
               const flip = (/^Conductivity/.test(model.property || "") && /^Resistivity/.test(v)) || (/^Resistivity/.test(model.property || "") && /^Conductivity/.test(v));
-              if (flip && !window.confirm(tr("These values are {from}; choosing {to} only renames them. To convert, use 'As {to2} (1 / x)' beside this list, which makes a copy. Rename anyway?", { from: model.property, to: v, to2: /^Resistivity/.test(v) ? tr("resistivity") : tr("conductivity") }))) return;
+              if (flip && !await askConfirm(tr("These values are {from}; choosing {to} only renames them. To convert, use 'As {to2} (1 / x)' beside this list, which makes a copy. Rename anyway?", { from: model.property, to: v, to2: /^Resistivity/.test(v) ? tr("resistivity") : tr("conductivity") }))) return;
               onUpdate(model.id, { property: v || null, propertyChosen: true }); }}
             style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
             {/* TASKS.csv #2067 (review #2013) — an estimate knows its element and unit (params): said here, not set as property, which would

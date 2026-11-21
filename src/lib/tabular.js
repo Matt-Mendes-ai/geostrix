@@ -10,7 +10,8 @@ import { makeCompositor } from "./compositeOnRead.js"; // TASKS.csv #2345
 import { makeLogReader } from "./logOnRead.js"; // TASKS.csv #3038
 import { normalizeCommaDecimals } from "./numberLocale.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { arrMax } from "./arrayStats.js"; // TASKS.csv #3031
+import { arrMax } from "./arrayStats.js";
+import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3031
 
 // Bytes -> text. UTF-8 first (BOM stripped); if that produced replacement characters, the file was not
 // UTF-8 — almost always an Excel export on Windows (Windows-1252: degree signs, accented names).
@@ -472,7 +473,7 @@ const requestTableSubset = (file, preview) => requestTableSubsetEv(file, preview
 // -> true to go on (whole table), { keep: [header...] } (only those columns), or false. confirm: injectable (tests); with no window (Node)
 // the table is read.
 // rowObjects (#3040): the table will be held as row objects (every reader but the columnar one and a log read into columns, #3038)
-export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, confirm = typeof window !== "undefined" ? (m) => window.confirm(m) : null, choose = requestTableSubset, rowObjects = false } = {}) {
+export async function confirmTableSize(file, { budget = TABLE_MEMORY_BUDGET, confirm = typeof window !== "undefined" ? (m) => askConfirm(m) : null, choose = requestTableSubset, rowObjects = false } = {}) {
   if (!confirm || !(file?.size > budget / (rowObjects ? MAX_ROW_RATIO : 12))) return true; // a file under that can never reach the budget
   const e = await estimateTableMemory(file, { rowObjects });
   if (e.bytes <= budget) return true;

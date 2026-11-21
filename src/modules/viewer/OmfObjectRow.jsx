@@ -10,7 +10,7 @@ const OPACITIES = [1, 0.75, 0.5, 0.25];
 
 export default function OmfObjectRow({ o, update, remove, zoom, openRowMenu }) {
   const shown = o.visible !== false, colour = o.color || "#5a9bd4", opacity = Number.isFinite(o.opacity) ? o.opacity : 1;
-  const ask = () => { if (confirmDestructive(tr("Remove OMF object \"{name}\"?", { name: o.name }))) remove(o.id); };
+  const ask = async () => { if (await confirmDestructive(tr("Remove OMF object \"{name}\"?", { name: o.name }))) remove(o.id); };
   const Icon = o.kind === "points" ? MapPin : o.kind === "lines" ? Waypoints : Triangle;
   return (
     <div onContextMenu={(e) => openRowMenu(e, o.name, [{ label: shown ? "Hide" : "Show", onClick: () => update(o.id, { visible: !shown }) }, { label: tr("Zoom to"), onClick: zoom }, "-", { label: tr("Remove…"), onClick: ask }])}

@@ -8,7 +8,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 test("#1543 the stack says its fault warnings before solving and asks once about random picks", () => {
   const m = read("../src/modules/viewer/modellingRuns.js");
   assert.match(m, /random: fs\?\.noPreferred \? \{ name, k: fs\.k \} : null/);
-  const pre = m.indexOf("if (randomFaults.length && !window.confirm("), run = m.indexOf("await runSurfaceStack([...faultSpecs, ...specs]");
+  const pre = m.indexOf("if (randomFaults.length && !await askConfirm("), run = m.indexOf("await runSurfaceStack([...faultSpecs, ...specs]");
   assert.ok(pre > 0 && pre < run, "the question comes before the solve");
   assert.ok(m.lastIndexOf("if (faultWarnings.length) setNotices((p) => [...p, ...faultWarnings]);", run) > 0, "warnings pushed before the solve");
 });

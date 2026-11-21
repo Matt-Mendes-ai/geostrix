@@ -51,7 +51,8 @@ import { rasterMethodOf, filterBlockedBy, ternaryChoices, fieldFilterNeedsMethod
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #2557 — the method's label
 import MiddleName from "../components/MiddleName.jsx"; // TASKS.csv #2852
 import { defaultFilterKind, magneticsFromName /* #2862 */ } from "../lib/filterDefault.js"; // TASKS.csv #1863
-import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import NumberInput from "../components/NumberInput.jsx";
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957 // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -491,7 +492,7 @@ export default function RasterModule({ embedded = false } = {}) {
       const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project), collarZ: collarZRange(collars), mineSource: mineSourceOf(project), sideCrs }); // tie: #2587; collarZ: #2129; mineSource: #2684; sideCrs: #2830
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name, stations: layers?.geophys_pts }); // stations: #2868; #1856 — the ground under this raster; #1505 — above the collars, stacked, or at the name's depth
       // TASKS.csv #2865 — the same file over the same area again is asked (it made a second card 5 m up)
-      if (sameRaster(raster, rasters) && !window.confirm(tr("\"{name}\" is already imported over the same area. Import it again?", { name: raster.name }))) { setError({ info: true, text: tr("\"{name}\" was not imported again.", { name: raster.name }) }); return; }
+      if (sameRaster(raster, rasters) && !await askConfirm(tr("\"{name}\" is already imported over the same area. Import it again?", { name: raster.name }))) { setError({ info: true, text: tr("\"{name}\" was not imported again.", { name: raster.name }) }); return; }
       addRaster({ ...raster, elevation: drape.z });
       setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });
     } catch (err) {
@@ -609,12 +610,12 @@ export default function RasterModule({ embedded = false } = {}) {
           <GeoreferencerModal
             projectEpsg={project?.epsg}
             onClose={() => setGeorefOpen(false)}
-            onImport={(raster) => {
+            onImport={async (raster) => {
               // TASKS.csv #2294 (review #2174) — a scan of the same footprint as a GeoTIFF landed at the collar median (an underground level,
               // mid-way through the fans) while the GeoTIFF went 5 m above the highest collar under it: the same rule now, and said
               const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: raster.name, stations: layers?.geophys_pts /* #2868 */ });
               // TASKS.csv #2590 (review #2486) — control points typed on a mine grid put the picture 6,240 km from the drilling, unasked
-              if (drape.far && !window.confirm(tr("These control points put the picture about {km} km from the {n} collars. Are they on a local mine grid, or in a CRS other than the project's?", { km: Math.round(drape.far.distM / 1000).toLocaleString(), n: collars.length.toLocaleString() }) + "\n\n" + tr("OK — import it there anyway.") + "\n" + tr("Cancel — go back to the control points."))) return;
+              if (drape.far && !await askConfirm(tr("These control points put the picture about {km} km from the {n} collars. Are they on a local mine grid, or in a CRS other than the project's?", { km: Math.round(drape.far.distM / 1000).toLocaleString(), n: collars.length.toLocaleString() }) + "\n\n" + tr("OK — import it there anyway.") + "\n" + tr("Cancel — go back to the control points."))) return;
               addRaster({ ...raster, elevation: drape.z });
               setGeorefOpen(false);
               setError({ info: true, text: tr("Georeferenced and imported \"{name}\".", { name: raster.name }) + " " + drapeElevationNote(drape) });
@@ -671,7 +672,7 @@ export default function RasterModule({ embedded = false } = {}) {
               {r.bbox && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: r.name })} title={tr("Zoom the plan to \"{name}\"", { name: r.name })} onClick={() => requestPlanZoom(r.bbox)} />}{/* TASKS.csv #2657 */}
               {rasters.length > 1 && <ChevronUp role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} title={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, -1)} />}{/* #2853 */}
               {rasters.length > 1 && <ChevronDown role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} title={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, 1)} />}
-              <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
+              <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
             </div>
             {r.grid && <ZonalStatsBox raster={r} boundaries={boundaries} onClip={(b) => clipRasterTo(r, b)} />}{/* TASKS.csv #2002 */}
             {r.terrainDerivative && r.terrainDerivative.terrainId != null && terrain?.id !== r.terrainDerivative.terrainId && ( /* TASKS.csv #1626 — made from a terrain since replaced */
