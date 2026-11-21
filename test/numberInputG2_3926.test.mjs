@@ -13,6 +13,7 @@ const DONE = [
   "components/PlanModelsList.jsx", "components/PlannedHoleParts.jsx", "components/PlannedHoleTargeting.jsx", "components/SectionEditModal.jsx",
   "components/StereonetModal.jsx", "components/StripLog.jsx", "components/SurfaceGeologyProjection.jsx",
   "components/MapModelPanel.jsx", "components/SectionWindow.jsx",
+  "components/CoreOrientationCalculator.jsx", "components/SectionGeorefModal.jsx", "components/SurfaceMappingPanel.jsx", "components/SurveyPlannerPanel.jsx",
 ];
 
 test("every G2 box in these files is a NumberInput", () => {
@@ -46,6 +47,14 @@ test("the section window's buffer sends the corridor when the box commits, as it
   const w = read("components/SectionWindow.jsx");
   assert.match(w, /<NumberInput min=\{1\} step=\{5\} value=\{data\.section\?\.corridor \?\? null\}\s+onChange=\{\(v\) => \{ if \(v > 0 && v !== data\.section\?\.corridor\) sendSectionContacts\(\{ id: data\.id, corridor: v \}\); \}\}/);
   assert.doesNotMatch(w, /bufferDraft/);
+});
+
+test("a box that filled its row still does (wrapStyle), and the survey grid's azimuth still wraps", () => {
+  assert.match(read("components/CoreOrientationCalculator.jsx"), /const numWrap = \{ flex: 1, minWidth: 0 \}, numFill = \{ \.\.\.num, width: "100%", boxSizing: "border-box" \};/);
+  assert.match(read("components/SurfaceMappingPanel.jsx"), /aria-label=\{tr\("Easting"\)\} style=\{\{ \.\.\.select, width: "100%", boxSizing: "border-box" \}\} wrapStyle=\{\{ flex: 1, minWidth: 0 \}\}/);
+  const sp = read("components/SurveyPlannerPanel.jsx");
+  assert.match(sp, /<NumberInput value=\{grid\.azimuth\} onChange=\{\(v\) => setGrid\(\(g\) => \(\{ \.\.\.g, azimuth: \(\(v % 360\) \+ 360\) % 360 \}\)\)\}/);
+  assert.match(sp, /<NumberInput min=\{5\} value=\{grid\.lineSpacing\}/);
 });
 
 test("NumberInput takes a wrapper style (a box that fills a row), and nothing else changes", () => {
