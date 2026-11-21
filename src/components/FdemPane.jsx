@@ -30,9 +30,18 @@ const fmt = (v) => (v == null || !Number.isFinite(v) ? "–" : Math.abs(v) >= 10
 const TIES = [{ v: 0, label: "None: each sounding alone" }, { v: 0.3, label: "Weak" }, { v: 1, label: "Medium" }, { v: 3, label: "Strong" }];
 let LAST = null; // the pane's state between visits (the tab unmounts it): a run is not lost by looking elsewhere
 
+// TASKS.csv #3900 T2 — the 10 px floor: the section (canvas) and the sounding (SVG) are drawn in the side panel at about 0.85 of 300 units, so their
+// text is 12 units (10.2 px). The sounding is re-laid for it: taller, two conductivity ticks (the ends), the readings' caption wrapped in its column.
+const CAP = 12;
+function capLines(text, maxW) {
+  const lines = [];
+  for (const w of String(text).split(" ")) { const cur = lines[lines.length - 1]; if (cur != null && (cur + " " + w).length * CAP * 0.55 <= maxW) lines[lines.length - 1] = cur + " " + w; else lines.push(w); }
+  if (lines.length > 1 && lines[lines.length - 1].length <= 1) lines[lines.length - 2] += " " + lines.pop(); // a symbol (the model's "|") stays with its words
+  return lines.length > 2 ? [lines[0], lines.slice(1).join(" ")] : lines;
+}
 function Section({ dist, ks, result, range, selected, onPick }) {
   const ref = useRef(null);
-  const W = 300, H = 170, pl = 30, pb = 18, pt = 4;
+  const W = 300, H = 170, pl = 40, pb = 18, pt = 4;
   const tops = useMemo(() => { const t = [0]; for (const d of result.thick) t.push(t[t.length - 1] + d); return t; }, [result.thick]);
   const maxD = tops[tops.length - 1] * 1.08;
   const d0 = dist[ks[0]] ?? 0, d1 = Math.max(d0 + 1, dist[ks[ks.length - 1]] ?? 1);
@@ -67,9 +76,9 @@ function Section({ dist, ks, result, range, selected, onPick }) {
     for (const j of ks) { const v = src.doi?.[j]; if (!Number.isFinite(v)) { on = false; continue; } const x = sx(dist[j]), y = sy(v); if (on) g.lineTo(x, y); else g.moveTo(x, y); on = true; }
     g.stroke();
     g.strokeStyle = "#94a1b0"; g.strokeRect(pl, pt, W - pl - 2, H - pt - pb);
-    g.fillStyle = "#55606e"; g.font = "8px sans-serif"; g.textAlign = "right";
-    for (const z of [0, tops[tops.length - 1] / 2, tops[tops.length - 1]]) g.fillText(`${fmt(z)} m`, pl - 2, sy(z) + 3);
-    g.textAlign = "left"; g.fillText(`0 m`, pl, H - 5); g.textAlign = "right"; g.fillText(`${fmt(d1 - d0)} m`, W - 2, H - 5);
+    g.fillStyle = "#55606e"; g.font = `${CAP}px sans-serif`; g.textAlign = "right";
+    for (const z of [0, tops[tops.length - 1] / 2, tops[tops.length - 1]]) g.fillText(`${fmt(z)} m`, pl - 2, sy(z) + 4);
+    g.textAlign = "left"; g.fillText(`0 m`, pl, H - 4); g.textAlign = "right"; g.fillText(`${fmt(d1 - d0)} m`, W - 2, H - 4);
     if (selected != null && dist[selected] != null) { g.strokeStyle = "#000"; g.setLineDash([3, 2]); g.beginPath(); g.moveTo(sx(dist[selected]), pt); g.lineTo(sx(dist[selected]), H - pb); g.stroke(); g.setLineDash([]); }
   }, [result, ks, dist, range, selected, tops]);
   const pick = (e) => {
@@ -81,7 +90,7 @@ function Section({ dist, ks, result, range, selected, onPick }) {
 }
 
 function SoundingView({ result, reference, j, k, survey, used }) {
-  const w = 300, h = 170, pl = 34, pt = 6, pb = 22, mid = 150;
+  const w = 300, h = 200, pl = 46, pt = 6, pb = 34, mid = 150; // #3900: 12-unit text
   const tops = [0]; for (const d of result.thick) tops.push(tops[tops.length - 1] + d);
   const maxD = tops[tops.length - 1] * 1.08;
   const prof = (c) => (c || []).map((v, i) => (v > 0 ? [Math.log10(v), tops[i], i + 1 < tops.length ? tops[i + 1] : maxD] : null)).filter(Boolean);
@@ -100,28 +109,28 @@ function SoundingView({ result, reference, j, k, survey, used }) {
   });
   const vals = pairs.flatMap((q) => [q.o, q.p]).filter((v) => v != null && Number.isFinite(v));
   const vmax = vals.length ? Math.max(...vals.map(Math.abs)) : 1;
-  const bx = (v) => mid + 40 + (Math.max(0, v) / (vmax || 1)) * (w - mid - 48);
+  const bx = (v) => mid + 74 + (Math.max(0, v) / (vmax || 1)) * (w - mid - 82);
   const doi = result.doi?.[j];
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("Conductivity against depth at the sounding, and its readings against the model's")} style={{ display: "block", background: "#fff", border: "1px solid var(--color-border)", borderRadius: 4 }}>
       <line x1={pl} x2={pl} y1={pt} y2={h - pb} stroke="#94a1b0" />
-      {[lo, (lo + hi) / 2, hi].map((v) => <text key={v} x={sx(v)} y={h - 10} fontSize="7" fill="#55606e" textAnchor="middle">{fmt(10 ** v)}</text>)}
-      <text x={(pl + mid) / 2} y={h - 2} fontSize="7" fill="#55606e" textAnchor="middle">{tr("mS/m (log scale)")}</text>
-      {[0, tops[tops.length - 1]].map((z) => <text key={z} x={pl - 2} y={sy(z) + 3} fontSize="7" fill="#55606e" textAnchor="end">{fmt(z)} m</text>)}
-      {Number.isFinite(doi) && <g><line x1={pl} x2={mid - 6} y1={sy(doi)} y2={sy(doi)} stroke="#111" strokeDasharray="3 2" /><text x={mid - 6} y={sy(doi) - 2} fontSize="7" fill="#111" textAnchor="end">DOI</text></g>}
+      {[lo, hi].map((v, i) => <text key={v} x={sx(v)} y={h - 18} fontSize={CAP} fill="#55606e" textAnchor={i ? "end" : "start"}>{fmt(10 ** v)}</text>)}
+      <text x={(pl + mid) / 2} y={h - 4} fontSize={CAP} fill="#55606e" textAnchor="middle">{tr("mS/m (log scale)")}</text>
+      {[0, tops[tops.length - 1]].map((z) => <text key={z} x={pl - 2} y={sy(z) + 4} fontSize={CAP} fill="#55606e" textAnchor="end">{fmt(z)} m</text>)}
+      {Number.isFinite(doi) && <g><line x1={pl} x2={mid - 6} y1={sy(doi)} y2={sy(doi)} stroke="#111" strokeDasharray="3 2" /><text x={mid - 6} y={sy(doi) - 2} fontSize={CAP} fill="#111" textAnchor="end">DOI</text></g>}
       {b.length > 0 && <polyline points={steps(b)} fill="none" stroke="#7a8794" strokeWidth="1.2" strokeDasharray="4 2" />}
       <polyline points={steps(a)} fill="none" stroke="#b2182b" strokeWidth="1.6" />
       {pairs.map((q, n) => {
         const y = pt + 8 + n * Math.min(18, (h - pt - pb - 8) / Math.max(1, pairs.length));
         return (
           <g key={n}>
-            <text x={mid + 38} y={y + 3} fontSize="7" fill="#55606e" textAnchor="end">{q.label}</text>
+            <text x={mid + 70} y={y + 4} fontSize={CAP} fill="#55606e" textAnchor="end">{q.label}</text>
             {q.o != null && Number.isFinite(q.o) && <circle cx={bx(q.o)} cy={y} r="2.6" fill="#222" />}
             {q.p != null && Number.isFinite(q.p) && <line x1={bx(q.p)} x2={bx(q.p)} y1={y - 4} y2={y + 4} stroke="#b2182b" strokeWidth="1.6" />}
           </g>
         );
       })}
-      <text x={(mid + w) / 2 + 20} y={h - 2} fontSize="7" fill="#55606e" textAnchor="middle">{survey.kind === "eca" ? tr("mS/m: reading ● model |") : tr("ppm: reading ● model |")}</text>
+      {capLines(survey.kind === "eca" ? tr("mS/m: reading ● model |") : tr("ppm: reading ● model |"), w - mid - 2).map((l, i) => <text key={i} x={w - 2} y={h - 18 + i * (CAP + 2)} fontSize={CAP} fill="#55606e" textAnchor="end">{l}</text>)}{/* #3900: beside the ticks, right-aligned */}
     </svg>
   );
 }
