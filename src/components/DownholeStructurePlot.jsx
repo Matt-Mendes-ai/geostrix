@@ -235,14 +235,14 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 );
               })}
               <rect x={44} y={Y0} width={LITHO_W} height={PLOT_H} fill="none" stroke="#d9dce1" strokeWidth={1} />
-              <text x={44 + LITHO_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">{tr("Litho")}</text>
+              <text x={44 + LITHO_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={10} fill="#55606e">{tr("Litho")}</text>
 
               {/* Tadpole panel */}
               <rect x={X0} y={Y0} width={PLOT_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
               {[0, 15, 30, 45, 60, 75, 90].map((a) => (
                 <g key={`vx_${a}`}>
                   <line x1={xFor(a)} y1={Y0} x2={xFor(a)} y2={Y0 + PLOT_H} stroke={a % 45 === 0 ? "#e0e3e8" : "#f0f2f4"} strokeWidth={1} />
-                  <text x={xFor(a)} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">{a}</text>
+                  <text x={xFor(a)} y={Y0 - 6} textAnchor="middle" fontSize={10} fill="#55606e">{a}</text>
                 </g>
               ))}
               <text x={X0 + PLOT_W / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="#55606e">
@@ -253,10 +253,10 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
               {depthTicks.map((d) => (
                 <g key={`dt_${d}`}>
                   <line x1={44} y1={yFor(d)} x2={X0 + PLOT_W + (showFreq ? GAP + FREQ_W : 0)} y2={yFor(d)} stroke="#f0f2f4" strokeWidth={1} />
-                  <text x={40} y={yFor(d) + 3} textAnchor="end" fontSize={9} fill="#55606e">{d}</text>
+                  <text x={40} y={yFor(d) + 3} textAnchor="end" fontSize={10} fill="#55606e">{d}</text>
                 </g>
               ))}
-              <text x={10} y={Y0 - 6} fontSize={9} fill="#55606e">{tr("Depth (m)")}</text>
+              <text x={10} y={Y0 - 18} fontSize={10} fill="#55606e">{tr("Depth (m)")}</text>{/* #3900: a row above "Litho" (at 9 px they already touched) */}
 
               {/* Lithology CONTACTS extended across the tadpole panel as faint lines — this is what makes
                   "does structural style change at the contact" answerable at a glance instead of by
@@ -295,7 +295,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
               {freq && (
                 <>
                   <rect x={X0 + PLOT_W + GAP} y={Y0} width={FREQ_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
-                  <text x={X0 + PLOT_W + GAP + FREQ_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">n/{binSize}m</text>
+                  <text x={X0 + PLOT_W + GAP + FREQ_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={10} fill="#55606e">n/{binSize}m</text>
                   {freq.counts.map((c, i) => {
                     if (!c) return null;
                     const y1 = yFor(i * binSize), y2 = yFor(Math.min(maxDepth, (i + 1) * binSize));
@@ -306,7 +306,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                       </rect>
                     );
                   })}
-                  <text x={X0 + PLOT_W + GAP + FREQ_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#65717e">{tr("max {v}", { v: freq.max })}</text>
+                  <text x={X0 + PLOT_W + GAP + FREQ_W - 2} y={H - 8} textAnchor="end" fontSize={10} fill="#65717e">{tr("max {v}", { v: freq.max })}</text>
                 </>
               )}
               {/* TASKS.csv #2236 — the numeric track: bars for intervals, a line for points, from the track's lowest value (0 or below) to its highest */}
@@ -314,13 +314,13 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 const xv = (v) => NX0 + 1 + ((v - numRows.lo) / (numRows.hi - numRows.lo)) * (NUM_W - 2);
                 return <g>
                   <rect x={NX0} y={Y0} width={NUM_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
-                  <text x={NX0 + NUM_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">{numSrc.label.length > 14 ? numSrc.label.slice(0, 13) + "…" : numSrc.label}<title>{numSrc.label}</title></text>
+                  <text x={NX0 + NUM_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={10} fill="#55606e">{numSrc.label.length > 14 ? numSrc.label.slice(0, 13) + "…" : numSrc.label}<title>{numSrc.label}</title></text>
                   {numRows.points
                     ? <polyline fill="none" stroke="#7d3c98" strokeWidth={1} points={numRows.rows.filter((r) => r.at != null && r.at <= maxDepth).map((r) => `${xv(r.v).toFixed(1)},${yFor(r.at).toFixed(1)}`).join(" ")} />
                     : numRows.rows.map((r, i) => { const y1 = yFor(r.from), y2 = yFor(r.to); return y2 > y1 ? <rect key={`nm_${i}`} x={NX0 + 1} y={y1} width={Math.max(0, xv(r.v) - NX0 - 1)} height={Math.max(0.6, y2 - y1 - 0.3)} fill="#7d3c98" opacity={0.55}><title>{`${numSrc.label}: ${r.v} — ${r.from}–${r.to} m`}</title></rect> : null; })}
-                  <text x={NX0 + 2} y={H - 8} fontSize={9} fill="#65717e">{+numRows.lo.toPrecision(3)}</text>
-                  <text x={NX0 + NUM_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#65717e">{+numRows.hi.toPrecision(3)}</text>
-                  {!numRows.rows.length && <text x={NX0 + NUM_W / 2} y={Y0 + 20} textAnchor="middle" fontSize={9} fill="#65717e">{tr("none in this hole")}</text>}
+                  <text x={NX0 + 2} y={H - 8} fontSize={10} fill="#65717e">{+numRows.lo.toPrecision(3)}</text>
+                  <text x={NX0 + NUM_W - 2} y={H - 8} textAnchor="end" fontSize={10} fill="#65717e">{+numRows.hi.toPrecision(3)}</text>
+                  {!numRows.rows.length && <text x={NX0 + NUM_W / 2} y={Y0 + 20} textAnchor="middle" fontSize={10} fill="#65717e">{tr("none in this hole")}</text>}
                 </g>;
               })()}
             </svg>
