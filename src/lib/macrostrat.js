@@ -186,6 +186,46 @@ export function macrostratUnitFeatures(tiles, bboxLonLat) {
   return { features, units: legend.units.map((u) => unitOf.get(u.id)), sources: legend.sources };
 }
 
+// TASKS.csv #3952 (Matt: "raster is too pixeled") — the image layer is drawn here from the unit polygons, not stitched from the PNG tiles: those
+// stop at zoom 12 (~21 m pixels at 56°N), so a 1.6 km project area was about 75 tile pixels across, blown up. The polygons are sharp at any
+// size, so the image is sized to the area (unitImageLongPx) at no extra download. features: macrostratUnitFeatures' (lon / lat rings, the
+// first part outer, the rest holes); colourOf(feature) -> "#rrggbb" or null. -> RGBA over the lon / lat box, w x h (row 0 north), each pixel
+// one unit's colour (even-odd per feature, no blending: a geologic map is categorical), a contact between two units drawn darker.
+export const unitImageLongPx = (longSideM) => Math.max(1024, Math.min(2048, Math.ceil(longSideM / 1.5)));
+const hexRgb = (c) => (/^#[0-9a-f]{6}$/i.test(c || "") ? [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)) : null);
+export function drawUnitsRGBA(features, colourOf, [lonMin, latMin, lonMax, latMax], w, h) {
+  const id = new Int32Array(w * h).fill(-1), rgb = [];
+  const px = (lon) => ((lon - lonMin) / (lonMax - lonMin)) * w, py = (lat) => ((latMax - lat) / (latMax - latMin)) * h;
+  (features || []).forEach((f) => {
+    const c = hexRgb(colourOf(f));
+    if (!c) return;
+    const k = rgb.push(c) - 1, edges = [];
+    for (const ring of f.parts || []) for (let i = 0; i + 1 < ring.length; i++) edges.push([px(ring[i][0]), py(ring[i][1]), px(ring[i + 1][0]), py(ring[i + 1][1])]);
+    let ys = Infinity, ye = -Infinity;
+    for (const e of edges) { ys = Math.min(ys, e[1], e[3]); ye = Math.max(ye, e[1], e[3]); }
+    const xs = [];
+    for (let j = Math.max(0, Math.floor(ys)); j < Math.min(h, Math.ceil(ye)); j++) {
+      const y = j + 0.5;
+      xs.length = 0;
+      for (const [x0, y0, x1, y1] of edges) if ((y0 <= y) !== (y1 <= y)) xs.push(x0 + ((y - y0) / (y1 - y0)) * (x1 - x0));
+      xs.sort((a, b) => a - b);
+      for (let n = 0; n + 1 < xs.length; n += 2) {
+        const a = Math.max(0, Math.ceil(xs[n] - 0.5)), b = Math.min(w - 1, Math.ceil(xs[n + 1] - 0.5) - 1);
+        for (let i = a; i <= b; i++) id[j * w + i] = k;
+      }
+    }
+  });
+  const out = new Uint8ClampedArray(w * h * 4);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const p = j * w + i, k = id[p];
+    if (k < 0) continue;
+    const contact = (i + 1 < w && id[p + 1] >= 0 && id[p + 1] !== k) || (j + 1 < h && id[p + w] >= 0 && id[p + w] !== k);
+    const [r, g, b] = rgb[k], s = contact ? 0.55 : 1;
+    out[p * 4] = r * s; out[p * 4 + 1] = g * s; out[p * 4 + 2] = b * s; out[p * 4 + 3] = 255;
+  }
+  return out;
+}
+
 // /geologic_units/map?lat&lng -> the units there, finest map first ({ name, strat, lith, descrip, age, color, sourceId, scale })
 const SCALE_ORDER = { large: 0, medium: 1, small: 2, tiny: 3 };
 export function parseMacrostratUnits(json) {

@@ -1,6 +1,5 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856; rasterDrapeElevation: #1505
-import { isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1466
 import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { exportCrs, gridBandsToWorld, imageToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #1021; a tied local grid: #2322
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
@@ -25,14 +24,11 @@ import BasemapView from "../components/BasemapView.jsx";
 import GeoreferencerModal from "../components/GeoreferencerModal.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
-import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
-import DropDiagram from "../components/DropDiagram.jsx"; // TASKS.csv #3939
-import { tx } from "../lib/i18nRich.js"; // TASKS.csv #3939
+// TASKS.csv #3948 — its own empty card is gone: since #749 this module is only mounted inside Maps (embedded), where Maps shows the card
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
-import { fetchAreaBox, imageryAreaCollars, mergeSameBoxOptions } from "../lib/dataExtent.js";
+import { fetchAreaBox, imageryAreaCollars } from "../lib/dataExtent.js";
 import { defaultSpectralIndex } from "../lib/indexForProject.js"; // TASKS.csv #3479 // #1461; imageryAreaCollars: #2126
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
 import ZonalStatsBox from "../components/ZonalStatsBox.jsx"; // TASKS.csv #2002
@@ -48,7 +44,7 @@ import { rasterFileSet } from "../lib/rasterSideFiles.js"; // TASKS.csv #2857 �
 import { guessEpsgFromPrjWkt } from "../lib/reprojectMore.js"; // TASKS.csv #3590 // TASKS.csv #2857
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #2854
 import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2684 — 'Local mine grid' as the Source CRS
-import { farFromCollars, farLabel } from "../lib/landingCheck.js"; // TASKS.csv #2590
+import { fetchAreaChoices, fetchAreaOptions, optionForBox, boxToLonLat } from "../lib/fetchAreas.js"; // TASKS.csv #3954 — the areas every online fetch offers
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { rasterLevelM, filteredLevelM, placeEulerSolutions, filteredPlacement } from "../lib/eulerPlace.js"; // TASKS.csv #2553; filteredPlacement: #2560
 import { rasterMethodOf, filterBlockedBy, ternaryChoices, fieldFilterNeedsMethod, rasterUnitOf } from "../lib/rasterMethod.js"; // TASKS.csv #2557; fieldFilterNeedsMethod: #2835; rasterUnitOf: #2837
@@ -260,7 +256,6 @@ export default function RasterModule({ embedded = false } = {}) {
   };
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef(null);
   useModuleAction(["import-raster"], () => fileInput.current?.click()); // TASKS.csv #565 — File > Import here
   // TASKS.csv #1507 — files dropped on the Maps tab's map (MapsModule): the rasters import as a drop on this sidebar does, the rest are named
@@ -278,8 +273,7 @@ export default function RasterModule({ embedded = false } = {}) {
     if (satBusy) return reply({ ok: false, error: "A satellite image is already being fetched in GeoStrix." });
     let box = null;
     if (p?.area !== "holes" && terrain?.bbox) {
-      const [x0, y0, x1, y1] = terrain.bbox, ll = await Promise.all([[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => lonLatOf(x, y)));
-      if (ll.every(Boolean)) box = [arrMin(ll.map((q) => q.lon)), arrMin(ll.map((q) => q.lat)), arrMax(ll.map((q) => q.lon)), arrMax(ll.map((q) => q.lat))];
+      box = await boxToLonLat(terrain.bbox, lonLatOf); // #3954 — the shared step
     }
     if (!box) box = await defaultSatBboxLonLat();
     if (!box) return reply({ ok: false, error: "There is no area to fetch an image for: the project has no drillholes or terrain in a known coordinate system." });
@@ -337,42 +331,11 @@ export default function RasterModule({ embedded = false } = {}) {
     return [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)];
   };
 
-  const buildSatAreaOptions = async () => {
-    if (!project?.epsg && !tieOf(project)) return [];
-    const jobs = [];
-    { // TASKS.csv #2126 — the whole district box stays one click away when the seed is a part of the collars
-      const a = imageryAreaCollars(collars, survey);
-      if (a.by !== "all") { const [xmin, ymin, xmax, ymax] = fetchAreaBox(collars, surfaceSamples); jobs.push({ id: "all_collars", label: tr("Every collar ({n})", { n: a.total.toLocaleString() }), xmin, xmax, ymin, ymax }); }
-    }
-    if (terrain?.bbox) {
-      const [xmin, ymin, xmax, ymax] = terrain.bbox;
-      jobs.push({ id: "terrain", label: `Match terrain/SRTM: ${terrain.name}`, xmin, xmax, ymin, ymax });
-    }
-    { // #1461 — the surface samples' area (without far outliers), as the terrain picker offers
-      const { keep } = mainClusters(surfaceSamples || []), pts = (surfaceSamples || []).filter((p, i) => keep[i]);
-      if (pts.length) { const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys), m = Math.max(500, 0.05 * Math.max(x1 - x0, y1 - y0)); jobs.push({ id: "surface_samples", label: tr("Around the surface samples"), xmin: x0 - m, xmax: x1 + m, ymin: y0 - m, ymax: y1 + m }); }
-    }
-    for (const b of boundaries) {
-      if (!isAreaBoundary(b)) continue; // #1466 — contours and other open lines are not an area
-      const xs = [], ys = [];
-      for (const loop of b.polylines || []) for (const p of loop) { xs.push(p.x); ys.push(p.y); }
-      if (!xs.length) continue;
-      jobs.push({ id: `boundary_${b.id}`, label: `Boundary: ${b.name}`, xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) });
-    }
-    for (const r of rasters) {
-      if (!r.bbox) continue;
-      const [xmin, ymin, xmax, ymax] = r.bbox;
-      jobs.push({ id: `raster_${r.id}`, label: `Raster: ${r.name}`, xmin, xmax, ymin, ymax });
-    }
-    const options = await Promise.all(jobs.map(async (j) => {
-      const corners = [[j.xmin, j.ymin], [j.xmax, j.ymin], [j.xmax, j.ymax], [j.xmin, j.ymax]];
-      const lonLats = await Promise.all(corners.map(([x, y]) => lonLatOf(x, y)));
-      if (lonLats.some((ll) => !ll)) return null;
-      const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
-      return { id: j.id, label: farLabel(j.label, farFromCollars([j.xmin, j.ymin, j.xmax, j.ymax], collars)), bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] }; // farLabel: #2590
-    }));
-    return mergeSameBoxOptions(options.filter(Boolean), (n) => tr("+{n} with the same box", { n })); // TASKS.csv #3477
-  };
+  // TASKS.csv #3954 — the areas every online fetch offers (lib/fetchAreas.js), seeded from the traced holes / the main cluster (#2126): the project
+  // area, every collar, the terrain, the satellite image, other rasters, the surface samples, each boundary and claim with a margin. Was this
+  // pane's own copy of the terrain picker's list (#200, #1461).
+  const buildSatAreaOptions = async () => ((!project?.epsg && !tieOf(project)) ? [] : fetchAreaOptions(fetchAreaChoices({ collars, survey, surfaceSamples, terrain, rasters, boundaries }, { imagery: true }), lonLatOf, collars));
+  const [clipSat, setClipSat] = useState(true); // #3954 — a boundary or claim chosen: the image outside its outline transparent
 
   // TASKS.csv #615 — as the SRTM picker: a CRS never chosen is asked for first, then the picker re-opens
   const openSatPickerRef = useRef(null);
@@ -403,11 +366,7 @@ export default function RasterModule({ embedded = false } = {}) {
       if (chosen) setTimeout(() => openSpectralRef.current?.(), 0);
       return;
     }
-    const seed = await defaultSatBboxLonLat();
-    const opts = await buildSatAreaOptions();
-    const a = imageryAreaCollars(collars, survey); // #2126
-    const holesLabel = a.by === "traced" ? tr("Around the traced holes ({n} of {total})", { n: a.collars.length.toLocaleString(), total: a.total.toLocaleString() }) : a.by === "cluster" ? tr("Around the main group of collars ({n} of {total})", { n: a.collars.length.toLocaleString(), total: a.total.toLocaleString() }) : tr("Around the drillholes");
-    setSpectralAreas([...(seed ? [{ id: "holes", label: holesLabel, bboxLonLat: seed }] : []), ...opts]);
+    setSpectralAreas(await buildSatAreaOptions()); // #3954 — the shared list starts with the holes' area (#2126)
     setSpectralOpen(true);
   };
   openSpectralRef.current = openSpectral;
@@ -437,6 +396,10 @@ export default function RasterModule({ embedded = false } = {}) {
           p = { ...local, pixelM: part.pixelM && part.gridW ? part.pixelM * Math.max(part.gridW / local.gridW, part.gridH / local.gridH) : null };
           tieNote = " " + tr("It was fetched in EPSG:{epsg} and brought into the local grid through the grid's tie, and resampled onto the grid's own north.", { epsg: opts.targetEpsg });
         }
+        // TASKS.csv #3954 — a boundary or claim chosen, "Clip to the outline" on: the pixels outside it transparent (the outline is in project
+        // coordinates, as the picture is after the tie)
+        const o = !ai && clipSat ? optionForBox(satAreaOptions, bboxLonLat) : null;
+        if (o?.outline?.length) p = { ...p, dataUrl: await (await import("../lib/clipImage.js")).clipImageToOutline(p.dataUrl, p.bbox, o.outline) };
         parts.push(p);
       }
       // TASKS.csv #3252 — the source's description (r.lod), for the Maps plan's detail tiles; not through a local grid's tie (the tiles are read in the project CRS)
@@ -542,10 +505,9 @@ export default function RasterModule({ embedded = false } = {}) {
     <div
       className="ge-body"
       style={embedded ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-      onDragLeave={() => setDragOver(false)}
+      onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
-        e.preventDefault(); setDragOver(false);
+        e.preventDefault();
         importRasterFiles(Array.from(e.dataTransfer.files || [])); // #2857 — paired as the dialog does; #2854 — an ECW is said (it was ignored); grd: #1347
       }}
     >
@@ -596,8 +558,10 @@ export default function RasterModule({ embedded = false } = {}) {
             extraControls={(bbox, { setArea } = {}) => { // TASKS.csv #781 — resolution, and what it would fetch for this area; setArea: #3251
               const naip = satSource === "naip";
               const p = bbox ? planLatestFetch(bbox, satLevel, naip ? NAIP_FINEST_M : undefined, { naip }) : null; // #837; naip: #3251 — Full in up to 2 x 2 pictures
+              const outlined = !!optionForBox(satAreaOptions, bbox)?.outline?.length; // #3954
               return (
                 <span style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
+                  {outlined && <label style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={clipSat} onChange={(e) => setClipSat(e.target.checked)} />{tr("Clip to the outline")}</label>}
                   <select value={satSource} onChange={(e) => setSatSource(e.target.value)} aria-label={tr("Imagery source")} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", maxWidth: 300 }}
                     title={naip ? tr("USDA NAIP aerial imagery: public domain, the USA only, usually 0.6 m, flown every few years, so it can be older than Sentinel-2.") : tr("Latest clear Sentinel-2 scene — Copernicus data, free for any use with attribution")}>{/* TASKS.csv #816 / #837 / #838 */}
                     <option value="sentinel2">{tr("Sentinel-2, worldwide (10 m, latest clear scene)")}</option>
@@ -843,33 +807,6 @@ export default function RasterModule({ embedded = false } = {}) {
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
-      {!embedded && (<div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-        {/* TASKS.csv #309 — was two lines of centred grey text with no icon and nothing to click,
-            one of four different empty-state treatments across seven tabs. Now the shared
-            EmptyState card (components/EmptyState.jsx), same as 3D View / Geochem / Geophysics.
-            Kept unconditional rather than gated on rasters.length, because this pane never shows
-            the rasters themselves — they render in the 3D View — so "switch tabs to see them" is
-            the useful message whether or not anything is loaded yet. */}
-        <EmptyState
-          icon={<Image size={18} />}
-          headline={rasters.length ? tr(rasters.length === 1 ? "{rasters} raster loaded" : "{rasters} rasters loaded", { rasters: rasters.length }) : tr("No rasters yet")}
-          actionLabel={busy ? tr("Reading…") : tr("Import GeoTIFF / GXF…")}
-          onAction={() => fileInput.current.click()}
-          actionDisabled={busy}
-          actionTitle={tr("Pick a georeferenced raster — a GeoTIFF, a Geosoft .gxf grid or a Geosoft / Surfer .grd grid")}
-          footnote={tr("Reprojected to the project CRS on import.")}
-        >
-          {/* TASKS.csv #3939 — pictures first: an image or grid becomes a draped layer */}
-          <DropDiagram picture="grid" data-empty-diagram="grid" drop={tr("Drop a GeoTIFF or grid here")} caption={tr("A georeferenced image or grid")} cells={["GeoTIFF", ".gxf", ".grd"]}
-            label={tr("A GeoTIFF or a grid dropped here is draped over the terrain.")} tooltip={tr("Drag your GeoTIFF or grid here to start.")} />
-          <div style={{ marginBottom: 8 }}>{tx("Imagery, geology maps and geophysical grids, draped over the terrain in {sv}.", { sv: <b>{tr("StrixViewer")}</b> })}</div>
-        </EmptyState>
-        {dragOver && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed var(--color-accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)" }}>{tr("Drop GeoTIFF / .gxf / .grd files to import")}</div>
-          </div>
-        )}
-      </div>)}
     </div>
   );
 }

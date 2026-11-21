@@ -13,6 +13,7 @@ import { lodRoot, tileBox, tileKey, TileLru } from "../lodTiles.js";
 import { chooseSceneTiles, tilesToDraw, pixelAtFor } from "./lodDrape.js";
 import { terrainMeshElevation } from "./terrainDrape.js";
 import { lodBudget, cameraHash } from "./lodBudget.js"; // the budget follows the frame time
+import { terrainColour } from "../terrainColour.js"; // TASKS.csv #3947
 
 export const DEM_CELLS = 64, DEM_NODES = DEM_CELLS + 1;
 // TASKS.csv #3516 — a tile is READ with one more node all round (67 x 67): the heights beyond its edge, so the shading at its edge nodes uses both
@@ -301,7 +302,7 @@ export function createLodTerrain({ read = null } = {}) {
           const h = memory.get(d.key);
           const skirt = Math.max(2, (d.box[2] - d.box[0]) / 16);
           const { geometry, wx, wy, gridTris } = terrainTileGeometry(h, d.box, origin, skirt);
-          const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
+          const material = new THREE.MeshLambertMaterial({ color: terrainColour(terrain), side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
           const ground = new THREE.Mesh(geometry, material);
           ground.userData = { lodTerrainTile: d.key, z: d.z, nodeM: (d.box[2] - d.box[0]) / DEM_CELLS };
           // the twin: stencil bit 2 where this tile is, drawn before anything else (no colour, no depth)

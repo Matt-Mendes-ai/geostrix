@@ -167,6 +167,11 @@ export const colors = {
   // Misc surfaces
   hoverBg: "#eef1f5",
   tooltipBg: "#dde1e6",
+
+  // TASKS.csv #3947 — the terrain's default colour in the 3D View, the Maps hillshade's grey for flat ground (lib/terrainColour.js), and the
+  // ground line of a section (4.5:1 on white)
+  terrain: "#b4b4b4",
+  terrainLine: "#767676",
 };
 
 // TASKS.csv #305 — TYPE SCALE, the JS mirror of the `--font-size-*` custom properties declared on
@@ -191,6 +196,14 @@ export const PLACED_W = 700;
 export const exportScale = (width, basePx = 11, pt = printPt.small) => Math.max(1, (printPx(pt) * (width / PLACED_W)) / basePx);
 
 // TASKS.csv #3892 — mirrors app.css :root --font-weight-title: the side-panel section headings are bold
+// TASKS.csv #3956 — the empty cards' soft shadows, value-for-value with app.css --shadow-*
+export const shadows = {
+  card: "0 6px 18px rgba(20, 40, 30, 0.08), 0 1px 3px rgba(20, 40, 30, 0.06)",
+  lift: "0 4px 12px rgba(39, 107, 67, 0.14)",
+  chip: "0 1px 2px rgba(39, 107, 67, 0.12)",
+  pop: "0 8px 24px rgba(20, 40, 30, 0.16)",
+};
+
 export const fontWeights = { title: 700 };
 
 // TASKS.csv #3900 — FROZEN: these are now the sizes of text INSIDE figures (charts, SVG plots, exports), which do not follow the window's text

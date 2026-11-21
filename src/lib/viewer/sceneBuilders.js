@@ -20,6 +20,7 @@ import { outcropNoTerrainGround } from "./surfacePlacement.js"; // TASKS.csv #33
 import { terrainDrapeGrid, adaptiveDrape, trianglesNear } from "./terrainDrape.js"; // TASKS.csv #3380; adaptiveDrape: #3449; trianglesNear: #3252
 import { STRUCTURE_MIN_PX } from "./symbolScale.js"; // TASKS.csv #3844
 import { DRAW_ORDER } from "./drawOrder.js"; // TASKS.csv #2776
+import { terrainColour } from "../terrainColour.js"; // TASKS.csv #3947 — the Maps hillshade's grey unless the user picked a colour
 
 // TASKS.csv #2447 / #2576 (reviews #2325 / #2486) — a raster drawn on the collar surface (drapeMode "collars", a project with no terrain): a
 // score map at the round level under the deepest hole (#1204) sat 43-137 m off its holes in Top view, the view being in perspective. The
@@ -711,7 +712,7 @@ export function syncTerrain(group, previous, terrain, { origin }) {
     geometry.setIndex(new THREE.BufferAttribute(am.indices, 1));
     geometry.computeVertexNormals();
     geometry.userData.adaptive = { triangles: am.triangles, maxError: am.maxError, nodes: gridW * gridH };
-    const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
+    const material = new THREE.MeshLambertMaterial({ color: terrainColour(terrain), side: THREE.FrontSide /* #3896 — the top face only: from below the ground is not drawn */, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.visible = terrain.visible !== false;
     group.add(mesh);
@@ -748,7 +749,7 @@ export function syncTerrain(group, previous, terrain, { origin }) {
   geometry.computeVertexNormals();
   // TASKS.csv #3896 (Matt: "It should not be able to look from below and see above ground") — the terrain and every drape on it are drawn from
   // above only (their triangles face up: test/terrainFromBelow3896.test.mjs); from below the user sees the holes, solids and sections
-  const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.FrontSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
+  const material = new THREE.MeshLambertMaterial({ color: terrainColour(terrain), side: THREE.FrontSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.visible = terrain.visible !== false;
   group.add(mesh);

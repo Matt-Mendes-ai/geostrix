@@ -52,7 +52,7 @@ import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectio
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
 import SampleButtons from "./viewer/SampleButtons.jsx"; // TASKS.csv #3541
-import { sampleCardsFor, sampleFootnote, askSampleDownload } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133
+import { sampleCardsFor, sampleFootnote, askSampleDownload, emptyCardSamples } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133; emptyCardSamples: #3948
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
 import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
 import { TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
@@ -144,6 +144,7 @@ import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import Su
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 import { customColour, customLegendGroups, customFields, sectionCustomLegendItems /* #2669 */ } from "../lib/customColour.js"; // TASKS.csv #1697
 import { sectionNumericLegendItems, withLithoMeanings } from "../lib/sectionLegend.js"; // TASKS.csv #3413; meanings: #3860
+import { terrainShortName } from "../lib/terrainSource.js"; // TASKS.csv #3949 — the section's ground label
 import { fieldColourer } from "../lib/fieldColours.js"; // TASKS.csv #3704
 const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASKS.csv #1880
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
@@ -5724,7 +5725,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #1276 — the main process refuses a new section window past what this computer can hold
   // TASKS.csv #1995 — the litho patterns go with the payload. TASKS.csv #3159: lithoPatterns.js loads with the first section opened
   // (on use, like sectionDigitise.js #903), not at startup; this already returned a promise
-  const openSectionOrSay = async (payload) => { const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho)))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
+  const openSectionOrSay = async (sent) => { const payload = { ...sent, groundSource: terrainShortName(terrain) /* #3949 */ }; const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho)))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
   const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => (visibleHoles[t.hole_id] !== false || t.hole_id === scope.holeAsked /* #3680 — asked for by name */) && t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
@@ -7365,13 +7366,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <EmptyState
             onClose={() => setEmptyCardClosed(true)}
             headline={mode === "surface" ? tr("Geology maps in 3D") : mode === "modelling" ? tr("Load drill holes or a geology map to model") : mode === "targeting" ? tr("Load drill holes first to plan targets") : tr("Drill holes in 3D")} /* #567 */
-            // TASKS.csv #1120 — the filled button is the sample that suits the tab (Perk-Rocky on Surface Geology, whose headline
-            // offers it; Harry elsewhere); the other two are the outline buttons
-            actionLabel={sampleLoading ? tr("Loading sample project…") : sampleCards[0].label}
-            onAction={() => loadSample(sampleCards[0].id)}
-            actionDisabled={sampleLoading}
-            actionTitle={sampleCards[0].title}
-            secondary={<SampleButtons cards={sampleCards.slice(1)} onLoad={loadSample} loading={sampleLoading} /> /* TASKS.csv #3541 — each sample's description as its second line */}
+            // TASKS.csv #3948 — Macpass (filled) and Mount Raymond in view, each with its description (#3541); the rest under a closed "More samples"
+            secondary={<SampleButtons {...emptyCardSamples(sampleCards)} onLoad={loadSample} loading={sampleLoading} />}
             footnote={sampleFootnote()}
           >
             <EmptyViewerBody mode={mode} />{/* #1448 */}

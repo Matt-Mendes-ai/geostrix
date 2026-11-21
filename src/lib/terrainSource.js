@@ -10,3 +10,13 @@ export const TERRAIN_SOURCE_KEY = "geostrix.terrainSource";
 export function savedTerrainSource(storage) {
   try { const v = storage?.getItem(TERRAIN_SOURCE_KEY); return TERRAIN_SOURCES.includes(v) ? v : DEFAULT_TERRAIN_SOURCE; } catch { return DEFAULT_TERRAIN_SOURCE; }
 }
+
+// TASKS.csv #3949 (Matt's first-time test) — the section's ground line was labelled 'Ground surface (SRTM)' whatever the terrain was (his was GEM-15
+// filled from GLO-30). The short name of the project terrain's source, from the service its fetch recorded (terrain.source.service), or null when it
+// is not one of these (a terrain from a file): the label then reads plain 'Ground surface'.
+const SHORT_SOURCES = [[/GEM-15/i, "GEM-15"], [/GLO-30|Copernicus DEM/i, "GLO-30"], [/no HRDEM/i, "MRDEM-30"], [/HRDEM/i, "HRDEM"], [/MRDEM/i, "MRDEM-30"],
+  [/Terrarium|Terrain Tiles/i, "AWS Terrain Tiles"], [/Canadian Digital Elevation Model|\bCDEM\b/i, "CDEM"], [/\bSRTM\b/i, "SRTM"]];
+export function terrainShortName(terrain) {
+  const svc = String(terrain?.source?.service ?? "");
+  return (svc && SHORT_SOURCES.find(([re]) => re.test(svc))?.[1]) || null;
+}
