@@ -1436,6 +1436,7 @@ export function makeImportPipeline(ctx, h) {
       dir: "wa_zinc_copper", epsg: 28350, crs: "GDA94 / MGA zone 50",
       files: ["collars.csv", "survey.csv", "litho.csv", "weath.csv", "alt.csv", "mnlgy.csv"],
       notice: "WA zinc-copper (WAMEX report A77713): 32 holes from 2007 on sulphide prospects in felsic volcanic rocks of the east Pilbara, with logs and assays, and 157 soil and 46 stream-sediment samples — nothing synthesized.",
+      heightNote: "The company's collar RLs (stated as AHD) sit about 15-25 m below the public terrain; the source does not say why.", // TASKS.csv #3884 — the RLs are the company's, untouched
     },
     // TASKS.csv #3107 — its assays and other parts are loaded by the caller (lib/sampleWa.js)
     wa_gold: {
@@ -1493,7 +1494,7 @@ export function makeImportPipeline(ctx, h) {
       } else if (live.project?.epsg && Number(live.project.epsg) !== S.epsg) {
         setNotices((p) => [...p, notice("The sample project's coordinates are EPSG:{epsg} ({crs}), but this project is EPSG:{epsg2}: the holes will not line up with anything else in it. Load the sample into a new project.", { epsg: S.epsg, crs: S.crs, epsg2: live.project.epsg })]);
       }
-      setNotices((p) => [...p, notice(downloaded ? S.noticeDownloaded : S.notice), ...(S.credit ? [S.credit] : [])]); // #786; credit: #3496 — the data owner's own words, not translated — the two SAMPLES notices are in the dictionaries; downloaded: #3100
+      setNotices((p) => [...p, notice(downloaded ? S.noticeDownloaded : S.notice), ...(S.heightNote ? [notice(S.heightNote)] : []), ...(S.credit ? [S.credit] : [])]); // #786; credit: #3496 — the data owner's own words, not translated — the two SAMPLES notices are in the dictionaries; downloaded: #3100
       importActiveRef.current = true;
       batchRowsRef.current = new WeakSet(); // #605
       importQueueTotalRef.current = files.length;
