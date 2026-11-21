@@ -45,7 +45,7 @@ export default function LayoutStartCard({ sheets, onMake, onCurrentView, onClose
   return (
     <div data-layout-start="" role="region" aria-label={tr("A sheet in one click")} onMouseDown={(e) => e.stopPropagation()}
       style={{ pointerEvents: "auto", width: "min(440px, calc(100% - 32px))", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8,
-        boxShadow: "0 6px 24px rgba(0,0,0,0.18)", padding: "14px 16px", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", lineHeight: 1.45, position: "relative" }}>
+        boxShadow: "var(--shadow-card)", padding: "14px 16px", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", lineHeight: 1.45, position: "relative" }}>
       <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")} style={{ position: "absolute", top: 6, insetInlineEnd: 8, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>×</button>
       <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", marginBottom: 10 }}>{tr("A sheet in one click")}</div>
       <div dir="ltr" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>

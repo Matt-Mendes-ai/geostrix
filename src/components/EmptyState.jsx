@@ -36,7 +36,7 @@ const trText = (x) => (typeof x === "string" ? tr(x) : x);
 export default function EmptyState({ icon, headline, children, actionLabel, onAction, actionDisabled, actionTitle, onClose, footnote, secondary }) {
   return (
     <div style={wrap}>
-      <div style={{ ...card, position: "relative" }}>
+      <div className="ge-card" style={{ ...card, position: "relative" }}>{/* TASKS.csv #3956 — the shared style-A card */}
         {onClose && <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")} style={{ position: "absolute", top: 8, right: 8, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xl)", lineHeight: 1, padding: 2 }}>×</button>}{/* TASKS.csv #1327 */}
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
           {icon ? <span style={{ display: "flex", color: "var(--color-text-muted)", flexShrink: 0 }}>{icon}</span> : null}
@@ -64,9 +64,8 @@ const wrap = { position: "absolute", inset: 0, display: "flex", alignItems: "cen
 // behind the card. No token exists for a translucent surface and inventing one for a single use
 // would be worse than this literal — see theme.js's adoption-status note (TASKS.csv #310).
 const card = {
-  pointerEvents: "auto", maxWidth: 520, background: "#ffffffee", border: "1px solid var(--color-border)",
-  borderRadius: 8, padding: "18px 20px", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", lineHeight: 1.55,
-  boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+  pointerEvents: "auto", maxWidth: 520, background: "#ffffffee", // border, radius and shadow: .ge-card (#3956)
+  padding: "18px 20px", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", lineHeight: 1.55,
   // TASKS.csv #790 — never taller than the view: with large Windows text scaling or longer translations the centred
   // card spilled over the ribbon and the status bar (covering the "update available" button); now it scrolls inside
   maxHeight: "100%", overflowY: "auto", boxSizing: "border-box",

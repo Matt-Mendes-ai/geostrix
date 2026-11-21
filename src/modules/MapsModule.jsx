@@ -7,7 +7,8 @@ import React, { useMemo, useState } from "react";
 import { useLatestCallback } from "../lib/useLatestCallback.js"; // TASKS.csv #3931
 import { mineGridOf } from "../lib/mineGrid.js"; // TASKS.csv #2586
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx";
-import { Image, Satellite, Mountain, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, Layers3, FileSpreadsheet, Rainbow } from "../components/icons.js"; // Layers3: #3287
+import { SatelliteIcon, TerrainIcon, GeologyIcon } from "../components/ribbonIcons.jsx"; // TASKS.csv #3958
+import { Image, Satellite, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, FileSpreadsheet, Rainbow } from "../components/icons.js"; // Mountain, Layers3: drawn icons now (#3958)
 import { requestModuleAction, useModuleAction } from "../lib/menuRequests.js";
 import { useStore } from "../lib/store.jsx";
 import { crsName } from "../lib/reproject.js";
@@ -124,8 +125,8 @@ export default function MapsModule() {
       <Ribbon label="Map tools">
         <RibbonGroup label="Imagery & terrain">
           <RibbonButton icon={Image} label="GeoTIFF / GXF" tone="data" title="Import a georeferenced GeoTIFF, Geosoft .gxf or Geosoft / Surfer .grd grid and manage the raster drapes" {...btn("raster", "import-raster")} active={pane === "raster"} />
-          <RibbonButton icon={Satellite} label="Satellite" tone="data" title="Free Sentinel-2 imagery (no account): the latest clear scene over an area you draw" {...btn("raster", "raster-satellite")} active={false} />
-          <RibbonButton icon={Mountain} label="Terrain" tone="data" title="Terrain: fetch SRTM elevation or import a DEM" {...btn("terrain")} />
+          <RibbonButton icon={SatelliteIcon} label="Satellite" tone="data" title="Free Sentinel-2 imagery (no account): the latest clear scene over an area you draw" {...btn("raster", "raster-satellite")} active={false} />
+          <RibbonButton icon={TerrainIcon} label="Terrain" tone="data" title="Terrain: fetch SRTM elevation or import a DEM" {...btn("terrain")} />
           {/* TASKS.csv #1861 (review #1646, Kodiak) — a report's plan maps with no GeoKeys are placed only here (All tools since #3907) */}
           <RibbonButton advanced icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates" {...btn("raster", "raster-georeference")} active={false} />
           <RibbonButton advanced icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, from a multiband GeoTIFF" {...btn("raster", "raster-spectral")} active={false} />
@@ -133,7 +134,7 @@ export default function MapsModule() {
         <RibbonGroup label="Map layers">
           <RibbonButton advanced icon={Globe} label="Web layers" tone="data" title="WMS / WFS layers from a government or company service" {...btn("web")} />
           {/* TASKS.csv #3287 (Matt: "macrostrat geology deserves its own icon on the ribbon") — the Web layers pane's 'Macrostrat geology…' dialog, opened here */}
-          <RibbonButton advanced icon={Layers3} label="Geology (Macrostrat)" tone="data" title="Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, as a drape or map layer, and the map units at its centre" {...btn("web", "open-macrostrat")} active={false} />
+          <RibbonButton advanced icon={GeologyIcon} label="Geology (Macrostrat)" tone="data" title="Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, as a drape or map layer, and the map units at its centre" {...btn("web", "open-macrostrat")} active={false} />
           <RibbonButton icon={Shapes} label="Boundaries" tone="data" title="Property / grid boundaries (.ply, DXF, shapefile, GeoPackage, KML)" {...btn("boundaries")} />
           <RibbonButton advanced icon={Flag} label="Claims" tone="data" title="Mineral claims / tenure" {...btn("claims")} />
         </RibbonGroup>

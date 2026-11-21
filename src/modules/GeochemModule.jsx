@@ -19,7 +19,8 @@ import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 â€
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { lonLatColumns } from "../lib/projectCrs.js"; // TASKS.csv #1149
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
+import { BestInterceptsIcon } from "../components/ribbonIcons.jsx"; // TASKS.csv #3958
+import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database, Radar } from "../components/icons.js"; // Radar: #1999
 const McdAnomalyPanel = React.lazy(() => import("../components/McdAnomalyPanel.jsx")); // TASKS.csv #1999 â€” a lazy chunk: opened rarely
 import { noticeText, noticeLevel, errorNotice, notice, infoNotice } from "../lib/notices.js"; // TASKS.csv #729; infoNotice: #3409
@@ -1440,7 +1441,7 @@ export default function GeochemModule() {
             <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length && !surfaceSamples.length} disabledReason="Import assays or surface samples first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Report">
-            <RibbonButton icon={GAward} label="Best intercepts" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Best-intercept report" onClick={() => setBestIntOpen(true)} />
+            <RibbonButton icon={BestInterceptsIcon} label="Best intercepts" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Best-intercept report" onClick={() => setBestIntOpen(true)} />
             <RibbonButton advanced icon={GRows} label="Compositing" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Downhole compositing" onClick={() => setCompositingOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Export">

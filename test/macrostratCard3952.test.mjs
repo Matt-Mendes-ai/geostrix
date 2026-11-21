@@ -32,7 +32,7 @@ test("picture, one line of scale, the area and the buttons in view; the rest beh
   assert.match(after, /Macrostrat compiles geologic maps/);
   assert.match(after, /Data CC BY 4\.0: credit Macrostrat/);
   assert.match(m, /credit: MACROSTRAT_CREDIT/, "the layer still carries the credit for maps and figures");
-  assert.match(read("../src/components/DropDiagram.jsx"), /\n  units: \(\) => \(<>/);
+  assert.match(read("../src/components/DropDiagram.jsx"), /\n  units: \(id\) => <Block id=\{id\} top=\{<>/); // #3956: the units picture is drawn in style A, on the geology block
 });
 
 test("the image is drawn from the unit polygons, sized to the area: sharp, flat colours, contacts darker", async () => {
