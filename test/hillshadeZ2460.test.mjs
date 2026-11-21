@@ -31,5 +31,5 @@ test("the hillshade takes it and says it; slope is stretched to its 2-98 % range
   assert.match(h, /const lo = Math\.max\(0, pctl\(shown, 0\.02\)\), hi = Math\.max\(lo \+ 0\.1, pctl\(shown, 0\.98\)\)/);
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /const zf = shade \? autoZFactor\(terrain\) : 1/);
-  assert.match(g, /Hillshade with a vertical exaggeration of \{z\}x/);
+  assert.match(g, /Hillshade at \{z\}× vertical exaggeration/);
 });

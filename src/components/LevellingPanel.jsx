@@ -81,7 +81,7 @@ export default function LevellingPanel({ onClose }) {
           </div>
           {hasDomains && <div style={note}>{tr("\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.", { col: DOMAIN_ATTR })}</div>}
           {surveys.length < 2 ? (
-            <div style={note}>{tr("These samples all belong to one survey under this column, so there is nothing to level. Public data carries a source column; for your own surveys, choose a column such as year, lab or batch.")}</div>
+            <div style={note}>{tr("Choose another column, such as year, lab or batch: under this one all the samples are one survey, so there is nothing to level.")}</div>
           ) : (<>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               <label style={ctl}>{tr("Level to (reference)")}<select value={reference} onChange={(e) => { setRefPick(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 280 }}>{surveys.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count})</option>)}</select></label>
@@ -91,19 +91,19 @@ export default function LevellingPanel({ onClose }) {
             {fit && (<>
               <div style={note}>
                 {fit.ties?.ok
-                  ? tr("{n} sites were sampled by both surveys. The median ratio is x{f}; most pairs fall between x{lo} and x{hi}. A wide range means the ties disagree: check them before relying on the level.", { n: fit.ties.n, f: num(fit.ties.factor), lo: num(fit.ties.low), hi: num(fit.ties.high) })
-                  : tr("{n} sites were sampled by both surveys within this distance; tie levelling needs at least {min}. A larger distance finds more pairs, but sites further apart can differ for real.", { n: fit.ties?.n || 0, min: MIN_TIES })}
+                  ? tr("{n} sites sampled by both surveys: median ratio x{f}, most pairs between x{lo} and x{hi}. A wide range means the ties disagree: check them first.", { n: fit.ties.n, f: num(fit.ties.factor), lo: num(fit.ties.low), hi: num(fit.ties.high) })
+                  : tr("{n} sites sampled by both surveys within this distance; tie levelling needs {min}. A larger distance finds more pairs, but distant sites can differ for real.", { n: fit.ties?.n || 0, min: MIN_TIES })}
               </div>
               {fit.ties?.ok && <TieScatterPlot data={tieScatter(fit, symbol)} reference={reference} survey={survey} unit={unit} />}{/* TASKS.csv #2981 */}
               {canHuber && ( /* TASKS.csv #2000 — regression levelling on the same ties */
                 <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer" }}>
                   <input type="checkbox" checked={method === "huber"} onChange={(e) => setMethodPick(e.target.checked ? "huber" : null)} />
-                  <span>{tr("Fit a line through the ties instead (Huber regression on log values, after Main & Champion 2022): log {ref} = {a} + {b} × log value, {d} of {n} tie(s) given less weight. A slope away from 1 levels low and high values differently, as a digestion or detection difference does.", { ref: reference, a: num(fit.ties.huber.a), b: num(fit.ties.huber.b), d: fit.ties.huber.downweighted, n: fit.ties.huber.n })}</span>
+                  <span>{tr("Fit a line through the ties (Huber regression on logs, Main & Champion 2022): log {ref} = {a} + {b} × log value, {d} of {n} tie(s) down-weighted.", { ref: reference, a: num(fit.ties.huber.a), b: num(fit.ties.huber.b), d: fit.ties.huber.downweighted, n: fit.ties.huber.n })}</span>
                 </label>
               )}
               <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: canStat ? "pointer" : "default", opacity: canStat ? 1 : 0.6 }}>
                 <input type="checkbox" disabled={!canStat} checked={method === "quantile"} onChange={(e) => setMethodPick(e.target.checked ? "quantile" : null)} />
-                <span>{canStat ? tr("Use statistical quantile matching instead. It assumes both surveys sampled the same population, so it can erase or create real differences (Darnley et al. 1995). Use it only without tie samples, and treat the result as a guide.") : tr("Statistical quantile matching needs at least {min} measured samples in each survey (here {a} and {b}).", { min: MIN_STAT, a: fit.nReference, b: fit.nSurvey })}</span>
+                <span>{canStat ? tr("Use quantile matching instead: it assumes both surveys sampled one population, so it can erase or invent real differences. Only without ties, as a guide.") : tr("Statistical quantile matching needs at least {min} measured samples in each survey (here {a} and {b}).", { min: MIN_STAT, a: fit.nReference, b: fit.nSurvey })}</span>
               </label>
               {preview && (
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", alignSelf: "flex-start" }}>

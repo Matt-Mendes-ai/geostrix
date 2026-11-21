@@ -134,7 +134,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
   return (
     <div style={{ marginTop: 14 }}>
       <div className="ge-section-label">{tr("3D survey from electrode coordinates")}</div>
-      <div style={small}>{tr("For a true 3D array whose readings carry every electrode's coordinates (C1, C2, P1, P2 easting, northing and elevation), such as an offline or diamond 3D IP export. Each reading is placed where its electrodes were and keeps the geometric factor the contractor used; a remote current electrode is a real electrode at its coordinates.")}</div>
+      <div style={small}>{tr("Inverts a 3D array whose readings give every electrode's coordinates (C1, C2, P1, P2). Each reading keeps the contractor's geometric factor.")}</div>
       <button onClick={() => fileRef.current?.click()} disabled={running} style={{ ...pBtn, marginTop: 6 }}><Upload size={14} />{" "}{tr("Read a 3D array file…")}</button>
       <input ref={fileRef} type="file" accept=".txt,.csv,.dat,.xyz" style={{ display: "none" }} onChange={(e) => { read(e.target.files?.[0]); e.target.value = ""; }} aria-label={tr("3D array file")} />
       {readMsg && <div role="status" style={{ ...small, marginTop: 6, color: readMsg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{readMsg.text}</div>}
@@ -167,7 +167,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
               <label style={{ ...row, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}><input type="checkbox" checked={o.useIp} onChange={(e) => set("useIp", e.target.checked)} />{tr("Invert the chargeability too")}</label>
               {o.useIp && (
                 <>
-                  <div style={row} title={tr("ms keeps Mx as the file gives it, so the model compares with a contractor model made from the same Mx; mV/V divides by the window length.")}><span style={lbl}>{tr("Chargeability in")}</span>
+                  <div style={row} title={tr("ms keeps Mx as the file gives it, to compare with a contractor model made from the same Mx; mV/V divides by the window length.")}><span style={lbl}>{tr("Chargeability in")}</span>
                     <select value={o.ipUnits} onChange={(e) => set("ipUnits", e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Chargeability units")}>
                       <option value="ms">{tr("ms, as the file (comparable with the contractor's model)")}</option>
                       <option value="mVV" disabled={!parsed.mxWindowMs}>{parsed.mxWindowMs ? tr("mV/V (Mx × 1000 / {w} ms)", { w: parsed.mxWindowMs[1] - parsed.mxWindowMs[0] }) : tr("mV/V (needs the window in the file)")}</option>
@@ -178,7 +178,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
               )}
             </>
           )}
-          <div style={row} title={tr("In each column, cells below the deepest one whose support (how much the data see it, 0-1) reaches this are left out of the block models: below that the values are the regularization's extrapolation, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.005} value={o.cutoff} onChange={(v) => set("cutoff", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Support cutoff")} /></div>
+          <div style={row} title={tr("Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.005} value={o.cutoff} onChange={(v) => set("cutoff", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Support cutoff")} /></div>
           <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             <button onClick={estimate} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Box size={14} />{" "}{tr("Estimate")}</button>
@@ -196,7 +196,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
           {made && Object.keys(made).length > 0 && (
             <div style={{ marginTop: 10, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
               <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)" }}>{tr("Compare with a loaded model")}</div>
-              <div style={small}>{tr("Load the contractor's model under Block models (the UBC mesh with its .con / .res and .chg), then pick it here. Both are shown in StrixViewer; Targeting > Voxel ranges hides one or the other.")}</div>
+              <div style={small}>{tr("Load the contractor's model under Block models (UBC mesh with .con / .res and .chg), then pick it here. Targeting › Voxel ranges hides either one.")}</div>
               {Object.keys(made).map((field) => {
                 const opts = others(field), c = compare(field);
                 return (
@@ -209,7 +209,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
                     </div>
                     {against[field] && (c ? (
                       <div style={{ ...small, marginTop: 3, color: "var(--color-text-secondary)" }}>
-                        {tr("{n} shared cells (where the data see, inside the other model): rank correlation {r}{log}. Medians {a} here, {b} there. The top 2 % of each lie {d} m apart in plan, {v} m apart in elevation.", {
+                        {tr("{n} shared cells where the data see: rank correlation {r}{log}, medians {a} here and {b} there. The top 2 % lie {d} m apart in plan, {v} m in elevation.", {
                           n: c.n.toLocaleString(), r: c.rank.toFixed(2), log: field === "resistivity" ? tr(" (on the logs)") : "", a: fmt(c.medianA), b: fmt(c.medianB), d: Math.round(c.offsetM.plan), v: Math.round(Math.abs(c.offsetM.vertical)) })}
                         {field === "chargeability" && o.ipUnits === "mVV" ? " " + tr("This model is in mV/V: a contractor model made from Mx in ms differs by the window factor.") : ""}
                       </div>

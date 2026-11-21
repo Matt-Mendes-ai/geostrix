@@ -176,7 +176,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
   return (
     <div>
       <TaskPaneHeader title={tr("TEM line data (multi-channel)")} helpId="tem-lines" icon={Radio} tone="data" onClose={onClose} />
-      <div style={{ ...note, marginBottom: 8 }}>{tr("Time-domain EM along lines (SkyTEM or Aarhus Workbench .xyz, a Geosoft .xyz with a channel per gate, or a CSV): every channel stacked along a line, the decay at a station, and the late-time decay constant (tau) mapped. A long decay (a large tau) marks a good conductor.")}</div>
+      <div style={{ ...note, marginBottom: 8 }}>{tr("Time-domain EM lines (SkyTEM or Aarhus .xyz, Geosoft .xyz, CSV): channels stacked, a station's decay, late-time tau mapped. A long tau: a good conductor.")}</div>
       <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} style={{ ...pBtn, justifyContent: "center" }}><Upload size={14} />{" "}{tr("Open TEM line data…")}</button>
       <input ref={fileRef} type="file" accept=".xyz,.csv,.txt,.dat" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; open(f); }} aria-label={tr("TEM line data file")} />
       {msg && <div role={msg.info ? "status" : "alert"} style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", margin: "4px 0 8px" }}>{msg.text}</div>}

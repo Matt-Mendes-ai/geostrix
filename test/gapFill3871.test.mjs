@@ -62,7 +62,7 @@ test("wiring: the GEM-15 terrain fills its gaps with the delta surface and repor
 
 test("wiring: the import notice says how the gaps were filled and the seam's jump; the fill can be switched to plain for measuring", () => {
   const m = read("../src/modules/GeophysicsModule.jsx"), g = read("../src/lib/gem15Dem.js");
-  assert.match(m, /The fill is GLO-30 plus the difference between the two models interpolated in from the nodes GEM-15 has/);
+  assert.match(m, /The fill is GLO-30 adjusted to meet GEM-15 at the edge/);
   assert.match(g, /gapFill = "delta"/);
-  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))[" The fill is GLO-30 plus the difference between the two models interpolated in from the nodes GEM-15 has, so it meets GEM-15 at the edge: neighbouring nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m)."], l);
+  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))[" The fill is GLO-30 adjusted to meet GEM-15 at the edge: nodes across that edge differ by {after} m at the median (GLO-30 alone: {before} m)."], l);
 });

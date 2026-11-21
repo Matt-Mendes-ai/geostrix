@@ -37,7 +37,7 @@ test("#3808: AppMx / AppRho are apparent methods at pseudo-depths, labelled so; 
   assert.match(SURVEY_METHODS.ip_app.label, /apparent chargeability \(pseudo-depth points\)/);
   assert.equal(SURVEY_METHODS.res_app.units, "Ω·m");
   assert.ok(LOG_SCALE_METHODS.has("res_app"));
-  assert.match(geo, /for a DC \/ IP survey that is a pseudo-section's plotting points/);
+  assert.match(geo, /a DC \/ IP pseudo-section's apparent values\. Compare with an inversion, not the core\./);
   assert.match(geo, /APPARENT_METHODS\.has\(meta\.method\) && <div/);
 });
 test("#3809: conductivity to resistivity is a 1 / x copy, and relabelling one as the other asks first; the block calculator says why a model is refused before any pick", () => {

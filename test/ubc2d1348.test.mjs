@@ -55,7 +55,7 @@ test("the panel imports it and the 3D mesh reader points a 2D mesh here", () => 
   assert.match(p, /\{last\.obs && !imported && <DataFit/);
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.match(g, /isDcip2dMeshText\(meshText\)/);
-  assert.match(g, /This is a UBC DCIP2D \(2D\) mesh/);
+  assert.match(g, /This is a UBC DCIP2D mesh: import it with DC \/ IP > Import a UBC DCIP2D inversion/);
   const st = readFileSync(new URL("../src/lib/dcipStations.js", import.meta.url), "utf8");
   assert.match(st, /utmeasting/); assert.match(st, /xgrid/); // the contractor's survey file: X_Grid, UTM_Easting, UTM_Northing
 });

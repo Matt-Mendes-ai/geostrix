@@ -23,5 +23,5 @@ test("#3442 (3) (7) (8) (9) wording and stale messages", () => {
   const d = rd("../src/components/DcipPanel.jsx");
   assert.match(d, /Choose the columns for A, M and the apparent resistivity in the lists above\./); assert.doesNotMatch(d, /columns below\./);
   const m = rd("../src/components/MtSoundingsPane.jsx");
-  assert.match(m, /A DC \/ IP line table \(\.csv, \.dat, \.txt\) can be tried in the DC \/ IP pane, which lets you map its columns\./);
+  assert.match(m, /try a DC \/ IP line table in the DC \/ IP pane\./);
 });

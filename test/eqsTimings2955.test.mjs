@@ -14,7 +14,7 @@ test("the sidecar says the engine load first and returns the stage timings; the 
   assert.match(py, /"timings": \{"load": round\(load_s, 1\), "fit": round\(fit_s, 1\), "grid": round\(time\.perf_counter\(\) - t_grid, 1\)\}/);
   const box = readFileSync(new URL("../src/components/EqsGridBox.jsx", import.meta.url), "utf8");
   assert.match(box, /d\.warmEngine\s*\? tr\("The engine was still loaded from a run in the last few minutes: the fit took \{b\} s and the grid \{c\} s\."/); // #3124
-  assert.match(box, /: tr\("Of the time, loading the engine took \{a\} s \(it then stays loaded for about 3 minutes, so a run soon after skips it\), the fit \{b\} s and the grid \{c\} s\."/);
+  assert.match(box, /: tr\("Of that, the engine took \{a\} s to load \(it stays loaded about 3 minutes\), the fit \{b\} s and the grid \{c\} s\."/);
   // #3124 — the warm worker (python-sidecar/app/jobs.py; its behaviour in python-sidecar/tests/test_warm_jobs.py)
   const jobs = readFileSync(new URL("../python-sidecar/app/jobs.py", import.meta.url), "utf8");
   assert.match(jobs, /WARM_KINDS = \{"pfields"(, "implicit")?\}/); // "implicit": #3281

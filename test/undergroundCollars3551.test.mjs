@@ -133,6 +133,6 @@ test("the terrain builder leaves them out, says how many and why, and offers to 
   assert.match(src, /const benches = useMemo\(\(\) => collarBenches\(groundCollarPts\), \[groundCollarPts\]\);/);
   assert.match(src, /undergroundCollarsText\(ugCollars\)\} \$\{ugMode === "out" \? tr\("They were left out of the terrain; 'Underground collars' can keep them\."\)/);
   assert.match(src, /<option value="out">\{tr\("Leave them out of the ground"\)\}<\/option>/);
-  assert.match(src, /pit benches or mine levels\? The surface through all of them is not the topography there;/);
+  assert.match(src, /benches or levels\? The surface there is not the topography\./);
   assert.doesNotMatch(src, /benches drilled at different dates\?/);
 });

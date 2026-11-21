@@ -190,7 +190,7 @@ export default function FdemPane({ layers, setLayers, geophysSurveys, updateGeop
         raw.xy = r.lat && r.lon ? place(r.lon, r.lat, 4326, target) : r.x ? r.x.map((x, k) => [x, r.y[k]]) : null;
         if (!raw.xy) throw new Error(tr("{name} has no positions (latitude / longitude or X / Y columns).", { name: raw.name }));
         notes.push(r.lat ? tr("Positions from the file's latitude and longitude (WGS 84), in {crs}.", { crs: `${crsName(target) || "?"} (EPSG:${target})` }) : tr("Positions from the file's X and Y, taken as the project's {crs}: the file does not say its coordinate system.", { crs: `EPSG:${target}` }));
-        if (r.zFrom) notes.push(tr("Ground elevation from the column {col}.", { col: r.zFrom }) + (/alt/i.test(r.zFrom) ? " " + tr("A GPS height: check it against the terrain before trusting depths in 3D (a GPS height above the ellipsoid can differ from sea level by tens of metres; the USGS Indiana DUALEM files read 34 m under their DEM).") : ""));
+        if (r.zFrom) notes.push(tr("Ground elevation from the column {col}.", { col: r.zFrom }) + (/alt/i.test(r.zFrom) ? " " + tr("Check this GPS height against the terrain before trusting 3D depths: heights above the ellipsoid can differ from sea level by tens of metres.") : ""));
         else notes.push(tr("The file has no elevation column: the models can be drawn here, but not placed in 3D."));
       }
       const base = sv || inv;
@@ -270,7 +270,7 @@ export default function FdemPane({ layers, setLayers, geophysSurveys, updateGeop
   return (
     <>
       <TaskPaneHeader title={tr("FDEM 1D (DUALEM, GEM-2)")} helpId="fdem-1d" icon={Layers} tone="model" onClose={onClose} />
-      <div style={{ ...note, marginBottom: 8 }}>{tr("Ground loop-loop EM soundings (DUALEM, GEM-2, an Aarhus Workbench export) inverted for conductivity against depth, one 1D model per sounding. A 1D model assumes flat-lying layers: under a dyke, a pipe, a fence or any 3D conductor it is wrong. Use it for cover, regolith, clay and water-table depth, not to model a conductor.")}</div>
+      <div style={{ ...note, marginBottom: 8 }}>{tr("Inverts ground loop-loop EM soundings (DUALEM, GEM-2, Aarhus Workbench) for conductivity with depth, in 1D: for cover, clay and water table, not a 3D conductor.")}</div>
       <button type="button" style={pBtn} disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{tr("Open soundings (CSV or Workbench .xyz)…")}</button>
       <input ref={fileRef} type="file" accept=".csv,.xyz,.txt" multiple style={{ display: "none" }} onChange={(e) => { openFiles(e.target.files); e.target.value = ""; }} />
       {msg && <div role="status" style={{ marginBottom: 10, padding: "8px 10px", background: msg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${msg.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>{msg.text}</div>}

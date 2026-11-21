@@ -63,7 +63,7 @@ test("#3882 follow-up: Data QC names it under Collar vs terrain, and the fetch s
   assert.equal(issue.severity, "warning");
   const g = read("../src/modules/GeophysicsModule.jsx");
   assert.match(g, /const cluster = collarClusterAbove\(collars, parsed, \{ nodeM: parsed\.source\?\.nodeM \}\); if \(cluster\) misfitNote \+= " " \+ collarClusterNote\(cluster, parsed\);/);
-  assert.match(g, /Copernicus GLO-30 shows the ground as it was in 2011-2015: ground mined since then reads lower than in older terrain, and older collars can sit above it\./);
+  assert.match(g, /Copernicus GLO-30 shows the ground of 2011-2015: ground mined since reads lower than older terrain, and older collars can sit above it\./);
   const h = read("../src/help/pages/geophysics.js");
   assert.match(h, /it shows the ground as it was in 2011-2015, so ground mined since reads lower than in older terrain, and older collars can sit above it/);
   assert.match(h, /collars in one area \(1,300 × 850 m\) sit 200 to 280 m above this terrain/);

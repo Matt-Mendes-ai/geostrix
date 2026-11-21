@@ -121,9 +121,9 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
     const masks = (dark ? (encUsed === "byte" ? tr(" Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() }) : tr(" Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() })) : "") // #2124
       + (vegetated ? tr(vegetated === 1 ? " {vegetated} vegetated pixel (NDVI above {max}) was left out." : " {vegetated} vegetated pixels (NDVI above {max}) were left out.", { vegetated: vegetated.toLocaleString(), max: vegMaxN }) : "")
       + (reflective && maskVeg && !vegOn ? tr(" Vegetation was not masked: {v} not mapped to a file band.", { v: vegRoles.join(" / ") }) : "");
-    const note = tr(" Index {expr}{v}.{v2}{v3}{v4} An index is a ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it, and only exposed rock or soil means anything.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) + masks : masks, v4: isCustom ? "" : encUsed === "byte" ? " " + tr(preset.what) : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) }); // #2124: not the sensor's pixel
+    const note = tr(" Index {expr}{v}.{v2}{v3}{v4} A ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it; only exposed rock or soil counts.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) + masks : masks, v4: isCustom ? "" : encUsed === "byte" ? " " + tr(preset.what) : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) }); // #2124: not the sensor's pixel
     const encNote = encUsed ? " " + tr("Pixel values read as: {v}{d}.", { v: tr(DN_ENCODINGS[encUsed].label), d: encGuessed ? tr(encUsed === "byte" ? " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)" : " (guessed from the values; choose it under \"Pixel values\" if that is wrong)") : "" }) : ""; // #928
-    const byteNote = encUsed === "byte" ? " " + tr("8-bit values are what a picture shows (an orthophoto, a scanned map, a screenshot) or raw sensor counts, not surface reflectance: the result ranks pixels against each other in this file only, and is not comparable with the sensor's index from a reflectance product.") : ""; // #2124
+    const byteNote = encUsed === "byte" ? " " + tr("8-bit values are picture or raw sensor values, not reflectance: the result ranks pixels within this file only, not comparable with a reflectance product's index.") : ""; // #2124
     onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(encUsed ? { encoding: encUsed } : {}), ...(fetchMode ? { scene: scene.id, date: scene.date } : {}) } }, msg + note + encNote + byteNote);
   };
 
@@ -183,8 +183,8 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
                 </select>
               )}
               <div style={{ ...small, marginTop: 6 }}>{source === "sentinel2"
-                ? tr("Copernicus Sentinel-2 surface reflectance from Element 84's Earth Search (AWS Open Data), free, no account. Choose dates with the least cloud and snow (summer in the north, the dry season in the tropics); cloud, shadow, snow and water are masked with the scene's own classification. Only the area's window of the bands the index uses is downloaded.")
-                : tr("ASTER L1T from Microsoft's Planetary Computer, free, no account: the 2000-2006 archive, thermal bands 10-14 at 90 m as at-sensor radiance (not emissivity: compare values within one scene). Only the area's window is downloaded.")}</div>
+                ? tr("Copernicus Sentinel-2 reflectance (Element 84 Earth Search), free, no account. Choose dates with the least cloud and snow; cloud, shadow, snow and water are masked.")
+                : tr("ASTER L1T from Microsoft's Planetary Computer, free, no account: 2000-2006, thermal bands 10-14 at 90 m as at-sensor radiance; compare values within one scene.")}</div>
             </div>
           ) : (
             <div>
@@ -200,7 +200,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
                   </select>
                 </label>
               )}
-              <div style={{ ...small, marginTop: 6 }}>{tr("ASTER thermal emissivity: NASA's AST_05 product (free with an Earthdata login), 5 bands in order 10-14. ASTER VNIR + SWIR: AST_07XT surface reflectance, the 3 VNIR and 6 SWIR bands stacked in order 1-9 at one pixel size (SWIR only exists for 2000-2008 scenes). Sentinel-2 or Landsat: a surface-reflectance GeoTIFF with the bands stacked, then say below which band is which.")}</div>
+              <div style={{ ...small, marginTop: 6 }}>{tr("ASTER emissivity: AST_05, bands 10-14. ASTER VNIR + SWIR: AST_07XT, bands 1-9 stacked. Sentinel-2 or Landsat: a stacked reflectance GeoTIFF; name its bands below.")}</div>
             </div>
           )}
 
@@ -225,7 +225,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
             {reflective && sens.nir && (
               <label style={{ ...small, display: "flex", alignItems: "flex-start", gap: 6, marginTop: 8 }}>
                 <input type="checkbox" checked={maskVeg} onChange={(e) => setMaskVeg(e.target.checked)} style={{ marginTop: 2 }} />
-                <span>{tr("Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock.{v}", { max: vegMaxN, nir: sens.nir, red: sens.red, v: fetchMode ? tr(" Downloads one more band.") : "" })}{/* #1472 — nothing is downloaded from a file */}</span>
+                <span>{tr("Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios mean something only on exposed rock and soil.{v}", { max: vegMaxN, nir: sens.nir, red: sens.red, v: fetchMode ? tr(" Downloads one more band.") : "" })}{/* #1472 — nothing is downloaded from a file */}</span>
               </label>
             )}
             {reflective && sens.nir && maskVeg && ( /* TASKS.csv #2010 — the threshold is the user's */

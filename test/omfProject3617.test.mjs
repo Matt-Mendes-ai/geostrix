@@ -94,7 +94,7 @@ test("a project with nothing to export; and the pieces are wired: menu, App, too
   assert.match(read("../electron/main.js"), /\{ label: L\("Export Project as OMF \(\.omf\)…"\), click: \(\) => sendMenuWithGesture\("export-omf"\) \}/);
   const a = read("../src/App.jsx");
   assert.match(a, /else if \(action === "export-omf"\) runOmfExport\(\);/); assert.match(a, /await import\("\.\/lib\/omfProjectExport\.js"\)\)\.exportProjectOmf\(storeRef\.current\)/);
-  assert.match(read("../src/modules/GeophysicsModule.jsx"), /UBC mesh \+ model, an \.omf of the block model \(for Leapfrog, Micromine and Datamine\)/);
+  assert.match(read("../src/modules/GeophysicsModule.jsx"), /UBC mesh \+ model, \.omf \(Leapfrog, Micromine, Datamine\)/);
   const e = read("../src/lib/omfProjectExport.js"); assert.doesNotMatch(e, /^import .*omfWriter\.js.*h5wasm/m);
   for (const lang of ["es", "pt", "fr", "ar"]) { const d = loc(lang); for (const k of ["Saved {file}: {h} drillhole(s), {l} line set(s), {p} point set(s), {s} surface(s), {b} block model(s).", "{n} text column(s) of the drillhole logs are not in the OMF (it holds numbers): {list}."]) assert.ok(d[k], `${lang}: ${k.slice(0, 30)}`); }
 });

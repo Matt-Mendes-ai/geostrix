@@ -31,7 +31,7 @@ test("#3882 the Terrain pane reads the default through the helper, lists GLO-30 
   const at = (v) => g.indexOf(`<option value="${v}"`);
   assert.ok(at("copernicus") > 0 && at("copernicus") < at("aws"), "the default is first");
   for (const v of ["aws", "mrdem", "hrdem", "gem15", "gem15dsm"]) assert.ok(at(v) > 0, `${v} is still offered`);
-  assert.match(g, /Copernicus GLO-30 \(the default\)/, "the tooltip names the default");
+  assert.match(g, /Copernicus GLO-30 \(default\)/, "the tooltip names the default");
   assert.doesNotMatch(g, /localStorage\.getItem\("geostrix\.terrainSource"\) \|\| "aws"/);
 });
 
