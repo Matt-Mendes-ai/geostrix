@@ -31,7 +31,7 @@ test("#3714 wired: the Add title block button and the stock templates take the d
 
 test("#3713 the strip-log figure carries a key for its hatched density bars", () => {
   const s = read("../src/components/StripLog.jsx");
-  assert.match(s, /const keyH = hasCalc \? 34 : 0;/);
+  assert.match(s, /const keyH = \(hasCalc \? 34 : 0\) \+ classKeys\.length \* 14;/);
   assert.match(s, /\{hasCalc && \(\(\) => \{ const y0 = sy\(d1\) \+ 26/);
   assert.match(s, /tr\("hatched = calculated \(regression\)"\)/);
   assert.match(s, /\{hasMeasured && /);
