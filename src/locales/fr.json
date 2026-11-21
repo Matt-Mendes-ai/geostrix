@@ -14485,5 +14485,7 @@
   "added section '{name}'": "a ajouté la coupe « {name} »",
   "added the Layout page '{name}'": "a ajouté la page de mise en page « {name} »",
   "added a Best intercepts page ({n} intercepts of {symbol})": "a ajouté une page de meilleures intersections ({n} intersections en {symbol})",
-  "QC samples (standards, blanks, duplicates) are excluded.": "Les échantillons de contrôle (étalons, blancs, doublons) sont exclus."
+  "QC samples (standards, blanks, duplicates) are excluded.": "Les échantillons de contrôle (étalons, blancs, doublons) sont exclus.",
+  "added the satellite image '{name}'": "a ajouté l'image satellite « {name} »",
+  "added the terrain '{name}'": "a ajouté le terrain « {name} »"
 }

@@ -52,7 +52,7 @@ test("#3932 the change tools: listed with the change annotations and wording, ev
   for (const n of change) {
     const d = def(n);
     assert.match(d.description, /^Makes a change in GeoStrix: /, n);
-    assert.deepEqual(d.annotations, { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, n);
+    assert.deepEqual(d.annotations, { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: /^fetch_/.test(n) }, n); // a download: openWorldHint
     assert.equal(d.inputSchema.additionalProperties, false, n);
   }
   const ok = (n, a) => assert.equal(proto.refuseArgs(def(n), a), null, `${n} ${JSON.stringify(a)}`);

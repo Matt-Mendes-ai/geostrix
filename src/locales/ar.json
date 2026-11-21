@@ -14485,5 +14485,7 @@
   "added section '{name}'": "أضاف المقطع '{name}'",
   "added the Layout page '{name}'": "أضاف صفحة التخطيط '{name}'",
   "added a Best intercepts page ({n} intercepts of {symbol})": "أضاف صفحة أفضل التقاطعات ({n} تقاطعات لـ {symbol})",
-  "QC samples (standards, blanks, duplicates) are excluded.": "تُستبعد عينات ضبط الجودة (المعايير والفراغات والمكررات)."
+  "QC samples (standards, blanks, duplicates) are excluded.": "تُستبعد عينات ضبط الجودة (المعايير والفراغات والمكررات).",
+  "added the satellite image '{name}'": "أضاف صورة القمر الصناعي '{name}'",
+  "added the terrain '{name}'": "أضاف التضاريس '{name}'"
 }

@@ -158,5 +158,24 @@
       "additionalProperties": false
     },
     "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "fetch_satellite_image",
+    "description": "Makes a change in GeoStrix: downloads the latest clear Copernicus Sentinel-2 natural-colour image over the project area and adds it as a new raster (Maps). The area is the loaded terrain's when there is one (so the image matches it), else around the drillholes. GeoStrix first asks the user, every time, whether to download; a refusal is answered 'The user declined the download in GeoStrix.'. It can take a minute or more. The toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "max_cloud_percent": { "type": "integer", "minimum": 0, "maximum": 100, "description": "The most cloud a scene's catalogue entry may report (%). Default 30." },
+        "area": { "type": "string", "enum": ["terrain", "holes"], "description": "'terrain' (the default, when a terrain is loaded) or 'holes' (around the drillholes)." }
+      },
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true }
+  },
+  {
+    "name": "fetch_terrain",
+    "description": "Makes a change in GeoStrix: downloads Copernicus GLO-30 terrain over the project area (around the drillholes, as Maps › Terrain opens on) and adds it as the project's terrain, with GeoStrix's check of the collars against the ground (a large misfit is reported, the project's coordinate system is never changed). Refused when a terrain is already loaded (nothing is overwritten). GeoStrix first asks the user, every time, whether to download. It can take a minute or more. The toast's Undo in GeoStrix removes it.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true }
   }
 ]

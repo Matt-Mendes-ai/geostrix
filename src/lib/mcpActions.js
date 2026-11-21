@@ -17,6 +17,7 @@ import { pagePx, pageFormatOf, addPagesOnPaper } from "./pageFormats.js";
 const SETTLE_MS = 60; // the store's undo bookkeeping runs after React has rendered the change
 export const settleRender = () => new Promise((r) => setTimeout(r, SETTLE_MS));
 const MODULE_WAIT_MS = 20000;
+const FETCH_WAIT_MS = 9 * 60000; // a download (the host gives a network tool 10 minutes)
 const norm360 = (a) => ((a % 360) + 360) % 360;
 const r1 = (v) => Math.round(v * 10) / 10;
 const short = (v, n) => String(v ?? "").slice(0, n);
@@ -101,6 +102,23 @@ export const ACTIONS = {
     s.goToModule?.("layout");
     return { ok: true, tracked: false, data: { changed: "layout page", name: tr("Best intercepts"), id: ids[0] || null, intercepts: d.total, on_the_page: shown.length },
       say: tr("added a Best intercepts page ({n} intercepts of {symbol})", { n: d.total, symbol: d.element }), revert: (st) => { const have = new Set((st?.layoutPages || []).map((p) => p.id)); const gone = ids.filter((x) => have.has(x)); if (gone.length) st.deleteLayoutPage(gone); } };
+  },
+  // the network tools: the download was asked for in GeoStrix's main process (a native box, every time) before the call reached this window. Each runs the pane's own fetch
+  // (Maps › Satellite image / Terrain) with its checks, and answers when it has finished.
+  async fetch_satellite_image(a, s) {
+    const r = await viaModule(s, "maps", "mcp-fetch-satellite", { ...(Number.isFinite(a.max_cloud_percent) ? { maxCloud: a.max_cloud_percent } : {}), ...(a.area ? { area: a.area } : {}) }, FETCH_WAIT_MS);
+    if (!r.ok) return r;
+    const ids = r.ids || [];
+    return { ok: true, tracked: false, data: { changed: "raster", name: r.name, id: ids[0] || null, pictures: r.pictures ?? ids.length, over: r.over, area_cloud_percent: r.area_cloud_percent ?? null },
+      say: tr("added the satellite image '{name}'", { name: r.name }), revert: (st) => { for (const id of ids) if ((st?.rasters || []).some((x) => x.id === id)) st.removeRaster(id); } };
+  },
+  async fetch_terrain(_a, s) {
+    if (s.terrain) return fail("A terrain is already loaded: remove it in GeoStrix first."); // nothing is overwritten
+    const r = await viaModule(s, "maps", "mcp-fetch-terrain", {}, FETCH_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, name, id, ...rest } = r;
+    return { ok: true, tracked: false, data: { changed: "terrain", name, id: id || null, ...rest },
+      say: tr("added the terrain '{name}'", { name }), revert: (st) => { if (st?.terrain && (!id || st.terrain.id === id)) st.removeTerrain(); } };
   },
 };
 export const CHANGE_TOOL_NAMES = () => Object.keys(ACTIONS);

@@ -69,6 +69,6 @@ test("#3932 wiring: change requests go to mcpActions.js (lazy) with the live sto
   assert.match(store, /label: undoStepLabels\.current\.get\(top\) \|\| null/);
   assert.match(toast, /typeof x\.undo === "function" && <button type="button" onClick=\{\(\) => \{ setItems\(\(L\) => L\.filter\(\(y\) => y\.id !== x\.id\)\); x\.undo\(\); \}\}/);
   assert.match(host, /\.\.\.\(meta\.change \? \{ change: true \} : \{\}\)/);
-  assert.match(proto, /callTool\(name, params\?\.arguments \|\| \{\}, change \? \{ client, change \} : \{ client \}\)/);
+  assert.match(proto, /callTool\(name, params\?\.arguments \|\| \{\}, change \? \{ client, change, \.\.\.\(isNetworkTool\(def\) \? \{ network: true \} : \{\}\) \} : \{ client \}\)/);
   assert.ok(!/window\.desktop|from "\.\/desktop\.js"/.test(acts), "the bridge never reaches the IPC wrappers");
 });

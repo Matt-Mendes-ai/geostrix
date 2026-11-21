@@ -11,6 +11,8 @@ const LIMITS = { maxArgBytes: 4000, maxResultBytes: 100000, callsPerMinute: 60, 
 // They are always listed, but refused HERE, before the window sees them, unless the user has ticked 'Allow AI apps to make changes' (Tools > AI App Access; off by default, off with
 // AI App Access); each AI app is asked once more about changes, they are capped at 10 a minute and only one runs at a time (across every connected app).
 const isChangeTool = (def) => def?.annotations?.readOnlyHint === false;
+// a change tool that downloads (MCP openWorldHint): asked for in a native box every time (askNetwork), refused offline
+const isNetworkTool = (def) => isChangeTool(def) && def?.annotations?.openWorldHint === true;
 const CHANGES_OFF = "Changes are switched off in GeoStrix. To allow them: Tools › AI App Access › Allow AI apps to make changes.";
 // a name that holds a secret (never accepted as an argument, never sent back)
 const CREDENTIAL_KEY = /pass(word|wd|phrase)?|secret|token|api[_-]?key|credential|authorization|private[_-]?key|connection[_-]?string|\bpwd\b|safestorage/i;
@@ -128,7 +130,8 @@ function createChangeLock() {
 // askAllow(clientName, { changes, again }) -> Promise<'once' | 'always' | 'refuse' | { answer, changes }> ('changes': the question said the app may also make changes;
 // 'again': an app already reading asks for changes; the object form says whether a remembered app is also remembered for changes);
 // changesAllowed() -> whether 'Allow AI apps to make changes' is on (#3932); onActivity(entry) is told of each call (tool, ok, bytes, refused) and of the client that connected.
-function createSession({ callTool, askAllow, changesAllowed = () => false, changeLock = createChangeLock(), tools = TOOLS, onActivity = () => {}, now = Date.now, limits = LIMITS }) {
+// askNetwork(clientName, toolName) -> Promise<boolean> (#3932: the download question; false = no), isOnline() -> boolean
+function createSession({ callTool, askAllow, changesAllowed = () => false, changeLock = createChangeLock(), askNetwork = async () => false, isOnline = () => true, tools = TOOLS, onActivity = () => {}, now = Date.now, limits = LIMITS }) {
   let client = null, allowed = false, closed = false, changesOk = false;
   const stamps = [], changeStamps = [];
   const L = { ...LIMITS, ...limits };
@@ -177,9 +180,16 @@ function createSession({ callTool, askAllow, changesAllowed = () => false, chang
           if (!changesAllowed()) return refuse("changes off", CHANGES_OFF); // switched off while the question was up
         }
         changeStamps.push(t);
+        if (isNetworkTool(def)) { // #3932 — every download is asked for in GeoStrix, before anything goes out; no 'always'
+          let online = true; try { online = isOnline() !== false; } catch { /* assume so: the fetch says otherwise */ }
+          if (!online) return refuse("offline", "No internet connection.");
+          let yes = false; try { yes = (await askNetwork(client, name)) === true; } catch { yes = false; }
+          if (!yes) return refuse("declined", "The user declined the download in GeoStrix.");
+          if (!changesAllowed()) return refuse("changes off", CHANGES_OFF);
+        }
       }
       stamps.push(t);
-      const run = async () => { try { return await callTool(name, params?.arguments || {}, change ? { client, change } : { client }); } catch { return { ok: false, error: change ? "The change could not be made." : "The tool could not read the project." }; } }; // what failed inside the app (a stack, a path) is not passed on
+      const run = async () => { try { return await callTool(name, params?.arguments || {}, change ? { client, change, ...(isNetworkTool(def) ? { network: true } : {}) } : { client }); } catch { return { ok: false, error: change ? "The change could not be made." : "The tool could not read the project." }; } }; // what failed inside the app (a stack, a path) is not passed on
       let r;
       if (change) { const out = await changeLock.run(run, L.changeWaitMs); if (out.waited) return refuse("busy", "Another change is still running in GeoStrix. Try again in a moment."); r = out.value; }
       else r = await run();
@@ -194,4 +204,4 @@ function createSession({ callTool, askAllow, changesAllowed = () => false, chang
   return { handleLine, get client() { return client; }, close: () => { closed = true; } };
 }
 
-module.exports = { TOOLS, SUPPORTED, LIMITS, CREDENTIAL_KEY, PATH_LIKE, CHANGES_OFF, isChangeTool, refuseArgs, scrub, capText, createSession, createChangeLock, cleanClientName, toolDef };
+module.exports = { TOOLS, SUPPORTED, LIMITS, CREDENTIAL_KEY, PATH_LIKE, CHANGES_OFF, isChangeTool, isNetworkTool, refuseArgs, scrub, capText, createSession, createChangeLock, cleanClientName, toolDef };
