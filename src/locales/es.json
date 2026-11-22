@@ -14973,5 +14973,19 @@
   "added planned holes {a} to {b}": "agregó los sondajes planificados {a} a {b}",
   "marked {name} approved": "marcó {name} como aprobado",
   "marked {name} proposed": "marcó {name} como propuesto",
-  "Compared {n}.": "Comparados {n}."
+  "Compared {n}.": "Comparados {n}.",
+  "Alteration halo": "Halo de alteración",
+  "A halo round one alteration, from the holes that log it.": "Un halo alrededor de una alteración, a partir de los sondajes que la registran.",
+  "Builds the volume round one alteration code, closed between the holes by the other alteration logged.": "Construye el volumen alrededor de un código de alteración, cerrado entre los sondajes por la otra alteración registrada.",
+  "Which alteration?": "¿Qué alteración?",
+  "No alteration logged: an Alteration log is needed.": "No hay alteración registrada: se necesita un registro de alteración.",
+  "{v} is logged in {n} holes, more than any other alteration.": "{v} está registrado en {n} sondajes, más que cualquier otra alteración.",
+  "Choose an alteration code first.": "Elija primero un código de alteración.",
+  "Only {n} holes log {v}: a halo needs three or more.": "Solo {n} sondajes registran {v}: un halo necesita tres o más.",
+  "Every alteration interval logged is {v}: with no other alteration logged, nothing closes the halo between the holes.": "Todos los intervalos de alteración registrados son {v}: sin otra alteración registrada, nada cierra el halo entre los sondajes.",
+  "{v} is logged in {n} holes; the other alteration logged closes the halo between them.": "{v} está registrado en {n} sondajes; la otra alteración registrada cierra el halo entre ellos.",
+  "estimated {symbol} into the block model '{name}'": "estimó {symbol} en el modelo de bloques '{name}'",
+  "added the grade shell's cells as the block model '{name}'": "agregó las celdas de la envolvente de ley como el modelo de bloques '{name}'",
+  "built the vein '{name}'": "construyó la veta '{name}'",
+  "built the alteration halo '{name}'": "construyó el halo de alteración '{name}'"
 }

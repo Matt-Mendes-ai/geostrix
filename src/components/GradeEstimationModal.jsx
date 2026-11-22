@@ -75,6 +75,7 @@ import { CAP_WARN_PCT } from "../lib/capWarning.js"; // TASKS.csv #3783
 import { floorElements, applyFloorModes } from "../lib/floorShare.js"; // TASKS.csv #3788
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the estimate belongs to the project it was run in
+import { useMcpEstimate } from "./useMcpEstimate.js"; // TASKS.csv #3932 batch 3 — an AI app's build_grade_estimate runs this dialog
 export { estimateSettingsKey };
 // TASKS.csv #3273 — a semivariance with separators (22,800,000, not 22800000)
 const fmtSemi = (v) => (!Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : String(+v.toPrecision(3)));
@@ -921,6 +922,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
     if (set) for (const m of result.members || []) if (m.cells.length) onAddModel({ name: ((nm, mine, prim) => (mine && prim && mine !== prim ? nm.split(prim).join(mine) : nm))(memberName(name, p0, m.element, set, typed, m.method, result.params?.method), m.params?.restrictedToVolumeName, result.params?.restrictedToVolumeName) /* #3164; #3802 — the member's own shell named, not the primary's */, source: `estimate-${m.method || method}` /* #3164 */, cells: m.cells, ...rampOf(m.cells, sourceKey === "assay" ? m.element : null) /* #3596 */, params: m.params, visible: false });
     setAdded(true);
   };
+  // TASKS.csv #3932 batch 3 — build_grade_estimate (only while 'Allow AI apps to make changes' is on): this dialog's own element, defaults, Run and Add to project
+  useMcpEstimate(() => ({ symbols, symbol, setSymbol, sourceKey, setSourceKey, run, running, result, error, weakFitAsk, overLimit, reachPending, bounds, unsReady: uns.ready, blockBudget, cellLabel, searchRadius, addToProject, resultName, voxelIds: () => (voxelModels || []).map((v) => v.id) }));
 
   return (
     <div style={overlay}>
@@ -1292,7 +1295,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
 
           {result && resultSig != null && resultSig !== settingsSig && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("A setting has changed since this result was run: it is shown greyed. Run again to refresh it.")}</div>}{/* TASKS.csv #3082 (4) */}
           {result && (
-            <div style={{ opacity: resultSig != null && resultSig !== settingsSig ? 0.5 : 1, padding: 10, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", display: "flex", flexDirection: "column", gap: 6 }}>
+            <div data-mcp="estimate-result" /* #3932 batch 3: read by build_grade_estimate */ style={{ opacity: resultSig != null && resultSig !== settingsSig ? 0.5 : 1, padding: 10, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", display: "flex", flexDirection: "column", gap: 6 }}>
               {result.supportCounts && result.blocksEstimated > 0 && (() => { // TASKS.csv #1573 — the support split first, in plain words
                 const sc = result.supportCounts, n = result.blocksEstimated, pct = Math.round((100 * sc.interpolated) / n);
                 const one = result.singleHoleCells || 0, dom = result.dominatedCells || 0;
@@ -1436,7 +1439,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           {gtOpen && result && <GradeTonnageModal model={{ name: resultName(), source: `estimate-${result.params?.method || method}`, cells: result.cells, params: result.params }} setModels={result.params?.set ? (result.members || []).filter((m) => m.cells.length).map((m) => ({ name: `${m.element} estimate`, cells: m.cells, params: m.params })) : null /* #3014 part b — the set before it is added */} epsg={stampEpsg(project)} onClose={() => setGtOpen(false)} />}{/* #1577 */}
           {/* TASKS.csv #269 — the closing paragraph now names every assumption the estimate actually
               makes, not just the missing-kriging one. */}
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.5 }}>
+          <div data-mcp="estimate-not-resource" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.5 }}>
             <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("This interpolated block model is for visualizing and targeting mineralization. Nothing it produces is a Mineral Resource under NI 43-101 or JORC; do not report it publicly as one (that needs an estimate by a Qualified Person).")}</div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("Nearest neighbour, inverse distance and moving least squares are complete estimation methods (hover Method for what each suits); ordinary kriging weights the composites by a variogram. Kriging is point kriging at block centres; its variance measures the samples' layout, not the grade's uncertainty. A block with no sample in its search radius is left un-estimated.")}{" "}{trend
               ? (trend.local ? <>{tr("The search is flat: {r} m across and {v} m up and down (typed in this dialog), there is", { r: trend.ratios.max, v: trend.ratios.min })}</> /* #2418 */

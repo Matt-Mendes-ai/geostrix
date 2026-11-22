@@ -74,6 +74,7 @@ import { shellBudgetAdvice, sharePct } from "../../lib/shellBudget.js"; // TASKS
 import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js"; // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
 import { askConfirm, askChoice } from "../../lib/confirmDialog.js"; // TASKS.csv #3957; askChoice: #3994
 import { holesOrderPlan, movesText } from "../../lib/holesOrder.js"; // TASKS.csv #3994
+import { setLastShellCells } from "../../lib/lastShellCells.js"; // TASKS.csv #3932 batch 3
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
@@ -2893,7 +2894,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         // which a neighbouring hole takes over), never under 1.5 cells (its own node stays) nor beyond the search; the worker path only (no warp)
         const oneHoleReach = workerPost && gsSpacing > 0 ? Math.round(Math.min(searchInGrid, Math.max(gsSpacing / 2, 1.5 * ((g) => Math.max(g.dx, g.dy, g.dz))(cellOf(cs))))) : 0;
         for (let bi = 0, before = 0; bi < gridBoxes.length; before += boxN[bi], bi++) {
-        const post = workerPost ? { iso: envBox[bi] ? envIso : numericCutoff, closeOutside: envBox[bi] ? true /* #3673: an envelope is closed */ : !!numericCloseShell, ground: gsGround ? await shellPostLib.groundColumns(gsGroundAt, gridBoxes[bi].bounds, cellOf(cs)) : null,
+        const post = workerPost ? { keepCells: true /* #3932 batch 3: the shell's cells, for add_grade_shell_blocks */, iso: envBox[bi] ? envIso : numericCutoff, closeOutside: envBox[bi] ? true /* #3673: an envelope is closed */ : !!numericCloseShell, ground: gsGround ? await shellPostLib.groundColumns(gsGroundAt, gridBoxes[bi].bounds, cellOf(cs)) : null,
           inShellPoints: envBox[bi] ? atOfBox(bi).map((q) => ({ x: q.x, y: q.y, z: q.z, value: 1 })) : gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff), farPoints: gsSpacing > 0 ? points : null, farDist: gsSpacing, // #3580 (b)
           bodies: { runPoints: boxAll(bi).map((q) => ({ x: q.x, y: q.y, z: q.z, value: q.value, hole_id: q.hole_id, from: q.from, to: q.to })), atPoints: atOfBox(bi).map((q) => ({ x: q.x, y: q.y, z: q.z, hole_id: q.hole_id })), cutoff: numericCutoff, farDist: gsSpacing, oneHoleReachM: oneHoleReach }, // #3785; oneHoleReachM: #3876
           reach: planes[bi] ? { points: gridBoxes[bi].idx.map((k) => gridPoints[k]).filter((q) => q.value >= numericCutoff).map((q) => ({ x: q.x, y: q.y, z: q.z })), basis: planes[bi].basis, scales: planes[bi].scales, limM: planes[bi].majorM * planes[bi].reachShare } : null, // #3655
@@ -3128,6 +3129,14 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         const id = `impl_${Date.now()}_numeric_${symbol}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: distinctShellName(label, p.map((x) => x.name), cs), visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
+        // TASKS.csv #3932 batch 3 — this shell's own cells, kept for the session (the last shell only) so add_grade_shell_blocks can add them as a block model;
+        // a trend-warped grid is not a block grid (said there), and the window's path (a log) finds them here
+        try {
+          const spl = !viaWorker && !anisotropy.enabled ? await import("../../lib/viewer/shellPost.js") : null;
+          const insideOf = viaWorker ? (gi) => posts[gi].inside : spl ? (gi) => spl.insideCells(gsCaps[gi].values, grids[gi].values, numericCutoff) : null;
+          setLastShellCells({ key: job.key, surfaceId: id, name: label, element: symbol, unit, cutoff: numericCutoff, warped: !!anisotropy.enabled,
+            boxes: insideOf ? grids.map((g, gi) => { const c = insideOf(gi); return c ? { nx: g.nx, ny: g.ny, nz: g.nz, origin: g.origin, cellSize: g.cellSize, idx: c.idx, value: c.value, envelope: !!envBox[gi] } : null; }).filter(Boolean) : [] });
+        } catch { setLastShellCells(null); }
         // TASKS.csv #3673 — the envelope said: what it is, the largest area's plane and ellipsoid, the clean-up, and the composites inside by grade
         // TASKS.csv #3673 — Automatic: which shell each drilled area got and the share of its composites at the cut-off that decided it (the largest areas)
         if (envLib && workerPost && shellPref === "auto") {

@@ -14973,5 +14973,19 @@
   "added planned holes {a} to {b}": "أضاف الثقوب المخططة من {a} إلى {b}",
   "marked {name} approved": "وضع علامة معتمد على {name}",
   "marked {name} proposed": "وضع علامة مقترح على {name}",
-  "Compared {n}.": "قورن {n}."
+  "Compared {n}.": "قورن {n}.",
+  "Alteration halo": "هالة التحول",
+  "A halo round one alteration, from the holes that log it.": "هالة حول تحول واحد، من الثقوب التي تسجله.",
+  "Builds the volume round one alteration code, closed between the holes by the other alteration logged.": "يبني الحجم حول رمز تحول واحد، مغلقًا بين الثقوب بالتحول الآخر المسجل.",
+  "Which alteration?": "أي تحول؟",
+  "No alteration logged: an Alteration log is needed.": "لا يوجد تحول مسجل: يلزم سجل التحول.",
+  "{v} is logged in {n} holes, more than any other alteration.": "{v} مسجل في {n} ثقب، أكثر من أي تحول آخر.",
+  "Choose an alteration code first.": "اختر رمز تحول أولًا.",
+  "Only {n} holes log {v}: a halo needs three or more.": "{n} ثقوب فقط تسجل {v}: تحتاج الهالة إلى ثلاثة أو أكثر.",
+  "Every alteration interval logged is {v}: with no other alteration logged, nothing closes the halo between the holes.": "كل فترات التحول المسجلة هي {v}: بلا تحول آخر مسجل، لا شيء يغلق الهالة بين الثقوب.",
+  "{v} is logged in {n} holes; the other alteration logged closes the halo between them.": "{v} مسجل في {n} ثقب؛ التحول الآخر المسجل يغلق الهالة بينها.",
+  "estimated {symbol} into the block model '{name}'": "قدّر {symbol} في النموذج الكتلي '{name}'",
+  "added the grade shell's cells as the block model '{name}'": "أضاف خلايا غلاف المحتوى كالنموذج الكتلي '{name}'",
+  "built the vein '{name}'": "بنى العرق '{name}'",
+  "built the alteration halo '{name}'": "بنى هالة التحول '{name}'"
 }

@@ -14973,5 +14973,19 @@
   "added planned holes {a} to {b}": "a ajouté les sondages prévus {a} à {b}",
   "marked {name} approved": "a marqué {name} comme approuvé",
   "marked {name} proposed": "a marqué {name} comme proposé",
-  "Compared {n}.": "{n} comparés."
+  "Compared {n}.": "{n} comparés.",
+  "Alteration halo": "Halo d'altération",
+  "A halo round one alteration, from the holes that log it.": "Un halo autour d'une altération, à partir des sondages qui la décrivent.",
+  "Builds the volume round one alteration code, closed between the holes by the other alteration logged.": "Construit le volume autour d'un code d'altération, fermé entre les sondages par l'autre altération décrite.",
+  "Which alteration?": "Quelle altération ?",
+  "No alteration logged: an Alteration log is needed.": "Aucune altération décrite : un journal d'altération est nécessaire.",
+  "{v} is logged in {n} holes, more than any other alteration.": "{v} est décrit dans {n} sondages, plus que toute autre altération.",
+  "Choose an alteration code first.": "Choisissez d'abord un code d'altération.",
+  "Only {n} holes log {v}: a halo needs three or more.": "Seuls {n} sondages décrivent {v} : un halo en demande trois ou plus.",
+  "Every alteration interval logged is {v}: with no other alteration logged, nothing closes the halo between the holes.": "Tous les intervalles d'altération décrits sont {v} : sans autre altération décrite, rien ne ferme le halo entre les sondages.",
+  "{v} is logged in {n} holes; the other alteration logged closes the halo between them.": "{v} est décrit dans {n} sondages ; l'autre altération décrite ferme le halo entre eux.",
+  "estimated {symbol} into the block model '{name}'": "a estimé {symbol} dans le modèle de blocs « {name} »",
+  "added the grade shell's cells as the block model '{name}'": "a ajouté les cellules de l'enveloppe de teneur comme modèle de blocs « {name} »",
+  "built the vein '{name}'": "a construit le filon « {name} »",
+  "built the alteration halo '{name}'": "a construit le halo d'altération « {name} »"
 }

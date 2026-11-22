@@ -14973,5 +14973,19 @@
   "added planned holes {a} to {b}": "adicionou os furos planejados {a} a {b}",
   "marked {name} approved": "marcou {name} como aprovado",
   "marked {name} proposed": "marcou {name} como proposto",
-  "Compared {n}.": "Comparados {n}."
+  "Compared {n}.": "Comparados {n}.",
+  "Alteration halo": "Halo de alteração",
+  "A halo round one alteration, from the holes that log it.": "Um halo em torno de uma alteração, a partir dos furos que a registram.",
+  "Builds the volume round one alteration code, closed between the holes by the other alteration logged.": "Constrói o volume em torno de um código de alteração, fechado entre os furos pela outra alteração registrada.",
+  "Which alteration?": "Qual alteração?",
+  "No alteration logged: an Alteration log is needed.": "Nenhuma alteração registrada: é necessário um log de alteração.",
+  "{v} is logged in {n} holes, more than any other alteration.": "{v} está registrado em {n} furos, mais do que qualquer outra alteração.",
+  "Choose an alteration code first.": "Escolha primeiro um código de alteração.",
+  "Only {n} holes log {v}: a halo needs three or more.": "Apenas {n} furos registram {v}: um halo precisa de três ou mais.",
+  "Every alteration interval logged is {v}: with no other alteration logged, nothing closes the halo between the holes.": "Todos os intervalos de alteração registrados são {v}: sem outra alteração registrada, nada fecha o halo entre os furos.",
+  "{v} is logged in {n} holes; the other alteration logged closes the halo between them.": "{v} está registrado em {n} furos; a outra alteração registrada fecha o halo entre eles.",
+  "estimated {symbol} into the block model '{name}'": "estimou {symbol} no modelo de blocos '{name}'",
+  "added the grade shell's cells as the block model '{name}'": "adicionou as células do envelope de teor como o modelo de blocos '{name}'",
+  "built the vein '{name}'": "construiu o veio '{name}'",
+  "built the alteration halo '{name}'": "construiu o halo de alteração '{name}'"
 }
