@@ -14706,5 +14706,10 @@
   "Mapped faults around the project ({km} km, Macrostrat, CC BY 4.0).": "Failles cartographiées autour du projet ({km} km, Macrostrat, CC BY 4.0).",
   "Mapped fold axes around the project ({km} km, Macrostrat, CC BY 4.0).": "Axes de plis cartographiés autour du projet ({km} km, Macrostrat, CC BY 4.0).",
   "Maps: {list}.": "Cartes : {list}.",
-  "Direction only: no dips, plunges or fold shape.": "Direction seulement : ni pendages, ni plongements, ni forme de plis."
+  "Direction only: no dips, plunges or fold shape.": "Direction seulement : ni pendages, ni plongements, ni forme de plis.",
+  "No model yet.": "Pas encore de modèle.",
+  "Build the blocks first.": "Construisez d'abord les blocs.",
+  "Surfaces and block settings": "Surfaces et réglages des blocs",
+  "Fold the result block": "Replier le bloc de résultat",
+  "Open the result block": "Déplier le bloc de résultat"
 }

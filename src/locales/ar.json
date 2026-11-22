@@ -14706,5 +14706,10 @@
   "Mapped faults around the project ({km} km, Macrostrat, CC BY 4.0).": "الصدوع المرسومة حول المشروع ({km} كم، Macrostrat، CC BY 4.0).",
   "Mapped fold axes around the project ({km} km, Macrostrat, CC BY 4.0).": "محاور الطيات المرسومة حول المشروع ({km} كم، Macrostrat، CC BY 4.0).",
   "Maps: {list}.": "الخرائط: {list}.",
-  "Direction only: no dips, plunges or fold shape.": "اتجاه فقط: بلا ميول ولا غطس ولا شكل للطيات."
+  "Direction only: no dips, plunges or fold shape.": "اتجاه فقط: بلا ميول ولا غطس ولا شكل للطيات.",
+  "No model yet.": "لا يوجد نموذج بعد.",
+  "Build the blocks first.": "ابنِ الكتل أولًا.",
+  "Surfaces and block settings": "الأسطح وإعدادات الكتل",
+  "Fold the result block": "طيّ كتلة النتيجة",
+  "Open the result block": "فتح كتلة النتيجة"
 }

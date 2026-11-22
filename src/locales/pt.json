@@ -14706,5 +14706,10 @@
   "Mapped faults around the project ({km} km, Macrostrat, CC BY 4.0).": "Falhas mapeadas ao redor do projeto ({km} km, Macrostrat, CC BY 4.0).",
   "Mapped fold axes around the project ({km} km, Macrostrat, CC BY 4.0).": "Eixos de dobra mapeados ao redor do projeto ({km} km, Macrostrat, CC BY 4.0).",
   "Maps: {list}.": "Mapas: {list}.",
-  "Direction only: no dips, plunges or fold shape.": "Apenas direção: sem mergulhos, caimentos nem forma de dobras."
+  "Direction only: no dips, plunges or fold shape.": "Apenas direção: sem mergulhos, caimentos nem forma de dobras.",
+  "No model yet.": "Ainda não há modelo.",
+  "Build the blocks first.": "Construa os blocos primeiro.",
+  "Surfaces and block settings": "Superfícies e ajustes dos blocos",
+  "Fold the result block": "Recolher o bloco de resultado",
+  "Open the result block": "Expandir o bloco de resultado"
 }
