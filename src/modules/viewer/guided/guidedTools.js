@@ -22,6 +22,7 @@ import { getUnsampledChoice, setUnsampledChoice } from "../../../lib/unsampledCh
 import { gradeUnitLabel } from "../../../lib/geochemColumns.js";
 import { desurveyHole, pointOnTrace } from "../../../lib/desurvey.js";
 import { isNotRecorded } from "../../../lib/notRecorded.js"; // TASKS.csv #3932 batch 3 — the Alteration halo's choices
+import { isNotLogged } from "../../../lib/notLogged.js"; // TASKS.csv #4011 — and the pane's own rule (#1740): 'N/A' is no assemblage, not offered
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
 const unitsByHoles = (ctx) => stackOrder(ctx.rows).units.map((u) => u.unit);
@@ -162,13 +163,13 @@ export const VEINS = {
 };
 
 // TASKS.csv #3932 batch 3 — an alteration halo from the Alteration log, as its pane runs it (modellingRuns.js runAlterationModel: 1 inside the intervals
-// with the code, 0 in every other logged alteration interval, so the halo closes between them). For the AI tool build_alteration; not a Start here card
-// (the pane, All tools › Alteration, has its settings). Refused when fewer than three holes log the code, or when nothing logged is another
-// alteration (no zero to close the halo); 'not recorded' codes are neither.
+// with the code, 0 in every other logged alteration interval, so the halo closes between them). For the AI tool build_alteration, and since TASKS.csv #4011
+// (Matt: "yes make the alteration card visible") a Start here card after Veins and dykes; Change these opens the Alteration pane on the code. Refused when
+// fewer than three holes log the code, or when nothing logged is another alteration (no zero to close the halo); 'not recorded' codes are neither.
 function altChoices(ctx) {
   const by = new Map();
   for (const r of ctx.alt || []) {
-    if (r.value == null || String(r.value).trim() === "" || isNotRecorded(r.value)) continue;
+    if (isNotLogged(r.value) || isNotRecorded(r.value)) continue;
     const k = String(r.value), e = by.get(k) || { holes: new Set(), rows: 0 };
     e.holes.add(r.hole_id); e.rows++; by.set(k, e);
   }
@@ -202,7 +203,7 @@ export const ALTERATION = {
   contacts: () => [],
   notes: () => [],
   run: (api, value) => api.runAlterationModel(value),
-  prefill: () => {},
+  prefill: (api, value) => api.setAlterationTarget?.(value), // #4011 — the pane opens on the code
 };
 
 // TASKS.csv #3909 — a fault from the measured picks: the Structural modelling run on one structure type of the structure log (picks with a
@@ -378,6 +379,6 @@ export const GRADE = {
 };
 
 // in the Start here card's order: what lies on top first
-export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS, FAULTS, GRADE];
+export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS, ALTERATION /* TASKS.csv #4011 */, FAULTS, GRADE];
 export const toolById = (id) => GUIDED_TOOLS.find((t) => t.id === id) || null;
 export { unitsByHoles };

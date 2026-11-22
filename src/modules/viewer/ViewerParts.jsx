@@ -307,7 +307,7 @@ export function ViewToolbar({
   );
 }
 // TASKS.csv #3908 — the Model menu: [guided tool id, label], in the order the Start here card lists them
-const GUIDED_MENU = [["start", "Start here"], ["cover", "Cover and weathering"], ["layers", "Rock layers"], ["bodies", "Intrusions and bodies"], ["veins", "Veins and dykes"], ["faults", "Faults"], ["grade", "Grade model"]];
+const GUIDED_MENU = [["start", "Start here"], ["cover", "Cover and weathering"], ["layers", "Rock layers"], ["bodies", "Intrusions and bodies"], ["veins", "Veins and dykes"], ["alteration", "Alteration halo"] /* TASKS.csv #4011 */, ["faults", "Faults"], ["grade", "Grade model"]];
 const popoverStyle = { position: "absolute", top: "calc(100% + 4px)", left: 0, width: 230, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 50 };
 const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: "var(--font-weight-title)" /* TASKS.csv #3892 */, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" };
 
