@@ -3077,7 +3077,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         <div key={i} style={{ marginBottom: 4, breakInside: "avoid" }}>
           <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}{opt.ramp.unit ? ` (${opt.ramp.unit})` : "" /* TASKS.csv #3529 */}{opt.ramp.log ? tr(" · log scale") : ""}</div>
           <div style={{ height: 10, width: 150, border: "1px solid #999", background: `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` }} />
-          <div style={{ display: "flex", justifyContent: "space-between", width: 152, fontSize: printPx(printPt.small), color: INK }}><span>{opt.ramp.minLabel}</span><span>{opt.ramp.maxLabel}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 6, minWidth: 152, width: "max-content", fontSize: printPx(printPt.small), color: INK }}><span>{opt.ramp.minLabel}</span><span>{opt.ramp.maxLabel}</span></div>{/* TASKS.csv #4010 — two long end labels never touch: a gap, and the row widens past the bar rather than overlap */}
         </div>
       ) : (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, breakInside: "avoid" /* #1480 — a row is never split between columns */ }}>

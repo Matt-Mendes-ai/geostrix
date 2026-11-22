@@ -75,6 +75,8 @@ export function legendScale(model, lo, hi, fmt = (x) => String(+Number(x).toPrec
 // kept when its measured box (centred on the tick) keeps `gap` px from the end labels and from the last label kept;
 // measure(text) -> px. The old rule guessed 6 px per character, which is right for "0" in Exo 2 but generous for
 // "1", and dropped "1000" on a 1-10,000 bar although it cleared "10000".
+// TASKS.csv #4010 — the min and max labels side by side under a bar of `width` px, with a gap: false when they would touch
+export const endLabelsFit = (minLabel, maxLabel, width, measure, gap = 6) => measure(minLabel) + measure(maxLabel) + gap <= width;
 export function rampTickLabels(ticks, minLabel, maxLabel, width, measure, gap = 3) {
   const left = measure(minLabel) + gap, right = width - measure(maxLabel) - gap;
   const kept = [];
