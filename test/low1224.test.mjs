@@ -22,7 +22,7 @@ test("#1217 Escape closes the task pane only after anything armed", () => {
   for (const earlier of ["[role=dialog]", "setContextMenu(null)", "setSectionMode(false)", "stopInterpret()", "setMeasureMode(null)"]) assert.ok(body.indexOf(earlier) >= 0 && body.indexOf(earlier) < body.indexOf("setToolPane(null)"), earlier);
 });
 test("#1202 a large model asks first; #1298 strip log codes are 10 px with a halo", () => {
-  assert.match(read("src/modules/GeophysicsModule.jsx"), /blocks > 500000 && !window\.confirm\(/);
+  assert.match(read("src/modules/GeophysicsModule.jsx"), /blocks > 500000 && !await askConfirm\(/);
   assert.match(read("src/components/StripLog.jsx"), /fontSize="10" textAnchor="middle" fill="#1a2028" stroke="#ffffff"/);
   assert.match(read("src/lib/striplogSvg.js"), /font-size="10" fill="#1a2028" stroke="#ffffff"/);
 });

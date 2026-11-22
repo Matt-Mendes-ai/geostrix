@@ -7,7 +7,7 @@ test("the four slips", () => {
   const r = fs.readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
   assert.ok(r.includes("useState(() => keptSourceEpsg)") && r.includes("keptSourceEpsg = sourceEpsg;"));
   assert.ok(r.includes('minWidth: 0, width: "100%" /* #2865'));
-  assert.ok(r.includes("if (sameRaster(raster, rasters) && !window.confirm("));
+  assert.ok(r.includes("if (sameRaster(raster, rasters) && !await askConfirm("));
   const g = fs.readFileSync(new URL("../src/components/GridContourControls.jsx", import.meta.url), "utf8");
   assert.ok(g.includes('tr("{name} contours ({levels}{unit})", { name: raster.name, levels: res.map((l) => l.level).join(", "), unit: unit ? ` ${unit}` : "" })'));
 });

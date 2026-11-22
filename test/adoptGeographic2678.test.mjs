@@ -11,16 +11,16 @@ const chooser = (asked, answer = true) => {
   return { f, set: () => set };
 };
 
-test("#2678 a 'lon / lat' tag on metres is not offered", () => {
+test("#2678 a 'lon / lat' tag on metres is not offered", async () => {
   const asked = [], c = chooser(asked);
-  assert.equal(c.f(4326, 3156, [385000, 6684000, 386000, 6685000]), 3156);
+  assert.equal(await c.f(4326, 3156, [385000, 6684000, 386000, 6685000]), 3156);
   assert.equal(asked.length, 0);
   assert.equal(c.set(), null);
 });
 
-test("#2678 a box in degrees is offered its place's metric CRS, never 4326", () => {
+test("#2678 a box in degrees is offered its place's metric CRS, never 4326", async () => {
   const asked = [], c = chooser(asked);
-  const d = c.f(4326, 3156, [121.7, -30.1, 121.9, -29.9]); // SYNTHETIC: WA goldfields
+  const d = await c.f(4326, 3156, [121.7, -30.1, 121.9, -29.9]); // SYNTHETIC: WA goldfields
   assert.equal(asked.length, 1);
   assert.match(asked[0], /latitude and longitude, which cannot be a project CRS/);
   assert.notEqual(d, 4326);
@@ -28,9 +28,9 @@ test("#2678 a box in degrees is offered its place's metric CRS, never 4326", () 
   assert.match(String(d), /^28351$|^7851$/); // MGA zone 51 (GDA94 or GDA2020)
 });
 
-test("#2678 a projected tag is asked as before; both raster paths pass the box", () => {
+test("#2678 a projected tag is asked as before; both raster paths pass the box", async () => {
   const asked = [], c = chooser(asked);
-  assert.equal(c.f(28351, 3156, [385000, 6684000, 386000, 6685000]), 28351);
+  assert.equal(await c.f(28351, 3156, [385000, 6684000, 386000, 6685000]), 28351);
   assert.match(asked[0], /OK — use EPSG:28351 as the project CRS/);
   const r = readFileSync(new URL("../src/lib/raster.js", import.meta.url), "utf8");
   assert.match(r, /chooseProjectEpsg\(epsgTag, targetEpsg, \[xmin, ymin, xmax, ymax\]\)/);

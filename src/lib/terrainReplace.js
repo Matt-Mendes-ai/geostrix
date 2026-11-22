@@ -2,6 +2,7 @@
 // stations' own elevations' replaced a 4.5 x 4 km collar terrain with a 2 x 2 km station grid and said 'Added the terrain'; the six
 // rasters draped on the old one moved to the new one. Every builder that replaces the terrain asks first and says what it replaced.
 import { t as tr } from "./i18n.js";
+import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
 
 // the question (null when there is no terrain to replace)
 export function replaceTerrainQuestion(current, name) {
@@ -11,9 +12,9 @@ export function replaceTerrainQuestion(current, name) {
 }
 
 // true when there is no terrain, or the user agreed to replace it
-export function confirmReplaceTerrain(current, name, confirmFn = (q) => window.confirm(q)) {
+export async function confirmReplaceTerrain(current, name, confirmFn = (q) => askConfirm(q)) {
   const q = replaceTerrainQuestion(current, name);
-  return q == null || !!confirmFn(q);
+  return q == null || !!(await confirmFn(q));
 }
 
 // the sentence that opens the result note when a terrain was replaced ("" otherwise)

@@ -6,8 +6,9 @@
 //   undoable: true  -> the confirm says Ctrl+Z restores it (kept for bulk wipes, where a slip is costly)
 //   undoable: false -> the confirm says it can't be undone, plus what it would take to get it back
 import { t as tr } from "./i18n.js"; // TASKS.csv #786
+import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957 — an in-app dialog, not the native box: the answer is a promise, callers await it
 export const UNDO_HINT = "You can undo this with Ctrl+Z.";
-export function confirmDestructive(question, { undoable = false, recover = "" } = {}) {
+export async function confirmDestructive(question, { undoable = false, recover = "" } = {}) {
   const tail = undoable ? tr(UNDO_HINT) : recover ? tr("This can't be undone — {recover}", { recover }) : tr("This can't be undone.");
-  return window.confirm(`${question} ${tail}`);
+  return askConfirm(`${question} ${tail}`, { destructive: true });
 }

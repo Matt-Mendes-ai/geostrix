@@ -34,6 +34,7 @@ import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationConsts.js"; // TASKS.csv #1970; estimationConsts: #3961
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles, setLithologyMeanings } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
 import { titleToKeep, withProjectTitle } from "./projectTitle.js"; // TASKS.csv #3611 / #3612 — the project's title, apart from its file's name
+import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -1302,7 +1303,7 @@ export function StoreProvider({ children }) {
   const answerSaveChoice = useCallback((choice) => { const r = saveChoiceResolveRef.current; saveChoiceResolveRef.current = null; setSaveChoice(null); r?.(choice); }, []);
   const saveProject = useLatestCallback(async ({ saveAs = false } = {}) => {
     // TASKS.csv #342 — last chance before an older build overwrites fields it can't see.
-    if (newerFormatTabsRef.current.has(activeTabId) && !window.confirm(tr("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?"))) return { ok: false, cancelled: true };
+    if (newerFormatTabsRef.current.has(activeTabId) && !await askConfirm(tr("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?"))) return { ok: false, cancelled: true };
     // TASKS.csv #467 — a failed save (disk full, no permission, OneDrive lock, a project too big to
     // serialise) used to be an unhandled rejection whose only sign was a missing "Saved". It now returns
     // {ok:false, error} for the caller to show; nothing about the open project changes.
@@ -1498,7 +1499,7 @@ export function StoreProvider({ children }) {
       performance.measure?.("GeoStrix: project JSON.parse", { start: tParse, detail: { bytes: res.content.length } });
       const check = checkProjectFile(data); // TASKS.csv #342
       if (!check.ok) return { ok: false, error: check.error };
-      if (check.newer && !window.confirm(tr("This project was saved by a newer GeoStrix (file format {newer}; this version reads up to {reads}). What that version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
+      if (check.newer && !await askConfirm(tr("This project was saved by a newer GeoStrix (file format {newer}; this version reads up to {reads}). What that version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
       data = await expandPayloadSliced(data); // TASKS.csv #3423 — the column tables built into rows a slice at a time (one 1.4-1.9 s task before), before anything changes
       const current = snapshotCurrentPayload();
       const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -1533,12 +1534,12 @@ export function StoreProvider({ children }) {
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't
   // built to represent.
-  const closeWorkspaceTab = useLatestCallback((tabId) => {
+  const closeWorkspaceTab = useLatestCallback(async (tabId) => {
     const tab = workspaceTabs.find((t) => t.id === tabId);
     if (!tab) return;
     if (tabId === activeTabId && !sectionWindowsMayClose()) return; // #2620 — closing the shown project closes its section windows
     const dirty = tabId === activeTabId ? activeTabDirty : tab.dirty;
-    if (dirty && !window.confirm(tr("Close \"{name}\" without saving? Unsaved changes will be lost.", { name: tabId === activeTabId ? project.name : tab.name }))) return;
+    if (dirty && !await askConfirm(tr("Close \"{name}\" without saving? Unsaved changes will be lost.", { name: tabId === activeTabId ? project.name : tab.name }))) return;
     const remaining = workspaceTabs.filter((t) => t.id !== tabId);
     if (tabId !== activeTabId) { setWorkspaceTabs(remaining); return; }
     if (!remaining.length) {

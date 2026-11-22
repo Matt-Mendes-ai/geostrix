@@ -179,7 +179,7 @@ export default function FdemPane({ layers, setLayers, geophysSurveys, updateGeop
       const declared = sv?.epsg || inv?.epsg || (raw?.readings.lat ? 4326 : null);
       if (declared) {
         const r = raw?.readings, at = declared === 4326 && r ? { lon: r.lon.find(Number.isFinite), lat: r.lat.find(Number.isFinite) } : null;
-        const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: target, declaredEpsg: declared, fileName: files[0].name, at });
+        const adopted = await askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: target, declaredEpsg: declared, fileName: files[0].name, at });
         if (adopted) { setEpsg(adopted); target = adopted; }
       }
       const placeStations = (o) => { if (!o) return o; const p = place(o.stations.x, o.stations.y, o.epsg, target); return { ...o, stations: { ...o.stations, x: p.map((q) => q[0]), y: p.map((q) => q[1]) } }; };

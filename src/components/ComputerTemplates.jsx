@@ -35,7 +35,7 @@ export default function ComputerTemplates({ onLoad, refreshKey = 0, onMessage })
           <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }}
             aria-label={tr("Delete the template \"{name}\" from this computer", { name: t.name })} title={tr("Delete the template \"{name}\" from this computer", { name: t.name })}
             onClick={async () => {
-              if (!confirmDestructive(tr("Delete the template \"{name}\" from this computer? Every project loses it.", { name: t.name }))) return;
+              if (!await confirmDestructive(tr("Delete the template \"{name}\" from this computer? Every project loses it.", { name: t.name }))) return;
               const r = await removeComputerTemplate(t.id);
               if (!r.ok) onMessage?.(r.error);
               setVer((v) => v + 1);

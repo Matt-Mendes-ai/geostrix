@@ -32,6 +32,7 @@ import { topCutCells, topCutRecord } from "../lib/topCutCells.js";
 import { stopeEconomicsSetup, stopeValue, stopeValueCells, NOT_INCLUDED } from "../lib/stopeEconomics.js"; // TASKS.csv #3797 — the optional economics
 import { currencyOf, withCurrency, moneyText } from "../lib/currency.js"; // TASKS.csv #3797 (b)
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
@@ -90,7 +91,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const run = async () => {
     if (missing || busy) return;
     // #2279 — a level interval under the block height, said BEFORE the run (it came after a 3 s run)
-    if (blockH > 0 && v("levelH") < blockH - 1e-9 && !window.confirm(tr("Levels under {h} m are slices of the same block: the per-level figures repeat.", { h: blockH }) + " " + tr("Outline anyway?"))) return;
+    if (blockH > 0 && v("levelH") < blockH - 1e-9 && !await askConfirm(tr("Levels under {h} m are slices of the same block: the per-level figures repeat.", { h: blockH }) + " " + tr("Outline anyway?"))) return;
     const t0 = performance.now();
     // TASKS.csv #1964 — the pit as a ceiling sampled on the model's own columns over the pit's footprint
     let ceilingAt = null;
@@ -305,8 +306,8 @@ function StopesInProject({ stopes, saved = [], onAdd = null, strings, onShow, on
   };
   if ((!runs.length && !last) || !onRemoveMany) return null;
   const total = stopes.length, allStrings = stopeStringIds(strings);
-  const drop = (ids, stringIds, text) => {
-    if (!window.confirm(text)) return;
+  const drop = async (ids, stringIds, text) => {
+    if (!await askConfirm(text)) return;
     const idSet = new Set(ids), gone = new Set(stringIds);
     setLast({ surfaces: saved.filter((g) => idSet.has(g.id)), strings: strings.filter((s) => gone.has(s.id)) });
     onRemoveMany(ids); onRemoved?.(ids);

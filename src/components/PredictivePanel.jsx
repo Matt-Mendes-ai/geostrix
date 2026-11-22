@@ -16,6 +16,7 @@ import { checkBlocks, blockPoints, blockCells } from "../lib/geomlClip.js"; // T
 import { errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #739
 import { percentileSorted } from "../lib/arrayStats.js"; // TASKS.csv #740
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #638 — the Predictive tab (Matt: "a predictive modelling tab that will also do all modelling, but with its own
 // geoML tools. That way I can compare both models in app"). It drives the optional geoML add-on (addons/geoml, GPL-3.0):
@@ -392,7 +393,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
             </div>
           )}
 
-          {!st.dev && <button type="button" style={{ ...btn(false, !!job), fontSize: "var(--font-size-sm)" }} disabled={!!job} onClick={async () => { if (window.confirm(tr("Remove the predictive-modelling add-on from this computer? Models already in your project stay."))) { await addonUninstall(); refresh(); } }}>{tr("Remove the add-on")}</button>}
+          {!st.dev && <button type="button" style={{ ...btn(false, !!job), fontSize: "var(--font-size-sm)" }} disabled={!!job} onClick={async () => { if (await askConfirm(tr("Remove the predictive-modelling add-on from this computer? Models already in your project stay."))) { await addonUninstall(); refresh(); } }}>{tr("Remove the add-on")}</button>}
         </>
       )}
     </div>

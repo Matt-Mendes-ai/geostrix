@@ -7,6 +7,7 @@ import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { compileCalc } from "../lib/calcExpr.js"; // TASKS.csv #344
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #222 (QGIS-specialist audit finding: 652ms open + 702ms per-keystroke search block on a
 // 200-hole/8000-interval project, hard 500-row cap with no paging) — two separate fixes. (1) row
@@ -84,7 +85,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
   };
   const save = () => { onSave(working); setDirty(false); };
 
-  const runCalc = () => {
+  const runCalc = async () => {
     const field = calcField.trim();
     if (!field) { setCalcError(tr("Field name is required.")); return; }
     if (field.startsWith("_")) { setCalcError(tr("Field names starting with \"_\" are reserved.")); return; }
@@ -98,7 +99,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
       const exists = columns.includes(field);
       if (exists) {
         const n = working.filter((r, i) => (!targets || targets.has(i)) && r[field] != null && r[field] !== "").length;
-        if (n && !window.confirm(tr("\"{field}\" already exists and {n} of the {v} row(s) being calculated have a value in it.\n\nOK — overwrite them with the formula's results{v2}.\nCancel — change nothing.", { field, n, v: targets ? targets.size : working.length, v2: calcKeepExisting ? tr(" (a row whose result is blank keeps its value)") : tr(" (a blank result BLANKS the row)") }))) return;
+        if (n && !await askConfirm(tr("\"{field}\" already exists and {n} of the {v} row(s) being calculated have a value in it.\n\nOK — overwrite them with the formula's results{v2}.\nCancel — change nothing.", { field, n, v: targets ? targets.size : working.length, v2: calcKeepExisting ? tr(" (a row whose result is blank keeps its value)") : tr(" (a blank result BLANKS the row)") }))) return;
       }
       let changed = 0, blank = 0;
       const next = working.map((r, i) => {

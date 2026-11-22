@@ -128,7 +128,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
       const d = readTemText(await file.text(), file.name);
       // positions into the project CRS: a Workbench file's own EPSG; a Geosoft .xyz or CSV's X / Y are taken as the project's
       let target = project?.epsg;
-      if (d.epsg) { const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: target, declaredEpsg: d.epsg, fileName: file.name }); if (adopted) { setEpsg(adopted); target = adopted; } }
+      if (d.epsg) { const adopted = await askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: target, declaredEpsg: d.epsg, fileName: file.name }); if (adopted) { setEpsg(adopted); target = adopted; } }
       if (d.epsg && target && Number(d.epsg) !== Number(target)) {
         for (let i = 0; i < d.n; i++) { const q = reprojectXY(d.x[i], d.y[i], d.epsg, target); d.x[i] = q ? q.x : NaN; d.y[i] = q ? q.y : NaN; }
       }

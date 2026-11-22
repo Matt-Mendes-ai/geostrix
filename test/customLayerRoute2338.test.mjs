@@ -27,5 +27,5 @@ test("the commit, the dialog's name field and the trash icon", () => {
   const d = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
   assert.match(d, /customName: e\.target\.value/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /iconAction\(\(\) => \{ if \(confirmDestructive\(tr\("Remove the custom layer/);
+  assert.match(v, /iconAction\(async \(\) => \{ if \(await confirmDestructive\(tr\("Remove the custom layer/);
 });

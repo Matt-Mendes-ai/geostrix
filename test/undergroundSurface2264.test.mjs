@@ -21,7 +21,7 @@ test("#2264 the flat elevation: the highest collar when the collars look undergr
 
 test("#2265 Subcrop from collars asks on an underground project and is named for what it is; Unknown is cover", () => {
   const s = read("src/components/SurfaceMappingPanel.jsx");
-  assert.match(s, /if \(ug\.underground && !window\.confirm\(tr\("The collars look underground/);
+  assert.match(s, /if \(ug\.underground && !await askConfirm\(tr\("The collars look underground/);
   assert.match(s, /const base = (depth != null \? tr\("Units \{d\} m down the holes", \{ d: depth \}\) \/\* #3378[^*]*\*\/ : )?ug\.underground \? tr\("Units at the collars"\) : tr\("Subcrop from collars"\);/);
   assert.equal(roleForLithology("Unknown"), "no recovery");
 });

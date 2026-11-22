@@ -19,6 +19,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 import { requestCollarZFromTerrain } from "../lib/collarTerrainRequests.js"; // TASKS.csv #3955
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv #222 — a real project's QC pass can run into the thousands of issues (measured: 26,762 DOM
 // nodes at 3000 synthetic issues, 12,819 on the real 37-hole Harry property set's own 1483 issues) with
@@ -71,9 +72,9 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
   useEffect(() => { const f = requestAnimationFrame(() => check()); return () => cancelAnimationFrame(f); }, []); // after a frame: painted first
   const result = ran || NOT_YET;
   const terrainOff = useMemo(() => (terrain ? collarTerrainOffsets(collars, terrain).filter((o) => Math.abs(o.dz) > (Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15)) : []), [collars, terrain, terrainThreshold]);
-  const snapToTerrain = () => {
+  const snapToTerrain = async () => {
     if (!terrainOff.length) return;
-    if (!window.confirm(tr("Set the elevation of {terrainOff} collar(s) to the terrain \"{v}\" (worst: {hole_id}, {v2}{dz} m)?\n\nEach keeps its old elevation in \"z_before_snap\". Ctrl+Z undoes it.", { terrainOff: terrainOff.length, v: terrain.name || "DEM", hole_id: terrainOff[0].hole_id, v2: terrainOff[0].dz > 0 ? "+" : "", dz: terrainOff[0].dz.toFixed(1) }))) return;
+    if (!await askConfirm(tr("Set the elevation of {terrainOff} collar(s) to the terrain \"{v}\" (worst: {hole_id}, {v2}{dz} m)?\n\nEach keeps its old elevation in \"z_before_snap\". Ctrl+Z undoes it.", { terrainOff: terrainOff.length, v: terrain.name || "DEM", hole_id: terrainOff[0].hole_id, v2: terrainOff[0].dz > 0 ? "+" : "", dz: terrainOff[0].dz.toFixed(1) }))) return;
     const byId = new Map(terrainOff.map((o) => [o.hole_id, o]));
     setCollars((prev) => prev.map((c) => (byId.has(c.hole_id) ? { ...c, z_before_snap: c.z, z: Math.round(byId.get(c.hole_id).dem * 100) / 100, z_source: `terrain: ${terrain.name || "DEM"}` } : c)));
     rerunAfterSnap.current = true; // re-run once the new collars are in (an immediate re-run saw the old ones)
