@@ -83,7 +83,7 @@ test("#3888 App mounts it: at launch after the recovery check and the launch fil
   const app = read("../src/App.jsx");
   assert.match(app, /recoveryCheck\(\)\.then\(\(r\) => new Promise\(\(ok\) => setTimeout\(\(\) => ok\(r\), LAUNCH_SETTLE_MS\)\)\)\.then\(\(r\) => \{/);
   assert.match(app, /shouldShowStart\(\{ reason: "launch", empty: l\.empty, optedOut: startOptedOut\(\), recoveryOffered: !!r, openedFile: !!l\.tab\?\.filePath \}\)/);
-  assert.match(app, /newWorkspaceTab\(\);\n    setStartDialog\(\{ reason: "new" \}\);/);
+  assert.match(app, /if \(\(await newWorkspaceTab\(\)\) === false\) return;[^\n]*\n    setStartDialog\(\{ reason: "new" \}\);/);
   assert.match(app, /useModuleAction\(\["open-start-dialog"\], \(\) => setStartDialog\(\{ reason: "button" \}\)\);/);
   assert.match(app, /else if \(startTab\.current !== activeTabId\) setStartDialog\(null\);/);
   assert.match(read("../src/modules/viewer/EmptyViewerBody.jsx"), /onClick=\{\(\) => requestModuleAction\("open-start-dialog"\)\}/);

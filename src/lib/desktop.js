@@ -85,8 +85,9 @@ export async function openFile({ filters } = {}) {
 
 // TASKS.csv #2516 — every section pop-out closes when another project is loaded (the browser fallback's tabs cannot be closed from here)
 // TASKS.csv #2620 — asked before anything replaces the project: false when a section has unsaved lines and the user kept them
-export function sectionWindowsMayClose() {
-  try { return d?.sectionWindowsMayClose ? d.sectionWindowsMayClose() !== false : true; } catch { return true; }
+// TASKS.csv #4000 — async: the question is asked in the app's own dialog (the main process answers when the person has), not in a blocking OS box
+export async function sectionWindowsMayClose() {
+  try { return d?.sectionWindowsMayClose ? (await d.sectionWindowsMayClose()) !== false : true; } catch { return true; }
 }
 export async function closeSectionWindows() {
   if (d?.closeSectionWindows) return d.closeSectionWindows();
