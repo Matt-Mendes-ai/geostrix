@@ -8,7 +8,20 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, session, shell, protocol, cli
 // event. Fixed at the source (see mainWindow.on("close", ...) below) with a real, always-visible native
 // confirm dialog instead, driven by a dirty-state flag the renderer now pushes over IPC.
 let rendererDirty = false;
+// TASKS.csv #3995 — the three questions the main process asks the person (install an update with unsaved work, quit without saving, close section windows with unsaved lines) are put in the
+// window's in-app dialog (electron/mainAsk.js: an IPC round trip), and in the OS box only when the window cannot answer (hung, gone, no dialog host): quitting a hung app still works.
+// STAY NATIVE ON PURPOSE (each says why where it is): the crashed renderer ('GeoStrix stopped': nothing in-app can draw), a network folder (\\host may be sent sign-in details), an AI app's
+// request to read / change the project and its download request (security questions: an OS dialog cannot be drawn, clicked or answered by page content or a script in the renderer, which is the
+// point of asking there), and the synchronous 'may-close-section-windows' check a project load makes (the window is blocked in that call, so only an OS box can be shown).
+const nativeAsk = async (win, spec) => {
+  const i = (v) => spec.buttons.findIndex((b) => b.value === v);
+  const r = await dialog.showMessageBox(win && !win.isDestroyed() ? win : undefined, { type: "warning", title: spec.title, message: spec.message, detail: spec.detail || undefined, noLink: true,
+    buttons: spec.buttons.map((b) => b.label), defaultId: Math.max(0, spec.buttons.findIndex((b) => b.primary)), cancelId: Math.max(0, i(spec.cancelValue)) });
+  return spec.buttons[r.response]?.value ?? spec.cancelValue;
+};
+const askRenderer = createAsker({ ipc: ipcMain, nativeAsk });
 const path = require("path");
+const { createAsker } = require("./mainAsk.js"); // TASKS.csv #3995 — the main process's questions in the window's own dialog, native when it cannot answer
 const fs = require("fs");
 const dns = require("dns");
 const { spawn } = require("child_process");
@@ -342,16 +355,13 @@ ipcMain.handle("updater-download", async () => {
 // disarmed (rendererDirty cleared) and the Python engine stopped first so no job is cut mid-write.
 ipcMain.handle("updater-install", async () => {
   if (rendererDirty && mainWindow && !mainWindow.isDestroyed()) {
-    const { response } = await dialog.showMessageBox(mainWindow, {
-      type: "warning",
-      buttons: ["Cancel — I'll save first", "Install without saving"],
-      defaultId: 0,
-      cancelId: 0,
+    const answer = await askRenderer(mainWindow, { // #3995 — in the window's own dialog; the OS box when it cannot answer
       title: "Unsaved changes",
       message: "Save your project before installing the update.",
       detail: "Installing closes GeoStrix straight away. Unsaved changes since the last save would be lost (autosave may not have them). Save with Ctrl+S, then click \"Restart & install\" again.",
+      buttons: [{ label: "Cancel — I'll save first", value: "cancel", primary: true }, { label: "Install without saving", value: "install" }], cancelValue: "cancel",
     });
-    if (response !== 1) return { ok: false, cancelled: true };
+    if (answer !== "install") return { ok: false, cancelled: true };
   }
   rendererDirty = false; // the close guard must not re-ask while the installer is closing the app
   try { stopPythonSidecar(); } catch (_) { /* best effort */ }
@@ -428,6 +438,7 @@ function createMainWindow() {
   mainWindow.webContents.on("render-process-gone", (_e, details) => {
     if (!details || details.reason === "clean-exit") return;
     mcpLost("crashed"); // #3992
+    // TASKS.csv #3995 — NATIVE ON PURPOSE: the renderer is gone, so nothing in-app can show this question
     const choice = dialog.showMessageBoxSync(mainWindow, {
       type: "error", buttons: ["Reload", "Close GeoStrix"], defaultId: 0, cancelId: 1, title: "GeoStrix stopped",
       message: "The GeoStrix window stopped working (" + details.reason + ").",
@@ -439,25 +450,35 @@ function createMainWindow() {
   // See the top-of-file comment on rendererDirty for why this exists: intercepts the window close
   // (triggered by the X button, File > Exit, Cmd/Ctrl+Q, or app.quit() from anywhere) and shows a real
   // dialog when there are unsaved changes, instead of relying on beforeunload's silent-no-op-in-Electron
-  // behavior. showMessageBoxSync blocks the main process until answered, so this can't race with
-  // anything else trying to quit at the same time. Clicking "Quit Without Saving" clears the flag and
-  // re-issues close() — the listener sees rendererDirty is now false and lets the close proceed normally.
+  // behavior. Until #3995 that dialog was showMessageBoxSync (blocking); it is asked in the window now (below), one question at a time.
+  // Clicking "Quit Without Saving" clears the flag and re-issues close() — the listener lets that one through.
+  // TASKS.csv #3995 — the questions are asked in the window's own dialog (askRenderer), so the close is held (preventDefault) and finished when the answers are in; one set of questions at a time,
+  // and a close the person has confirmed is let through the listener when it is re-issued.
+  let closeAsking = false, closeConfirmed = false;
   mainWindow.on("close", (e) => {
-    if (!rendererDirty) { if (!mayCloseSections(mainWindow, [...sectionTabs.keys()])) e.preventDefault(); return; } // #1323 — section windows close with this one
+    if (closeConfirmed) return;
+    if (!rendererDirty && ![...sectionTabs.keys()].some((id) => sectionUnsaved.has(id))) return; // nothing to ask: it closes as it is
     e.preventDefault();
-    const choice = dialog.showMessageBoxSync(mainWindow, {
-      type: "warning",
-      buttons: ["Quit Without Saving", "Cancel"],
-      defaultId: 1,
-      cancelId: 1,
-      title: "Unsaved changes",
-      message: "This project has unsaved changes.",
-      detail: "Autosave keeps a periodic snapshot, but it may not include your most recent edits. Quit anyway?",
-    });
-    if (choice === 0) {
-      rendererDirty = false;
-      mainWindow.close();
-    }
+    if (closeAsking) return; // a second click on the X while the question is up
+    closeAsking = true;
+    (async () => {
+      try {
+        if (rendererDirty) {
+          const answer = await askRenderer(mainWindow, {
+            title: "Unsaved changes",
+            message: "This project has unsaved changes.",
+            detail: "Autosave keeps a periodic snapshot, but it may not include your most recent edits. Quit anyway?",
+            buttons: [{ label: "Quit Without Saving", value: "quit" }, { label: "Cancel", value: "cancel", primary: true }], cancelValue: "cancel",
+          });
+          if (answer !== "quit") return;
+          rendererDirty = false;
+        }
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        if (!(await mayCloseSectionsAsk(mainWindow, [...sectionTabs.keys()]))) return; // #1323 — section windows close with this one
+        closeConfirmed = true;
+        mainWindow.close();
+      } finally { closeAsking = false; closeConfirmed = false; }
+    })();
   });
   mainWindow.on("closed", () => {
     mcpLost("closed"); // #3992
@@ -574,11 +595,23 @@ const sectionHosts = new Set(); // every section window, oldest first: new secti
 // TASKS.csv #1323 — sections with lines not saved yet, and the question in the interface's language (the main process has no translations of its own)
 const sectionUnsaved = new Set();
 let sectionUnsavedText = { title: "Unsaved lines", message: "Some lines on this section have not been saved.", detail: "Save contacts keeps them. If you close now, they are lost.", close: "Close without saving", cancel: "Cancel" };
+// #3995 — the same question in the window's own dialog (the section window's, or the main window's): true when these sections may close
+async function mayCloseSectionsAsk(win, ids) {
+  const at = ids.filter((id) => sectionUnsaved.has(id));
+  if (!at.length) return true;
+  const t = sectionUnsavedText;
+  const answer = await askRenderer(win, { title: t.title, message: at.length > 1 ? `${t.message} (${at.length})` : t.message, detail: t.detail, buttons: [{ label: t.close, value: "close" }, { label: t.cancel, value: "cancel", primary: true }], cancelValue: "cancel" });
+  if (answer !== "close") return false;
+  at.forEach((id) => sectionUnsaved.delete(id));
+  return true;
+}
 ipcMain.on("section-tab-unsaved", (_e, id, unsaved, text) => {
   if (unsaved) sectionUnsaved.add(id); else sectionUnsaved.delete(id);
   if (text && Object.keys(sectionUnsavedText).every((k) => typeof text[k] === "string")) sectionUnsavedText = { title: text.title, message: text.message, detail: text.detail, close: text.close, cancel: text.cancel };
 });
 // true when these sections may close: none has unsaved lines, or the person said to lose them
+// TASKS.csv #3995 — NATIVE ON PURPOSE, for the one caller left: the SYNCHRONOUS check a project load makes (ipcMain 'may-close-section-windows' below), where the window that asks is blocked in the call and can
+// show nothing; the closes of the main window and of a section window ask in the window's own dialog (mayCloseSectionsAsk)
 function mayCloseSections(win, ids) {
   const at = ids.filter((id) => sectionUnsaved.has(id));
   if (!at.length) return true;
@@ -628,7 +661,16 @@ function createSectionHost(title) {
   sectionHosts.add(win);
   win.on("resize", () => { if (!win.isMaximized() && !win.isMinimized() && !win.isFullScreen()) { const [width, height] = win.getSize(); lastSectionSize = { width, height }; } }); // #3574
   win.loadURL(resolveUrl("/section"));
-  win.on("close", (e) => { if (!mayCloseSections(win, [...sectionTabs].filter(([, w]) => w === win).map(([id]) => id))) e.preventDefault(); }); // #1323
+  let sectionCloseAsking = false, sectionCloseConfirmed = false; // #3995 — asked in the section window's own dialog, so the close is held and re-issued once confirmed
+  win.on("close", (e) => {
+    if (sectionCloseConfirmed) return;
+    const ids = [...sectionTabs].filter(([, w]) => w === win).map(([id]) => id);
+    if (!ids.some((id) => sectionUnsaved.has(id))) return; // nothing to ask: it closes as it is
+    e.preventDefault();
+    if (sectionCloseAsking) return;
+    sectionCloseAsking = true;
+    mayCloseSectionsAsk(win, ids).then((ok) => { if (ok && !win.isDestroyed()) { sectionCloseConfirmed = true; win.close(); } }).finally(() => { sectionCloseAsking = false; sectionCloseConfirmed = false; }); // #1323
+  });
   win.on("closed", () => {
     sectionHosts.delete(win);
     for (const [id, w] of sectionTabs) if (w === win) { sectionTabs.delete(id); sectionPayloads.delete(id); sectionUnsaved.delete(id); }
@@ -1273,6 +1315,7 @@ async function allowNetworkPath(p) {
   if (!isUncPath(p)) return true;
   const host = String(p).replace(/^[\\/]+/, "").split(/[\\/]/)[0].toLowerCase();
   if (approvedShareHosts.has(host)) return true;
+  // TASKS.csv #3995 — NATIVE ON PURPOSE: opening \\host may send the person's Windows sign-in details to that computer, so the question is an OS dialog that a page cannot draw or click for them
   const { response } = await dialog.showMessageBox(mainWindow, {
     type: "question", buttons: ["Open", "Cancel"], defaultId: 1, cancelId: 1, noLink: true,
     title: "Network folder", message: `Open the network location \\\\${host}?`,
@@ -1756,6 +1799,8 @@ function writePrefs(patch) { try { fs.writeFileSync(prefsPath(), JSON.stringify(
 
 // TASKS.csv #3190 (Matt's decisions, 2026-11-17) — AI App Access: an optional, local, read-only Model Context Protocol server (electron/mcpHost.js), off until the user switches it on, with a
 // per-launch token on a named pipe / Unix socket (no TCP port) and the first connection of each AI app asked here, in a native box the window cannot answer.
+// TASKS.csv #3995 — the two questions below (allow an AI app to read / change the project, allow its download) are asked in an OS box ON PURPOSE, not the in-app dialog: they are security questions,
+// and an OS dialog cannot be drawn, clicked or answered by page content or by a script running in the renderer, which is the whole point of asking there.
 let mcpHost = null, mcpAsk = Promise.resolve();
 function mcp() {
   if (mcpHost) return mcpHost;

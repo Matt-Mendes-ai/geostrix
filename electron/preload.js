@@ -95,6 +95,10 @@ contextBridge.exposeInMainWorld("desktop", {
   mcpConfig: () => ipcRenderer.invoke("mcp-config"),
   mcpRespond: (id, payload) => ipcRenderer.send("mcp-respond", { id, payload }),
   onMcpStatus: (cb) => { const h = (_e, s) => cb(s); ipcRenderer.on("mcp-status", h); return () => ipcRenderer.removeListener("mcp-status", h); },
+  // TASKS.csv #3995 — a question the main process asks in the window's own dialog (electron/mainAsk.js); onAsk(req), onCancel(id)
+  onMainAsk: (onAsk, onCancel) => { const a = (_e, r) => onAsk(r), c = (_e, id) => onCancel?.(id); ipcRenderer.on("main-ask", a); ipcRenderer.on("main-ask-cancel", c); return () => { ipcRenderer.removeListener("main-ask", a); ipcRenderer.removeListener("main-ask-cancel", c); }; },
+  mainAskAck: (id) => ipcRenderer.send("main-ask-ack", id),
+  mainAskAnswer: (id, value) => ipcRenderer.send("main-ask-answer", id, value),
   onMcpRequest: (cb) => { const h = (_e, r) => cb(r); ipcRenderer.on("mcp-request", h); return () => ipcRenderer.removeListener("mcp-request", h); },
   takeLaunchFile: () => ipcRenderer.invoke("take-launch-file"), // TASKS.csv #914
   onLaunchFile: (cb) => { const h = () => cb(); ipcRenderer.on("launch-file", h); return () => ipcRenderer.removeListener("launch-file", h); },

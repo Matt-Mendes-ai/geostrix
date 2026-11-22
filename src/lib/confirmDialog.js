@@ -23,10 +23,19 @@ export function askConfirm(message, { okLabel = "OK", cancelLabel = "Cancel", de
 }
 // TASKS.csv #3994 — a question with more than two answers (the stack's order: Use the holes' order / Run as it is / Cancel). choices: [{ label, value, primary? }] in the order drawn,
 // left to right; the primary one has the focus. -> the value of the button clicked, or null for Escape / a click outside (the caller treats null as Cancel)
-export function askChoice(message, choices) {
+// signal (an AbortSignal, TASKS.csv #3995): aborted, the question is taken down and answers null (the main process asked natively instead)
+export function askChoice(message, choices, { signal } = {}) {
   if (typeof window === "undefined") return Promise.resolve(null);
   hostMayAppear();
-  return new Promise((resolve) => post({ kind: "choice", message: String(message ?? ""), choices: (choices || []).map((c) => ({ label: String(c.label), value: c.value, primary: !!c.primary })), resolve }));
+  return new Promise((resolve) => {
+    const req = { kind: "choice", message: String(message ?? ""), choices: (choices || []).map((c) => ({ label: String(c.label), value: c.value, primary: !!c.primary })), resolve };
+    if (signal) {
+      const gone = () => { const i = S.waiting.indexOf(req); if (i >= 0) S.waiting.splice(i, 1); req.onGone?.(); resolve(null); };
+      if (signal.aborted) return gone();
+      signal.addEventListener("abort", gone, { once: true });
+    }
+    post(req);
+  });
 }
 export function askAlert(message) {
   if (typeof window === "undefined") return Promise.resolve();

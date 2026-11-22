@@ -14780,5 +14780,12 @@
   "{unit} down {n}": "{unit} desce {n}",
   "{unit} up {n}": "{unit} sobe {n}",
   "Run as it is": "Executar como está",
-  "Use the holes' order": "Usar a ordem dos furos"
+  "Use the holes' order": "Usar a ordem dos furos",
+  "Save your project before installing the update.": "Salve o projeto antes de instalar a atualização.",
+  "Installing closes GeoStrix straight away. Unsaved changes since the last save would be lost (autosave may not have them). Save with Ctrl+S, then click \"Restart & install\" again.": "A instalação fecha o GeoStrix imediatamente. As alterações não salvas desde o último salvamento seriam perdidas (o salvamento automático pode não tê-las). Salve com Ctrl+S e clique em \"Reiniciar e instalar\" de novo.",
+  "Cancel — I'll save first": "Cancelar — vou salvar primeiro",
+  "Install without saving": "Instalar sem salvar",
+  "This project has unsaved changes.": "Este projeto tem alterações não salvas.",
+  "Autosave keeps a periodic snapshot, but it may not include your most recent edits. Quit anyway?": "O salvamento automático guarda uma cópia periódica, mas pode não incluir as suas edições mais recentes. Sair mesmo assim?",
+  "Quit Without Saving": "Sair sem salvar"
 }
