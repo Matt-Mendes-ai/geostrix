@@ -10,7 +10,7 @@ import { MAX_BARS } from "./traceBarsData.js";
 export const customStyleKey = (id) => `custom:${id}`;
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const p98 = (vals) => { if (!vals.length) return NaN; vals.sort((a, b) => a - b); return vals[Math.min(vals.length - 1, Math.round(0.98 * (vals.length - 1)))]; };
-const intervalRows = (layer) => { const out = []; for (const r of rowsOf(layer?.rows) || []) { const f = num(r.from), t = num(r.to), v = num(r.value); if (Number.isFinite(f) && Number.isFinite(t) && t > f && Number.isFinite(v)) out.push({ hole_id: r.hole_id, from: f, to: t, v }); } return out; };
+export const intervalRows = (layer) => { const out = []; for (const r of rowsOf(layer?.rows) || []) { const f = num(r.from), t = num(r.to), v = num(r.value); if (Number.isFinite(f) && Number.isFinite(t) && t > f && Number.isFinite(v)) out.push({ hole_id: r.hole_id, from: f, to: t, v }); } return out; };
 
 // the custom layers a Bars chooser can list: numeric, with interval rows -> [{ id, label, unit }]
 export function numericCustomChoices(customLayers) {
