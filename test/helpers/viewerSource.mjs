@@ -2,4 +2,5 @@
 // src/lib/viewer/protos.js: a source pin on that code reads the three files as one text, ViewerModule first.
 import { readFileSync } from "node:fs";
 const read = (p) => readFileSync(new URL("../../" + p, import.meta.url), "utf8");
-export const viewerSource = () => ["src/modules/ViewerModule.jsx", "src/modules/viewer/drillholeScene.js", "src/lib/viewer/protos.js"].map(read).join("\n").replace(/\r\n/g, "\n"); // LF, as the pins expect
+// TASKS.csv #3996 — and the parts moved out at the size cap: the section payload, the solid import, the surface export
+export const viewerSource = () => ["src/modules/ViewerModule.jsx", "src/modules/viewer/drillholeScene.js", "src/lib/viewer/protos.js", "src/modules/viewer/sectionPayload.js", "src/modules/viewer/importSolid.js", "src/modules/viewer/exportSurface.js"].map(read).join("\n").replace(/\r\n/g, "\n"); // LF, as the pins expect

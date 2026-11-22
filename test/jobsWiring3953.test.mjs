@@ -84,8 +84,8 @@ test("terrain and imagery fetches, an imported solid, the mine design panes: lan
   landsBefore("terrain fetch", gm.replace(/return await runSrtmFetch\([^\n]*\n/, "\n"), { start: "const job = beginJob(tr(\"Terrain\"));", land: "if (!(await landed(job))) return;", deliver: "const terrainId = addTerrain(" });
   assert.match(gm, /job\.end\(\); \/\/ TASKS\.csv #3953 — the fetch in the new zone is a job of its own\n(\s+bar\.end\(\);[^\n]*\n)?\s+return await runSrtmFetch\(/ /* bar: #3976 — and its own progress bar */);
   landsBefore("satellite image", rm, { start: "const job = beginJob(tr(\"Imagery\"));", land: "if (!(await landed(job))) return;", deliver: "addedIds.push(addRaster(" });
-  landsBefore("imported solid", vm, { from: vm.indexOf("const importSolidFile = "), start: "const job = startProjectJob?.({ label: file.name }) || null;", land: "if (!(await landed(job))) return;", deliver: "implicitGroupRef.current?.add(" });
-  assert.match(vm, /\} finally \{ job\?\.end\(\); \}\n {2}\}, \[fitBox, project\?\.epsg/);
+  landsBefore("imported solid", read("modules/viewer/importSolid.js") /* #3996 */, { from: read("modules/viewer/importSolid.js").indexOf("export async function importSolidFile("), start: "const job = startProjectJob?.({ label: file.name }) || null;", land: "if (!(await landed(job))) return;", deliver: "implicitGroupRef.current?.add(" });
+  assert.match(read("modules/viewer/importSolid.js").replace(/\r\n/g, "\n"), /\} finally \{ job\?\.end\(\); \}\n\}\n?$/); // #3996: the function's last statement
   landsBefore("pit shell", read("components/PitShellPane.jsx"), { start: "const pj = startProjectJob ? startProjectJob({ label: trRaw(\"Pit shell\")", land: "if (!(await landed(pj))) return;", deliver: "const pitId = onAdd({" });
   // every other long job's file: a job started and as many landings as its deliveries (the review of #3953 lists them)
   const files = { "modules/GeophysicsModule.jsx": 10, "modules/RasterModule.jsx": 7, "components/StartDialogs.jsx": 2, "components/AddWebLayerModal.jsx": 2, "components/MacrostratModal.jsx": 2,

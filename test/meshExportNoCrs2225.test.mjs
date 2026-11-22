@@ -12,7 +12,7 @@ test("the provenance names the CRS when there is one, and says 'not set (local g
 });
 
 test("the implicit-surface export does not ask for a CRS while it is unset, and the VTK header says local grid", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = (readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/importSolid.js", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/exportSurface.js", import.meta.url), "utf8")) /* #3996: moved out of ViewerModule */;
   assert.ok(v.includes("const epsg = crsUnset ? null : await ensureExportCrs(project); if (!crsUnset && !epsg) return;"));
   assert.ok(v.includes("const extra = { epsg, crsUnset,"));
   assert.ok(v.includes('${epsg ? `EPSG:${epsg}` : "local grid, no CRS"}'));

@@ -26,8 +26,8 @@ test("near, far, long-but-reaching, nothing to compare", () => {
 });
 
 test("wiring: asked after the tie question; cancel stops the import; accepted, the view is not fitted; keys", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  const i = v.indexOf("const importSolidFile = useCallback");
+  const v = (readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/importSolid.js", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/exportSurface.js", import.meta.url), "utf8")) /* #3996: moved out of ViewerModule */.replace(/\r\n/g, "\n");
+  const i = v.indexOf("export async function importSolidFile(");
   const body = v.slice(i, v.indexOf("}, [fitBox, project?.epsg, setTaskProgress]);", i));
   assert.ok(body.indexOf("solidTieGuess") < body.indexOf("solidFarFromHoles"), "the tie question first");
   assert.match(body, /if \(farSolid\?\.far && !await askConfirm\(tr\("\\"\{name\}\\" lies about \{km\} km from your holes/);

@@ -5,7 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const s = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+const s = (fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/modules/viewer/importSolid.js", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/modules/viewer/exportSurface.js", import.meta.url), "utf8")) /* #3996: moved out of ViewerModule */;
 
 test("#1694 the empty Generated surfaces list: one instruction; the 'saved with the project' sentence is its tooltip", () => {
   assert.ok(!s.includes("Binding a surface to a saved theme is still a follow-up"));

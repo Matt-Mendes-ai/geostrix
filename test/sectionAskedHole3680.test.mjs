@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+const vm = (readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/sectionPayload.js", import.meta.url), "utf8")) /* #3996: the section payload moved out */;
 const sw = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
 
 test("the band filter keeps the hole asked for by name although it is unchecked", () => {

@@ -21,7 +21,7 @@ test("the classes' limits and the unit follow the project's choice", () => {
   assert.equal(assayLegendGroups({ ...base, displayUnits: { Zn: "%" } })[0].label, "Cu (ppm)");
 });
 test("wiring: the 3D View, the section key and the Layout legend pass project.displayUnits", () => {
-  const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = (fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/modules/viewer/sectionPayload.js", import.meta.url), "utf8")) /* #3996: the section payload moved out */;
   assert.equal((v.match(/displayUnits: project\?\.displayUnits/g) || []).length, 3);
   assert.match(fs.readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8"), /displayUnits: project\?\.displayUnits/);
 });

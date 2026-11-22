@@ -38,6 +38,6 @@ test("the section window names each surface trace and keys the block models; the
   assert.match(sw, /\{pushSurfaceLabel\(st\)\}/);
   assert.match(sw, /<BlockModelKey slices=\{(data\.voxelSlices|\[\.\.\.\(data\.voxelSlices \|\| \[\]\), \.\.\.surveyKeys\])\} \/>/);
   assert.match(sw, /sectionModelLegend\(data\.surfaceTraces, withModels \? (data\.voxelSlices|\[\.\.\.\(data\.voxelSlices \|\| \[\]\), \.\.\.surveyKeys\]) : \[\]/); // #2523: the snapshot and the exports with the models; the window's key leaves them to BlockModelKey
-  const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const vm = (readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/sectionPayload.js", import.meta.url), "utf8")) /* #3996: the section payload moved out */;
   assert.match(vm, /voxelSlices\.push\(\{ id: model\.id, name: model\.name, rects, legend: voxelLegendGroups\(\[\{ \.\.\.model, visible: true \}\]\)\[0\] \|\| null \}\)/);
 });
