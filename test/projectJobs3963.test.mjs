@@ -193,7 +193,7 @@ test("a run's notices before it lands go to its own project; the gridding pane s
   assert.ok((m.match(/jobNotices\(/g) || []).length >= 16);
   assert.match(m, /else if \(unsFill\.filledM > 0\) jobNotices\(\(q\) => \[\.\.\.q, notice\(unsParams\.unsampledValueByDefault \? "Unsampled metres read as barren by default/, "the case side 4 named");
   assert.match(u, /const setNoticesFor = \(key, updater\) => setNoticesToTab\?\.\(store\.tabIdOfProjectKey\?\.\(key\), updater\);/);
-  assert.match(u, /startProjectJob: store\.startProjectJob \/\* #3953 \*\/, setNoticesFor \/\* #3963 \*\/ \};/);
+  assert.match(u, /startProjectJob: store\.startProjectJob \/\* #3953 \*\/, setNoticesFor \/\* #3963 \*\/(?:, [^\n]*?)? \};/); // later additions (#4006) may follow
   assert.match(v, /const \[notices, setNotices, setNoticesToTab\] = useTabNotices\(store\.activeTabId,/);
   assert.match(v, /useModelling\(\{ setNoticesToTab,/);
   assert.match(st, /const tabIdOfProjectKey = useCallback\(\(key\) => \(key == null \? null : key === projectKeyRef\.current \? activeTabIdRef\.current : /);
