@@ -30,6 +30,7 @@ import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOf
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 import { repairSeededHues } from "../lib/assayHueRepair.js"; // TASKS.csv #3879
+const GroupMineralsModal = lazyModal(() => import("../components/GroupMineralsModal.jsx")); // TASKS.csv #4012
 const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
 const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx")); // TASKS.csv #147  // TASKS.csv #301
 const LocatorMap = lazyPart(() => import("../components/LocatorMap.jsx")); // startup size: shown on request
@@ -657,6 +658,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [customLayers, setCustomLayers] = useState([]);
   const customPicks = useCustomLayerPicks({ customLayers, setCustomLayers, layerGroupsRef }); // TASKS.csv #4007
   const [customVisible, setCustomVisible] = useState({});
+  const [groupOpen, setGroupOpen] = useState(false); // #4012 — true, or the ids to start ticked
   const [assayVisible, setAssayVisible] = useState(true);
   // User request: show several elements at once (e.g. Au/Ag/Zn/Cu/Pb together), each individually
   // toggleable, instead of the old single-<select> "one element at a time" picker. Kept as an ordered
@@ -3971,20 +3973,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (res.ok) setNotices((p) => [...p, notice("Exported {plannedHoles} planned hole(s) to {format}{v}.{v2}{v3}", { plannedHoles: plannedHoles.length, format: format.toUpperCase(), v: rows[0]?.declination_deg !== "" ? tr(" — magnetic azimuths use the IGRF-14 declination for {today} ({declination_deg}° at the first collar); recheck it if drilling is months away", { today, declination_deg: rows[0].declination_deg }) : "", v2: noLatLon ? tr(" {noLatLon} hole(s) have no latitude/longitude (project CRS not convertible) and are missing from KML/GPX.", { noLatLon }) : "", v3: noMag && !noLatLon ? tr(" {noMag} hole(s) have no magnetic azimuth.", { noMag }) : "" })]);
   }, [plannedHoles, project]);
 
-  // Bug fix (user report: "when I turn off one of the voxels, the view will reset to zoom all. It
-  // would be good to keep the zoom unchanged as I turn off and on layers. sometimes I do that to
-  // compare different surveys.") Root cause: the big geometry-rebuild effect right below this depends
-  // on `voxelModels` directly (added for the earlier camera-fit-for-voxel-models fix — see that
-  // effect's own header comment) and unconditionally calls fitView(...) every time it runs — so ANY
-  // change to voxelModels, including just flipping one model's `visible` flag via updateVoxelModel
-  // (which creates a new array reference even though no cell/position data actually changed), reran
-  // the WHOLE effect and re-fit the camera, wiping out whatever pan/zoom Matt had set up to compare
-  // two block models side by side. Fix: depend on a signature that only changes when the actual SET of
-  // voxel models or their cell geometry changes (ids + cell counts) — NOT on display-only fields like
-  // visible/opacity/stops/colorMode/threshold — and use that signature in the big effect's dependency
-  // array instead of the raw voxelModels reference. The effect body still reads the latest voxelModels
-  // via closure (harmless: when only a display flag changed and the effect correctly does NOT rerun,
-  // the cell positions it needs for the camera-fit bounding box are identical either way).
+  // Bug fix (user report: turning off one voxel model reset the zoom): the big geometry-rebuild effect depends on a signature of the set of voxel models and their
+  // cell geometry (ids + cell counts), not on display-only fields (visible / opacity / stops / colorMode / threshold), so a visibility flip no longer re-fits the camera.
   // TASKS.csv #1528 — what of layerStyles the big build reads: the drillhole and custom layers' styles, without the opacity
   // of the layers that take it in place (the effect after the build)
   const layerStylesBuildKey = useMemo(() => JSON.stringify(Object.keys(layerStyles).filter((k) => k in LAYER_META || k.startsWith("custom:")).sort()
@@ -4958,16 +4948,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #222 — useCallback so this keeps a stable identity across renders, required for
   // HoleRow's React.memo (below) to actually skip re-rendering sibling rows on an unrelated toggle.
   const toggleHole = useCallback((id) => setVisibleHoles((p) => ({ ...p, [id]: p[id] === false ? true : false })), []);
-  // TASKS.csv #124 — QGIS-specialist audit finding: "No way to select all collars within a polygon."
-  // Scoped to spatial selection against an already-loaded boundary/claim (both live in the same
-  // `boundaries` store collection — see #126) — reuses the existing visibleHoles/toggleHole hole-
-  // visibility mechanism (the same one "Hide {holeId}" in the context menu already uses) rather than
-  // introducing a separate "selection" concept, so isolating/hiding by location composes naturally
-  // with every other hole-visibility control already in this sidebar. The attribute-expression half of
-  // this task ("Au > 1 AND lithology = V6") is intentionally NOT built here — that's a fundamentally
-  // different, much bigger feature (a real expression parser/evaluator across assay+layer data) this
-  // task's own notes tie to the separate, also-Planned DuckDB-WASM SQL panel (#50) instead of
-  // duplicating a one-off mini-parser here.
+  // TASKS.csv #124 — select the collars within a boundary polygon: reuses the hole-visibility mechanism (visibleHoles / toggleHole); the attribute-expression half is the DuckDB SQL panel (#50).
   const [selectByLocationBoundaryId, setSelectByLocationBoundaryId] = useState("");
   const [selectByLocationPart, setSelectByLocationPart] = useState(""); // TASKS.csv #3234 — one named part ("" = every part)
   const selectByLocation = (mode) => {
@@ -6170,7 +6151,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {(!basicTools || customLayers.length > 0) && (<>{/* TASKS.csv #3906 — with Basic tools, an empty section waits for All tools */}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>{/* TASKS.csv #4007 — Delete all, as Cross-sections has */}
           <span>{tr("Custom layers")}</span>
+          <span style={{ display: "flex", gap: 10 }}>{/* #4012 Group beside #4007 Delete all */}
+          {customLayers.length > 1 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGroupOpen(true)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("Make the layers that each hold one mineral's per cent the fields of one Mineralization layer")}>{tr("Group as Mineralization…")}</span>}
           {customLayers.length > 1 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={customPicks.deleteAll} style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("Delete all custom layers. Ctrl or Shift + click rows to pick several.")}>{tr("Delete all")}</span>}
+          </span>
         </div>
         {customPicks.pickedIds.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginBottom: 6, background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, fontSize: "var(--font-size-xs)" }}>
@@ -6179,6 +6163,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={customPicks.clearPicks} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Clear")}</span>
           </div>
         )}
+        {groupOpen && <GroupMineralsModal customLayers={customLayers} mnlgy={layers.mnlgy} ids={Array.isArray(groupOpen) ? groupOpen : null} ctx={{ setLayers, setLayerVisible, setCustomVisible, removeCustomLayer, setNotices, undoCheckpoint }} onClose={() => setGroupOpen(false)} />}
         {customLayers.map((l) => (
           <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
             { label: customVisible[l.id] === false ? "Show" : "Hide", onClick: () => toggleCustom(l.id) },
