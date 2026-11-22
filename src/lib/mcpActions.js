@@ -171,6 +171,35 @@ export const ACTIONS = {
     const { ok, revert, ...rest } = r;
     return { ok: true, tracked: false, data: rest, say: tr("built the {symbol} grade shell", { symbol: r.element || a.element }), revert };
   },
+  // TASKS.csv #3932 batch 3 (Matt, 2026-11-22: "start batch 3") — grades into blocks, a shell's cells as blocks, a vein, an alteration halo. Block models and
+  // generated surfaces are not in the undo history: the toast's Undo takes out exactly what was added.
+  // Grade estimation, run in its own dialog (components/useMcpEstimate.js): its defaults from the data, Run, Add to project; long, so 'started' + job_status
+  async build_grade_estimate(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-estimate-open", { element: a.element }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("estimated {symbol} into the block model '{name}'", { symbol: r.element || a.element, name: r.name }), revert };
+  },
+  // the last grade shell's own cells as a block model (lib/lastShellCells.js)
+  async add_grade_shell_blocks(_a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "shell_blocks" }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("added the grade shell's cells as the block model '{name}'", { name: r.name }), revert };
+  },
+  // the guided Veins and dykes card, and the Alteration halo (guided/guidedTools.js VEINS, ALTERATION), with their verdicts
+  async build_vein(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "vein", code: a.code }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("built the vein '{name}'", { name: (r.built || [])[0] || a.code }), revert };
+  },
+  async build_alteration(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "alteration", code: a.code }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("built the alteration halo '{name}'", { name: (r.built || [])[0] || a.code }), revert };
+  },
 };
 export const CHANGE_TOOL_NAMES = () => Object.keys(ACTIONS);
 

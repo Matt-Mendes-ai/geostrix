@@ -42,8 +42,8 @@ test("the shell: lazy, behind one Basic Model button; ViewerModule has one-line 
   assert.match(vm, /const GuidedTool = React\.lazy\(\(\) => import\("\.\/viewer\/guided\/GuidedTool\.jsx"\)\);/);
   assert.match(vm, /const \[guided, setGuided\] = useState\(null\); useModuleAction\(\["guided-open"\], \(a, p\) => setGuided\(p\?\.tool \|\| "start"\)\);/);
   assert.match(vm, /\{guided && mode === "view" && <Suspense fallback=\{null\}><GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{guidedApi\} \/><\/Suspense>\}/);
-  assert.match(vm, /const guidedApi = \{ runStackModel, runImplicitModel, runVeinModel, runStructuralModel, runNumericModel, meshOf: \(id\) => implicitMeshesRef\.current\[id\], numeric: \{ now: \[numericSymbol, numericCutoff, numericCellSize, numericCellHeight, numericSearchRadius, numericMinHoles\],/);
-  assert.match(vm, /computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy \|\| veinBusy \|\| numericBusy,/);
+  assert.match(vm, /const guidedApi = \{ runStackModel, runImplicitModel, runVeinModel, runStructuralModel, runNumericModel, runAlterationModel \/\* #3932 batch 3 \*\/, meshOf: \(id\) => implicitMeshesRef\.current\[id\], numeric: \{ now: \[numericSymbol, numericCutoff, numericCellSize, numericCellHeight, numericSearchRadius, numericMinHoles\],/);
+  assert.match(vm, /computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy \|\| veinBusy \|\| numericBusy \|\| alterationBusy,/);
   assert.doesNotMatch(vm, /^import .*guided/m); // nothing of it in the startup chunk
   const vp = rd("src/modules/viewer/ViewerParts.jsx");
   assert.doesNotMatch(vp, /^import .*guided/m);

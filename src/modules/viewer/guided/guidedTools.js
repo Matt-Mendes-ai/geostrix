@@ -21,6 +21,7 @@ import { NUMERIC_CELL_DEFAULT, GRADE_SHELL_SEARCH_DEFAULT } from "../../../lib/e
 import { getUnsampledChoice, setUnsampledChoice } from "../../../lib/unsampledChoices.js";
 import { gradeUnitLabel } from "../../../lib/geochemColumns.js";
 import { desurveyHole, pointOnTrace } from "../../../lib/desurvey.js";
+import { isNotRecorded } from "../../../lib/notRecorded.js"; // TASKS.csv #3932 batch 3 — the Alteration halo's choices
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
 const unitsByHoles = (ctx) => stackOrder(ctx.rows).units.map((u) => u.unit);
@@ -158,6 +159,50 @@ export const VEINS = {
   notes: () => [],
   run: (api, value) => api.runVeinModel(value),
   prefill: (api, value) => api.setVeinTarget(value),
+};
+
+// TASKS.csv #3932 batch 3 — an alteration halo from the Alteration log, as its pane runs it (modellingRuns.js runAlterationModel: 1 inside the intervals
+// with the code, 0 in every other logged alteration interval, so the halo closes between them). For the AI tool build_alteration; not a Start here card
+// (the pane, All tools › Alteration, has its settings). Refused when fewer than three holes log the code, or when nothing logged is another
+// alteration (no zero to close the halo); 'not recorded' codes are neither.
+function altChoices(ctx) {
+  const by = new Map();
+  for (const r of ctx.alt || []) {
+    if (r.value == null || String(r.value).trim() === "" || isNotRecorded(r.value)) continue;
+    const k = String(r.value), e = by.get(k) || { holes: new Set(), rows: 0 };
+    e.holes.add(r.hole_id); e.rows++; by.set(k, e);
+  }
+  return [...by].map(([code, e]) => ({ code, holes: e.holes.size, rows: e.rows })).sort((a, b) => b.holes - a.holes || a.code.localeCompare(b.code));
+}
+export const ALTERATION = {
+  id: "alteration",
+  title: "Alteration halo",
+  line: "A halo round one alteration, from the holes that log it.",
+  sentence: "Builds the volume round one alteration code, closed between the holes by the other alteration logged.",
+  question: "Which alteration?",
+  multi: false,
+  help: "alteration-modelling",
+  expertPane: "alteration",
+  feed: (ctx) => (altChoices(ctx).length ? null : tr("No alteration logged: an Alteration log is needed.")),
+  suggest(ctx) {
+    const c = altChoices(ctx)[0];
+    return { value: c.code, reason: tr("{v} is logged in {n} holes, more than any other alteration.", { v: c.code, n: c.holes }) };
+  },
+  choices: (ctx) => altChoices(ctx).map((c) => c.code),
+  label: (k) => k,
+  check: (ctx, value) => (value ? null : tr("Choose an alteration code first.")),
+  auto(ctx, value) {
+    const all = altChoices(ctx), c = all.find((x) => x.code === value), n = c ? c.holes : 0;
+    if (n < 3) return { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} holes log {v}: a halo needs three or more.", { n, v: value })] };
+    if (all.length < 2) return { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Every alteration interval logged is {v}: with no other alteration logged, nothing closes the halo between the holes.", { v: value })] };
+    return { ok: true, values: {}, reasons: [{ field: "holes", text: tr("{v} is logged in {n} holes; the other alteration logged closes the halo between them.", { v: value, n }) }], notes: [], verdict: null };
+  },
+  prepare: () => {},
+  ready: () => true,
+  contacts: () => [],
+  notes: () => [],
+  run: (api, value) => api.runAlterationModel(value),
+  prefill: () => {},
 };
 
 // TASKS.csv #3909 — a fault from the measured picks: the Structural modelling run on one structure type of the structure log (picks with a

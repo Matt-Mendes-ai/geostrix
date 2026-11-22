@@ -27,7 +27,7 @@ self.onmessage = (e) => {
       if (opts.post) { // #3580 (b): the mesh and the counts go back, not the grid
         const post = shellPost(result, { ...opts.post, inShellPoints: po?.postIn ? unpackPoints(po.postIn) : [], farPoints: po?.postFar ? unpackPoints(po.postFar) : null });
         const { values: _v, supportCode: _c, supportIndex: _i, ...rest } = result;
-        self.postMessage({ type: "done", result: { ...rest, post } }, [post.positions.buffer, post.faces.buffer, post.vertexSupport.buffer]);
+        self.postMessage({ type: "done", result: { ...rest, post } }, [post.positions.buffer, post.faces.buffer, post.vertexSupport.buffer, ...(post.inside ? [post.inside.idx.buffer, post.inside.value.buffer] : []) /* #3932 batch 3 */]);
         return;
       }
       const transfer = [result.values?.buffer, result.supportCode?.buffer, result.supportIndex?.buffer].filter(Boolean);

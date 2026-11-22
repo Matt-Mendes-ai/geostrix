@@ -410,7 +410,7 @@
   },
   {
     "name": "add_block_model",
-    "description": "Makes a change in GeoStrix: adds the last model's lithology blocks as a block model, as the Result block's Add as block model does (cells above every modelled top are left out; the model is not the logs). Needs the last model's blocks to exist (built in GeoStrix from the surfaces, or a GemPy model): without them it says so. A very large model is confirmed with the user in GeoStrix first. It adds a block model and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "description": "Makes a change in GeoStrix: adds the last model's lithology blocks as a block model, as the Result block's Add as block model does (cells above every modelled top are left out; the model is not the logs). Needs the last model's blocks to exist (built in GeoStrix from the surfaces, or a GemPy model): without them it says so. For a grade shell's cells use add_grade_shell_blocks; for grades estimated into blocks, build_grade_estimate. A very large model is confirmed with the user in GeoStrix first. It adds a block model and replaces nothing; the toast's Undo in GeoStrix removes it.",
     "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
     "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
     "_meta": { "geostrix/long": true }
@@ -424,6 +424,59 @@
         "element": { "type": "string", "maxLength": 32, "description": "The assay element's symbol (project_summary lists them)." }
       },
       "required": ["element"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
+    "_meta": { "geostrix/long": true }
+  },
+  {
+    "name": "build_grade_estimate",
+    "description": "Makes a change in GeoStrix: estimates one element's grades into a block model with StrixViewer's Grade estimation dialog, opened in GeoStrix: the element chosen, the dialog's own settings from the data (cell, search, the block budget, how unsampled metres are read; what it kept from the last estimate in this project), Run, then Add to project. A run the dialog would not start (over the block budget, a choice it still needs, a weak variogram question) is refused with its reason, and the dialog stays open for the user. The answer gives the block model, its method, cell and search, the result's lines as the dialog shows them (data support, extrapolation, single-hole blocks...) and its 'Not a resource estimate.' paragraph word for word: it is not a Mineral Resource. One model at a time; it can take minutes (the status bar shows its progress and Cancel): after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). It adds a block model and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": {"type": "string", "maxLength": 32, "description": "The assay element's symbol (project_summary lists them)."}
+      },
+      "required": ["element"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
+    "_meta": { "geostrix/long": true }
+  },
+  {
+    "name": "add_grade_shell_blocks",
+    "description": "Makes a change in GeoStrix: adds the last grade shell built in this session (build_grade_shell, or Grade shell in GeoStrix) as a block model: its own grid cells at or above its cut-off, after its ground cut, each with the shell's interpolated grade (a shell with an envelope area gives 1 inside: an envelope is a probability, not grades). A shell opened with a saved project, removed, or built along a structural trend is refused, naming build_grade_estimate for grades in blocks. A picture of where the grade is, not a resource estimate. It adds a block model and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
+    "_meta": { "geostrix/long": true }
+  },
+  {
+    "name": "build_vein",
+    "description": "Makes a change in GeoStrix: builds one vein or dyke as a thin sheet through the places where the holes cut it, as StrixViewer's Model > Start here > Veins and dykes does with Build it for me. The code is one of the Veins log, or a lithology code read as a vein or dyke (Modelling codes). Refused with the card's verdict when the data cannot support a sheet: fewer than three holes cut it, or it is logged many times down each hole (a vein set: split it in Modelling codes, or show it with build_alteration's halo). One model at a time; it can take minutes (the status bar shows its progress and Cancel): after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). It adds a surface and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "code": {"type": "string", "maxLength": 64, "description": "The vein or dyke code as logged (list_layers and get_layer_rows show them)."}
+      },
+      "required": ["code"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
+    "_meta": { "geostrix/long": true }
+  },
+  {
+    "name": "build_alteration",
+    "description": "Makes a change in GeoStrix: builds an alteration halo for one code of the Alteration log, as StrixViewer's Alteration pane does: the volume round the intervals with that code, closed between the holes by the other alteration logged, sized from the hole spacing. Refused with a plain verdict when fewer than three holes log the code, or when no other alteration is logged to close it. One model at a time; it can take minutes (the status bar shows its progress and Cancel): after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). It adds a surface and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "code": {"type": "string", "maxLength": 64, "description": "The alteration code as logged (list_layers and get_layer_rows show them)."}
+      },
+      "required": ["code"],
       "additionalProperties": false
     },
     "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },

@@ -58,7 +58,8 @@ function standInPanes(s) {
     else if (action === "mcp-view") p.reply(viewAction({ ...v, sections: s.sections }, p));
     else if (action === "mcp-fetch-satellite") p.reply({ ok: true, name: "Sentinel-2 test scene", ids: ["r1"], pictures: 1, over: "holes", area_cloud_percent: 0 });
     else if (action === "mcp-fetch-terrain") p.reply({ ok: true, name: "Copernicus DEM GLO-30", id: "t1", grid: "10 x 10" });
-    else if (action === "mcp-model") p.reply({ ok: true, changed: p.op === "surface" ? "body surface" : p.op === "block_model" ? "block model" : "grade shell", built: ["Top of DYK"], ids: ["m1"], why: ["Cells 20 m"], notes: [], revert() {} }); // #3932 batch 2: the guided build, stood in for
+    else if (action === "mcp-estimate-open") p.reply({ ok: true, changed: "block model", name: "Au estimate (idw2, 10m)", id: "v1", element: "Au", blocks: 120, lines: ["120 block(s) estimated"], not_a_resource_estimate: "Not a resource estimate.", revert() {} }); // #3932 batch 3
+    else if (action === "mcp-model") p.reply({ ok: true, changed: p.op === "surface" ? "body surface" : p.op === "block_model" || p.op === "shell_blocks" ? "block model" : p.op === "vein" ? "vein surface" : p.op === "alteration" ? "alteration halo" : "grade shell", built: ["Top of DYK"], ids: ["m1"], why: ["Cells 20 m"], notes: [], revert() {} }); // #3932 batch 2: the guided build, stood in for
   };
   window.addEventListener("geostrix-module-action", on);
   return () => window.removeEventListener("geostrix-module-action", on);
@@ -79,6 +80,10 @@ const CALLS = [ // each change tool with arguments its schema accepts
   ["add_program_holes", { program_id: "prog_x", holes: "above_line" }],
   ["set_planned_hole_status", { hole: "PLAN-1", status: "approved" }],
   ["add_block_model", {}],
+  ["build_grade_estimate", { element: "Au" }], // #3932 batch 3
+  ["add_grade_shell_blocks", {}],
+  ["build_vein", { code: "QV" }],
+  ["build_alteration", { code: "SER" }],
 ];
 
 test("#3932 through the PowerShell relay, as Claude Desktop starts it: every change tool refused with the switch off (the window never sees one), then each done with it on", { skip: !win32 && "PowerShell bridge: Windows only" }, async () => {

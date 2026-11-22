@@ -5,7 +5,7 @@
 //   getApi(): the api GuidedTool is given (ViewerModule.jsx), read afresh each time: a setting takes a render to arrive; getCtx(): the tool's ctx, from the store as GuidedTool builds it
 import { autoSurface, QUICK_RESOLUTION } from "../../../lib/auto/autoSurface.js";
 import { roleForLithology } from "../../../lib/layers.js";
-import { toolById, BODIES, COVER, GRADE, ROCK_LAYERS, BODY_ROLES, unitsByHoles } from "./guidedTools.js";
+import { toolById, BODIES, COVER, GRADE, ROCK_LAYERS, BODY_ROLES, unitsByHoles, VEINS, ALTERATION } from "./guidedTools.js"; // VEINS, ALTERATION: #3932 batch 3
 
 const fail = (error) => ({ ok: false, error });
 const realSleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -15,7 +15,7 @@ export const SETTINGS_WAIT_MS = 5000, QUIET_MS = 1500, RUN_WAIT_MS = 9 * 60000;
 export function guidedCtx(store, computeIntercepts) {
   const rows = store.layers?.litho || [], mcodes = store.modellingCodes?.codes || [];
   let cache = null;
-  return { rows, veins: store.layers?.vein || [], structures: store.layers?.structure || [], assays: store.assays || [], survey: store.survey || [], assayElements: store.assayElements || [], hasDensity: (store.layers?.sg || []).length > 0, gradeTrend: !!store.structuralTrends?.use?.gradeShell, collars: store.collars || [], hasTerrain: !!store.terrain,
+  return { rows, veins: store.layers?.vein || [], structures: store.layers?.structure || [], alt: store.layers?.alt || [] /* #3932 batch 3 */, assays: store.assays || [], survey: store.survey || [], assayElements: store.assayElements || [], hasDensity: (store.layers?.sg || []).length > 0, gradeTrend: !!store.structuralTrends?.use?.gradeShell, collars: store.collars || [], hasTerrain: !!store.terrain,
     describe: () => "", target: (v) => (mcodes.some((c) => c.name === v) ? `mcode:${v}` : v), roleOf: (v) => mcodes.find((c) => c.name === v)?.role || roleForLithology(v), isCover: (v) => (mcodes.find((c) => c.name === v)?.role || roleForLithology(v)) === "overburden",
     intercepts: () => (cache ||= (computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
 }
@@ -23,7 +23,7 @@ export function guidedCtx(store, computeIntercepts) {
 // which guided tool builds this rock, by its role (Modelling codes, else its name): a cover's base when it is overburden, a body when it is an intrusion, dyke, vein or breccia, else the layers of the rocks that
 // lie in a steady order (Rock layers). -> a guided tool
 export const toolForRock = (ctx, rock) => (ctx.isCover(rock) ? COVER : BODY_ROLES.has(ctx.roleOf(rock)) ? BODIES : ROCK_LAYERS);
-export { toolById, GRADE, ROCK_LAYERS, unitsByHoles };
+export { toolById, GRADE, ROCK_LAYERS, unitsByHoles, VEINS, ALTERATION };
 
 // -> { ok: true, built: [names], ids, reasons: [text], notes: [text] } | { ok: false, error }
 // the run's own warnings, word for word (data support, closed at the search radius, extrapolation, one hole): the messages it added under the sidebar that say how far to trust it
@@ -57,7 +57,10 @@ export async function runGuided({ tool, value, mode, ctx, getApi, getNotices = (
   }
   await run;
   const made = (getApi()?.surfaces || []).filter((s) => !before.has(s.id));
-  if (!made.length) return fail("Nothing was built: it was cancelled, or the run stopped with a message (the messages under the sidebar say why).");
+  if (!made.length) { // TASKS.csv #3932 batch 3 — the run's own message, word for word (live: a vein code that is a set said only "Nothing was built")
+    const why = (getNotices() || []).filter((n) => !noticesBefore.has(n)).map(noticeText).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean).slice(-2);
+    return fail(why.length ? `Nothing was built: ${why.join(" ").slice(0, 900)}` : "Nothing was built: it was cancelled, or the run stopped with a message (the messages under the sidebar say why).");
+  }
   const reasons = (auto.reasons || []).map((x) => x.text).filter(Boolean);
   const notes = [...(tool.result ? tool.result(made, ctx, getApi()) : []), ...(auto.notes || []), ...tool.notes(ctx, value)].filter(Boolean);
   const messages = (getNotices() || []).filter((n) => !noticesBefore.has(n)).map(noticeText).filter((t) => PROTECTIVE.test(t)).map((t) => t.replace(/\s+/g, " ").trim().slice(0, 900)).slice(0, 5);

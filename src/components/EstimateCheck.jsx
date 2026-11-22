@@ -45,7 +45,7 @@ export default function EstimateCheck({ cells, nnCells, points, unit, symbol, me
 
   const td = { textAlign: "end", padding: "2px 8px", fontVariantNumeric: "tabular-nums" };
   return (
-    <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
+    <div data-estimate-check /* TASKS.csv #3932 batch 3: left out of build_grade_estimate's result lines (the dialog shows it) */ style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Check this estimate")}</div>
       <table style={{ borderCollapse: "collapse", marginBottom: 4 }}>
         <tbody>
