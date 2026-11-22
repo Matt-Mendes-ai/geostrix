@@ -58,6 +58,7 @@ export function fitGradeModel(points, { model = "spherical", searchTrend = null 
     vg: { model: fit.model, nugget: nuggetRatio, sill: 1, range: fit.range },
     fit: { rSquared: fit.rSquared, nuggetRatio, range: fit.range, beyondData: !!fit.beyondData, lag, weak: !(fit.rSquared >= WEAK_FIT_R2) },
     data: { x: Float64Array.from(fp, (p) => p.x), y: Float64Array.from(fp, (p) => p.y), z: Float64Array.from(fp, (p) => p.z), ns: Float64Array.from(fp, (p) => p.value) },
+    ids: fp.map((p) => String(p.hole_id ?? "")), // each composite's hole, for the program's "Why" (#3962 P2)
   };
 }
 
@@ -89,7 +90,8 @@ export function holeSteps(trace, step) {
 
 // The joint posterior of a hole's composites. -> { tops, inReach: Uint8Array, mean: Float64Array, L (Cholesky of the posterior
 // covariance of the points in reach), m (how many in reach), nData, beyondM }
-export function holePosterior(model, trace, { step = DEFAULTS.step, searchRadius, perPoint = DEFAULTS.perPoint, maxData = DEFAULTS.maxData } = {}) {
+// inside: optional [[fromMd, toMd], ...] (#3962 P2, a target volume): a composite whose centre is outside them is not predicted
+export function holePosterior(model, trace, { step = DEFAULTS.step, searchRadius, perPoint = DEFAULTS.perPoint, maxData = DEFAULTS.maxData, inside = null } = {}) {
   const R = searchRadius > 0 ? searchRadius : model.vg.range;
   const f = framer(model.frame, model.centre), d = model.data;
   const idx = model._idx || (model._idx = dataIndex(d, Math.max(1, R / 2)));
@@ -98,13 +100,15 @@ export function holePosterior(model, trace, { step = DEFAULTS.step, searchRadius
   const inReach = new Uint8Array(P.length);
   const nearest = new Map(); // data index -> its closest squared distance to the hole
   P.forEach(([x, y, z], i) => {
+    if (inside && !inside.some(([a, b]) => tops[i] + step / 2 >= a && tops[i] + step / 2 <= b)) return;
     const near = idx.near(x, y, z, R).sort((a, b) => a[1] - b[1]).slice(0, perPoint);
     if (near.length) inReach[i] = 1;
     for (const [q, d2] of near) if (!(nearest.get(q) <= d2)) nearest.set(q, d2);
   });
   const used = [...nearest].sort((a, b) => a[1] - b[1]).slice(0, maxData).map(([q]) => q);
   const pts = P.filter((_, i) => inReach[i]), m = pts.length, n = used.length;
-  const beyondM = (P.length - m) * step;
+  const outsideM = inside ? tops.filter((a) => !inside.some(([lo, hi]) => a + step / 2 >= lo && a + step / 2 <= hi)).length * step : 0;
+  const beyondM = (P.length - m) * step - outsideM;
   if (!m || !n) return { tops, inReach, mean: new Float64Array(0), L: null, m: 0, nData: 0, beyondM };
   const vg = model.vg;
   const K = new Float64Array(n * n);
@@ -133,7 +137,7 @@ export function holePosterior(model, trace, { step = DEFAULTS.step, searchRadius
     S[a * m + b] = s; S[b * m + a] = s;
   }
   const cs = cholesky(S, m, 1e-9);
-  return { tops, inReach, mean, L: cs?.L || null, m, nData: n, beyondM, variance: Float64Array.from({ length: m }, (_, j) => S[j * m + j]) };
+  return { tops, inReach, mean, L: cs?.L || null, m, nData: n, beyondM, outsideM, pts, used, variance: Float64Array.from({ length: m }, (_, j) => S[j * m + j]) };
 }
 export { backSolve }; // for the tests (a kriging-weights check)
 
@@ -169,7 +173,8 @@ export function predictHole(model, trace, rules, opts = {}) {
     beyond: false, step, realizations: R, nData: post.nData, beyondM: post.beyondM, lengthM: tops.length * step,
     pHit: hits.length / R,
     // over every realization (a miss counts as 0 m and 0 grade x length): what the hole is likely to give
-    length: p3(len), gt: p3(gt), totalM: p3(total),
+    length: p3(len), gt: p3(gt), totalM: p3(total), gtMean: gt.reduce((t, v) => t + v, 0) / R, // the mean: what a rule adds up (#3962 P2)
+    varM: post.variance.reduce((t, v) => t + v, 0) * step, // the hole's own kriging variance (normal scores) summed down it: what drilling it would resolve
     // over the realizations that hit: what a hit looks like (grade, where it starts)
     hitLength: p3(hitLen), hitGrade: p3(grade), hitFrom: p3(from),
     band,
