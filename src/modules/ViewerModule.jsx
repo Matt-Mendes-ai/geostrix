@@ -701,7 +701,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // means "not recategorized", the plain single-color behavior). Same save/restore/theme-capture
   // treatment as legendOverride/numericRange right above — view-display state, not raw project data.
   const [assayStyle, setAssayStyle] = useState({});
-  // TASKS.csv #1695 — which assay rows the ASSAYS markers, their size ranges and classes come from: "lab" (the default), "pxrf" or "both". Saved with the view / a theme.
+  // TASKS.csv #1695 — which assay rows feed the ASSAYS markers: "lab" (default), "pxrf" or "both"; saved with the view / a theme.
   const [assaySource, setAssaySource] = useState("lab");
   const hasPxrf = useMemo(() => assays.some(isPxrfRow), [assays]);
   const assayRowShown = useCallback((a) => (assaySource === "both" ? true : assaySource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a)), [assaySource]);
@@ -3973,8 +3973,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (res.ok) setNotices((p) => [...p, notice("Exported {plannedHoles} planned hole(s) to {format}{v}.{v2}{v3}", { plannedHoles: plannedHoles.length, format: format.toUpperCase(), v: rows[0]?.declination_deg !== "" ? tr(" — magnetic azimuths use the IGRF-14 declination for {today} ({declination_deg}° at the first collar); recheck it if drilling is months away", { today, declination_deg: rows[0].declination_deg }) : "", v2: noLatLon ? tr(" {noLatLon} hole(s) have no latitude/longitude (project CRS not convertible) and are missing from KML/GPX.", { noLatLon }) : "", v3: noMag && !noLatLon ? tr(" {noMag} hole(s) have no magnetic azimuth.", { noMag }) : "" })]);
   }, [plannedHoles, project]);
 
-  // Bug fix (user report: turning off one voxel model reset the zoom): the big geometry-rebuild effect depends on a signature of the set of voxel models and their
-  // cell geometry (ids + cell counts), not on display-only fields (visible / opacity / stops / colorMode / threshold), so a visibility flip no longer re-fits the camera.
+  // Rebuild only on the voxel models' ids + cell counts, not display-only fields (visible / opacity / stops / colorMode / threshold): a visibility flip must not re-fit the camera.
   // TASKS.csv #1528 — what of layerStyles the big build reads: the drillhole and custom layers' styles, without the opacity
   // of the layers that take it in place (the effect after the build)
   const layerStylesBuildKey = useMemo(() => JSON.stringify(Object.keys(layerStyles).filter((k) => k in LAYER_META || k.startsWith("custom:")).sort()
@@ -4948,7 +4947,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #222 — useCallback so this keeps a stable identity across renders, required for
   // HoleRow's React.memo (below) to actually skip re-rendering sibling rows on an unrelated toggle.
   const toggleHole = useCallback((id) => setVisibleHoles((p) => ({ ...p, [id]: p[id] === false ? true : false })), []);
-  // TASKS.csv #124 — select the collars within a boundary polygon: reuses the hole-visibility mechanism (visibleHoles / toggleHole); the attribute-expression half is the DuckDB SQL panel (#50).
+  // TASKS.csv #124 — select the collars within a boundary polygon, reusing visibleHoles / toggleHole (the attribute half is the SQL panel, #50).
   const [selectByLocationBoundaryId, setSelectByLocationBoundaryId] = useState("");
   const [selectByLocationPart, setSelectByLocationPart] = useState(""); // TASKS.csv #3234 — one named part ("" = every part)
   const selectByLocation = (mode) => {
@@ -6149,16 +6148,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         )}
 
         {(!basicTools || customLayers.length > 0) && (<>{/* TASKS.csv #3906 — with Basic tools, an empty section waits for All tools */}
-        <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>{/* TASKS.csv #4007 — Delete all, as Cross-sections has */}
+        <div className="ge-section-label" style={{ marginTop: 16, display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between" }}>{/* TASKS.csv #4007 — Delete all, as Cross-sections has */}
           <span>{tr("Custom layers")}</span>
-          <span style={{ display: "flex", gap: 10 }}>{/* #4012 Group beside #4007 Delete all */}
-          {customLayers.length > 1 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGroupOpen(true)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("Make the layers that each hold one mineral's per cent the fields of one Mineralization layer")}>{tr("Group as Mineralization…")}</span>}
+          <span style={{ display: "flex", gap: 10, whiteSpace: "nowrap" }}>
+          {customLayers.length > 1 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGroupOpen(true)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("Combine per-mineral layers into one Mineralization layer")}>{tr("Group as Mineralization…")}</span>}
           {customLayers.length > 1 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={customPicks.deleteAll} style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("Delete all custom layers. Ctrl or Shift + click rows to pick several.")}>{tr("Delete all")}</span>}
           </span>
         </div>
         {customPicks.pickedIds.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginBottom: 6, background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, fontSize: "var(--font-size-xs)" }}>
             <span style={{ flex: 1, color: "var(--color-text)" }}>{tr("{n} picked", { n: customPicks.pickedIds.length })}</span>
+            {customPicks.pickedIds.length > 1 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGroupOpen(customPicks.pickedIds)} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Group as Mineralization…")}</span>}
             <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={customPicks.deletePicked} style={{ cursor: "pointer", color: "var(--color-danger-icon)" }}>{tr("Delete")}</span>
             <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={customPicks.clearPicks} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Clear")}</span>
           </div>
