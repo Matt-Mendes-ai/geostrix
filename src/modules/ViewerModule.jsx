@@ -3295,18 +3295,21 @@ ${describeTrend(t)}` };
   // shells from them (1.6 s at 1.9 M). Above 300,000 unit cells (~63 MB as a block model), say so and ask.
   const BIG_UNIT_BLOCKS = 300_000;
   const unitCellCount = (lb) => { let n = 0; const ids = lb?.block?.ids || []; for (let i = 0; i < ids.length; i++) if (ids[i] && lb.block.labels[ids[i] - 1] != null) n++; return n; };
-  const addLithBlockModel = async () => {
-    const lb = lastLithBlock; if (!lb) return;
-    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !await askConfirm(tr("The last model has {n} unit blocks, about {mb} MB of memory, which a modest computer may not spare; a larger block size keeps it light. Add them anyway?", { n: n.toLocaleString(), mb: Math.round((n * 210) / 1e6) }))) return; } // #891
+  const addLithBlockModel = async () => { // returns what it did, for an AI app's add_block_model (#3932); the button ignores it
+    const lb = lastLithBlock; if (!lb) return { ok: false, error: "No model blocks yet." };
+    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !await askConfirm(tr("The last model has {n} unit blocks, about {mb} MB of memory, which a modest computer may not spare; a larger block size keeps it light. Add them anyway?", { n: n.toLocaleString(), mb: Math.round((n * 210) / 1e6) }))) return { ok: false, error: "The user declined adding the blocks in GeoStrix (a very large model)." }; } // #891
     const cells = blockToCells(lb.block, lb.origin);
-    if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return; }
+    if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return { ok: false, error: "The last model has no cells below its modelled tops inside the model box: nothing to add." }; }
     const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
     const legend = stops.map((st) => `${st.value} = ${st.label}`).join(", ");
     // #802: blocks built from surfaces open opaque, so they draw as their outer faces (#793) - a GemPy block keeps its look
-    addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: lb.fromSurfaces ? "surfaces" : "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])), ...(lb.fromSurfaces ? { opacity: 1 } : {}) });
-    setNotices((p) => [...p, lb.fromSurfaces
+    const vid = addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: lb.fromSurfaces ? "surfaces" : "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])), ...(lb.fromSurfaces ? { opacity: 1 } : {}) });
+    const done = lb.fromSurfaces
       ? notice("Added the blocks as a block model: {cells} cells ({legend}). Cells above every top are left out.", { cells: cells.length.toLocaleString(), legend })
-      : notice("Added the model's lithology block as a block model: {cells} cells ({legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.", { cells: cells.length.toLocaleString(), legend })]);
+      : notice("Added the model's lithology block as a block model: {cells} cells ({legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.", { cells: cells.length.toLocaleString(), legend });
+    setNotices((p) => [...p, done]);
+    const xn = lb.fromSurfaces ? extrapolationNotice(implicitSurfaces.filter((s) => lb.source?.ids?.includes(s.id))) : null; // #1840 — said with the answer too (#3932)
+    return { ok: true, id: vid, name: `Model units: ${lb.title} (${lb.when})`, cells: cells.length, units: stops.map((st) => st.label), notes: [done.text, xn?.text].filter(Boolean) };
   };
   // TASKS.csv #517 — each modelled unit as a CLOSED shell (the outer faces of its cells, closed at the model box — exact volume at the model cell size):
   // listed with the model surfaces, exportable as DXF / OBJ, cut on sections and plans, measured by the volume
@@ -6156,7 +6159,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const assayChipCounts = useMemo(() => assayValueCounts(assays), [assays]); // #2374
   // TASKS.csv #3908 — the api the guided card (Model > Start here) is given; #3932 batch 2: an AI app's build_surface / build_grade_shell run the same tools with it
   const guidedApi = { runStackModel, runImplicitModel, runVeinModel, runStructuralModel, runNumericModel, meshOf: (id) => implicitMeshesRef.current[id], numeric: { now: [numericSymbol, numericCutoff, numericCellSize, numericCellHeight, numericSearchRadius, numericMinHoles], set: [setNumericSymbol, setNumericCutoff, setNumericCellSize, setNumericCellHeight, setNumericSearchRadius, setNumericMinHoles] }, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy || veinBusy || numericBusy, surfaces: implicitSurfaces, setStackUnits, setImplicitTarget, setVeinTarget, setStructuralTarget, openPane: (p) => { setGuided(null); pendingPaneRef.current = p; goToModule("modelling"); } };
-  useMcpModelActions(() => ({ store: { layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain }, api: guidedApi, removeSurfaces }), mode === "view");
+  useMcpModelActions(() => ({ store: { layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain }, api: guidedApi, removeSurfaces, lastLithBlock, addLithBlockModel, removeVoxelModel }), mode === "view");
   const anomalyControls = <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>; // #1603 — also on the Surface Geology tab
   return (
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%", order: bare ? 1 : 0 }}>

@@ -5,7 +5,7 @@
 //   getApi(): the api GuidedTool is given (ViewerModule.jsx), read afresh each time: a setting takes a render to arrive; getCtx(): the tool's ctx, from the store as GuidedTool builds it
 import { autoSurface, QUICK_RESOLUTION } from "../../../lib/auto/autoSurface.js";
 import { roleForLithology } from "../../../lib/layers.js";
-import { toolById, BODIES, COVER, GRADE, unitsByHoles } from "./guidedTools.js";
+import { toolById, BODIES, COVER, GRADE, ROCK_LAYERS, BODY_ROLES, unitsByHoles } from "./guidedTools.js";
 
 const fail = (error) => ({ ok: false, error });
 const realSleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -20,9 +20,10 @@ export function guidedCtx(store, computeIntercepts) {
     intercepts: () => (cache ||= (computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
 }
 
-// which guided tool builds this rock: a cover's base when its role is overburden, else a body (the Bodies tool says, as its card does, when the role does not fit). -> a guided tool
-export const toolForRock = (ctx, rock) => (ctx.isCover(rock) ? COVER : BODIES);
-export { toolById, GRADE, unitsByHoles };
+// which guided tool builds this rock, by its role (Modelling codes, else its name): a cover's base when it is overburden, a body when it is an intrusion, dyke, vein or breccia, else the layers of the rocks that
+// lie in a steady order (Rock layers). -> a guided tool
+export const toolForRock = (ctx, rock) => (ctx.isCover(rock) ? COVER : BODY_ROLES.has(ctx.roleOf(rock)) ? BODIES : ROCK_LAYERS);
+export { toolById, GRADE, ROCK_LAYERS, unitsByHoles };
 
 // -> { ok: true, built: [names], ids, reasons: [text], notes: [text] } | { ok: false, error }
 export async function runGuided({ tool, value, mode, ctx, getApi, sleep = realSleep, settingsWaitMs = SETTINGS_WAIT_MS, quietMs = QUIET_MS, runWaitMs = RUN_WAIT_MS }) {
@@ -37,12 +38,13 @@ export async function runGuided({ tool, value, mode, ctx, getApi, sleep = realSl
   if (!api0) return fail("StrixViewer is not ready.");
   if (api0.busy) return fail("Another model is running in GeoStrix: one at a time. Try again when it has finished.");
   const before = new Set((api0.surfaces || []).map((s) => s.id));
-  (tool.prepare || ((a, v) => a.setModelResolution(v.resolution)))(api0, auto.values);
+  try { (tool.prepare || ((a, v) => a.setModelResolution(v.resolution)))(api0, auto.values); } catch { return fail("The model's settings could not be put in place."); }
   const ready = tool.ready || ((a, v) => a.modelResolution === v.resolution);
   for (let waited = 0; !ready(getApi(), auto.values); waited += 30) { if (waited >= settingsWaitMs) return fail("GeoStrix did not apply the model's settings. Try again."); await sleep(30); }
   const api = getApi();
   let sawBusy = false, returned = false, quiet = 0;
-  const run = Promise.resolve(tool.run(api, value, ctx, auto.values)).then(() => { returned = true; }, () => { returned = true; });
+  let started; try { started = Promise.resolve(tool.run(api, value, ctx, auto.values)); } catch { return fail("The model could not be started."); }
+  const run = started.then(() => { returned = true; }, () => { returned = true; });
   // a run is finished when the busy flag it raised falls; one that never raised it (it stopped with a message) a moment after it returned (GuidedTool's rule)
   for (let waited = 0; ; waited += 50) {
     const busy = !!getApi()?.busy;

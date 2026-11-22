@@ -14743,5 +14743,6 @@
   "Outside its limits": "Fora dos seus limites",
   "Mean, ±2 and ±3 SD": "Média, ±2 e ±3 DP",
   "built the surface '{name}'": "construiu a superfície '{name}'",
-  "built the {symbol} grade shell": "construiu a envoltória de teor de {symbol}"
+  "built the {symbol} grade shell": "construiu a envoltória de teor de {symbol}",
+  "added the model's blocks as the block model '{name}'": "adicionou os blocos do modelo como o modelo de blocos '{name}'"
 }

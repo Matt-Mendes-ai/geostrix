@@ -153,6 +153,13 @@ export const ACTIONS = {
     const { ok, revert, ...rest } = r;
     return { ok: true, tracked: false, data: rest, say: tr("built the surface '{name}'", { name: (r.built || [])[0] || a.rock }), revert };
   },
+  // the last model's lithology blocks, added as a block model (the Result block's own 'Add as block model'); the blocks are the last model's: nothing is built here
+  async add_block_model(_a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "block_model" }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("added the model's blocks as the block model '{name}'", { name: r.name }), revert };
+  },
   async build_grade_shell(a, s) {
     const r = await viaModule(s, "viewer", "mcp-model", { op: "grade_shell", element: a.element }, MODEL_WAIT_MS);
     if (!r.ok) return r;

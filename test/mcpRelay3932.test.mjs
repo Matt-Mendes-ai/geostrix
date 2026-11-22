@@ -51,7 +51,7 @@ function standInPanes(s) {
     else if (action === "mcp-view") p.reply(viewAction({ ...v, sections: s.sections }, p));
     else if (action === "mcp-fetch-satellite") p.reply({ ok: true, name: "Sentinel-2 test scene", ids: ["r1"], pictures: 1, over: "holes", area_cloud_percent: 0 });
     else if (action === "mcp-fetch-terrain") p.reply({ ok: true, name: "Copernicus DEM GLO-30", id: "t1", grid: "10 x 10" });
-    else if (action === "mcp-model") p.reply({ ok: true, changed: p.op === "surface" ? "body surface" : "grade shell", built: ["Top of DYK"], ids: ["m1"], why: ["Cells 20 m"], notes: [], revert() {} }); // #3932 batch 2: the guided build, stood in for
+    else if (action === "mcp-model") p.reply({ ok: true, changed: p.op === "surface" ? "body surface" : p.op === "block_model" ? "block model" : "grade shell", built: ["Top of DYK"], ids: ["m1"], why: ["Cells 20 m"], notes: [], revert() {} }); // #3932 batch 2: the guided build, stood in for
   };
   window.addEventListener("geostrix-module-action", on);
   return () => window.removeEventListener("geostrix-module-action", on);
@@ -68,6 +68,7 @@ const CALLS = [ // each change tool with arguments its schema accepts
   ["fetch_terrain", {}],
   ["build_surface", { rock: "DYK" }], // #3932 batch 2
   ["build_grade_shell", { element: "Au" }],
+  ["add_block_model", {}],
 ];
 
 test("#3932 through the PowerShell relay, as Claude Desktop starts it: every change tool refused with the switch off (the window never sees one), then each done with it on", { skip: !win32 && "PowerShell bridge: Windows only" }, async () => {
@@ -80,7 +81,7 @@ test("#3932 through the PowerShell relay, as Claude Desktop starts it: every cha
     (msg.change ? runChange(msg.name, msg.args, { getStore: () => s, client: msg.client, settle: async () => {} }) : Promise.resolve(runTool(msg.name, msg.args, s))).then((r) => host.respond(msg.id, r));
   } } };
   const prefs = {};
-  host = createHost({ userDataDir: dir, getWindow: () => win, askAllow: async (c, o) => { asked.push(["allow", o?.changes ? "changes" : "read"]); return "once"; }, askNetwork: async (c, t) => { asked.push(["download", t]); return true; }, isOnline: () => true, readPrefs: () => prefs, writePrefs: (p) => Object.assign(prefs, p) });
+  host = createHost({ userDataDir: dir, getWindow: () => win, askAllow: async (c, o) => { asked.push(["allow", o?.changes ? "changes" : "read"]); return "once"; }, askNetwork: async (c, t) => { asked.push(["download", t]); return true; }, limits: { ...proto.LIMITS, changesPerMinute: 30 } /* #3932 batch 2: eleven change tools in one minute */, isOnline: () => true, readPrefs: () => prefs, writePrefs: (p) => Object.assign(prefs, p) });
   try {
     assert.ok((await host.setEnabled(true, false)).ok);
     const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", SCRIPT], { env: { ...process.env, GEOSTRIX_USER_DATA: dir }, stdio: ["pipe", "pipe", "pipe"], windowsHide: true });

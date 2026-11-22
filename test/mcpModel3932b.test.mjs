@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 import { runChange, ACTIONS } from "../src/lib/mcpActions.js";
 import { runGuided, guidedCtx, toolForRock } from "../src/modules/viewer/guided/guidedRun.js";
 import { modelAction } from "../src/modules/viewer/useMcpModelActions.js";
-import { BODIES, COVER, GRADE } from "../src/modules/viewer/guided/guidedTools.js";
+import { BODIES, COVER, GRADE, ROCK_LAYERS } from "../src/modules/viewer/guided/guidedTools.js";
 
 const require = createRequire(import.meta.url);
 const proto = require("../electron/mcpProtocol.js");
@@ -23,7 +23,7 @@ function engine({ makes = (target) => { const t = String(target).replace(/^mcode
   const api = () => ({
     get busy() { return st.busy; }, get surfaces() { return st.surfaces; }, get modelResolution() { return st.modelResolution; },
     setModelResolution: (v) => { st.modelResolution = v; }, // the render that applies it is the next poll
-    runImplicitModel: run("implicit"), runNumericModel: run("numeric"), computeIntercepts: () => st.intercepts || [], meshOf: () => undefined,
+    runImplicitModel: run("implicit"), runNumericModel: run("numeric"), runStackModel: run("stack"), setStackUnits() {}, computeIntercepts: () => st.intercepts || [], meshOf: () => undefined,
     numeric: { get now() { return st.numeric; }, set: [0, 1, 2, 3, 4, 5].map((i) => (v) => { st.numeric = st.numeric.map((x, k) => (k === i ? v : x)); }) },
   });
   return { st, api };
@@ -31,9 +31,14 @@ function engine({ makes = (target) => { const t = String(target).replace(/^mcode
 
 // ---- synthetic project: DYK a dyke and TILL a cover in 6 holes, a lens of Au 1.5-2.5 g/t in a 5 x 5 grid of holes 40 m apart
 const holes = [...Array(5).keys()].flatMap((i) => [...Array(5).keys()].map((j) => ({ hole_id: `DH-23-${i}${j}`, x: i * 40, y: j * 40, z: 0 })));
-const lithoRows = holes.flatMap((h, k) => [{ hole_id: h.hole_id, from: 0, to: 5, value: "TILL" }, { hole_id: h.hole_id, from: 5, to: 60, value: "SST" }, ...(k % 4 === 0 ? [{ hole_id: h.hole_id, from: 20, to: 24, value: "DYK" }] : [])]);
+const lithoRows = [...holes.flatMap((h, k) => [{ hole_id: h.hole_id, from: 0, to: 5, value: "TILL" }, { hole_id: h.hole_id, from: 5, to: 60, value: "SST" }, ...(k % 4 === 0 ? [{ hole_id: h.hole_id, from: 20, to: 24, value: "DYK" }] : [])]),
+  { hole_id: "DH-23-00", from: 60, to: 70, value: "ODD" }, { hole_id: "DH-23-01", from: 1, to: 3, value: "ODD" }, { hole_id: "DH-23-02", from: 61, to: 70, value: "ODD" }, { hole_id: "DH-23-03", from: 2, to: 3, value: "ODD" }]; // ODD above and below SST: not in a steady order
 const assays = holes.flatMap((h, k) => [...Array(50).keys()].map((n) => ({ hole_id: h.hole_id, from: n * 2, to: n * 2 + 2, values: { Au: n >= 20 && n < 30 && k % 6 !== 0 ? 1.5 + ((k * n) % 10) / 10 : 0.04 } })));
 const store = (over = {}) => ({ layers: { litho: lithoRows, vein: [], structure: [], sg: [] }, modellingCodes: { codes: [{ name: "DYK", role: "dyke" }, { name: "TILL", role: "overburden" }] }, assays, survey: [], assayElements: [{ symbol: "Au", unit: "g/t" }], structuralTrends: {}, collars: holes, terrain: null, ...over });
+// layered ground: TILL (cover), SST over SLT in every hole, and ODD above and below SST in different holes (not in a steady order)
+const layerRows = [...holes.flatMap((h) => [{ hole_id: h.hole_id, from: 0, to: 5, value: "TILL" }, { hole_id: h.hole_id, from: 5, to: 30, value: "SST" }, { hole_id: h.hole_id, from: 30, to: 60, value: "SLT" }]),
+  { hole_id: "DH-23-00", from: 60, to: 70, value: "ODD" }, { hole_id: "DH-23-01", from: 1, to: 3, value: "ODD" }, { hole_id: "DH-23-02", from: 61, to: 70, value: "ODD" }, { hole_id: "DH-23-03", from: 2, to: 3, value: "ODD" }];
+const layered = { layers: { litho: layerRows, vein: [], structure: [], sg: [] }, modellingCodes: { codes: [{ name: "TILL", role: "overburden" }] } };
 const contactsOf = () => holes.flatMap((h) => [{ layerKey: "litho", unit: "DYK", hole_id: h.hole_id, from: 20, x: h.x, y: h.y, z: -20 }, { layerKey: "litho", unit: "SST", hole_id: h.hole_id, from: 5, x: h.x, y: h.y, z: -5 }, { layerKey: "litho", unit: "SLT", hole_id: h.hole_id, from: 24, x: h.x, y: h.y, z: -24 }]);
 const ctxOf = (e, over) => ({ store: store(over), api: e.api(), removeSurfaces: (ids) => { e.st.removed.push(ids); e.st.surfaces = e.st.surfaces.filter((s) => !ids.includes(s.id)); } });
 
@@ -69,7 +74,8 @@ test("#3932b one model at a time; a run that is cancelled or stops with a messag
 });
 
 test("#3932b build_surface: the rock's role picks the tool (overburden: the cover's base, else a body); unknown rocks list the logged ones", async () => {
-  assert.equal(toolForRock({ isCover: (u) => u === "TILL" }, "TILL"), COVER); assert.equal(toolForRock({ isCover: (u) => u === "TILL" }, "DYK"), BODIES);
+  const role = { TILL: "overburden", DYK: "dyke", SST: "stratigraphic" }, rc = { isCover: (u) => role[u] === "overburden", roleOf: (u) => role[u] };
+  assert.equal(toolForRock(rc, "TILL"), COVER); assert.equal(toolForRock(rc, "DYK"), BODIES); assert.equal(toolForRock(rc, "SST"), ROCK_LAYERS, "a layered rock: the Rock layers tool");
   const e = engine(); e.st.intercepts = contactsOf();
   const r = await modelAction(() => ctxOf(e), { op: "surface", rock: "dyk" }); // case does not matter
   assert.equal(r.ok, true, JSON.stringify(r));
@@ -77,7 +83,12 @@ test("#3932b build_surface: the rock's role picks the tool (overburden: the cove
   assert.ok(Array.isArray(r.why) && r.why.length <= 4 && r.why.every((x) => x.length <= 240), "short answers");
   const miss = await modelAction(() => ctxOf(e), { op: "surface", rock: "GRANITE" });
   assert.match(miss.error, /^No rock 'GRANITE' in the lithology log\. The rocks logged: .*DYK/);
-  assert.match((await modelAction(() => ctxOf(e), { op: "surface", rock: "SST" })).error, /^Mark SST as an intrusion/);
+  // a layered rock builds the layers of the rocks that lie in a steady order (the Rock layers card's own suggestion); one that does not is refused
+  const st = engine({ makes: () => [{ id: "top_sst", name: "Top of SST" }, { id: "top_slt", name: "Top of SLT" }] }); st.st.intercepts = contactsOf();
+  const lay = await modelAction(() => ctxOf(st, layered), { op: "surface", rock: "sst" });
+  assert.equal(lay.ok, true, JSON.stringify(lay)); assert.equal(lay.changed, "rock layers"); assert.equal(lay.tool, "layers"); assert.deepEqual(lay.ids, ["top_sst", "top_slt"]);
+  assert.equal(st.st.runs[0][0], "stack"); assert.deepEqual(st.st.runs[0][1], ["TILL", "SST", "SLT"], "the layers in their order, top to bottom");
+  assert.match((await modelAction(() => ctxOf(st, layered), { op: "surface", rock: "ODD" })).error, /^ODD is not one of the rocks that lie in a steady order, top to bottom, down the holes \(TILL, SST, SLT\)\. Mark it as an intrusion or as overburden in Modelling codes/);
   assert.match((await modelAction(() => ctxOf(e), { op: "nope" })).error, /Unknown model request/);
   assert.match((await modelAction(() => ctxOf(e), null)).error, /Nothing asked/);
   const cover = await modelAction(() => ctxOf(engine()), { op: "surface", rock: "TILL" }); // no contacts in this engine: the cover's base cannot be drawn
@@ -114,8 +125,8 @@ test("#3932b through the change runner: one undo checkpoint each side, a toast w
   assert.equal(checkpoints.length, 2, "before and after");
   assert.equal(toasts.length, 1); assert.match(toasts[0].message, /Claude Desktop: built the surface 'Top of DYK'/); assert.equal(typeof toasts[0].undo, "function");
   toasts[0].undo(); assert.deepEqual(e.st.removed, [["s_DYK"]]);
-  const bad = await runChange("build_surface", { rock: "SST" }, { getStore: () => s, client: "Claude Desktop", toast: (t) => toasts.push(t), settle: async () => {}, actions });
-  assert.equal(bad.ok, false); assert.match(bad.error, /^Mark SST as an intrusion/); assert.equal(toasts.length, 1, "no toast for a refusal");
+  const bad = await runChange("build_surface", { rock: "GRANITE" }, { getStore: () => s, client: "Claude Desktop", toast: (t) => toasts.push(t), settle: async () => {}, actions });
+  assert.equal(bad.ok, false); assert.match(bad.error, /^No rock 'GRANITE' in the lithology log/); assert.equal(toasts.length, 1, "no toast for a refusal");
 });
 
 test("#3932b the tools in the protocol: change tools behind the switch, long (a model run), strict schemas, listed with 'Makes a change in GeoStrix'", async () => {
@@ -155,7 +166,7 @@ test("#3932b make_sheet and add_best_intercepts are tracked: a Layout page is an
 test("#3932b StrixViewer: the hook answers only in the 3D View, the guided card and the AI tools share one api, nothing of it is in the startup chunk", () => {
   const vm = read("../src/modules/ViewerModule.jsx");
   assert.match(vm, /const guidedApi = \{ runStackModel, runImplicitModel,/);
-  assert.match(vm, /useMcpModelActions\(\(\) => \(\{ store: \{ layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain \}, api: guidedApi, removeSurfaces \}\), mode === "view"\);/);
+  assert.match(vm, /useMcpModelActions\(\(\) => \(\{ store: \{ layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain \}, api: guidedApi, removeSurfaces, lastLithBlock, addLithBlockModel, removeVoxelModel \}\), mode === "view"\);/);
   assert.match(vm, /<GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{guidedApi\} \/>/);
   const hook = read("../src/modules/viewer/useMcpModelActions.js");
   assert.match(hook, /load = \(\) => import\("\.\/guided\/guidedRun\.js"\)/, "loaded on first use");
@@ -167,4 +178,88 @@ test("#3932b StrixViewer: the hook answers only in the 3D View, the guided card 
     assert.match(card, new RegExp(`\\b${f}\\b`), `GuidedTool: ${f}`); assert.match(mine, new RegExp(`\\b${f}\\b`), `guidedRun: ${f}`);
   }
   assert.ok(Buffer.byteLength(vm) <= 735000, `${Buffer.byteLength(vm)} bytes: the ViewerModule cap`);
+});
+
+// ---- add_block_model: the Result block's 'Add as block model' on the last model's lithology blocks
+test("#3932c add_block_model: needs the last model's blocks (said when there are none); adds them through the Result block's own function; the protective wording comes back word for word; the revert removes only that block model", async () => {
+  const removed = [];
+  const none = await modelAction(() => ({ lastLithBlock: null, addLithBlockModel: async () => ({ ok: true }) }), { op: "block_model" });
+  assert.equal(none.ok, false); assert.match(none.error, /^No model blocks yet: the Result block holds the last model's blocks once they are built/);
+  const added = [];
+  const ctx = { lastLithBlock: { title: "Top of SST", when: "10:42" }, removeVoxelModel: (id) => removed.push(id),
+    addLithBlockModel: async () => { added.push(1); return { ok: true, id: "voxel_1", name: "Model units: Top of SST (10:42)", cells: 18240, units: ["SST", "SLT"],
+      notes: ["Added the blocks as a block model: 18,240 cells (1 = SST, 2 = SLT). Cells above every top are left out.", "Mostly extrapolation: \"Top of SLT\" is 62% beyond its 3 pick(s) and 2 section line(s). The volume and thickness above are those surfaces extended, not measured; add contacts where the solid matters."] }; } };
+  const r = await modelAction(() => ctx, { op: "block_model" });
+  assert.equal(r.ok, true); assert.equal(r.changed, "block model"); assert.equal(r.id, "voxel_1"); assert.equal(r.cells, 18240); assert.deepEqual(r.units, ["SST", "SLT"]);
+  assert.match(r.notes[0], /Cells above every top are left out\.$/); assert.match(r.notes[1], /^Mostly extrapolation: .* not measured; add contacts where the solid matters\.$/);
+  assert.equal(added.length, 1); r.revert(); assert.deepEqual(removed, ["voxel_1"]);
+  const declined = await modelAction(() => ({ ...ctx, addLithBlockModel: async () => ({ ok: false, error: "The user declined adding the blocks in GeoStrix (a very large model)." }) }), { op: "block_model" });
+  assert.equal(declined.ok, false); assert.match(declined.error, /declined adding the blocks/);
+  // the source: the button's function hands its result back, with the very notice it shows
+  const vm = read("../src/modules/ViewerModule.jsx");
+  assert.match(vm, /const addLithBlockModel = async \(\) => \{ \/\/ returns what it did, for an AI app's add_block_model/);
+  assert.match(vm, /const vid = addVoxelModel\(\{ name: `Model units: \$\{lb\.title\} \(\$\{lb\.when\}\)`/);
+  assert.match(vm, /return \{ ok: true, id: vid, name: `Model units: \$\{lb\.title\} \(\$\{lb\.when\}\)`, cells: cells\.length, units: stops\.map\(\(st\) => st\.label\), notes: \[done\.text, xn\?\.text\]\.filter\(Boolean\) \};/);
+  assert.match(vm, /useMcpModelActions\(\(\) => \(\{.*lastLithBlock, addLithBlockModel, removeVoxelModel \}\), mode === "view"\);/);
+  // the tool, in the protocol and the actions
+  const d = proto.TOOLS.find((t) => t.name === "add_block_model");
+  assert.ok(d); assert.equal(proto.isChangeTool(d), true); assert.equal(proto.isLongTool(d), true); assert.match(d.description, /^Makes a change in GeoStrix:/);
+  assert.equal(proto.refuseArgs(d, {}), null); assert.equal(proto.refuseArgs(d, { x: 1 })?.message, "Unknown argument 'x'.");
+  assert.ok(ACTIONS.add_block_model);
+  const calls = [];
+  const s = { undoCheckpoint() {}, goToModule() {} };
+  const out = await runChange("add_block_model", {}, { getStore: () => s, client: "Claude Desktop", toast: () => {}, settle: async () => {}, actions: { add_block_model: async () => { const x = await modelAction(() => ctx, { op: "block_model" }); calls.push(x.ok); const { ok, revert, ...rest } = x; return { ok: true, data: rest, say: "added the blocks", revert }; } } });
+  assert.equal(out.ok, true); assert.deepEqual(calls, [true]); assert.equal(out.data.cells, 18240);
+});
+
+// ---- suggest_trend: the trend helper's suggestion, read-only
+const { runTool } = await import("../src/lib/mcpTools.js");
+// vertical holes on a 5 x 5 grid 40 m apart; a lens of high grade that runs north-east to south-west, dipping steeply to the south-east: its high samples lie on a plane
+function trendProject(over = {}) {
+  const collars = holes.map((h) => ({ ...h, azimuth: 0, dip: -90, length: 100 }));
+  const assays = [];
+  for (const h of holes) for (let n = 0; n < 50; n++) {
+    const x = h.x, y = h.y, z = -(n * 2 + 1);
+    const planeD = (x - y) / Math.SQRT2 * Math.cos(0.3) + (z + 60) * Math.sin(0.3); // distance from a steep plane
+    assays.push({ hole_id: h.hole_id, from: n * 2, to: n * 2 + 2, values: { Au: Math.abs(planeD) < 12 ? 2 + (n % 5) / 5 : 0.03 } });
+  }
+  const structure = ["fault", "fault", "fault", "fault"].map((v, i) => ({ hole_id: holes[i].hole_id, from: 10 + i, to: 10 + i, value: v, dip: 62 + i, azimuth: 135 + i }));
+  return { project: { name: "Trend test" }, collars, survey: [], assays, assayElements: [{ symbol: "Au", unit: "g/t" }], layers: { litho: lithoRows, structure }, desurveyMethod: "minimum_curvature", ...over };
+}
+test("#3932c suggest_trend: the trend helper's candidates with their strength, reasons and warnings; what was read and what was not; a suggestion, not a fact", () => {
+  const r = runTool("suggest_trend", { element: "au" }, trendProject());
+  assert.equal(r.ok, true, JSON.stringify(r)); const d = r.data;
+  assert.equal(d.element, "Au");
+  assert.ok(d.candidates.length >= 1 && d.candidates.length <= 4);
+  const fault = d.candidates.find((c) => c.source === "structures");
+  assert.ok(fault, "the measured fault picks give a candidate"); assert.ok(["strong", "fair", "weak"].includes(fault.strength)); assert.match(fault.words, /tilts|upright|flat/); assert.match(fault.numbers, /^dip \d+° → \d{3}°$/); assert.ok(fault.reason.length > 10);
+  assert.ok(d.candidates.every((c) => Array.isArray(c.warnings) && ["strong", "fair", "weak"].includes(c.strength)));
+  assert.ok(d.suggested === null || d.suggested.suggested === true);
+  assert.ok(d.sources_read.some((x) => /measured structure picks/.test(x)) && d.sources_read.some((x) => /Au samples at or above/.test(x)) && d.sources_read.some((x) => /assayed samples \(the drilling\)/.test(x)), d.sources_read.join(" | "));
+  assert.deepEqual(d.not_read.slice(0, 3), ["modelled surfaces", "outcrop readings", "mapped contacts"]);
+  assert.equal(d.note, "These are suggestions from your data, not facts: check them against what you know.");
+  assert.ok(JSON.stringify(d).length < 8000, "a short answer");
+  // without an element the grades are not read; a project with nothing to go on says so (the helper's own words)
+  const noEl = runTool("suggest_trend", {}, trendProject()).data;
+  assert.ok(!noEl.element && !noEl.sources_read.some((x) => /samples at or above/.test(x)));
+  const bare = runTool("suggest_trend", {}, trendProject({ layers: { litho: [], structure: [] }, assays: [] })).data;
+  assert.deepEqual(bare.candidates, []); assert.equal(bare.suggested, null); assert.match(bare.none, /Your data does not show a clear direction/);
+  assert.match(runTool("suggest_trend", { element: "Zn" }, trendProject()).error, /^No element 'Zn' in this project's assays\. Available: Au/);
+  assert.equal(runTool("suggest_trend", { element: "C:\\x" }, trendProject()).ok, false);
+});
+
+test("#3932c suggest_trend in the protocol: a read tool (no switch), strict schema, the element optional; it never writes", async () => {
+  const d = proto.TOOLS.find((t) => t.name === "suggest_trend");
+  assert.ok(d); assert.equal(proto.isChangeTool(d), false); assert.match(d.description, /^Read-only\./); assert.match(d.description, /suggestions from the data, not facts/);
+  assert.equal(proto.refuseArgs(d, {}), null); assert.equal(proto.refuseArgs(d, { element: "Au" }), null);
+  assert.equal(proto.refuseArgs(d, { element: "x".repeat(33) })?.message, "'element' is too long (at most 32 characters).");
+  assert.equal(proto.refuseArgs(d, { element: "Au", more: 1 })?.message, "Unknown argument 'more'.");
+  const { TOOL_NAMES } = await import("../src/lib/mcpTools.js");
+  assert.ok(TOOL_NAMES.includes("suggest_trend"));
+  const calls = [];
+  const off = proto.createSession({ changesAllowed: () => false, askAllow: async () => "once", callTool: async (n, a, meta) => { calls.push([n, meta]); return { ok: true, data: { candidates: [] } }; } });
+  await off.handleLine(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", clientInfo: { name: "Claude Desktop" } } }));
+  const r = JSON.parse(await off.handleLine(JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "suggest_trend", arguments: { element: "Au" } } }))).result;
+  assert.equal(r.isError, false, "readable with the changes switch off"); assert.deepEqual(calls[0], ["suggest_trend", { client: "Claude Desktop" }], "an ordinary read: no change, no long wait");
+  assert.equal(proto.TOOLS.filter(proto.isChangeTool).map((t) => t.name).sort().join(), Object.keys(ACTIONS).sort().join());
 });
