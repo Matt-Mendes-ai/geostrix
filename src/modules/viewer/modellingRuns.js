@@ -2542,13 +2542,32 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity }));
         };
 
+        // TASKS.csv #4014 (Matt: "same thing for dykes and veins unless they are folded") — flat walls unless the intercept midpoints read as
+        // folded (lib/sheetedPlanes.js foldTest); parallel sheets of the set (a hole cuts each once) are each their own flat vein, on the
+        // attitude the whole set was fitted with. A folded vein keeps the curved midplane, as before.
+        const { sheetedPlanes, foldTest, normalOf } = await import("../../lib/sheetedPlanes.js");
+        const midOf = (i) => ({ x: (i.hw.x + i.fw.x) / 2, y: (i.hw.y + i.fw.y) / 2, z: (i.hw.z + i.fw.z) / 2 });
+        const setN = normalOf(model.plane.dip, model.plane.dipDir), fold = foldTest(used.map(midOf), setN);
+        let runs = [{ model, label, used }];
+        if (fold.folded) jobNotices((q) => [...q, notice("\"{label}\" reads as folded: its midpoints lie {m} m RMS off one plane and a curved surface fits much better, so its walls follow the fold.", { label, m: fold.rmsPlane.toFixed(1) })]);
+        else {
+          const flat = (u, plane) => { const m = buildVeinModel(u, { cellSize: model.grid.cellSize, searchRadius: model.grid.searchRadius, dip: model.plane.dip, dipDir: model.plane.dipDir, attitudeSource: model.plane.attitudeSource, planar: true }); Object.assign(m.plane, plane); return m; };
+          const gapM = Math.max(15, 4 * (model.thickness.trueMean || 0)); // sheets closer than this along the pole are one
+          const sh = sheetedPlanes(used.map(midOf), { normal: setN, gapM, minPoints: 1 });
+          const sheets = sh.ok ? sh.sets[0].sheets : [];
+          if (sheets.length > 1) {
+            runs = sheets.map((s, k) => { const u = s.ids.map((i) => used[i]); return { model: flat(u, { rmsOffPlane: s.rms, planarity: null }), label: `${label} · ${tr("sheet {n}", { n: k + 1 })}`, used: u }; });
+            jobNotices((q) => [...q, notice("\"{label}\": {n} parallel sheets, {gap} m or more apart across the vein, each built as its own flat vein on {dip}° / {dipDir}°.", { label, n: sheets.length, gap: Math.round(gapM), dip: Math.round(model.plane.dip), dipDir: Math.round(model.plane.dipDir) })]);
+          } else runs = [{ model: flat(used, { rmsOffPlane: model.plane.rmsOffPlane, planarity: model.plane.planarity }), label, used }];
+        }
+        const landOne = async ({ model, label, used }) => { // one sheet: its own model, label and intercepts (the names shadow the whole run's)
         const th = model.thickness, ck = model.checks, pl = model.plane;
         const { coreAngleThickness } = await import("../../lib/veinCoreAngle.js"); // #1739
         const tca = coreAngleThickness(used, veinValue, [{ name: tr("Vein / dyke"), rows: layers.vein }, ...(customLayers || []).map((c) => ({ name: c.name, rows: c.rows }))]);
         const base = {
           tool: "vein/dyke (midplane + thickness field)", target: veinValue,
           construction: "one midplane surface plus an interpolated TRUE-thickness field, offset by ±t/2 along the reference pole — the hangingwall and footwall are the same structure, so they cannot cross",
-          attitudeSource: pl.attitudeSource, dip: pl.dip, dipDir: pl.dipDir,
+          attitudeSource: pl.attitudeSource, dip: pl.dip, dipDir: pl.dipDir, shape: pl.planar ? "planar" : "curved", // shape: #4014
           rmsOffReferencePlaneM: pl.rmsOffPlane, planarityRatio: pl.planarity,
           intercepts: model.intercepts.length,
           trueThicknessMinM: th.trueMin, trueThicknessMaxM: th.trueMax, trueThicknessMeanM: th.trueMean,
@@ -2565,7 +2584,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
           generatedAt: new Date().toISOString(),
         };
-        if (!(await landed(job))) return; // TASKS.csv #3953 — the finally below clears its task
+        if (!(await landed(job))) return false; // TASKS.csv #3953 — the finally below clears its task
         const stamp = (part, suffix, color, opacity, type, relationships = []) => {
           const mesh = makeMesh(part, color, opacity);
           const vol = computeMeshVolume(mesh.geometry);
@@ -2587,7 +2606,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         const setPerHole = used.length / Math.max(1, new Set(used.map((i) => i.holeId)).size);
         if ((pl.rmsOffPlane != null && pl.rmsOffPlane > 10 * Math.max(th.trueMean || 0, 0.5)) || setPerHole > 2.5) {
           setNotices((p) => [...p, notice("\"{label}\": no surface, solid or volume was made: the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts in {holes} hole(s), {v4} per hole). This code is a vein SET or stockwork: split it into single veins (Modelling codes: number it or connect intervals between holes, set the new codes cross-cutting, then model each here) or model the set as an envelope of where it occurs ({route}).", { route: veinLayer === "litho" ? tr("Alteration > Layer: Lithology, or Modelling codes > Build a closed body") : tr("Alteration > Layer: Veins, with its density as the floor when logged"), /* #2533 — a route that works for the layer the code is in */ label, v: pl.rmsOffPlane != null ? Number(pl.rmsOffPlane).toFixed(1) : "?", v2: Number(th.trueMean || 0).toFixed(2), v3: used.length, holes: new Set(used.map((i) => i.holeId)).size, v4: setPerHole.toFixed(1) })]);
-          return;
+          return true; // #4014: the next sheet still lands
         }
         const fwSurf = stamp(model.footwall, "footwall", 0x3d8ecf, 0.75, "vein_footwall");
         // Only declared for a vein flat enough for "above" to mean something VERTICALLY, which is how
@@ -2634,6 +2653,9 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           }
           if (logged.noPreferred) setNotices((p) => [...p, notice("Warning: the {n} \"{name}\" picks show no preferred orientation (k = {k}, at the level of random planes), so their dips do not define one surface. Check them on the Stereonet, or give each structure its own name/ID.", { n: logged.n, name: logged.types.join(", "), k: logged.k.toFixed(1) })]);
         }
+        return true;
+        };
+        for (const r of runs) if (!(await landOne(r))) break; // #4014 — each sheet; false: the job no longer lands
         const meshes = Object.values(implicitMeshesRef.current);
         if (meshes.length) fitBox(new THREE.Box3().setFromObject(meshes[meshes.length - 1]));
       } catch (e) {

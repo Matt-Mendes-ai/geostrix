@@ -9,7 +9,7 @@ test("the vein-set check runs before the first wall is stamped and returns", () 
   const gate = r.indexOf("if ((pl.rmsOffPlane != null && pl.rmsOffPlane > 10 * Math.max(th.trueMean || 0, 0.5)) || setPerHole > 2.5) {");
   const fw = r.indexOf('const fwSurf = stamp(model.footwall, "footwall"');
   assert.ok(gate > 0 && fw > gate);
-  assert.match(r.slice(gate, fw), /no surface, solid or volume was made[\s\S]*return;\s*\}/);
+  assert.match(r.slice(gate, fw), /no surface, solid or volume was made[\s\S]*return true; \/\/ #4014: the next sheet still lands\s*\}/); // #4014: this sheet stops, the next still lands
 });
 test("the busy state is reset in a finally, so the early stop leaves the pane usable", () => {
   assert.match(r, /\} finally \{ \/\/ #2050 — also after the early stop below\s*(setTaskProgress\?\.\(null\)|ownTask\(label\)\.clear\(\)); \/\/ #2379 — only this tool's entry\s*setVeinBusy\(false\);/); // ownTask: #2379

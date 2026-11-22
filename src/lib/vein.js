@@ -224,7 +224,7 @@ export function buildVeinModel(intercepts, opts = {}) {
   const fb = opts.fallbackAttitude && Number.isFinite(opts.fallbackAttitude.dip) && Number.isFinite(opts.fallbackAttitude.dipDir) ? opts.fallbackAttitude : null;
   if (Number.isFinite(opts.dip) && Number.isFinite(opts.dipDir)) {
     plane = planeOf(opts.dip, opts.dipDir);
-    attitudeSource = "user-supplied";
+    attitudeSource = opts.attitudeSource || "user-supplied"; // #4014: a sheet built on the attitude its whole set was fitted with
   } else {
     plane = fitPlane(mids);
     const oneHole = new Set(pts.map((i) => i.holeId)).size === 1;
@@ -267,6 +267,10 @@ export function buildVeinModel(intercepts, opts = {}) {
   });
 
   const local = mids.map(toLocal);
+  // TASKS.csv #4014 (Matt: "same thing for dykes and veins unless they are folded") — planar: the midplane IS the plane (no offset field),
+  // so the walls are flat and only the thickness varies; the misfit and the leave-one-out check then measure how far the midpoints lie
+  // off that plane
+  const W = opts.planar ? () => 0 : (l) => l.w;
 
   // True thickness per intercept, via trueWidth.js's verified |ĥ·n̂| factor against the reference
   // attitude. First pass uses the single fitted attitude for every intercept.
@@ -311,7 +315,7 @@ export function buildVeinModel(intercepts, opts = {}) {
   }
 
   const buildFields = (thickness) => {
-    const wSamples = local.map((l, k) => ({ u: l.u, v: l.v, value: l.w }));
+    const wSamples = local.map((l) => ({ u: l.u, v: l.v, value: W(l) }));
     const tSamples = local.map((l, k) => ({ u: l.u, v: l.v, value: thickness[k].t }));
     const wGrid = new Float64Array(nu * nv);
     const tGrid = new Float64Array(nu * nv);
@@ -346,7 +350,7 @@ export function buildVeinModel(intercepts, opts = {}) {
   if (opts.refineNormals !== false && pts.length >= 4) {
     const gradAt = (u, v) => {
       const h = Math.max(cellSize, searchRadius / 4);
-      const samples = local.map((l) => ({ u: l.u, v: l.v, value: l.w }));
+      const samples = local.map((l) => ({ u: l.u, v: l.v, value: W(l) }));
       const c0 = idw2(samples, u - h, v, searchRadius * 2, power);
       const c1 = idw2(samples, u + h, v, searchRadius * 2, power);
       const c2 = idw2(samples, u, v - h, searchRadius * 2, power);
@@ -448,7 +452,7 @@ export function buildVeinModel(intercepts, opts = {}) {
   // between the contact and the midpoint (half the downhole length projected into the plane), which is
   // pure geometry and not a fitting error at all: measuring it that way reported ~2.8 m RMS on a vein
   // the model reproduces exactly, which would have been a badly misleading number to print.
-  const wSamplesFinal = local.map((q) => ({ u: q.u, v: q.v, value: q.w }));
+  const wSamplesFinal = local.map((q) => ({ u: q.u, v: q.v, value: W(q) }));
   const tSamplesFinal = local.map((q, m) => ({ u: q.u, v: q.v, value: thick[m].t }));
   let ss = 0, mx = 0, counted = 0;
   pts.forEach((p, k) => {
@@ -476,7 +480,7 @@ export function buildVeinModel(intercepts, opts = {}) {
   // the case where a single hangingwall/footwall pair is the wrong picture.
   let looSs = 0, looN = 0, looMax = 0;
   local.forEach((l, k) => {
-    const others = local.filter((_, m) => m !== k).map((q) => ({ u: q.u, v: q.v, value: q.w }));
+    const others = local.filter((_, m) => m !== k).map((q) => ({ u: q.u, v: q.v, value: W(q) }));
     const pred = idw2(others, l.u, l.v, searchRadius, power);
     if (!pred) return;
     const d = Math.abs(pred.value - l.w);
@@ -496,7 +500,7 @@ export function buildVeinModel(intercepts, opts = {}) {
 
   const sampled = thick.map((t) => t.t);
   return {
-    plane: { centroid: plane.centroid, normal: N, dip: plane.dip, dipDir: plane.dipDir, rmsOffPlane: plane.rmsOffPlane, planarity: plane.planarity, attitudeSource },
+    plane: { centroid: plane.centroid, normal: N, dip: plane.dip, dipDir: plane.dipDir, rmsOffPlane: plane.rmsOffPlane, planarity: plane.planarity, attitudeSource, planar: !!opts.planar },
     grid: { nu, nv, cellSize, searchRadius, padding, informedNodes: informed, coarsened, uMin, uMax, vMin, vMax },
     hangingwall: { positions: hw, faces },
     footwall: { positions: fw, faces },
