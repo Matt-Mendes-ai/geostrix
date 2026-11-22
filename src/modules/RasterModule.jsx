@@ -4,13 +4,13 @@ import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #61
 import { exportCrs, gridBandsToWorld, imageToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #1021; a tied local grid: #2322
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
-import { runPfieldsJob } from "../lib/desktop.js"; // TASKS.csv #1985
+import { runPfieldsJob, isCancelledError } from "../lib/desktop.js"; // TASKS.csv #1985; isCancelledError: #3976
 import { terrainElevationAt } from "../lib/inversion.js"; // TASKS.csv #1985 — Euler solutions under the terrain
 import React, { useEffect, useMemo, useRef, useState } from "react"; // useEffect: #2865
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download, Crosshair, ChevronUp, ChevronDown } from "../components/icons.js"; // Chevron*: #2853 // Crosshair: #2657
 import { requestPlanZoom } from "../lib/planZoom.js"; // TASKS.csv #2657
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
-import { useStore } from "../lib/store.jsx";
+import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #3976
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a long job delivers only into the project it started in
 import { buildRasterImport, gridToSurveyRows, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
@@ -103,6 +103,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
 const GRAVITY_UNIT_RE = /^(mgal|µgal|μgal|ugal)$/i; // TASKS.csv #2947 — gridFilters.js GRAVITY_UNITS (that module loads on first use, so the form keeps its own copy)
 export default function RasterModule({ embedded = false } = {}) {
   const { assays = [], assayElements = [], rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {}, layers = {} /* #2868 — the survey stations */, startProjectJob /* #3953 */ } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
+  const setTaskProgress = useSetTaskProgress(); // TASKS.csv #3976 — the fetch's bar in the status bar
   const beginJob = (label, cancel) => (startProjectJob ? startProjectJob({ label, cancel }) : noJob(label)); // TASKS.csv #3953
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
@@ -393,10 +394,14 @@ export default function RasterModule({ embedded = false } = {}) {
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
     const job = beginJob(tr("Imagery")); // TASKS.csv #3953
+    // TASKS.csv #3976 — the bar in the status bar: the pictures read, then placed; Cancel stops the reads (#3963's signal)
+    const bar = (await import("../lib/fetchProgress.js")).startFetchProgress(setTaskProgress, { label: tr("Imagery"), stages: [["read", 0.9], ["place", 0.1]], onCancel: () => job.abort() });
+    const srcName = src === "naip" ? "NAIP" : "Sentinel-2";
+    bar.step("read", 0, 1, tr("Connecting to {source}…", { source: srcName })); // #3976 — the bar at once (a moving bar until something is counted)
     try { // TASKS.csv #816 / #837 — the latest clear Sentinel-2 scene (Copernicus: free and open, any use with attribution)
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
       // #3251 — Full: NAIP at the imagery's own pixels, in up to 2 x 2 pictures (r.parts)
-      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, full: satLevel === "full", signal: job.signal /* #3963 — closing its project stops the download */, onProgress: (done, total) => setSatProgress({ done, total }), ...(Number.isFinite(ai?.maxTileCloud) ? { maxTileCloud: ai.maxTileCloud } : {}) };
+      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, full: satLevel === "full", signal: job.signal /* #3963 — closing its project stops the download */, onProgress: (done, total) => { setSatProgress({ done, total }); bar.step("read", done, total, tr("Reading {source} pictures {done} of {total}", { source: srcName, done, total })); } /* bar: #3976 */, ...(Number.isFinite(ai?.maxTileCloud) ? { maxTileCloud: ai.maxTileCloud } : {}) };
       const r = src === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
       let tieNote = "";
       const parts = [];
@@ -422,10 +427,11 @@ export default function RasterModule({ embedded = false } = {}) {
       setError({ info: src === "naip" ? !r.partial : r.areaCloud <= 0.1, text: (parts.length > 1 ? tr("Fetched and imported {n} pictures of \"{name}\" ({gridW} × {gridH} px each at most).", { n: parts.length, name: r.name.replace(/, part 1 of \d+$/, ""), gridW: arrMax(parts.map((p) => p.gridW)), gridH: arrMax(parts.map((p) => p.gridH)) }) : tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH })) + r.note + tieNote });
     } catch (err) {
       said({ ok: false, error: String(err?.message || "The image could not be fetched.") }); // #3932
-      if (!job.gone) setError({ info: false, text: err.message }); // #3963 — a project closed mid-download: the banner says it
+      if (!job.gone) setError(isCancelledError(err) ? { info: true, text: tr("Imagery fetch cancelled.") } /* #3976 — the bar's Cancel */ : { info: false, text: err.message }); // #3963 — a project closed mid-download: the banner says it
     } finally {
       setSatBusy(false);
       setSatProgress(null);
+      bar.end(); // #3976
       job.end(); // TASKS.csv #3953
     }
   };
