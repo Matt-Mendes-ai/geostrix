@@ -15092,5 +15092,7 @@
   "Delete the {n} layers of \"{source}\"?": "هل تريد حذف الطبقات وعددها {n} من \"{source}\"؟",
   "{n} picked": "تم اختيار {n}",
   "Delete this import's layers…": "حذف طبقات هذا الاستيراد…",
-  "Delete all custom layers. Ctrl or Shift + click rows to pick several.": "يحذف كل الطبقات المخصصة. Ctrl أو Shift مع النقر على الصفوف لاختيار عدة طبقات."
+  "Delete all custom layers. Ctrl or Shift + click rows to pick several.": "يحذف كل الطبقات المخصصة. Ctrl أو Shift مع النقر على الصفوف لاختيار عدة طبقات.",
+  "Block models: each point the mean of the cells across the slab, on its far side.": "النماذج الكتلية: كل نقطة متوسط الخلايا عبر الشريحة، على جانبها البعيد.",
+  "Block models: the cells at the slab's middle, on its far side.": "النماذج الكتلية: الخلايا في منتصف الشريحة، على جانبها البعيد."
 }

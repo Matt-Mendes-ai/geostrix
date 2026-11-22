@@ -66,13 +66,14 @@ test("a cell's thickness along the slab's normal: scene x = east (dx), y = up (d
 
 test("wiring: the hook runs after the voxel build, and the legend keys are in four languages", () => {
   const v = read("../src/modules/ViewerModule.jsx");
-  const build = v.indexOf("}, [voxelModels, collars, slice3d.on, deferRound]);"), hook = v.indexOf("useSliceModelFace({ voxelMeshesRef, slicePlanesRef, rendererRef, slice3d, voxelModels");
+  const build = v.indexOf("}, [voxelModels, collars, slice3d.on, deferRound]);"), hook = v.indexOf("useSliceModelFace({ voxelMeshesRef, slicePlanesRef, originRef, activityRef: lastActivityRef, slice3d, voxelModels");
   assert.ok(build > 0 && hook > build, "the hook's effect runs after the build's, so it sees the new meshes");
   const h = read("../src/lib/viewer/sliceModelFace.js");
   assert.match(read("../src/modules/viewer/useSliceModelFace.js"), /import\("\.\.\/\.\.\/lib\/viewer\/sliceModelFace\.js"\)/, "loaded when a slice with a thickness is on, not at startup");
   assert.doesNotMatch(read("../src/modules/viewer/useSliceModelFace.js"), /from "three"/);
-  assert.match(h, /m\.clippingPlanes = \[plane\]/);
-  assert.match(h, /rendererRef\.current\.localClippingEnabled = /);
-  assert.match(h, /mesh\.onBeforeRender = /);
+  // TASKS.csv #4020 — the back wall is a filled face (lib/viewer/sliceMap.js) placed at the far side each frame, the clipped boxes hidden
+  assert.match(h, /face\.onBeforeRender = /);
+  assert.match(h, /const eps = Math\.min\(0\.5, slab\.t \/ 4\), u = slab\.side > 0 \? -slab\.t \/ 2 \+ eps : slab\.t \/ 2 - eps;/);
+  assert.match(h, /m\.visible = false;/);
   for (const l of ["es", "pt", "fr", "ar"]) { const j = JSON.parse(read(`../src/locales/${l}.json`)); assert.ok(j["unit not stated"], l); }
 });

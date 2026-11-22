@@ -4573,7 +4573,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       voxelMeshesRef.current[model.id] = mesh;
     });
   }, [voxelModels, collars, slice3d.on, deferRound]); // slice3d.on: #793; deferRound: #1980
-  useSliceModelFace({ voxelMeshesRef, slicePlanesRef, rendererRef, slice3d, voxelModels, refresh: [collars, deferRound] }); // #3765 — a sliced block model is its back wall only: the slab's holes stand in front
+  const sliceFaceReduce = useSliceModelFace({ voxelMeshesRef, slicePlanesRef, originRef, activityRef: lastActivityRef, slice3d, voxelModels, refresh: [collars, deferRound] }); // #4020: a filled face, and what a thick slab shows // #3765 — a sliced block model is its back wall only: the slab's holes stand in front
 
   // TASKS.csv #188 — planned drillholes (drillhole planning/targeting module). A planned hole has no
   // downhole survey (it hasn't been drilled yet) — just a collar plus a single design azimuth/dip/
@@ -5841,6 +5841,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? tr("slab") : tr("0 = everything beyond the cut")}</span>
             </label>
             <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{sliceReadout}</div>
+            {sliceFaceReduce && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{sliceFaceReduce === "mean" ? tr("Block models: each point the mean of the cells across the slab, on its far side.") : tr("Block models: the cells at the slab's middle, on its far side.")}</div>}{/* TASKS.csv #4020 */}
           </div>
         )}
 
