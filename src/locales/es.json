@@ -14680,5 +14680,10 @@
   "The box drawn": "El rectángulo dibujado",
   "Draw a box…": "Dibujar un rectángulo…",
   "Drag on the view to draw it.": "Arrastre en la vista para dibujarlo.",
-  "Drag a corner to change it.": "Arrastre una esquina para cambiarlo."
+  "Drag a corner to change it.": "Arrastre una esquina para cambiarlo.",
+  "Only a 1:{n} map covers this area ({name}): regional, not property-scale.": "Solo un mapa 1:{n} cubre esta área ({name}): regional, no a escala de propiedad.",
+  "Only a world-scale map covers this area ({name}): regional, not property-scale.": "Solo un mapa a escala mundial cubre esta área ({name}): regional, no a escala de propiedad.",
+  "Only a continent- or country-scale map covers this area ({name}): regional, not property-scale.": "Solo un mapa a escala de continente o país cubre esta área ({name}): regional, no a escala de propiedad.",
+  "Macrostrat has no map here, even at a continent's scale. Try Maps > Web layers, or a georeferenced survey map.": "Macrostrat no tiene mapa aquí, ni a escala continental. Pruebe Mapas > Capas web o un mapa georreferenciado.",
+  "Macrostrat": "Macrostrat"
 }

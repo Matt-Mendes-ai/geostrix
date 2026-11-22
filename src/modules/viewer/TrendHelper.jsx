@@ -85,6 +85,7 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
       const { fetchMacrostratUnitPolygons } = await import("../../lib/macrostratFetch.js");
       const got = await fetchMacrostratUnitPolygons({ bboxLonLat: area });
       const grain = regionalGrain(got.features), card = regionalCandidate(grain);
+      if (card && got.scaleNote) card.warnings = [...card.warnings, got.scaleNote]; // TASKS.csv #3974 — the map found, where only a small-scale one exists
       setRegional(card ? { card } : { note: regionalNoneText(grain) });
     } catch (e) {
       setRegional({ note: typeof navigator !== "undefined" && navigator.onLine === false ? regionalNoneText(null, { offline: true }) : tr("The regional geology could not be fetched ({error}).", { error: String(e?.message || e) }), warn: true });

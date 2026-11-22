@@ -14680,5 +14680,10 @@
   "The box drawn": "المستطيل المرسوم",
   "Draw a box…": "ارسم مستطيلًا…",
   "Drag on the view to draw it.": "اسحب على العرض لرسمه.",
-  "Drag a corner to change it.": "اسحب زاوية لتغييره."
+  "Drag a corner to change it.": "اسحب زاوية لتغييره.",
+  "Only a 1:{n} map covers this area ({name}): regional, not property-scale.": "لا تغطي هذه المنطقة إلا خريطة بمقياس 1:{n} ({name}): إقليمية، لا بمقياس الملكية.",
+  "Only a world-scale map covers this area ({name}): regional, not property-scale.": "لا تغطي هذه المنطقة إلا خريطة بمقياس عالمي ({name}): إقليمية، لا بمقياس الملكية.",
+  "Only a continent- or country-scale map covers this area ({name}): regional, not property-scale.": "لا تغطي هذه المنطقة إلا خريطة بمقياس قارة أو بلد ({name}): إقليمية، لا بمقياس الملكية.",
+  "Macrostrat has no map here, even at a continent's scale. Try Maps > Web layers, or a georeferenced survey map.": "لا يملك Macrostrat خريطة هنا، حتى بمقياس قارة. جرّب الخرائط > طبقات الويب أو خريطة مسح مُسنَدة جغرافيًا.",
+  "Macrostrat": "Macrostrat"
 }

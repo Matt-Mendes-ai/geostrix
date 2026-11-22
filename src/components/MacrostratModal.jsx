@@ -51,9 +51,9 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
       if (!legend) try { legend = await fetchMacrostratLegend({ bboxLonLat, onProgress: (d, n) => setBusy(tr("Fetching the legend… {d} of {n}", { d, n })) }); } catch (e) { legendErr = e.message; }
       if (!(await landed(job))) { setBusy(null); return; } // TASKS.csv #3953 — into the project it started in
       addRaster({ name: "Macrostrat geology (CC BY 4.0)", bbox: r.bbox, dataUrl: r.dataUrl, opacity: 0.7, ...(legend ? { legend } : {}),
-        provenance: { tool: "Macrostrat map units (vector tiles), drawn as an image", source: MACROSTRAT_MVT_URL("{z}", "{x}", "{y}"), /* #3952 */ zoom: r.zoom, areaLonLat: bboxLonLat, credit: MACROSTRAT_CREDIT, fetched: new Date().toISOString().slice(0, 10) } });
+        provenance: { tool: "Macrostrat map units (vector tiles), drawn as an image", source: MACROSTRAT_MVT_URL("{z}", "{x}", "{y}"), /* #3952 */ zoom: r.zoom, areaLonLat: bboxLonLat, credit: MACROSTRAT_CREDIT, fetched: new Date().toISOString().slice(0, 10), ...(r.scaleNote ? { scaleNote: r.scaleNote } : {}) /* #3974 */ } });
       setMsg({ ok: !r.failedTiles && !legendErr, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a raster drape: {w} × {h} px, ~{m} m pixels, {n} tiles at zoom {z}. Its eye in GeoTIFF / GXF turns it off.", { w: r.width, h: r.height, m: Math.round(r.pixelM), n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: r.failedTiles, total: r.tiles }) : "")
-        + " " + (legend ? tr("Its legend lists {n} map units: open it under the layer, in Maps or in StrixViewer's layer list.", { n: legend.units.length }) : tr("Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.", { message: legendErr })) });
+        + " " + (legend ? tr("Its legend lists {n} map units: open it under the layer, in Maps or in StrixViewer's layer list.", { n: legend.units.length }) : tr("Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.", { message: legendErr })) + (r.scaleNote ? " " + r.scaleNote : "") /* #3974 */ });
     } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
     setBusy(null); job.end(); // job: TASKS.csv #3953
   };
@@ -65,7 +65,7 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
       const r = await fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgress: (d, n) => setBusy(tr("Fetching Macrostrat units… {d} of {n}", { d, n })) });
       if (!(await landed(job))) { setBusy(null); return; } // TASKS.csv #3953 — into the project it started in
       addMapLayer(r.layer);
-      setMsg({ ok: !r.failedTiles, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a map layer: {p} polygons of {u} units, {n} tiles at zoom {z}. Find it under Geological Mapping > Geology map; it drapes on the terrain in 3D.", { p: r.polygons, u: r.units, n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} tiles could not be read: their polygons are missing.", { n: r.failedTiles, total: r.tiles }) : "") });
+      setMsg({ ok: !r.failedTiles, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a map layer: {p} polygons of {u} units, {n} tiles at zoom {z}. Find it under Geological Mapping > Geology map; it drapes on the terrain in 3D.", { p: r.polygons, u: r.units, n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} tiles could not be read: their polygons are missing.", { n: r.failedTiles, total: r.tiles }) : "") + (r.scaleNote ? " " + r.scaleNote : "") /* #3974 */ });
     } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
     setBusy(null); job.end(); // job: TASKS.csv #3953
   };
