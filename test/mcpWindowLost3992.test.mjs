@@ -78,7 +78,7 @@ test("#3992 main.js tells the host: on a main-frame navigation (a reload), a ren
   const main = read("../electron/main.js");
   assert.match(main, /const mcpLost = \(why\) => \{ try \{ mcpHost\?\.windowLost\(why\); \}/);
   assert.match(main, /mainWindow\.webContents\.on\("did-start-navigation", \(e, url, inPlace, isMain\) => \{ if \(\(e\?\.isMainFrame \?\? isMain\) && !\(e\?\.isSameDocument \?\? inPlace\)\) mcpLost\("reloaded"\); \}\);/);
-  assert.match(main, /mcpLost\("crashed"\); \/\/ #3992\n\s+const choice = dialog\.showMessageBoxSync/);
+  assert.match(main, /mcpLost\("crashed"\); \/\/ #3992\n(?:\s+\/\/[^\n]*\n)*\s+const choice = dialog\.showMessageBoxSync/);
   assert.match(main, /mainWindow\.on\("closed", \(\) => \{\n\s+mcpLost\("closed"\); \/\/ #3992\n\s+mainWindow = null;/);
   const host = read("../electron/mcpHost.js");
   assert.match(host, /return \{ start, stop, setEnabled, setChanges, resumeIfRemembered, forgetClients, status, respond, callTool, windowLost,/);

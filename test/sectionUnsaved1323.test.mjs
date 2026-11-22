@@ -16,8 +16,8 @@ test("#1323 unsaved: a line being drawn, or lines that differ from the last save
 });
 test("#1323 every way of closing asks; a tab that already asked does not ask twice", () => {
   const main = readFileSync("electron/main.js", "utf8");
-  assert.match(main, /win\.on\("close", \(e\) => \{ if \(!mayCloseSections\(win,/);
-  assert.match(main, /mayCloseSections\(mainWindow, \[\.\.\.sectionTabs\.keys\(\)\]\)/);
+  assert.match(main, /win\.on\("close", \(e\) => \{\s+if \(sectionCloseConfirmed\) return;/); // #3995 — asked in the section windows own dialog (mayCloseSectionsAsk), the close held and re-issued
+  assert.match(main, /mayCloseSectionsAsk\(mainWindow, \[\.\.\.sectionTabs\.keys\(\)\]\)/); // #3995
   const closed = main.slice(main.indexOf('ipcMain.handle("section-tab-closed"'), main.indexOf('ipcMain.handle("section-tab-popout"'));
   assert.ok(closed.indexOf("sectionUnsaved.delete(id)") < closed.indexOf("win.close()"));
   const tabs = readFileSync("src/components/SectionTabs.jsx", "utf8");

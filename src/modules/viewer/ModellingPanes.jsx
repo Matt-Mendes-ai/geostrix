@@ -19,6 +19,7 @@ import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRol
 import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
 import { pileFromRuns, absentTops, orderFromHoles } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles: #2926
 import { holesOrderPlan } from "../../lib/holesOrder.js"; import SortByHoles from "./SortByHoles.jsx"; // TASKS.csv #3994 — Sort by the holes
+import { addAllCandidates } from "../../lib/stackAddAll.js"; import AddAllUnits from "./AddAllUnits.jsx"; // TASKS.csv #3999 — Add all
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
@@ -483,11 +484,19 @@ export default function ModellingPanes(props) {
     return r.conflicts.length ? r : null;
   }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
   // TASKS.csv #3994 (Matt, Century) — the stack as the holes would put it: the fewest moves, units the holes never show together keep their place, contradictions listed (lib/holesOrder.js)
+  const stackCodesOf = (u) => { // the logged values that are this stack unit (a group's codes, a Modelling code's, or the code)
+    if (isLithoGroupKey(u)) return resolveLithoTarget(u)?.codes || [];
+    if (!isMcodeKey(u)) return [u];
+    const v = new Set(); for (const r of areaRuns()) if (r.code === u.slice(6)) for (const row of r.rows) v.add(row.value); return [...v];
+  };
   const holesPlan = useMemo(() => {
     if (toolPane !== "stack" || stackUnits.length < 2) return null;
-    const mcodeVals = (name) => { const v = new Set(); for (const r of areaRuns()) if (r.code === name) for (const row of r.rows) v.add(row.value); return [...v]; };
-    return holesOrderPlan(layers.litho || [], stackUnits, (u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.codes || [] : isMcodeKey(u) ? mcodeVals(u.slice(6)) : [u]));
+    return holesOrderPlan(layers.litho || [], stackUnits, stackCodesOf);
   }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
+  // TASKS.csv #3999 — what 'Add all' could add: the codes the 'Add a unit…' list offers (not a cross-cutting, no-recovery, cover or left-out one), by the same rules
+  const [addAllOpen, setAddAllOpen] = useState(false);
+  const addAllC = useMemo(() => (toolPane !== "stack" ? null : addAllCandidates({ rows: layers.litho || [], litho_units, modellingCodeList, roleOf: rawRole, stackUnits, codesOf: stackCodesOf,
+    groupOf: (u) => lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u)), twinInStack })), [toolPane, layers.litho, litho_units, modellingCodeList, stackUnits, lithoGroups, areaRuns]);
   // the 'Add a unit' list in the order the holes give (youngest first), not by interval count
   const unitRank = useMemo(() => {
     if (toolPane !== "stack") return null;
@@ -1013,10 +1022,12 @@ export default function ModellingPanes(props) {
               </optgroup>
             )}
           </select>
+          <button type="button" aria-expanded={addAllOpen} onClick={() => setAddAllOpen((v) => !v)} style={{ ...pBtn, width: "auto", marginBottom: 0, flex: "0 0 auto" }} title={tr("Add every modelling code, every logged code or the codes with enough logged metres, already in the order the holes give. You see the order before anything changes.")}>{tr("Add all…")}</button>{/* #3999 */}
         </div>
         {stackUnits.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No units added yet.")}</div>
         )}
+        {addAllC && <AddAllUnits open={addAllOpen} setOpen={setAddAllOpen} stackUnits={stackUnits} setStackUnits={setStackUnits} rows={layers.litho || []} candidates={addAllC} codesOf={stackCodesOf} label={(u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)} pBtn={pBtn} />}{/* #3999 */}
         {holesPlan && <SortByHoles stackUnits={stackUnits} plan={holesPlan} label={(u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)} setStackUnits={setStackUnits} pBtn={pBtn} />}{/* #3994 */}
         {stackHoles && ( // TASKS.csv #2926 — checked as the units are added; the holes' order one click away
           <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>

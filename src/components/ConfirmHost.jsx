@@ -2,7 +2,7 @@
 // question 64), with the app's text size, translated buttons, a focus trap, Escape = cancel, Enter = the focused button. A destructive confirm
 // (confirmDestructive) puts the focus on Cancel and colours OK as a warning. One at a time; the rest wait their turn.
 import React, { useEffect, useRef, useState } from "react";
-import { registerConfirmHost } from "../lib/confirmDialog.js";
+import { registerConfirmHost, askChoice } from "../lib/confirmDialog.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, rowBtn } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -34,7 +34,22 @@ function Ask({ req, done }) {
 
 export default function ConfirmHost() {
   const [queue, setQueue] = useState([]);
-  useEffect(() => registerConfirmHost((req) => setQueue((q) => [...q, req])), []);
+  useEffect(() => registerConfirmHost((req) => { req.onGone = () => setQueue((q) => q.filter((r) => r !== req)); setQueue((q) => [...q, req]); }), []);
+  // TASKS.csv #3995 — a question the main process asks (quit with unsaved work, install an update, close sections with unsaved lines) is drawn here, as the app's own dialog, and answered back; main
+  // acknowledges nothing for us: it falls back to the native box when we do not ack in a moment, so this acks as soon as the question is up. Taken down if main gave up (main-ask-cancel).
+  useEffect(() => {
+    const d = typeof window !== "undefined" ? window.desktop : null;
+    if (!d?.onMainAsk) return undefined;
+    const live = new Map();
+    return d.onMainAsk(async (req) => {
+      const ctl = new AbortController(); live.set(req.id, ctl);
+      d.mainAskAck(req.id);
+      const text = [req.message, req.detail].filter(Boolean).map((s) => tr(s)).join("\n\n"); // English keys, or text the window already translated (tr leaves that as it is)
+      const v = await askChoice(text, req.buttons, { signal: ctl.signal });
+      if (!ctl.signal.aborted) d.mainAskAnswer(req.id, v ?? req.cancelValue);
+      live.delete(req.id);
+    }, (id) => live.get(id)?.abort());
+  }, []);
   const req = queue[0];
   if (!req) return null;
   return <Ask key={queue.length + req.message} req={req} done={(v) => { setQueue((q) => q.slice(1)); req.resolve(req.kind === "confirm" ? !!v : req.kind === "choice" ? (v ?? null) : undefined); }} />;
