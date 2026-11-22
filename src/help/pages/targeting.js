@@ -68,7 +68,7 @@ export default [
     title: "Undrilled zones",
     // TASKS.csv #3983 — the card (#3967's plan, section 8, batch C5); the summary and the rest are in its folds
     line: "Parts of a modelled unit farther than a distance from every hole.",
-    picture: { drop: ["holes", "grid"], alt: "Drill holes cover blocks of a unit; the blocks no hole reaches are the undrilled zones." }, // N1 / N9 when they are drawn (batch B)
+    picture: { help: "support", alt: "A modelled body is firm between the drill holes, extrapolated beyond them, and held by one hole where only one cuts it." }, // N1: TASKS.csv #3978 (N9 is not drawn yet)
     cautions: ["Untested ground, not a resource or a target ranking.", "Distance is to the hole trace, not the samples."],
     instead: [{ text: "Where grade is", to: "Grade shell", page: "grade-shell" }, { text: "Where grade is", to: "Grade estimation", page: "grade-estimation" }],
     keys: ["Covered within (m of a hole)", "Count planned holes as drilled (4)", "Plan a hole to here"],
@@ -121,6 +121,7 @@ export default [
     // TASKS.csv #3983 — the card (#3967's plan, section 8, batch C5); the summary and the rest are in its folds
     line: "Designs holes before drilling: typed, picked, from a collar, or solved to a target.",
     picture: { drop: ["plan", "holes"], alt: "A collar on the plan becomes a planned hole to a target." }, // N9 when it is drawn (batch B)
+    figure: { help: "norths", alt: "Grid, true and magnetic north on a map, with the angles between them." }, // N4, beside Azimuth from: TASKS.csv #3978
     cautions: ["A planned hole is a design, not a prediction.", "Blocks from one hole or extrapolated are not an intercept."],
     instead: [{ text: "Targets", to: "Evidence overlay", page: "evidence-overlay" }, { text: "Targets", to: "Undrilled zones", page: "undrilled-zones" }, { text: "Targets", to: "Voxel ranges", page: "voxel-ranges" }],
     keys: ["Az° / Dip° / Length m", "Solve az/dip/length to target", "Min. spacing (m)"],

@@ -14706,5 +14706,21 @@
   "Mapped faults around the project ({km} km, Macrostrat, CC BY 4.0).": "Fallas cartografiadas alrededor del proyecto ({km} km, Macrostrat, CC BY 4.0).",
   "Mapped fold axes around the project ({km} km, Macrostrat, CC BY 4.0).": "Ejes de pliegue cartografiados alrededor del proyecto ({km} km, Macrostrat, CC BY 4.0).",
   "Maps: {list}.": "Mapas: {list}.",
-  "Direction only: no dips, plunges or fold shape.": "Solo dirección: sin buzamientos, inmersiones ni forma de pliegues."
+  "Direction only: no dips, plunges or fold shape.": "Solo dirección: sin buzamientos, inmersiones ni forma de pliegues.",
+  "Between the holes: data": "Entre los sondajes: datos",
+  "Beyond them: extrapolated": "Más allá: extrapolado",
+  "Held by one hole": "Sostenido por un solo sondaje",
+  "Depth of investigation": "Profundidad de investigación",
+  "Below it: not data": "Debajo: no son datos",
+  "Another model that fits": "Otro modelo que también ajusta",
+  "Lands on your holes": "Cae sobre sus sondajes",
+  "A zone off: far from them": "Una zona desplazada: lejos de ellos",
+  "Magnetic north": "Norte magnético",
+  "At or above the cutoff": "En la ley de corte o por encima",
+  "Below it": "Por debajo",
+  "The cutoff": "La ley de corte",
+  "Samples: uneven lengths": "Muestras: largos desiguales",
+  "Equal composites": "Compósitos iguales",
+  "No sample": "Sin muestra",
+  "Intercept, with internal dilution": "Intercepto, con dilución interna"
 }

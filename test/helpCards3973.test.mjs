@@ -18,7 +18,7 @@ test("every card page gives the card fields, within the plan's limits", () => {
   for (const id of CARD_IDS) {
     const p = pageById(id);
     assert.ok(p.line && wordsOf(p.line) <= 15, `${id}: one line of at most 15 words`);
-    assert.ok(p.picture && (p.picture.diagram || p.picture.drop?.length) && p.picture.alt, `${id}: a picture with its alt`);
+    assert.ok(p.picture && (p.picture.help || p.picture.diagram || p.picture.drop?.length) && p.picture.alt, `${id}: a picture with its alt`); // help: #3978
     assert.ok(p.cautions?.length >= 1, id);
     assert.ok(p.keys.length >= 2 && p.keys.length <= 4, `${id}: two to four key settings`);
     for (const k of p.keys) {
@@ -111,7 +111,7 @@ test("the card renders K1-K6: picture and line, cautions, chips (a link when the
   assert.equal((bi.match(/<li [^>]*><svg/g) || []).length, 3, "three cautions, each with its icon");
   const gs = html("grade-shell");
   assert.match(gs, /data-help-chip="grade-estimation"/);
-  assert.match(gs, /role="img" aria-label="A surface, a grade shell and a block model, side by side\."/);
+  assert.match(gs, /role="img" aria-label="A modelled body is firm between the drill holes, extrapolated beyond them/); // #3978: N1 replaced the placeholder diagram
   // every sentence of the page is in the markup (in view or in a fold)
   const p = pageById("grade-shell"), esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
   for (const s of [p.summary, p.more, ...p.notFor, ...p.fields.map((f) => f.what), ...p.warnings.map((w) => w.says), ...p.howto.steps]) assert.ok(gs.includes(esc(s)), s.slice(0, 50));

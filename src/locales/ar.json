@@ -14706,5 +14706,21 @@
   "Mapped faults around the project ({km} km, Macrostrat, CC BY 4.0).": "الصدوع المرسومة حول المشروع ({km} كم، Macrostrat، CC BY 4.0).",
   "Mapped fold axes around the project ({km} km, Macrostrat, CC BY 4.0).": "محاور الطيات المرسومة حول المشروع ({km} كم، Macrostrat، CC BY 4.0).",
   "Maps: {list}.": "الخرائط: {list}.",
-  "Direction only: no dips, plunges or fold shape.": "اتجاه فقط: بلا ميول ولا غطس ولا شكل للطيات."
+  "Direction only: no dips, plunges or fold shape.": "اتجاه فقط: بلا ميول ولا غطس ولا شكل للطيات.",
+  "Between the holes: data": "بين الثقوب: بيانات",
+  "Beyond them: extrapolated": "ما بعدها: استقراء",
+  "Held by one hole": "يستند إلى ثقب واحد",
+  "Depth of investigation": "عمق الاستقصاء",
+  "Below it: not data": "تحته: ليست بيانات",
+  "Another model that fits": "نموذج آخر يطابق أيضًا",
+  "Lands on your holes": "يقع على ثقوبك",
+  "A zone off: far from them": "منطقة خاطئة: بعيد عنها",
+  "Magnetic north": "الشمال المغناطيسي",
+  "At or above the cutoff": "عند حد القطع أو فوقه",
+  "Below it": "تحته",
+  "The cutoff": "حد القطع",
+  "Samples: uneven lengths": "العينات: أطوال غير متساوية",
+  "Equal composites": "مركبات متساوية",
+  "No sample": "بلا عينة",
+  "Intercept, with internal dilution": "تقاطع، مع تخفيف داخلي"
 }
