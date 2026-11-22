@@ -52,5 +52,5 @@ test("#1811 / #1821 wiring: a block model's value row is its property; samples c
   assert.ok(id.includes("sampleIdentifyFields(row, o.userData.mapped, o.userData.units)"));
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.ok(vm.includes("mesh.userData = sampleUserData(row, mapped, surfaceElementUnits);")); // #1500: the same row / mapped / units, the tip made when read
-  assert.ok(vm.includes("Math.min(t.x + 14, innerWidth - w - 8)"));
+  assert.ok(vm.includes("placeTip(t.x, t.y, w, h, innerWidth, innerHeight)")); // #4016 — the keep-inside rule moved to lib/tipText.js (placeTip), tested in hoverTip4016
 });

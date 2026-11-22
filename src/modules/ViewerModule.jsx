@@ -267,6 +267,7 @@ import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.cs
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 import NumberInput from "../components/NumberInput.jsx"; // #3926
 import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
+import { clipTipText, placeTip } from "../lib/tipText.js"; // TASKS.csv #4016
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641
@@ -728,10 +729,11 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const el = tooltipElRef.current;
     if (!el) return;
     if (!t) { if (el.style.display !== "none") el.style.display = "none"; return; }
-    if (el.textContent !== t.text) el.textContent = t.text;
+    const text = clipTipText(t.text); // #4016 — a long description is cut, not shown in full
+    if (el.textContent !== text) el.textContent = text;
     el.style.display = "block";
     const w = el.offsetWidth, h = el.offsetHeight; // #1821 — kept inside the window
-    el.style.left = `${Math.max(4, Math.min(t.x + 14, innerWidth - w - 8))}px`; el.style.top = `${t.y + 22 + h > innerHeight ? Math.max(4, t.y - h - 8) : t.y + 14}px`;
+    const { left, top } = placeTip(t.x, t.y, w, h, innerWidth, innerHeight); el.style.left = `${left}px`; el.style.top = `${top}px`;
   }, []);
   const [notices, setNotices, setNoticesToTab] = useTabNotices(store.activeTabId, () => { setCursor({ x: null, y: null, z: null }); setToast(null); tabSwitchedRef.current = true; }); // #1203
   const tabSwitchedRef = useRef(false); // a tab's own notices coming back are not news: no toast for them
@@ -7078,7 +7080,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {rectVisual && (
           <div style={{ position: "absolute", left: rectVisual.x, top: rectVisual.y, width: rectVisual.w, height: rectVisual.h, border: "1.5px dashed var(--color-info)", background: "rgba(74,155,224,0.12)", pointerEvents: "none" }} />
         )}
-        <div ref={tooltipElRef} style={{ display: "none", position: "fixed", left: 0, top: 0, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 6, padding: "8px 10px", fontSize: "var(--font-size-base)", whiteSpace: "pre-line", pointerEvents: "none", zIndex: 10, maxWidth: 220 }} />
+        <div ref={tooltipElRef} style={{ display: "none", position: "fixed", left: 0, top: 0, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 6, padding: "8px 10px", fontSize: "var(--font-size-base)", whiteSpace: "pre-line", pointerEvents: "none", zIndex: 10, maxWidth: 360 /* #4016 — wider before taller */ }} />
       </div>
 
       {contextMenu && (
