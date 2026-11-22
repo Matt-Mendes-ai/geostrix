@@ -14687,5 +14687,8 @@
   "Only a world-scale map covers this area ({name}): regional, not property-scale.": "Seule une carte à l'échelle mondiale couvre cette zone ({name}) : régionale, pas à l'échelle de la propriété.",
   "Only a continent- or country-scale map covers this area ({name}): regional, not property-scale.": "Seule une carte à l'échelle d'un continent ou d'un pays couvre cette zone ({name}) : régionale, pas à l'échelle de la propriété.",
   "Macrostrat has no map here, even at a continent's scale. Try Maps > Web layers, or a georeferenced survey map.": "Macrostrat n'a pas de carte ici, même à l'échelle d'un continent. Essayez Cartes > Couches web ou une carte géoréférencée.",
-  "Macrostrat": "Macrostrat"
+  "Macrostrat": "Macrostrat",
+  "Use instead": "Utiliser plutôt",
+  "All settings ({n})": "Tous les réglages ({n})",
+  "Messages ({n})": "Messages ({n})"
 }

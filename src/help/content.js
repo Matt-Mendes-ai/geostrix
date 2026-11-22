@@ -15,7 +15,14 @@
 //     related: [id],            // other pages
 //     diagram: { id, alt },     // TASKS.csv #3899 — a picture after the summary (src/help/diagrams), its alt sentence read aloud and by the search
 //     more,                     // #3899 — detail kept behind a closed "More" (also on a field or a warning); the search reads it
-//     guide }                   // TASKS.csv #3887 — true on the First steps page: its screens (src/help/guide.js) are shown instead of a body, and searched
+//     guide,                    // TASKS.csv #3887 — true on the First steps page: its screens (src/help/guide.js) are shown instead of a body, and searched
+//     // TASKS.csv #3973 (#3967's plan) — the card shape, src/help/CardPage.jsx: a page with `line` is drawn as a card; the rest of its text goes into folds
+//     line,                     // K1: the card's one line, at most 15 words (the summary moves under More)
+//     picture: { diagram | drop: [ids], alt }, // K1: a Help diagram, or one or two style-A block pictures (components/DropDiagram.jsx)
+//     cautions: [string],       // K2: one-line cautions, always in view (a protective one never folds)
+//     instead: [{ text, to, page }], // K3: "Use instead" chips; page: a Help page id, when there is one
+//     keys: [field name],       // K4: two to four settings in view, each with a `gist` on its field (at most 8 words)
+//     strip: [string] }         // K5: a step strip, where the walk-through was in view
 // #3899 (plan_fable 3.2): a summary of about 25 words; a field's `what` is the control's own tooltip sentence where it has one; a warning's `means`
 // and `do` short (the on-screen message is not repeated); anything longer goes to `more`.
 // Text rules: Canadian spelling (colour, centre, metre, modelling; -ize), no backlog numbers, plain words, the labels exactly as the
@@ -52,6 +59,7 @@ function pageText(p) {
   const body = [
     ...(p.notFor || []),
     p.diagram?.alt, p.more, // #3899
+    p.line, p.picture?.alt, ...(p.cautions || []), ...(p.instead || []).flatMap((x) => [x.text, x.to]), ...(p.strip || []), ...(p.fields || []).map((f) => f.gist), // #3973
     ...(p.fields || []).flatMap((f) => [f.name, f.what, f.choose, f.more]),
     ...(p.warnings || []).flatMap((w) => [w.says, w.means, w.do, w.more]),
     ...(p.howto?.steps || []),
