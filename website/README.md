@@ -4,6 +4,7 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
 
 - `index.html` — home, features, screenshots, download, support
 - `privacy.html` — privacy policy (keep in step with `../PRIVACY.md`)
+- `contact.html` + `contact.js` — the contact form, which posts to `/api/contact` (`../worker/contact.js`, see "Contact form" below)
 - `es/`, `pt-br/`, `fr/` and `ar/` — the same two pages in Spanish (Latin American), Brazilian Portuguese, French
   and Arabic. **Any change to `index.html` or `privacy.html` needs the same change in all four translations.** Each
   page links its other languages (`hreflang` in `<head>`, the EN · ES · PT · FR · AR switcher in the header, and
@@ -36,14 +37,32 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
 
 ## Deploy (Cloudflare Workers, static assets)
 
-The repo root has `wrangler.jsonc`, which tells Cloudflare to serve `website/` and nothing else.
+The repo root has `wrangler.jsonc`, which tells Cloudflare to serve `website/`, and to run `worker/contact.js` for `/api/*` only (the contact form).
 
 1. Workers & Pages → the `geostrix` Worker → Settings → Build → Build configuration:
    **Build command: empty** (the desktop app's `npm run build` must not run there) · **Deploy command: `npx wrangler deploy`** · Root directory: `/`.
 2. Deployments → retry the latest build.
 3. Settings → Domains & Routes → Add → Custom domain → `geostrix.com` (and `www.geostrix.com`).
 
-Every push to `master` redeploys. Preview locally with any static server, e.g. `python -m http.server -d website 8080`.
+Every push to `master` redeploys. Preview locally with any static server, e.g. `python -m http.server -d website 8080`
+(the contact form needs `npx wrangler dev --var CONTACT_TO:you@example.com`, which saves each email as a `.eml` file under `.wrangler/` instead of sending it).
+
+Cloudflare serves `/contact.html` as a 307 redirect to `/contact` (and the same for every `.html` page), so links to
+`contact.html` and `privacy.html` work, at the cost of one redirect.
+
+## Contact form
+
+`contact.html` (five languages) → `contact.js` → `POST /api/contact` → `worker/contact.js` → an email to Matt.
+
+- **No cookies, no third-party script.** Spam is stopped by a hidden trap field, a minimum fill-in time (3 s) and a
+  rate limit of 5 messages a minute per IP address (`CONTACT_LIMIT`). Not Turnstile: it sets cookies, and every page says the site sets none.
+- **Email** goes out through Cloudflare Email Routing's `send_email` binding (`CONTACT_EMAIL`), from
+  `contact@geostrix.com`, with the visitor's address as Reply-To, so replying in Gmail answers them.
+- **One-time setup in the Cloudflare dashboard** (nothing personal is committed here):
+  1. geostrix.com → Email → Email Routing: turned on, and the inbox the messages go to listed and **verified** under Destination addresses.
+  2. Workers & Pages → `geostrix` → Settings → Variables and Secrets → Add → type **Secret**, name `CONTACT_TO`, value = that verified address.
+  Until both are done, the form answers "could not be sent, please email support@geostrix.com", and nothing breaks.
+- The privacy pages describe the form ("Contact form" under "This website"); change them with the Worker.
 
 ## Conventions from the web-design review (2026-11-01)
 

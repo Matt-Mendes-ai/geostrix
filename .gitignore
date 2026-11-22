@@ -57,3 +57,7 @@ sample_data/silvertip/
 sample_data/perk_rocky/*
 !sample_data/perk_rocky/terrain_copernicus_glo30.tif
 !sample_data/perk_rocky/README.md
+
+# Cloudflare wrangler dev (local test files)
+.wrangler/
+.dev.vars

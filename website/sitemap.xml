@@ -90,4 +90,49 @@
     <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/privacy.html"/>
   </url>
+  <url>
+    <loc>https://geostrix.com/contact.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/contact.html"/>
+  </url>
+  <url>
+    <loc>https://geostrix.com/es/contact.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/contact.html"/>
+  </url>
+  <url>
+    <loc>https://geostrix.com/pt-br/contact.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/contact.html"/>
+  </url>
+  <url>
+    <loc>https://geostrix.com/fr/contact.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/contact.html"/>
+  </url>
+  <url>
+    <loc>https://geostrix.com/ar/contact.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/contact.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/contact.html"/>
+  </url>
 </urlset>

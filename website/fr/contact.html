@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f2a33">
+  <title>Contact — GeoStrix</title>
+  <meta name="description" content="Questions, commentaires, formations et démonstrations, parrainage ou presse : envoyez un message à GeoStrix.">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="alternate" hreflang="en" href="https://geostrix.com/contact.html">
+  <link rel="alternate" hreflang="es" href="https://geostrix.com/es/contact.html">
+  <link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/contact.html">
+  <link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/contact.html">
+  <link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/contact.html">
+  <link rel="alternate" hreflang="x-default" href="https://geostrix.com/contact.html">
+</head>
+<body>
+  <a class="skip" href="#main">Aller au contenu</a>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="/fr/"><img src="/img/icon-128.png" alt="" width="34" height="34"><span>Geo<span class="strix">Strix</span></span></a>
+      <nav>
+        <a class="hide-xs" href="/fr/#features">Fonctions</a>
+        <a href="/fr/#download">Télécharger</a>
+        <a class="hide-sm" href="/fr/#support">Assistance</a>
+      </nav>
+      <div class="lang" role="navigation" aria-label="Language / Langue">
+        <a href="/contact.html" hreflang="en" lang="en" title="English"><img class="flag" src="/img/flags/ca.svg" width="20" height="15" alt=""><span class="code">EN</span></a>
+        <a href="/es/contact.html" hreflang="es" lang="es" title="Español"><img class="flag" src="/img/flags/mx.png" width="20" height="15" alt=""><span class="code">ES</span></a>
+        <a href="/pt-br/contact.html" hreflang="pt-BR" lang="pt-BR" title="Português (Brasil)"><img class="flag" src="/img/flags/br.svg" width="20" height="15" alt=""><span class="code">PT</span></a>
+        <a href="/fr/contact.html" hreflang="fr" lang="fr" aria-current="true" title="Français"><img class="flag" src="/img/flags/fr.svg" width="20" height="15" alt=""><span class="code">FR</span></a>
+        <a href="/ar/contact.html" hreflang="ar" lang="ar" title="العربية"><img class="flag" src="/img/flags/sa.svg" width="20" height="15" alt=""><span class="code">AR</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section>
+      <div class="wrap prose">
+        <h1>Contact</h1>
+        <p class="lead-muted">Questions, signalements de bogues, idées, formations et démonstrations, parrainage ou presse. Nous répondons généralement en quelques jours ouvrables.</p>
+        <form id="contact-form" class="contact-form" novalidate>
+          <div class="contact-row">
+            <label>Nom<input name="name" type="text" maxlength="100" autocomplete="name" placeholder="Votre nom" required></label>
+            <label>Courriel<input name="email" type="email" maxlength="200" autocomplete="email" placeholder="vous@entreprise.com" required></label>
+          </div>
+          <label>Catégorie<select name="category" required>
+              <option value="" selected disabled>Choisissez une catégorie</option>
+              <option value="Question">Question</option>
+              <option value="Bug report">Signalement de bogue</option>
+              <option value="Feature request">Suggestion de fonction</option>
+              <option value="Training and demos">Formations et démonstrations</option>
+              <option value="Sponsorship">Parrainage</option>
+              <option value="Press">Presse</option>
+              <option value="Other">Autre</option>
+            </select></label>
+          <label>Objet<input name="subject" type="text" maxlength="150" placeholder="De quoi s'agit-il" required></label>
+          <label><span class="contact-label-row"><span>Message</span><span id="contact-count" class="contact-count" aria-hidden="true"></span></span><textarea name="message" rows="7" minlength="10" maxlength="2000" required></textarea></label>
+          <label class="contact-trap" aria-hidden="true">Laissez ce champ vide<input name="extra" type="text" tabindex="-1" autocomplete="off"></label>
+          <div class="contact-actions">
+            <p id="contact-status" class="contact-status" role="status" aria-live="polite"></p>
+            <button type="submit" class="btn primary">Envoyer</button>
+          </div>
+          <noscript><p class="contact-status error">Ce formulaire nécessite JavaScript. Écrivez plutôt à <a href="mailto:support@geostrix.com">support@geostrix.com</a>.</p></noscript>
+        </form>
+        <p class="muted small">Votre nom, votre courriel et votre message sont envoyés par courriel à GeoStrix, servent uniquement à vous répondre et ne sont jamais ajoutés à une liste de diffusion. Voir la <a href="/fr/privacy.html">page de confidentialité</a>.</p>
+        <p class="muted small">Vous préférez le courriel ? Écrivez à <a href="mailto:support@geostrix.com">support@geostrix.com</a>. Pour un bogue, <em>Aide → Signaler un problème</em> dans GeoStrix joint les détails techniques.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <span>© 2026 Matt Mendes · GeoStrix est un logiciel libre (MIT)</span>
+      <a href="/fr/">Accueil</a>
+      <a href="https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md">Politique de signature du code</a>
+      <a href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a>
+      <a href="https://www.youtube.com/@GeoStrix-AI">YouTube</a>
+      <a href="https://xplorahub.com/organisations/geostrix">XploraHub</a>
+      <a href="https://www.linkedin.com/company/geostrix/">LinkedIn</a>
+      <span class="right">Ce site n'utilise pas de cookies.</span>
+    </div>
+  </footer>
+  <script src="/contact.js" defer></script>
+</body>
+</html>
