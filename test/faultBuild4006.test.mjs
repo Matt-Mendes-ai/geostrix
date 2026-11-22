@@ -66,7 +66,7 @@ test("#4006 wiring: the run, the cut to the extent, the provenance, the stack", 
   assert.match(r, /\.\.\.\(spec\.params\?\.faultEvidence \? \{ faultEvidence: spec\.params\.faultEvidence \} : \{\}\)/);
   assert.match(r, /if \(type === "surf"\) \{[^\n]*\n\s*const s = \(ctx\.generatedSurfaces \|\| \[\]\)\.find\(\(x\) => x\.id === id\), inp = s\?\.params\?\.inputs/);
   const u = read("../src/modules/viewer/useModelling.js");
-  assert.match(u, /ctxRef\.current\.generatedSurfaces = store\.generatedSurfaces; \/\/ #4006/);
+  assert.match(u, /ctxRef\.current = \{ \.\.\.ctx, [^\n]*generatedSurfaces: store\.generatedSurfaces \/\* #4006/);
   assert.match(u, /key: `surf\|\$\{s\.id\}`, type: s\.name, id: "", n: s\.params\.inputs\.points\.length, faultLike: true, label: s\.name, built: true/);
   const b = read("../src/modules/viewer/FaultBuilder.jsx");
   assert.match(b, /runStructuralModel\?\.\(null, \{ faultSpecs: specs \}\)/);
