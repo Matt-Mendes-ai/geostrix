@@ -50,7 +50,7 @@ test("#3950 a window that touches no value is skipped; nothing found, nothing ch
 
 test("#3950 wiring: off by default beside a GEM-15 source; on the raw GEM-15 grid before the gap fill; said; Smooth its steps with Undo; loaded on demand", () => {
   const g = fs.readFileSync(new URL("../src/lib/gem15Dem.js", import.meta.url), "utf8"), m = fs.readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.match(g, /gapFill = "delta", smoothSteps = false \}\)/);
+  assert.match(g, /gapFill = "delta", smoothSteps = false(, signal)? \}\)/); // signal: #3963
   assert.ok(g.indexOf("smoothGemSteps(out, gridW, gridH") < g.indexOf("fillWithDelta(out, cop.elevations"), "before the gap fill");
   assert.match(g, /\.\.\.\(stepSmooth \? \{ stepSmooth \} : \{\}\)/);
   assert.match(m, /const \[gemSmooth, setGemSmooth\] = useState\(false\);/);

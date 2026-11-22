@@ -678,18 +678,21 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const importRaster = async (file, side = {}) => { // side: { world, xml, prj } dropped with it (TASKS.csv #2901, as the raster pane's picker pairs them)
     if (!file) return;
     setRasterError({ info: true, text: tr("Importing {name}…", { name: file.name }) }); // a large GeoTIFF takes a few seconds
+    const job = beginJob(file.name); // TASKS.csv #3963 — a plain file import belongs to the project it started in too
     try {
       const worldFile = side.world ? parseWorldFile(await side.world.text(), side.world.name) : null;
       const xc = side.xml ? geosoftXmlCrs(await side.xml.text()) : null;
       const pe = !xc && side.prj ? guessEpsgFromPrjWkt(await side.prj.text()) : null;
       const sideCrs = xc ? { epsg: xc.epsg, from: side.xml.name } : pe ? { epsg: pe, from: side.prj.name } : null;
-      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }), tie: tieOf(project), worldFile, sideCrs }); // #607; tie: #2587; worldFile, sideCrs: #2901
+      const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name, live: job.isLive }), tie: tieOf(project), worldFile, sideCrs }); // #607; tie: #2587; worldFile, sideCrs: #2901; live: #3963
+      if (!(await landed(job))) { setRasterError(null); return; } // TASKS.csv #3963 — into the project it started in (its message went with it)
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name, stations: layers?.geophys_pts /* #2868 */ }); // #1856; #1505
       addRaster({ ...raster, elevation: drape.z });
       setRasterError({ info: true, text: tr("{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)", { msg: `${msg} ${drapeElevationNote(drape)}` }) });
     } catch (err) {
+      if (job.gone) { setRasterError(null); return; } // #3963 — its project is gone and the banner said so
       setRasterError({ info: false, text: err.message });
-    }
+    } finally { job.end(); } // #3963
   };
 
   // TASKS.csv #77 — SRTM/DEM import (GeoTIFF only, see raster.js's readDemTile comment on why .hgt
@@ -712,7 +715,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const cc = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
       const cropTo = demCrop && cc.length ? (() => { const xs = cc.map((c) => c.x), ys = cc.map((c) => c.y); const b = Math.max(1000, Number(demCropBuffer) || 2000); return [arrMin(xs) - b, arrMin(ys) - b, arrMax(xs) + b, arrMax(ys) + b]; })() : null;
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: the DEM comes into the grid through the tie
-      const parsed = await parseDEMFiles(files, tie ? null : project?.epsg, demSourceEpsg.trim() || null, { cropTo, gridMax: terrainDetail, tie, mineSource: mineSourceOf(project) /* #2684 */, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
+      const parsed = await parseDEMFiles(files, tie ? null : project?.epsg, demSourceEpsg.trim() || null, { cropTo, gridMax: terrainDetail, tie, mineSource: mineSourceOf(project) /* #2684 */, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM", live: job.isLive }) }); // override: #419; chooser: #607; live: #3963
       if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
       if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) {
@@ -1168,6 +1171,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
         onProgress: (done, total) => setSrtmProgress({ done, total }),
         source: src, smoothSteps: gem && gemSmooth, // #3950
+        signal: job.signal, // TASKS.csv #3963 — closing its project stops the download
       });
       if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state; an AI app hears "not fetched")
       let tieNote = "";
@@ -1242,7 +1246,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       said({ ok: true, name: parsed.name, id: terrainId, grid: `${parsed.gridW} x ${parsed.gridH}`, ...(ai?.misfit || {}) }); // #3932
     } catch (err) {
       said({ ok: false, error: String(err?.message || "The terrain could not be fetched.") }); // #3932
-      setTerrainError({ info: false, text: err.message });
+      if (!job.gone) setTerrainError({ info: false, text: err.message }); // #3963 — a project closed mid-download: the banner says it
     } finally {
       setTerrainBusy(false);
       setSrtmProgress(null);
@@ -1938,6 +1942,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const sg = files.find((f) => /\.sg$/i.test(f.name));
     if (!sg) { setVoxelError({ info: false, text: tr("Choose the .sg file together with the files it names (its points file and a file per property).") }); return; }
     setVoxelError(null); setVoxelBusy(true);
+    const job = beginJob("GOCAD SGrid"); // TASKS.csv #3963 (a format name: not translated) — each model lands in the project the import started in
     try {
       const [sgl, vx] = await Promise.all([import("../lib/gocadSgrid.js"), import("../lib/gocadVoxet.js")]);
       const h = sgl.parseSgridHeader(await sg.text());
@@ -1958,6 +1963,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           const cells = ubcMeshToCells(mesh, Array.from(values));
           if (!cells.length) { failed.push(tr("{name}: no value other than no-data", { name: prop.name })); continue; }
           const { min, max } = cellValueRange(cells);
+          if (!(await landed(job))) { setVoxelError(null); return; } // TASKS.csv #3963 — each model into the project it started in (a cut-off import is said by the banner)
           addVoxelModel({ name: `${h.name || sg.name.replace(/\.sg$/i, "")} — ${prop.name}${prop.unit ? ` (${prop.unit})` : ""}`, source: "gocad", cells, min, max, property: prop.name, ...(prop.unit ? { unit: prop.unit } : {}),
             params: { tool: "GOCAD SGrid import", file: sg.name, sgridNodes: h.n, alignment: h.align, lattice: L.header.n, blockM: L.step.map((s) => +s.toFixed(3)), reachM: +L.reach.toFixed(3), ...(coarse ? { coarsened: [coarse.fx, coarse.fy, coarse.fz] } : {}) } });
           made.push(`${prop.name} (${cells.length.toLocaleString()} blocks)`);
@@ -1970,8 +1976,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         failed.length ? tr("Could not read: {list}.", { list: failed.join("; ") }) : ""].filter(Boolean).join(" ");
       setVoxelError({ info: made.length > 0 && !failed.length, text: made.length ? parts : tr("{name}: no block model made. {why}", { name: sg.name, why: parts || tr("The SGrid names no property.") }) });
     } catch (err) {
+      if (job.gone) { setVoxelError(null); return; } // #3963 — its project is gone and the banner said so
       setVoxelError({ info: false, text: tr("{name}: couldn't read the GOCAD SGrid ({message}).", { name: sg.name, message: err.message }) });
-    } finally { setVoxelBusy(false); }
+    } finally { setVoxelBusy(false); job.end(); } // job: #3963
   };
   const importUBC = async (fileList) => {
     const files = Array.from(fileList || []);
@@ -2681,7 +2688,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       let res;
                       try { res = await job.promise; } catch (err) { setIdwBusy(null); idwCancel.current = null; setError(tr("Inverse-distance gridding failed: {message}", { message: err.message })); return; }
                       setIdwBusy(null); idwCancel.current = null;
-                      if (res.cancelled) { setError({ info: true, text: tr("Cancelled.") }); return; }
+                      if (res.cancelled) { if (!pj.gone) setError({ info: true, text: tr("Cancelled.") }); return; } // TASKS.csv #3963 — said once: the banner says it when the project's close stopped the job
                       raster = gridValuesToRasterInput(res.values, res.gridW, res.gridH, { xmin, ymax, cellSize: idwCellSize, name: gName, stretch: idwStretch });
                     }
                     else { // TASKS.csv #2846 — minimum curvature (here, in JS) or the spline (the Python engine), through Geochem's gridder
@@ -2703,7 +2710,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                         idwCancel.current = job.cancel;
                         try { res = await job.promise; } catch (err) { setIdwBusy(null); idwCancel.current = null; setError(tr("Minimum curvature failed: {message}", { message: err.message })); return; }
                         setIdwBusy(null); idwCancel.current = null;
-                        if (res.cancelled) { setError({ info: true, text: tr("Cancelled.") }); return; }
+                        if (res.cancelled) { if (!pj.gone) setError({ info: true, text: tr("Cancelled.") }); return; } // TASKS.csv #3963 — said once: the banner says it when the project's close stopped the job
                       }
                       if (res.error === "mincurvCells") { setError(tr("Minimum curvature takes grids up to {max} cells, and this one is {gridW}×{gridH}. Use a bigger cell size, or IDW.", { max: MINCURV_MAX_CELLS.toLocaleString(), gridW: res.nx, gridH: res.ny })); return; }
                       if (res.error === "splineCells") { setError(tr("The spline takes grids up to {max} cells, and this one is {gridW}×{gridH}. Use a bigger cell size.", { max: SPLINE_MAX_CELLS.toLocaleString(), gridW: res.nx, gridH: res.ny })); return; }

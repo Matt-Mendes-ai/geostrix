@@ -407,42 +407,65 @@ export async function loadSampleFiles(subdir, names, { optional = [] } = {}) {
   return files;
 }
 
+// ---------- TASKS.csv #3963: a network read a cancelled job can stop ----------
+// A job (lib/projectJobs.js) has an AbortSignal that is aborted when its project is closed; the fetchers below take it ({ signal }). In Electron the
+// request carries an id and an abort sends "net-abort" with it, so the main process stops the download itself (electron/main.js netFetch); before the
+// request goes out, an already-aborted signal makes no request at all. The answer to a stopped request is { ok: false, cancelled: true } (the throwing
+// wrappers throw cancelledError()). Without a signal everything is as before.
+export const cancelledError = () => Object.assign(new Error(tr("Cancelled.")), { cancelled: true, name: "AbortError" });
+export const isCancelledError = (e) => !!(e && (e.cancelled || e.name === "AbortError"));
+const stoppedAnswer = () => ({ ok: false, status: 0, cancelled: true, message: cancelledError().message });
+let netSeq = 0;
+export async function abortableNet(signal, call) { // call(reqId | undefined) -> the answer
+  if (signal && signal.aborted) return stoppedAnswer();
+  const reqId = signal && d && d.abortNetFetch ? `n${Date.now().toString(36)}_${(++netSeq).toString(36)}` : undefined;
+  const onAbort = () => { try { d.abortNetFetch(reqId); } catch { /* no bridge */ } };
+  if (reqId) signal.addEventListener("abort", onAbort, { once: true });
+  try { return await call(reqId); } finally { if (reqId) signal.removeEventListener("abort", onAbort); }
+}
+
 // ---------- SRTM tile fetch (see electron/main.js's fetch-srtm-tile handler) ----------
 // In Electron, proxied through the main process (sidesteps any CORS question, keeps the renderer's
 // network surface narrow — see main.js's comment). In a plain-browser dev session there's no main
 // process to proxy through, so this falls back to a direct fetch of the same public AWS bucket —
 // works as long as the bucket's own CORS policy allows it, which it's designed to (built for direct
 // browser/client consumption). Both paths resolve to the same thing: raw PNG bytes as an ArrayBuffer.
-export async function fetchSRTMTile(z, x, y) {
+export async function fetchSRTMTile(z, x, y, { signal } = {}) { // signal: TASKS.csv #3963
   if (d && d.fetchSRTMTile) {
-    const res = await d.fetchSRTMTile(z, x, y);
+    const res = await abortableNet(signal, (reqId) => d.fetchSRTMTile(z, x, y, reqId));
+    if (res.cancelled) throw cancelledError();
     if (!res.ok) throw new Error(res.message || tr("Tile fetch failed (z{z}/{x}/{y}).", { z, x, y }));
     return b64ToBytes(res.base64).buffer;
   }
   const url = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
-  const res = await fetch(url);
+  let res;
+  try { res = await fetch(url, signal ? { signal } : undefined); } catch (e) { throw signal && signal.aborted ? cancelledError() : e; }
   if (!res.ok) throw new Error(tr("Tile fetch failed (HTTP {status}) for z{z}/{x}/{y}.", { status: res.status, z, x, y }));
   return res.arrayBuffer();
 }
 
 // ---------- TASKS.csv #784: satellite imagery (STAC search / one COG byte range), main-process proxied ----------
 // { url, range: [start, end] | null, json: object | null } -> { ok, status, contentRange, data: Uint8Array } | { ok: false, message }
-export async function remoteSensingFetch(req) {
-  if (d && d.remoteSensingFetch) return d.remoteSensingFetch(req);
+export async function remoteSensingFetch(req) { // req.signal: TASKS.csv #3963 (never sent over the IPC)
+  const { signal, ...rest } = req;
+  if (d && d.remoteSensingFetch) return abortableNet(signal, (reqId) => d.remoteSensingFetch(reqId ? { ...rest, reqId } : rest));
+  if (signal && signal.aborted) return stoppedAnswer();
   try { // browser / dev fallback: a direct fetch (these services send CORS headers)
     const headers = {};
     if (req.range) headers.Range = `bytes=${req.range[0]}-${req.range[1]}`;
-    const r = await fetch(req.url, req.json != null ? { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(req.json) } : { headers });
+    const r = await fetch(req.url, { ...(req.json != null ? { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(req.json) } : { headers }), ...(signal ? { signal } : {}) });
     return { ok: r.ok, status: r.status, contentRange: r.headers.get("content-range") || "", data: new Uint8Array(await r.arrayBuffer()) };
-  } catch (e) { return { ok: false, status: 0, message: e.message }; }
+  } catch (e) { return signal && signal.aborted ? stoppedAnswer() : { ok: false, status: 0, message: e.message }; }
 }
 
 // ---------- TASKS.csv #2005: Macrostrat (geology tiles and its API), main-process proxied ----------
 // { url, binary } -> { ok, status, text | bytes } | { ok: false, message }
-export async function macrostratFetch(req) {
-  if (d && d.macrostratFetch) return d.macrostratFetch(req);
-  try { const r = await fetch(req.url); return { ok: r.ok, status: r.status, ...(req.binary ? { bytes: new Uint8Array(await r.arrayBuffer()) } : { text: await r.text() }) }; } // browser / dev fallback
-  catch (e) { return { ok: false, status: 0, message: e.message }; }
+export async function macrostratFetch(req) { // req.signal: TASKS.csv #3963 (never sent over the IPC)
+  const { signal, ...rest } = req;
+  if (d && d.macrostratFetch) return abortableNet(signal, (reqId) => d.macrostratFetch(reqId ? { ...rest, reqId } : rest));
+  if (signal && signal.aborted) return stoppedAnswer();
+  try { const r = await fetch(req.url, signal ? { signal } : undefined); return { ok: r.ok, status: r.status, ...(req.binary ? { bytes: new Uint8Array(await r.arrayBuffer()) } : { text: await r.text() }) }; } // browser / dev fallback
+  catch (e) { return signal && signal.aborted ? stoppedAnswer() : { ok: false, status: 0, message: e.message }; }
 }
 
 // ---------- TASKS.csv #846: public geochemistry (a survey's web service, clipped to an area), main-process proxied ----------
@@ -461,13 +484,15 @@ export async function geochemFetch(req) {
 // fetch(), which works only as far as that particular server's own CORS policy allows — same honest
 // limitation the SRTM fallback already has. Returns { contentType, arrayBuffer } uniformly so callers
 // can decide whether to decode as text (XML capabilities, GeoJSON) or wrap as an image data URL.
-export async function fetchWebLayerUrl(url) {
+export async function fetchWebLayerUrl(url, { signal } = {}) { // signal: TASKS.csv #3963
   if (d && d.fetchWebLayerUrl) {
-    const res = await d.fetchWebLayerUrl(url);
+    const res = await abortableNet(signal, (reqId) => d.fetchWebLayerUrl(url, reqId));
+    if (res.cancelled) throw cancelledError();
     if (!res.ok) throw new Error(res.message || tr("Request failed for {url}", { url }));
     return { contentType: res.contentType || "", arrayBuffer: b64ToBytes(res.base64).buffer };
   }
-  const res = await fetch(url);
+  let res;
+  try { res = await fetch(url, signal ? { signal } : undefined); } catch (e) { throw signal && signal.aborted ? cancelledError() : e; }
   if (!res.ok) throw new Error(tr("Request failed (HTTP {status}) for {url}", { status: res.status, url }));
   return { contentType: res.headers.get("content-type") || "", arrayBuffer: await res.arrayBuffer() };
 }
