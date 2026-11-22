@@ -185,7 +185,7 @@ const ExplicitSurfacePanel = React.lazy(() => import("../components/ExplicitSurf
 const ModellingPanes = React.lazy(() => import("./viewer/ModellingPanes.jsx"));
 const MapModelPanel = React.lazy(() => import("../components/MapModelPanel.jsx")); // TASKS.csv #817
 const SurfaceMappingPanel = React.lazy(() => import("../components/SurfaceMappingPanel.jsx")); // TASKS.csv #820 — the Surface Geology tab
-const MODELLING_PANES = new Set(["mapmodel", "settings", "gradeEst", "explicit", "mcodes", "groups", "correlation", "geoml", "implicit", "stack", "structural", "alteration", "vein", "shell"]);
+const MODELLING_PANES = new Set(["mapmodel", "settings", "gradeEst", "explicit", "mcodes", "groups", "correlation", "geoml", "implicit", "stack", "structural", "alteration", "vein", "shell", "faults" /* #4006 */]);
 // TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
 const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
@@ -1387,7 +1387,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const setInputRef = (key) => (el) => { fileInputs.current[key] = el; };
   // TASKS.csv #565 — File > Import CSV (Ctrl+I) opens the collar import here; View > Cross-section (Ctrl+Shift+C)
   // starts drawing a section (it used to only switch to this tab)
-  useModuleAction(["open-geoml"], () => setToolPane("geoml")); // TASKS.csv #750 — links / menus that named the Predictive tab
+  useModuleAction(["open-geoml", "open-pane"], (a, p) => setToolPane(a === "open-pane" ? (MODELLING_PANES.has(p?.pane) ? p.pane : null) : "geoml")); // TASKS.csv #750 — links / menus that named the Predictive tab; open-pane: #4006, the Faults pane's rows
   const [guided, setGuided] = useState(null); useModuleAction(["guided-open"], (a, p) => setGuided(p?.tool || "start")); // TASKS.csv #3908 — the Model menu
   useModuleAction(["import-collars", "draw-section"], (a) => {
     if (a === "import-collars") { fileInputs.current.collar?.click(); return; }

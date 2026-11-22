@@ -5,7 +5,7 @@
 // startup budget. The props are exactly the free identifiers of the moved JSX that ViewerModule declares (found by
 // Babel scope analysis, not by hand); module imports are re-imported here.
 import { isNotLogged } from "../../lib/notLogged.js"; // TASKS.csv #1740
-import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool } from "../../components/icons.js";
+import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool, SquareSplitVertical } from "../../components/icons.js";
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote, gradeShellBudgetMB, shellBudgetsFor, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #3651 // gradeShellBudgetMB, shellBudgetsFor: #3581
 import { useMachineMemoryGB, fetchFits, fetchBudgetMB } from "../../lib/fetchMemory.js"; // TASKS.csv #3581 // gradeShellBudgetNote: #1416
 import InfoButton from "../../components/InfoButton.jsx";
@@ -59,6 +59,7 @@ import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
 const LithoSuggestBox = lazy(() => import("../../components/LithoSuggestBox.jsx")); // TASKS.csv #2004
+const FaultsPanel = lazy(() => import("./FaultsPanel.jsx")); // TASKS.csv #4006 — every fault tool in one pane
 
 export default function ModellingPanes(props) {
   const {
@@ -1139,6 +1140,10 @@ export default function ModellingPanes(props) {
         ><Layers3 size={14} /> {implicitBusy ? tr("Running…") : tr(stackUnits.length === 1 ? "Run stack ({n} unit)" : "Run stack ({n} units)", { n: stackUnits.length })}</button>
 
 
+        </>)}
+        {toolPane === "faults" && (<>{/* TASKS.csv #4006 — every fault tool in one pane; it reads the props this component already has */}
+        {paneHeader("Faults", SquareSplitVertical, "model")}
+        <Suspense fallback={null}><FaultsPanel {...props} pBtn={pBtn} /></Suspense>
         </>)}
         {toolPane === "structural" && (<>
         {paneHeader("Structural modelling", Compass, "model")}

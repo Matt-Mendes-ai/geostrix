@@ -10,7 +10,7 @@ import { wordsOf, countHelpPage } from "../scripts/word-count.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const { PAGES, pageById } = await import("../src/help/content.js");
-const MODELLING = ["model-settings", "lithology-groups", "modelling-codes", "implicit-surface", "stratigraphic-stack", "explicit-surface", "structural-modelling", "vein-dyke", "alteration-modelling", "grade-shell", "grade-estimation", "grade-thickness", "geoml", "section-correlation", "model-from-map"];
+const MODELLING = ["model-settings", "lithology-groups", "modelling-codes", "implicit-surface", "stratigraphic-stack", "explicit-surface", "structural-modelling", "faults" /* #4006 */, "vein-dyke", "alteration-modelling", "grade-shell", "grade-estimation", "grade-thickness", "geoml", "section-correlation", "model-from-map"];
 const TONNAGE = ["grade-tonnage", "block-calculator", "unsampled-metres"];
 const cautions = (id) => pageById(id).cautions.join(" | ").toLowerCase();
 
@@ -54,7 +54,7 @@ test("'Use instead' chips: pages that exist, the plan's routes, and the cover fo
   const to = (id) => (pageById(id).instead || []).map((x) => x.page || x.to);
   for (const id of [...MODELLING, ...TONNAGE]) for (const x of pageById(id).instead || []) if (x.page) assert.ok(pageById(x.page), `${id}: ${x.page}`);
   assert.deepEqual(to("lithology-groups"), ["modelling-codes"]);
-  assert.deepEqual(to("structural-modelling"), ["vein-dyke", "implicit-surface"]);
+  assert.deepEqual(to("structural-modelling"), ["vein-dyke", "implicit-surface", "faults"]); // faults: #4006, every fault tool
   assert.deepEqual(to("alteration-modelling"), ["grade-shell"]);
   // the Cover and weathering tool is a menu item, not a page: its chip is plain text where the rock is the question
   for (const id of ["modelling-codes", "implicit-surface", "stratigraphic-stack"]) {
