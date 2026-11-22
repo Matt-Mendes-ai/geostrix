@@ -730,7 +730,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const r = assayClassRange(lab.length ? lab : assays, symbol); // #306 / #1696 percentile classes; #2519: '<' flags left out (lib/assayClasses.js)
     return (c.by[symbol] = r && { ...r, unit: assayElements.find((e) => e.symbol === symbol)?.unit }); // unit: a major component's round classes, #2935
   }, [assays, assayElements, assaySource]);
-  // TASKS.csv #3879 — a project saved with the old pick-order hues: the classes GeoStrix seeded (not the user's) are re-seeded from the element's own hue (lib/assayHueRepair.js)
+  // TASKS.csv #3879 — a project saved with the old pick-order hues: classes GeoStrix seeded (not the user's) are re-seeded from the element's hue (lib/assayHueRepair.js)
   useEffect(() => { setAssayStyle((p) => repairSeededHues(p, assayElements, assayRangeFor)); }, [assayStyle, assayElements, assayRangeFor]);
   // TASKS.csv #437 — the hover tooltip is written straight to its DOM node instead of React state:
   // setTooltip({x, y, text}) ran on every pointermove over an interval and re-rendered this whole
@@ -745,7 +745,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const w = el.offsetWidth, h = el.offsetHeight; // #1821 — kept inside the window
     el.style.left = `${Math.max(4, Math.min(t.x + 14, innerWidth - w - 8))}px`; el.style.top = `${t.y + 22 + h > innerHeight ? Math.max(4, t.y - h - 8) : t.y + 14}px`;
   }, []);
-  const [notices, setNotices] = useTabNotices(store.activeTabId, () => { setCursor({ x: null, y: null, z: null }); setToast(null); tabSwitchedRef.current = true; }); // #1203
+  const [notices, setNotices, setNoticesToTab] = useTabNotices(store.activeTabId, () => { setCursor({ x: null, y: null, z: null }); setToast(null); tabSwitchedRef.current = true; }); // #1203
   const tabSwitchedRef = useRef(false); // a tab's own notices coming back are not news: no toast for them
   const [allNotices, setAllNotices] = useState(false); // TASKS.csv #1542 — Recent messages in full
   const [toast, setToast] = useState(null); // { text, key } — most recent notice, shown briefly over the viewport
@@ -1068,7 +1068,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #356 — the last implicit run's lithology block (session only), offered as a block model and as
   // a "modelled unit" interval layer. { block, units: [{name,label,color}], origin, when, title }
   const [lastLithBlock, setLastLithBlockRaw] = useState(null);
-  // TASKS.csv #2388 — the last model and the generated surfaces keep a stamp of the lithology log they read (lib/layerStamp.js): marked stale when it changes
+  // TASKS.csv #2388 — the last model and the generated surfaces keep a stamp of the lithology log they read (lib/layerStamp.js): stale when it changes
   const setLastLithBlock = (lb) => setLastLithBlockRaw(lb && { ...lb, lithoStamp: layerStamp(layers.litho) }); // `layers` of the render the run started from
   const lithoNow = useMemo(() => layerStamp(layers.litho), [layers.litho]);
   const [surfaceSolidsOpen, setSurfaceSolidsOpen] = useState(false); // TASKS.csv #802
@@ -1662,7 +1662,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     // TASKS.csv #725 — the same builders the Layout legend uses (lib/legendGroups.js), so the two keys cannot disagree
     const singleColor = Object.fromEntries(CATEGORY_LAYER_KEYS.filter((k) => layerStyles[k]?.color).map((k) => [k, layerStyles[k].color])); // #635
     const groups = [
-      // TASKS.csv #3296 — the codes in one order with the inspector: the project's set order (#3130) first, then by count (the figure's cut keeps the commonest)
+      // TASKS.csv #3296 — the codes in one order with the inspector: the project's set order (#3130) first, then by count (the cut keeps the commonest)
       ...viewCodeOrder(categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, styles: layerStyles, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), projectCodeOrders(layoutPages, null, null, null)), // #1813
       ...assayLegendGroups({ withNote: true /* #3588 (2) */, bars: !!layerStyles.assay?.bars /* #3943 */, assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits /* #3236 */ }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), ...scoreRasterLegendGroups(rasters) /* #2670 — score maps */, // #1236
@@ -1684,7 +1684,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     return mode === "surface" && surfFirst.length ? [...surfFirst, ...groups.filter((g) => !surfFirst.includes(g))] : groups; // #3046 (3)
   }, [mode /* #3046 */, bare /* #3325 */, rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy, surfaceStructures, layoutPages /* #3296 */, implicitSurfaces /* #3762 */]); // #1398; collars: #1813; holeScheme: #1504; surfaceStructures: #3092
 
-  // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (an elevation); thickness 0 = a half-space
+  // TASKS.csv #453 — the 3D slice's planes over the drilled extent: vertical (azimuth, position) or horizontal (elevation); thickness 0 = a half-space
   const sliceExtent = useMemo(() => {
     const base = sliceTraces(tracesRef.current, visibleHoles), ts = mainTraces(base, (t) => t.wz?.[0]); // #2936 / #3004 — no suspect collar; #3258 — the checked holes
     const pts = ts.flatMap((t) => t.pts || []);
@@ -2670,7 +2670,7 @@ ${describeTrend(t)}` };
     }
   }, []);
 
-  // TASKS.csv #1287 — a live view is put back with applyTheme alone. This module stays mounted behind Layout (#225), so the one push effect writes the restored values to the store.
+  // TASKS.csv #1287 — a live view is put back with applyTheme alone; the one push effect writes it to the store (this module stays mounted behind Layout, #225).
 
   // Layout's Viewport element (#46) asks for a re-render of a theme via store.requestViewportRender()
   // — see the long comment on that in store.jsx. This module stays mounted behind Layout (#225), and
@@ -2863,7 +2863,7 @@ ${describeTrend(t)}` };
     // comment above for why depending on it directly reintroduces the bug it looks like it should
     // have nothing to do with.
   }, [viewportRenderRequest, viewportPendingRequest, themes, applyTheme, doCaptureViewportRender, resolveViewportRender, goToModule, visible]);
-  // TASKS.csv #3873 (a) — Layout asked for a strip log to be drawn again at a new px per metre: opened here with the choices it was sent with; its 'Add to Layout' replaces that element
+  // TASKS.csv #3873 (a) — Layout asked for a strip log drawn again at a new px per metre: opened here with its choices; 'Add to Layout' replaces that element
   useEffect(() => {
     if (!stripLogRequest || !visible) return;
     const { elementId, spec } = stripLogRequest;
@@ -3425,7 +3425,7 @@ ${describeTrend(t)}` };
 
   // TASKS.csv #445 step 2 — the modelling runs live in modules/viewer/useModelling.js (moved verbatim); called here,
   // where that code used to sit, so the hook order is unchanged.
-  const { addStackUnit, computeIntercepts, faultCandidates, moveStackUnit, removeStackUnit, runAlterationModel, runImplicitModel, runMapModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel } = useModelling({ // runMapModel: #817
+  const { addStackUnit, computeIntercepts, faultCandidates, moveStackUnit, removeStackUnit, runAlterationModel, runImplicitModel, runMapModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel } = useModelling({ setNoticesToTab, // runMapModel: #817; setNoticesToTab: #3963
     activeInterceptSetRef,
     alterationCellSize,
     alterationSearchRadius,

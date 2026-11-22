@@ -12,7 +12,7 @@ import { colors } from "../../lib/theme.js";
 import { t as tr } from "../../lib/i18n.js";
 import { useStore } from "../../lib/store.jsx"; // TASKS.csv #3911 — the collars and the CRS, for the regional area
 import { fetchAreaBox } from "../../lib/dataExtent.js";
-import { regionalArea, regionalGrain, regionalCandidate, regionalNoneText } from "../../lib/regionalGrain.js"; // TASKS.csv #3911
+import { regionalArea, regionalGrain, regionalCandidate, regionalNoneText, regionalLines, regionalLineCandidates } from "../../lib/regionalGrain.js"; // TASKS.csv #3911; lines: #3934
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
 
 const FOLLOW = [["grade", "The grade model"], ["rock", "One rock or vein"], ["everything", "Everything"]];
@@ -71,7 +71,7 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
   // TASKS.csv #3911 (redesign P8b) — the regional direction: Macrostrat's published geology around the project, fetched on a click only
   // (the existing tiles.macrostrat.org vector tiles), one more card, direction only, never pre-selected
   const { collars = [], surfaceSamples = [], project } = useStore() || {};
-  const [regional, setRegional] = useState(null); // { busy } | { card } | { note, warn }
+  const [regional, setRegional] = useState(null); // { busy } | { cards, note? } | { note, warn } — #3934: the contacts' card, the faults', the fold axes'
   const lookRegional = async () => {
     if (typeof navigator !== "undefined" && navigator.onLine === false) { setRegional({ note: regionalNoneText(null, { offline: true }), warn: true }); return; }
     const box = fetchAreaBox(collars, surfaceSamples), epsg = project?.epsg;
@@ -85,12 +85,14 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
       const { fetchMacrostratUnitPolygons } = await import("../../lib/macrostratFetch.js");
       const got = await fetchMacrostratUnitPolygons({ bboxLonLat: area });
       const grain = regionalGrain(got.features), card = regionalCandidate(grain);
-      setRegional(card ? { card } : { note: regionalNoneText(grain) });
+      if (card && got.scaleNote) card.warnings = [...card.warnings, got.scaleNote]; // TASKS.csv #3974 — the map found, where only a small-scale one exists
+      const cards = [...(card ? [card] : []), ...regionalLineCandidates(regionalLines(got.lines), got.sourceNames)]; // #3934 — the mapped faults and fold axes too
+      setRegional(cards.length ? { cards, ...(card ? {} : { note: regionalNoneText(grain) }) } : { note: regionalNoneText(grain) });
     } catch (e) {
       setRegional({ note: typeof navigator !== "undefined" && navigator.onLine === false ? regionalNoneText(null, { offline: true }) : tr("The regional geology could not be fetched ({error}).", { error: String(e?.message || e) }), warn: true });
     }
   };
-  const cands = [...(result?.candidates || []), ...(regional?.card ? [regional.card] : [])];
+  const cands = [...(result?.candidates || []), ...(regional?.cards || [])];
   const byId = (id) => (id === "typed" ? typedCand : cands.find((c) => c.id === id) || null);
   const chosen = byId(selId);
   const shown = byId(hoverId) || chosen;
@@ -162,13 +164,14 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
         <div style={{ marginTop: 8 }}>{tr("Here is what your data says.")}</div>
         {result.none && <div style={{ ...small, margin: "4px 0" }}>{result.noneText}</div>}
         {cands.map(card)}
-        {!regional?.card && (
+        {!regional?.cards?.length && (
           <div data-trend-regional="" style={{ margin: "6px 0" }}>
             <button type="button" style={btnStyle} disabled={!!regional?.busy} onClick={lookRegional}>{regional?.busy ? tr("Looking…") : tr("Look at the regional geology")}</button>
-            <div style={small}>{tr("Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction the mapped contacts run: a regional direction only, not a dip.")}</div>
+            <div style={small}>{tr("Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction its contacts, faults and fold axes run: a regional direction only, not a dip.")}</div>
             {regional?.note && <div role="status" style={{ ...small, color: regional.warn ? "var(--color-warn-text)" : undefined }}>{regional.note}</div>}
           </div>
         )}
+        {regional?.cards?.length > 0 && regional.note && <div role="status" style={small}>{regional.note}</div>/* #3934 — the contacts gave no direction, the faults or folds did */}
         {cands.length > 0 && <div style={small}>{tr("Point at a card to see it as a disc in the 3D view. These are suggestions from your data, not facts: check them against what you know.")}</div>}
       </>)}
 

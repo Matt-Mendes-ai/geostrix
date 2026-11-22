@@ -12,6 +12,7 @@
 // Each terrain node is the MEAN of the source pixels around it when a node spans more than ~1.5 pixels (the #799 rule:
 // no aliasing), else a bilinear sample - as in copernicusDem.js. Nodes are on a lon/lat grid (finishTerrain reprojects).
 import { openCog, stacSearch } from "./imageryFetch.js";
+import { isCancelledError } from "./desktop.js"; // TASKS.csv #3963
 import { gridDims, finishTerrain } from "./terrainGrid.js";
 import { pointTransform } from "./reproject.js";
 import { t as tr } from "./i18n.js";
@@ -110,19 +111,19 @@ export async function readInto(out, url, g, stats, opts = {}) { // exported: TAS
   const c0 = Math.max(0, Math.floor((bx0 - dem.ox) / rx) - 1), c1 = Math.min(level.w, Math.ceil((bx1 - dem.ox) / rx) + 1);
   const r0 = Math.max(0, Math.floor((by1 - dem.oy) / ry) - 1), r1 = Math.min(level.h, Math.ceil((by0 - dem.oy) / ry) + 1);
   if (c1 <= c0 || r1 <= r0) return { filled: 0, pixelM: Math.abs(rx) };
-  const [data] = await level.img.readRasters({ window: [c0, r0, c1, r1], ...(opts.samples ? { samples: opts.samples } : {}) });
+  const [data] = await level.img.readRasters({ window: [c0, r0, c1, r1], ...(opts.samples ? { samples: opts.samples } : {}), ...(opts.signal ? { signal: opts.signal } : {}) }); // opts.signal: #3963
   const filled = sampleWindow(out, { data, w: c1 - c0, h: r1 - r0, ox: dem.ox + c0 * rx, oy: dem.oy + r0 * ry, rx, ry }, g);
   return { filled, pixelM: Math.abs(rx) };
 }
 
 // HRDEM mosaic tiles (1 m terrain) over the box, from NRCan's STAC catalogue: [dtm COG url]
-export async function hrdemTiles(bbox) { // exported: #3515
-  const d = await stacSearch(NRCAN_STAC, { collections: ["hrdem-mosaic-1m"], bbox, limit: 100 });
+export async function hrdemTiles(bbox, signal) { // exported: #3515; signal: #3963
+  const d = await stacSearch(NRCAN_STAC, { collections: ["hrdem-mosaic-1m"], bbox, limit: 100 }, signal);
   return (d.features || []).map((f) => f.assets?.dtm?.href).filter((u) => typeof u === "string" && u.startsWith(`${NRCAN_HOST}/`));
 }
 
 // Same result shape as srtmFetch.fetchSRTMTerrain / copernicusDem.fetchCopernicusTerrain. source: "mrdem" | "hrdem".
-export async function fetchNrcanTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200, source = "mrdem" }) {
+export async function fetchNrcanTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200, source = "mrdem", signal }) { // signal: TASKS.csv #3963 (a cancel is thrown as it is)
   if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error(tr("Invalid area — check the coordinates."));
   if (lonMin < -142 || lonMax > -52 || latMin < 41 || latMax > 84) throw new Error(tr("NRCan's elevation models cover Canada only: this area is outside it. Choose Copernicus GLO-30 or the AWS Terrain Tiles."));
   const T = pointTransform(4326, 3979);
@@ -133,16 +134,16 @@ export async function fetchNrcanTerrain({ lonMin, latMin, lonMax, latMax, target
   const step = () => onProgress?.(++done, steps);
   if (source === "hrdem") {
     let tiles = [];
-    try { tiles = await hrdemTiles([lonMin, latMin, lonMax, latMax]); } catch (e) { throw new Error(tr("Couldn't search NRCan's catalogue for HRDEM lidar ({v}). Check your internet connection.", { v: e.message })); }
+    try { tiles = await hrdemTiles([lonMin, latMin, lonMax, latMax], signal); } catch (e) { if (isCancelledError(e)) throw e; throw new Error(tr("Couldn't search NRCan's catalogue for HRDEM lidar ({v}). Check your internet connection.", { v: e.message })); }
     steps = tiles.length + 2;
     step();
     for (const url of tiles) {
-      try { const r = await readInto(out, url, g); lidar += r.filled; lidarPixelM = r.pixelM; } catch (e) { throw new Error(tr("Couldn't read NRCan's HRDEM lidar model ({v}). Check your internet connection.", { v: e.message })); }
+      try { const r = await readInto(out, url, g, undefined, { signal }); lidar += r.filled; lidarPixelM = r.pixelM; } catch (e) { if (isCancelledError(e)) throw e; throw new Error(tr("Couldn't read NRCan's HRDEM lidar model ({v}). Check your internet connection.", { v: e.message })); }
       step();
     }
   }
   let mr;
-  try { mr = await readInto(out, MRDEM_URL, g); } catch (e) { throw new Error(tr("Couldn't read NRCan's MRDEM-30 elevation model ({v}). Check your internet connection.", { v: e.message })); }
+  try { mr = await readInto(out, MRDEM_URL, g, undefined, { signal }); } catch (e) { if (isCancelledError(e)) throw e; throw new Error(tr("Couldn't read NRCan's MRDEM-30 elevation model ({v}). Check your internet connection.", { v: e.message })); }
   step();
   const valid = out.reduce((n, v) => n + (Number.isNaN(v) ? 0 : 1), 0);
   if (!valid) throw new Error(tr("NRCan's elevation models have no data in this area."));

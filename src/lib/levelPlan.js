@@ -192,6 +192,20 @@ export function pathCache() {
 // TASKS.csv #2518 (review #2486) — the level plan opened at the middle of the elevation range (RL 34, which one 577 m hole set; 25 of 2,248
 // holes reach it). The RL most holes cross: each hole's trace z-range counted per metre, the middle of the busiest run. holes: [{ trace: [{ z }] }]
 // -> an integer RL, or null
+// TASKS.csv #3970 — where the plan opens when no hole trace gives a busiest RL (no traces read, or none with a z): about 100 m under the middle collar
+// elevation (where the drilling is, not the top of the range, which crosses almost nothing: Matt saw '0 pierce points at 1893 m'), kept inside the slider's range
+export function fallbackOpenRl(collarZs, zRange) {
+  const zs = (collarZs || []).filter(Number.isFinite).sort((a, b) => a - b);
+  const lo = Math.floor(zRange?.[0] ?? 0), hi = Math.ceil(zRange?.[1] ?? 0);
+  const mid = zs.length ? zs[zs.length >> 1] - 100 : (lo + hi) / 2;
+  return Math.round(Math.min(hi, Math.max(lo, mid)));
+}
+// TASKS.csv #3970 — the Level plan dialog's own size: a share of the window by default, a saved one clamped to the window and a minimum
+export function clampLevelPlanSize(size, vw, vh) {
+  const w = Number(size?.w), h = Number(size?.h);
+  const fit = (v, share, lo, hi) => Math.round(Math.min(hi, Math.max(lo, Number.isFinite(v) && v > 0 ? v : share)));
+  return { w: fit(w, vw * 0.9, 560, vw * 0.98), h: fit(h, vh * 0.88, 440, vh * 0.96) };
+}
 export function busiestRl(holes) {
   let lo = Infinity, hi = -Infinity;
   const spans = [];

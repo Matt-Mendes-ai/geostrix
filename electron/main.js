@@ -958,13 +958,25 @@ function friendlyDbError(err, config) {
 // no API key, no account. Not literally usgs.gov (their EarthExplorer/M2M API requires a personal
 // login, which doesn't fit a zero-config open-source desktop app — see src/lib/srtmFetch.js's header
 // comment for the full reasoning), but the same SRTM-heritage public elevation data.
-ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y } = {}) => {
+// TASKS.csv #3963 — a download the renderer can stop: its request carries an id (reqId), and "net-abort" with that id aborts the guardedFetch (its
+// signal), so a job cancelled by its project's close stops its network reads instead of finishing a download nobody will use. The answer then says
+// cancelled: true. No id: as before.
+const netAborts = new Map();
+async function netFetch(reqId, url, opts = {}) {
+  const ctrl = typeof reqId === "string" && reqId.length > 0 && reqId.length <= 64 ? new AbortController() : null;
+  if (ctrl) netAborts.set(reqId, ctrl);
+  try { return await guardedFetch(url, { ...opts, ...(ctrl ? { signal: ctrl.signal } : {}) }); } finally { if (ctrl && netAborts.get(reqId) === ctrl) netAborts.delete(reqId); }
+}
+ipcMain.on("net-abort", (_e, reqId) => { try { netAborts.get(String(reqId))?.abort(); } catch (_) { /* gone already */ } });
+const notOk = (res, extra = {}) => ({ ok: false, status: res.status, message: res.message, ...(res.cancelled ? { cancelled: true } : {}), ...extra });
+
+ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y, reqId } = {}) => {
   // TASKS.csv #350 — z/x/y were interpolated into the URL unchecked; now integers in the slippy-map range,
   // with a timeout and a size cap (a Terrarium tile is ~100 KB).
   if (!validTileIndex(z, x, y)) return { ok: false, status: 0, message: "Invalid elevation tile index." };
   const url = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
-  const res = await guardedFetch(url, { timeoutMs: 30000, maxBytes: 5 * 1024 * 1024 });
-  if (!res.ok) return { ok: false, status: res.status, message: res.message || `Tile fetch failed (HTTP ${res.status}) for z${z}/${x}/${y}.` };
+  const res = await netFetch(reqId, url, { timeoutMs: 30000, maxBytes: 5 * 1024 * 1024 });
+  if (!res.ok) return notOk(res, { message: res.message || `Tile fetch failed (HTTP ${res.status}) for z${z}/${x}/${y}.` });
   return { ok: true, base64: res.buffer.toString("base64") };
 });
 
@@ -988,9 +1000,9 @@ ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y } = {}) => {
 // plausibly hit (e.g. a cloud metadata endpoint or another local service).
 // TASKS.csv #350 — the hostname-pattern check (isBlockedWebLayerHost) is replaced by electron/netGuard.js:
 // every hop resolved and range-checked, redirects followed manually, timeout, byte cap.
-ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
-  const res = await guardedFetch(String(url || ""), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024 });
-  if (res.message) return { ok: false, status: res.status, message: res.message };
+ipcMain.handle("fetch-web-layer", async (_e, { url, reqId } = {}) => {
+  const res = await netFetch(reqId, String(url || ""), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024 });
+  if (res.message) return notOk(res);
   if (!res.ok) {
     // Servers often return a 200 with an XML ServiceExceptionReport instead of a real HTTP error —
     // that's handled renderer-side by inspecting the body — but a genuine non-2xx still deserves
@@ -1011,7 +1023,7 @@ ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
 const RS_PATH_LIMITS = { "storage.googleapis.com": "/climate-and-sustainability/gem-15/" };
 const rsPathOk = (u) => !RS_PATH_LIMITS[u.hostname] || String(u.pathname).startsWith(RS_PATH_LIMITS[u.hostname]);
 const RS_HOSTS = new Set(["earth-search.aws.element84.com", "sentinel-cogs.s3.us-west-2.amazonaws.com", "planetarycomputer.microsoft.com", "astersa.blob.core.windows.net", "naipeuwest.blob.core.windows.net", "copernicus-dem-30m.s3.amazonaws.com", "canelevation-dem.s3.ca-central-1.amazonaws.com", "datacube.services.geo.ca", "storage.googleapis.com"]); // NRCan: #815; storage.googleapis.com: #3721 (GEM-15, its path only)
-ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = null } = {}) => {
+ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = null, reqId } = {}) => {
   let u;
   try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
   if (u.protocol !== "https:" || !RS_HOSTS.has(u.hostname) || !rsPathOk(u)) return { ok: false, status: 0, message: `GeoStrix only reads imagery from ${[...RS_HOSTS].join(", ")}.` };
@@ -1027,8 +1039,8 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
     if (body.length > 65536) return { ok: false, status: 0, message: "Search request too large." };
     init = { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body };
   }
-  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init, allowHost: (h) => h.protocol === "https:" && RS_HOSTS.has(h.hostname) && rsPathOk(h) }); // #960 — every redirect hop too
-  if (res.message) return { ok: false, status: res.status, message: res.message };
+  const res = await netFetch(reqId, u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init, allowHost: (h) => h.protocol === "https:" && RS_HOSTS.has(h.hostname) && rsPathOk(h) }); // #960 — every redirect hop too
+  if (res.message) return notOk(res);
   return { ok: res.ok, status: res.status, contentType: res.contentType, contentRange: res.contentRange, data: res.buffer };
 });
 
@@ -1036,12 +1048,12 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
 // its API v2 (macrostrat.org: the map units at a point, their map sources). Data CC BY 4.0. GET only, only these two HTTPS hosts,
 // the #350 address checks on every hop, 16 MB, 60 s. Only when the user asks for the layer or the units.
 const MACROSTRAT_HOSTS = new Set(["macrostrat.org", "tiles.macrostrat.org"]);
-ipcMain.handle("macrostrat-fetch", async (_e, { url, binary = false } = {}) => {
+ipcMain.handle("macrostrat-fetch", async (_e, { url, binary = false, reqId } = {}) => {
   let u;
   try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
   if (u.protocol !== "https:" || !MACROSTRAT_HOSTS.has(u.hostname)) return { ok: false, status: 0, message: "GeoStrix only reads Macrostrat from macrostrat.org and tiles.macrostrat.org." };
-  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 16 * 1024 * 1024, allowHost: (h) => h.protocol === "https:" && MACROSTRAT_HOSTS.has(h.hostname) });
-  if (res.message) return { ok: false, status: res.status, message: res.message };
+  const res = await netFetch(reqId, u.toString(), { timeoutMs: 60000, maxBytes: 16 * 1024 * 1024, allowHost: (h) => h.protocol === "https:" && MACROSTRAT_HOSTS.has(h.hostname) });
+  if (res.message) return notOk(res);
   return { ok: res.ok, status: res.status, contentType: res.contentType, ...(binary ? { bytes: res.buffer } : { text: res.buffer.toString("utf8") }) };
 });
 

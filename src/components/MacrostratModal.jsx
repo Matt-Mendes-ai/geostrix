@@ -4,6 +4,7 @@
 // TASKS.csv #2314 (Matt: "I wanna be able to select an area of the map to fetch macrostrat geology") — the area is the project's by
 // default, or one drawn on the map with the picker the WMS and terrain fetches use; all three buttons use it.
 import React, { useMemo, useState } from "react";
+import { isCancelledError } from "../lib/desktop.js"; // TASKS.csv #3976
 import { X, Globe, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -16,7 +17,7 @@ import { fetchMacrostratRaster, fetchMacrostratUnits, fetchMacrostratLegend, fet
 import { MACROSTRAT_CREDIT, MACROSTRAT_MVT_URL } from "../lib/macrostrat.js";
 import { t as tr } from "../lib/i18n.js";
 import { areaSizeText } from "../lib/areaSize.js"; // TASKS.csv #2314 / #1765
-import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
+import { useStartProjectJob, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #3976 — // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a layer lands only in the project it was fetched for
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
@@ -36,6 +37,9 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
   useFocusTrap();
   const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const beginJob = () => (startProjectJob ? startProjectJob({ label: tr("Macrostrat geology") }) : noJob(tr("Macrostrat geology"))); // TASKS.csv #3953
+  // TASKS.csv #3976 — the fetch's bar in the status bar (the tiles, then the legend), with Cancel stopping the reads (#3963's signal)
+  const setTaskProgress = useSetTaskProgress();
+  const startBar = async (job, stages) => (await import("../lib/fetchProgress.js")).startFetchProgress(setTaskProgress, { label: tr("Macrostrat geology"), stages, onCancel: () => job.abort() });
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState(null);
   const [units, setUnits] = useState(null);
@@ -43,31 +47,35 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
   const addLayer = async () => {
     setMsg(null); setBusy(tr("Fetching Macrostrat tiles…"));
     const job = beginJob(); // TASKS.csv #3953
+    const bar = await startBar(job, [["read", 0.8], ["legend", 0.2]]); // #3976
+    bar.step("read", 0, 1, tr("Connecting to {source}…", { source: "Macrostrat" })); // #3976 — the bar at once (a moving bar until something is counted)
     try {
-      const r = await fetchMacrostratRaster({ bboxLonLat, projectEpsg, onProgress: (d, n) => setBusy(tr("Fetching Macrostrat tiles… {d} of {n}", { d, n })) });
+      const r = await fetchMacrostratRaster({ bboxLonLat, projectEpsg, signal: job.signal /* #3963 */, onProgress: (d, n) => { const t = tr("Fetching Macrostrat tiles… {d} of {n}", { d, n }); setBusy(t); bar.step("read", d, n, t); } });
       // TASKS.csv #2011 — the legend from the same tiles as vectors; a failure here still adds the drape (the layer offers "Fetch the legend")
       // #3952: the image is drawn from those tiles, which give the legend too (r.legend); fetched again only when they did not
       let legend = r.legend || null, legendErr = null;
-      if (!legend) try { legend = await fetchMacrostratLegend({ bboxLonLat, onProgress: (d, n) => setBusy(tr("Fetching the legend… {d} of {n}", { d, n })) }); } catch (e) { legendErr = e.message; }
-      if (!(await landed(job))) { setBusy(null); return; } // TASKS.csv #3953 — into the project it started in
+      if (!legend) try { legend = await fetchMacrostratLegend({ bboxLonLat, signal: job.signal /* #3963 */, onProgress: (d, n) => { const t = tr("Fetching the legend… {d} of {n}", { d, n }); setBusy(t); bar.step("legend", d, n, t); } }); } catch (e) { legendErr = e.message; }
+      if (!(await landed(job))) { setBusy(null); bar.end(); return; } // TASKS.csv #3953 — into the project it started in
       addRaster({ name: "Macrostrat geology (CC BY 4.0)", bbox: r.bbox, dataUrl: r.dataUrl, opacity: 0.7, ...(legend ? { legend } : {}),
-        provenance: { tool: "Macrostrat map units (vector tiles), drawn as an image", source: MACROSTRAT_MVT_URL("{z}", "{x}", "{y}"), /* #3952 */ zoom: r.zoom, areaLonLat: bboxLonLat, credit: MACROSTRAT_CREDIT, fetched: new Date().toISOString().slice(0, 10) } });
+        provenance: { tool: "Macrostrat map units (vector tiles), drawn as an image", source: MACROSTRAT_MVT_URL("{z}", "{x}", "{y}"), /* #3952 */ zoom: r.zoom, areaLonLat: bboxLonLat, credit: MACROSTRAT_CREDIT, fetched: new Date().toISOString().slice(0, 10), ...(r.scaleNote ? { scaleNote: r.scaleNote } : {}) /* #3974 */ } });
       setMsg({ ok: !r.failedTiles && !legendErr, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a raster drape: {w} × {h} px, ~{m} m pixels, {n} tiles at zoom {z}. Its eye in GeoTIFF / GXF turns it off.", { w: r.width, h: r.height, m: Math.round(r.pixelM), n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: r.failedTiles, total: r.tiles }) : "")
-        + " " + (legend ? tr("Its legend lists {n} map units: open it under the layer, in Maps or in StrixViewer's layer list.", { n: legend.units.length }) : tr("Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.", { message: legendErr })) });
-    } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
-    setBusy(null); job.end(); // job: TASKS.csv #3953
+        + " " + (legend ? tr("Its legend lists {n} map units: open it under the layer, in Maps or in StrixViewer's layer list.", { n: legend.units.length }) : tr("Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.", { message: legendErr })) + (r.scaleNote ? " " + r.scaleNote : "") /* #3974 */ });
+    } catch (e) { if (!job.gone) setMsg(isCancelledError(e) ? { ok: true, text: tr("Macrostrat fetch cancelled.") } /* #3976 */ : { ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); } // job.gone: #3963 — the project closed and the banner said so
+    setBusy(null); bar.end(); job.end(); // job: TASKS.csv #3953; bar: #3976
   };
   // TASKS.csv #2012 — the units as a geology map layer (polygons with a unit field), so Surface Geology > Model it can use them
   const addUnits = async () => {
     setMsg(null); setBusy(tr("Fetching Macrostrat units…"));
     const job = beginJob(); // TASKS.csv #3953
+    const bar = await startBar(job, [["read", 1]]); // #3976
+    bar.step("read", 0, 1, tr("Connecting to {source}…", { source: "Macrostrat" })); // #3976 — the bar at once (a moving bar until something is counted)
     try {
-      const r = await fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgress: (d, n) => setBusy(tr("Fetching Macrostrat units… {d} of {n}", { d, n })) });
-      if (!(await landed(job))) { setBusy(null); return; } // TASKS.csv #3953 — into the project it started in
+      const r = await fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, signal: job.signal /* #3963 */, onProgress: (d, n) => { const t = tr("Fetching Macrostrat units… {d} of {n}", { d, n }); setBusy(t); bar.step("read", d, n, t); } });
+      if (!(await landed(job))) { setBusy(null); bar.end(); return; } // TASKS.csv #3953 — into the project it started in
       addMapLayer(r.layer);
-      setMsg({ ok: !r.failedTiles, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a map layer: {p} polygons of {u} units, {n} tiles at zoom {z}. Find it under Geological Mapping > Geology map; it drapes on the terrain in 3D.", { p: r.polygons, u: r.units, n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} tiles could not be read: their polygons are missing.", { n: r.failedTiles, total: r.tiles }) : "") });
-    } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
-    setBusy(null); job.end(); // job: TASKS.csv #3953
+      setMsg({ ok: !r.failedTiles, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a map layer: {p} polygons of {u} units, {n} tiles at zoom {z}. Find it under Geological Mapping > Geology map; it drapes on the terrain in 3D.", { p: r.polygons, u: r.units, n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} tiles could not be read: their polygons are missing.", { n: r.failedTiles, total: r.tiles }) : "") + (r.scaleNote ? " " + r.scaleNote : "") /* #3974 */ });
+    } catch (e) { if (!job.gone) setMsg(isCancelledError(e) ? { ok: true, text: tr("Macrostrat fetch cancelled.") } /* #3976 */ : { ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); } // job.gone: #3963 — the project closed and the banner said so
+    setBusy(null); bar.end(); job.end(); // job: TASKS.csv #3953; bar: #3976
   };
   const listUnits = async () => {
     setMsg(null); setBusy(tr("Asking Macrostrat for the units at the project centre…"));

@@ -1274,6 +1274,8 @@ export function StoreProvider({ children }) {
   if (!projectKeyRef.current) projectKeyRef.current = newProjectKey();
   const tabKeysRef = useRef(new Map()); // tab id -> its project's key (the shown tab's is set after each render, below)
   const restoreKeyRef = useRef(null); // a tab coming forward keeps its key: set just before its payload is loaded
+  // TASKS.csv #3963 — the tab that holds a project (null once it is closed): where a job's early notices go, whichever tab is shown now
+  const tabIdOfProjectKey = useCallback((key) => (key == null ? null : key === projectKeyRef.current ? activeTabIdRef.current : [...tabKeysRef.current].find(([, k]) => k === key)?.[0] || null), []);
   const getProjectToken = useCallback(() => ({ tabId: activeTabIdRef.current, seq: projectSeqRef.current, key: projectKeyRef.current }), []);
   const isSameProject = useCallback((tok) => !!tok && (tok.key ? tok.key === projectKeyRef.current : tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current), []);
   // TASKS.csv #2640 (side 2's Stage 1) — the last GemPy request as sent (modellingRuns.js): session only, not in FIELDS (never saved, never in
@@ -1587,6 +1589,7 @@ export function StoreProvider({ children }) {
       text: e.kind === "held" ? tr("{label} finished for \"{project}\", which is open in another tab: it is added there when you show that tab.", { label: e.label, project: e.project })
         : e.kind === "delivered" ? tr("{label}: added to \"{project}\" now that it is shown.", { label: e.label, project: e.project })
         : e.kind === "cancelled" ? (e.reason === "replaced" ? tr("{label} cancelled: another project was opened in its tab.", { label: e.label }) : tr("{label} cancelled: its project was closed.", { label: e.label }))
+        : e.kind === "cutoff" ? tr("{label} was cut off: its project closed before the rest was added.", { label: e.label }) // TASKS.csv #3963
         : tr("{label} was not added: its project is no longer open.", { label: e.label }) }]),
   });
   const startProjectJob = useCallback((o) => jobsRef.current.start(o), []);
@@ -2146,7 +2149,7 @@ export function StoreProvider({ children }) {
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     saveChoice, answerSaveChoice, // #3638 — the 'save over the recovered file?' question App draws
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
-    startProjectJob, jobNotes, dismissJobNote, // #3953
+    startProjectJob, jobNotes, dismissJobNote, tabIdOfProjectKey, // #3953; tabIdOfProjectKey: #3963
     undo, redo, peekUndo, peekRedo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
     // TASKS.csv #3110 — a NEW calculated element's Add (GeochemModule): its own undo step, holding a token instead of the old assay table
     setAssaysWithInverse: (next, symbol) => { commitUndoBurst(); undoIntent.current = { next, token: calcUndoToken(next, symbol) }; setAssays(next); },

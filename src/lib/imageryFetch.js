@@ -13,7 +13,7 @@
 //     fixed unit conversion coefficients), not emissivity: no atmospheric or temperature correction.
 import { BaseClient, BaseResponse, fromCustomClient } from "geotiff";
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
-import { remoteSensingFetch } from "./desktop.js";
+import { remoteSensingFetch, cancelledError, isCancelledError } from "./desktop.js"; // cancelledError: TASKS.csv #3963
 import { reprojectXY, getProj4DefSync } from "./reproject.js";
 import { reprojectGrid } from "./reprojectMore.js"; // TASKS.csv #3590
 import { pointInRings } from "./mapLayers.js";
@@ -50,17 +50,20 @@ class RsResponse extends BaseResponse {
 }
 class RsClient extends BaseClient {
   constructor(url, stats) { super(url); this.stats = stats; this.blocks = new Map(); this.inflight = new Map(); this.size = null; }
-  async fetchRange(a, b) {
-    const r = await remoteSensingFetch({ url: this.url, range: [a, b] });
+  async fetchRange(a, b, signal) { // signal: TASKS.csv #3963 — the read of the job that asked for it
+    const r = await remoteSensingFetch({ url: this.url, range: [a, b], signal });
+    if (r.cancelled) throw cancelledError();
     if (!r.ok) throw new Error(r.message || tr("HTTP {status} reading {v}", { status: r.status, v: this.url.split("?")[0] }));
     if (this.stats) { this.stats.requests++; this.stats.bytes += r.data?.byteLength || 0; }
     const total = /\/(\d+)\s*$/.exec(r.contentRange || "");
     if (total) this.size = Number(total[1]);
     return r.data;
   }
-  async request({ headers = {} } = {}) {
+  // geotiff.js hands each read's signal here (readRasters({ signal }), fromCustomClient(..., signal)): TASKS.csv #3963. The client is shared (a cell is
+  // opened once per session), so the signal is per request, never kept on the client; a block another job's cancelled read was fetching is fetched again.
+  async request({ headers = {}, signal } = {}, retried = false) {
     const m = /bytes=(\d+)-(\d+)/.exec(headers.Range || headers.range || "");
-    if (!m) { const d = await this.fetchRange(0, 64 * 1024 * 1024 - 1); return new RsResponse(200, d, ""); }
+    if (!m) { const d = await this.fetchRange(0, 64 * 1024 * 1024 - 1, signal); return new RsResponse(200, d, ""); }
     let a = Number(m[1]), b = Number(m[2]);
     if (this.size != null) b = Math.min(b, this.size - 1);
     const first = Math.floor(a / BLOCK), last = Math.floor(b / BLOCK);
@@ -71,12 +74,13 @@ class RsClient extends BaseClient {
       if (runs.length && runs[runs.length - 1][1] === k - 1) runs[runs.length - 1][1] = k; else runs.push([k, k]);
     }
     runs.forEach(([k0, k1]) => {
-      const p = this.fetchRange(k0 * BLOCK, (k1 + 1) * BLOCK - 1).then((d) => {
+      const p = this.fetchRange(k0 * BLOCK, (k1 + 1) * BLOCK - 1, signal).then((d) => {
         for (let k = k0; k <= k1; k++) { const off = (k - k0) * BLOCK; if (off < d.byteLength) this.blocks.set(k, d.subarray(off, Math.min(off + BLOCK, d.byteLength))); this.inflight.delete(k); }
       }, (e) => { for (let k = k0; k <= k1; k++) this.inflight.delete(k); throw e; });
       for (let k = k0; k <= k1; k++) this.inflight.set(k, p);
     });
-    await Promise.all([...new Set(Array.from({ length: last - first + 1 }, (_, i) => this.inflight.get(first + i)).filter(Boolean))]);
+    try { await Promise.all([...new Set(Array.from({ length: last - first + 1 }, (_, i) => this.inflight.get(first + i)).filter(Boolean))]); }
+    catch (e) { if (isCancelledError(e) && !(signal && signal.aborted) && !retried) return this.request({ headers, signal }, true); throw e; } // #3963 — another job's cancel
     if (this.size != null) b = Math.min(b, this.size - 1);
     const out = new Uint8Array(Math.max(0, b - a + 1));
     for (let k = first; k <= last; k++) {
@@ -88,10 +92,11 @@ class RsClient extends BaseClient {
     return new RsResponse(206, out, `bytes ${a}-${b}/${this.size ?? "*"}`);
   }
 }
-export const openCog = (href, stats) => fromCustomClient(new RsClient(href, stats)); // no blockSize: no BlockedSource (see above); exported for copernicusDem.js (#814)
+export const openCog = (href, stats, signal) => fromCustomClient(new RsClient(href, stats), {}, signal); // signal: TASKS.csv #3963 (the header reads) // no blockSize: no BlockedSource (see above); exported for copernicusDem.js (#814)
 
-export async function stacSearch(url, body) { // exported for nrcanDem.js (#815)
-  const r = await remoteSensingFetch({ url, json: body });
+export async function stacSearch(url, body, signal) { // exported for nrcanDem.js (#815); signal: #3963
+  const r = await remoteSensingFetch({ url, json: body, signal });
+  if (r.cancelled) throw cancelledError();
   if (!r.ok) throw new Error(tr("The catalogue search failed ({v}).", { v: r.message || tr("HTTP {status}", { status: r.status }) }));
   return JSON.parse(new TextDecoder().decode(r.data));
 }
@@ -113,10 +118,11 @@ export function s2Offset(properties, listedOffset) {
 // Planetary Computer's blob store needs a short-lived read token, which its token service issues anonymously; kept until
 // five minutes before it expires
 const pcTokens = new Map(); // one per storage account: ASTER, NAIP (#838)
-export async function signPc(href, tokenUrl = PC_TOKEN) {
+export async function signPc(href, tokenUrl = PC_TOKEN, signal) { // signal: #3963
   let pcToken = pcTokens.get(tokenUrl);
   if (!pcToken || Date.parse(pcToken.expiry) - Date.now() < 5 * 60 * 1000) {
-    const r = await remoteSensingFetch({ url: tokenUrl });
+    const r = await remoteSensingFetch({ url: tokenUrl, signal });
+    if (r.cancelled) throw cancelledError();
     if (!r.ok) throw new Error(tr("Could not get a read token from the Planetary Computer ({v}).", { v: r.message || tr("HTTP {status}", { status: r.status }) }));
     const t = JSON.parse(new TextDecoder().decode(r.data));
     pcToken = { token: t.token, expiry: t["msft:expiry"] };
@@ -141,9 +147,9 @@ export function areaCoverage(geometry, bbox) {
 
 // Scenes over bbox [lonMin, latMin, lonMax, latMax], the best covered first, then the fewest clouds. Sentinel-2: between `from` and `to`
 // (ISO dates; summer avoids snow); ASTER: its whole 2000-2006 archive.
-export async function searchScenes(source, bbox, { from, to, maxCloud = 20, limit = 12, newest = false } = {}) { // newest: #816
+export async function searchScenes(source, bbox, { from, to, maxCloud = 20, limit = 12, newest = false, signal } = {}) { // newest: #816; signal: #3963
   if (source === "sentinel2") {
-    const d = await stacSearch(EARTH_SEARCH, { collections: ["sentinel-2-l2a"], bbox, datetime: `${from}T00:00:00Z/${to}T23:59:59Z`, query: { "eo:cloud_cover": { lt: maxCloud } }, limit: 50, sortby: [newest ? { field: "properties.datetime", direction: "desc" } : { field: "properties.eo:cloud_cover", direction: "asc" }] });
+    const d = await stacSearch(EARTH_SEARCH, { collections: ["sentinel-2-l2a"], bbox, datetime: `${from}T00:00:00Z/${to}T23:59:59Z`, query: { "eo:cloud_cover": { lt: maxCloud } }, limit: 50, sortby: [newest ? { field: "properties.datetime", direction: "desc" } : { field: "properties.eo:cloud_cover", direction: "asc" }] }, signal);
     return (d.features || []).map((f) => ({
       source, id: f.id, date: String(f.properties.datetime).slice(0, 10), cloud: f.properties["eo:cloud_cover"], epsg: f.properties["proj:epsg"], coverage: areaCoverage(f.geometry, bbox),
       bands: Object.fromEntries(Object.entries(S2_ASSETS).filter(([, k]) => f.assets[k]).map(([role, k]) => [role, { href: f.assets[k].href, scale: band0(f.assets[k]).scale ?? 0.0001, offset: s2Offset(f.properties, band0(f.assets[k]).offset) }])),
@@ -152,7 +158,7 @@ export async function searchScenes(source, bbox, { from, to, maxCloud = 20, limi
     })).sort((a, b) => b.coverage - a.coverage || a.cloud - b.cloud).slice(0, limit);
   }
   if (source === "aster_tir") {
-    const d = await stacSearch(PC_SEARCH, { collections: ["aster-l1t"], bbox, query: { "eo:cloud_cover": { lt: maxCloud } }, limit: 50 });
+    const d = await stacSearch(PC_SEARCH, { collections: ["aster-l1t"], bbox, query: { "eo:cloud_cover": { lt: maxCloud } }, limit: 50 }, signal);
     return (d.features || []).filter((f) => f.assets.TIR).map((f) => ({ source, id: f.id, date: String(f.properties.datetime).slice(0, 10), cloud: f.properties["eo:cloud_cover"], epsg: f.properties["proj:epsg"], coverage: areaCoverage(f.geometry, bbox), tir: f.assets.TIR.href }))
       .sort((a, b) => b.coverage - a.coverage || a.cloud - b.cloud).slice(0, limit);
   }
@@ -175,15 +181,15 @@ export function windowGrid(bbox, epsg, cellM, maxPx = 2000) {
 // TASKS.csv #816 — `mask: false` reads the scene classification only to COUNT cloud / shadow over the area (returned as
 // `cover`), not to blank pixels (a picture keeps its lakes and snow); `bandsOnly: true` returns the resampled bands
 // (`out`) instead of building a GeoTIFF.
-export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, maxPx = 2000, targetEpsg = null, mask = true, bandsOnly = false } = {}) {
+export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, maxPx = 2000, targetEpsg = null, mask = true, bandsOnly = false, signal } = {}) { // signal: #3963
   const src = IMAGERY_SOURCES[scene.source];
   const g = windowGrid(bboxLonLat, scene.epsg, src.nativeM, maxPx);
   const n = g.width * g.height;
   const stats = { requests: 0, bytes: 0, ms: 0 };
   const t0 = Date.now();
   const read = async (href, samples) => {
-    const tiff = await openCog(href, stats);
-    return tiff.readRasters({ bbox: g.box, width: g.width, height: g.height, resampleMethod: "nearest", ...(samples ? { samples } : {}), fillValue: 0 });
+    const tiff = await openCog(href, stats, signal);
+    return tiff.readRasters({ bbox: g.box, width: g.width, height: g.height, resampleMethod: "nearest", ...(samples ? { samples } : {}), fillValue: 0, signal });
   };
   const bands = [], mapping = {};
   let note = "", masked = null;
@@ -223,7 +229,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
     note = tr(" Sentinel-2 L2A {id} ({date}, {v}% cloud over the whole tile), surface reflectance{v2}, read at {v3} m.{note}", { id: scene.id, date: scene.date, v: scene.cloud?.toFixed(1), v2: scene.baseline ? tr(" (processing baseline {baseline}{v})", { baseline: scene.baseline, v: Object.values(scene.bands)[0]?.offset ? tr(", baseline offset removed") : tr(", values already harmonised") }) : "", v3: Math.round(g.cell), note });
   } else if (scene.source === "aster_tir") {
     onProgress?.(0, 1);
-    const tir = await read(await signPc(scene.tir), [0, 1, 2, 3, 4]);
+    const tir = await read(await signPc(scene.tir, undefined, signal), [0, 1, 2, 3, 4]);
     tir.forEach((dn, k) => {
       const v = new Float32Array(n);
       for (let i = 0; i < n; i++) v[i] = dn[i] <= 1 ? NaN : (dn[i] - 1) * ASTER_TIR_UCC[k]; // DN 0 = fill
@@ -265,17 +271,17 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
 // `maxAreaCloud` is kept (up to `tries` scenes; else the clearest of those read). Red / green / blue surface reflectance
 // are stretched TOGETHER (one 2nd-98th percentile range for all three, so the colour balance is the scene's own) with a
 // gentle gamma. Returns a raster-import-shaped { name, bbox, dataUrl, gridW, gridH, note, scene }.
-export async function fetchLatestTrueColour(bboxLonLat, { targetEpsg = null, maxPx = 2048, monthsBack = 12, maxTileCloud = 30, maxAreaCloud = 0.1, tries = 3, onProgress, now = new Date() } = {}) {
+export async function fetchLatestTrueColour(bboxLonLat, { targetEpsg = null, maxPx = 2048, monthsBack = 12, maxTileCloud = 30, maxAreaCloud = 0.1, tries = 3, onProgress, now = new Date(), signal } = {}) { // signal: #3963
   const to = now.toISOString().slice(0, 10);
   const from = new Date(now.getTime() - monthsBack * 30.44 * 86400e3).toISOString().slice(0, 10);
-  const found = await searchScenes("sentinel2", bboxLonLat, { from, to, maxCloud: maxTileCloud, limit: 50, newest: true });
+  const found = await searchScenes("sentinel2", bboxLonLat, { from, to, maxCloud: maxTileCloud, limit: 50, newest: true, signal });
   const usable = found.filter((s) => s.coverage >= 0.98 && ["B2", "B3", "B4"].every((b) => s.bands[b]));
   const candidates = (usable.length ? usable : found.filter((s) => ["B2", "B3", "B4"].every((b) => s.bands[b]))).sort((a, b) => b.date.localeCompare(a.date) || a.cloud - b.cloud);
   if (!candidates.length) throw new Error(tr("No Sentinel-2 scene of the last {m} months covers this area with under {c}% cloud.", { m: monthsBack, c: maxTileCloud }));
   let best = null;
   const tried = [];
   for (const scene of candidates.slice(0, tries)) {
-    const r = await fetchSceneStack(scene, bboxLonLat, ["B4", "B3", "B2"], { targetEpsg, maxPx, mask: false, bandsOnly: true, onProgress });
+    const r = await fetchSceneStack(scene, bboxLonLat, ["B4", "B3", "B2"], { targetEpsg, maxPx, mask: false, bandsOnly: true, onProgress, signal });
     const cov = r.masked?.cover || { cloud: 0, shadow: 0 };
     const bad = cov.cloud + cov.shadow;
     tried.push(`${scene.date} ${Math.round(100 * bad)}%`);

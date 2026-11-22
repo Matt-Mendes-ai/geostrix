@@ -211,6 +211,9 @@ export function createModellingRuns(ctx, mcRef) {
   // TASKS.csv #3953 — every run is a job of the project it started in: `await landed(job)` right before it changes the scene or the project; false
   // = its project was closed or replaced (cancelled, and the store said so), so the run stops; its project in another tab: it waits for that tab
   const beginJob = (label, cancel) => (startProjectJob ? startProjectJob({ label, cancel }) : noJob(label));
+  // TASKS.csv #3963 — a notice a run pushes BEFORE its job lands (after an await, maybe another project is shown by then) goes to the tab of its own project: the shown
+  // tab's list when it is that one, that tab's stash when it is open in another, nowhere once it is closed (the banner said so)
+  const noticesOf = (job) => (u) => (ctx.setNoticesFor && job?.key != null ? ctx.setNoticesFor(job.key, u) : setNotices(u));
 
   const runSurfaceStack = async (rawSpecs, stackOpts = {}) => {
     // TASKS.csv #2640 Stage 2 — a run that replays another (the structure fit's '(fitted)' version) gives its extent, resolution and range, and no
@@ -2056,6 +2059,7 @@ export function createModellingRuns(ctx, mcRef) {
     setAlterationBusy(true);
     ownTask(label).set(20); // #2379
     const job = beginJob(label); // TASKS.csv #3953
+    const jobNotices = noticesOf(job); // TASKS.csv #3963 — its notices before it lands go to its own project
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
     // synchronous grid pass — a timer, not rAF, because rAF never fires in a hidden window.
     setTimeout(async () => {
@@ -2074,7 +2078,7 @@ export function createModellingRuns(ctx, mcRef) {
         // not every collar in the project — a regional hole 5 km away shouldn't set the halo's scale.
         const loggedHoles = new Set(altRows.map((r) => r.hole_id));
         const auto = autoHaloParams(collars.filter((c) => loggedHoles.has(c.hole_id)), tracesRef.current || null); // traces: #2228 — fans share a collar
-        if (auto.fromTraces && !(searchSetting > 0 && cellSetting > 0)) setNotices((p) => [...p, notice("Auto cell and search from the hole spacing along the traces ({t} m at depth): the collars of these holes cluster ({c} m apart: fans drilled from shared sites), so their spacing says nothing about the rock between the holes.", { t: Math.round(auto.spacing), c: auto.collarSpacing != null ? auto.collarSpacing.toFixed(2) : "?" })]);
+        if (auto.fromTraces && !(searchSetting > 0 && cellSetting > 0)) jobNotices((p) => [...p, notice("Auto cell and search from the hole spacing along the traces ({t} m at depth): the collars of these holes cluster ({c} m apart: fans drilled from shared sites), so their spacing says nothing about the rock between the holes.", { t: Math.round(auto.spacing), c: auto.collarSpacing != null ? auto.collarSpacing.toFixed(2) : "?" })]);
         // TASKS.csv #1683 — a unit body's auto cell and search come from the code's own logged runs (an alteration halo keeps the
         // hole-spacing rule: it is a halo around the holes, not a logged body)
         // TASKS.csv #2530 (review #2486, WA lithium) — a Lithology or Weathering code set as an envelope is a logged body too: the same rule as
@@ -2100,13 +2104,13 @@ export function createModellingRuns(ctx, mcRef) {
             intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: isTarget ? 1 : 0 });
           });
         });
-        if (notRecordedM > 0) setNotices((p) => [...p, notice("{m} m coded as not recorded (NR, not logged, unknown) were left out as unknown, not counted as outside \"{code}\".", { m: Math.round(notRecordedM).toLocaleString(), code: altValue })]); // #3267
+        if (notRecordedM > 0) jobNotices((p) => [...p, notice("{m} m coded as not recorded (NR, not logged, unknown) were left out as unknown, not counted as outside \"{code}\".", { m: Math.round(notRecordedM).toLocaleString(), code: altValue })]); // #3267
         // TASKS.csv #2380 (review #2325, WA uranium) — logged rock with no alteration row: unknown (as before) or, when asked, unaltered (a 0).
         // Said either way, with the metres, so a halo that grew through such gaps (SIL: 715 Mm³ from 2 m silcrete rows) is explained.
         const gaps = !isCode && sourceKey === "alt" && !customSrc ? rockWithoutRows(layers.litho || [], altRows) : null;
         if (gaps && gaps.metres > 0) {
           if (bodyOpts.unloggedZero) gaps.rows.forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 0 })));
-          setNotices((p) => [...p, bodyOpts.unloggedZero
+          jobNotices((p) => [...p, bodyOpts.unloggedZero
             ? notice("{m} m of logged rock in {n} hole(s) with no alteration row counted as unaltered (0), so the halo closes there.", { m: Math.round(gaps.metres).toLocaleString(), n: gaps.holes })
             : notice("{m} m of logged rock in {n} hole(s) has no alteration row and counted as unknown, not unaltered, so nothing pulls the halo in there. If this log records alteration only where seen, tick \"Count logged rock with no alteration row as unaltered\".", { m: Math.round(gaps.metres).toLocaleString(), n: gaps.holes })]);
         }
@@ -2125,10 +2129,10 @@ export function createModellingRuns(ctx, mcRef) {
             if (ai) {
               ai.inside.forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 1 })));
               ai.outside.forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 0 })));
-              setNotices((p) => [...p, notice("Where the log is blank, {sym} decided: {a} m at or above {cut} {unit} counted as inside {code}, {b} m below it as outside, in {n} hole(s).", { sym: aSym, a: Math.round(ai.insideM).toLocaleString(), cut: aCut, unit: gradeUnitLabel(aSym, aUnit), code: altValue, b: Math.round(ai.outsideM).toLocaleString(), n: ai.holes })]);
+              jobNotices((p) => [...p, notice("Where the log is blank, {sym} decided: {a} m at or above {cut} {unit} counted as inside {code}, {b} m below it as outside, in {n} hole(s).", { sym: aSym, a: Math.round(ai.insideM).toLocaleString(), cut: aCut, unit: gradeUnitLabel(aSym, aUnit), code: altValue, b: Math.round(ai.outsideM).toLocaleString(), n: ai.holes })]);
             }
             if (bodyOpts.unloggedOutside) (ai ? ai.rest : un.rows).forEach((r) => splitIntervalForSampling(r.from, r.to, subLen).forEach((seg) => intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: 0 })));
-            setNotices((p) => [...p, bodyOpts.unloggedOutside
+            jobNotices((p) => [...p, bodyOpts.unloggedOutside
               ? notice("{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as outside {code}, so the body closes there.", { m: Math.round(ai ? Math.max(0, un.metres - ai.insideM - ai.outsideM) : un.metres).toLocaleString() /* #2634: less the assay-decided metres */, d: Math.round(un.drilled).toLocaleString(), n: un.holes, nl: un.noLog, code: altValue })
               : notice("{m} of {d} m drilled in {n} hole(s) have no rock code ({nl} hole(s) with no log at all): counted as unknown, not outside {code}, so nothing stops the body there. If these holes were logged only where the unit is (grade-control drilling), tick \"Treat unlogged metres as outside\".", { m: Math.round(ai ? Math.max(0, un.metres - ai.insideM - ai.outsideM) : un.metres).toLocaleString() /* #2634: less the assay-decided metres */, d: Math.round(un.drilled).toLocaleString(), n: un.holes, nl: un.noLog, code: altValue })]);
           }
@@ -2142,7 +2146,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (domain) {
           const before = pts.length;
           pts = pts.filter((p) => pointInDomain(apiToScene([p.x, p.y, p.z]), domain, implicitMeshesRef.current));
-          if (pts.length < before) setNotices((q) => [...q, notice(isCode ? "Domain \"{name}\": excluded {v} of {before} sample point(s) outside the domain." : "Domain \"{name}\": excluded {v} of {before} alteration sample point(s) outside the domain.", { name: domain.name, v: before - pts.length, before })]);
+          if (pts.length < before) jobNotices((q) => [...q, notice(isCode ? "Domain \"{name}\": excluded {v} of {before} sample point(s) outside the domain." : "Domain \"{name}\": excluded {v} of {before} alteration sample point(s) outside the domain.", { name: domain.name, v: before - pts.length, before })]);
         }
         const insideCount = pts.filter((p) => p.value >= 0.5).length;
         if (!insideCount) throw new Error(domain
@@ -2162,7 +2166,7 @@ export function createModellingRuns(ctx, mcRef) {
           if (tr2780) {
             radius = tr2780.alongM;
             const m1 = (v) => +v.toFixed(1);
-            setNotices((p) => [...p, notice(tr2780.bySpacing ? "\"{label}\": under the trend \"{trend}\" ({ratio}) the automatic search now reaches {along} m along the layer (the {s} m hole spacing, so a node between two holes reaches one) and {across} m across it (by the trend's ratio; the logged runs of {code} alone give {runs} m). Before, the runs' reach was the long axis: {oldAlong} m along and {oldAcross} m across. A body of {code} saved earlier was built with the old reach and differs from one built now." : "\"{label}\": under the trend \"{trend}\" ({ratio}) the automatic search now reaches {across} m across the layer (from the logged runs of {code}) and {along} m along it (that times the trend's ratio). Before, the runs' reach was the long axis: {oldAlong} m along and {oldAcross} m across. A body of {code} saved earlier was built with the old reach and differs from one built now.", { runs: m1(tr2780.runsAcrossM), label, trend: anisotropy.params?.trend || "", ratio: trendRatioText(anisotropy.params), code: altValue, across: m1(tr2780.acrossM), along: m1(tr2780.alongM), s: m1(autoB.spacing || 0), oldAlong: m1(tr2780.oldAlongM), oldAcross: m1(tr2780.oldAcrossM) })]);
+            jobNotices((p) => [...p, notice(tr2780.bySpacing ? "\"{label}\": under the trend \"{trend}\" ({ratio}) the automatic search now reaches {along} m along the layer (the {s} m hole spacing, so a node between two holes reaches one) and {across} m across it (by the trend's ratio; the logged runs of {code} alone give {runs} m). Before, the runs' reach was the long axis: {oldAlong} m along and {oldAcross} m across. A body of {code} saved earlier was built with the old reach and differs from one built now." : "\"{label}\": under the trend \"{trend}\" ({ratio}) the automatic search now reaches {across} m across the layer (from the logged runs of {code}) and {along} m along it (that times the trend's ratio). Before, the runs' reach was the long axis: {oldAlong} m along and {oldAcross} m across. A body of {code} saved earlier was built with the old reach and differs from one built now.", { runs: m1(tr2780.runsAcrossM), label, trend: anisotropy.params?.trend || "", ratio: trendRatioText(anisotropy.params), code: altValue, across: m1(tr2780.acrossM), along: m1(tr2780.alongM), s: m1(autoB.spacing || 0), oldAlong: m1(tr2780.oldAlongM), oldAcross: m1(tr2780.oldAcrossM) })]);
           }
         }
         const center = anisotropy.enabled
@@ -2191,7 +2195,7 @@ export function createModellingRuns(ctx, mcRef) {
         // phases met by inclined holes keep cubic cells (and #2047's warning when a cube passes the thickest run), said so
         const lieFlat = seam0 ? runsLieFlat(inside, autoB.medianRunM, codeInfo(modellingCodes, String(target).slice(6), mcodeDefaultRole).role) : null;
         const seam = seam0 && lieFlat.flat ? seam0 : null;
-        if (seam0 && !seam) setNotices((p) => [...p, notice("\"{label}\": {code} is logged in thin runs, but they do not line up along a flat layer between the holes (they lie {m} m off their best-fitting plane, which dips {dip}°), so the cells stay cubic ({cube} m): flat cells would spread each run sideways into a plate.", { label, code: String(target).slice(6), m: Math.round(lieFlat.misfit), dip: Number.isFinite(lieFlat.dip) ? Math.round(lieFlat.dip) : "—", cube: Math.round(cell * 10) / 10 })]);
+        if (seam0 && !seam) jobNotices((p) => [...p, notice("\"{label}\": {code} is logged in thin runs, but they do not line up along a flat layer between the holes (they lie {m} m off their best-fitting plane, which dips {dip}°), so the cells stay cubic ({cube} m): flat cells would spread each run sideways into a plate.", { label, code: String(target).slice(6), m: Math.round(lieFlat.misfit), dip: Number.isFinite(lieFlat.dip) ? Math.round(lieFlat.dip) : "—", cube: Math.round(cell * 10) / 10 })]);
         const cubicWouldBe = cell;
         let cellZ = cell;
         if (seam) { cell = seam.dxy; cellZ = seam.dz; coarsened = seam.coarsened; }
@@ -2199,7 +2203,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (radius < 1.5 * cell) { radiusRaisedFrom = radius; radius = 1.5 * cell; } // #1683 — a search under a cell and a half finds nothing at most nodes
         // TASKS.csv #2047 — say it before the run, not after two minutes: the coarsened cell is thicker than any logged run of the code
         const past = isCode && !seam ? bodyCellPastRuns(cell, autoB, coarsened) : null;
-        if (seam) { const km = (a) => +((a.max - a.min) / 1000).toFixed(1); setNotices((p) => [...p, notice(seam.why === "median" ? "\"{label}\": {code} is logged in thin runs (median {med} m, {max} m at most) over {w} × {h} km, so one cubic cell would be {cube} m, thicker than the median run. The grid uses {dx} × {dx} × {dz} m cells instead: the height from the logged runs, the plan from the {s} m hole spacing. Between holes the search is still a sphere. To flatten it along the layer: Model settings › Structural trends › New trend; in 'Set the plane from…' pick 'Tops of a logged unit (best-fit plane)' › {code}; then under 'Used by' choose that trend for 'Geology models (implicit surfaces, stacks)' (the GemPy implicit and stack runs follow it too). A seam may fit better as paired hangingwall / footwall surfaces: Veins / dykes." : "\"{label}\": {code} is logged in thin runs (median {med} m, {max} m at most) over {w} × {h} km, so one cubic cell would be {cube} m, thicker than any run. The grid uses {dx} × {dx} × {dz} m cells instead: the height from the logged runs, the plan from the {s} m hole spacing. Between holes the search is still a sphere. To flatten it along the layer: Model settings › Structural trends › New trend; in 'Set the plane from…' pick 'Tops of a logged unit (best-fit plane)' › {code}; then under 'Used by' choose that trend for 'Geology models (implicit surfaces, stacks)' (the GemPy implicit and stack runs follow it too). A seam may fit better as paired hangingwall / footwall surfaces: Veins / dykes.", { label, code: altValue, /* #2749: the steps named */ med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), w: km(xr), h: km(yr), cube: +cubicWouldBe.toFixed(1), dx: seam.dxy, dz: seam.dz, s: Math.round(autoB.spacing) })]); } // #2384 — said before the run
+        if (seam) { const km = (a) => +((a.max - a.min) / 1000).toFixed(1); jobNotices((p) => [...p, notice(seam.why === "median" ? "\"{label}\": {code} is logged in thin runs (median {med} m, {max} m at most) over {w} × {h} km, so one cubic cell would be {cube} m, thicker than the median run. The grid uses {dx} × {dx} × {dz} m cells instead: the height from the logged runs, the plan from the {s} m hole spacing. Between holes the search is still a sphere. To flatten it along the layer: Model settings › Structural trends › New trend; in 'Set the plane from…' pick 'Tops of a logged unit (best-fit plane)' › {code}; then under 'Used by' choose that trend for 'Geology models (implicit surfaces, stacks)' (the GemPy implicit and stack runs follow it too). A seam may fit better as paired hangingwall / footwall surfaces: Veins / dykes." : "\"{label}\": {code} is logged in thin runs (median {med} m, {max} m at most) over {w} × {h} km, so one cubic cell would be {cube} m, thicker than any run. The grid uses {dx} × {dx} × {dz} m cells instead: the height from the logged runs, the plan from the {s} m hole spacing. Between holes the search is still a sphere. To flatten it along the layer: Model settings › Structural trends › New trend; in 'Set the plane from…' pick 'Tops of a logged unit (best-fit plane)' › {code}; then under 'Used by' choose that trend for 'Geology models (implicit surfaces, stacks)' (the GemPy implicit and stack runs follow it too). A seam may fit better as paired hangingwall / footwall surfaces: Veins / dykes.", { label, code: altValue, /* #2749: the steps named */ med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), w: km(xr), h: km(yr), cube: +cubicWouldBe.toFixed(1), dx: seam.dxy, dz: seam.dz, s: Math.round(autoB.spacing) })]); } // #2384 — said before the run
         if (past) {
           const km = (a) => +((a.max - a.min) / 1000).toFixed(1);
           const msg = tr("\"{label}\": to fit the grid limit, the {cs} m cells would become {cell} m, larger than the thickest logged run of {code} ({max} m), so the body will most likely not appear, or appear where {code} was not logged. The runs span {w} × {h} km: model a smaller area first (Model settings › Model area with one cluster's holes checked, a domain, or an intercept set).", { label, cs: +cs.toFixed(1), cell: cellZ !== cell ? cellText : +cell.toFixed(1) /* #2384 */, code: altValue, max: +past.maxRunM.toFixed(1), w: km(xr), h: km(yr) });
@@ -2207,7 +2211,7 @@ export function createModellingRuns(ctx, mcRef) {
 
 ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg); stop.stopped = true; throw stop; }
         }
-        if (isCode && autoB.fromRuns && !(searchSetting > 0) && !(cellSetting > 0)) setNotices((p) => [...p, notice("\"{label}\": auto settings from the {n} logged run(s) of {code} (median {med} m, {max} m at most): {cs} m cells and a {r} m search{v}. The body follows the logged intervals; a larger search joins holes, but what it puts between them is an assumption.", { label, n: autoB.runs, code: altValue, med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), cs: +cs.toFixed(1), r: Math.round(autoB.radius), v: coarsened ? tr(" (coarsened to {cell} m cells to stay under the grid limit, the search raised to {r2} m)", { cell: cellZ !== cell ? cellText : +cell.toFixed(1) /* #2384 */, r2: Math.round(radius) }) : "" })]);
+        if (isCode && autoB.fromRuns && !(searchSetting > 0) && !(cellSetting > 0)) jobNotices((p) => [...p, notice("\"{label}\": auto settings from the {n} logged run(s) of {code} (median {med} m, {max} m at most): {cs} m cells and a {r} m search{v}. The body follows the logged intervals; a larger search joins holes, but what it puts between them is an assumption.", { label, n: autoB.runs, code: altValue, med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), cs: +cs.toFixed(1), r: Math.round(autoB.radius), v: coarsened ? tr(" (coarsened to {cell} m cells to stay under the grid limit, the search raised to {r2} m)", { cell: cellZ !== cell ? cellText : +cell.toFixed(1) /* #2384 */, r2: Math.round(radius) }) : "" })]);
 
         // TASKS.csv #520 — the grid runs in a worker: progress + Cancel on the status bar, the window keeps painting
         const ac = new AbortController();
@@ -2363,6 +2367,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
     setVeinBusy(true);
     ownTask(label).set(20); // #2379
     const job = beginJob(label); // TASKS.csv #3953
+    const jobNotices = noticesOf(job); // TASKS.csv #3963 — its notices before it lands go to its own project
     setTimeout(async () => {
       let logged = null; // #1415 — read by the catch below
       try {
@@ -2376,7 +2381,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         // TASKS.csv #354 — back-to-back rows of this vein in one hole are one intercept (HW of the first,
         // FW of the last), not several thin ones that the midplane/thickness fit would read as separate veins.
         const mergedRows = mergeTouchingIntervals(rows);
-        if (mergedRows.length < rows.length) setNotices((q) => [...q, notice("Vein \"{veinValue}\": {v} back-to-back row split(s) merged into single intercepts.", { veinValue, v: rows.length - mergedRows.length })]);
+        if (mergedRows.length < rows.length) jobNotices((q) => [...q, notice("Vein \"{veinValue}\": {v} back-to-back row split(s) merged into single intercepts.", { veinValue, v: rows.length - mergedRows.length })]);
 
         // Both contacts of every intercept, in world ENU (east, north, elevation) — the frame vein.js,
         // trueWidth.js and stereonet.js all speak, so no conversion happens inside the maths.
@@ -2397,7 +2402,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         if (domain) {
           const inDomain = (p) => pointInDomain(apiToScene([p.x - o.x, p.y - o.y, p.z - o.z]), domain, implicitMeshesRef.current);
           used = intercepts.filter((i) => inDomain(i.hw) || inDomain(i.fw));
-          if (used.length < intercepts.length) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {intercepts} vein intercept(s) outside the domain.", { name: domain.name, v: intercepts.length - used.length, intercepts: intercepts.length })]);
+          if (used.length < intercepts.length) jobNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {intercepts} vein intercept(s) outside the domain.", { name: domain.name, v: intercepts.length - used.length, intercepts: intercepts.length })]);
           if (!used.length) throw new Error(tr("No \"{veinValue}\" intercepts fall inside domain \"{name}\" — nothing to model.", { veinValue, name: domain.name }));
         }
 
@@ -2591,6 +2596,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
     setNumericBusy(true);
     ownTask(taskLabel).set(20); // #2379
     const job = beginJob(taskLabel); // TASKS.csv #3953 — Matt's grade shell finished into another project after its own was closed
+    const jobNotices = noticesOf(job); // TASKS.csv #3963 — its notices before it lands go to its own project
     setTimeout(async () => {
       try {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
@@ -2616,8 +2622,8 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           const u = resolveUnsampled("gradeShell", { assays: srcAssays, collars: inArea ? restrictRowsToHoles(collars, visibleHoles) : collars /* #3006 — the holes the run uses */, symbol, unit, elementUnits, logCtx: { layers, customLayers, logValidRange } }); // logCtx: a picked log, #2721
           if (!u.ready) throw Object.assign(new Error(tr("Choose how the unsampled metres inside the sampled holes are read (and, for barren, type their value) before running.")), { prompt: true }); // #3607 (1): a choice to make before the run, said as a prompt, not 'failed'
           unsFill = u.apply(srcAssays); unsParams = u.params(unsFill);
-          if (unsFill.filledM > 0 && u.mode === "log") setNotices((q) => [...q, notice("Unsampled metres read from the log \"{log}\" × {f} ({lu} to {u}, the factor you gave): {m} m in {n} hole(s) filled from its readings; {r} m had no reading and stay not known.", { log: unsParams.unsampledLog, f: unsParams.unsampledLogFactor, lu: unsParams.unsampledLogUnit, u: unsParams.unsampledUnit, m: unsParams.unsampledLogFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, r: unsParams.unsampledLogNoReadingM.toLocaleString() })]); // #2721
-          else if (unsFill.filledM > 0) setNotices((q) => [...q, notice(unsParams.unsampledValueByDefault ? "Unsampled metres read as barren by default: {m} m in {n} hole(s) filled at {v}, half the lowest grade." /* #3920 */ : "Unsampled metres read as barren: {m} m in {n} hole(s) filled at the value typed ({v}).", { m: unsParams.unsampledFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, v: `${unsParams.unsampledValue} ${unit}` })]);
+          if (unsFill.filledM > 0 && u.mode === "log") jobNotices((q) => [...q, notice("Unsampled metres read from the log \"{log}\" × {f} ({lu} to {u}, the factor you gave): {m} m in {n} hole(s) filled from its readings; {r} m had no reading and stay not known.", { log: unsParams.unsampledLog, f: unsParams.unsampledLogFactor, lu: unsParams.unsampledLogUnit, u: unsParams.unsampledUnit, m: unsParams.unsampledLogFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, r: unsParams.unsampledLogNoReadingM.toLocaleString() })]); // #2721
+          else if (unsFill.filledM > 0) jobNotices((q) => [...q, notice(unsParams.unsampledValueByDefault ? "Unsampled metres read as barren by default: {m} m in {n} hole(s) filled at {v}, half the lowest grade." /* #3920 */ : "Unsampled metres read as barren: {m} m in {n} hole(s) filled at the value typed ({v}).", { m: unsParams.unsampledFilledM.toLocaleString(), n: unsParams.unsampledHolesFilled, v: `${unsParams.unsampledValue} ${unit}` })]);
         }
         const runAssays = unsFill ? unsFill.assays : srcAssays;
         let intervals, rawStats = null;
@@ -2652,7 +2658,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           const o0 = originRef.current;
           points = rawPoints.filter((p) => pointInDomain({ x: p.x - o0.x, y: p.z - o0.z, z: -(p.y - o0.y) }, gradeDomain, implicitMeshesRef.current));
           if (!points.length) throw new Error(tr("No assay sample points fall inside domain \"{name}\" — nothing to model.", { name: gradeDomain.name }));
-          if (points.length < rawPoints.length) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {rawPoints} assay sample point(s) outside the domain.", { name: gradeDomain.name, v: rawPoints.length - points.length, rawPoints: rawPoints.length })]);
+          if (points.length < rawPoints.length) jobNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {rawPoints} assay sample point(s) outside the domain.", { name: gradeDomain.name, v: rawPoints.length - points.length, rawPoints: rawPoints.length })]);
         }
         const above = points.filter((p) => p.value >= numericCutoff).length;
         if (!above) {
@@ -2746,7 +2752,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           const fitNotice = { ...(numericCellSize === cellFromData && cellFromData !== NUMERIC_CELL_DEFAULT
             ? notice("Cell size set to {fit} m: at the {cs} m read from your drilling this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() })
             : notice("Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() })), level: "info" };
-          setNotices((p) => [...p, fitNotice]);
+          jobNotices((p) => [...p, fitNotice]);
           // TASKS.csv #3651 — the box keeps the default: a run at the refitted cell is said beside it (numericBudgetHint.ranAt), so a larger budget
           // picked afterwards gives smaller cells by itself (the 27.5 m refit stayed in the box and a 5,000,000 budget then still ran at 27.5 m)
           neededAtDefault = blocksNeeded; // #2223

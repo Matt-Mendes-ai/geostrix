@@ -85,7 +85,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
       if (service === "wms") {
         if (!bboxLonLat) throw new Error(tr("Draw an area first: this layer has no declared extent and there is no project area to default to."));
         const raster = await fetchWmsMapAsRaster({ baseUrl: url.trim(), layerName: selectedLayer.name, bboxLonLat, projectEpsg, longPx: WMS_DETAIL[wmsDetail].longPx,
-          maxRequest: { width: selectedLayer.maxWidth, height: selectedLayer.maxHeight }, onProgress: (done, total) => setWmsProgress(total > 1 ? { done, total } : null) }); // #840
+          maxRequest: { width: selectedLayer.maxWidth, height: selectedLayer.maxHeight }, onProgress: (done, total) => setWmsProgress(total > 1 ? { done, total } : null), signal: job.signal /* #3963 */ }); // #840
         if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
         addRaster({ name: `WMS: ${selectedLayer.title || selectedLayer.name}`, bbox: raster.bbox, dataUrl: raster.dataUrl });
         const title = selectedLayer.title || selectedLayer.name;
@@ -93,7 +93,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
         setResult({ ok: !raster.failedTiles, warn: !!raster.failedTiles, text: tr("Imported \"{title}\" as a raster drape: {w} × {h} px, ~{m} m pixels ({tiles} map requests).", { title, w: raster.width, h: raster.height, m: fmtM(raster.pixelM), tiles: raster.tiles }) + failedNote });
       } else {
         const clip = clipToArea && defaultBboxLonLat ? defaultBboxLonLat : null;
-        const boundary = await fetchWfsFeaturesAsBoundary({ baseUrl: url.trim(), typeName: selectedLayer.name, projectEpsg, clipBboxLonLat: clip });
+        const boundary = await fetchWfsFeaturesAsBoundary({ baseUrl: url.trim(), typeName: selectedLayer.name, projectEpsg, clipBboxLonLat: clip, signal: job.signal /* #3963 */ });
         if (!(await landed(job))) return; // TASKS.csv #3953
         const title = selectedLayer.title || selectedLayer.name;
         const clipNote = boundary.clippedCount ? tr(" ({clippedCount} part(s) outside the project area were skipped)", { clippedCount: boundary.clippedCount }) : "";
@@ -116,7 +116,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
         }
       }
     } catch (err) {
-      setResult({ ok: false, text: err.message });
+      if (!job.gone) setResult({ ok: false, text: err.message }); // #3963 — a project closed mid-download: the banner says it
     } finally {
       setBusy(false);
       setWmsProgress(null);

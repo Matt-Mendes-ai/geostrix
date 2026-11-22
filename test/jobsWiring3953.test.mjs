@@ -82,7 +82,7 @@ test("terrain and imagery fetches, an imported solid, the mine design panes: lan
   landsBefore("terrain fetch (before the CRS relabel)", gm, { start: "const job = beginJob(tr(\"Terrain\"));", land: "if (!(await landed(job))) return;", deliver: "setEpsg(better.code);" });
   // (the zone fix's `return await runSrtmFetch(...)` returns: it never reaches this delivery, and fetches again as a job of its own)
   landsBefore("terrain fetch", gm.replace(/return await runSrtmFetch\([^\n]*\n/, "\n"), { start: "const job = beginJob(tr(\"Terrain\"));", land: "if (!(await landed(job))) return;", deliver: "const terrainId = addTerrain(" });
-  assert.match(gm, /job\.end\(\); \/\/ TASKS\.csv #3953 — the fetch in the new zone is a job of its own\n\s+return await runSrtmFetch\(/);
+  assert.match(gm, /job\.end\(\); \/\/ TASKS\.csv #3953 — the fetch in the new zone is a job of its own\n(\s+bar\.end\(\);[^\n]*\n)?\s+return await runSrtmFetch\(/ /* bar: #3976 — and its own progress bar */);
   landsBefore("satellite image", rm, { start: "const job = beginJob(tr(\"Imagery\"));", land: "if (!(await landed(job))) return;", deliver: "addedIds.push(addRaster(" });
   landsBefore("imported solid", vm, { from: vm.indexOf("const importSolidFile = "), start: "const job = startProjectJob?.({ label: file.name }) || null;", land: "if (!(await landed(job))) return;", deliver: "implicitGroupRef.current?.add(" });
   assert.match(vm, /\} finally \{ job\?\.end\(\); \}\n {2}\}, \[fitBox, project\?\.epsg/);
@@ -113,7 +113,7 @@ test("the store: a key per project, kept by its tab across switches; the jobs ca
   assert.match(s, /jobsRef\.current\.projectShown\(projectKeyRef\.current\);/);
   assert.match(s, /if \(tok\?\.key\) \{ \/\/ TASKS\.csv #3953/);
   assert.match(s, /isSameProject = useCallback\(\(tok\) => !!tok && \(tok\.key \? tok\.key === projectKeyRef\.current/);
-  assert.match(s, /startProjectJob, jobNotes, dismissJobNote, \/\/ #3953/);
+  assert.match(s, /startProjectJob, jobNotes, dismissJobNote, (tabIdOfProjectKey, )?\/\/ #3953/); // tabIdOfProjectKey: #3963
   assert.match(read("App.jsx"), /jobNotes\.map\(\(n\) => \(/, "App shows the jobs' words on every module");
 });
 
