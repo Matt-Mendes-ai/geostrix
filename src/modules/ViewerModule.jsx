@@ -3290,6 +3290,10 @@ ${describeTrend(t)}` };
     if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return { ok: false, error: "The last model has no cells below its modelled tops inside the model box: nothing to add." }; }
     const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
     const legend = stops.map((st) => `${st.value} = ${st.label}`).join(", ");
+    const sm = await import("../lib/viewer/sameModelBlocks.js"), rep = await sm.toReplace(sm.sameModelBlocks(voxelModels, lb), "blocks"); // #3989 — never a silent copy
+    if (rep.cancelled) return { ok: false, error: "The user cancelled adding the blocks in GeoStrix." };
+    rep.drop.forEach((id) => removeVoxelModel(id));
+    if (rep.drop.length) setNotices((p) => [...p, notice("Replaced {n} block model(s) of the same model.", { n: rep.drop.length })]);
     // #802: blocks built from surfaces open opaque, so they draw as their outer faces (#793) - a GemPy block keeps its look
     const vid = addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: lb.fromSurfaces ? "surfaces" : "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])), ...(lb.fromSurfaces ? { opacity: 1 } : {}) });
     const done = lb.fromSurfaces
@@ -3310,6 +3314,10 @@ ${describeTrend(t)}` };
     const ust = blockUnitStats(lb.block); // TASKS.csv #877
     // #3112 — the run's lowest unit with no base (openBelow, #2917) is everything to the box floor: built only when asked, and named so
     const ob = lb.openBelow, openLabel = lb.block.labels.find((l) => l != null && isOpenUnit(ob, l)), whereTr = openLabel == null ? "" : ob.floorRL != null ? tr("below {top}, to the box floor at RL {rl}", { top: ob.top, rl: ob.floorRL }) : tr("below {top}, to the box floor", { top: ob.top });
+    const sm = await import("../lib/viewer/sameModelBlocks.js"), rep = await sm.toReplace(sm.sameModelVolumes(implicitSurfaces, lb), "volumes"); // #3989
+    if (rep.cancelled) return;
+    rep.drop.forEach((id) => removeImplicitSurface(id));
+    if (rep.drop.length) setNotices((p) => [...p, notice("Replaced {n} unit volume(s) of the same model.", { n: rep.drop.length })]);
     const withOpen = openLabel != null && await askConfirm(tr("{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?", { unit: openLabel, where: whereTr }));
     lb.block.labels.forEach((label, k) => {
       if (label == null) return;
@@ -3455,7 +3463,7 @@ ${describeTrend(t)}` };
     mapConstraint,
     mapContactWorldPoints,
     mapLayers,
-    addRaster, rasters, removeRaster, // TASKS.csv #758
+    addRaster, rasters, removeRaster, updateRaster, // TASKS.csv #758; updateRaster: #3989
     modelAbortControllerRef,
     modelDomainId,
     modelResolution,

@@ -60,6 +60,7 @@ import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js
 import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
 import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
+import { fitToMap, orientationsNear, mapUnitColour } from "../../lib/mapFit.js"; // TASKS.csv #3989
 import { gempyLimitCheck, mapContactStep, MAP_CONTACT_STEP_M, plainEngineError, thinForWork, gempyWork, GEMPY_WORK_BUDGET, gempyRate, recordGempyRate, gempyPeakGB, GEMPY_RAM_SHARE, GEMPY_ASSUMED_RAM_GB } from "../../lib/gempyLimits.js"; // TASKS.csv #3162
 import { findOnTraceWorld, findOnTrace, traceOfHole /* #2931 */, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
@@ -85,6 +86,9 @@ function groundCappedGrid(grid, iso, groundAt, toReal = null) {
 
 // TASKS.csv #2782 — the layer an envelope was built from, as saved in its provenance (project data: English)
 const SOURCE_NAME = { litho: "Lithology", alt: "Alteration", vein: "Veins", weath: "Weathering" };
+// the rasters a run makes, by their provenance (a rerun replaces its own): #758's predicted map, #3989's 'where it differs' overlay
+const PREDICTED_TOOL = "GemPy implicit model evaluated on the terrain";
+const DIFFER_TOOL = "Model from map: where the model's unit at the ground is not the mapped one";
 
 // TASKS.csv #3082 (6) — three grade shells run with the same element, cutoff, trend and holes were all named alike in the list and in 'New version of':
 // a name already in use gets the cell size, then a number
@@ -180,6 +184,7 @@ export function createModellingRuns(ctx, mcRef) {
     surfaceDetail, // TASKS.csv #766
     addVoxelModel, // TASKS.csv #757
     addRaster, mapLayers, rasters, removeRaster, // TASKS.csv #758
+    updateRaster, // TASKS.csv #3989 — the 'where it differs' overlay shown or hidden from the fit card
     resolveLithoTarget,
     sceneToApi,
     searchEllipsoid,
@@ -928,7 +933,7 @@ export function createModellingRuns(ctx, mcRef) {
           const id = res.evaluated[off + k];
           return id <= 1 ? aboveLabel : res.block.labels[id - 1] ?? null;
         });
-        const colorOfUnit = new Map([...specs.map((sp) => [sp.meshName, sp.color || colorForLithology(sp.meshName)]), [aboveLabel, aboveUnit ? colorForLithology(aboveUnit) : "#d4d4d4"]]);
+        const colorOfUnit = new Map([...specs.map((sp) => [sp.meshName, sp.color || colorForLithology(sp.meshName)]), [aboveLabel, aboveUnit ? stackOpts.aboveColor || colorForLithology(aboveUnit) : "#d4d4d4"]]); // aboveColor: #3989, the map's
         const px = unitRaster(mapGrid, mapUnits, (u) => colorOfUnit.get(u) || colorForLithology(u));
         const cv = document.createElement("canvas");
         cv.width = mapGrid.nx; cv.height = mapGrid.ny;
@@ -939,12 +944,26 @@ export function createModellingRuns(ctx, mcRef) {
           .map((l) => mapAgreement(mapGrid, mapUnits, l, [...unitSpecs.map((sp) => sp.meshName), ...(aboveUnit ? [aboveUnit] : [])])).filter((a) => a && a.mappedNodes); // #817: faults are not map units
         const cellM = Math.round((mapGrid.dx + mapGrid.dy) / 2);
         const mapName = `Predicted geology (${[...(aboveUnit ? [aboveUnit] : []), ...unitSpecs.map((sp) => sp.meshName)].join(" over ")})`; // #817: units only
-        (rasters || []).filter((r) => r.name === mapName && r.provenance?.tool?.includes("#758")).forEach((r) => removeRaster?.(r.id)); // a rerun replaces it
+        (rasters || []).filter((r) => r.name === mapName && r.provenance?.tool === PREDICTED_TOOL).forEach((r) => removeRaster?.(r.id)); // a rerun replaces it (#3989: it read includes("#758"), which no tool string had: every rerun added a copy)
         addRaster({
           name: mapName, bbox: mapGrid.bbox, dataUrl: cv.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.8,
-          provenance: { tool: "GemPy implicit model evaluated on the terrain" /* TASKS.csv #758 */, cellM, nodes: mapGrid.nodes.length, nodesWithAUnit: covered, nodesAboveYoungestTop: aboveN, nodesOutsideModel: outsideBox, units: specs.map((sp) => sp.meshName), terrain: mapTerrain.name || "terrain",
+          provenance: { tool: PREDICTED_TOOL /* TASKS.csv #758 */, cellM, nodes: mapGrid.nodes.length, nodesWithAUnit: covered, nodesAboveYoungestTop: aboveN, nodesOutsideModel: outsideBox, units: specs.map((sp) => sp.meshName), terrain: mapTerrain.name || "terrain",
             note: tr("the model's unit at the ground, evaluated at each node in the same solve; grey where the ground is above the youngest modelled top; blank outside the model box"), agreement: agreements.map((a) => ({ layer: a.layer, field: a.field, overall: a.overall, units: a.units.map((u) => ({ unit: u.unit, pct: u.pct, nodes: u.nodes })) })) },
         });
+        // TASKS.csv #3989 — Model from map: the fit against the run's own map layer, for the panel's card, and where the model differs from it
+        // (an overlay draped on the terrain, hidden until the card's toggle shows it; a rerun replaces it)
+        if (stackOpts.mapLayer && stackOpts.onFit) {
+          const fit = fitToMap(mapGrid, mapUnits, stackOpts.mapLayer, stackOpts.mapField, [...unitSpecs.map((sp) => sp.meshName), ...(aboveUnit ? [aboveUnit] : [])]);
+          if (fit) {
+            const dName = `Where the model differs from the map (${stackOpts.mapLayer.name || stackOpts.mapField})`;
+            (rasters || []).filter((r) => r.name === dName && r.provenance?.tool === DIFFER_TOOL).forEach((r) => removeRaster?.(r.id));
+            const dc = document.createElement("canvas");
+            dc.width = mapGrid.nx; dc.height = mapGrid.ny;
+            dc.getContext("2d").putImageData(new ImageData(fit.px, mapGrid.nx, mapGrid.ny), 0, 0);
+            const rid = addRaster({ name: dName, bbox: mapGrid.bbox, dataUrl: dc.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.9, visible: false, provenance: { tool: DIFFER_TOOL, cellM, differ: fit.differ, compared: fit.compared } });
+            stackOpts.onFit({ overall: fit.overall, units: fit.units, unscored: fit.unscored, differ: fit.differ, compared: fit.compared, cellM, show: (on) => updateRaster?.(rid, { visible: !!on }) });
+          }
+        }
         const pctTxt = (v) => (v == null ? "—" : `${Math.round(100 * v)}%`);
         const agreeTxt = agreements.length
           ? agreements.map((a) => ` Against the mapped geology "${a.layer}" (field ${a.field}): the model agrees on ${pctTxt(a.overall)} of the mapped ground where it has a unit of the same name — ${a.units.filter((u) => u.inModel).slice(0, 6).map((u) => `${u.unit} ${pctTxt(u.pct)}${u.pct != null && u.pct < 0.5 && u.modelledAs[0] ? ` (mostly modelled as ${u.modelledAs[0].unit})` : ""}`).join(", ") || "no mapped unit shares a name with a model unit"}.${a.unmatchedMapUnits.length ? ` Mapped units with no model unit of that name (not scored): ${a.unmatchedMapUnits.slice(0, 6).join(", ")}${a.unmatchedMapUnits.length > 6 ? "…" : ""}.` : ""}`).join("")
@@ -1913,18 +1932,24 @@ export function createModellingRuns(ctx, mcRef) {
     const fittedTops = [];
     const specs = [], empty = [];
     const surfPkg = new Map(surfacePackages(order.length, breaks).map((k, i) => [order[i], k])), estimatedIn = new Set(); // #1309
+    // TASKS.csv #3989 — each top takes the measurements near its OWN contacts (within NEAR_M, the nearest MAX_NEAR), the nearest few where none
+    // is that near (and the run says which): every top took the whole map's set (1,492 orientations on a 13-top map, a solve past 15 minutes,
+    // a dip from across the sheet bending a top where it is mapped)
+    const NEAR_M = 2000, MAX_NEAR = 24, farTops = [];
+    const nearOf = (u, pts, set) => { const r = orientationsNear(pts, set, { radiusM: NEAR_M, maxN: MAX_NEAR }); if (!r.near) farTops.push(u); return r.orientations; };
     const oriFor = (u, pts) => { // #1309 — this package's measurements; none: a dip from its own contact points, and the run says so
       if (!orientations.length) { const e = estimateOrientationFromPoints(pts); fittedTops.push({ u, n: pts.length, dip: e.dip, az: e.azimuth }); return [e]; } // #2409
-      if (!breaks.size) return orientations;
+      if (!breaks.size) return nearOf(u, pts, orientations); // #3989
       const k = surfPkg.get(u), own = orientations.filter((q) => q.pkg === k);
-      if (own.length) return own;
+      if (own.length) return nearOf(u, pts, own); // #3989
       estimatedIn.add(u);
       return [estimateOrientationFromPoints(pts)];
     };
+    const unitColour = (u) => mapUnitColour(p.layer, p.field, u) || colorForLithology(u); // #3989 — the map's own colour for the unit
     order.slice(1).forEach((u) => {
       const pts = pointsOf.get(u);
       if (!pts.length) { empty.push(u); return; }
-      specs.push({ label: `Top of ${u}`, meshName: u, points: pts, orientations: oriFor(u, pts), ...(breaks.size ? { package: surfPkg.get(u) } : {}), color: colorForLithology(u), type: "stratigraphic_contact", codes: [u], params: { mapModel: { layer: p.layer.name, field: p.field, order, contactPoints: pts.length } } });
+      specs.push({ label: `Top of ${u}`, meshName: u, points: pts, orientations: oriFor(u, pts), ...(breaks.size ? { package: surfPkg.get(u) } : {}), color: unitColour(u), type: "stratigraphic_contact", codes: [u], params: { mapModel: { layer: p.layer.name, field: p.field, order, contactPoints: pts.length } } });
     });
     if (specs.length < 1) { setNotices((q) => [...q, notice("None of the units below the youngest one shares a contact with a unit above it on the map, so there is nothing to model. Check the order.")]); return; }
     if (fittedTops.length) setNotices((q) => [...q, notice("No outcrop orientation: {n} orientation(s) fitted from the logged contacts, a least-squares plane through each top's contact points ({list}). A buried deposit with no bedding builds this way; outcrop measurements replace them.", { n: fittedTops.length, list: fittedTops.map((f) => `${f.u}: ${f.n} points, dip ${f.dip.toFixed(1)}° toward ${Math.round(f.az)}°`).join("; ") })]); // #2409
@@ -1943,6 +1968,7 @@ export function createModellingRuns(ctx, mcRef) {
     }), (pinched.size ? tr(" Pinched out where the map shows them missing between their neighbours: {u}.", { u: [...pinched].join(", ") }) : "")
       + (unpinched.size ? tr(" Missing between their neighbours in places, but a conformable stack cannot pinch them out (choose Erosional for that): {u}.", { u: [...unpinched].join(", ") }) : "")
       + (estimatedIn.size ? tr(" No measurement in the package of: {u}. Their dip was estimated from their contact points.", { u: [...estimatedIn].join(", ") }) : "") // #1309
+      + (farTops.length ? tr(" No measurement within {km} km of the contacts of: {u}. They take the nearest ones.", { km: NEAR_M / 1000, u: farTops.join(", ") }) : "") // #3989
       + (holeN ? tr(" {h} of the contact points are logged contacts in {k} drillhole(s).", { h: holeN, k: holeHoles }) : p.holeCodes ? tr(" No logged contact between two units of the order was found in the drillholes.") : "") // #1718
       + (holeGaps ? tr(" {g} logged contact(s) left out: over {m} m unlogged or not used between the two units.", { g: holeGaps, m: 10 }) : "")
       + (holeExcluded ? tr(" {g} logged contact(s) excluded in the Boundary intercepts table.", { g: holeExcluded }) : "")
@@ -1950,7 +1976,7 @@ export function createModellingRuns(ctx, mcRef) {
       + (holeNoTrace ? tr(" {g} logged contact(s) on holes with no trace were skipped.", { g: holeNoTrace }) : "")
       + (stepM > MAP_CONTACT_STEP_M ? tr(" The map's contacts were sampled every {s} m, not every {s0} m, to keep about {n} points: GemPy's memory grows with the square of the points ({n0} at {s0} m).", { s: stepM, s0: MAP_CONTACT_STEP_M, n: Math.round(usedM / stepM).toLocaleString(), n0: Math.round(usedM / MAP_CONTACT_STEP_M).toLocaleString() }) : "") // #3162
       + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (onPlan ? tr(" {k} contact point(s) and measurement(s) off the terrain's data were placed at the map layer's elevation (RL {z}), where the surfaces are also cut.", { k: onPlan, z: Math.round(planZ) }) : "") /* #2410 */ + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
-    await runSurfaceStack([...faultSpecs, ...specs], { fromMap: true /* #3162 */, fullDetail: !!p.fullDetail /* #3198 follow-up */, relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309
+    await runSurfaceStack([...faultSpecs, ...specs], { fromMap: true /* #3162 */, mapLayer: p.layer, mapField: p.field, onFit: p.onFit, aboveColor: unitColour(order[0]) /* #3989 */, fullDetail: !!p.fullDetail /* #3198 follow-up */, relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309
   };
 
   const gatherFaultSpec = (key, traces) => {
