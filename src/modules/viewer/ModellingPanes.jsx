@@ -17,7 +17,8 @@ import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
 import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
-import { pileFromRuns, absentTops, orderFromHoles, movesToOrder } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles / movesToOrder: #2926
+import { pileFromRuns, absentTops, orderFromHoles } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles: #2926
+import { holesOrderPlan } from "../../lib/holesOrder.js"; import SortByHoles from "./SortByHoles.jsx"; // TASKS.csv #3994 — Sort by the holes
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
@@ -53,6 +54,7 @@ import { ENVELOPE_RANGES } from "../../lib/viewer/shellEnvelope.js";
 import DomainUpdateSection from "./DomainUpdateSection.jsx"; // TASKS.csv #3673 phase 2 // TASKS.csv #3673 — the ranges said in the pane // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
 const LithoSuggestBox = lazy(() => import("../../components/LithoSuggestBox.jsx")); // TASKS.csv #2004
@@ -230,6 +232,7 @@ export default function ModellingPanes(props) {
     setThinWindowM,
     orientationReachM, setOrientationReachM, // TASKS.csv #1170
     stackBreaks, setStackBreaks, // TASKS.csv #1309
+    setStackUnits, // TASKS.csv #3994
     visibleHoles, // TASKS.csv #1315
     setVisibleHoles, setHoleFilter, // TASKS.csv #2536 — Model area by an E / N range; setHoleFilter: #3775 (4)
     setTrendPreviewId,
@@ -478,6 +481,12 @@ export default function ModellingPanes(props) {
     const codesOf = (u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.codes || [] : isMcodeKey(u) ? mcodeVals(u.slice(6)) : [u]);
     const r = orderFromHoles(layers.litho || [], stackUnits, codesOf);
     return r.conflicts.length ? r : null;
+  }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
+  // TASKS.csv #3994 (Matt, Century) — the stack as the holes would put it: the fewest moves, units the holes never show together keep their place, contradictions listed (lib/holesOrder.js)
+  const holesPlan = useMemo(() => {
+    if (toolPane !== "stack" || stackUnits.length < 2) return null;
+    const mcodeVals = (name) => { const v = new Set(); for (const r of areaRuns()) if (r.code === name) for (const row of r.rows) v.add(row.value); return [...v]; };
+    return holesOrderPlan(layers.litho || [], stackUnits, (u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.codes || [] : isMcodeKey(u) ? mcodeVals(u.slice(6)) : [u]));
   }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
   // the 'Add a unit' list in the order the holes give (youngest first), not by interval count
   const unitRank = useMemo(() => {
@@ -819,7 +828,7 @@ export default function ModellingPanes(props) {
                 </div>
                 {crossCuts && <span title={tr("Contains a cross-cutting code (fault/dyke/breccia) — excluded from the Stratigraphic stack, same rail as a raw cross-cutting code")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", background: "#f3e3e3", border: "1px solid #dcc2c2", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("X-cut")}</span>}
                 {!crossCuts && role === "overburden" && <span title={tr("Every member is overburden — modelled as an overburden_base surface")} style={{ fontSize: "var(--font-size-xs)", color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("OB")}</span>}
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete lithology group \"{name}\"? Its codes stay in the log — they just stop being modelled together.", { name: g.name }))) removeLithoGroup(g.id); }, tr("Delete lithology group \"{name}\" (its codes stay in the log, just ungrouped)", { name: g.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Delete lithology group \"{name}\"? Its codes stay in the log — they just stop being modelled together.", { name: g.name }))) removeLithoGroup(g.id); }, tr("Delete lithology group \"{name}\" (its codes stay in the log, just ungrouped)", { name: g.name }))} />
               </div>
               {open && codesInGroup.length > 0 && ( /* TASKS.csv #2052 — one rule for the group's role, said here */
                 <div style={{ padding: "0 8px 6px", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
@@ -1008,11 +1017,12 @@ export default function ModellingPanes(props) {
         {stackUnits.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No units added yet.")}</div>
         )}
+        {holesPlan && <SortByHoles stackUnits={stackUnits} plan={holesPlan} label={(u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)} setStackUnits={setStackUnits} pBtn={pBtn} />}{/* #3994 */}
         {stackHoles && ( // TASKS.csv #2926 — checked as the units are added; the holes' order one click away
           <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
-            {tr("The holes give the order {order} (youngest first): {list}.", { order: stackHoles.order.map((u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)).join(", "),
+            {tr("The holes give the order {order} (youngest first): {list}.", { order: (holesPlan?.order || stackHoles.order).map((u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)).join(", "),
               list: stackHoles.conflicts.slice(0, 3).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: stackUnits[q.older].replace(/^mcode:/, ""), younger: stackUnits[q.younger].replace(/^mcode:/, ""), against: q.against, of: q.of })).join("; ") })}{" "}
-            <button type="button" onClick={() => movesToOrder(stackUnits, stackHoles.order).forEach(([u, d]) => moveStackUnit(u, d))} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
+            <button type="button" onClick={() => setStackUnits([...(holesPlan?.order || stackHoles.order)])} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
           </div>
         )}
         {stackUnits.map((u, i) => {

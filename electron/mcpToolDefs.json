@@ -115,6 +115,29 @@
     }
   },
   {
+    "name": "job_status",
+    "description": "Read-only. Checks on a change GeoStrix started and answered 'started' (a long download, later a model run): running, done (with what it made) or failed (with why). Give the job_id from that answer; without one it lists this app's last few jobs. GeoStrix shows each change in its own window when it is done.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "job_id": { "type": "string", "maxLength": 40, "description": "The job_id the 'started' answer gave." }
+      },
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
+  },
+  {
+    "name": "suggest_trend",
+    "description": "Read-only. The trend helper's suggestion for this project: up to four candidate trends (a plane the geology or the grade runs along), each with its strength (strong, fair or weak), its reasons and its warnings, the best one marked suggested. Read from the measured structures, the logged unit tops, the grades of one element and the drilling itself (a plane that is only the drill pattern is said so, weak, and never suggested). Modelled surfaces, outcrop readings and mapped contacts are not read here: the Modelling tab's trend helper also reads them. These are suggestions from the data, not facts. It only reads: setting a trend is done in GeoStrix.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": { "type": "string", "maxLength": 32, "description": "An assay element's symbol: its grades at or above their 90th percentile are one source. Without it the grades are not read." }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "make_section",
     "description": "Makes a change in GeoStrix: adds a new cross-section to the project (it shows in StrixViewer's section list), either between two points in the project's coordinates (list_holes gives the collars') or through one hole in its own plane. Nothing is replaced: a name already used gets ' (2)'. Undo in GeoStrix takes it back.",
     "inputSchema": {
@@ -161,7 +184,7 @@
   },
   {
     "name": "fetch_satellite_image",
-    "description": "Makes a change in GeoStrix: downloads the latest clear Copernicus Sentinel-2 natural-colour image over the project area and adds it as a new raster (Maps). The area is the loaded terrain's when there is one (so the image matches it), else around the drillholes. GeoStrix first asks the user, every time, whether to download; a refusal is answered 'The user declined the download in GeoStrix.'. It can take a minute or more. The toast's Undo in GeoStrix removes it.",
+    "description": "Makes a change in GeoStrix: downloads the latest clear Copernicus Sentinel-2 natural-colour image over the project area and adds it as a new raster (Maps). The area is the loaded terrain's when there is one (so the image matches it), else around the drillholes. GeoStrix first asks the user, every time, whether to download; a refusal is answered 'The user declined the download in GeoStrix.'. It can take a minute or more: after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). The toast's Undo in GeoStrix removes it.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -174,7 +197,7 @@
   },
   {
     "name": "fetch_terrain",
-    "description": "Makes a change in GeoStrix: downloads Copernicus GLO-30 terrain over the project area (around the drillholes, as Maps › Terrain opens on) and adds it as the project's terrain, with GeoStrix's check of the collars against the ground (a large misfit is reported, the project's coordinate system is never changed). Refused when a terrain is already loaded (nothing is overwritten). GeoStrix first asks the user, every time, whether to download. It can take a minute or more. The toast's Undo in GeoStrix removes it.",
+    "description": "Makes a change in GeoStrix: downloads Copernicus GLO-30 terrain over the project area (around the drillholes, as Maps › Terrain opens on) and adds it as the project's terrain, with GeoStrix's check of the collars against the ground (a large misfit is reported, the project's coordinate system is never changed). Refused when a terrain is already loaded (nothing is overwritten). GeoStrix first asks the user, every time, whether to download. It can take a minute or more: after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). The toast's Undo in GeoStrix removes it.",
     "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
     "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true }
   },
@@ -219,5 +242,40 @@
       "additionalProperties": false
     },
     "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "build_surface",
+    "description": "Makes a change in GeoStrix: builds one logged rock as a 3D surface, as StrixViewer's Model > Start here does with Build it for me, by the rock's role in Modelling codes: Intrusions and bodies (a solid shape from where the holes cut it) for an intrusion, dyke, vein or breccia; Cover and weathering (its base) for overburden; otherwise Rock layers, which builds the surfaces between all the rocks that lie in a steady order down the holes (the rock named must be one of them). The model's size and detail are read from the logs. A rock the data cannot support is refused, saying what to mark first. One model at a time; it can take minutes (the status bar shows its progress and Cancel): after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). It adds a surface and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "rock": { "type": "string", "maxLength": 64, "description": "The rock's code as logged (list_layers and get_layer_rows show them)." }
+      },
+      "required": ["rock"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
+    "_meta": { "geostrix/long": true }
+  },
+  {
+    "name": "add_block_model",
+    "description": "Makes a change in GeoStrix: adds the last model's lithology blocks as a block model, as the Result block's Add as block model does (cells above every modelled top are left out; the model is not the logs). Needs the last model's blocks to exist (built in GeoStrix from the surfaces, or a GemPy model): without them it says so. A very large model is confirmed with the user in GeoStrix first. It adds a block model and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
+    "_meta": { "geostrix/long": true }
+  },
+  {
+    "name": "build_grade_shell",
+    "description": "Makes a change in GeoStrix: builds a grade shell for one element, as StrixViewer's Model > Start here > Grade model does with Build it for me: a shell around the grades above a cut-off read from the assays, with cells and a search sized from the drilling. It is a picture of where the grade is, not a resource estimate. One model at a time; it can take minutes (the status bar shows its progress and Cancel): after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). It adds a shell and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": { "type": "string", "maxLength": 32, "description": "The assay element's symbol (project_summary lists them)." }
+      },
+      "required": ["element"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
+    "_meta": { "geostrix/long": true }
   }
 ]

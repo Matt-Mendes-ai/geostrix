@@ -40,7 +40,7 @@ test("the moves that turn the list into that order, one neighbour at a time (the
 test("wiring: the stack pane checks as units are added and offers the order; the picker follows the holes; Modelling codes offers it too", () => {
   const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(p, /if \(toolPane !== "stack" \|\| stackUnits\.length < 2\) return null;/, "only while the pane is open");
-  assert.match(p, /movesToOrder\(stackUnits, stackHoles\.order\)\.forEach\(\(\[u, d\]\) => moveStackUnit\(u, d\)\)/);
+  assert.match(p, /setStackUnits\(\[\.\.\.\(holesPlan\?\.order \|\| stackHoles\.order\)\]\)/); // #3994 — the same plan as Sort by the holes: units the holes never show together keep their place
   assert.match(p, /unitRank \? \[\.\.\.litho_units\]\.sort\(/);
   const m = readFileSync(new URL("../src/components/ModellingCodesPane.jsx", import.meta.url), "utf8");
   assert.match(m, /const r = orderFromHoles\(runs, names\);/);

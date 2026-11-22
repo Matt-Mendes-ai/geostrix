@@ -65,7 +65,7 @@ test("a plain file import's CRS chooser asks and sets nothing once its job's pro
   let set = null, asked = 0, live = true;
   const choose = projectEpsgChooser({ isEmpty: true, setEpsg: (c) => { set = c; }, fileName: "dem.tif", live: () => live }, () => { asked++; return true; });
   live = false;
-  assert.equal(choose(32609, 32610), 32610, "the current CRS, unchanged");
+  assert.equal(await choose(32609, 32610), 32610, "the current CRS, unchanged"); // async since #3957 (the question is an in-app dialog)
   assert.equal(set, null);
   assert.equal(asked, 0, "no question in the project now shown");
   // with no live() it is as before
@@ -180,7 +180,8 @@ test("plain file imports are jobs of their project: raster (two panes), the Star
   assert.match(sg, /if \(!\(await landed\(job\)\)\) \{ setVoxelError\(null\); return; \}[^\n]*\n\s*addVoxelModel\(/, "each model lands in its project");
   const ground = s.slice(s.indexOf("const onGroundFiles = async"), s.indexOf("const pickCrs = async"));
   assert.match(ground, /live: job\.isLive \}\) \}\);/);
-  assert.match(ground, /if \(!\(await landed\(job\)\)\) return;[^\n]*\n\s*if \(terrain/);
+  // #3957 — the replace question is a dialog now: asked first, then the landing check (nothing awaited between landing and delivery)
+  assert.match(ground, /if \(terrain && !await askConfirm\([^\n]*\n\s*if \(!\(await landed\(job\)\)\) return;[^\n]*\n\s*addTerrain\(/);
   const crs = s.slice(s.indexOf("const pickCrs = async"), s.indexOf("const strip = step === 2"));
   assert.match(crs, /const parsed = await parseDEMFiles\(picker\.files, epsg, String\(code\), \{\}\);\n\s*if \(!\(await landed\(job\)\)\) return;/);
 });

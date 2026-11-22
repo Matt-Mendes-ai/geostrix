@@ -11,7 +11,7 @@ test("no tube per curved interval: pieces on the shared prototype, the inner joi
   assert.doesNotMatch(s, /new THREE\.CatmullRomCurve3/);
   assert.match(s, /const pts = \[p1, \.\.\.mid, p2\], last = pts\.length - 2, ext = rr \* 0\.5;/); // rr: the interval's radius (#3942 Width by)
   assert.match(s, /const e0 = i > 0 \? ext : 0, e1 = i < last \? ext : 0,/);
-  assert.match(s, /const m = new PickStandIn\(intervalProto\(st\.shape\), \{ color, transparent: st\.opacity < 1, opacity: st\.opacity \}\);/);
+  assert.match(s, /const m = new PickStandIn\(intervalProto\(st\.shape, \(layers\?\.\[groupKey\] \|\| \[\]\)\.length\), \{ color, transparent: st\.opacity < 1, opacity: st\.opacity \}\);/); // the count: #3987 (ribbons in light drawing)
   assert.match(s, /for \(const mesh of pieces \|\| \[mesh_\]\) \{\n\s+mesh\.userData = lazyTip\(/, "every piece carries the row's tooltip, hole and category");
 });
 

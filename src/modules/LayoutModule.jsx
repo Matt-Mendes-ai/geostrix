@@ -111,6 +111,7 @@ import { printPassItems, pagesWithPrintSrcs, PAGE_DPI } from "../lib/layoutPrint
 import MapRedrawControl from "../components/MapRedrawControl.jsx"; // TASKS.csv #3491
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 let handledPrintSeq = null;
@@ -233,7 +234,7 @@ export default function LayoutModule() {
   useEffect(() => { if (!exportNote) return undefined; const t = setTimeout(() => setExportNote(null), 12000); return () => clearTimeout(t); }, [exportNote]);
   // TASKS.csv #923 — one export per request: the store keeps the last request, and this module remounts on every visit
   // to the Layout tab, so "if (layoutPrintRequest)" re-ran the last PDF / PNG export (save dialog and all) each time
-  useEffect(() => {
+  useEffect(() => { (async () => { // TASKS.csv #3957 — the export questions are in-app dialogs now: awaited
     if (!layoutPrintRequest || layoutPrintRequest.seq === handledPrintSeq) return;
     handledPrintSeq = layoutPrintRequest.seq;
     // TASKS.csv #1481 (review #1352) — anything past the paper's edge was cut from the PDF / PNG in silence (a 73-row legend, an
@@ -259,22 +260,22 @@ export default function LayoutModule() {
       if (cut.length) past.push(tr("on {page}: {list}", { page: pp.id === activeLayoutPageId ? tr("this page") : pp.name, list: cut.map((f) => (f.box ? tr("Legend: {n} row(s) left out, its box is too small", { n: f.left }) : tr("Legend: {n} row(s) left out, no room on the sheet", { n: f.left }))).join(", ") }));
     }
     if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("on {page}: {list}", { page: o.name, list: o.items.map(namePast).join(", ") }));
-    if (past.length && !window.confirm(tr("Some elements reach past the sheet's edge ({list}): what lies outside is left out, and pages print at true size. Export anyway?", { list: past.join("; ") }) /* #3703 — says plainly what is left out */)) return;
+    if (past.length && !(await askConfirm(tr("Some elements reach past the sheet's edge ({list}): what lies outside is left out, and pages print at true size. Export anyway?", { list: past.join("; ") }) /* #3703 — says plainly what is left out */))) return;
     // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
     const staleLegends = staleBoundLegends(layoutPages).length;
-    if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport, which was refreshed after its edited rows were loaded; they were kept. Export anyway?" : "{n} legends are out of step with their viewports, refreshed after their edited rows were loaded; they were kept. Export anyway?", { n: staleLegends }))) return;
+    if (staleLegends && !(await askConfirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport, which was refreshed after its edited rows were loaded; they were kept. Export anyway?" : "{n} legends are out of step with their viewports, refreshed after their edited rows were loaded; they were kept. Export anyway?", { n: staleLegends })))) return;
     // TASKS.csv #3636 — the project has a data credit and a page that is about to print does not carry it: say which, and let the user add it or export anyway
     if (creditsRef.current) {
       const toCheck = layoutPrintRequest.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages;
       const bare = pagesWithoutCredit(toCheck, activeLayoutPageId, elements);
       // TASKS.csv #3707 — the credit is on the page but under an opaque element (a drill plan over the whole sheet): it prints without it
       const hidden = pagesWithHiddenCredit(toCheck, activeLayoutPageId, elements);
-      if (hidden.length && !window.confirm(hidden.length === 1
+      if (hidden.length && !(await askConfirm(hidden.length === 1
         ? tr("Send the element over \"{page}\"'s data credit to the back (or move it) so the data owner is credited. Export without the credit?", { page: hidden[0] })
-        : tr("Send the elements over the data credit of {n} pages ({list}) to the back (or move them) so the data owner is credited. Export without the credit?", { n: hidden.length, list: hidden.slice(0, 5).join(", ") + (hidden.length > 5 ? ", …" : "") }))) return;
-      if (bare.length && !window.confirm(bare.length === 1
+        : tr("Send the elements over the data credit of {n} pages ({list}) to the back (or move them) so the data owner is credited. Export without the credit?", { n: hidden.length, list: hidden.slice(0, 5).join(", ") + (hidden.length > 5 ? ", …" : "") })))) return;
+      if (bare.length && !(await askConfirm(bare.length === 1
         ? tr("Add a text with {credits} (or a title block, which has a Data row) to \"{page}\" so the data owner is credited. Export without it?", { page: bare[0] })
-        : tr("Add a text with {credits} (or a title block, which has a Data row) to {n} pages ({list}) so the data owner is credited. Export without it?", { n: bare.length, list: bare.slice(0, 5).join(", ") + (bare.length > 5 ? ", …" : "") }))) return;
+        : tr("Add a text with {credits} (or a title block, which has a Data row) to {n} pages ({list}) so the data owner is credited. Export without it?", { n: bare.length, list: bare.slice(0, 5).join(", ") + (bare.length > 5 ? ", …" : "") })))) return;
     }
     // TASKS.csv #2303 — the page's viewports are 200 dpi captures: the export renders each again at 300 dpi first (in the 3D View, as an
     // atlas batch), then prints from those images; the page keeps its own
@@ -288,7 +289,7 @@ export default function LayoutModule() {
       return;
     }
     setPrinting(layoutPrintRequest);
-  }, [layoutPrintRequest]);
+  })(); }, [layoutPrintRequest]);
   // #2303 — the print pass is done: print (a viewport whose pass failed prints its page image)
   useEffect(() => {
     if (!viewportBatchDone?.printPass || !pendingPrint) return;
@@ -1058,8 +1059,8 @@ export default function LayoutModule() {
     setTemplateMsg(r.replaced ? tr("Replaced the template \"{name}\" on this computer: every project now offers this version.", { name: tpl.name }) : tr("Kept the template \"{name}\" on this computer: every project offers it now.", { name: tpl.name }));
     setComputerTplKey((k) => k + 1);
   };
-  const loadTemplate = (tpl) => {
-    if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
+  const loadTemplate = async (tpl) => {
+    if (elements.length && !await askConfirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
     if (tpl.format) setLayoutPageFormat(activeLayoutPageId, tpl.format); // #1868 — a template keeps its paper size and orientation
     if (tpl.stock) { setElements(stockTemplateElements(tpl, Date.now(), { credit: !!credits, creditText: credits, shared: sharedTitleRows(layoutPages) /* #3714 */ })); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
     const idMap = new Map(tpl.elements.map((el) => [el.id, `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`]));
@@ -2040,7 +2041,7 @@ export default function LayoutModule() {
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("{elements} el.", { elements: t.elements.length })}</span>
                 <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Export the template \"{name}\" as a file", { name: t.name })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => exportTemplate(t)} />{/* #1868 */}
                 {hasComputerTemplates() && <HardDrive role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Keep the template \"{name}\" on this computer, for every project", { name: t.name })} title={tr("Keep the template \"{name}\" on this computer, for every project", { name: t.name })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => keepOnComputer(t)} />}{/* #1487 */}
-                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => { if (confirmDestructive(tr("Delete template \"{name}\"?", { name: t.name }))) deleteLayoutTemplate(t.id); }} aria-label={tr("Delete template \"{name}\"", { name: t.name })} title={tr("Delete template \"{name}\"", { name: t.name })} />
+                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={async () => { if (await confirmDestructive(tr("Delete template \"{name}\"?", { name: t.name }))) deleteLayoutTemplate(t.id); }} aria-label={tr("Delete template \"{name}\"", { name: t.name })} title={tr("Delete template \"{name}\"", { name: t.name })} />
               </div>
             ))}
           </div>
@@ -2128,7 +2129,7 @@ export default function LayoutModule() {
                   aria-label={tr("Delete page \"{name}\"", { name: p.name })} title={tr("Delete page \"{name}\"", { name: p.name })} /* TASKS.csv #238 — was keyboard-reachable but nameless */
                   size={12}
                   style={{ flexShrink: 0, color: "var(--color-text-muted)" }}
-                  onClick={(e) => { e.stopPropagation(); if (window.confirm(tr("Delete page \"{name}\"? (Ctrl+Z undoes this.)", { name: p.name }))) deleteLayoutPage(p.id); }}
+                  onClick={async (e) => { e.stopPropagation(); if (await askConfirm(tr("Delete page \"{name}\"? (Ctrl+Z undoes this.)", { name: p.name }))) deleteLayoutPage(p.id); }}
                 />
               </div>
             );
@@ -2154,7 +2155,7 @@ export default function LayoutModule() {
           )}
           {activePage?.batch && (() => { // #1636 — the generated pages of this one's run, in one action
             const ids = layoutPages.filter((p) => p.batch === activePage.batch).map((p) => p.id);
-            return ids.length > 1 ? <button onClick={() => { if (window.confirm(tr("Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)", { n: ids.length }))) deleteLayoutPage(ids); }}
+            return ids.length > 1 ? <button onClick={async () => { if (await askConfirm(tr("Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)", { n: ids.length }))) deleteLayoutPage(ids); }}
               style={{ height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", flexShrink: 0, background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>
               {tr("Remove these {n} generated pages", { n: ids.length })}</button> : null;
           })()}

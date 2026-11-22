@@ -25,6 +25,8 @@ import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3573 �
 import { sectionIntercepts, gradeBarAxis, gradeBarFrac } from "../lib/sectionIntercepts.js"; // TASKS.csv #3860
 import { defaultSectionVE, plotAspect, MAX_SECTION_VE } from "../lib/sectionVE.js"; // TASKS.csv #2363; plotAspect: #2933
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import { lazyPart } from "../lib/lazyModal.jsx";
+const SectionOverview = lazyPart(() => import("./SectionOverview.jsx")); // TASKS.csv #3977 — on use only
 import { LABEL_KINDS, labelShow, floatLabelKind, labelsPatch, labelsPatchAll, crowdedDefault } from "../lib/sectionLabelKinds.js"; // TASKS.csv #3968
 // TASKS.csv #2933 / #2387 — the VE of the section a step (‹ ›) was taken from, for the section that step opens in the next tab of this
 // window (the tabs share this module): a parallel section keeps the user's 8x instead of opening at its own automatic 3x
@@ -80,6 +82,9 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   const [snapped, setSnapped] = useState(false);
   const [saved, setSaved] = useState(false);
   const svgRef = useRef(null);
+  // TASKS.csv #3977 — the overview pane's inset on the exports while its "Show on export" is ticked (SectionOverview sets it)
+  const overviewRef = useRef(null);
+  const ovInset = (markup) => (overviewRef.current && svgRef.current?.viewBox?.baseVal ? overviewRef.current.inset(markup, svgRef.current.viewBox.baseVal) : markup);
 
   // Finished contacts + the in-progress polyline being drawn. Both keyed in section-local/world coords
   // (l = distance along the section line in meters, z = elevation, x/y = world easting/northing) — see
@@ -262,18 +267,19 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     if (!svgEl || !dims) return;
     // #1089 — the same figure as the SVG / PNG export (font, size, white ground); #2604 — its print floor for the frame Layout
     // places it in (PLACED_W / textFactor page px), the one atPrintSize laid the labels out for
-    const { markup } = exportSvgMarkup(svgEl, { placedW: PLACED_W / (Number(textFactor) > 0 ? Number(textFactor) : 1) });
+    const markup = ovInset(exportSvgMarkup(svgEl, { placedW: PLACED_W / (Number(textFactor) > 0 ? Number(textFactor) : 1) }).markup); // ovInset: #3977
+    const figW = overviewRef.current?.width?.(markup) || dims.w; // #3977 — the inset beside it widens the figure
     const hScale = geomRef.current.hScale;
     // #2610 — the payload is built now (at the print size); the font goes in before it is sent
     const send = (p) => embedFigureFont(markup).catch(() => markup).then((m) => sendSectionSnapshot({ ...p, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` }));
     send({
       label: `${data?.title || "Cross-section"}${data?.section ? ` · ${sectionLookText(Number(data.section.azimuth ?? ((Math.atan2(data.section.bx - data.section.ax, data.section.by - data.section.ay) * 180) / Math.PI + 360) % 360))}` : ""}`, // #2308 — page text, English
-      naturalW: dims.w, naturalH: dims.h,
+      naturalW: figW, naturalH: dims.h, // figW: #3977, widened by the overview beside it
       sectionTabId: tabId, textFactor: Number(textFactor) > 0 ? Number(textFactor) : 1, replaceElementId: replaceElementId || null, resnapRound: round, // #1485 — so Layout can ask for the text at its print size
       // TASKS.csv — Layout scale-bar assignment for cross-sections: the real-world horizontal span
       // this snapshot represents at its native (naturalW) pixel width, so Layout can derive a scale
       // bar the same way it already does for viewport snapshots (worldHeightAtTarget).
-      worldWidthAtCaptureM: hScale ? dims.w / hScale : null,
+      worldWidthAtCaptureM: hScale ? figW / hScale : null,
       verticalExaggeration: geomRef.current.ve || vExag || 1, // TASKS.csv #944 — Layout states it beside the section's plot scale
       // TASKS.csv #1489 — the section line's azimuth (start -> end), as the subtitle computes it, for 'Looking N..E' on the page
       sectionAzimuth: data?.section ? Number(data.section.azimuth ?? ((Math.atan2(data.section.bx - data.section.ax, data.section.by - data.section.ay) * 180) / Math.PI + 360) % 360) : null,
@@ -390,12 +396,12 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // changes needed.
   const baseName = (data?.title || "section").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
   const exportSVG = () => {
-    const xml = atPrintSize(() => (svgRef.current ? exportSvgMarkup(svgRef.current, exportOpts()).markup : null)); // #1090; key: #2523
+    const xml = atPrintSize(() => (svgRef.current ? ovInset(exportSvgMarkup(svgRef.current, exportOpts()).markup) : null)); // #1090; key: #2523; ovInset: #3977
     if (!xml) return;
     embedFigureFont(xml).catch(() => xml).then((content) => saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content })); // #2610
   };
   const exportPNG = () => {
-    const out = atPrintSize(() => { const svg = svgRef.current, d = svgDims(); if (!svg || !d) return null; const m = exportSvgMarkup(svg, exportOpts()), vbH = svg.viewBox?.baseVal?.height || 0; return { xml: m.markup, dims: vbH && m.height > vbH ? { w: d.w, h: d.h * (m.height / vbH) } : d }; }); // #1090; the key band's height: #2523
+    const out = atPrintSize(() => { const svg = svgRef.current, d = svgDims(); if (!svg || !d) return null; const m = exportSvgMarkup(svg, exportOpts()), vbH = svg.viewBox?.baseVal?.height || 0; const xml = ovInset(m.markup) /* #3977 */, w = overviewRef.current?.width?.(xml) || d.w; return { xml, dims: vbH && m.height > vbH ? { w, h: d.h * (m.height / vbH) } : { ...d, w } }; }); // #1090; the key band's height: #2523
     if (!out) return;
     embedFigureFont(out.xml).catch(() => out.xml).then((xml) => { // #2610 — the PNG drawn with the figure's own font
     const { dims } = out;
@@ -417,7 +423,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   };
   const exportPDF = () => { // #1143 — the whole figure on one page, on the paper that suits its shape
     const d = svgDims();
-    return savePDF(`${baseName}.pdf`, sectionPaper(d?.w || 1, d?.h || 0));
+    const undo = overviewRef.current?.pdf?.(svgRef.current); // #3977 — the inset on the printed figure, taken off after
+    return Promise.resolve(savePDF(`${baseName}.pdf`, sectionPaper(d?.w || 1, d?.h || 0))).finally(() => undo?.());
   };
 
   // TASKS.csv #1230 — the toolbar keeps its height while drawing: fewer controls would otherwise move the section the other way
@@ -637,6 +644,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         <BlockModelKey slices={[...(data.voxelSlices || []), ...surveyKeys]} />{/* #3430: the surveys' ramps too */}
         <SectionKey rows={keyRows(false)} shown={showKey} onToggle={toggleKey} />{/* #2523 */}
       </div>
+      {data.overview && data.section && <SectionOverview model={data.overview} section={data.section} exportRef={overviewRef} busy={stepping} onMove={(off) => stepTo({ id: data.id, step: Math.sign(off), offsetM: Math.abs(off) })} />}{/* #3977 */}
     </div>
   );
 }
@@ -931,7 +939,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
         </g>
       ))}
       {(() => { // the frame's ends (#2979); #3410 — the right one a line lower when the two would overprint (a narrow re-drawn section)
-        const left = `${Math.round(ax + minL * ux).toLocaleString()} E  ${Math.round(ay + minL * uy).toLocaleString()} N`, right = `${Math.round(ax + maxL * ux).toLocaleString()} E  ${Math.round(ay + maxL * uy).toLocaleString()} N`;
+        const left = `A  ${Math.round(ax + minL * ux).toLocaleString()} E  ${Math.round(ay + minL * uy).toLocaleString()} N`, right = `${Math.round(ax + maxL * ux).toLocaleString()} E  ${Math.round(ay + maxL * uy).toLocaleString()} N  B`; // A / B: #3977, as the overview names the ends
         const y = H - PAD + 4 + fs(26), stack = stackEndLabels(left, right, W, PAD, fs(10));
         // TASKS.csv #3574 (3) (Fireweed rehearsal) — no scale on screen (the ratio came only on the Layout sheet): a bar of a round length (1, 2 or 5 x
         // 10^n m, about a seventh of the frame) between the two end labels, on screen only (Layout draws its own bound scale bar), where it fits

@@ -6,6 +6,13 @@ export default [
     id: "view-basics",
     area: "StrixViewer",
     title: "3D view basics",
+    // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Move around, colour holes by an assay, read a value, measure, draw a section.",
+    picture: { drop: ["holes"], alt: "Drill holes in the 3D view." },
+    cautions: ["Measure on a plan view: perspective is not a scale."],
+    instead: [{ text: "Importing", to: "Import drillhole data", page: "import-drillholes" }],
+    keys: ["Left-drag, right-drag, scroll", "Identify", "Colour by an assay"],
+    strip: ["Open Macpass", "Turn on Zn", "Filter holes", "Open a strip log"],
     summary: "Move around the 3D view, colour holes by an assay, filter them, read a value, measure, draw a section, open a strip log.",
     more: "Most of it is a mouse gesture or a button on StrixViewer's ribbon; the status bar's ? > Keyboard shortcuts lists every key.",
     notFor: [
@@ -13,11 +20,11 @@ export default [
       "Ctrl+= and Ctrl+- change the window's text size, not the view's zoom.",
     ],
     fields: [
-      { name: "Left-drag, right-drag, scroll", what: "Left-drag rotates (orbits), right-drag pans, the wheel zooms the mouse's way.", more: "How to choose: Pan along a section; rotate to see the pattern from another side. Middle-drag or Shift+left-drag also pan. With the view focused (click it once), + and - zoom and Home fits." },
+      { name: "Left-drag, right-drag, scroll", gist: "orbit, pan, zoom", what: "Left-drag rotates (orbits), right-drag pans, the wheel zooms the mouse's way.", more: "How to choose: Pan along a section; rotate to see the pattern from another side. Middle-drag or Shift+left-drag also pan. With the view focused (click it once), + and - zoom and Home fits." },
       { name: "Fit / Top / vertical exaggeration", what: "Fit frames the holes shown; Top looks down; exaggeration stretches depth.", more: "How to choose: Fit after changing what is shown; say so on a figure when exaggerated." },
-      { name: "Colour by an assay", what: "Turn an element on in the sidebar to colour the holes by its classes; the legend gives them.", more: "How to choose: Set the class limits from your own grades (Grade statistics). A hole with no sample stays plain; edit the classes in the element's style dialog." },
+      { name: "Colour by an assay", gist: "turn an element on in the sidebar", what: "Turn an element on in the sidebar to colour the holes by its classes; the legend gives them.", more: "How to choose: Set the class limits from your own grades (Grade statistics). A hole with no sample stays plain; edit the classes in the element's style dialog." },
       { name: "Holes list and the hole filter", what: "Ticks holes on and off; the filter box finds holes by id, field or test.", more: "How to choose: Filter holes by year or type to compare campaigns; no:assays finds the unassayed. The filter takes part of an id, field=value (year=2017), a number test (length>300, year=2017..2023, all must hold), has:assays / no:assays, or a layer name (has:litho, no:sg). Check, Uncheck and Only these act on the holes listed; a filter matching nothing says what it read." },
-      { name: "Identify", what: "Click a hole, interval, sample or surface to read its values and unit.", choose: "Before trusting a colour: it gives the number behind it." },
+      { name: "Identify", gist: "the number behind a colour", what: "Click a hole, interval, sample or surface to read its values and unit.", choose: "Before trusting a colour: it gives the number behind it." },
       { name: "Measure", what: "Click points: Distance gives the path and straight lengths, Area the plan area.", choose: "Measure on the plan or a clear point; perspective is not a scale.", more: "Distance shows the total path, the straight distance from the start and the last segment's length, bearing and rise; Area the plan-view area and perimeter. Switch with the pills; click the button again to stop." },
       { name: "Right-click menu", what: "A right-click on the view or a sidebar row opens its actions.", more: "How to choose: Shift+F10 or the Menu key from the keyboard." },
       { name: "Strip log", what: "A hole's log: depth down the page, logs as colour, density and assays as bars.", more: "How to choose: Open it from the button on a hole's row; set the depth range to the interval of interest. Fit scales a long hole to the window; Sampled draws only the sampled depths; Add to Layout puts it on a page. For several holes side by side, use the Several holes: Fence diagram button in the strip log (also 3D Modelling > Fence diagram)." },
@@ -42,6 +49,12 @@ export default [
     id: "downhole-compositing",
     area: "Geochem",
     title: "Downhole compositing",
+    // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Averages each hole's assays into equal-length composites, length-weighted.",
+    picture: { help: "composite", alt: "A hole's samples of uneven length, the same metres as equal composites, with a short end piece and a gap with no sample." },
+    cautions: ["It changes no assay: it makes a composites table."],
+    keys: ["Composite length (m)", "Min coverage (%)", "Short end piece (and when under (m))"],
+    strip: ["Pick Zn", "Read the table", "Set a cap", "Keep as a layer"],
     summary: "Combines each hole's assays into composites of one length: each the length-weighted average of the samples it covers.",
     more: "Composites never cross a change of the chosen domain layer, and one without enough real assay data (the minimum coverage) is not reported. Standards, blanks and duplicates are left out unless ticked; pXRF readings are always left out.",
     notFor: [
@@ -49,12 +62,12 @@ export default [
     ],
     fields: [
       { name: "Element", what: "The element composited, in its stored unit." },
-      { name: "Composite length (m)", what: "Each composite's length; the window names the commonest sample length.", more: "How to choose: That length, or a multiple that fits your bench or block size." },
-      { name: "Min coverage (%)", what: "The share of a composite that must hold real assay data for it to be reported.", more: "How to choose: Lower it if no composites meet the criteria." },
+      { name: "Composite length (m)", gist: "the commonest sample length is offered", what: "Each composite's length; the window names the commonest sample length.", more: "How to choose: That length, or a multiple that fits your bench or block size." },
+      { name: "Min coverage (%)", gist: "share that must hold assays", what: "The share of a composite that must hold real assay data for it to be reported.", more: "How to choose: Lower it if no composites meet the criteria." },
       { name: "Honour domain", what: "A domain layer whose boundaries a composite never crosses.", more: "How to choose: The domain you will estimate by; none runs collar to end." },
       { name: "Cap", what: "Cuts a raw sample back to this grade before averaging.", more: "How to choose: From the probability plot (Grade statistics), not another deposit's number." },
       { name: "Weight grades by", what: "Length, or length × density (shown when the project has densities).", more: "How to choose: Length × density where density varies a lot (massive sulphide). A sample with no density takes the others' mean; the composite's limits do not change, only its grade. The result says the weighting and how many composites had no density." },
-      { name: "Short end piece (and when under (m))", what: "The short last piece of a hole or domain: Keep, Add to the composite above, or Drop.", more: "How to choose: Keep to show every metre; Add above for equal support; Drop knowing the metres go." },
+      { name: "Short end piece (and when under (m))", gist: "keep, add above, or drop", what: "The short last piece of a hole or domain: Keep, Add to the composite above, or Drop.", more: "How to choose: Keep to show every metre; Add above for equal support; Drop knowing the metres go." },
       { name: "Also composite:", what: "Other elements composited on the same windows, in one table.", more: "How to choose: The elements you report or estimate together. A window with a value for another element but none for the first is in the table, not in the layer Keep as a layer makes; the message counts them." },
       { name: "Keep as a layer in the project", what: "Adds the composites as a numeric layer that Estimation and the shells can read.", more: "How to choose: To carry exactly these composites on." },
       { name: "Export composites (CSV)", what: "Writes the table as shown, with the settings in the header lines.", more: "How to choose: After the last change: the file does not update." },
@@ -87,7 +100,7 @@ export default [
     title: "Best intercepts",
     // TASKS.csv #3973 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Each hole's intersections above a cut-off, length-weighted, with internal dilution.",
-    picture: { drop: ["log", "table"], alt: "A hole's logged samples become a table of intercepts." }, // N6 / N8 when they are drawn (batch B)
+    picture: { help: "composite", alt: "A hole's samples of uneven length, the same metres as equal composites, and an intercept with internal dilution." }, // N6: TASKS.csv #3978 (N8, true width, is not drawn yet)
     cautions: ["A screening tool: check every intercept against the certificates.", "Lengths are downhole, not true widths, until you give the dip.", "A sample with no result is not zero."],
     keys: ["Cut-off", "Max internal dilution (m)", "Including at ≥"],
     strip: ["Pick Zn and a cut-off", "Read the table", "Fill Including at ≥"],
@@ -136,6 +149,12 @@ export default [
     id: "grade-statistics",
     area: "Geochem",
     title: "Grade statistics",
+    // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "An element's grade distribution per domain, length-weighted, with a cut-off share.",
+    picture: { drop: ["plot"], alt: "A histogram and a probability plot of an element's grades." },
+    cautions: ["It does not choose a cap: read where the tail bends."],
+    keys: ["Domain", "Cut-off", "CV%"],
+    strip: ["Pick Zn", "Tick Log scale", "Set a cut-off"],
     summary: "An element's grade distribution per domain: length-weighted statistics, the share above a cut-off, a histogram and a probability plot.",
     more: "Count, mean, median, SD, CV, minimum and maximum; length-weighted on the assay intervals (an overlapping interval counted once), so a 0.3 m sample counts less than a 3 m one. Surface samples have no length, so no weighting.",
     notFor: [
@@ -143,10 +162,10 @@ export default [
       "Standards, blanks and duplicates are left out unless ticked; pXRF readings always.",
     ],
     fields: [
-      { name: "Domain", what: "The layer the statistics are split by; None gives all together.", more: "How to choose: The domain you will estimate by." },
-      { name: "Cut-off", what: "Adds the share of samples and of metres above a grade.", more: "How to choose: Your reporting cut-off." },
+      { name: "Domain", gist: "splits the statistics", what: "The layer the statistics are split by; None gives all together.", more: "How to choose: The domain you will estimate by." },
+      { name: "Cut-off", gist: "share of samples and metres above", what: "Adds the share of samples and of metres above a grade.", more: "How to choose: Your reporting cut-off." },
       { name: "Mean", what: "The length-weighted mean grade.", more: "How to choose: Read it with the median: far above it means a high tail." },
-      { name: "CV%", what: "Standard deviation over mean, in per cent.", more: "How to choose: A high CV says the grades are skewed; a cap may be worth considering." },
+      { name: "CV%", gist: "spread over mean", what: "Standard deviation over mean, in per cent.", more: "How to choose: A high CV says the grades are skewed; a cap may be worth considering." },
       { name: "% of metres", what: "The share of sampled metres above the cut-off.", more: "How to choose: Against % of samples: were the high grades sampled short?" },
     ],
     warnings: [
@@ -169,6 +188,12 @@ export default [
     id: "qaqc",
     area: "Geochem",
     title: "QAQC — lab quality control",
+    // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Judges standards, blanks and duplicates in the assays. It corrects nothing.",
+    picture: { help: "control", alt: "A control chart: the certified value, lines at 2 and 3 standard deviations, one standard outside its limit." },
+    cautions: ["A failed standard or blank is a question for the lab."],
+    keys: ["Limit", "RPD %", "Flag"],
+    strip: ["Import assays with QC", "Read the counts", "Pick an element", "Enter the limit"],
     summary: "Judges the control samples in the assays: standards on a control chart, blanks against a limit, duplicates by their difference.",
     more: "Control samples are found by a sample-type column, else by their ids, and are left out of intercepts, compositing, estimation and statistics.",
     notFor: [
@@ -177,10 +202,10 @@ export default [
     ],
     fields: [
       { name: "Type", what: "A sample's detected type: standard, blank or duplicate.", more: "How to choose: If one is mistyped, add a sample-type column and import again." },
-      { name: "Limit", what: "The lab's lower detection limit, used to judge blanks and duplicates.", more: "How to choose: From the certificate; it is also read from the '<' results." },
+      { name: "Limit", gist: "the lab's detection limit", what: "The lab's lower detection limit, used to judge blanks and duplicates.", more: "How to choose: From the certificate; it is also read from the '<' results." },
       { name: "Original", what: "The first sample of a duplicate pair.", more: "How to choose: Tick the repeated-rows box only for files that store duplicates as second rows." },
-      { name: "RPD %", what: "A duplicate pair's relative percent difference; pairs near the limit are greyed.", more: "How to choose: Compare the spread with the lab's precision statement." },
-      { name: "Flag", what: "A standard outside its limits, or a blank above the contamination limit.", more: "How to choose: Enter the certificate's mean and SD for certified limits. Limits are the certified mean ± 2 or 3 SD, or without a certificate the self-referencing mean ± 2 or 3 SD." },
+      { name: "RPD %", gist: "a duplicate pair's difference", what: "A duplicate pair's relative percent difference; pairs near the limit are greyed.", more: "How to choose: Compare the spread with the lab's precision statement." },
+      { name: "Flag", gist: "outside its limits", what: "A standard outside its limits, or a blank above the contamination limit.", more: "How to choose: Enter the certificate's mean and SD for certified limits. Limits are the certified mean ± 2 or 3 SD, or without a certificate the self-referencing mean ± 2 or 3 SD." },
     ],
     warnings: [
       { says: "No repeated standard insertions found.", do: "Give the standards a sample-type column or a recognizable id." },

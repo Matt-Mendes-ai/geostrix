@@ -51,5 +51,5 @@ test("the pane runs it through the worker, shows the level and a cancel, and ask
   assert.doesNotMatch(p, /\bstopeOutlines\(model/);
   assert.match(p, /runStopeOutlinesAsync\(model, \{/);
   assert.match(p, /Outlining level \{k\} of \{n\}: cancel/);
-  assert.match(p, /v\("levelH"\) < blockH - 1e-9 && !window\.confirm\(/);
+  assert.match(p, /v\("levelH"\) < blockH - 1e-9 && !(?:await askConfirm|window\.confirm)\(/);
 });

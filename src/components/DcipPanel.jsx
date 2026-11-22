@@ -207,7 +207,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       try { files.push({ name: f.name, ...parseStationFile(decodeTableBytes(await f.arrayBuffer()).text, f.name) }); } catch (e) { problems.push(`${f.name}: ${e.message}`); }
     }
     const stated = files.find((x) => x.epsg)?.epsg;
-    const adopted = stated ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: stated, fileName: files.find((x) => x.epsg).name }) : null;
+    const adopted = stated ? await askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: stated, fileName: files.find((x) => x.epsg).name }) : null;
     if (adopted) setEpsg(adopted);
     const dst = Number(adopted || projectTargetEpsg(project)); // #2242
     const to = (x, y, from) => { if (!from || !dst || from === dst) return [x, y]; const q = reprojectXY(x, y, from, dst); return q ? [q.x, q.y] : [x, y]; };
@@ -393,7 +393,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
             <option value="">{tr("Lines in this project ({dcipLines})…", { dcipLines: dcipLines.length })}</option>
             {dcipLines.map((l) => <option key={l.id} value={l.id}>{tr("{name} — {readings} readings{v}", { name: l.name, readings: l.readings.length, v: l.section ? tr(", inverted") : "" })}</option>)}
           </select>
-          {pick && <button onClick={() => { const e = dcipLines.find((l) => l.id === pick); if (!confirmDestructive(tr("Remove the saved line \"{name}\"{inv} from the project?", { name: e?.name || "", inv: e?.section ? tr(" and its inversion result") : "" }), { recover: e?.section ? tr("re-import the line file and run the inversion again.") : tr("re-import the line file.") })) return; removeDcipLine(pick); setPick(""); }} /* confirm: #322 */ title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")} style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={14} /></button>}
+          {pick && <button onClick={async () => { const e = dcipLines.find((l) => l.id === pick); if (!await confirmDestructive(tr("Remove the saved line \"{name}\"{inv} from the project?", { name: e?.name || "", inv: e?.section ? tr(" and its inversion result") : "" }), { recover: e?.section ? tr("re-import the line file and run the inversion again.") : tr("re-import the line file.") })) return; removeDcipLine(pick); setPick(""); }} /* confirm: #322 */ title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")} style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={14} /></button>}
         </div>
       )}
       <input ref={fileRef} type="file" multiple accept=".csv,.txt,.dat,.ipg,.arw,.gpx,.wpt" style={{ display: "none" }} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />

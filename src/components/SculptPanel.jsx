@@ -23,13 +23,14 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
       {surface.editCount > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 6, lineHeight: 1.45 }}>
           <strong>{tr("This surface has been hand-edited.")}</strong> {tr("{editCount} {v} applied after generation, so it is no longer only the output of the parameters above; every mesh export says so. Last edit {v2}", { editCount: surface.editCount, v: tr(surface.editCount === 1 ? "manual edit" : "manual edits"), v2: edits.length ? new Date(edits[edits.length - 1].at).toLocaleString() : "—" })}
-          {edits.length > 0 && (
+          {edits.length > 0 && edits[edits.length - 1].kind === "piece" && <span>{" "}{tr("(a separate piece removed or split off).")}</span>/* TASKS.csv #3991 */}
+          {edits.length > 0 && edits[edits.length - 1].kind !== "piece" && (
             <span>
               {" "}{tr("({v} m {v2}, {radiusM} m brush, {verticesMoved} vertices).", { v: num(edits[edits.length - 1].offsetM, 2), v2: edits[edits.length - 1].axis === "vertical" ? tr("vertical") : tr("along the normal"), radiusM: edits[edits.length - 1].radiusM, verticesMoved: edits[edits.length - 1].verticesMoved.toLocaleString() })}</span>
           )}
           {" "}{tr("Cumulative volume change across all edits:")}{" "}
           <strong>
-            {edits.length
+            {edits.length && edits[edits.length - 1].volumeAfterM3 != null && edits[0].volumeBeforeM3 != null // #3991: a piece edit on an open mesh has no volumes
               ? `${edits[edits.length - 1].volumeAfterM3 - edits[0].volumeBeforeM3 >= 0 ? "+" : ""}${num(edits[edits.length - 1].volumeAfterM3 - edits[0].volumeBeforeM3, 0)} m³`
               : "—"}
           </strong>{" "}{tr("from {v} m³ as generated. The volume and tonnage above are recomputed from the edited mesh, not carried over.", { v: num(edits.length ? edits[0].volumeBeforeM3 : null, 0) })}</div>

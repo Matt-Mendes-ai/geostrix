@@ -112,6 +112,11 @@ export function tiesText(points) {
   return (points || []).filter((p) => p?.snap?.hole_id).map(({ snap: s }) => (s.kind === "collar" ? `${s.hole_id} collar${mv(s) ? ` (${mv(s)})` : ""}` : s.kind === "trace" ? `${s.hole_id} ${s.md} m${mv(s) ? ` (${mv(s)})` : ""}` : `${s.hole_id} ${s.md} m (${s.label}${mv(s) ? `, ${mv(s)}` : ""})`)).join("; ");
 }
 
+// TASKS.csv #3972 (Matt: 'draw it on a level plan of my choice ... combine with the 3d slice tool and draw vein zone at depth') — a line
+// drawn on a level (an RL, or the 3D slice's plane) keeps that RL in its attributes (level_rl, exported like any field) and on every vertex
+// ([x, y, RL]); it is drawn at that depth, not draped (sceneBuilders syncMapLayers), and exported with z. opts.level: the RL, or none.
+export const LEVEL_FIELD = "level_rl";
+export const lineLevel = (f) => { const v = f?.attributes?.[LEVEL_FIELD]; return typeof v === "number" && Number.isFinite(v) ? v : null; };
 export function addInterpretationLine(layer, points, attrs = {}, opts = {}) {
   const pts = points.filter((p, i) => i === 0 || Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) > 0.01);
   if (pts.length < 2) return layer;
@@ -120,16 +125,17 @@ export function addInterpretationLine(layer, points, attrs = {}, opts = {}) {
   let n = layer.features.filter((f) => f.attributes?.type === type).length + 1;
   while (!attrs.name && layer.features.some((f) => f.attributes?.name === `${typeLabel(type)} ${n}`)) n++;
   const feature = {
-    parts: [pts.map((p) => [r2(p.x), r2(p.y)])],
+    parts: [pts.map((p) => (Number.isFinite(opts.level) ? [r2(p.x), r2(p.y), r2(opts.level)] : [r2(p.x), r2(p.y)]))], // #3972 — z = the level
     attributes: { name: attrs.name || `${typeLabel(type)} ${n}`, type, survey: attrs.survey ?? layer.survey ?? "", confidence: CONFIDENCE.includes(attrs.confidence) ? attrs.confidence : "probable", length_m: Math.round(lineLengthM(pts)), note: attrs.note || "" },
   };
-  const z = Number.isFinite(opts.elevation) ? opts.elevation : median(pts.map((p) => p.z)); // NaN with no elevations
+  if (Number.isFinite(opts.level)) feature.attributes[LEVEL_FIELD] = r2(opts.level); // #3972
+  const z = Number.isFinite(opts.elevation) ? opts.elevation : Number.isFinite(opts.level) ? NaN : median(pts.map((p) => p.z)); // NaN with no elevations; a level line does not set the layer's Elev.
   const elevation = layer.features.length === 0 && Number.isFinite(z) ? r2(z) : layer.elevation;
   const attitude = { ...(attrs.attitude || {}) };
   const ties = tiesText(pts); // #2630
   if (ties) { attitude.ties = ties; feature.tieVerts = pts.map((p) => (p.snap?.hole_id ? { ...p.snap } : null)); } // #2767 — per vertex, for an edit
   Object.assign(feature.attributes, attitude);
-  const fields = [...layer.fields, ...Object.keys(attitude).filter((k) => !layer.fields.includes(k))]; // #1239 — a field appears with its first value
+  const fields = [...layer.fields, ...Object.keys(attitude).filter((k) => !layer.fields.includes(k)), ...(Number.isFinite(opts.level) && !layer.fields.includes(LEVEL_FIELD) ? [LEVEL_FIELD] : [])]; // #1239 — a field appears with its first value
   return withBbox({ ...layer, elevation, fields, features: [...layer.features, feature] });
 }
 
@@ -139,7 +145,7 @@ export function addInterpretationLine(layer, points, attrs = {}, opts = {}) {
 export function moveInterpretationVertex(layer, index, vi, xy, snap = null) {
   const f = layer?.features?.[index], part = f?.parts?.[0];
   if (!part || !(vi >= 0 && vi < part.length) || !Number.isFinite(xy?.[0]) || !Number.isFinite(xy?.[1])) return layer;
-  const nextPart = part.map((q, i) => (i === vi ? [r2(xy[0]), r2(xy[1])] : q));
+  const lv = lineLevel(f), nextPart = part.map((q, i) => (i === vi ? (lv != null ? [r2(xy[0]), r2(xy[1]), lv] : [r2(xy[0]), r2(xy[1])]) : q)); // lv: #3972 — stays at its level
   const legacy = !f.tieVerts && !!f.attributes?.ties && !snap;
   const tv = (f.tieVerts || part.map(() => null)).map((t, i) => (i === vi ? (snap?.hole_id ? { ...snap } : null) : t));
   return withLineEdit(layer, index, f, nextPart, tv, legacy);
@@ -150,7 +156,7 @@ export function moveInterpretationVertex(layer, index, vi, xy, snap = null) {
 export function insertInterpretationVertex(layer, index, at, xy, snap = null) {
   const f = layer?.features?.[index], part = f?.parts?.[0];
   if (!part || !(at >= 1 && at <= part.length - 1) || !Number.isFinite(xy?.[0]) || !Number.isFinite(xy?.[1])) return layer;
-  const nextPart = [...part.slice(0, at), [r2(xy[0]), r2(xy[1])], ...part.slice(at)];
+  const lv = lineLevel(f), nextPart = [...part.slice(0, at), lv != null ? [r2(xy[0]), r2(xy[1]), lv] : [r2(xy[0]), r2(xy[1])], ...part.slice(at)]; // lv: #3972
   const tv0 = f.tieVerts || part.map(() => null), tv = [...tv0.slice(0, at), snap?.hole_id ? { ...snap } : null, ...tv0.slice(at)];
   return withLineEdit(layer, index, f, nextPart, tv, !f.tieVerts && !!f.attributes?.ties && !snap);
 }

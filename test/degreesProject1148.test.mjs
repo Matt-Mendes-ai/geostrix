@@ -7,25 +7,25 @@ import { isMetricProjectedEpsg, crsName } from "../src/lib/reproject.js";
 
 const OUTBACK = { lon: 133.9, lat: -23.7 }; // Alice Springs: UTM 53 S
 
-test("#1148 public samples in latitude / longitude: the metric CRS for the place is offered, not degrees", () => {
+test("#1148 public samples in latitude / longitude: the metric CRS for the place is offered, not degrees", async () => {
   let asked = "";
-  const pick = askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 4326, fileName: "public.csv", at: OUTBACK }, (m) => { asked = m; return true; });
+  const pick = await askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 4326, fileName: "public.csv", at: OUTBACK }, (m) => { asked = m; return true; });
   assert.equal(isMetricProjectedEpsg(pick), true);
   assert.match(crsName(pick), /53/);
   assert.match(crsName(pick), /^GDA/); // Australia's own datum first
   assert.match(asked, /latitude and longitude/);
   assert.ok(!asked.includes("use EPSG:4326"));
   // Cancel keeps what the project had; a metric file is offered as itself, as before
-  assert.equal(askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 4326, fileName: "x", at: OUTBACK }, () => false), null);
-  assert.equal(askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 32753, fileName: "x", at: OUTBACK }, () => true), 32753);
+  assert.equal(await askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 4326, fileName: "x", at: OUTBACK }, () => false), null);
+  assert.equal(await askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 32753, fileName: "x", at: OUTBACK }, () => true), 32753);
   // already the right CRS: nothing to ask
   const right = crsCandidatesAt(OUTBACK.lon, OUTBACK.lat)[0].code;
-  assert.equal(askAdoptCrs({ isEmpty: true, currentEpsg: right, declaredEpsg: 4326, fileName: "x", at: OUTBACK }, () => { throw new Error("asked"); }), null);
+  assert.equal(await askAdoptCrs({ isEmpty: true, currentEpsg: right, declaredEpsg: 4326, fileName: "x", at: OUTBACK }, () => { throw new Error("asked"); }), null);
   // a project with data: no offer at all
-  assert.equal(askAdoptCrs({ isEmpty: false, currentEpsg: 3156, declaredEpsg: 4326, fileName: "x", at: OUTBACK }, () => true), null);
+  assert.equal(await askAdoptCrs({ isEmpty: false, currentEpsg: 3156, declaredEpsg: 4326, fileName: "x", at: OUTBACK }, () => true), null);
 });
 
-test("#1148 the middle of a project in degrees: collars, then samples, then terrain, then map layers", () => {
+test("#1148 the middle of a project in degrees: collars, then samples, then terrain, then map layers", async () => {
   const s = [{ x: 133, y: -23 }, { x: 134, y: -24 }, { x: 135, y: -25 }];
   assert.deepEqual(degreesCentre({ surfaceSamples: s }), { lon: 134, lat: -24 });
   assert.deepEqual(degreesCentre({ collars: [{ x: 10, y: 20 }], surfaceSamples: s }), { lon: 10, lat: 20 });

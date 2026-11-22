@@ -53,7 +53,7 @@ export const ROCK_LAYERS = {
 // TASKS.csv #3908 step 3 — one rock as a shape that cuts the others: the implicit run on that unit. The run draws a cross-cutting shape only
 // for a rock it reads as one (a dyke, vein, breccia or intrusion: its name, or its role in Modelling codes); any other rock it draws as the
 // top of a layer, so the tool says where to mark it instead of building the wrong surface (found live on WA lode gold: "cl").
-const BODY_ROLES = new Set(["dyke", "vein", "breccia", "intrusion", "cross-cutting"]);
+export const BODY_ROLES = new Set(["dyke", "vein", "breccia", "intrusion", "cross-cutting"]); // exported: an AI app's build_surface picks the tool by role (#3932)
 export const BODIES = {
   id: "bodies",
   title: "Intrusions and bodies",

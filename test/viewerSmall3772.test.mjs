@@ -27,7 +27,7 @@ test("#3772 the Hole labels select offers the toe and both ends", () => {
 
 test("#3775 (2) the hover tip is cleared when the camera moves; (4) the cluster button clears the filter box", () => {
   assert.match(vm, /if \(sig !== tipSigRef\.current\) \{ tipSigRef\.current = sig; setTooltip\(null\); \}/);
-  assert.match(vm, /<ModellingPanes \{\.\.\.\{ visibleHoles, setVisibleHoles, setHoleFilter,/);
+  assert.match(vm, /<ModellingPanes \{\.\.\.\{ setStackUnits, visibleHoles, setVisibleHoles, setHoleFilter,/);
   assert.match(read("../src/modules/viewer/ModellingPanes.jsx"), /setModelArea\("checked"\); setHoleFilter\?\.\(""\); \}\}/);
 });
 

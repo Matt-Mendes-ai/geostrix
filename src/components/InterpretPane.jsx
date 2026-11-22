@@ -17,13 +17,15 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import { lineLevel } from "../lib/interpretation.js"; // TASKS.csv #3972
+import { piercePoints } from "../lib/levelPlan.js"; // TASKS.csv #3972 — the holes crossing the level
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)" };
 
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 // presetSurvey: the survey a Geophysics-tab button named (TASKS.csv #1152), or null.
-export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDone, presetSurvey, onClose, onSnap = null, view = null, snapCtx = null }) { // view / snapCtx: #2767
+export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDone, presetSurvey, onClose, onSnap = null, view = null, snapCtx = null, onLevel = null, sliceRL = null }) { // view / snapCtx: #2767; onLevel / sliceRL: #3972
   const { mapLayers, addMapLayer, updateMapLayer, layers, rasters, terrain, collars, survey: holeSurvey, voxelModels, surfaceSamples, surfaceStructures } = useStore(); // surfaceStructures: #3044 // holeSurvey: the drillhole survey, not the geophysics one picked below
   // TASKS.csv #2269 — no terrain and no grid shown for the clicks to land on: they fall on the scene's origin plane, so the lines go at a
   // stated plan elevation instead (on a shown grid the clicks keep its elevation, as before)
@@ -50,6 +52,13 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   const attitude = attitudeOf(type);
   const [msg, setMsg] = useState(null);
   const pts = drawing.points, n = pts.length;
+  // TASKS.csv #3972 — Draw on: the terrain (as before), a level (an RL typed here) or the 3D slice's plane (its level, followed as it moves). On a
+  // level the clicks land on that horizontal plane (shown faintly), each vertex at that RL, and the line is drawn there, not draped.
+  const [drawOn, setDrawOn] = useState("terrain");
+  const [levelRl, setLevelRl] = useState(() => { const zs = (collars || []).map((c) => Number(c.elevation ?? c.z)).filter(Number.isFinite).sort((a, b) => a - b); return zs.length ? Math.round(zs[zs.length >> 1] / 10) * 10 - 100 : 0; });
+  const level = drawOn === "level" && Number.isFinite(levelRl) ? levelRl : drawOn === "slice" && Number.isFinite(sliceRL) ? Math.round(sliceRL * 100) / 100 : null;
+  useEffect(() => { onLevel?.(level); }, [level]); // onLevel: a new function each render
+  useEffect(() => () => onLevel?.(null), []); // the pane closed: the 3D view draws on the ground again
   const lastSnap = n ? pts[n - 1].snap : null; // TASKS.csv #2630 — what the last click was tied to
 
   const finish = () => {
@@ -63,7 +72,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
       target = { ...fresh, name: uniqueLayerName(fresh.name, mine) }; // TASKS.csv #1157
       id = addMapLayer(target); setLayerPick(id); setNewName("");
     }
-    const next = addInterpretationLine(target, pts, attrs, plan ? { elevation: elevNow } : {}); // elevNow: #2522 — the pane's Elev. box
+    const next = addInterpretationLine(target, pts, attrs, { ...(plan ? { elevation: elevNow } : {}), ...(level != null ? { level } : {}) }); // elevNow: #2522 — the pane's Elev. box; level: #3972
     updateMapLayer(id, () => ({ ...next, id }));
     setName(""); setNoteText(""); setAngle(""); setDirection(""); setMsg(tr("Added \"{name}\" to \"{layer}\" ({m} m).", { name: next.features[next.features.length - 1].attributes.name, layer: next.name, m: Math.round(lineLengthM(pts)).toLocaleString() }));
     onDone();
@@ -88,8 +97,13 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
       for (const f of l.features || []) for (const part of f.parts || (f.geometry ? [f.geometry] : [])) for (const v of part || []) if (Array.isArray(v) && points.length < MAX) points.push({ x: v[0], y: v[1], z: zAt(v[0], v[1], l.drapeMode === "file" ? v[2] : NaN, l.elevation || 0), label: l.name, kind: "vertex" });
     }
     for (const st of surfaceStructures || []) if (st.visible !== false) for (const r of st.rows || []) if (Number.isFinite(r.x) && Number.isFinite(r.y) && points.length < MAX) points.push({ x: r.x, y: r.y, z: zAt(r.x, r.y, r.z, 0), label: r.station || st.name, kind: "station" });
+    // #3972 — on a level: where each hole crosses it (as the Level plan's pierce points), tied to the hole and its depth
+    if (level != null) for (const t of snapCtx?.()?.traces || []) {
+      const wt = (t.pts || []).map((p, i) => ({ md: p.md, x: t.wx?.[i], y: t.wy?.[i], z: t.wz?.[i] })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.z));
+      for (const q of piercePoints(wt, level)) if (points.length < MAX) points.push({ x: q.x, y: q.y, z: level, label: `RL ${level}`, kind: "pierce", hole_id: t.hole_id, md: Math.round(q.md * 10) / 10 });
+    }
     return { points };
-  }, [mapLayers, surfaceStructures, groundAt]);
+  }, [mapLayers, surfaceStructures, groundAt, level]); // snapCtx reads the traces now
   useEffect(() => { setInterpretSnapExtras(snapExtras); return () => setInterpretSnapExtras(null); }, [snapExtras]);
   useInterpretVertexEdit({ view, layer: editIdx != null ? layer : null, index: editIdx, groundAt, snap: { on: drawing.snap !== false, ctx: snapCtx },
     onMove: (vi, xy, tie) => { if (layer) updateMapLayer(layer.id, (l) => ({ ...moveInterpretationVertex(l, editIdx, vi, xy, tie), id: layer.id })); },
@@ -144,8 +158,16 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
         <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={tr("Note (optional)")} aria-label={tr("Line note")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         {onSnap && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("A click near a collar, a logged boundary of a shown layer or a hole's trace snaps to it, and the line records the hole. In Top view only collars are taken: every contact of a vertical hole is under its collar.")} /* plan: #2972 */>{/* #2630 */}
           <input type="checkbox" checked={drawing.snap !== false} onChange={(e) => onSnap(e.target.checked)} />{tr("Snap to holes and logged contacts")}</label>}
+        {onLevel && <label style={row}>{tr("Draw on")}{/* TASKS.csv #3972 */}
+          <select value={drawOn} onChange={(e) => setDrawOn(e.target.value)} disabled={drawing.on} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Draw on")}>
+            <option value="terrain">{tr("The terrain")}</option>
+            <option value="level">{tr("A level (RL)")}</option>
+            <option value="slice">{tr("The 3D slice plane")}</option>
+          </select></label>}
+        {onLevel && drawOn === "level" && <label style={row}>{tr("Elev. (m RL)")}<NumberInput value={levelRl} onChange={(v) => setLevelRl(Number.isFinite(v) ? v : levelRl)} disabled={drawing.on} aria-label={tr("Elev. (m RL)")} style={{ width: 90 }} /></label>}
+        {onLevel && drawOn === "slice" && <div role="note" style={note}>{level == null ? tr("Turn on the 3D slice, Horizontal, to draw at its level.") : tr("RL {rl} m", { rl: level.toLocaleString() })}</div>}
         {!drawing.on ? (
-          <button type="button" onClick={onStart} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Draw a line")}</button>
+          <button type="button" onClick={onStart} disabled={drawOn === "slice" && level == null} style={{ ...pBtn, justifyContent: "center", marginBottom: 0, opacity: drawOn === "slice" && level == null ? 0.5 : 1 }}>{tr("Draw a line")}</button>
         ) : (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{n ? tr("{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.", { n, m: Math.round(lineLengthM(pts)).toLocaleString() }) : tr("Click the first point of the line.") /* #2274 — the pane is also the mapping tab's */}</div>
@@ -172,7 +194,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
               <div key={i} style={{ ...row, padding: "4px 6px", borderBottom: "1px solid var(--color-divider)" }}>
                 <span style={{ display: "inline-block", width: 10, height: 3, background: layer.categories.find((c) => c.value === f.attributes.type)?.color || "#888", flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.attributes.name} · ${typeLabel(f.attributes.type)} · ${f.attributes.confidence}${f.attributes.survey ? ` · ${f.attributes.survey}` : ""}${f.attributes.note ? `\n${f.attributes.note}` : ""}${f.attributes.ties ? `\n${tr("Tied to: {v}", { v: f.attributes.ties })}` : "" /* #2630 */}`}>{f.attributes.name}</span>
-                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{f.attributes.length_m.toLocaleString()} m</span>
+                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{f.attributes.length_m.toLocaleString()} m{lineLevel(f) != null ? ` · ${tr("RL {rl} m", { rl: lineLevel(f).toLocaleString() })}` : ""}{/* #3972 */}</span>
                 {view && !drawing.on && <Pencil size={13} role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Edit the vertices of \"{name}\"", { name: f.attributes.name })} onClick={() => setEditIdx((v) => (v === i ? null : i))} style={{ cursor: "pointer", color: editIdx === i ? "var(--color-accent)" : "var(--color-text-secondary)", flexShrink: 0 }} />}{/* #2767 */}
                 <Trash2 size={13} role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove line \"{name}\"", { name: f.attributes.name })} onClick={() => remove(i)} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} />
               </div>

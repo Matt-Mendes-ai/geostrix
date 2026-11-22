@@ -1,5 +1,6 @@
 import React from "react";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { askAlert } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // React 18's createRoot has no default error UI: an uncaught error during render unmounts the
 // WHOLE tree and leaves nothing behind but the page background — which in this app is a very dark
@@ -45,7 +46,7 @@ ${info?.componentStack || ""}`.slice(0, 6000) }); if (list.length > 50) list.spl
           <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 12, wordBreak: "break-word" }}>{String(this.state.error?.message || this.state.error)}</div>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 14 }}>{tr("Your project is still open and nothing has been lost. Saving now is a good idea.")}</div>
           {this.props.onSave && (
-            <button onClick={async () => { const r = await this.props.onSave(); if (r && !r.ok && r.error) window.alert(tr("The project could not be saved: {error}", { error: r.error })); /* #467 */ }} style={{ marginRight: 10, padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>{tr("Save project…")}</button>
+            <button onClick={async () => { const r = await this.props.onSave(); if (r && !r.ok && r.error) askAlert(tr("The project could not be saved: {error}", { error: r.error })); /* #467 */ }} style={{ marginRight: 10, padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>{tr("Save project…")}</button>
           )}
           <button onClick={() => { this.setState({ error: null }); this.props.onClose?.(); }} style={{ padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>
             {this.props.scope === "modal" ? tr("Close") : tr("Try again")}

@@ -23,6 +23,6 @@ test("the run asks before the grid, stops with an info notice on Cancel, and kee
   const ask = r.indexOf("const past = isCode && !seam ? bodyCellPastRuns(cell, autoB, coarsened) : null;"); // #2384: a seam grid, when it fits, replaces the question
   const grid = r.indexOf('const grid = await runEstimation("dense", gridPts');
   assert.ok(ask > 0 && grid > ask, "asked before the interpolation");
-  assert.match(r, /if \(!window\.confirm\(`\$\{msg\}\n\n\$\{tr\("OK runs it anyway; Cancel stops here\."\)\}`\)\) \{ const stop = new Error\(msg\); stop\.stopped = true; throw stop; \}/);
+  assert.match(r, /if \(!\(await askConfirm\(`\$\{msg\}\n\n\$\{tr\("OK runs it anyway; Cancel stops here\."\)\}`\)\)\) \{ const stop = new Error\(msg\); stop\.stopped = true; throw stop; \}/);
   assert.match(r, /e\?\.stopped \? infoNotice\(tr\("Unit body not built: \{v\}", \{ v: e\.message \}\)\)/);
 });

@@ -100,10 +100,10 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const [, setRegTick] = useState(0);
   useEffect(() => { if (!newCrs) return undefined; const off = onEpsgRegistry(() => setRegTick((n) => n + 1)); loadEpsgRegistry().catch(() => {}); return off; }, [!!newCrs]);
   const setOnly = () => { setEpsg(Number(newCrs)); setMsg({ ok: true, text: tr("Project CRS set to {v}. No coordinates were changed.", { v: nameOf(newCrs) }) }); setNewCrs(null); };
-  const moveAll = () => {
+  const moveAll = async () => {
     // TASKS.csv #528 — one click moved every object and cleared Undo, picked from a long list of look-alike names
     const from = project.epsg, to = Number(newCrs);
-    if (!confirmDestructive(tr("Move every loaded object from {v} to {v2}?", { v: nameOf(from), v2: nameOf(to) }), { recover: tr("Undo history is cleared, and moving back re-samples the terrain and raster images (a slightly larger box, slightly coarser cells).") })) return;
+    if (!await confirmDestructive(tr("Move every loaded object from {v} to {v2}?", { v: nameOf(from), v2: nameOf(to) }), { recover: tr("Undo history is cleared, and moving back re-samples the terrain and raster images (a slightly larger box, slightly coarser cells).") })) return;
     return run(async () => {
     const report = await reprojectProjectTo(to, { rotateAzimuths: rotate });
     if (report?.cancelled) { setMsg(null); return; } // #2620 — a section's unsaved lines were kept

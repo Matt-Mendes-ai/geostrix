@@ -8,7 +8,7 @@ import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // 
 import { markZoomedHole } from "./viewer/zoomMark.js"; // #3570
 import { useShowOnLoad } from "./viewer/useShowOnLoad.js"; // #3588 (1)
 import { azimuthNorthText } from "../lib/azimuthNorthText.js"; // #3588 (6)
-import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import { useMcpViewActions } from "./viewer/useMcpViewActions.js"; /* #3932 */ import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
+import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import { useMcpViewActions } from "./viewer/useMcpViewActions.js"; import { useMcpModelActions } from "./viewer/useMcpModelActions.js"; /* #3932 */ import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
 import { holesForFilter, holeSetsOf, fenceTracesOf } from "../lib/holeFilter.js"; // #1504; #1703; #3554; #3561
 import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
@@ -74,6 +74,7 @@ import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 �
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
 import { layerStamp, isStaleStamp } from "../lib/layerStamp.js"; // TASKS.csv #2388
+import ModelResultBlock from "../components/ModelResultBlock.jsx"; // TASKS.csv #3988
 import { outlineLinkCandidates, outlineOptionText, linkableOutline, linkDisabledReason } from "../lib/viewer/outlineLink.js"; // TASKS.csv #2235
 import { viewKeyZoom } from "../lib/viewer/viewKeys.js"; // TASKS.csv #2788
 import { t as tr } from "../lib/i18n.js";
@@ -158,6 +159,8 @@ import AssayStaleBadge from "../components/AssayStaleBadge.jsx"; // TASKS.csv #3
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/repeatClick.js"; // TASKS.csv #1152; #3159: not interpretation.js, which put the interpretation layers' code in startup
 import { syncInterpretPreview, hoverFirstCorner } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152; hover: #2682
+import { rayAtLevel, addLevelPlane } from "../lib/viewer/interpretLevel.js"; // TASKS.csv #3972
+import { mineralAsTubes, MNLGY_RADIUS } from "../lib/viewer/mineralDraw.js"; // TASKS.csv #3987
 import { tipWithMeaning } from "../lib/viewer/codeMeaning.js"; // TASKS.csv #2816
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
@@ -262,6 +265,7 @@ import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.c
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
+import { useMeshSelect } from "./viewer/useMeshSelect.jsx"; // TASKS.csv #3991
 import { useCollarMarkerSize } from "./viewer/useCollarMarkerSize.js"; // TASKS.csv #2823
 import { useModellingSimple } from "./viewer/useModellingSimple.js"; // TASKS.csv #2390 / #2773
 import LightDrawingControl from "./viewer/LightDrawingControl.jsx"; // #3620 — Auto / Light / Full
@@ -273,6 +277,7 @@ import { decideLight, registerRenderer, lightDrawingNotice } from "../lib/viewer
 import { partChoices, boundaryPart } from "../lib/boundaryParts.js"; // TASKS.csv #3234
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 import NumberInput from "../components/NumberInput.jsx"; // #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 const SurfaceElementBasis = React.lazy(() => import("./viewer/SurfaceElementBasis.jsx")); // TASKS.csv #2627 / #2641
@@ -3280,7 +3285,7 @@ ${describeTrend(t)}` };
     const out = [], say = (n) => { out.push(n.text); setNotices((p) => [...p, n]); };
     if (sum.notExtended?.length) say(notice("Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.", { names: sum.notExtended.join(", ") })); // #1194
     const partial = Object.entries(sum.coverage).filter(([, f]) => f < 0.999).map(([u, f]) => tr("{unit} covers {pct}% of the box", { unit: u, pct: Math.round(100 * f) }));
-    say(notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? (sum.extended /* #1138 */ ? tr(" Contacts were extended past their own edges until they meet ({list} as drawn).", { list: partial.join("; ") }) : tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") })) : "")
+    say(notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Result block at the top of the panel.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? (sum.extended /* #1138 */ ? tr(" Contacts were extended past their own edges until they meet ({list} as drawn).", { list: partial.join("; ") }) : tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") })) : "")
       + (sum.inverted?.baseAboveTop ? tr(" In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.", { n: sum.inverted.baseAboveTop, m: sum.inverted.columns }) : "") // #860
       + (sum.inverted?.crossingTops ? tr(" In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.", { n: sum.inverted.crossingTops, m: sum.inverted.columns }) : "") }));
     { const xn = extrapolationNotice(implicitSurfaces.filter((s) => lb.source?.ids?.includes(s.id))); if (xn) say(xn); } // #1840
@@ -3291,18 +3296,21 @@ ${describeTrend(t)}` };
   // shells from them (1.6 s at 1.9 M). Above 300,000 unit cells (~63 MB as a block model), say so and ask.
   const BIG_UNIT_BLOCKS = 300_000;
   const unitCellCount = (lb) => { let n = 0; const ids = lb?.block?.ids || []; for (let i = 0; i < ids.length; i++) if (ids[i] && lb.block.labels[ids[i] - 1] != null) n++; return n; };
-  const addLithBlockModel = () => {
-    const lb = lastLithBlock; if (!lb) return;
-    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !window.confirm(tr("The last model has {n} unit blocks, about {mb} MB of memory, which a modest computer may not spare; a larger block size keeps it light. Add them anyway?", { n: n.toLocaleString(), mb: Math.round((n * 210) / 1e6) }))) return; } // #891
+  const addLithBlockModel = async () => { // returns what it did, for an AI app's add_block_model (#3932); the button ignores it
+    const lb = lastLithBlock; if (!lb) return { ok: false, error: "No model blocks yet." };
+    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !await askConfirm(tr("The last model has {n} unit blocks, about {mb} MB of memory, which a modest computer may not spare; a larger block size keeps it light. Add them anyway?", { n: n.toLocaleString(), mb: Math.round((n * 210) / 1e6) }))) return { ok: false, error: "The user declined adding the blocks in GeoStrix (a very large model)." }; } // #891
     const cells = blockToCells(lb.block, lb.origin);
-    if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return; }
+    if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return { ok: false, error: "The last model has no cells below its modelled tops inside the model box: nothing to add." }; }
     const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
     const legend = stops.map((st) => `${st.value} = ${st.label}`).join(", ");
     // #802: blocks built from surfaces open opaque, so they draw as their outer faces (#793) - a GemPy block keeps its look
-    addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: lb.fromSurfaces ? "surfaces" : "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])), ...(lb.fromSurfaces ? { opacity: 1 } : {}) });
-    setNotices((p) => [...p, lb.fromSurfaces
+    const vid = addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: lb.fromSurfaces ? "surfaces" : "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])), ...(lb.fromSurfaces ? { opacity: 1 } : {}) });
+    const done = lb.fromSurfaces
       ? notice("Added the blocks as a block model: {cells} cells ({legend}). Cells above every top are left out.", { cells: cells.length.toLocaleString(), legend })
-      : notice("Added the model's lithology block as a block model: {cells} cells ({legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.", { cells: cells.length.toLocaleString(), legend })]);
+      : notice("Added the model's lithology block as a block model: {cells} cells ({legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.", { cells: cells.length.toLocaleString(), legend });
+    setNotices((p) => [...p, done]);
+    const xn = lb.fromSurfaces ? extrapolationNotice(implicitSurfaces.filter((s) => lb.source?.ids?.includes(s.id))) : null; // #1840 — said with the answer too (#3932)
+    return { ok: true, id: vid, name: `Model units: ${lb.title} (${lb.when})`, cells: cells.length, units: stops.map((st) => st.label), notes: [done.text, xn?.text].filter(Boolean) };
   };
   // TASKS.csv #517 — each modelled unit as a CLOSED shell (the outer faces of its cells, closed at the model box — exact volume at the model cell size):
   // listed with the model surfaces, exportable as DXF / OBJ, cut on sections and plans, measured by the volume
@@ -3310,12 +3318,12 @@ ${describeTrend(t)}` };
   const addUnitVolumes = async () => {
     const lb = lastLithBlock; if (!lb) return;
     const { isOpenUnit, openUnitText } = await import("../lib/viewer/openUnitVolume.js"); // #3112, on use
-    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !window.confirm(tr("The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?", { n: n.toLocaleString() }))) return; } // #891
+    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !await askConfirm(tr("The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?", { n: n.toLocaleString() }))) return; } // #891
     const o = originRef.current, stamp = Date.now(), added = [], lines = [];
     const ust = blockUnitStats(lb.block); // TASKS.csv #877
     // #3112 — the run's lowest unit with no base (openBelow, #2917) is everything to the box floor: built only when asked, and named so
     const ob = lb.openBelow, openLabel = lb.block.labels.find((l) => l != null && isOpenUnit(ob, l)), whereTr = openLabel == null ? "" : ob.floorRL != null ? tr("below {top}, to the box floor at RL {rl}", { top: ob.top, rl: ob.floorRL }) : tr("below {top}, to the box floor", { top: ob.top });
-    const withOpen = openLabel != null && window.confirm(tr("{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?", { unit: openLabel, where: whereTr }));
+    const withOpen = openLabel != null && await askConfirm(tr("{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?", { unit: openLabel, where: whereTr }));
     lb.block.labels.forEach((label, k) => {
       if (label == null) return;
       const ot = openLabel != null && label === openLabel ? openUnitText(ob, label, lb.title, lb.when) : null;
@@ -3546,7 +3554,7 @@ ${describeTrend(t)}` };
       const layered = solid.parts.length > 1;
       // #483: the saved size is the compact form (compactSurfaces.js, ~10 MB per million triangles measured); an
       // upper estimate here, at ~3 bytes per coordinate and ~2 per index, base64
-      if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(tr("\"{name}\" has {triangleCount} triangles{v}: it can slow the 3D view and add about {v2} MB to the project. Import it anyway?", { name: file.name, triangleCount: solid.triangleCount.toLocaleString(), v: layered ? tr(" in {parts} layers", { parts: solid.parts.length }) : "", v2: Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6) }))) {
+      if (solid.triangleCount > SOLID_FACE_WARN && !await askConfirm(tr("\"{name}\" has {triangleCount} triangles{v}: it can slow the 3D view and add about {v2} MB to the project. Import it anyway?", { name: file.name, triangleCount: solid.triangleCount.toLocaleString(), v: layered ? tr(" in {parts} layers", { parts: solid.parts.length }) : "", v2: Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6) }))) {
         setNotices((p) => [...p, notice("{name}: import cancelled ({triangleCount} triangles).", { name: file.name, triangleCount: solid.triangleCount.toLocaleString() })]);
         return;
       }
@@ -3555,14 +3563,14 @@ ${describeTrend(t)}` };
       let viaTie = false;
       if (gridTie) {
         const g = (await import("../lib/solidTie.js")).solidTieGuess(solid.parts, gridTie, importStateRef.current?.collars);
-        viaTie = window.confirm(tr("Are the coordinates in \"{name}\" in EPSG:{epsg}, the CRS the local grid is tied to?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.", { epsg: gridTie.epsg, name: file.name, hint: g.suggest === "tie" ? tr("\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString(), epsg: gridTie.epsg }) : g.suggest === "local" ? tr("\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString() }) : "" }));
+        viaTie = await askConfirm(tr("Are the coordinates in \"{name}\" in EPSG:{epsg}, the CRS the local grid is tied to?{hint}\n\nOK: place them through the tie, onto the local grid. Cancel: use them as local-grid metres, as they are.", { epsg: gridTie.epsg, name: file.name, hint: g.suggest === "tie" ? tr("\n\nThe solid is about {d} m from the holes read that way, against {e} m as local metres: it looks like EPSG:{epsg}.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString(), epsg: gridTie.epsg }) : g.suggest === "local" ? tr("\n\nThe solid is about {e} m from the holes as local metres, against {d} m read through the tie: it looks like local-grid metres.", { d: Math.round(g.viaTieM).toLocaleString(), e: Math.round(g.asLocalM).toLocaleString() }) : "" }));
         if (viaTie) solid.parts = (await import("../lib/solidTie.js")).solidPartsToLocal(solid.parts, gridTie);
       }
       const bounds = solidBounds(solid.parts);
       // TASKS.csv #3428 — more than 100 km from the holes froze the view for about a minute (fitted, with a scene origin that far): asked first, and
       // when imported anyway the view stays where it is
       const farSolid = (await import("../lib/solidFar.js")).solidFarFromHoles(bounds, importStateRef.current?.collars);
-      if (farSolid?.far && !window.confirm(tr("\"{name}\" lies about {km} km from your holes (E {e}, N {n}): probably another coordinate system or a local grid. A solid that far can freeze the 3D view. Import it anyway? OK: import it and leave the view where it is. Cancel: don't import it.", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString(), e: Math.round(farSolid.solid[0]).toLocaleString(), n: Math.round(farSolid.solid[1]).toLocaleString() }))) {
+      if (farSolid?.far && !await askConfirm(tr("\"{name}\" lies about {km} km from your holes (E {e}, N {n}): probably another coordinate system or a local grid. A solid that far can freeze the 3D view. Import it anyway? OK: import it and leave the view where it is. Cancel: don't import it.", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString(), e: Math.round(farSolid.solid[0]).toLocaleString(), n: Math.round(farSolid.solid[1]).toLocaleString() }))) {
         setNotices((p) => [...p, notice("{name}: import cancelled (it lies about {km} km from the holes).", { name: file.name, km: Math.round(farSolid.distM / 1000).toLocaleString() })]);
         return;
       }
@@ -3799,9 +3807,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [implicitSurfaces]);
   const [lodSeq, setLodSeq] = useState(0); // TASKS.csv #795 — re-render the surface details when a drawing copy is ready
   // TASKS.csv #885 — an explicit surface is rebuilt from its picks, which go with it and come back with Ctrl+Z
-  const confirmRemoveSurface = (s) => (s.type === "explicit_surface"
-    ? confirmDestructive(tr("Remove the explicit surface \"{name}\" with its picks and lines?", { name: s.name }), { undoable: true })
-    : confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") }));
+  const confirmRemoveSurface = async (s) => (s.type === "explicit_surface"
+    ? await confirmDestructive(tr("Remove the explicit surface \"{name}\" with its picks and lines?", { name: s.name }), { undoable: true })
+    : await confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") }));
   const removeImplicitSurface = useCallback((id) => {
     stashSurface({ grave: surfaceGrave.current, meshes: implicitMeshesRef.current, group: implicitGroupRef.current, surfaces: surfacesNowRef.current }, id); // TASKS.csv #3494 — kept for Undo, not disposed (dropDrawLod: #795, inside)
     // TASKS.csv #83 — drop any relationship pointing AT the surface being removed too, so the
@@ -3952,9 +3960,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     setDomains((p) => [...p, { id, name: name || "New domain", constraints: [] }]);
     return id;
   }, []);
-  const deleteDomain = useCallback((id) => {
+  const deleteDomain = useCallback(async (id) => {
     const dom = (modelDomains || []).find((d) => d.id === id); // TASKS.csv #386
-    if (!confirmDestructive(tr("Delete model domain \"{v}\" and its fault-side constraints?", { v: dom?.name || "domain" }))) return;
+    if (!await confirmDestructive(tr("Delete model domain \"{v}\" and its fault-side constraints?", { v: dom?.name || "domain" }))) return;
     setDomains((p) => p.filter((d) => d.id !== id));
     if (modelDomainId === id) setModelDomainId("");
   }, [modelDomainId, modelDomains]);
@@ -4546,6 +4554,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples", holes: "Drillholes" /* #2041 */ }[k] || k),
     kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]], rlOffset: rlOffsetOf(project) /* #2809 */ });
   identifyStopRef.current = () => { if (!identify.on) return false; identify.stop(); return true; };
+  const meshSelect = useMeshSelect({ implicitMeshesRef, implicitGroupRef, omfMeshesRef, implicitSurfaces, setImplicitSurfaces, surfaceGrave, surfacesNowRef, pickHits, mountRef, cameraRef, mcDownRef, lastActivityRef, toggleImplicitSurface, removeImplicitSurface, setExpandedSurfaceId, expandedSurfaceId, omfObjects, updateOmfObject, removeOmfObject, fitBox, setExplicitSurfaces }); // TASKS.csv #3991
   const sculpt = useSculpt({
     surfaces: implicitSurfaces, // so sculpt mode can't be left pointing at a surface that no longer exists
     meshesRef: implicitMeshesRef,
@@ -5147,13 +5156,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // every sidebar row gets a right-click menu (rowMenu) with the actions that fit it.
   const styleKindFor = (key) => {
     if (key === "surface_samples") return "point";
-    const k = LAYER_META[key]?.kind;
+    const k = key === "mnlgy" && mineralAsTubes(layers.mnlgy) ? "interval" : LAYER_META[key]?.kind; // #3987 — drawn as tubes: an interval style
     return k === "interval" ? "interval" : k === "point" || k === "point3d" ? "point" : k === "plane" ? "plane" : null;
   };
   const openLayerStyle = (key, label) => {
     const meta = LAYER_META[key], kind = styleKindFor(key);
     if (!kind) return;
-    const sizeNote = kind === "interval" ? tr("Default tube radius {radius} m.", { radius: meta.radius }) : kind === "plane" ? tr("Default disc radius 6 m.") : meta?.numeric ? tr("By default the marker grows with the value; this scales all of them.") : null;
+    const sizeNote = kind === "interval" ? tr("Default tube radius {radius} m.", { radius: meta.radius ?? MNLGY_RADIUS /* #3987 */ }) : kind === "plane" ? tr("Default disc radius 6 m.") : meta?.numeric ? tr("By default the marker grows with the value; this scales all of them.") : null;
     setStyleTarget({ key, kind, label: label || meta?.label || key, defaults: { opacity: kind === "interval" ? meta.opacity : kind === "plane" ? 0.55 : 1 }, sizeNote, colourKey: meta && !meta.numeric && key !== "geophys_pts" ? key : null,
       labelChoices: key === "surface_samples" ? [["none", tr("No label")], ["id", tr("Sample ID")], ...(surfaceElements || []).map((e) => [`el:${e.symbol}`, e.symbol])] : null }); // labelChoices: TASKS.csv #1443
   };
@@ -5188,10 +5197,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #63 — "unload" a layer entirely (distinct from the per-source removal above): drops
   // every row at once, e.g. when a whole CSV's worth of data was imported to the wrong layer target
   // or just isn't wanted anymore, without deleting the drillholes it was hung off of.
-  const clearLayer = (layerKey) => {
+  const clearLayer = async (layerKey) => {
     const n = (layers[layerKey] || []).length;
     if (!n) return;
-    if (!confirmDestructive(tr("Remove all {n} row(s) from \"{label}\"?", { n, label: LAYER_META[layerKey].label }), { undoable: true })) return; // #386: layers are in Undo
+    if (!await confirmDestructive(tr("Remove all {n} row(s) from \"{label}\"?", { n, label: LAYER_META[layerKey].label }), { undoable: true })) return; // #386: layers are in Undo
     setLayers((p) => ({ ...p, [layerKey]: [] }));
     setNotices((p) => [...p, notice("Cleared {n} row(s) from {label}.", { n, label: LAYER_META[layerKey].label })]);
   };
@@ -5350,7 +5359,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       >
         <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()} colorOf={effectiveColor} labelOf={effectiveLabel}
           onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)}
-          numericSym={numericSymbology[key]} style={layerStyles[key]} onStyle={(p) => setLayerStyle(key, "point", p)}
+          numericSym={numericSymbology[key]} style={layerStyles[key]} onStyle={(p) => setLayerStyle(key, styleKindFor(key) || "point", p)}
           onNumericSymChange={(next) => setNumericSymbology((p) => { const n = { ...p }; if (next) n[key] = next; else delete n[key]; return n; })} />
       </LayerRow>
     );
@@ -5359,15 +5368,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // matters most to warn clearly about: every layer (litho/alt/.../geophys) stays in the project
   // untouched, but nothing renders without a matching collar to desurvey against, so this can look
   // like data loss even though it isn't — the warning says so explicitly.
-  const clearCollars = () => {
+  const clearCollars = async () => {
     if (!collars.length) return;
-    if (!confirmDestructive(tr("Remove all {collars} collar(s)? Every layer's data stays in the project, but nothing will render until collars are re-imported (there's nothing to desurvey against).", { collars: collars.length }), { undoable: true })) return; // #386
+    if (!await confirmDestructive(tr("Remove all {collars} collar(s)? Every layer's data stays in the project, but nothing will render until collars are re-imported (there's nothing to desurvey against).", { collars: collars.length }), { undoable: true })) return; // #386
     setCollars([]);
     setNotices((p) => [...p, notice("Cleared {collars} collar(s).", { collars: collars.length })]);
   };
-  const clearSurvey = () => {
+  const clearSurvey = async () => {
     if (!survey.length) return;
-    if (!confirmDestructive(tr("Remove all {survey} survey station(s)? Holes fall back to a straight-hole projection from each collar's own azimuth/dip.", { survey: survey.length }), { undoable: true })) return; // #386
+    if (!await confirmDestructive(tr("Remove all {survey} survey station(s)? Holes fall back to a straight-hole projection from each collar's own azimuth/dip.", { survey: survey.length }), { undoable: true })) return; // #386
     setSurvey([]);
     setNotices((p) => [...p, notice("Cleared {survey} survey station(s).", { survey: survey.length })]);
   };
@@ -5442,8 +5451,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const rect = mountRef.current.getBoundingClientRect();
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(viewNdc(e, rect, mcDownRef.current) /* #2803 */, cameraRef.current);
-    const world = snapInterpretClick(raycastWorldPoint(raycaster), raycaster.ray, { on: interpretOpen === true && interpretRef.current.snap !== false /* lines only, not unit polygons */, traces: tracesRef.current, layers, visible: layerVisible, origin: originRef.current, camera: cameraRef.current, heightPx: rect.height }); // #2630
+    const lvl = interpretRef.current.level; // TASKS.csv #3972 — drawing on a level: the click on that plane, the vertex at its RL
+    const world = snapInterpretClick(Number.isFinite(lvl) ? rayAtLevel(raycaster.ray, lvl, originRef.current) : raycastWorldPoint(raycaster), raycaster.ray, { on: interpretOpen === true && interpretRef.current.snap !== false /* lines only, not unit polygons */, traces: tracesRef.current, layers, visible: layerVisible, origin: originRef.current, camera: cameraRef.current, heightPx: rect.height }); // #2630
     if (!world) return;
+    if (Number.isFinite(lvl)) world.z = lvl;
     const at = Date.now();
     setInterpret((s) => (isRepeatClick(s.points[s.points.length - 1], { ...world, at }) ? { ...s, finishSeq: s.finishSeq + 1 } : { ...s, points: [...s.points, { ...world, at }] }));
   }, [raycastWorldPoint, layers, layerVisible, interpretOpen]);
@@ -5451,6 +5462,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const scene = sceneRef.current; if (!scene) return;
     if (!interpretGroupRef.current) { interpretGroupRef.current = new THREE.Group(); scene.add(interpretGroupRef.current); }
     syncInterpretPreview(interpretGroupRef.current, interpret.on ? interpret.points : [], originRef.current);
+    addLevelPlane(interpretGroupRef.current, interpret.on ? interpret.level : null, originRef.current, tracesRef.current); // TASKS.csv #3972
   }, [interpret]);
   useModuleAction(["interpret-lines"], (a, payload) => { setInterpretOpen(true); setInterpret((s) => ({ ...s, survey: payload?.survey || null })); });
   // TASKS.csv #1780 (review #1646, Kodiak) — a block model's value range as a closed solid: the chargeability high, the resistivity
@@ -5736,7 +5748,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #1276 — the main process refuses a new section window past what this computer can hold
   // TASKS.csv #1995 — the litho patterns go with the payload. TASKS.csv #3159: lithoPatterns.js loads with the first section opened
   // (on use, like sectionDigitise.js #903), not at startup; this already returned a promise
-  const openSectionOrSay = async (sent) => { const payload = { ...sent, groundSource: terrainShortName(terrain) /* #3949 */ }; const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho)))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
+  const openSectionOrSay = async (sent) => { const payload = { ...sent, groundSource: terrainShortName(terrain) /* #3949 */, overview: (await import("../lib/sectionOverview.js")).sectionOverview({ traces: tracesRef.current, visible: visibleHoles, boundaries, sections, id: sent.id, section: sent.section }, terrain) /* #3977 */ }; const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho)))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
   const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => (visibleHoles[t.hole_id] !== false || t.hole_id === scope.holeAsked /* #3680 — asked for by name */) && t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
@@ -5995,7 +6007,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // TASKS.csv #876 — the section window's ‹ › (previous / next parallel section) and Refresh
   const sectionStepRef = useRef(null);
-  sectionStepRef.current = async ({ id, step, refresh, by, corridor }) => {
+  sectionStepRef.current = async ({ id, step, refresh, by, corridor, offsetM }) => { // offsetM: #3977, dragged on the overview
     const s = (sections || []).find((x) => x.id === id);
     if (!s) return;
     // TASKS.csv #1131 — the buffer changed in the section window: saved with the section and the window redrawn
@@ -6003,7 +6015,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (refresh) { reopenSection(s); return; }
     const { stepSection } = await import("../lib/sectionDigitise.js"); // on use: #903
     const buf = s.corridor || sectionCorridor || 25;
-    const r = s.stepped && s.stepM > 0 && by !== "buffer" ? stepSection(s, sections, step, { fallback: s.stepM, exact: true }) // #2525 — a moving section keeps its step
+    const r = offsetM > 0 ? stepSection(s, sections, step, { fallback: offsetM, exact: true }) : s.stepped && s.stepM > 0 && by !== "buffer" ? stepSection(s, sections, step, { fallback: s.stepM, exact: true }) // #2525 — a moving section keeps its step
       : by === "buffer" ? stepSection(s, sections, step, { fallback: buf, exact: true }) // #1131 — ± exactly the buffer
       : stepSection(s, sections, step, { fallback: Math.max(25, 2 * buf) });
     if (r.existing) { reopenSection(r.existing); return; }
@@ -6070,9 +6082,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       setVisibleHoles((p) => { if (!(holeId in p)) return p; const { [holeId]: v, ...rest } = p; return { ...rest, [next]: v }; });
       setNotices((p) => [...p, notice("Renamed {hole} to {next} in the collars, survey, layers and assays.", { hole: holeId, next })]);
     }) },
-    { label: tr("Delete hole…"), onClick: () => {
+    { label: tr("Delete hole…"), onClick: async () => {
       const n = holeRowCounts({ collars, survey, layers, assays, customLayers }, holeId);
-      if (!confirmDestructive(tr("Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?", { hole: holeId, total: n.collars + n.survey + n.intervals + n.assays + n.custom }), { undoable: true })) return;
+      if (!await confirmDestructive(tr("Delete {hole} with its survey, intervals, assays and custom-layer rows (rows in all: {total})?", { hole: holeId, total: n.collars + n.survey + n.intervals + n.assays + n.custom }), { undoable: true })) return;
       deleteHole(holeId); setCustomLayers((p) => mapCustomLayers(p, (rows) => deleteInRows(rows, holeId)));
       setNotices((p) => [...p, notice("Deleted {hole} and its rows (Ctrl+Z restores it).", { hole: holeId })]);
     } },
@@ -6118,7 +6130,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // TASKS.csv #393 — lines on round multiples of the spacing, as on a paper plan. #2040 — only the slabs that hold data
     const { lines, empty: emptySlabs, s0, s1 } = fenceLinesInBox(pts, sliceSeriesAzimuth, width, shownT, areaBox(fenceArea, sliceSeriesAzimuth, boundaries)); if (s0 != null) { sMin = s0; sMax = s1; } // #3971 — only across the box, each line cut at its edges
     const n = lines.length;
-    if (n > 50 && !window.confirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
+    if (n > 50 && !await askConfirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
 
     // TASKS.csv #240 — one groupId for the run, so the sidebar collapses it and it is removed in one action.
     const groupId = addSectionGroup(`Fence series (az ${sliceSeriesAzimuth.toFixed(0)}°, ${width}m)`);
@@ -6145,8 +6157,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const openInterpret = (kind) => { if (interpretOpen) stopInterpret(); setInterpretOpen((v) => (v === kind ? false : kind)); };
   const interpretPane = interpretOpen && (<Suspense fallback={null}>{React.createElement(interpretOpen === "polygon" ? UnitPolygonPane : InterpretPane, { drawing: interpret, presetSurvey: interpret.survey,
     onStart: () => { setRectZoomMode(false); setSectionMode(false); setMeasureMode(null); setMeasurePts([]); setPickHoleMode(false); setInterpret((s) => ({ ...s, on: true, points: [], ring: interpretOpen === "polygon" /* #2682 */ })); },
-    onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onSnap: (v) => setInterpret((s) => ({ ...s, snap: v })) /* #2630 */, view: { scene: sceneRef, camera: cameraRef, renderer: rendererRef, dragHook: viewDragHookRef, origin: originRef, activity: lastActivityRef }, snapCtx: () => ({ traces: tracesRef.current, layers, visible: layerVisible }) /* #2767 */, onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
+    onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onSnap: (v) => setInterpret((s) => ({ ...s, snap: v })) /* #2630 */, onLevel: (v) => setInterpret((s) => ({ ...s, level: Number.isFinite(v) ? v : null })), sliceRL: slice3d.on && slice3d.mode === "horizontal" && sliceExtent ? sliceExtent.y0 + slice3d.pos * (sliceExtent.y1 - sliceExtent.y0) + originRef.current.z : null /* #3972 */, view: { scene: sceneRef, camera: cameraRef, renderer: rendererRef, dragHook: viewDragHookRef, origin: originRef, activity: lastActivityRef }, snapCtx: () => ({ traces: tracesRef.current, layers, visible: layerVisible }) /* #2767 */, onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
   const assayChipCounts = useMemo(() => assayValueCounts(assays), [assays]); // #2374
+  // TASKS.csv #3908 — the api the guided card (Model > Start here) is given; #3932 batch 2: an AI app's build_surface / build_grade_shell run the same tools with it
+  const guidedApi = { runStackModel, runImplicitModel, runVeinModel, runStructuralModel, runNumericModel, meshOf: (id) => implicitMeshesRef.current[id], numeric: { now: [numericSymbol, numericCutoff, numericCellSize, numericCellHeight, numericSearchRadius, numericMinHoles], set: [setNumericSymbol, setNumericCutoff, setNumericCellSize, setNumericCellHeight, setNumericSearchRadius, setNumericMinHoles] }, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy || veinBusy || numericBusy, surfaces: implicitSurfaces, setStackUnits, setImplicitTarget, setVeinTarget, setStructuralTarget, openPane: (p) => { setGuided(null); pendingPaneRef.current = p; goToModule("modelling"); } };
+  useMcpModelActions(() => ({ store: { layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain }, api: guidedApi, removeSurfaces, notices, lastLithBlock, addLithBlockModel, removeVoxelModel })); // no mode gate: a call from the 3D Modelling tab arrives before the tab switch has rendered, and this is one component for every tab
   const anomalyControls = <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>; // #1603 — also on the Surface Geology tab
   return (
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%", order: bare ? 1 : 0 }}>
@@ -6335,7 +6350,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 style={{ cursor: "pointer", color: g.keys.some((k) => layerVisible[k]) ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={tr("Toggle all layers in this group")}>
                 {g.keys.some((k) => layerVisible[k]) ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete group \"{name}\"? Its layers stay — they just go back to being ungrouped.", { name: g.name }))) deleteLayerGroup(g.id); }, tr("Delete group \"{name}\" (its layers stay, just ungrouped)", { name: g.name }))} />
+              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Delete group \"{name}\"? Its layers stay — they just go back to being ungrouped.", { name: g.name }))) deleteLayerGroup(g.id); }, tr("Delete group \"{name}\" (its layers stay, just ungrouped)", { name: g.name }))} />
             </div>
             {!g.collapsed && (
               <div style={{ padding: "6px 6px 2px" }}>
@@ -6392,7 +6407,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   { label: tr("Zoom to"), onClick: () => zoomToObject(boundaryLinesRef.current[b.id]) },
                   "-", ...overlayExportItems(b.name, async () => (await overlayLib()).boundaryFeatures(b), { kml: { colorOf: () => b.color, nameOf: () => b.name } }), // #1025
                   "-", { label: tr("Colour and style — Maps tab"), onClick: () => goToModule("maps") },
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -6400,7 +6415,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
                 <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("boundary")}</span>
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit boundary \"{name}\" in the Maps tab", { name: b.name }))} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }, tr("Remove boundary \"{name}\"", { name: b.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }, tr("Remove boundary \"{name}\"", { name: b.name }))} />
               </div>
             ))}
             {omfObjects.map((o) => <OmfObjectRow key={o.id} o={o} update={updateOmfObject} remove={removeOmfObject} zoom={() => zoomToObject(omfMeshesRef.current[o.id])} openRowMenu={openRowMenu} />)}{/* TASKS.csv #3895 */}
@@ -6409,7 +6424,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   { label: v.visible === false ? "Show" : "Hide", onClick: () => updateVoxelModel(v.id, { visible: v.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(voxelMeshesRef.current[v.id]) },
                   "-", { label: tr("Legend, classes and palette — Geophysics tab"), onClick: () => { goToModule("geophysics"); requestModuleAction("edit-block-model", { id: v.id }); } }, // #1417 — its own card
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {v.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -6422,7 +6437,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 />
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToObject(voxelMeshesRef.current[v.id]), tr("Zoom to \"{name}\"", { name: v.name }))} />{/* #2080 */}
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { goToModule("geophysics"); requestModuleAction("edit-block-model", { id: v.id }); }, tr("Edit legend / classify / palette for this model in the Geophysics tab"))} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); }, tr("Remove block/voxel model \"{name}\"", { name: v.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); }, tr("Remove block/voxel model \"{name}\"", { name: v.name }))} />
               </div>
             ))}
           </>
@@ -6549,12 +6564,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: customVisible[l.id] === false ? "Show" : "Hide", onClick: () => toggleCustom(l.id) },
             { label: tr("Zoom to"), onClick: () => zoomToCustom(l.id) },
             { label: tr("Style (colour, size, shape)…"), onClick: () => openCustomStyle(l) },
-            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            "-", { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.notes ? `${l.name}\n${l.notes}` : l.name}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({layerRowCount(l) /* #3424 */})</span>{l.notes && <span title={l.notes} style={{ display: "inline-flex", flexShrink: 0, color: "var(--color-text-muted)" }}><Info size={12} aria-label={tr("Layer notes: {v}", { v: l.notes })} /></span>}{/* #2432 — what the import left out or assumed */}
             </div>
             <Settings2 size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => openCustomStyle(l), tr("Style"))} /><Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), tr("Zoom to custom layer \"{name}\"", { name: l.name }))} />
-            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } /* #2338 — asks, as the menu does */, tr("Remove custom layer \"{name}\"", { name: l.name }))} />
+            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } /* #2338 — asks, as the menu does */, tr("Remove custom layer \"{name}\"", { name: l.name }))} />
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add CSV layer")}</div>
@@ -6573,12 +6588,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: tr("Zoom to"), onClick: () => zoomToObject(mapLayerMeshesRef.current[l.id]) },
             "-", ...overlayExportItems(l.name, async () => (await overlayLib()).mapLayerFeatures(l), { kml: async () => ({ colorOf: (await overlayLib()).mapLayerColorOf(l), nameOf: (f) => String(f.attributes?.[l.styleField] ?? l.name) }) }), // #1025
             "-", { label: tr("Colours, labels and draping — Geological Mapping tab"), onClick: () => goToModule("surface") },
-            { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }), { undoable: true })) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }), { undoable: true })) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} title={`${l.visible === false ? tr("Show") : tr("Hide")} "${l.name}"${l.crsNote ? `\n${l.crsNote}` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: l.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {l.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({featureCountText(l.features.length, l.geomType)})</span>
             </div>
             <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = mapLayerMeshesRef.current[l.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, tr("Zoom to map layer \"{name}\"", { name: l.name }))} />
-            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }), { undoable: true })) removeMapLayer(l.id); }, tr("Remove map layer \"{name}\"", { name: l.name }))} />
+            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }), { undoable: true })) removeMapLayer(l.id); }, tr("Remove map layer \"{name}\"", { name: l.name }))} />
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.mapLayer.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add map layer (.shp / .zip / .gpkg)")}</div>
@@ -6597,13 +6612,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: tr("Move to another line…"), onClick: () => setSectionGeorefOpen({ moveId: im.id }) }, // TASKS.csv #3924
             { label: tr("Opaque"), onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
             { label: tr("Half transparent"), onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
-            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            "-", { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateSectionImage(im.id, { visible: im.visible === false })} title={`${im.visible === false ? tr("Show") : tr("Hide")} "${im.name}"${im.rmse != null ? tr(" (fit error {rmse} m)", { rmse: im.rmse.toFixed(1) }) : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: im.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 {im.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{im.name}</span>
               </div>
               <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = sectionImageMeshesRef.current[im.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, tr("Zoom to section image \"{name}\"", { name: im.name }))} />
-              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); }, tr("Remove section image \"{name}\"", { name: im.name }))} />
+              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); }, tr("Remove section image \"{name}\"", { name: im.name }))} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Opacity")}{" "}<input type="range" min={0.1} max={1} step={0.05} value={im.opacity ?? 1} onChange={(e) => updateSectionImage(im.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} aria-label={tr("Opacity of \"{name}\"", { name: im.name })} />
             </label>
@@ -6645,7 +6660,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               </div>
               <Layers3 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }, tr("Edit what section \"{name}\" shows", { name: s.name }))} />
               <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); }), tr("Rename section \"{name}\"", { name: s.name }))} />
-              <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete \"{name}\" and any contacts drawn on it?", { name: s.name }))) deleteSection(s.id); }, tr("Delete section \"{name}\"", { name: s.name }))} />
+              <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Delete \"{name}\" and any contacts drawn on it?", { name: s.name }))) deleteSection(s.id); }, tr("Delete section \"{name}\"", { name: s.name }))} />
             </div>
           );
           return (
@@ -6670,7 +6685,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   </span>
                 )}
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}
-                  onClick={() => { if (confirmDestructive(tr("Delete all {sections} section(s) and any contacts drawn on them?", { sections: sections.length }), { undoable: true })) deleteAllSections(); }}
+                  onClick={async () => { if (await confirmDestructive(tr("Delete all {sections} section(s) and any contacts drawn on them?", { sections: sections.length }), { undoable: true })) deleteAllSections(); }}
                   style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }}
                   title={tr("Delete every section and section group")}
                 >{tr("Delete all")}</span>
@@ -6710,7 +6725,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
                         <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({members.length})</span>
                       </div>
-                      <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete \"{name}\" — all {members} section(s) in this group and any contacts drawn on them?", { name: g.name, members: members.length }))) deleteSectionGroup(g.id); }, tr("Delete section group \"{name}\" and all {members} section(s) in it", { name: g.name, members: members.length }))} />
+                      <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Delete \"{name}\" — all {members} section(s) in this group and any contacts drawn on them?", { name: g.name, members: members.length }))) deleteSectionGroup(g.id); }, tr("Delete section group \"{name}\" and all {members} section(s) in it", { name: g.name, members: members.length }))} />
                     </div>
                     {expanded && <div style={{ paddingLeft: 10, marginTop: 6 }}>{members.map(sectionRow)}</div>}
                   </div>
@@ -6725,20 +6740,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "modelling" && (<>
         {MODELLING_PANES.has(toolPane) && (
           <Suspense fallback={null}>
-            <ModellingPanes {...{ visibleHoles, setVisibleHoles, setHoleFilter, /* #2536 */ stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers: unitLayersP /* #3266 */, unitField, setUnitField, unitFields, /* #2378 */ lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCellHeight, setNumericCellHeight, numericFlatReach, setNumericFlatReach, /* #3062 */ numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
+            <ModellingPanes {...{ setStackUnits, visibleHoles, setVisibleHoles, setHoleFilter, /* #2536 */ stackBreaks, setStackBreaks, orientationReachM, setOrientationReachM, /* #1170 */ tracesSeq, /* #888 */ explicitTrend, /* #881 */ camState, sectionImages, setDigitizeImageId, /* #824 */ runMapModel, MapModelPanel, viewDragHookRef, sceneRef, layerGroupsRef, /* #1333 */ cameraRef, rendererRef, explicitOverlayRef, ExplicitSurfacePanel, ModellingCodesPane, PredictivePanel, SurfaceGeologyProjection, TrendsPanel, activeInterceptSet, activeInterceptSetId, addLithoGroup, addStackUnit, addVoxelModel, addWorldMeshSurface, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, askPrompt, assayElements, assays, clipToDomainBoundary, clipToTopo, limitToContacts, setLimitToContacts, contactReachM, setContactReachM, collars, desurveyMethod, domains, emptyPaneHint, expandedLithoGroupId, explicitClickRef, explicitPickFor, explicitSnap, explicitSurfaces, faultCandidates, implicitBusy, implicitGroupRef, implicitMeshesRef, implicitSurfaces, implicitTarget, includeSectionContacts, interceptSets, isLithoGroupKey, isMcodeKey, lastActivityRef, layers: unitLayersP /* #3266 */, unitField, setUnitField, unitFields, /* #2378 */ lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mapConstraint, mapLayers, mcConnectFrom, mcGroupOf, mcPickMode, mcSelected, mcodeDefaultRole, miniField, modelDomainId, modelArea, setModelArea, /* #1546 */ modelResolution, modellingCodeList, modellingCodes, moveStackUnit, numericBudgetHint, numericBusy, numericCapValue, numericCellSize, numericCellHeight, setNumericCellHeight, numericFlatReach, setNumericFlatReach, /* #3062 */ numericCloseShell, numericCompositeLength, numericCutoff, numericIncludeQAQC, numericMaxBlocks, numericMethod, numericVariogram, setNumericVariogram, /* #1015 */ numericMinCoverage, numericMinHoles, numericPadding, numericSearchRadius, numericSymbol, numericUseComposites, orientTypes, orientTypesSel, originRef, paneHeader, projectMapContact, rangeMultiplier, removeImplicitSurface, removeLithoGroup, removeStackUnit, resolveLithoTarget, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel, searchEllipsoid, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setActiveInterceptSetId, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, setClipToDomainBoundary, setClipToTopo, setCoreOrientOpen, setExpandedLithoGroupId, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, setFenceOpen, setGradeEstOpen, setImplicitSurfaces, setImplicitTarget, setIncludeSectionContacts, setMapConstraint, setMcConnectFrom, setMcPickMode, setMcSelected, setModelDomainId, setModelResolution, setModellingCodes, setNotices, setNumericBudgetHint, setNumericCapValue, setNumericCellSize, setNumericCloseShell, setNumericCompositeLength, setNumericCutoff, setNumericIncludeQAQC, setNumericMaxBlocks, setNumericMethod, setNumericMinCoverage, setNumericMinHoles, setNumericPadding, setNumericSearchRadius, setNumericSymbol, setNumericUseComposites, setOrientTypesSel, setRangeMultiplier, setSearchEllipsoid, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, setSmoothClusters, setStackAdd, setStackFaults, setStackRelation, setStereonetOpen, setStructuralTarget, setStructuralTrends, setSurfaceDetail, setTadpoleOpen, setThinPicks, setThinWindowM, setTrendPreviewId, setVariogramOpen, setVeinCellSize, setVeinDip, setVeinDipDir, setVeinSearchRadius, setVeinTarget, smoothClusters, stackAdd, stackFaults, stackFaultOffsets, setStackFaultOffsets, /* #1054 */ stackRelation, stackUnits, struct_types, structuralTarget, structuralTrends, structurePicksWithHoleAttitude, structureTypes, surfaceDetail, surfaceStructures, survey, terrain, thinPicks, thinWindowM, toolPane, tracesRef, trendFor, trendPreviewId, updateLithoGroup, veinBusy, veinCellSize, veinDip, veinDipDir, veinSearchRadius, veinTarget, vein_units, worldPointFromHits }} />
           </Suspense>
         )}{/* TASKS.csv #693 — loaded on demand */}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         {/* TASKS.csv #356 — the last run's lithology block, on request (not added automatically: every run
             would otherwise leave another block model and layer behind). */}
-        {lastLithBlock && (
-          <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
-            <div style={{ color: "var(--color-text)", marginBottom: 6, opacity: isStaleStamp(lastLithBlock.lithoStamp, lithoNow) ? 0.55 : 1 }}>{isStaleStamp(lastLithBlock.lithoStamp, lithoNow) && tr("Built from a lithology log that has changed since:") + " "}{lastLithBlock.matchedPct != null ? tr("Last model ({title}, {when}) reproduces {pct}% of the logged metres.", { title: lastLithBlock.title, when: lastLithBlock.when, pct: lastLithBlock.matchedPct }) : tr("Last model ({title}, {when}).", { title: lastLithBlock.title, when: lastLithBlock.when })}</div>
-            {!lastLithBlock.structural && <>{/* #1554 */}
-            <button onClick={addUnitVolumes} style={{ ...pBtn, marginBottom: 4 }} title={tr("Each modelled unit as a closed solid (closed at the model box): export as DXF / OBJ, volume / tonnage, cut on sections and plans, and a grade-estimation domain")}><Box size={14} />{" "}{tr("Add unit volumes (closed)")}</button>
-            <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title={tr("The model's units as a block model, with the 3D view, slice, cutoff and section tools of any block model. The space above every modelled top is left out.")}><Box size={14} />{" "}{tr("Add as block model")}</button>
-            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title={tr("An interval layer of the modelled unit at each logged litho interval, shown beside the logged litho in the strip log and on the holes in 3D and sections.")}><Layers3 size={14} />{" "}{tr("Add \"modelled unit\" layer to holes")}</button></>}
-          </div>
+        {(lastLithBlock || surfaceSolidsOpen) && (/* TASKS.csv #3988 — the Result block: the last model, Build the blocks and the Add buttons together, pinned */
+          <ModelResultBlock last={lastLithBlock} stale={!!lastLithBlock && isStaleStamp(lastLithBlock.lithoStamp, lithoNow)} onClose={() => setSurfaceSolidsOpen(false)} pBtn={pBtn}
+            onUnitVolumes={addUnitVolumes} onBlockModel={addLithBlockModel} onModelledLayer={addModelledLayer}
+            buildPanel={implicitSurfaces.length ? <Suspense fallback={null}><SurfaceSolidsPanel inline surfaces={implicitSurfaces} explicitDefs={explicitSurfaces || []} /* #830 */ worldMesh={surfaceWorldMesh} origin={originRef.current} terrain={terrain} sampleGround={(x, y) => terrainGroundAt(terrain, x, y)} onBuilt={surfaceSolidsBuilt} onError={(e) => setNotices((p) => [...p, e])} pBtn={pBtn} smallSel={smallSel} numInput={smallSel} /></Suspense> : null} />
         )}
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Generated surfaces")}</div>
         {/* TASKS.csv #146 — query the generated surfaces rather than only look at them: how far is each
@@ -6789,14 +6800,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           ))}
           <button onClick={buildVeinSolid} disabled={!veinHw || !veinFw || veinHw === veinFw} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: veinHw && veinFw && veinHw !== veinFw ? 1 : 0.5 }}>{tr("Make the solid")}</button>
         </div>
-        {surfaceSolidsOpen && (<Suspense fallback={null}>
-          <SurfaceSolidsPanel
-            surfaces={implicitSurfaces} explicitDefs={explicitSurfaces || []} /* #830 */ worldMesh={surfaceWorldMesh} origin={originRef.current}
-            terrain={terrain} sampleGround={(x, y) => terrainGroundAt(terrain, x, y)}
-            onBuilt={surfaceSolidsBuilt} onError={(e) => setNotices((p) => [...p, e])} onClose={() => setSurfaceSolidsOpen(false)}
-            pBtn={pBtn} smallSel={smallSel} numInput={smallSel}
-          />
-        </Suspense>)}
         <input
           ref={importSolidRef}
           type="file"
@@ -6832,7 +6835,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               { label: expanded ? "Close type & relationships" : "Type & relationships…", onClick: () => setExpandedSurfaceId(expanded ? null : s.id) },
               { label: tr("Style (colour, opacity)…"), onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
               { label: tr("Solid tools: clip by a surface, combine…"), onClick: () => setSolidToolsFor(s) }, // #1950 / #1951
-              "-", { label: tr("Remove…"), onClick: () => { if (confirmRemoveSurface(s)) removeImplicitSurface(s.id); } }])}
+              "-", { label: tr("Remove…"), onClick: async () => { if (await confirmRemoveSurface(s)) removeImplicitSurface(s.id); } }])}
               style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} aria-label={tr("Show or hide {name}", { name: surfaceLabels.get(s.id) ?? s.name })} aria-pressed={!!s.visible} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{/* #2058 */}{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
@@ -6856,7 +6859,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), tr("Zoom to surface \"{name}\"", { name: s.name }))} />
-                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmRemoveSurface(s)) removeImplicitSurface(s.id); }, tr("Remove surface \"{name}\"", { name: s.name }))} />
+                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmRemoveSurface(s)) removeImplicitSurface(s.id); }, tr("Remove surface \"{name}\"", { name: s.name }))} />
               </div>
               {stale && <div style={{ padding: "0 8px 6px", fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{stale}</div>}
               {expanded && (
@@ -7018,14 +7021,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               minHoles: s.params.minHoles, qc: s.params.includeQAQC ? tr("included") : tr("excluded"), closure: s.params.closure, points: s.params.samplePoints,
                               cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}{s.params.anisotropy && trendRatioText(s.params.anisotropy) ? tr(" · trend \"{name}\" {ratios}{ell}", { name: s.params.anisotropy.trend || "", ratios: trendRatioText(s.params.anisotropy), ell: s.params.searchEllipsoidM ? tr(", ellipsoid {e} m", { e: s.params.searchEllipsoidM.join(" × ") }) : "" }) : ""}{/* #2423 */}{s.params.domain ? tr(" · inside \"{solid}\"", { solid: s.params.domain }) : ""}{s.params.modelArea ? tr(" · model area: {area}", { area: s.params.modelArea }) : ""}{/* #2783 — the restricting solid and the Model area the params record */}</>
                           ) : (
-                            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", gap: "1px 8px" }}>{/* #3993: minmax(0, ...) so a long unbroken value can't widen the panel */}
                               {paramRows(s.params).map(({ key: k, label, text }) => ( /* #1378 */
                                 <React.Fragment key={k}>
                                   <div style={{ color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{tr(label)}</div>
                                   {/* Objects (the #52 (c) intercept-set stamp, the #52 (d) truncation log) are
                                       printed rather than skipped: a parameter block that quietly omits half of
                                       what produced the surface is worse than a slightly ugly one. */}
-                                  <div style={{ wordBreak: "break-word" }}>{text}</div>
+                                  <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>{text}</div>
                                 </React.Fragment>
                               ))}
                             </div>
@@ -7335,7 +7338,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); if (!pickHoleMode) identify.handleViewClick(e) /* TASKS.csv #3824 (8) — Pick on view on a drilled trace also fired Identify, whose callout stayed on the view */; }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); if (!pickHoleMode) identify.handleViewClick(e) /* TASKS.csv #3824 (8) — Pick on view on a drilled trace also fired Identify, whose callout stayed on the view */; if (!(pickHoleMode || identify.on || sectionMode || measureMode || interpretRef.current.on || mcPickMode || explicitPickFor || sculpt.targetId)) meshSelect.handleViewClick(e); /* #3991 — no tool armed */ }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%", outline: "1px solid var(--color-border)", outlineOffset: -1 /* #3966 — a white view keeps its edge */ }} />
         <BackgroundColourBox visible={visible} bgColor={bgColor} setBgColor={setBgColor} />{/* #3966 — Edit > Background colour... */}
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
@@ -7411,8 +7414,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onClose={() => setShowBasemap(false)}
           />
         )}
+        {meshSelect.bar}{/* TASKS.csv #3991 */}
         {identify.on && <Suspense fallback={null}><IdentifyPanel result={identify.result} onShow={identify.show} onClose={identify.stop} onZoom={(pt) => zoomToPoint(pt)} onStripLog={setStripLogHoleId} /></Suspense>}
-        {guided && mode === "view" && <Suspense fallback={null}><GuidedTool tool={guided} setTool={setGuided} api={{ runStackModel, runImplicitModel, runVeinModel, runStructuralModel, runNumericModel, meshOf: (id) => implicitMeshesRef.current[id], numeric: { now: [numericSymbol, numericCutoff, numericCellSize, numericCellHeight, numericSearchRadius, numericMinHoles], set: [setNumericSymbol, setNumericCutoff, setNumericCellSize, setNumericCellHeight, setNumericSearchRadius, setNumericMinHoles] }, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy || veinBusy || numericBusy, surfaces: implicitSurfaces, setStackUnits, setImplicitTarget, setVeinTarget, setStructuralTarget, openPane: (p) => { setGuided(null); pendingPaneRef.current = p; goToModule("modelling"); } }} /></Suspense>}{/* TASKS.csv #3908 */}
+        {guided && mode === "view" && <Suspense fallback={null}><GuidedTool tool={guided} setTool={setGuided} api={guidedApi} /></Suspense>}{/* TASKS.csv #3908 */}
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
           <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>

@@ -12,13 +12,14 @@ import { wordsOf, countHelpPage } from "../scripts/word-count.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PILOTS = ["best-intercepts", "grade-shell", "point-survey"];
 const { PAGES, pageById, searchPages } = await import("../src/help/content.js");
+const CARD_IDS = PAGES.filter((p) => p.line).map((p) => p.id); // TASKS.csv #3983 — every page converted so far, the batches after the pilots too
 
-test("the pilots give the card fields, within the plan's limits", () => {
-  for (const id of PILOTS) {
+test("every card page gives the card fields, within the plan's limits", () => {
+  for (const id of CARD_IDS) {
     const p = pageById(id);
     assert.ok(p.line && wordsOf(p.line) <= 15, `${id}: one line of at most 15 words`);
-    assert.ok(p.picture && (p.picture.diagram || p.picture.drop?.length) && p.picture.alt, `${id}: a picture with its alt`);
-    assert.ok(p.cautions?.length >= 1, id);
+    assert.ok(p.picture && (p.picture.help || p.picture.diagram || p.picture.drop?.length) && p.picture.alt, `${id}: a picture with its alt`); // help: #3978
+    assert.ok(p.cautions?.length >= 1 || p.instead?.length >= 1, `${id}: a caution in view, or (a page with none) its "Use instead" routes`); // TASKS.csv #3981 — Downhole logs, Cell budget and Magnetics have no warning, only routes
     assert.ok(p.keys.length >= 2 && p.keys.length <= 4, `${id}: two to four key settings`);
     for (const k of p.keys) {
       const f = p.fields.find((x) => x.name === k);
@@ -26,7 +27,7 @@ test("the pilots give the card fields, within the plan's limits", () => {
       assert.ok(f.gist && wordsOf(f.gist) <= 8, `${id}: "${k}" has a gist of at most 8 words`);
     }
     for (const x of p.instead || []) if (x.page) assert.ok(pageById(x.page), `${id}: the chip's page ${x.page} exists`);
-    assert.ok(p.summary && p.fields.length && p.warnings.length, `${id}: the original text is still there`);
+    assert.ok(p.summary && p.fields.length && Array.isArray(p.warnings), `${id}: the original text is still there`); // #3979 — Using GeoStrix Help has no messages
   }
   assert.deepEqual(pageById("best-intercepts").strip, ["Pick Zn and a cut-off", "Read the table", "Fill Including at ≥"], "a strip where the walk-through was in view");
   assert.equal(pageById("grade-shell").strip, undefined, "none where it was folded");
@@ -36,14 +37,13 @@ test("the pilots give the card fields, within the plan's limits", () => {
   const bi = pageById("best-intercepts").cautions.join(" | ").toLowerCase();
   for (const w of ["certificates", "not true widths", "not zero"]) assert.ok(bi.includes(w), `best intercepts: "${w}"`);
   assert.match(pageById("point-survey").cautions[0], /not for resource estimation/);
-  // the pilots are cards; later batches (#3982 on) turn more pages into cards, each pinned in its own test
-  for (const id of PILOTS) assert.ok(PAGES.find((p) => p.id === id).line, id);
+  for (const id of PILOTS) assert.ok(CARD_IDS.includes(id), `${id} is a card page`);
 });
 
-test("the search still finds every sentence of a pilot page (fields, messages, Not for, walk-through, More)", () => {
-  for (const id of PILOTS) {
+test("the search still finds every sentence of a card page (fields, messages, Not for, walk-through, More)", () => {
+  for (const id of CARD_IDS) {
     const p = pageById(id);
-    const sentences = [p.summary, p.more, ...(p.notFor || []), ...p.fields.flatMap((f) => [f.what, f.choose, f.more]), ...p.warnings.flatMap((w) => [w.says, w.means, w.do]), ...(p.howto?.steps || []), p.line, ...p.cautions].filter(Boolean);
+    const sentences = [p.summary, p.more, ...(p.notFor || []), ...p.fields.flatMap((f) => [f.what, f.choose, f.more]), ...p.warnings.flatMap((w) => [w.says, w.means, w.do]), ...(p.howto?.steps || []), p.line, ...(p.cautions || [])].filter(Boolean);
     for (const s of sentences) {
       const q = s.replace(/\{[^}]*\}/g, " ").split(/\s+/).map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")).filter((w) => /^[\p{L}\p{N}]{4,}$/u.test(w)).slice(0, 6).join(" ");
       if (!q) continue;
@@ -111,7 +111,7 @@ test("the card renders K1-K6: picture and line, cautions, chips (a link when the
   assert.equal((bi.match(/<li [^>]*><svg/g) || []).length, 3, "three cautions, each with its icon");
   const gs = html("grade-shell");
   assert.match(gs, /data-help-chip="grade-estimation"/);
-  assert.match(gs, /role="img" aria-label="A surface, a grade shell and a block model, side by side\."/);
+  assert.match(gs, /role="img" aria-label="A modelled body is firm between the drill holes, extrapolated beyond them/); // #3978: N1 replaced the placeholder diagram
   // every sentence of the page is in the markup (in view or in a fold)
   const p = pageById("grade-shell"), esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
   for (const s of [p.summary, p.more, ...p.notFor, ...p.fields.map((f) => f.what), ...p.warnings.map((w) => w.says), ...p.howto.steps]) assert.ok(gs.includes(esc(s)), s.slice(0, 50));

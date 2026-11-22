@@ -7,6 +7,7 @@ import { excludeQAQC } from "./qaqc.js";
 import { holeTraces } from "./evidenceSources.js";
 import { corridorRuns, distToSegment, signedOffset } from "./sectionCorridor.js";
 import { dipPrinted } from "./dipText.js";
+import { suggestTrend } from "./mcpTrend.js"; // TASKS.csv #3932 batch 2 — the trend helper's suggestion, read-only
 
 export const MAX_ROWS = 200, DEFAULT_ROWS = 50, MAX_BYTES = 90000;
 // a name that holds a secret (never an argument, never in a reply); a text that points at a file
@@ -164,6 +165,8 @@ const TOOLS = {
     return out;
   },
 };
+// TASKS.csv #3932 batch 2 — the trend helper's candidates with their strength and reasons; element optional (without it the grades are not read)
+TOOLS.suggest_trend = (snap, a) => suggestTrend(snap, a.element != null ? elementOrFail(snap, a.element).symbol : null);
 const sectionOut = (s) => ({ name: str(s.name, 120), id: s.id, from: { easting: r3(s.ax, 1), northing: r3(s.ay, 1) }, to: { easting: r3(s.bx, 1), northing: r3(s.by, 1) }, azimuth: r3(s.azimuth, 1), length_m: r3(Math.hypot(s.bx - s.ax, s.by - s.ay), 1), corridor_half_width_m: r3(Number(s.corridor), 1) });
 
 export const TOOL_NAMES = Object.keys(TOOLS);

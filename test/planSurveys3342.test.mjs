@@ -57,7 +57,7 @@ test("a survey's outline: the convex hull of its points, as a closed boundary", 
 
 test("the Maps drop asks before making a point layer; the plan draws and lists the surveys", () => {
   const m = src("modules/MapsModule.jsx");
-  assert.match(m, /const cols = pointTableColumns\(head\);\n        if \(!cols \|\| !window\.confirm\(/);
+  assert.match(m, /const cols = pointTableColumns\(head\);\n        if \(!cols \|\| !(?:await askConfirm|window\.confirm)\(/);
   assert.match(m, /addMapLayer\(\{ \.\.\.layer, drapeMode: "terrain" \}\);\n        notes\.push\(tr\("\{name\}: \{features\} added to Map layers as points, \{crsNote\}\."/);
   assert.match(m, /planDataExtent\(\{ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples, surveys \}\)/);
   const p = src("components/MapsPlanView.jsx");

@@ -419,11 +419,15 @@ function createMainWindow() {
   // restores to.
   mainWindow.maximize();
   mainWindow.webContents.setWindowOpenHandler(openExternalOnly); // #345 — shared with every window
+  // TASKS.csv #3992 — an AI app's calls still waiting on this window fail at once when it reloads, navigates away, dies or closes (the change lock is free again)
+  const mcpLost = (why) => { try { mcpHost?.windowLost(why); } catch (_) { /* no host, or it is stopping */ } };
+  mainWindow.webContents.on("did-start-navigation", (e, url, inPlace, isMain) => { if ((e?.isMainFrame ?? isMain) && !(e?.isSameDocument ?? inPlace)) mcpLost("reloaded"); });
   if (isDev) mainWindow.webContents.openDevTools({ mode: "detach" });
   // TASKS.csv #1672 (review #1645, Copley) — a renderer that dies (it ran out of memory on a log-axis bug) left a black window with no
   // word and no way back. Say so and offer a reload; the autosave (at most a minute old) offers the work back on reload.
   mainWindow.webContents.on("render-process-gone", (_e, details) => {
     if (!details || details.reason === "clean-exit") return;
+    mcpLost("crashed"); // #3992
     const choice = dialog.showMessageBoxSync(mainWindow, {
       type: "error", buttons: ["Reload", "Close GeoStrix"], defaultId: 0, cancelId: 1, title: "GeoStrix stopped",
       message: "The GeoStrix window stopped working (" + details.reason + ").",
@@ -456,6 +460,7 @@ function createMainWindow() {
     }
   });
   mainWindow.on("closed", () => {
+    mcpLost("closed"); // #3992
     mainWindow = null;
     for (const w of sectionHosts) if (!w.isDestroyed()) w.close();
   });

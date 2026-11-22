@@ -18,7 +18,9 @@
 //     guide,                    // TASKS.csv #3887 — true on the First steps page: its screens (src/help/guide.js) are shown instead of a body, and searched
 //     // TASKS.csv #3973 (#3967's plan) — the card shape, src/help/CardPage.jsx: a page with `line` is drawn as a card; the rest of its text goes into folds
 //     line,                     // K1: the card's one line, at most 15 words (the summary moves under More)
-//     picture: { diagram | drop: [ids], alt }, // K1: a Help diagram, or one or two style-A block pictures (components/DropDiagram.jsx)
+//     picture: { help | diagram | drop: [ids], alt }, // K1: one of the cards' own pictures (help: diagrams/pictures.jsx, #3978), a Help diagram, or
+//                               // one or two style-A block pictures (components/DropDiagram.jsx)
+//     figure: { help, alt },    // #3978: a second picture under the key settings, where the plan puts one beside a setting
 //     cautions: [string],       // K2: one-line cautions, always in view (a protective one never folds)
 //     instead: [{ text, to, page }], // K3: "Use instead" chips; page: a Help page id, when there is one
 //     keys: [field name],       // K4: two to four settings in view, each with a `gist` on its field (at most 8 words)
@@ -59,7 +61,7 @@ function pageText(p) {
   const body = [
     ...(p.notFor || []),
     p.diagram?.alt, p.more, // #3899
-    p.line, p.picture?.alt, ...(p.cautions || []), ...(p.instead || []).flatMap((x) => [x.text, x.to]), ...(p.strip || []), ...(p.fields || []).map((f) => f.gist), // #3973
+    p.line, p.picture?.alt, p.figure?.alt /* #3978 */, ...(p.cautions || []), ...(p.instead || []).flatMap((x) => [x.text, x.to]), ...(p.strip || []), ...(p.fields || []).map((f) => f.gist), // #3973
     ...(p.fields || []).flatMap((f) => [f.name, f.what, f.choose, f.more]),
     ...(p.warnings || []).flatMap((w) => [w.says, w.means, w.do, w.more]),
     ...(p.howto?.steps || []),

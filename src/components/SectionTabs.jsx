@@ -6,6 +6,7 @@ import SectionWindow from "./SectionWindow.jsx";
 import { unpackSectionPayload } from "../lib/sectionPack.js"; // TASKS.csv #2343
 import { getSectionData, onSectionData, closeSectionTab, popOutSectionTab, setSectionTabUnsaved } from "../lib/desktop.js";
 import { t as tr } from "../lib/i18n.js";
+import { askConfirm, askAlert } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 const barBtn = { border: "none", background: "transparent", cursor: "pointer", font: "inherit", color: "inherit", padding: 0 };
 
@@ -40,14 +41,14 @@ export default function SectionTabs() {
     if (v) unsaved.current.add(id); else unsaved.current.delete(id);
     setSectionTabUnsaved(id, v, { title: tr("Unsaved lines"), message: tr("Some lines on this section have not been saved."), detail: tr("Save contacts keeps them. If you close now, they are lost."), close: tr("Close without saving"), cancel: tr("Cancel") });
   };
-  const close = (id) => {
-    if (unsaved.current.has(id) && !window.confirm(tr("Some lines on this section have not been saved. Close it and lose them?"))) return;
+  const close = async (id) => {
+    if (unsaved.current.has(id) && !await askConfirm(tr("Some lines on this section have not been saved. Close it and lose them?"))) return;
     unsaved.current.delete(id);
     leave(id); closeSectionTab(id);
   };
   const popOut = async (payload) => {
     const r = await popOutSectionTab(payload);
-    if (r?.refused) { window.alert(tr("{max} section windows are open, the most this computer can hold comfortably. Close one first.", { max: r.max })); return; }
+    if (r?.refused) { askAlert(tr("{max} section windows are open, the most this computer can hold comfortably. Close one first.", { max: r.max })); return; }
     unsaved.current.delete(payload.id); // its own window reports it now
     leave(payload.id);
   };

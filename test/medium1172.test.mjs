@@ -51,9 +51,9 @@ test("#1269 the QC stamp describes the run it exports", () => {
 
 test("#1285 the dialogs that guard unsaved work are translated", () => {
   const s = read("src/lib/store.jsx");
-  assert.doesNotMatch(s, /window\.confirm\(`/);
-  assert.doesNotMatch(s, /window\.confirm\("/);
-  assert.match(s, /window\.confirm\(tr\("Close/);
+  assert.doesNotMatch(s, /await askConfirm\(`/);
+  assert.doesNotMatch(s, /await askConfirm\("/);
+  assert.match(s, /await askConfirm\(tr\("Close/);
 });
 
 test("#1180 a fence covers the drilling unless asked for the models, and counts before it creates", async () => {
@@ -68,5 +68,5 @@ test("#1180 a fence covers the drilling unless asked for the models, and counts 
   assert.ok(Math.abs(fenceSectionCount(onlyHoles, 0, 1000, traces) - 6) <= 1, String(fenceSectionCount(onlyHoles, 0, 1000, traces))); // traces: #2040 — the slabs the 5 km segment crosses
   assert.ok(fenceSectionCount(fenceExtentPoints(models, traces, true), 0, 1000, traces) >= 6); // #2040 — the empty slabs between the hole and the model are not sections
   assert.equal(fenceSectionCount([], 0, 1000), 0);
-  assert.match(read("src/modules/ViewerModule.jsx"), /n > 50 && !window\.confirm/);
+  assert.match(read("src/modules/ViewerModule.jsx"), /n > 50 && !await askConfirm/);
 });
