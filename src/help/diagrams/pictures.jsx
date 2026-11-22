@@ -8,6 +8,8 @@
 //   norths    N4: grid, true and magnetic north on a map, with the angles between them
 //   cutoff    N5: a grade histogram cut at a cutoff, and the blocks above it
 //   composite N6: samples of uneven length, equal composites (a short end piece, a gap with no sample), an intercept with internal dilution
+//   save      N12: a file, a clock and an undo arrow (TASKS.csv #3979)
+//   control   N13: a QC control chart, one standard outside its limits (TASKS.csv #3979)
 import React from "react";
 import { Block, V, paint, holesOnFace, collarsOnTop } from "../../components/DropDiagram.jsx";
 
@@ -137,6 +139,51 @@ function Composite({ id }) {
   </Svg>);
 }
 
+// N12 — Save, autosave, undo: three icons on one tile (a file, a clock, an undo arrow), each coloured as its legend swatch (TASKS.csv #3979)
+function SaveIcons({ id }) {
+  const ico = (cx, kind) => {
+    const cy = 58, ink = { fill: "none", strokeWidth: 3, strokeLinecap: "round", strokeLinejoin: "round" };
+    if (kind === "file") return (<g>
+      <path d={`M${cx - 18} ${cy - 26} H${cx + 6} L${cx + 18} ${cy - 14} V${cy + 26} H${cx - 18} Z`} {...paint("bg", 1, "text", 2.4)} />
+      <path d={`M${cx + 6} ${cy - 26} V${cy - 14} H${cx + 18}`} style={{ ...ink, stroke: V("text"), strokeWidth: 2 }} />
+      <line x1={cx - 10} y1={cy + 2} x2={cx + 10} y2={cy + 2} style={{ stroke: V("text-muted"), strokeWidth: 2.4, strokeLinecap: "round" }} />
+      <line x1={cx - 10} y1={cy + 10} x2={cx + 10} y2={cy + 10} style={{ stroke: V("text-muted"), strokeWidth: 2.4, strokeLinecap: "round" }} />
+      <line x1={cx - 10} y1={cy + 18} x2={cx + 2} y2={cy + 18} style={{ stroke: V("text-muted"), strokeWidth: 2.4, strokeLinecap: "round" }} />
+    </g>);
+    if (kind === "clock") return (<g>
+      <circle cx={cx} cy={cy} r="26" {...paint("bg", 1, "info", 3)} />
+      <path d={`M${cx} ${cy - 15} V${cy} L${cx + 11} ${cy + 7}`} style={{ ...ink, stroke: V("info") }} />
+    </g>);
+    return (<g>
+      <path d={`M${cx - 20} ${cy - 4} H${cx + 6} A15 15 0 0 1 ${cx + 6} ${cy + 26} H${cx - 6}`} style={{ ...ink, stroke: V("accent"), strokeWidth: 4 }} />
+      <path d={`M${cx - 12} ${cy - 16} L${cx - 24} ${cy - 4} L${cx - 12} ${cy + 8} Z`} {...paint("accent", 1)} />
+    </g>);
+  };
+  return (<Svg>
+    <Tile id={id} x={8} y={4} w={208} h={108} />
+    {ico(50, "file")}
+    {ico(112, "clock")}
+    {ico(176, "undo")}
+  </Svg>);
+}
+
+// N13 — a QC control chart: the mean and the ±2 and ±3 SD lines, a run of standards inside them and one outside (TASKS.csv #3979)
+const RUN = [58, 52, 62, 66, 50, 60, 70, 56, 16, 54, 60];
+function Control({ id }) {
+  const x0 = 26, step = 17;
+  const pts = RUN.map((y, i) => [x0 + i * step, y]);
+  return (<Svg>
+    <Tile id={id} x={8} y={4} w={208} h={108} />
+    <line x1="16" y1="58" x2="208" y2="58" style={{ stroke: V("text"), strokeWidth: 1.4 }} />
+    {[38, 78].map((y) => <line key={y} x1="16" y1={y} x2="208" y2={y} style={{ stroke: V("text"), strokeWidth: 1.2, strokeDasharray: "4 3" }} />)}
+    {[26, 90].map((y) => <line key={y} x1="16" y1={y} x2="208" y2={y} style={{ stroke: V("text-muted"), strokeWidth: 1.2, strokeDasharray: "2 3" }} />)}
+    <path d={"M" + pts.map((p) => p.join(" ")).join(" L")} style={{ fill: "none", stroke: V("tier-basic"), strokeWidth: 1.4 }} />
+    {pts.map(([x, y], i) => y < 22
+      ? <circle key={i} cx={x} cy={y} r="5" {...paint("danger-solid", 1, "bg", 1)} />
+      : <circle key={i} cx={x} cy={y} r="3.4" {...paint("tier-basic", 1)} />)}
+  </Svg>);
+}
+
 // legend swatches (HTML, in CardPage): what each kind looks like
 export const SWATCH = {
   data: { background: "var(--color-tier-basic)", opacity: 0.8 },
@@ -159,4 +206,6 @@ export const HELP_PICTURES = {
   norths: { Pic: Norths, legend: [["ink", "Grid north"], ["info", "True north"], ["danger", "Magnetic north"]] },
   cutoff: { Pic: Cutoff, legend: [["above", "At or above the cutoff"], ["below", "Below it"], ["line", "The cutoff"]] },
   composite: { Pic: Composite, legend: [["grade", "Samples: uneven lengths"], ["above", "Equal composites"], ["gap", "No sample"], ["endPiece", "Short end piece"], ["intercept", "Intercept, with internal dilution"]] },
+  save: { Pic: SaveIcons, legend: [["ink", "Save: your project file"], ["info", "Autosave: a crash copy"], ["above", "Undo: the last edit"]] },
+  control: { Pic: Control, legend: [["ok", "Within its limits"], ["danger", "Outside its limits"], ["line", "Mean, ±2 and ±3 SD"]] },
 };

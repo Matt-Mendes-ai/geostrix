@@ -14722,5 +14722,11 @@
   "Samples: uneven lengths": "Amostras: comprimentos desiguais",
   "Equal composites": "Compostos iguais",
   "No sample": "Sem amostra",
-  "Intercept, with internal dilution": "Intercepto, com diluição interna"
+  "Intercept, with internal dilution": "Intercepto, com diluição interna",
+  "Save: your project file": "Salvar: o arquivo do projeto",
+  "Autosave: a crash copy": "Salvamento automático: uma cópia para uma falha",
+  "Undo: the last edit": "Desfazer: a última edição",
+  "Within its limits": "Dentro dos seus limites",
+  "Outside its limits": "Fora dos seus limites",
+  "Mean, ±2 and ±3 SD": "Média, ±2 e ±3 DP"
 }
