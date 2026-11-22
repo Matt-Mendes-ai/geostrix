@@ -12833,7 +12833,6 @@
   "\"{name}\" is a 3D UBC mesh ({nx} × {ny} × {nz} cells): import it under Geophysics › Block models › Import UBC mesh + model. This reads one 2D line.": "\"{name}\" é uma malha UBC 3D ({nx} × {ny} × {nz} células): importe-a em Geofísica › Modelos de blocos › Importar malha UBC + modelo. Isto lê uma única linha 2D.",
   "One 2D line only. A UBC 3D mesh goes to Block models; a cloud of apparent values (X Y Z value) to Point survey.": "Apenas uma linha 2D. Uma malha UBC 3D vai para Modelos de blocos; uma nuvem de valores aparentes (X Y Z valor) para Levantamento pontual.",
   "Cross-plots: Downhole logs against a log, Geochem › X–Y scatter against an assay.": "Gráficos cruzados: Perfis de furo contra um perfil, Geoquímica › Dispersão X–Y contra uma análise.",
-  "For a cross-plot against an assay, use Geochem › X–Y scatter (the model's values are listed as 'On holes: …').": "Para um gráfico cruzado contra uma análise, use Geoquímica › Dispersão X–Y (os valores do modelo aparecem como \"On holes: …\").",
   "For a cross-plot against a log, use Downhole logs.": "Para um gráfico cruzado contra um perfil, use Perfis de furo.",
   "Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs.{routes}": "Adicionado \"Nos furos: {name}\" — o valor do modelo em {rows} cruzamento(s) de células ao longo de {holes} furo(s). Abra o perfil gráfico de um furo para comparar com os perfis.{routes}",
   "No magnetic survey yet: import one above.": "Ainda não há levantamento magnético: importe um acima.",
@@ -14728,7 +14727,6 @@
   "All the drilling": "Toda a sondagem",
   "The box drawn": "O retângulo desenhado",
   "Draw a box…": "Desenhar um retângulo…",
-  "Drag on the view to draw it.": "Arraste na vista para desenhá-lo.",
   "Drag a corner to change it.": "Arraste um canto para alterá-lo.",
   "Drag to move this row; a group heading moves its whole group": "Arraste para mover esta linha; um cabeçalho de grupo move o grupo inteiro",
   "{label} was cut off: its project closed before the rest was added.": "{label} foi interrompido: o projeto foi fechado antes de o restante ser adicionado.",
@@ -14852,5 +14850,13 @@
   "no recovery": "sem recuperação",
   "{unit} starts {n} of the {h} holes at the collar: it is the cover. Its top there is the ground, not a contact, so a surface from its other tops is not its top (it sits off to one side). Model its base instead: Model > Cover and weathering, or set its role to Overburden in Modelling codes.": "{unit} inicia {n} dos {h} furos no colar: é a cobertura. Ali o topo é o terreno, não um contato, então uma superfície feita com os outros topos não é o topo (fica de lado). Modele a base: Modelo > Cobertura e intemperismo, ou defina o papel Cobertura em Códigos de modelagem.",
   " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " Como cobertura, a base é uma só superfície erosiva sobre as rochas em que repousa ({list}), e a pilha é modelada abaixo dela.",
-  "Section window": "Janela de seção"
+  "Section window": "Janela de seção",
+  "For a cross-plot against an assay: Downhole logs (listed there as a log) or Geochem › X–Y scatter.": "Para um gráfico cruzado contra uma análise: Logs de furo (aparece ali como um perfil) ou Geoquímica › Dispersão X–Y.",
+  "\"{name}\" is a block model evaluated onto the holes, read here as a log.": "\"{name}\" é um modelo de blocos avaliado nos furos, lido aqui como um perfil.",
+  "Updated \"On holes: {name}\" (same layer, style kept): {rows} cell crossing(s) along {holes} hole(s).{routes}": "Atualizado \"Nos furos: {name}\" (mesma camada, estilo mantido): {rows} cruzamento(s) de células ao longo de {holes} furo(s).{routes}",
+  "The fence series' box (StrixViewer › Slice series)": "O retângulo da série de seções (StrixViewer › Série de fatias)",
+  "Fence box": "Retângulo da série",
+  "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).": "Arraste no plano para desenhar o retângulo da série, girado para o seu azimute ({a}°).",
+  "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.": "Retângulo da série, {l} × {w} m a {a}°: arraste um canto para alterá-lo.",
+  "Drag on the view, or on Maps › Fence box, to draw it.": "Arraste na vista, ou em Mapas › Retângulo da série, para desenhá-lo."
 }

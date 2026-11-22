@@ -40,6 +40,6 @@ test("#3624 the view reads the saved camera on open, keeps it across its own sta
 test("#3624 the hole filter's rule is saved with the checks and read back (and cleared for a new project)", () => {
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /setHoleFilter\(s\.holeFilter \|\| ""\); \/\/ #3624/);
-  assert.match(v, /setModelArea\("all"\); setHoleFilter\(""\); \/\/ #2535; #3624/);
+  assert.match(v, /setModelArea\("all"\); setHoleFilter\(""\); setFenceArea\(null\); \/\/ #2535; #3624; #4004/); // #4004: and the fence box
   assert.match(v, /markViewerUiBaseline, modelArea, holeFilter, savedCamera, fenceArea\]\);/); // fenceArea: #3971
 });

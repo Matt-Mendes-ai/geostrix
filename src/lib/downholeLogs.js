@@ -186,9 +186,15 @@ export function ratioComparable(logLabel, element) {
 export function onHolesRoutes(assays, layers) {
   const hasLog = ["magsusc", "sg", "geotech", "recovery"].some((k) => (layers?.[k]?.length || 0) > 0), hasAssays = (assays?.length || 0) > 0;
   if (hasLog && hasAssays) return " " + tr("Cross-plots: Downhole logs against a log, Geochem › X–Y scatter against an assay.");
-  if (hasAssays) return " " + tr("For a cross-plot against an assay, use Geochem › X–Y scatter (the model's values are listed as 'On holes: …').");
+  if (hasAssays) return " " + tr("For a cross-plot against an assay: Downhole logs (listed there as a log) or Geochem › X–Y scatter.");
   if (hasLog) return " " + tr("For a cross-plot against a log, use Downhole logs.");
   return "";
+}
+// TASKS.csv #3813 — a model evaluated onto the holes listed as a log too, after every real log (#2558: it never opens over one), so a project with
+// assays and no numeric log can read it against an assay or by logged code. evaluated: numericSourceChoices of the evaluated layers; scaleOf(layerId):
+// the layer's defaultRampScale, the model's own scale, which Automatic then follows
+export function withEvaluatedLogs(logs, evaluated, scaleOf = () => null) {
+  return [...(logs || []), ...(evaluated || []).filter((s) => s.field === "value").map((s) => { const m = scaleOf(s.layerId); return { ...s, evaluated: true, ...(m === "log" || m === "linear" ? { modelScale: m } : {}) }; })];
 }
 // TASKS.csv #1595 (review #1497, Lawyers) — a log against a block model evaluated onto the holes ('On holes: <model>', GeophysicsModule
 // evaluateOnHoles): each reading paired with the model cell the hole crosses at its midpoint. The reviewer had to do this by hand for
@@ -253,7 +259,7 @@ export function logScaleFor(source, values, choice) {
   const a = autoLogScale(source, values);
   return { log: a, auto: true, autoLog: a };
 }
-const autoLogScale = (source, values) => (source?.layerId != null || source?.logScale !== false) && logScaleSuits(values);
+const autoLogScale = (source, values) => (source?.modelScale ? source.modelScale === "log" /* #3813 — an evaluated model: its own scale */ : (source?.layerId != null || source?.logScale !== false) && logScaleSuits(values));
 export const allAboveZero = (values) => { let n = 0; for (const v of values || []) { if (!Number.isFinite(v)) continue; n++; if (v <= 0) return false; } return n > 0; };
 export const countAtOrBelowZero = (values) => (values || []).reduce((k, v) => k + (Number.isFinite(v) && v <= 0 ? 1 : 0), 0);
 // a number to three significant figures, small ones included (0.000112, not the 0 that toLocaleString's three decimals gave)

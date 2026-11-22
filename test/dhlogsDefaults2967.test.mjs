@@ -37,7 +37,7 @@ test("the scale per log: Automatic follows the readings (imported logs too), a l
 
 test("the pane: the ordered list, the per-log scale kept with Automatic, the lead commodity as the element", () => {
   const p = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
-  assert.match(p, /const sources = useMemo\(\(\) => orderLogSources\(numericSourceChoices\(/);
+  assert.match(p, /const sources = useMemo\(\(\) => withEvaluatedLogs\(orderLogSources\(numericSourceChoices\(/); // #3813: the evaluated models after the logs
   assert.match(p, /useKeptState\(keptScope, "dhlogs\.scaleBy", \{\}\)/);
   assert.match(p, /if \(v === "auto"\) delete n\[source\.key\]; else n\[source\.key\] = v;/);
   assert.match(p, /<option value="auto">\{scale\.autoLog \? tr\("Automatic \(logarithmic\)"\) : tr\("Automatic \(linear\)"\)\}<\/option>/);
