@@ -19,9 +19,9 @@ const nativeAsk = async (win, spec) => {
     buttons: spec.buttons.map((b) => b.label), defaultId: Math.max(0, spec.buttons.findIndex((b) => b.primary)), cancelId: Math.max(0, i(spec.cancelValue)) });
   return spec.buttons[r.response]?.value ?? spec.cancelValue;
 };
-const askRenderer = createAsker({ ipc: ipcMain, nativeAsk });
-const path = require("path");
 const { createAsker } = require("./mainAsk.js"); // TASKS.csv #3995 — the main process's questions in the window's own dialog, native when it cannot answer
+const askRenderer = createAsker({ ipc: ipcMain, nativeAsk }); // after its require: the other order threw 'Cannot access createAsker before initialization' and the app never started
+const path = require("path");
 const fs = require("fs");
 const dns = require("dns");
 const { spawn } = require("child_process");
