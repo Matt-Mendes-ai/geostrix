@@ -4,7 +4,7 @@ import { macrostratFetch, cancelledError, isCancelledError } from "./desktop.js"
 import { getProj4DefSync } from "./reproject.js";
 import { reprojectImageRGBA } from "./reprojectMore.js"; // TASKS.csv #3590
 import { wmsImageSize, wmsPixelMetres } from "./webLayers.js";
-import { MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, planMacrostratTiles, macrostratZoomSteps, firstZoomWithUnits, macrostratScaleNote /* #3974 */, parseMacrostratUnits, parseMacrostratSources, macrostratLegend, macrostratUnitFeatures, macrostratLayersInArea, drawUnitsRGBA, unitImageLongPx } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
+import { MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, macrostratZoomSteps, firstZoomWithUnits, macrostratScaleNote /* #3974 */, parseMacrostratUnits, parseMacrostratSources, macrostratLegend, macrostratUnitFeatures, macrostratLayersInArea, drawUnitsRGBA, unitImageLongPx } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
 import { parseLithologies } from "./macrostratColours.js";
 import { readVectorTile } from "./mvt.js"; // TASKS.csv #2011
 import { buildLayer } from "./mapLayerBuild.js"; // TASKS.csv #2012
