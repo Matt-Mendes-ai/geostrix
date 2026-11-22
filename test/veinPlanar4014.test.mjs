@@ -34,6 +34,6 @@ test("#4014 the vein run: planar unless folded, parallel sheets each their own v
   assert.match(r, /planar: true \}\); Object\.assign\(m\.plane, plane\); return m; \};/);
   assert.match(r, /const landOne = async \(\{ model, label, used \}\) => \{/);
   assert.match(r, /for \(const r of runs\) if \(!\(await landOne\(r\)\)\) break;/);
-  assert.match(r, /if \(!\(await landed\(job\)\)\) return false;/);
+  assert.match(r, /if \(!\(await landed\(job\)\)\) return; \/\/ TASKS\.csv #3953[^\n]*#4014: undefined, so the sheets stop/);
   assert.match(r, /return true; \/\/ #4014: the next sheet still lands/);
 });

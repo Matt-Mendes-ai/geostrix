@@ -327,11 +327,10 @@ export default [
     area: "3D Modelling",
     title: "Faults",
     // TASKS.csv #4006 — the Faults pane gathers every fault tool; this page is where a Help search for a fault lands
-    line: "Every fault tool in one place: build, use, draw and check fault surfaces.",
+    line: "Every fault tool in one place.",
     picture: { drop: ["section"], alt: "A fault surface cuts the section; each fault tool works from its own evidence." },
-    cautions: ["A fault surface from a few points is a guess.", "Beyond its evidence a fault surface is extrapolated, not observed."],
-    instead: [{ text: "Veins, dykes", to: "Vein / dyke", page: "vein-dyke" }, { text: "Contacts", to: "Implicit surface", page: "implicit-surface" }],
-    keys: ["Build a fault surface", "Use faults in a model", "Draw and check fault evidence"],
+    cautions: ["From few points a guess; beyond them extrapolated, not observed."],
+    keys: ["Build faults", "Use faults", "Check evidence"],
     summary: "The Faults button (3D Modelling ribbon, Faults and structure) opens one pane that lists every fault tool in GeoStrix, what each does and the fault evidence the project holds for it: oriented fault picks, logged fault intervals, outcrop fault measurements, mapped fault lines, drawn fault lines and section fault strings. Open takes you to the tool where it lives.",
     more: "Nothing is moved: each fault tool keeps its own pane or window, and is also found from the Faults pane. The counts follow the project: a fault pick is a structure pick whose type reads as a fault or a shear; a logged fault interval is a code such as FLT, FZ, gouge or shear zone; a mapped fault line is a line feature whose attributes mention a fault, thrust or shear.",
     notFor: [
@@ -340,9 +339,9 @@ export default [
       "Not for veins and dykes (Vein / dyke modelling) or lithological contacts (Implicit surface).",
     ],
     fields: [
-      { name: "Build a fault surface", gist: "guided card, Structures, Model from map", what: "Guided: a fault from your picks, step by step; Structures: a fault or shear surface for each named structure, from oriented picks; Model from map: the map's fault lines with a dip, and Pick the 6.", more: "How to choose: With fault picks in core, start with the guided card. With a geological map and no drilling, use Model from map." },
-      { name: "Use faults in a model", gist: "offset units, end surfaces, fault blocks", what: "Strat. stack: up to six faults cut the modelled units and offset them; Explicit surface: a surface ends at a fault, on the side you choose; Domains: a fault surface splits the model into fault blocks." },
-      { name: "Draw and check fault evidence", gist: "lines, sections, stereonet, downhole plot", what: "Interpretation lines: a fault trace on the terrain or at a level, with its dip; Section window: Draw fault; Stereonet: one cluster of poles suggests one fault; Downhole plot and Core orientation for the picks themselves." },
+      { name: "Build faults", gist: "planes, guided, Structures, map", what: "The pane's builder: every kind of fault evidence at once, each item given to a fault you name; by default each fault is sheeted planes (flat, parallel sheets, no solver), or one curved GemPy surface for a folded fault; through the box, finite (its evidence plus a margin) or until another fault. Guided: a fault from your picks, step by step; Structures: a fault or shear surface for each named structure, from oriented picks; Model from map: the map's fault lines with a dip, and Pick the 6.", more: "How to choose: With fault picks in core, start with the guided card. With a geological map and no drilling, use Model from map." },
+      { name: "Use faults", gist: "stack, explicit, domains", what: "Strat. stack: up to six faults cut the modelled units and offset them; Explicit surface: a surface ends at a fault, on the side you choose; Domains: a fault surface splits the model into fault blocks." },
+      { name: "Check evidence", gist: "lines, stereonet, plots", what: "Interpretation lines: a fault trace on the terrain or at a level, with its dip; Section window: Draw fault; Stereonet: one cluster of poles suggests one fault; Downhole plot and Core orientation for the picks themselves." },
       { name: "Fault evidence in this project", what: "The counts at the top of the pane: oriented picks, logged intervals, outcrop measurements, mapped lines, drawn lines and section strings." },
     ],
     warnings: [],
