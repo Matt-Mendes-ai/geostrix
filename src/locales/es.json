@@ -14747,5 +14747,8 @@
   "Show on export": "Mostrar al exportar",
   "Hide the overview": "Ocultar la vista general",
   "Drag the line to move the section ({m} m steps).": "Arrastre la línea para mover la sección (pasos de {m} m).",
-  "Drag the line to move the section.": "Arrastre la línea para mover la sección."
+  "Drag the line to move the section.": "Arrastre la línea para mover la sección.",
+  "built the surface '{name}'": "construyó la superficie '{name}'",
+  "built the {symbol} grade shell": "construyó la envolvente de ley de {symbol}",
+  "added the model's blocks as the block model '{name}'": "agregó los bloques del modelo como el modelo de bloques '{name}'"
 }

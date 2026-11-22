@@ -9,7 +9,7 @@ const net = require("net");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { createSession, createChangeLock } = require("./mcpProtocol.js");
+const { createSession, createChangeLock, createJobs } = require("./mcpProtocol.js");
 
 const DEBUG = !!process.env.GEOSTRIX_MCP_DEBUG; // a breadcrumb file for the live checks: events only, never what a tool returned
 const HANDSHAKE_MS = 5000, CALL_TIMEOUT_MS = 30000, NETWORK_CALL_TIMEOUT_MS = 10 * 60000 /* #3932: a download */, MAX_LINE = 64 * 1024, ACTIVITY_KEPT = 60;
@@ -24,6 +24,7 @@ function createHost({ userDataDir, getWindow, askAllow, askNetwork, isOnline, re
   // TASKS.csv #3932 — 'Allow AI apps to make changes': off by default, only while the server runs, off with it; kept for the next launch (prefs allowChanges) only with 'remember'
   let changesOn = false;
   const changeLock = createChangeLock(); // one change at a time, whichever app asks
+  const jobs = createJobs(); // #3937 — the long changes answered "started", checked with job_status (shared by every connection, scoped by app)
 
   const status = () => ({ enabled: !!server, changes: !!server && changesOn, remember: !!readPrefs().mcp?.remember, clients: [...clients].map(([name, c]) => ({ name, since: c.since, calls: c.calls })), calls, activity: activity.slice(-ACTIVITY_KEPT), allowed: readPrefs().mcp?.allowed || [] });
   const push = () => { try { onStatus(status()); } catch { /* the window is gone */ } };
@@ -40,7 +41,7 @@ function createHost({ userDataDir, getWindow, askAllow, askNetwork, isOnline, re
     if (!win || win.isDestroyed?.()) return Promise.resolve({ ok: false, error: "GeoStrix has no open window to read the project from." });
     return new Promise((resolve) => {
       const id = ++seq;
-      const timer = setTimeout(() => { pending.delete(id); resolve({ ok: false, error: "GeoStrix did not answer in time (it may be busy). Try again." }); }, meta.network ? NETWORK_CALL_TIMEOUT_MS : CALL_TIMEOUT_MS);
+      const timer = setTimeout(() => { pending.delete(id); resolve({ ok: false, error: "GeoStrix did not answer in time (it may be busy). Try again." }); }, meta.network || meta.long ? NETWORK_CALL_TIMEOUT_MS : CALL_TIMEOUT_MS);
       pending.set(id, (r) => { clearTimeout(timer); resolve(r); });
       try { win.webContents.send("mcp-request", { id, name, args, ...(meta.client ? { client: meta.client } : {}), ...(meta.change ? { change: true } : {}) }); } catch { clearTimeout(timer); pending.delete(id); resolve({ ok: false, error: "GeoStrix could not be reached." }); }
     });
@@ -81,7 +82,7 @@ function createHost({ userDataDir, getWindow, askAllow, askNetwork, isOnline, re
           if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) { dbg("bad token", a.length, b.length); return kill(); }
           dbg("authenticated");
           authed = true; clearTimeout(timer);
-          session = createSession({ callTool, askAllow: async (c, opts) => { sock._mcpClient = c; return ask(c, opts); }, changesAllowed: () => !!server && changesOn, changeLock, ...(askNetwork ? { askNetwork } : {}), ...(isOnline ? { isOnline } : {}), onActivity: note, ...(limits ? { limits } : {}), ...(tools ? { tools } : {}) });
+          session = createSession({ callTool, askAllow: async (c, opts) => { sock._mcpClient = c; return ask(c, opts); }, changesAllowed: () => !!server && changesOn, changeLock, jobs, emit: (line) => { if (!sock.destroyed) sock.write(`${line}\n`); }, ...(askNetwork ? { askNetwork } : {}), ...(isOnline ? { isOnline } : {}), onActivity: note, ...(limits ? { limits } : {}), ...(tools ? { tools } : {}) });
           continue;
         }
         if (!line.trim()) continue;

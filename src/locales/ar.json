@@ -14747,5 +14747,8 @@
   "Show on export": "إظهار عند التصدير",
   "Hide the overview": "إخفاء النظرة العامة",
   "Drag the line to move the section ({m} m steps).": "اسحب الخط لتحريك المقطع (خطوات {m} م).",
-  "Drag the line to move the section.": "اسحب الخط لتحريك المقطع."
+  "Drag the line to move the section.": "اسحب الخط لتحريك المقطع.",
+  "built the surface '{name}'": "أنشأ السطح '{name}'",
+  "built the {symbol} grade shell": "أنشأ غلاف المحتوى لعنصر {symbol}",
+  "added the model's blocks as the block model '{name}'": "أضاف كتل النموذج كنموذج الكتل '{name}'"
 }
