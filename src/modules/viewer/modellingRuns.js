@@ -1878,13 +1878,18 @@ export function createModellingRuns(ctx, mcRef) {
     const mapRelation = p.relation || stackRelation, pinched = new Set(), unpinched = new Set(); // #1030
     // TASKS.csv #1309 — unconformities the geologist marked, as indices into the order; the last unit has nothing below it
     const breaks = new Set((p.breaks || []).map((u) => rank.get(u)).filter((i) => i !== undefined && i < order.length - 1));
-    let offTerrain = 0, unused = 0;
+    let offTerrain = 0, unused = 0, lateral = 0;
+    // TASKS.csv #4001 — facies of one formation and one age side by side: their contact is a lateral boundary, not a top (it fed one facies' top
+    // and made Erosional singular where it met the unit above)
+    const faciesKey = new Map();
+    (p.facies || []).forEach((g, k) => g.forEach((u) => faciesKey.set(u, k)));
+    const sideBySide = (a, b) => faciesKey.has(a) && faciesKey.get(a) === faciesKey.get(b);
     const topsOfContact = (ry, ro) => (breaks.size ? [order[contactSurface(ry, ro, breaks)]] : mapRelation === "erode" ? order.slice(ry + 1, ro + 1) : [order[ro]]); // #1030; #1309
     // TASKS.csv #3162 — the sampling step: 25 m, or longer on a big map so the points stay within GemPy's means (lib/gempyLimits.js)
     let usedM = 0;
     for (const c of contacts) {
       const [a, b] = c.units;
-      if (!rank.has(a) || !rank.has(b)) continue;
+      if (!rank.has(a) || !rank.has(b) || sideBySide(a, b)) continue;
       const n = topsOfContact(Math.min(rank.get(a), rank.get(b)), Math.max(rank.get(a), rank.get(b))).length;
       for (const line of c.lines) for (let i = 1; i < line.length; i++) usedM += n * Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]);
     }
@@ -1892,6 +1897,7 @@ export function createModellingRuns(ctx, mcRef) {
     for (const c of contacts) {
       const [a, b] = c.units;
       if (!rank.has(a) || !rank.has(b)) { unused++; continue; }
+      if (sideBySide(a, b)) { lateral++; continue; } // #4001
       const ry = Math.min(rank.get(a), rank.get(b)), ro = Math.max(rank.get(a), rank.get(b));
       const tops = topsOfContact(ry, ro);
       if (!breaks.size && ro > ry + 1) tops.slice(0, -1).forEach((u) => pinched.add(u));
@@ -1998,7 +2004,7 @@ export function createModellingRuns(ctx, mcRef) {
       + (holeOutside ? tr(" {g} logged contact(s) in holes collared outside the map's area were left out: the model stands on the map.", { g: holeOutside }) : "") /* #3045 */
       + (holeNoTrace ? tr(" {g} logged contact(s) on holes with no trace were skipped.", { g: holeNoTrace }) : "")
       + (stepM > MAP_CONTACT_STEP_M ? tr(" The map's contacts were sampled every {s} m, not every {s0} m, to keep about {n} points: GemPy's memory grows with the square of the points ({n0} at {s0} m).", { s: stepM, s0: MAP_CONTACT_STEP_M, n: Math.round(usedM / stepM).toLocaleString(), n0: Math.round(usedM / MAP_CONTACT_STEP_M).toLocaleString() }) : "") // #3162
-      + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (onPlan ? tr(" {k} contact point(s) and measurement(s) off the terrain's data were placed at the map layer's elevation (RL {z}), where the surfaces are also cut.", { k: onPlan, z: Math.round(planZ) }) : "") /* #2410 */ + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
+      + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (onPlan ? tr(" {k} contact point(s) and measurement(s) off the terrain's data were placed at the map layer's elevation (RL {z}), where the surfaces are also cut.", { k: onPlan, z: Math.round(planZ) }) : "") /* #2410 */ + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : "") + (lateral ? tr(" {k} contact(s) between facies of one formation and age are lateral, not tops: left out.", { k: lateral }) : "") /* #4001 */)]); // appendNotice: #821
     await runSurfaceStack([...faultSpecs, ...specs], { fromMap: true /* #3162 */, mapLayer: p.layer, mapField: p.field, onFit: p.onFit, aboveColor: unitColour(order[0]) /* #3989 */, fullDetail: !!p.fullDetail /* #3198 follow-up */, relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size, ...(planZ != null ? { groundFallbackZ: planZ } : {}) }); // #2410 // #1309
   };
 
