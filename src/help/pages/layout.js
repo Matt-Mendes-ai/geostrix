@@ -6,8 +6,14 @@ export default [
     id: "layout",
     area: "Layout",
     title: "Layout",
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds. Its diagram is the card's picture.
+    line: "Puts report figures on pages and prints them as a PDF or PNG.",
+    picture: { diagram: "layoutSheet", alt: "A Layout page: a view takes most of it, the legend, north arrow and scale bar beside it, the title block along the foot." },
+    cautions: ["A scale bar is right only for the view it is assigned to."],
+    instead: [{ text: "True map work", to: "export layers to a GIS", page: "export-formats" }, { text: "The vector figure", to: "PDF, not PNG" }],
+    keys: ["Current view / Drill plan / Theme view", "Scale 1 : and Typed scale 1 :", "Templates"],
+    strip: ["Pick the paper", "Add a Drill plan", "Type the scale", "Add a Title block", "Assign the scale bar", "Export PDF"],
     summary: "Puts report figures together: pages of views, a title block, scale bar, north arrow and legend, printed as a PDF or a PNG.",
-    diagram: { id: "layoutSheet", alt: "A Layout page: a view takes most of it, the legend, north arrow and scale bar beside it, the title block along the foot." },
     more: "Views are snapshots of the 3D view, drill plans, sections and strip logs. Each page has its own paper and orientation. A section or strip log sent from its window goes on the open page when it fits, else on a page of its own; a retaken snapshot keeps its scale. The data owner's credit is printed on every page the app makes.",
     notFor: [
       "It is not a GIS: a drill plan is a picture of the view with a scale bar tied to it. Export layers to a GIS for true map work.",
@@ -16,8 +22,8 @@ export default [
     ],
     fields: [
       { name: "Add page / page size and orientation", what: "Each page's paper (A4, A3, A2, A1, A0, Letter, Legal or Tabloid), landscape or portrait.", more: "How to choose: The paper the report prints on, before you place views. Letter is 8.5×11 in, Legal 8.5×14 in, Tabloid 11×17 in; a document can mix sizes. Changing the paper re-lays the starter template (frame, title, title block, north arrow, scale bar, credit); elements you added stay put." },
-      { name: "Current view / Drill plan / Theme view", what: "A snapshot of the 3D view, a plan of the collars, or a live view of a saved theme.", more: "How to choose: Drill plan for a location figure; Current view for a 3D figure; Snapshot to Layout from a section or strip log." },
-      { name: "Scale 1 : and Typed scale 1 :", what: "A view's scale, from the list or typed (1 : 6,000).", more: "How to choose: The scale the report states; Fit the holes at a round scale picks the roundest that fits." },
+      { name: "Current view / Drill plan / Theme view", gist: "what a frame shows", what: "A snapshot of the 3D view, a plan of the collars, or a live view of a saved theme.", more: "How to choose: Drill plan for a location figure; Current view for a 3D figure; Snapshot to Layout from a section or strip log." },
+      { name: "Scale 1 : and Typed scale 1 :", gist: "from the list, or typed", what: "A view's scale, from the list or typed (1 : 6,000).", more: "How to choose: The scale the report states; Fit the holes at a round scale picks the roundest that fits." },
       { name: "Fill the page", what: "The frame takes the page inside 10 mm margins.", more: "How to choose: For a figure that is the page; set the scale after." },
       { name: "Only the N of M holes checked in StrixViewer", what: "A drill plan shows only the holes checked in StrixViewer while ticked.", more: "How to choose: Ticked for one campaign or area; unticked for every hole." },
       { name: "Grid (m), Centre E / Centre N", what: "The grid spacing (blank: about five lines; 0: none) and the plan's centre.", more: "How to choose: Centre the drilling clear of the title block and key." },
@@ -31,7 +37,7 @@ export default [
       { name: "Scale bar", what: "A bar in metres; Assign scale bar to this view ties it to that view's scale.", more: "How to choose: Assign one to every view a reader will measure from. A tied bar sits under its view and follows its scale; edit its number and it resizes. A bar added from the ribbon belongs to no view. On a strip log choose the depth scale so the paper height is exact." },
       { name: "North arrow", what: "A north arrow, with declination and convergence if you want them.", more: "How to choose: Set it from the project's coordinate system; with a local grid it says local grid north." },
       { name: "Legend, text, rectangle, arrow, callout, freehand", what: "Annotations; the legend lists the colours the page's views use.", more: "How to choose: Add the legend after the views are final." },
-      { name: "Templates", what: "Save template keeps the page for reuse; Templates lists starters and yours.", more: "How to choose: Save your own once the title block and credit are right." },
+      { name: "Templates", gist: "save a page to reuse", what: "Save template keeps the page for reuse; Templates lists starters and yours.", more: "How to choose: Save your own once the title block and credit are right." },
       { name: "Export PDF / Export PNG", what: "The PDF prints every page at its paper; the PNG saves the current page.", more: "How to choose: PDF for the report; PNG at 300 dpi for print, 150 for a screen." },
     ],
     warnings: [
@@ -55,6 +61,11 @@ export default [
     id: "layout-title-block",
     area: "Layout",
     title: "Title block and tokens",
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "The labelled box in a corner; tokens fill in when the page prints.",
+    picture: { diagram: "layoutSheet", alt: "A Layout page with its title block along the foot." }, // the token-to-text picture when it is drawn
+    cautions: ["Several scales on a page: a scale bar on each view, not one {scale}."],
+    keys: ["{project} and {date}", "{page}, {pages} and {pagename}", "{scale}", "{credits}"],
     summary: "The labelled box at a figure's corner. A value can hold tokens GeoStrix fills in when the page is shown and printed.",
     more: "The same tokens work in any Layout text.",
     notFor: [
@@ -62,11 +73,11 @@ export default [
       "A page with several scales needs a scale bar on each view, not one {scale}.",
     ],
     fields: [
-      { name: "{project} and {date}", what: "The project's name, and the date the page is shown or printed.", more: "How to choose: Type a fixed date on a figure you have issued." },
-      { name: "{page}, {pages} and {pagename}", what: "This page's number, the number of pages, and the page's name.", more: "How to choose: Use them so a figure set renumbers itself." },
-      { name: "{scale}", what: "The page's view scale, as 1 : n.", more: "How to choose: Put a bar on the view too: a number cannot be checked on paper. The first fixed-scale view's, else the first true-scale one, else an approximate scale of the first view." },
+      { name: "{project} and {date}", gist: "the project's name; the date printed", what: "The project's name, and the date the page is shown or printed.", more: "How to choose: Type a fixed date on a figure you have issued." },
+      { name: "{page}, {pages} and {pagename}", gist: "page number, count and name", what: "This page's number, the number of pages, and the page's name.", more: "How to choose: Use them so a figure set renumbers itself." },
+      { name: "{scale}", gist: "the view scale, as 1 : n", what: "The page's view scale, as 1 : n.", more: "How to choose: Put a bar on the view too: a number cannot be checked on paper. The first fixed-scale view's, else the first true-scale one, else an approximate scale of the first view." },
       { name: "{crs}", what: "The project's coordinate system (EPSG code and name).", more: "How to choose: Always on a map figure." },
-      { name: "{credits}", what: "The data credit and the credits fetched terrain and imagery ask for.", more: "How to choose: On every figure that shows another party's data." },
+      { name: "{credits}", gist: "the data credit", what: "The data credit and the credits fetched terrain and imagery ask for.", more: "How to choose: On every figure that shows another party's data." },
       { name: "{north} and {convergence}", what: "Which north the maps are drawn to, and the angle from grid to true north.", more: "How to choose: For field use, where grid and true north matter. Taken from the page's north arrow when it has one, else from the coordinate system at the centre of the collars." },
     ],
     warnings: [
@@ -87,6 +98,11 @@ export default [
     id: "maps-plan-view",
     area: "Maps",
     title: "Plan view of the drillholes",
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "The Maps tab's plan of the collars, coloured by a field or an assay.",
+    picture: { drop: ["plan"], alt: "Collars in plan, coloured, on the ground." }, // the three norths when it is drawn
+    cautions: ["A trace in plan shows where a hole goes, not what it hit.", "A plan in degrees is not to scale: set the project CRS."],
+    keys: ["Colour collars by", "Hole traces (a tick at the toe)", "Grade × thickness legend"],
     summary: "The Maps tab's plan of the collars, coloured by a field or an assay, over your map layers; for location figures.",
     more: "Hole ids are labelled where there is room, traces can be drawn in plan, and the plan can be sent to Layout as a picture sharp at the page's size.",
     notFor: [
@@ -95,13 +111,13 @@ export default [
       "North up is grid north; the note by the north arrow gives the difference from true north.",
     ],
     fields: [
-      { name: "Colour collars by", what: "The collar colours: one colour, a collar field, or per hole the highest or mean value of an element.", more: "How to choose: A field (year, drill type) for a campaign figure; grade only with its unit. A field shows its 15 commonest values, the rest as Other. Say so when you colour by the highest value." },
+      { name: "Colour collars by", gist: "a field, or an element per hole", what: "The collar colours: one colour, a collar field, or per hole the highest or mean value of an element.", more: "How to choose: A field (year, drill type) for a campaign figure; grade only with its unit. A field shows its 15 commonest values, the rest as Other. Say so when you colour by the highest value." },
       { name: "Shape by / Size by the value's class", what: "Shapes collars by a second field and sizes them by the colouring class.", more: "How to choose: Shape for a category, size for an ordered value." },
       { name: "Class breaks / Colour at", what: "The grade classes (quintiles or typed), drawn at the collar or the highest interval.", more: "How to choose: Type breaks to match a table; the highest interval shows where the best grade is." },
       { name: "Hole ids", what: "Labels the holes where there is room; the note counts those left out.", more: "How to choose: Zoom to the area before capturing." },
       { name: "Only the N of M holes checked in StrixViewer", what: "The plan follows the holes checked in StrixViewer while ticked.", more: "How to choose: Ticked for one campaign; unticked for every hole." },
-      { name: "Hole traces (a tick at the toe)", what: "Each hole's trace in plan, a tick at its end.", more: "How to choose: On for inclined holes; off for a clean collar map." },
-      { name: "Grade × thickness legend", what: "Circles sized by grade × thickness at each intercept; a ring for a hole with none.", more: "How to choose: Clear it before a figure about something else." },
+      { name: "Hole traces (a tick at the toe)", gist: "where each hole goes in plan", what: "Each hole's trace in plan, a tick at its end.", more: "How to choose: On for inclined holes; off for a clean collar map." },
+      { name: "Grade × thickness legend", gist: "circles sized by grade × thickness", what: "Circles sized by grade × thickness at each intercept; a ring for a hole with none.", more: "How to choose: Clear it before a figure about something else." },
     ],
     warnings: [
       { says: "(5 left out: they overlap, zoom in)", do: "Zoom in on the area you are showing." },

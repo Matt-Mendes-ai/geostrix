@@ -36,8 +36,8 @@ test("the pilots give the card fields, within the plan's limits", () => {
   const bi = pageById("best-intercepts").cautions.join(" | ").toLowerCase();
   for (const w of ["certificates", "not true widths", "not zero"]) assert.ok(bi.includes(w), `best intercepts: "${w}"`);
   assert.match(pageById("point-survey").cautions[0], /not for resource estimation/);
-  // the other pages are untouched
-  assert.equal(PAGES.filter((p) => p.line).map((p) => p.id).sort().join(), [...PILOTS].sort().join());
+  // the pilots are cards; later batches (#3982 on) turn more pages into cards, each pinned in its own test
+  for (const id of PILOTS) assert.ok(PAGES.find((p) => p.id === id).line, id);
 });
 
 test("the search still finds every sentence of a pilot page (fields, messages, Not for, walk-through, More)", () => {

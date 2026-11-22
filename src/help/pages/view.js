@@ -4,7 +4,7 @@
 
 // What every section window offers once a section is open (SectionWindow.jsx), shared by the two section pages
 const sectionWindowFields = [
-  { name: "Buffer ± (section window)", what: "How far either side of the line holes and data are included; Enter redraws.", more: "How to choose: About half the distance between drill sections, so each hole shows on one. It is saved with the section. Traces drawn dashed are projected from farther away; a wider buffer where holes are sparse shows data projected from farther off the line." },
+  { name: "Buffer ± (section window)", gist: "how far either side data is taken", what: "How far either side of the line holes and data are included; Enter redraws.", more: "How to choose: About half the distance between drill sections, so each hole shows on one. It is saved with the section. Traces drawn dashed are projected from farther away; a wider buffer where holes are sparse shows data projected from farther off the line." },
   { name: "VE (section window)", what: "Vertical exaggeration; 1x is true scale.", more: "How to choose: 1x to read dips and true widths; say so on the figure if you exaggerate." },
   { name: "What to draw / Save contacts (section window)", what: "Draws a contact, fault, string or outline, snapping to the logged tops; Save contacts sends them to modelling.", more: "How to choose: Draw across strike; save before moving to the next section." },
   { name: "Plan a hole (section window)", what: "Click a collar, then a target: azimuth, dip and length, and Add planned hole.", more: "How to choose: To aim a hole at a contact or intercept on the section." },
@@ -17,6 +17,11 @@ export default [
     id: "slice-3d",
     area: "StrixViewer",
     title: "3D slice",
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "A live cut through the 3D view: a vertical slab or a horizontal level.",
+    picture: { drop: ["section"], alt: "A vertical cut through the drilling." }, // the slab / level tiles when they are drawn
+    instead: [{ text: "A section to draw on", to: "Draw section" }, { text: "At set coordinates", to: "By coordinates", page: "section-by-coordinates" }, { text: "Parallel sections", to: "Fence series", page: "slice-series" }],
+    keys: ["Vertical slab / Horizontal (level plan)", "Thickness (m)"],
     summary: "A live cut through the 3D view, a vertical slab or a horizontal level, to look inside dense drilling or a block model.",
     more: "Nothing is saved or exported, and no data changes: turning it off brings everything back.",
     notFor: [
@@ -24,10 +29,10 @@ export default [
     ],
     fields: [
       { name: "Slice the view / On", what: "Turns the cut on and off.", more: "How to choose: Off before a figure of the whole project." },
-      { name: "Vertical slab / Horizontal (level plan)", what: "A vertical cut at a strike, or a horizontal cut at an elevation.", more: "How to choose: Vertical along your drill sections; horizontal to step through a model." },
+      { name: "Vertical slab / Horizontal (level plan)", gist: "a slab at a strike, or a level", what: "A vertical cut at a strike, or a horizontal cut at an elevation.", more: "How to choose: Vertical along your drill sections; horizontal to step through a model." },
       { name: "Az", what: "The strike of the vertical cut, 0 to 180°.", more: "How to choose: The strike of your drill sections." },
       { name: "Position slider", what: "Moves the cut across the drilling; the line under it gives its place." },
-      { name: "Thickness (m)", what: "The width of the slab kept; 0 keeps one whole side of the cut.", more: "How to choose: About the drill-section spacing." },
+      { name: "Thickness (m)", gist: "0 keeps one whole side", what: "The width of the slab kept; 0 keeps one whole side of the cut.", more: "How to choose: About the drill-section spacing." },
     ],
     warnings: [
       { says: "Load drillholes to set the slice range.", do: "Load holes or a block model, then turn the slice on again." },
@@ -49,16 +54,20 @@ export default [
     id: "section-by-coordinates",
     area: "StrixViewer",
     title: "Section by coordinates",
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds. Its diagram is the card's picture.
+    line: "Opens a vertical section from a centre, an azimuth and a length.",
+    picture: { diagram: "sectionFenceLog", alt: "In plan: a section is one line through the holes, a fence is several parallel lines, a strip log is one hole down its length." },
+    instead: [{ text: "Two clicks", to: "Draw section" }, { text: "Parallel sections", to: "Fence series", page: "slice-series" }, { text: "Along one hole", to: "the scissors" }],
+    keys: ["Centre E / Centre N", "Azimuth (°)", "Buffer ± (section window)"],
     summary: "Opens a vertical section from a centre, an azimuth and a length, in its own window with the nearby holes, logs, models and surfaces.",
-    diagram: { id: "sectionFenceLog", alt: "In plan: a section is one line through the holes, a fence is several parallel lines, a strip log is one hole down its length." },
     more: "Leave the centre blank to centre it on the drilling. The section is kept in the Cross-sections list. In its window you can draw contacts, plan a hole, send a snapshot to Layout and export it.",
     notFor: [
       "Two clicks on the plan: Draw section. Parallel sections: Fence series. A horizontal cut: Level plan.",
       "A section in the plane of one hole: the scissors on that hole in the Holes list.",
     ],
     fields: [
-      { name: "Centre E / Centre N", what: "The middle of the line; blank uses the view's centre.", more: "How to choose: A target, an intercept or an anomaly." },
-      { name: "Azimuth (°)", what: "The line's direction, clockwise from north.", more: "How to choose: Across the target's strike, so dips read true." },
+      { name: "Centre E / Centre N", gist: "blank: the view's centre", what: "The middle of the line; blank uses the view's centre.", more: "How to choose: A target, an intercept or an anomaly." },
+      { name: "Azimuth (°)", gist: "clockwise from north", what: "The line's direction, clockwise from north.", more: "How to choose: Across the target's strike, so dips read true." },
       { name: "Length (m)", what: "The line's full length, half each side of the centre.", more: "How to choose: The target and the holes either side, with a margin." },
       { name: "Open section", what: "Opens the section; the same line again reopens the saved one.", more: "How to choose: Set Buffer (m) on the Draw section tool first, or Buffer ± in the window after." },
       { name: "Scissors (Holes list)", what: "A section in the plane of that hole, the whole hole long.", choose: "To look along one hole's intercepts.", more: "A vertical hole has no bearing: the section uses the azimuth typed here." },
@@ -87,6 +96,11 @@ export default [
     id: "slice-series",
     area: "StrixViewer",
     title: "Slice series (fence sections)",
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Parallel sections at one azimuth, a fixed width apart, tiling the drilling.",
+    picture: { diagram: "sectionFenceLog", alt: "In plan: a fence is several parallel section lines through the holes." },
+    instead: [{ text: "One section", to: "By coordinates or Draw section", page: "section-by-coordinates" }, { text: "A correlation panel", to: "Fence diagram", page: "section-correlation" }],
+    keys: ["Azimuth (°)", "Width (m)"],
     summary: "Makes parallel vertical sections at one azimuth, a fixed width apart, that tile the drilling with no gaps or overlap.",
     more: "Each section's buffer is half the width. They are added as one group to the Cross-sections list, to open one at a time in the usual section window; the visible block models can be covered too.",
     notFor: [
@@ -94,8 +108,8 @@ export default [
       "One section at a chosen place: Section by coordinates or Draw section. A correlation panel: 3D Modelling > Fence diagram.",
     ],
     fields: [
-      { name: "Azimuth (°)", what: "The direction every section runs; they step at right angles to it.", more: "How to choose: The azimuth of your drill lines. 0° makes north–south sections named by easting, 90° east–west sections named by northing; others are named by their offset from the middle of the data." },
-      { name: "Width (m)", what: "The spacing between sections, on round grid lines.", more: "How to choose: Your drill-line spacing; for a model alone, a whole number of cells." },
+      { name: "Azimuth (°)", gist: "every section's direction", what: "The direction every section runs; they step at right angles to it.", more: "How to choose: The azimuth of your drill lines. 0° makes north–south sections named by easting, 90° east–west sections named by northing; others are named by their offset from the middle of the data." },
+      { name: "Width (m)", gist: "the spacing", what: "The spacing between sections, on round grid lines.", more: "How to choose: Your drill-line spacing; for a model alone, a whole number of cells." },
       { name: "Also cover the visible block models", what: "Also covers the visible models' extent, not only the drilling.", more: "How to choose: Off when the model is much larger than the drilling." },
       { name: "This makes 8 section(s).", what: "How many sections the settings make.", more: "How to choose: If large, widen the spacing." },
       { name: "Generate", what: "Adds the sections, grouped, to the Cross-sections list; over 50 asks first." },
@@ -123,6 +137,11 @@ export default [
     area: "Geological Mapping",
     title: "Unit polygons",
     related: ["interpretation-lines", "geology-map", "map-layers"],
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Draws a map unit's outline by clicking its corners in the 3D view.",
+    picture: { drop: ["units"], alt: "Map units outlined on the ground." },
+    instead: [{ text: "Lines", to: "Interpret", page: "interpretation-lines" }, { text: "Section contacts", to: "the section window" }],
+    keys: ["Unit", "Draw a polygon / Finish / Undo point / Cancel"],
     summary: "Draws a map unit's outline by clicking its corners in the 3D view; Model it can build a 3D model from the polygons.",
     more: "Usually drawn in a top view over the terrain, an orthophoto or a geophysics image. The polygons are a geology map layer with a unit field.",
     notFor: [
@@ -131,9 +150,9 @@ export default [
     ],
     fields: [
       { name: "Layer / New layer…", what: "The drawn geology layer the next polygon goes into.", more: "How to choose: One layer per map." },
-      { name: "Unit", what: "The unit's name, which sets its colour and its 3D unit.", more: "How to choose: Your map legend's names, spelled the same every time." },
+      { name: "Unit", gist: "sets its colour and 3D unit", what: "The unit's name, which sets its colour and its 3D unit.", more: "How to choose: Your map legend's names, spelled the same every time." },
       { name: "Note (optional)", what: "A note saved on the polygon.", more: "How to choose: What placed the boundary." },
-      { name: "Draw a polygon / Finish / Undo point / Cancel", what: "Click the corners in order; double-click or Finish closes the outline.", more: "How to choose: At least three corners." },
+      { name: "Draw a polygon / Finish / Undo point / Cancel", gist: "click corners, double-click to close", what: "Click the corners in order; double-click or Finish closes the outline.", more: "How to choose: At least three corners." },
       { name: "Polygons in \"Lithology\"", what: "The layer's polygons with their unit and area; the bin removes one.", more: "How to choose: Redraw a wrong boundary rather than keep it. Show, hide, style and export the whole layer under Maps > Map layers." },
     ],
     warnings: [
@@ -155,6 +174,12 @@ export default [
     id: "interpretation-lines",
     area: "StrixViewer",
     title: "Interpretation lines",
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Draws faults, contacts and lineaments in 3D, as a map layer.",
+    picture: { drop: ["map"], alt: "Contacts and a structure drawn on a map over the ground." },
+    cautions: ["Every line is your interpretation: nothing is picked for you."],
+    instead: [{ text: "Contacts for modelling", to: "the section window" }],
+    keys: ["Line type", "Confidence"],
     summary: "Draws faults, contacts, lineaments and other lines by clicking in the 3D view, as a map layer with type and confidence on each.",
     more: "Usually drawn over a geophysics survey or a map. Each line can carry a dip or plunge, a name and a note. The layer drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.",
     notFor: [
@@ -164,8 +189,8 @@ export default [
     fields: [
       { name: "Survey", what: "The survey or raster the lines are drawn on; it names the layer.", more: "How to choose: The survey you are interpreting." },
       { name: "Layer / New layer…", what: "The interpretation layer the next line goes into.", more: "How to choose: One layer per survey or interpretation." },
-      { name: "Line type", what: "Fault, Contact, Lineament, Dyke, Fold axis, Anomaly axis, Trend, Unit boundary or Other; it sets the colour.", more: "How to choose: The type you would put in a legend." },
-      { name: "Confidence", what: "certain, probable or possible.", more: "How to choose: A lineament from one survey is rarely certain." },
+      { name: "Line type", gist: "sets the colour", what: "Fault, Contact, Lineament, Dyke, Fold axis, Anomaly axis, Trend, Unit boundary or Other; it sets the colour.", more: "How to choose: The type you would put in a legend." },
+      { name: "Confidence", gist: "certain, probable or possible", what: "certain, probable or possible.", more: "How to choose: A lineament from one survey is rarely certain." },
       { name: "Dip / Dip direction, or Plunge / Plunge direction (optional)", what: "Dip for faults, dykes and contacts; plunge for axes, lineaments and trends.", more: "How to choose: Only from a measurement or a reasoned estimate." },
       { name: "Name (optional) / Note (optional)", what: "A name and a note saved on the line.", more: "How to choose: Name the lines a report refers to." },
       { name: "Draw a line / Finish / Undo point / Cancel", what: "Click points in the 3D view; double-click or Finish ends the line.", more: "How to choose: In a top view for a map-like line." },
