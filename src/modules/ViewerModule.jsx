@@ -7019,14 +7019,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               minHoles: s.params.minHoles, qc: s.params.includeQAQC ? tr("included") : tr("excluded"), closure: s.params.closure, points: s.params.samplePoints,
                               cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}{s.params.anisotropy && trendRatioText(s.params.anisotropy) ? tr(" · trend \"{name}\" {ratios}{ell}", { name: s.params.anisotropy.trend || "", ratios: trendRatioText(s.params.anisotropy), ell: s.params.searchEllipsoidM ? tr(", ellipsoid {e} m", { e: s.params.searchEllipsoidM.join(" × ") }) : "" }) : ""}{/* #2423 */}{s.params.domain ? tr(" · inside \"{solid}\"", { solid: s.params.domain }) : ""}{s.params.modelArea ? tr(" · model area: {area}", { area: s.params.modelArea }) : ""}{/* #2783 — the restricting solid and the Model area the params record */}</>
                           ) : (
-                            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", gap: "1px 8px" }}>{/* #3993: minmax(0, ...) so a long unbroken value can't widen the panel */}
                               {paramRows(s.params).map(({ key: k, label, text }) => ( /* #1378 */
                                 <React.Fragment key={k}>
                                   <div style={{ color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{tr(label)}</div>
                                   {/* Objects (the #52 (c) intercept-set stamp, the #52 (d) truncation log) are
                                       printed rather than skipped: a parameter block that quietly omits half of
                                       what produced the surface is worse than a slightly ugly one. */}
-                                  <div style={{ wordBreak: "break-word" }}>{text}</div>
+                                  <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>{text}</div>
                                 </React.Fragment>
                               ))}
                             </div>
