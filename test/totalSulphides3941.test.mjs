@@ -76,5 +76,5 @@ test("#3941 wiring: the box in the Mineralization panel, the scene's styler, the
   assert.match(scene, /\(!rb \|\| rb\.shown\(r\)\)/);
   const vm = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /styles: layerStyles, hidden: categoryFilter/);
-  assert.match(vm, /onStyle=\{\(p\) => setLayerStyle\(key, "point", p\)\}/);
+  assert.match(vm, /onStyle=\{\(p\) => setLayerStyle\(key, styleKindFor\(key\) \|\| "point", p\)\}/); // the layer's own kind: #3987
 });

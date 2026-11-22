@@ -3,6 +3,7 @@
 // project with no holes, the layer batches and the passes that follow a rebuild. ViewerModule's effect calls buildDrillholeScene with
 // the values and refs the body used to close over, on the same dependency list. The comments below are the effect's own.
 import { fieldStyler } from "../../lib/mineralFields.js"; // TASKS.csv #3941
+import { mineralAsTubes, tubeSpan, hasDepths, MIN_TUBE_M, MNLGY_RADIUS } from "../../lib/viewer/mineralDraw.js"; // TASKS.csv #3987
 import { widthScale } from "../../lib/widthBy.js"; // TASKS.csv #3942
 import { setTubeBaseRadius } from "../../lib/viewer/tubeShader.js"; // TASKS.csv #3942
 import { unsurveyedSpans } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5); #3761: every stretch with no survey station, not only the tail
@@ -563,8 +564,9 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
        try {
         if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
         const rr = ws ? radius * ws.w(row) : radius; // #3942
-        const p1 = look.at(row.from), p2 = look.at(row.to);
-        const mid = look.between(row.from, row.to);
+        const [f0, t0] = opt.minLen ? tubeSpan(row, opt.minLen) : [row.from, row.to]; // #3987 — a short row of a mixed layer: a short tube, not a marker
+        const p1 = look.at(f0), p2 = look.at(t0);
+        const mid = look.between(f0, t0);
         // TASKS.csv #209 — CatmullRomCurve3 + TubeGeometry was 89% of a 24,000-interval build (~0.42 ms each), and is needed only
         // where an interval spans a real bend: p1 / mid / p2 colinear within 5 cm takes the shared-cylinder path (the trace's ~3 m
         // sample points are not a curvature test: gating on mid.length was measured worse). 10.9 s -> 2.6 s; see #209's notes.
@@ -611,7 +613,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
             const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (len < 1e-6) continue;
             const e0 = i > 0 ? ext : 0, e1 = i < last ? ext : 0, ux = dx / len, uy = dy / len, uz = dz / len;
-            const m = new PickStandIn(intervalProto(st.shape), { color, transparent: st.opacity < 1, opacity: st.opacity });
+            const m = new PickStandIn(intervalProto(st.shape, (layers?.[groupKey] || []).length), { color, transparent: st.opacity < 1, opacity: st.opacity }); // the count: #3987 — a big layer's bent intervals in ribbons too (light drawing), as its straight ones
             m.scale.set(rr, len + e0 + e1, rr);
             m.position.set(a.x - ux * e0, a.y - uy * e0, a.z - uz * e0);
             m.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(ux, uy, uz));
@@ -663,8 +665,12 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     // TASKS.csv #684 — a mineralisation log can be an INTERVAL log (Woodjam: 958 rows over 1 m, up to 69 m long), and
     // each row used to become one sphere at its midpoint — a depth that is not in the data. Rows longer than half a
     // metre are drawn as intervals; point-style rows (from = to, as in Harry and the synthetic set) stay markers.
-    buildIntervalTube("mnlgy", { filter: isIntervalRow, meta: { radius: 2.8, opacity: 0.85, extraSuffix: "%" } });
-    buildPointMarkers("mnlgy", (r) => !isIntervalRow(r));
+    // TASKS.csv #3987 (Matt: 'some will switch to what I select and some won't') — a layer with interval rows draws EVERY row as a tube (a short or
+    // point row as a MIN_TUBE_M tube on its depth), so one style (its shape, size, Width by, colour, the tube size choice) reaches them all; a
+    // layer of points only keeps its markers (#684)
+    const mnlgyTubes = mineralAsTubes(layers.mnlgy);
+    buildIntervalTube("mnlgy", { filter: mnlgyTubes ? hasDepths : isIntervalRow, minLen: mnlgyTubes ? MIN_TUBE_M : 0, meta: { radius: MNLGY_RADIUS, opacity: 0.85, extraSuffix: "%" } });
+    if (!mnlgyTubes) buildPointMarkers("mnlgy", (r) => !isIntervalRow(r));
     buildPointMarkers("magsusc");
 
     const stStruct = resolveLayerStyle(layerStyles.structure, "plane", { opacity: 0.55 }); // TASKS.csv #635
