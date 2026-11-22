@@ -51,6 +51,7 @@ function standInPanes(s) {
     else if (action === "mcp-view") p.reply(viewAction({ ...v, sections: s.sections }, p));
     else if (action === "mcp-fetch-satellite") p.reply({ ok: true, name: "Sentinel-2 test scene", ids: ["r1"], pictures: 1, over: "holes", area_cloud_percent: 0 });
     else if (action === "mcp-fetch-terrain") p.reply({ ok: true, name: "Copernicus DEM GLO-30", id: "t1", grid: "10 x 10" });
+    else if (action === "mcp-model") p.reply({ ok: true, changed: p.op === "surface" ? "body surface" : "grade shell", built: ["Top of DYK"], ids: ["m1"], why: ["Cells 20 m"], notes: [], revert() {} }); // #3932 batch 2: the guided build, stood in for
   };
   window.addEventListener("geostrix-module-action", on);
   return () => window.removeEventListener("geostrix-module-action", on);
@@ -65,6 +66,8 @@ const CALLS = [ // each change tool with arguments its schema accepts
   ["set_view", { view: "top" }],
   ["fetch_satellite_image", { max_cloud_percent: 20 }],
   ["fetch_terrain", {}],
+  ["build_surface", { rock: "DYK" }], // #3932 batch 2
+  ["build_grade_shell", { element: "Au" }],
 ];
 
 test("#3932 through the PowerShell relay, as Claude Desktop starts it: every change tool refused with the switch off (the window never sees one), then each done with it on", { skip: !win32 && "PowerShell bridge: Windows only" }, async () => {

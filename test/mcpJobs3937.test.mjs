@@ -180,5 +180,6 @@ test("#3937 the tool list says so: the download tools mention the 'started' answ
   for (const n of ["fetch_satellite_image", "fetch_terrain"]) { const d = proto.TOOLS.find((t) => t.name === n).description; assert.match(d, /'started' with a job_id/); assert.match(d, /job_status/); }
   const ps = fs.readFileSync(new URL("../electron/mcp-bridge.ps1", import.meta.url), "utf8");
   assert.match(ps, /mcpToolDefs\.json/, "the bridge serves the tool list from the shipped file, so job_status is in it");
-  assert.equal(proto.TOOLS.filter(proto.isChangeTool).length, 8, "the batch 1 change tools are unchanged");
+  const names = proto.TOOLS.filter(proto.isChangeTool).map((t) => t.name);
+  for (const n of ["make_section", "make_sheet", "add_best_intercepts", "fetch_satellite_image", "fetch_terrain", "colour_holes", "show_layers", "set_view"]) assert.ok(names.includes(n), `${n}: the batch 1 change tools are unchanged`);
 });

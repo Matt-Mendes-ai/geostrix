@@ -14741,5 +14741,7 @@
   "Undo: the last edit": "Annuler : la dernière modification",
   "Within its limits": "Dans ses limites",
   "Outside its limits": "Hors de ses limites",
-  "Mean, ±2 and ±3 SD": "Moyenne, ±2 et ±3 ET"
+  "Mean, ±2 and ±3 SD": "Moyenne, ±2 et ±3 ET",
+  "built the surface '{name}'": "a construit la surface « {name} »",
+  "built the {symbol} grade shell": "a construit l'enveloppe de teneur en {symbol}"
 }

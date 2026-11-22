@@ -41,7 +41,7 @@ function createHost({ userDataDir, getWindow, askAllow, askNetwork, isOnline, re
     if (!win || win.isDestroyed?.()) return Promise.resolve({ ok: false, error: "GeoStrix has no open window to read the project from." });
     return new Promise((resolve) => {
       const id = ++seq;
-      const timer = setTimeout(() => { pending.delete(id); resolve({ ok: false, error: "GeoStrix did not answer in time (it may be busy). Try again." }); }, meta.network ? NETWORK_CALL_TIMEOUT_MS : CALL_TIMEOUT_MS);
+      const timer = setTimeout(() => { pending.delete(id); resolve({ ok: false, error: "GeoStrix did not answer in time (it may be busy). Try again." }); }, meta.network || meta.long ? NETWORK_CALL_TIMEOUT_MS : CALL_TIMEOUT_MS);
       pending.set(id, (r) => { clearTimeout(timer); resolve(r); });
       try { win.webContents.send("mcp-request", { id, name, args, ...(meta.client ? { client: meta.client } : {}), ...(meta.change ? { change: true } : {}) }); } catch { clearTimeout(timer); pending.delete(id); resolve({ ok: false, error: "GeoStrix could not be reached." }); }
     });

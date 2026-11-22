@@ -14741,5 +14741,7 @@
   "Undo: the last edit": "Desfazer: a última edição",
   "Within its limits": "Dentro dos seus limites",
   "Outside its limits": "Fora dos seus limites",
-  "Mean, ±2 and ±3 SD": "Média, ±2 e ±3 DP"
+  "Mean, ±2 and ±3 SD": "Média, ±2 e ±3 DP",
+  "built the surface '{name}'": "construiu a superfície '{name}'",
+  "built the {symbol} grade shell": "construiu a envoltória de teor de {symbol}"
 }

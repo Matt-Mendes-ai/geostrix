@@ -14,6 +14,8 @@ const LIMITS = { maxArgBytes: 4000, maxResultBytes: 100000, callsPerMinute: 60, 
 // They are always listed, but refused HERE, before the window sees them, unless the user has ticked 'Allow AI apps to make changes' (Tools > AI App Access; off by default, off with
 // AI App Access); each AI app is asked once more about changes, they are capped at 10 a minute and only one runs at a time (across every connected app).
 const isChangeTool = (def) => def?.annotations?.readOnlyHint === false;
+// a change tool that runs for minutes (a model build; TASKS.csv #3932 batch 2): the window gets the long wait a download gets (callTool meta.long)
+const isLongTool = (def) => isChangeTool(def) && def?._meta?.["geostrix/long"] === true;
 // a change tool that downloads (MCP openWorldHint): asked for in a native box every time (askNetwork), refused offline
 const isNetworkTool = (def) => isChangeTool(def) && def?.annotations?.openWorldHint === true;
 const CHANGES_OFF = "Changes are switched off in GeoStrix. To allow them: Tools › AI App Access › Allow AI apps to make changes.";
@@ -214,7 +216,7 @@ function createSession({ callTool, askAllow, changesAllowed = () => false, chang
         log({ tool: name, ok: capped.ok, bytes: capped.bytes || 0, refused: capped.ok ? undefined : "size" });
         return rpcResult(id, { content: [{ type: "text", text: capped.text }], isError: !capped.ok });
       }
-      const run = async () => { try { return await callTool(name, params?.arguments || {}, change ? { client, change, ...(isNetworkTool(def) ? { network: true } : {}) } : { client }); } catch { return { ok: false, error: change ? "The change could not be made." : "The tool could not read the project." }; } }; // what failed inside the app (a stack, a path) is not passed on
+      const run = async () => { try { return await callTool(name, params?.arguments || {}, change ? { client, change, ...(isNetworkTool(def) ? { network: true } : isLongTool(def) ? { long: true } : {}) } : { client }); } catch { return { ok: false, error: change ? "The change could not be made." : "The tool could not read the project." }; } }; // what failed inside the app (a stack, a path) is not passed on
       // what the window answered, as the reply's text (and the activity entry); a change that was answered "started" settles the same way, later
       const settle = (r, waited = false) => {
         if (waited) { log({ tool: name, ok: false, refused: "busy", change }); return { text: "Another change is still running in GeoStrix. Try again in a moment.", isError: true }; }
@@ -242,4 +244,4 @@ function createSession({ callTool, askAllow, changesAllowed = () => false, chang
   return { handleLine, get client() { return client; }, close: () => { closed = true; } };
 }
 
-module.exports = { createJobs, TOOLS, SUPPORTED, LIMITS, CREDENTIAL_KEY, PATH_LIKE, CHANGES_OFF, isChangeTool, isNetworkTool, refuseArgs, scrub, capText, createSession, createChangeLock, cleanClientName, toolDef };
+module.exports = { createJobs, TOOLS, SUPPORTED, LIMITS, CREDENTIAL_KEY, PATH_LIKE, CHANGES_OFF, isChangeTool, isNetworkTool, isLongTool, refuseArgs, scrub, capText, createSession, createChangeLock, cleanClientName, toolDef };

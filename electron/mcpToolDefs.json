@@ -231,5 +231,33 @@
       "additionalProperties": false
     },
     "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false }
+  },
+  {
+    "name": "build_surface",
+    "description": "Makes a change in GeoStrix: builds one logged rock as a 3D surface, as StrixViewer's Model > Start here does with Build it for me: Intrusions and bodies (a solid shape from where the holes cut it), or Cover and weathering (its base) for a rock marked overburden in Modelling codes. The model's size and detail are read from the logs. A rock whose role does not fit is refused, saying what to mark first. One model at a time; it can take minutes (the status bar shows its progress and Cancel): after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). It adds a surface and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "rock": { "type": "string", "maxLength": 64, "description": "The rock's code as logged (list_layers and get_layer_rows show them)." }
+      },
+      "required": ["rock"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
+    "_meta": { "geostrix/long": true }
+  },
+  {
+    "name": "build_grade_shell",
+    "description": "Makes a change in GeoStrix: builds a grade shell for one element, as StrixViewer's Model > Start here > Grade model does with Build it for me: a shell around the grades above a cut-off read from the assays, with cells and a search sized from the drilling. It is a picture of where the grade is, not a resource estimate. One model at a time; it can take minutes (the status bar shows its progress and Cancel): after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). It adds a shell and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": { "type": "string", "maxLength": 32, "description": "The assay element's symbol (project_summary lists them)." }
+      },
+      "required": ["element"],
+      "additionalProperties": false
+    },
+    "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
+    "_meta": { "geostrix/long": true }
   }
 ]
