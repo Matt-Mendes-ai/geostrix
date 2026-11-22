@@ -14990,5 +14990,7 @@
   "built the alteration halo '{name}'": "بنى هالة التحول '{name}'",
   "A bar beside the trace, its length following the value": "شريط بجانب المسار، يتبع طوله القيمة",
   "Zoom in (or the wheel); pan with the middle button or Space + drag": "تكبير (أو العجلة)؛ حرّك بالزر الأوسط أو بالمسافة + سحب",
-  "Fit the whole section (or double-click empty ground)": "ملاءمة المقطع كاملًا (أو نقر مزدوج على مساحة فارغة)"
+  "Fit the whole section (or double-click empty ground)": "ملاءمة المقطع كاملًا (أو نقر مزدوج على مساحة فارغة)",
+  "Top view, north up (T). Also B: bottom; N, S, E, W: level, from that side": "منظر من الأعلى والشمال إلى الأعلى (T). وأيضًا B: من الأسفل؛ N وS وE وW: أفقيًا من ذلك الجانب",
+  "Bottom view (B)": "منظر من الأسفل (B)"
 }

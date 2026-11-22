@@ -14990,5 +14990,7 @@
   "built the alteration halo '{name}'": "construiu o halo de alteração '{name}'",
   "A bar beside the trace, its length following the value": "Uma barra ao lado do traço, com comprimento segundo o valor",
   "Zoom in (or the wheel); pan with the middle button or Space + drag": "Ampliar (ou a roda); mova com o botão do meio ou Espaço + arrastar",
-  "Fit the whole section (or double-click empty ground)": "Ajustar toda a seção (ou clique duplo em área vazia)"
+  "Fit the whole section (or double-click empty ground)": "Ajustar toda a seção (ou clique duplo em área vazia)",
+  "Top view, north up (T). Also B: bottom; N, S, E, W: level, from that side": "Vista de cima, norte para cima (T). Também B: de baixo; N, S, E, W: na horizontal, desse lado",
+  "Bottom view (B)": "Vista de baixo (B)"
 }
