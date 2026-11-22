@@ -25,13 +25,13 @@ function extrasIndexFor(origin) {
   const c = extrasCache;
   if (c && c.extras === extras && c.ox === origin.x && c.oy === origin.y && c.oz === origin.z) return c.index;
   const xyz = new Float64Array(extras.points.length * 3), info = [];
-  extras.points.forEach((p, i) => { xyz[i * 3] = p.x - origin.x; xyz[i * 3 + 1] = (Number.isFinite(p.z) ? p.z : origin.z) - origin.z; xyz[i * 3 + 2] = origin.y - p.y; info.push({ hole_id: null, md: 0, label: p.label, kind: p.kind }); });
+  extras.points.forEach((p, i) => { xyz[i * 3] = p.x - origin.x; xyz[i * 3 + 1] = (Number.isFinite(p.z) ? p.z : origin.z) - origin.z; xyz[i * 3 + 2] = origin.y - p.y; info.push({ hole_id: p.hole_id ?? null, md: p.md ?? 0, label: p.label, kind: p.kind }); }); // hole_id / md: #3972 (a pierce point ties the line to its hole)
   const index = { xyz, info, traces: [] };
   extrasCache = { extras, ox: origin.x, oy: origin.y, oz: origin.z, index };
   return index;
 }
 // the kinds a plan look snaps to (#2972: not a contact down a hole under its collar): collars and what lies on the ground
-const PLAN_KINDS = new Set(["collar", "vertex", "station"]);
+const PLAN_KINDS = new Set(["collar", "vertex", "station", "pierce"]); // pierce: #3972 — a hole crossing the level being drawn on
 
 function pointAt(pts, md) {
   if (!pts?.length) return null;

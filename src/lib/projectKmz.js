@@ -443,7 +443,7 @@ export function buildProjectKml(ctx, opts) {
           const sid = built.geomType === "polygon" ? w.style({ color: L.showOutlines === false ? color : cat?.outline || "#333333", width: 1, fill: color, fillAlpha: op, outline: L.showOutlines !== false }) : w.style({ color, width: 2, iconScale: 0.5 });
           if (L.styleField) w.open(cat?.label || String(k) || "(blank)", { visible: cat?.visible !== false });
           for (const f of feats) {
-            const geom = built.geomType === "point" ? w.pointGround(f.geometry[0][0], f.geometry[0][1]) : built.geomType === "polyline" ? w.multi((f.parts || [f.geometry]).filter((p) => p.length >= 2).map((p) => w.lineGround(p))) : w.polygonGround(f.parts || [f.geometry]);
+            const geom = built.geomType === "point" ? w.pointGround(f.geometry[0][0], f.geometry[0][1]) : built.geomType === "polyline" ? w.multi((f.parts || [f.geometry]).filter((p) => p.length >= 2).map((p) => (Number.isFinite(f.attributes?.level_rl) && typeof f.attributes.level_rl === "number" ? w.line3d(p.map(([x, y, z]) => ({ x, y, z }))) /* TASKS.csv #3972 — a line on a level: at its RL */ : w.lineGround(p)))) : w.polygonGround(f.parts || [f.geometry]);
             if (geom) w.placemark(L.styleField ? String(f.attributes?.[L.styleField] ?? "") : "", sid, geom, { data: f.attributes });
           }
           if (L.styleField) w.close();

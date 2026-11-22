@@ -286,14 +286,31 @@ export function mapLayerAtOwnZ(l, origin) {
 export const mapLayerOnCollars = (l, terrain, collars) => !!l && !terrain && l.drapeMode !== "flat" && l.drapeMode !== "file" && (collars?.length || 0) >= 3
   && (!!l.interpretation || !collarsLookUnderground(collars).underground);
 export const interpretationOnCollars = (l, terrain, collars) => !!l?.interpretation && mapLayerOnCollars(l, terrain, collars);
+const isLevelLine = (f) => typeof f?.attributes?.level_rl === "number" && Number.isFinite(f.attributes.level_rl); // TASKS.csv #3972 (lib/interpretation.js lineLevel)
 export function syncMapLayers(group, cache, mapLayers, { origin, terrain, renderer, collars = null }) {
   const disposeMesh = (mesh) => { group.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.map?.dispose?.(); mesh.material?.dispose?.(); };
-  const wanted = new Set(mapLayers.map((l) => l.id));
+  const wanted = new Set(mapLayers.flatMap((l) => [l.id, `${l.id}~level`])); // ~level: #3972
   Object.keys(cache).forEach((id) => { if (!wanted.has(id)) { disposeMesh(cache[id]); delete cache[id]; } });
   const { x: ox, y: oy, z: oz } = origin;
   const maxTex = Math.min(4096, renderer?.capabilities?.maxTextureSize || 4096);
-  mapLayers.forEach((l, li) => {
-    if (!l.bbox || !l.features?.length) return;
+  mapLayers.forEach((l0, li) => {
+    if (!l0.bbox || !l0.features?.length) return;
+    // TASKS.csv #3972 — an interpretation layer's lines drawn on a level (attributes.level_rl, z on each vertex): at that depth as segments, as a
+    // layer at its own z is (#1601); the other lines of the layer are draped as before
+    let l = l0;
+    if (l0.interpretation && l0.drapeMode !== "file") {
+      const lvl = l0.features.filter(isLevelLine), lk = `${l0.id}~level`;
+      if (lvl.length) {
+        const key = `level|${ox},${oy},${oz}|${mapStyleSignature(l0)}|${JSON.stringify(lvl.map((f) => f.parts))}`;
+        let obj = cache[lk];
+        if (obj && obj.userData.geoKey !== key) { disposeMesh(obj); obj = null; delete cache[lk]; }
+        if (!obj) { obj = mapLayerAtOwnZ({ ...l0, features: lvl }, origin); obj.userData = { geoKey: key, styleKey: key }; obj.renderOrder = 2 + li; group.add(obj); cache[lk] = obj; }
+        obj.material.opacity = Math.max(0.5, l0.opacity ?? 0.6);
+        obj.visible = l0.visible !== false;
+      } else if (cache[lk]) { disposeMesh(cache[lk]); delete cache[lk]; }
+      if (lvl.length === l0.features.length) { if (cache[l0.id]) { disposeMesh(cache[l0.id]); delete cache[l0.id]; } return; }
+      if (lvl.length) l = { ...l0, features: l0.features.filter((f) => !isLevelLine(f)) };
+    }
     if (l.drapeMode === "file" && l.hasZ) { // #1601 (a polygon: its outlines)
       const key = `file|${ox},${oy},${oz}|${mapStyleSignature(l)}|${l.elevation || 0}`;
       let obj = cache[l.id];
