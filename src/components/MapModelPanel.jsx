@@ -17,6 +17,7 @@ import { roleWithCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #3369 — 
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M, contactsAgainstOrder } from "../lib/holeMapContacts.js"; // TASKS.csv #1718; contactsAgainstOrder: #2408
 import { plainLith } from "../lib/lithText.js"; // TASKS.csv #3936: a Macrostrat unit name's lithology block in words (shown; the run keeps the value)
+import { unitAges, ageOrder, sameAgeBreaks, faciesGroups } from "../lib/mapAgeOrder.js"; // TASKS.csv #4001 — the map's own ages as the order
 import { cutMapOrder, mergeUnits } from "../lib/mapOrderCut.js"; // TASKS.csv #3936 — the order cut down to GemPy's limit, offered
 import { GEMPY_MAX_SURFACES, GEMPY_MAX_FAULTS } from "../lib/gempyLimits.js"; // TASKS.csv #3936; faults: #3985
 import { faultType, faultMajor, dipDefault, lineLength, pickFaults, joinPieces } from "../lib/faultPick.js"; // TASKS.csv #3985
@@ -83,10 +84,17 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const [cut, setCut] = useState(null); // { merge: { unit: merged name }, out: [unit] }
   useEffect(() => { setCut(null); }, [layer?.id, unitField]);
   const effLayer = useMemo(() => (cut ? mergeUnits(layer, unitField, cut.merge) : layer), [layer, unitField, cut]);
-  const suggestion = useMemo(() => {
+  const bedSuggestion = useMemo(() => {
     if (!effLayer || !unitField) return null;
     try { return suggestPileOrder({ layer: effLayer, field: unitField, descField: desc || null, bedding, faults: faults.filter((f) => f.on).map((f) => f.line), groundAt, nearestHole, roleOf: logRoleOf, loggedContacts }); } catch { return null; }
   }, [effLayer, unitField, desc, bedding, faults, groundAt, nearestHole, logRoleOf, loggedContacts]);
+  // TASKS.csv #4001 — the map's own ages (age fields or the labels' age codes) give the order when most units carry one: bedding younging ran
+  // almost upside down on a folded map (fit 10 %, by age 44 %). The bedding order stays one click away; not on the nearest-hole outlines.
+  const ages = useMemo(() => (!nearestHole && effLayer && unitField ? unitAges(effLayer, unitField, bedSuggestion?.order || []) : null), [nearestHole, effLayer, unitField, bedSuggestion]);
+  const ageSug = useMemo(() => (bedSuggestion && ages ? ageOrder(bedSuggestion.order, ages) : null), [bedSuggestion, ages]);
+  const [orderFrom, setOrderFrom] = useState("age");
+  const byAge = ageSug?.use && orderFrom === "age";
+  const suggestion = useMemo(() => (bedSuggestion && byAge ? { ...bedSuggestion, order: ageSug.order } : bedSuggestion), [bedSuggestion, byAge, ageSug]);
   const [order, setOrder] = useState([]);
   const [roles, setRoles] = useState({});
   // TASKS.csv #2408 — an order set by hand is kept when the suggestion is recomputed (unticking an orientation class put Basement back on top
@@ -144,6 +152,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const why = (u) => {
     const i = unitInfo.get(u);
     if (!i) return "";
+    if (byAge && ages?.[u]) return tr("map age: {age}", { age: ages[u].text }); // #4001
     if (i.evidence === "bedding" && i.overOthers && i.underOthers) return tr("between its neighbours"); // TASKS.csv #1311
     if (i.evidence === "bedding") return i.score > 0.15 ? tr("younger than its neighbours") : i.score < -0.15 ? tr("older than its neighbours") : tr("weak evidence");
     if (i.evidence === "logged") return i.score > 0.15 ? tr("younger than its neighbours in the logs") : i.score < -0.15 ? tr("older than its neighbours in the logs") : tr("weak evidence"); // TASKS.csv #3391
@@ -153,6 +162,10 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const planes = useMemo(() => (suggestion?.pairs || []).flatMap((p) => (p.fittedPlanes || []).map((q) => ({ x: q.x, y: q.y, dip: q.dip, dipDir: q.dipDir, younger: p.younger, older: p.older }))), [suggestion]); // younger, older: #1309
   const [breaks, setBreaks] = useState([]); // TASKS.csv #1309 — units with an unconformity below them
   const hasBreaks = breaks.some((b) => order.slice(0, -1).includes(b));
+  // TASKS.csv #4001 — Erosional with same-age neighbours (facies of one formation): one package each, or their shared contacts make GemPy singular
+  const runBreaks = !hasBreaks && relation === "erode" && ages ? sameAgeBreaks(order, ages) || breaks : breaks;
+  // Erosional only: their contacts are lateral, not tops; under the default relation they are useful evidence (fit 43 % with them, 31 % without)
+  const runFacies = relation === "erode" && ages ? faciesGroups(order, ages) : null;
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   const sel = { ...smallSel, flex: 1, minWidth: 0 };
 
@@ -267,6 +280,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
       {plan && <CutOffer plan={plan} onTake={() => takeCut(false)} onChange={() => takeCut(true)} />}
       {cut && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Cut down for GemPy: {m} merged, {o} left out (listed under the order). Their roles can be changed there.", { m: Object.keys(cut.merge).length, o: cut.out.length })}{" "}<button type="button" onClick={() => { setCut(null); setOrderByHand(false); }} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "inherit" }}>{tr("Undo the cut")}</button></div>}
       <div ref={roleListRef} style={{ margin: "8px 0 4px", color: "var(--color-text)" }}>{tr("Stratigraphic order (youngest at the top)")}</div>
+      {ageSug?.use && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{byAge ? tr("By the map's ages ({n} of {m} units).", { n: ageSug.dated, m: ageSug.total }) : tr("By bedding younging.")}{" "}<button type="button" onClick={() => { setOrderFrom(byAge ? "bedding" : "age"); setOrderByHand(false); }} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "inherit" }}>{byAge ? tr("Use the bedding order") : tr("Use the map's ages")}</button></div> /* #4001 */}
       {!groundAt && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("Make a terrain in Maps > Terrain (fetch one, import a DEM, or build one offline from points, from the project's samples and collars, or from a block model's top): the model cannot run without one.") /* #1824 — the offline route; #1599 points, samples and collars */}</div>}
       {order.map((u, i) => (
         <React.Fragment key={u}>
@@ -295,6 +309,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         </div>
       )}
       <div role="button" tabIndex={0} onClick={() => setShowWhy((v) => !v)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowWhy((v) => !v); }} style={{ cursor: "pointer", fontSize: "var(--font-size-xs)", marginBottom: 4 }}>{showWhy ? "▾" : "▸"} {tr("Why this order (contact by contact)")}</div>
+      {showWhy && byAge && <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 2 }}>{tr("The order follows the map's ages; units of one age, or with none, keep their bedding order. The contacts below are the bedding evidence.")}</div> /* #4001 */}
       {showWhy && nearestHole && <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 2 }}>{tr("{n} border(s) between nearest-hole outlines: not contacts, not used.", { n: (suggestion?.pairs || []).filter((p) => p.nearestHole).length })}</div>}
       {showWhy && (suggestion?.pairs || []).filter((p) => p.weight || p.faulted).sort((a, b) => (b.weight || 0) - (a.weight || 0)).map((p) => (
         <div key={`${p.a}|${p.b}`} style={{ fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
@@ -343,7 +358,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           {tr("Terrain under {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest sit at the map layer's elevation{z}, where the surfaces are cut; a terrain over the whole map (Maps > Terrain) fixes that.", { a: groundCount.pointsOnGround, n: groundCount.points, b: groundCount.measurementsOnGround, m: groundCount.measurements, z: Number.isFinite(Number(layer?.elevation)) ? tr(" (RL {z})", { z: Math.round(Number(layer.elevation)) }) : "" })}
         </div>
       )}
-      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks, bedding, planes, faults: runFaults /* #3985 — merged pieces as one trace */, relation, leftOut, onFit: setFit /* #3989 */, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
+      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks: runBreaks /* #4001 */, facies: runFacies, bedding, planes, faults: runFaults /* #3985 — merged pieces as one trace */, relation, leftOut, onFit: setFit /* #3989 */, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
         disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
