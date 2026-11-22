@@ -21,5 +21,5 @@ test("#1323 every way of closing asks; a tab that already asked does not ask twi
   const closed = main.slice(main.indexOf('ipcMain.handle("section-tab-closed"'), main.indexOf('ipcMain.handle("section-tab-popout"'));
   assert.ok(closed.indexOf("sectionUnsaved.delete(id)") < closed.indexOf("win.close()"));
   const tabs = readFileSync("src/components/SectionTabs.jsx", "utf8");
-  assert.match(tabs, /unsaved\.current\.has\(id\) && !window\.confirm\(/);
+  assert.match(tabs, /unsaved\.current\.has\(id\) && !(?:await askConfirm|window\.confirm)\(/);
 });
