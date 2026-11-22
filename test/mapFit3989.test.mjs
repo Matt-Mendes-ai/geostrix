@@ -65,6 +65,8 @@ test("#3989 Add as block model / unit volumes: the same result again is replaced
 test("#3989 wiring: per-top orientations, the map's colours, the fit and its overlay, the replace before adding", () => {
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /if \(!breaks\.size\) return nearOf\(u, pts, orientations\);/);
+  assert.match(m, /const trace = thin\(f\.line, Math\.max\(25, Math\.min\(FAULT_STEP_M, len \/ 4\)\)\);/); // a fault's trace every 250 m, not 25 m
+  assert.match(m, /const nOri = Math\.max\(2, Math\.min\(8, Math\.round\(len \/ 1000\)\)\);/);
   assert.match(m, /if \(own\.length\) return nearOf\(u, pts, own\);/);
   assert.match(m, /color: unitColour\(u\), type: "stratigraphic_contact"/);
   assert.match(m, /mapLayer: p\.layer, mapField: p\.field, onFit: p\.onFit, aboveColor: unitColour\(order\[0\]\)/);

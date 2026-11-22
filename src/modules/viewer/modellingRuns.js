@@ -1953,10 +1953,23 @@ export function createModellingRuns(ctx, mcRef) {
     });
     if (specs.length < 1) { setNotices((q) => [...q, notice("None of the units below the youngest one shares a contact with a unit above it on the map, so there is nothing to model. Check the order.")]); return; }
     if (fittedTops.length) setNotices((q) => [...q, notice("No outcrop orientation: {n} orientation(s) fitted from the logged contacts, a least-squares plane through each top's contact points ({list}). A buried deposit with no bedding builds this way; outcrop measurements replace them.", { n: fittedTops.length, list: fittedTops.map((f) => `${f.u}: ${f.n} points, dip ${f.dip.toFixed(1)}° toward ${Math.round(f.az)}°`).join("; ") })]); // #2409
+    // TASKS.csv #3989 — a fault's trace every FAULT_STEP_M (a short one in at least 4 steps), its end kept, and its dip about every km (2 to 8):
+    // it was every 25 m with a dip every 8th point, and the work budget does not thin faults (thinForWork), so on Mount Raymond the six picked
+    // faults (127 km) alone were ~5,100 points and ~640 orientations: past the 15-minute stop whatever the contacts were thinned to
+    // (measured on Mount Raymond: 250 m solves in about 3 minutes, fit 10 %; 1 km gave the map's contacts more room, 280 points not 165, and
+    // fit 6 %: the faults' share is not what limits the fit, so the finer traces stay)
+    const FAULT_STEP_M = 250;
     const faultSpecs = (p.faults || []).map((f) => {
-      const pts = thin(f.line, 25).map(([x, y]) => ({ x, y, z: ground(x, y) })).filter((q) => Number.isFinite(q.z));
+      let len = 0;
+      for (let i = 1; i < (f.line || []).length; i++) len += Math.hypot(f.line[i][0] - f.line[i - 1][0], f.line[i][1] - f.line[i - 1][1]);
+      const trace = thin(f.line, Math.max(25, Math.min(FAULT_STEP_M, len / 4)));
+      const end = f.line?.[f.line.length - 1];
+      if (end && Math.hypot(end[0] - trace[trace.length - 1][0], end[1] - trace[trace.length - 1][1]) > 1) trace.push(end);
+      const pts = trace.map(([x, y]) => ({ x, y, z: ground(x, y) })).filter((q) => Number.isFinite(q.z));
       if (pts.length < 2 || !Number.isFinite(f.dip) || !Number.isFinite(f.dipDir)) return null;
-      const or = pts.filter((_, i) => i % 8 === 0).map((q) => ({ ...api(q.x, q.y, q.z), dip: f.dip, azimuth: f.dipDir }));
+      const nOri = Math.max(2, Math.min(8, Math.round(len / 1000)));
+      const at = new Set(Array.from({ length: nOri }, (_, k) => Math.round((k * (pts.length - 1)) / (nOri - 1))));
+      const or = pts.filter((_, i) => at.has(i)).map((q) => ({ ...api(q.x, q.y, q.z), dip: f.dip, azimuth: f.dipDir }));
       return { label: `Fault: ${f.name}`, meshName: `Fault ${f.name}`, points: pts.map((q) => api(q.x, q.y, q.z)), orientations: or, color: colorForStructure("FLT"), type: "fault", fault: true };
     }).filter(Boolean);
     const left = (p.leftOut || []).filter(Boolean);
