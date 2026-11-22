@@ -14990,5 +14990,11 @@
   "built the alteration halo '{name}'": "a construit le halo d'altération « {name} »",
   "A bar beside the trace, its length following the value": "Une barre à côté de la trace, sa longueur suivant la valeur",
   "Zoom in (or the wheel); pan with the middle button or Space + drag": "Zoom avant (ou la molette) ; déplacez avec le bouton central ou Espace + glisser",
-  "Fit the whole section (or double-click empty ground)": "Ajuster toute la coupe (ou double-clic sur une zone vide)"
+  "Fit the whole section (or double-click empty ground)": "Ajuster toute la coupe (ou double-clic sur une zone vide)",
+  "Delete the {n} custom layers?": "Supprimer les {n} couches personnalisées ?",
+  "Delete the {n} picked layers?": "Supprimer les {n} couches choisies ?",
+  "Delete the {n} layers of \"{source}\"?": "Supprimer les {n} couches de « {source} » ?",
+  "{n} picked": "{n} choisies",
+  "Delete this import's layers…": "Supprimer les couches de cette importation…",
+  "Delete all custom layers. Ctrl or Shift + click rows to pick several.": "Supprime toutes les couches personnalisées. Ctrl ou Maj + clic sur les lignes pour en choisir plusieurs."
 }

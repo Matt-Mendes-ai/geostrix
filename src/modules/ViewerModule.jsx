@@ -45,6 +45,7 @@ import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { surveyAzimuthDipAt, desurveyMatters } from "../lib/desurvey.js"; // desurveyMatters: #2371; // desurveyHole, holeAttitudeAssumed (#2014): used by viewer/drillholeScene.js (#2176)
 import { unitSupport } from "../lib/unitSupport.js"; // #2096
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
+import { useCustomLayerPicks } from "./viewer/useCustomLayerPicks.js"; // TASKS.csv #4007 — Delete all, picked rows, an import's layers
 import { renameProblem, holeRowCounts, mapCustomLayers, renameInRows, deleteInRows } from "../lib/holeEdit.js"; // TASKS.csv #3681
 import { collarsToEditRows, editRowsToCollars } from "../lib/collarEditRows.js"; // TASKS.csv #3711
 import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.js"; // TASKS.csv #356
@@ -652,6 +653,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [holeColourBy, setHoleColourBy] = useState(""); // TASKS.csv #1504 — a collar field the holes are coloured by ("" = none), UI-only
   const holeScheme = useMemo(() => holeColourScheme(collars, holeColourBy), [collars, holeColourBy]);
   const [customLayers, setCustomLayers] = useState([]);
+  const customPicks = useCustomLayerPicks({ customLayers, setCustomLayers, layerGroupsRef }); // TASKS.csv #4007
   const [customVisible, setCustomVisible] = useState({});
   const [assayVisible, setAssayVisible] = useState(true);
   // User request: show several elements at once (e.g. Au/Ag/Zn/Cu/Pb together), each individually
@@ -6154,15 +6156,26 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         )}
 
         {(!basicTools || customLayers.length > 0) && (<>{/* TASKS.csv #3906 — with Basic tools, an empty section waits for All tools */}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Custom layers")}</div>
+        <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>{/* TASKS.csv #4007 — Delete all, as Cross-sections has */}
+          <span>{tr("Custom layers")}</span>
+          {customLayers.length > 1 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={customPicks.deleteAll} style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("Delete all custom layers. Ctrl or Shift + click rows to pick several.")}>{tr("Delete all")}</span>}
+        </div>
+        {customPicks.pickedIds.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginBottom: 6, background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, fontSize: "var(--font-size-xs)" }}>
+            <span style={{ flex: 1, color: "var(--color-text)" }}>{tr("{n} picked", { n: customPicks.pickedIds.length })}</span>
+            <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={customPicks.deletePicked} style={{ cursor: "pointer", color: "var(--color-danger-icon)" }}>{tr("Delete")}</span>
+            <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={customPicks.clearPicks} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Clear")}</span>
+          </div>
+        )}
         {customLayers.map((l) => (
           <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
             { label: customVisible[l.id] === false ? "Show" : "Hide", onClick: () => toggleCustom(l.id) },
             { label: tr("Zoom to"), onClick: () => zoomToCustom(l.id) },
             { label: tr("Style (colour, size, shape)…"), onClick: () => openCustomStyle(l) },
-            "-", { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-            <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.notes ? `${l.name}\n${l.notes}` : l.name}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({layerRowCount(l) /* #3424 */})</span>{l.notes && <span title={l.notes} style={{ display: "inline-flex", flexShrink: 0, color: "var(--color-text-muted)" }}><Info size={12} aria-label={tr("Layer notes: {v}", { v: l.notes })} /></span>}{/* #2432 — what the import left out or assumed */}
+            "-", { label: tr("Remove…"), onClick: async () => { if (await confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } },
+            customPicks.hasSiblings(l) && { label: tr("Delete this import's layers…"), onClick: () => customPicks.deleteImport(l) } /* #4007 */])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: customPicks.picked.has(l.id) ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", border: customPicks.picked.has(l.id) ? "1px solid var(--color-selected-border)" : "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={(e) => { if (!customPicks.clickRow(e, l.id)) toggleCustom(l.id); /* #4007 — Ctrl / Shift + click picks the row */ }} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+              {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.notes ? `${l.name}\n${l.notes}` : l.name}>{customPicks.names.get(l.id) ?? l.name /* #4007 — a long db name keeps its distinguishing end */}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({layerRowCount(l) /* #3424 */})</span>{l.notes && <span title={l.notes} style={{ display: "inline-flex", flexShrink: 0, color: "var(--color-text-muted)" }}><Info size={12} aria-label={tr("Layer notes: {v}", { v: l.notes })} /></span>}{/* #2432 — what the import left out or assumed */}
             </div>
             <Settings2 size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => openCustomStyle(l), tr("Style"))} /><Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), tr("Zoom to custom layer \"{name}\"", { name: l.name }))} />
             <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }), { undoable: true })) removeCustomLayer(l.id); } /* #2338 — asks, as the menu does */, tr("Remove custom layer \"{name}\"", { name: l.name }))} />

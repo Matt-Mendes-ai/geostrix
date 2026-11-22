@@ -14990,5 +14990,11 @@
   "built the alteration halo '{name}'": "construiu o halo de alteração '{name}'",
   "A bar beside the trace, its length following the value": "Uma barra ao lado do traço, com comprimento segundo o valor",
   "Zoom in (or the wheel); pan with the middle button or Space + drag": "Ampliar (ou a roda); mova com o botão do meio ou Espaço + arrastar",
-  "Fit the whole section (or double-click empty ground)": "Ajustar toda a seção (ou clique duplo em área vazia)"
+  "Fit the whole section (or double-click empty ground)": "Ajustar toda a seção (ou clique duplo em área vazia)",
+  "Delete the {n} custom layers?": "Excluir as {n} camadas personalizadas?",
+  "Delete the {n} picked layers?": "Excluir as {n} camadas escolhidas?",
+  "Delete the {n} layers of \"{source}\"?": "Excluir as {n} camadas de \"{source}\"?",
+  "{n} picked": "{n} escolhidas",
+  "Delete this import's layers…": "Excluir as camadas desta importação…",
+  "Delete all custom layers. Ctrl or Shift + click rows to pick several.": "Exclui todas as camadas personalizadas. Ctrl ou Shift + clique nas linhas para escolher várias."
 }
