@@ -113,7 +113,7 @@ test("the store: a key per project, kept by its tab across switches; the jobs ca
   assert.match(s, /jobsRef\.current\.projectShown\(projectKeyRef\.current\);/);
   assert.match(s, /if \(tok\?\.key\) \{ \/\/ TASKS\.csv #3953/);
   assert.match(s, /isSameProject = useCallback\(\(tok\) => !!tok && \(tok\.key \? tok\.key === projectKeyRef\.current/);
-  assert.match(s, /startProjectJob, jobNotes, dismissJobNote, \/\/ #3953/);
+  assert.match(s, /startProjectJob, jobNotes, dismissJobNote, (tabIdOfProjectKey, )?\/\/ #3953/); // tabIdOfProjectKey: #3963
   assert.match(read("App.jsx"), /jobNotes\.map\(\(n\) => \(/, "App shows the jobs' words on every module");
 });
 

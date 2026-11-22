@@ -46,30 +46,36 @@ const noBreakFirst = (rows) => (startsColumn(rows[0]) ? toggleColumnBreak([null,
 // (a row of them; the next row when the paper's edge is reached). Each keeps its group's name (groupsShown) so Load from view refills it
 // with that group only; its own height and columns start again. size(items) -> { w, h } of a legend of these rows (legendFit legendBoxSize).
 // -> the new elements (fewer than two groups: null)
-export function splitLegendByGroup(legend, { pageW = 1123, pageH = 794, margin = 20, gap = 12, size, newId = (i) => `${legend.id}_g${i + 1}` } = {}) {
+export function splitLegendByGroup(legend, { pageW = 1123, pageH = 794, margin = 20, gap = 12, size, newId = (i) => `${legend.id}_g${i + 1}`, obstacles = [] } = {}) {
   const groups = legendGroupsOf(legend?.items);
   if (groups.length < 2) return null;
   const parts = groups.map((g) => { const rows = noBreakFirst(g.rows); return { g, rows, ...size(rows) }; });
-  // rows of them from (x0, y0), a new row when the paper's right edge is reached: -> the boxes, and whether all are on the paper
-  const lay = (x0, y0) => {
-    let x = x0, y = y0, rowH = 0, fits = true;
+  // the area of the page's other elements a box lies over (part C: the split parts go clear of the section, the title block ...)
+  const cover = (x, y, w, h) => (obstacles || []).reduce((a, o) => (o ? a + Math.max(0, Math.min(x + w, o.x + o.w) - Math.max(x, o.x)) * Math.max(0, Math.min(y + h, o.y + o.h) - Math.max(y, o.y)) : a), 0);
+  // from (x0, y0): in rows (the next row at the paper's right edge), or in columns (the next column at its bottom) -> the boxes, whether all
+  // are on the paper, and how much of the page's other elements they cover
+  const lay = (x0, y0, cols = false) => {
+    let x = x0, y = y0, band = 0, fits = true, covered = 0;
     const at = parts.map((p, i) => {
-      if (i > 0 && x + p.w > pageW - margin) { x = x0; y += rowH + gap; rowH = 0; }
+      if (i > 0 && !cols && x + p.w > pageW - margin) { x = x0; y += band + gap; band = 0; }
+      if (i > 0 && cols && y + p.h > pageH - margin) { y = y0; x += band + gap; band = 0; }
       const box = { x, y };
       if (x + p.w > pageW - margin || y + p.h > pageH - margin) fits = false;
-      x += p.w + gap; rowH = Math.max(rowH, p.h);
+      covered += cover(x, y, p.w, p.h);
+      if (cols) { y += p.h + gap; band = Math.max(band, p.w); } else { x += p.w + gap; band = Math.max(band, p.h); }
       return box;
     });
-    return { at, fits };
+    return { at, fits, covered };
   };
-  // where the legend is; else moved left, then up, until every part is on the paper (none such: where the legend is, the user moves them)
+  // where the legend is; else moved left, then up, in rows or in columns: the first on the paper and clear of the page's other elements;
+  // none clear: the one on the paper that covers the least; none on the paper: where the legend is (the user moves them)
   const lx = Number(legend.x) || 0, ly = Number(legend.y) || 0;
-  let best = lay(lx, ly);
-  for (const y0 of [ly, margin]) {
-    if (best.fits) break;
-    for (let x0 = lx; x0 >= margin; x0 -= 40) { const t = lay(x0, y0); if (t.fits) { best = t; break; } }
-    if (!best.fits && lay(margin, y0).fits) best = lay(margin, y0);
-  }
+  const tries = [];
+  for (const y0 of [ly, margin]) { for (let x0 = lx; x0 >= margin; x0 -= 40) tries.push([x0, y0]); tries.push([margin, y0]); }
+  for (let y0 = ly + 40; y0 < pageH - margin; y0 += 40) tries.push([lx, y0], [margin, y0]);
+  const laid = [...tries.map(([x0, y0]) => lay(x0, y0)), ...tries.map(([x0, y0]) => lay(x0, y0, true))];
+  const onPaper = laid.filter((t) => t.fits);
+  const best = onPaper.find((t) => t.covered === 0) || onPaper.sort((m, n) => m.covered - n.covered)[0] || lay(lx, ly);
   return parts.map((p, i) => ({ ...legend, id: i === 0 ? legend.id : newId(i), items: p.rows, loadedItems: p.rows, x: best.at[i].x, y: best.at[i].y, w: p.w, h: undefined, legendCols: undefined, groupsShown: p.g.label != null ? [p.g.label] : [] }));
 }
 
@@ -82,6 +88,37 @@ export function joinLegends(legends) {
   const first = list[0], joined = { ...first, items, loadedItems: items, w: undefined, h: undefined }; // sized by its rows again
   delete joined.groupsShown;
   return { joined, removed: list.slice(1).map((l) => l.id) };
+}
+
+// TASKS.csv #3959 part C — drag and drop. A row dragged onto another lands before it (onto the end: after the last row); a group heading
+// dragged takes its whole group: dragged up, before the group the target row is in; dragged down, after it (or at the end). -> the new items (the same list when nothing
+// moves). `to` is an index in the list as it is before the move; to === items.length means 'at the end'.
+const groupSpan = (items, i) => { // [start, end) of the group holding row i
+  let s = i; while (s > 0 && !optsOf(items[s])?.heading) s--;
+  if (!optsOf(items[s])?.heading) s = 0;
+  let e = i + 1; while (e < items.length && !optsOf(items[e])?.heading) e++;
+  return [s, e];
+};
+export function moveLegendRow(items, from, to) {
+  const list = items || [];
+  if (from < 0 || from >= list.length || to < 0 || to > list.length) return list;
+  if (optsOf(list[from])?.heading) return moveLegendGroup(list, from, to);
+  if (to === from || to === from + 1) return list;
+  const out = list.slice(), [row] = out.splice(from, 1);
+  out.splice(to > from ? to - 1 : to, 0, row);
+  return out;
+}
+export function moveLegendGroup(items, headingIndex, to) {
+  const list = items || [];
+  const [s, e] = groupSpan(list, headingIndex);
+  if (s !== headingIndex) return list;
+  // dragged up: before the group the target row is in; dragged down: after it (as a list's drag and drop goes)
+  const [ts, te] = to >= list.length ? [list.length, list.length] : groupSpan(list, to);
+  const dest = to >= list.length ? list.length : ts > s ? te : ts;
+  if (dest >= s && dest <= e) return list; // onto itself
+  const block = list.slice(s, e), rest = [...list.slice(0, s), ...list.slice(e)];
+  const at = dest > s ? dest - block.length : dest;
+  return [...rest.slice(0, at), ...block, ...rest.slice(at)];
 }
 
 // 'Load from view' made new rows: the breaks of the rows it had, put back on the rows of the same label (a label gone: its break goes too)

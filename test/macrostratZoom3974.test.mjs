@@ -65,10 +65,10 @@ test("#3974 one line for the map found, from its scale or its scale class; none 
 
 test("#3974 wired: one tile fetch for every route (drape, legend, map layer, the trend helper's polygons); the note on the card, the layer and the hint", () => {
   const f = read("../src/lib/macrostratFetch.js"), m = read("../src/components/MacrostratModal.jsx"), h = read("../src/modules/viewer/TrendHelper.jsx");
-  assert.match(f, /const found = await firstZoomWithUnits\(steps, \(plan\) => fetchZoom\(plan, onProgress\), bboxLonLat\);/);
-  assert.equal((f.match(/await fetchMacrostratTiles\(bboxLonLat, onProgress\)/g) || []).length, 4, "drape, legend, polygons, map layer");
-  assert.match(f, /scaleNote: found\.index > 0 \? await scaleNoteAt\(bboxLonLat\) : null/, "the point query only after a step down");
-  assert.match(f, /\/geologic_units\/map\?lat=\$\{lat\.toFixed\(5\)\}&lng=\$\{lng\.toFixed\(5\)\}`/, "the point query passes no scale");
+  assert.match(f, /const found = await firstZoomWithUnits\(steps, \(plan\) => fetchZoom\(plan, onProgress, signal\), bboxLonLat\);/); // signal: #3963
+  assert.equal((f.match(/await fetchMacrostratTiles\(bboxLonLat, onProgress, signal\)/g) || []).length, 4, "drape, legend, polygons, map layer");
+  assert.match(f, /scaleNote: found\.index > 0 \? await scaleNoteAt\(bboxLonLat, signal\) : null/, "the point query only after a step down");
+  assert.match(f, /\/geologic_units\/map\?lat=\$\{lat\.toFixed\(5\)\}&lng=\$\{lng\.toFixed\(5\)\}`, signal/, "the point query passes no scale");
   assert.match(f, /Macrostrat has no map here, even at a continent's scale\. Try Maps > Web layers/);
   assert.equal((m.match(/\(r\.scaleNote \? " " \+ r\.scaleNote : ""\)/g) || []).length, 2);
   assert.match(m, /\.\.\.\(r\.scaleNote \? \{ scaleNote: r\.scaleNote \} : \{\}\)/, "in the drape's provenance");

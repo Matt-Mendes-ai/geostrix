@@ -27,7 +27,7 @@ test("the Explicit surface seeds from the area; the setting is saved with the pr
   assert.match(p, /codedRuns\(modelArea === "checked" \? \(layers\.litho \|\| \[\]\)\.filter\(\(r\) => visibleHoles\?\.\[r\.hole_id\] !== false\)/);
   const v = src("modules/ViewerModule.jsx");
   assert.match(v, /setModelArea\(s\.modelArea === "checked" \? "checked" : "all"\); \/\/ #2535/);
-  assert.match(v, /      modelArea, \/\/ #2535\n?\r?\n?\s*\};\s*\r?\n\s*setViewerUiState\(ui\);/);
+  assert.match(v, /      modelArea, \/\/ #2535\r?\n(?:\s*\w+, \/\/ #\d+\r?\n)*\s*\};\s*\r?\n\s*setViewerUiState\(ui\);/); // later fields may follow it (fenceArea: #3971)
 });
 
 test("the stamping wrapper: new surfaces get the area, existing ones and those that already say it are left alone", () => {

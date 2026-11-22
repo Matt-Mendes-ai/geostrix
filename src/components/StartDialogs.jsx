@@ -87,6 +87,8 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
     } catch { setCard({ qc: null, checking: false }); }
   };
 
+  // TASKS.csv #3953 / #3963 — the ground the dialog brings in (a file, its CRS, the download) is a job of the project it started in
+  const terrainJob = () => { const label = tr("Terrain"); return startProjectJob ? startProjectJob({ label }) : noJob(label); };
   // step 1: a terrain file (GeoTIFF) through the terrain importer's parser; anything else waits for step 2
   const onGroundFiles = async (files) => {
     engaged.current = true;
@@ -94,10 +96,12 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
     if (rest.length) setCarried((c) => [...c, ...rest]);
     if (!tifs.length) { setNote({ text: tr(rest.length === 1 ? "That looks like a table or a map, not a terrain: it goes in the next step." : "Those look like tables or maps, not a terrain: they go in the next step.") }); return; }
     setBusy(true); setNote(null);
+    const job = terrainJob(); // TASKS.csv #3963 — a plain file import belongs to the project it started in too
     try {
       const { parseDEMFiles } = await import("../lib/raster.js");
       const tie = tieOf(project);
-      const parsed = await parseDEMFiles(tifs, tie ? null : epsg, null, { tie, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: tifs[0].name }) });
+      const parsed = await parseDEMFiles(tifs, tie ? null : epsg, null, { tie, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: tifs[0].name, live: job.isLive }) }); // live: #3963
+      if (!(await landed(job))) return; // TASKS.csv #3963 — into the project it started in (the finally clears the busy state)
       if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) { setBusy(false); return; }
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null });
       setGround("file");
@@ -106,8 +110,9 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       setPicker(parsed.epsgTag ? null : { files: tifs, typed: "", error: null });
       setNote({ text: [sum?.text, where, rest.length ? tr("The other files go in the next step.") : ""].filter(Boolean).join(" ") });
     } catch (e) {
+      if (job.gone) return; // #3963 — its project is gone and the banner said so
       setNote({ text: tr("{name}: GeoStrix could not read it as a terrain ({error}). Try another file, or make one for me.", { name: tifs[0].name, error: String(e?.message || e) }), warn: true });
-    } finally { setBusy(false); }
+    } finally { setBusy(false); job.end(); } // job: #3963
   };
 
   // #3918 — a terrain with no coordinate system: its numbers are the project's, or in the CRS the user types (re-read through it)
@@ -117,13 +122,15 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
     if (!crsName(code)) { setPicker((p) => ({ ...p, error: tr("GeoStrix doesn't know EPSG:{code}. Check the number on the file's .prj or its notes.", { code }) })); return; }
     if (!epsg || Number(code) === Number(epsg)) { if (!epsg) setEpsg(code); setPicker(null); setNote({ text: crsWords(code, crsName(code)) }); return; }
     setBusy(true);
+    const job = terrainJob(); // TASKS.csv #3963
     try {
       const { parseDEMFiles } = await import("../lib/raster.js");
       const parsed = await parseDEMFiles(picker.files, epsg, String(code), {});
+      if (!(await landed(job))) return; // TASKS.csv #3963 — into the project it started in (the finally clears the busy state)
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null });
       setPicker(null);
       setNote({ text: [terrainSummary(parsed)?.text, tr("Read as {name} (EPSG:{code}) and brought into the project's coordinate system.", { name: crsName(code), code })].filter(Boolean).join(" ") });
-    } catch (e) { setPicker((p) => ({ ...p, error: String(e?.message || e) })); } finally { setBusy(false); }
+    } catch (e) { if (!job.gone) setPicker((p) => ({ ...p, error: String(e?.message || e) })); } finally { setBusy(false); job.end(); } // job: #3963
   };
 
   // step 2's strip: the Copernicus GLO-30 download for the collars' area, on a click; offline or failed: the collar heights, said
@@ -134,7 +141,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
     const offline = () => setStripDone({ text: tr("No internet connection: using the collar heights for now. Add a terrain later with Add data."), warn: true });
     if (typeof navigator !== "undefined" && navigator.onLine === false) { offline(); return; }
     setBusy(true);
-    const job = startProjectJob ? startProjectJob({ label: tr("Terrain") }) : noJob(tr("Terrain")); // TASKS.csv #3953
+    const job = terrainJob(); // TASKS.csv #3953
     try {
       const box = fetchAreaBox(collars, store.surfaceSamples || []);
       const { toLonLat } = await import("../lib/reproject.js");
@@ -142,7 +149,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       if (ll.some((p) => !p)) throw new Error(tr("the project's coordinate system could not be turned into latitude and longitude"));
       const ext = ll.reduce((b, p) => [Math.min(b[0], p.lon), Math.min(b[1], p.lat), Math.max(b[2], p.lon), Math.max(b[3], p.lat)], [Infinity, Infinity, -Infinity, -Infinity]);
       const { fetchCopernicusTerrain } = await import("../lib/copernicusDem.js");
-      const parsed = await fetchCopernicusTerrain({ lonMin: ext[0], latMin: ext[1], lonMax: ext[2], latMax: ext[3], targetEpsg: useEpsg, gridMax: 200 });
+      const parsed = await fetchCopernicusTerrain({ lonMin: ext[0], latMin: ext[1], lonMax: ext[2], latMax: ext[3], targetEpsg: useEpsg, gridMax: 200, signal: job.signal /* #3963 */ });
       // #3918 — Maps > Terrain's own check (lib/srtmFetch.js): collars hundreds of metres off the ground are in the wrong UTM zone, or not
       const { collarGroundMisfit, findBetterUtmZone, MISFIT_ZONE_M } = await import("../lib/srtmFetch.js");
       if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state)
@@ -154,6 +161,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       }
       keepGround(parsed, misfit && misfit.medianDz > MISFIT_ZONE_M ? tr(" Check the project CRS and the collar elevations (feet? a local datum?): the collars sit a median {v} m off this terrain.", { v: Math.round(misfit.medianDz) }) : "");
     } catch (e) {
+      if (job.gone) return; // #3963 — its project closed mid-download: the banner says it
       if (typeof navigator !== "undefined" && navigator.onLine === false) offline();
       else setStripDone({ text: tr("The ground could not be downloaded ({error}): using the collar heights for now. Add a terrain later with Add data.", { error: String(e?.message || e) }), warn: true });
     } finally { setBusy(false); job.end(); } // job: TASKS.csv #3953

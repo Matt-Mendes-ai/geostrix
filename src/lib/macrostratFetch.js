@@ -1,6 +1,6 @@
 // TASKS.csv #2005 — the browser side of the Macrostrat layer (lib/macrostrat.js holds the pure parts): the tiles over the area, two at a
 // time through the main process, stitched, resampled to longitude / latitude and warped into the project CRS (as a WMS map, #418).
-import { macrostratFetch } from "./desktop.js";
+import { macrostratFetch, cancelledError, isCancelledError } from "./desktop.js"; // cancelledError: TASKS.csv #3963
 import { getProj4DefSync } from "./reproject.js";
 import { reprojectImageRGBA } from "./reprojectMore.js"; // TASKS.csv #3590
 import { wmsImageSize, wmsPixelMetres } from "./webLayers.js";
@@ -14,10 +14,10 @@ import { t as tr } from "./i18n.js";
 // TASKS.csv #3952 — the image is drawn from the unit polygons of the vector tiles (lib/macrostrat.js drawUnitsRGBA), sized to the area, then
 // warped into the project CRS as before; the same tiles give its legend, so nothing is fetched twice. Macrostrat's PNG tiles (its relief-shaded
 // map) are no longer read: they stop at zoom 12 and a small area came out a few dozen pixels across.
-export async function fetchMacrostratRaster({ bboxLonLat, projectEpsg, onProgress }) {
+export async function fetchMacrostratRaster({ bboxLonLat, projectEpsg, onProgress, signal }) { // signal: TASKS.csv #3963 — a cancelled job stops its tile reads
   const fromDef = getProj4DefSync(4326), toDef = getProj4DefSync(projectEpsg);
   if (!fromDef || !toDef) throw new Error(tr("Can't reproject WGS84 into the project's EPSG:{projectEpsg} — unrecognized target CRS.", { projectEpsg }));
-  const { plan, count, tiles, failed, scaleNote } = await fetchMacrostratTiles(bboxLonLat, onProgress); // scaleNote: #3974
+  const { plan, count, tiles, failed, scaleNote } = await fetchMacrostratTiles(bboxLonLat, onProgress, signal); // scaleNote: #3974
   const { features, units } = macrostratUnitFeatures(tiles, bboxLonLat);
   if (!features.length) throw new Error(tr("Macrostrat has no map unit polygons in this area."));
   const colour = new Map(units.map((u) => [u.unit, u.color]));
@@ -33,14 +33,16 @@ export async function fetchMacrostratRaster({ bboxLonLat, projectEpsg, onProgres
 }
 
 // the map units at a point, finest map first, each with its original map's citation
-export async function fetchMacrostratUnits(lat, lng) {
-  const res = await macrostratFetch({ url: `${MACROSTRAT_API}/geologic_units/map?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}` });
+export async function fetchMacrostratUnits(lat, lng, { signal } = {}) {
+  const res = await macrostratFetch({ url: `${MACROSTRAT_API}/geologic_units/map?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}`, signal });
+  if (res.cancelled) throw cancelledError(); // #3963
   if (!res.ok) throw new Error(res.message || tr("Request failed (HTTP {status}).", { status: res.status }));
   const units = parseMacrostratUnits(JSON.parse(res.text));
   const ids = [...new Set(units.map((u) => u.sourceId).filter((v) => Number.isInteger(v)))];
   let sources = {};
   if (ids.length) {
-    const s = await macrostratFetch({ url: `${MACROSTRAT_API}/defs/sources?source_id=${ids.join(",")}` });
+    const s = await macrostratFetch({ url: `${MACROSTRAT_API}/defs/sources?source_id=${ids.join(",")}`, signal });
+    if (s.cancelled) throw cancelledError();
     if (s.ok) sources = parseMacrostratSources(JSON.parse(s.text));
   }
   return units.map((u) => ({ ...u, source: sources[u.sourceId] || null }));
@@ -48,7 +50,7 @@ export async function fetchMacrostratUnits(lat, lng) {
 
 // TASKS.csv #2011 — the drape's legend: the map units in the vector tiles over the same area at the same zoom (the tiles the PNG drape
 // was drawn from), 1-10 kB each, two at a time through the main process. -> { units, lines, sources, zoom, tiles, failedTiles, fetched }
-async function fetchZoom(plan, onProgress) {
+async function fetchZoom(plan, onProgress, signal) {
   const list = [];
   for (let y = plan.y0; y <= plan.y1; y++) for (let x = plan.x0; x <= plan.x1; x++) list.push({ x, y });
   const tiles = [], failed = [];
@@ -56,12 +58,14 @@ async function fetchZoom(plan, onProgress) {
   onProgress?.(0, list.length);
   const worker = async () => {
     while (next < list.length) {
+      if (signal && signal.aborted) throw cancelledError(); // TASKS.csv #3963 — no more tiles once its job is cancelled
       const t = list[next++];
       try {
-        const res = await macrostratFetch({ url: MACROSTRAT_MVT_URL(plan.z, t.x, t.y), binary: true });
+        const res = await macrostratFetch({ url: MACROSTRAT_MVT_URL(plan.z, t.x, t.y), binary: true, signal });
+        if (res.cancelled) throw cancelledError();
         if (!res.ok || !res.bytes) throw new Error(res.message || tr("Request failed (HTTP {status}).", { status: res.status }));
         tiles.push({ z: plan.z, x: t.x, y: t.y, layers: readVectorTile(new Uint8Array(res.bytes)) });
-      } catch (e) { failed.push(e); }
+      } catch (e) { if (isCancelledError(e)) throw e; failed.push(e); }
       onProgress?.(++done, list.length);
     }
   };
@@ -73,47 +77,47 @@ async function fetchZoom(plan, onProgress) {
 // deep zooms are blank), so the drape, its legend, the map layer and the trend helper's polygons all read the same zoom. A zoom with units at
 // once costs nothing more; after a step down, `scaleNote` says what map was found (one point query at the centre). Nothing even at the floor:
 // an error that says so and where else to look. -> { plan, count, tiles, failed, requests, firstZoom, scaleNote }
-async function fetchMacrostratTiles(bboxLonLat, onProgress) {
+async function fetchMacrostratTiles(bboxLonLat, onProgress, signal) {
   const steps = macrostratZoomSteps(bboxLonLat);
   if (!steps.length) throw new Error(tr("No Macrostrat tiles cover this area."));
-  const found = await firstZoomWithUnits(steps, (plan) => fetchZoom(plan, onProgress), bboxLonLat);
-  if (found) return { ...found.got, requests: found.requests, firstZoom: steps[0].z, scaleNote: found.index > 0 ? await scaleNoteAt(bboxLonLat) : null };
+  const found = await firstZoomWithUnits(steps, (plan) => fetchZoom(plan, onProgress, signal), bboxLonLat);
+  if (found) return { ...found.got, requests: found.requests, firstZoom: steps[0].z, scaleNote: found.index > 0 ? await scaleNoteAt(bboxLonLat, signal) : null };
   throw new Error(tr("Macrostrat has no map here, even at a continent's scale. Try Maps > Web layers, or a georeferenced survey map."));
 }
 // the map found after a step down, said in one line (the finest unit at the centre, its map's name and scale); null when it can't be read
-async function scaleNoteAt([lonMin, latMin, lonMax, latMax]) {
+async function scaleNoteAt([lonMin, latMin, lonMax, latMax], signal) {
   try {
     const lat = (latMin + latMax) / 2, lng = (lonMin + lonMax) / 2;
-    const res = await macrostratFetch({ url: `${MACROSTRAT_API}/geologic_units/map?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}` });
+    const res = await macrostratFetch({ url: `${MACROSTRAT_API}/geologic_units/map?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}`, signal });
     if (!res.ok) return null;
     const u = parseMacrostratUnits(JSON.parse(res.text))[0];
     if (!u) return null;
     let sourceName = "", sourceScale = "", sourceTitle = "";
     if (Number.isInteger(u.sourceId)) {
-      const s = await macrostratFetch({ url: `${MACROSTRAT_API}/defs/sources?source_id=${u.sourceId}` });
+      const s = await macrostratFetch({ url: `${MACROSTRAT_API}/defs/sources?source_id=${u.sourceId}`, signal });
       const d = s.ok ? JSON.parse(s.text)?.success?.data?.[0] : null;
       sourceName = String(d?.name || d?.ref_title || "").trim(); sourceScale = String(d?.scale || "").trim(); sourceTitle = String(d?.ref_title || "").trim();
     }
     return macrostratScaleNote([{ ...u, sourceName, sourceScale, sourceTitle }]);
   } catch { return null; }
 }
-export async function fetchMacrostratLegend({ bboxLonLat, onProgress }) {
-  const { plan, count, tiles, failed, scaleNote } = await fetchMacrostratTiles(bboxLonLat, onProgress); // scaleNote: #3974
+export async function fetchMacrostratLegend({ bboxLonLat, onProgress, signal }) {
+  const { plan, count, tiles, failed, scaleNote } = await fetchMacrostratTiles(bboxLonLat, onProgress, signal); // scaleNote: #3974
   return { ...macrostratLegend(macrostratLayersInArea(tiles, bboxLonLat)), inArea: true /* #2315 */, zoom: plan.z, tiles: count, failedTiles: failed.length, fetched: new Date().toISOString().slice(0, 10), scaleNote };
 }
 
 // TASKS.csv #3911 — the unit polygons alone, in longitude / latitude, from the same vector tiles (the trend helper's regional direction,
 // lib/regionalGrain.js). -> { features, zoom, tiles, failedTiles }
-export async function fetchMacrostratUnitPolygons({ bboxLonLat, onProgress }) {
-  const { plan, count, tiles, failed, scaleNote } = await fetchMacrostratTiles(bboxLonLat, onProgress); // scaleNote: #3974
+export async function fetchMacrostratUnitPolygons({ bboxLonLat, onProgress, signal }) {
+  const { plan, count, tiles, failed, scaleNote } = await fetchMacrostratTiles(bboxLonLat, onProgress, signal); // scaleNote: #3974
   return { features: macrostratUnitFeatures(tiles, bboxLonLat).features, zoom: plan.z, tiles: count, failedTiles: failed.length, scaleNote };
 }
 
 // TASKS.csv #2012 — the units as a geology map layer (polygons with a unit field, Macrostrat's colours), reprojected into the project
 // CRS by buildLayer as an imported map is, so Surface Geology > Model it can carry them underground. -> { layer, polygons, units, ... }
-export async function fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgress }) {
+export async function fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgress, signal }) {
   if (!getProj4DefSync(4326) || !getProj4DefSync(projectEpsg)) throw new Error(tr("Can't reproject WGS84 into the project's EPSG:{projectEpsg} — unrecognized target CRS.", { projectEpsg }));
-  const { plan, count, tiles, failed, scaleNote } = await fetchMacrostratTiles(bboxLonLat, onProgress); // scaleNote: #3974
+  const { plan, count, tiles, failed, scaleNote } = await fetchMacrostratTiles(bboxLonLat, onProgress, signal); // scaleNote: #3974
   const { features, units, sources } = macrostratUnitFeatures(tiles, bboxLonLat);
   if (!features.length) throw new Error(tr("Macrostrat has no map unit polygons in this area."));
   const name = "Macrostrat geology (CC BY 4.0)";

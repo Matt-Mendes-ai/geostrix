@@ -14681,6 +14681,8 @@
   "Draw a box…": "Dessiner un rectangle…",
   "Drag on the view to draw it.": "Faites glisser dans la vue pour le dessiner.",
   "Drag a corner to change it.": "Faites glisser un coin pour le modifier.",
+  "Drag to move this row; a group heading moves its whole group": "Faites glisser pour déplacer cette ligne ; un titre de groupe déplace tout son groupe",
+  "{label} was cut off: its project closed before the rest was added.": "{label} a été interrompu : son projet a été fermé avant l'ajout du reste.",
   "Only a 1:{n} map covers this area ({name}): regional, not property-scale.": "Seule une carte au 1:{n} couvre cette zone ({name}) : régionale, pas à l'échelle de la propriété.",
   "Only a world-scale map covers this area ({name}): regional, not property-scale.": "Seule une carte à l'échelle mondiale couvre cette zone ({name}) : régionale, pas à l'échelle de la propriété.",
   "Only a continent- or country-scale map covers this area ({name}): regional, not property-scale.": "Seule une carte à l'échelle d'un continent ou d'un pays couvre cette zone ({name}) : régionale, pas à l'échelle de la propriété.",

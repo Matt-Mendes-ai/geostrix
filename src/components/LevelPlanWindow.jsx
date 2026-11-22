@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X as XIcon, Download, Pencil, Check } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { strikeDipSymbol, pathCache, busiestRl } from "../lib/levelPlan.js"; // pathCache: TASKS.csv #2210
+import { strikeDipSymbol, pathCache, busiestRl, fallbackOpenRl, clampLevelPlanSize } from "../lib/levelPlan.js"; // pathCache: TASKS.csv #2210; fallbackOpenRl: #3970
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — the legend drawn into the PNG
@@ -30,7 +30,7 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '
 // Draw outline: click points on the plan; Save keeps it as a boundary at this RL (a pit shell, an ore outline, a
 // level development string), visible in 3D and reusable like any boundary. Export PNG / Add to Layout keep the scale.
 
-const W = 760, H = 560, PAD = 34;
+const W0 = 760, H0 = 560, PAD = 34; // TASKS.csv #3970 — the first size of the plot; the plot then fills the dialog's fixed plot box (W / H in the component)
 // TASKS.csv #2372 (review #2325, WA uranium) — on a drilling grid (414 pierce points) the ids became a ring of labels with leaders up to a third
 // of the plan long, some over the easting axis. Above LABELS_AUTO_MAX pierce points the ids start off (hover names a point; the tick turns
 // them on), a label moves at most LABEL_RINGS rows from its point, and the axis labels are obstacles.
@@ -46,6 +46,16 @@ function toWorldF(frame, e, root) {
   return [frame.x0 + (q.x - frame.X(frame.x0)) / frame.s, frame.y0 + (frame.Y(frame.y0) - q.y) / frame.s];
 }
 
+// TASKS.csv #3970 — the dialog's own size: a share of the window to start with, then what the user last dragged it to (this computer, not the project)
+const LP_SIZE_KEY = "geostrix.levelPlanSize";
+function initialLevelPlanSize() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LP_SIZE_KEY) || "null"); } catch { /* no storage: the default */ }
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1280, vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  return clampLevelPlanSize(saved, vw, vh);
+}
+function saveLevelPlanSize(w, h) { try { localStorage.setItem(LP_SIZE_KEY, JSON.stringify({ w, h })); } catch { /* not remembered */ } }
+
 // leftOut (#3029): holes whose collar elevation is suspect (#3004), left out of the RL range; said beside the slider
 // TASKS.csv #3064 — the plan before the first build: nothing in it
 const emptyPlan = ({ rl, half }) => ({ rl: Number(rl), half: Number(half), holes: [], intervals: [], assayLegends: {}, points: [], structures: [], voxelSlices: [], surfaceCuts: [], planned: [], legendItems: [] });
@@ -59,6 +69,26 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
   // TASKS.csv #3064 — and that pick (a full build) now runs after the window is painted, which says 'Building the plan…' meanwhile: the open
   // blocked 2.4-2.8 s with nothing on screen. The first render is an empty plan, never a full one at defaultRl, so #2929 still holds.
   // TASKS.csv #3137 — the pick reads the holes only (busiestRl needs each trace's z: 0.9 s as a full build on WA iron), a slice at a time
+  // TASKS.csv #3970 (Matt: 'the level plan window keeps resizing when I adjust the level plan') — the dialog has a size of its own (a share of the window, remembered,
+  // resized by its edge), the plot fills the plot box inside it at an equal E / N scale, and the rows around the plot are fixed-height: nothing about the
+  // dialog's size depends on the RL, the slab, the status line or the legend. W / H are the plot box's size.
+  const [box, setBox] = useState({ w: W0, h: H0 });
+  const W = box.w, H = box.h;
+  const dlgRef = useRef(null), plotRef = useRef(null);
+  const [dlgSize] = useState(() => initialLevelPlanSize());
+  useEffect(() => {
+    const el = plotRef.current; if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => { const w = Math.floor(el.clientWidth), h = Math.floor(el.clientHeight); if (w >= 200 && h >= 160) setBox((b) => (b.w === w && b.h === h ? b : { w, h })); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+  useEffect(() => {
+    const el = dlgRef.current; if (!el || typeof ResizeObserver === "undefined") return undefined;
+    let t = 0;
+    const ro = new ResizeObserver(() => { clearTimeout(t); t = setTimeout(() => saveLevelPlanSize(el.offsetWidth, el.offsetHeight), 300); });
+    ro.observe(el);
+    return () => { clearTimeout(t); ro.disconnect(); };
+  });
   const [ready, setReady] = useState(false);
   const [rl, setRl] = useState(() => Math.round(defaultRl));
   const ctxRef = useRef(planCtx); ctxRef.current = planCtx;
@@ -69,7 +99,7 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
     const f = requestAnimationFrame(() => {
       const r0 = Math.round(defaultRl);
       runSliced(planBuild(ctxRef.current(), r0, 12.5, { holesOnly: true }), { cancelled: () => !alive })
-        .then((pl) => { if (!alive) return; const b = (pl && busiestRl(pl.holes)) ?? r0; setRl(b); setApplied({ rl: b, half: 12.5 }); setReady(true); }, () => { if (alive) setReady(true); });
+        .then((pl) => { if (!alive) return; const b = (pl && busiestRl(pl.holes)) ?? fallbackOpenRl((ctxRef.current().traces || []).map((t) => t.wz?.[0]), zRange); setRl(b); setApplied({ rl: b, half: 12.5 }); setReady(true); }, () => { if (alive) setReady(true); });
     });
     return () => { alive = false; cancelAnimationFrame(f); };
   }, []);
@@ -144,7 +174,7 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
     const s = Math.min((W - 2 * PAD) / (x1 - x0), (H - 2 * PAD) / (y1 - y0));
     const ox = PAD + ((W - 2 * PAD) - (x1 - x0) * s) / 2, oy = PAD + ((H - 2 * PAD) - (y1 - y0) * s) / 2;
     return { x0, x1, y0, y1, s, X: (x) => ox + (x - x0) * s, Y: (y) => H - (oy + (y - y0) * s) };
-  }, [fitSlab, fitSlab || !data.holes.length ? data : null, data.holes.length, data.planned.length, view]); // no holes: the slices frame it (#1782)
+  }, [fitSlab, fitSlab || !data.holes.length ? data : null, data.holes.length, data.planned.length, view, W, H]); // no holes: the slices frame it (#1782)
 
   // wheel = zoom about the cursor (a native listener: React's onWheel is passive and can't stop the page scrolling)
   useEffect(() => {
@@ -250,6 +280,7 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
   for (let y = Math.ceil(frame.y0 / gridStep) * gridStep; y <= frame.y1; y += gridStep) gy.push(y);
   const pierceCount = data.holes.reduce((n, h) => n + h.pierce.length, 0);
   const inSlab = data.holes.filter((h) => h.runs.length).length;
+  const statusText = tr("{pierceCount} {v} at {rl} m · {inSlab} {v2} in the slab · {voxelSlices} {v3} and {surfaceCuts} {v4} cut · equal E / N scale · wheel to zoom, drag to pan, double-click to reset. Hover a pierce point for its logs and assays.", { pierceCount, v: tr(pierceCount === 1 ? "pierce point" : "pierce points"), rl, inSlab, v2: tr(inSlab === 1 ? "hole" : "holes"), voxelSlices: data.voxelSlices.length, v3: tr(data.voxelSlices.length === 1 ? "block model" : "block models"), surfaceCuts: data.surfaceCuts.length, v4: tr(data.surfaceCuts.length === 1 ? "surface" : "surfaces") }); // #3970 — also the row's tooltip: the row is a fixed height and cuts what does not fit
 
   const exportPng = async (toLayout) => {
     // TASKS.csv #1048 — the legend (HTML under the plan) drawn into the PNG; exportSvgMarkup as every other figure (#1089)
@@ -271,8 +302,8 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
 
   return (
     <div role="dialog" aria-modal="true" aria-label={tr("Level plan")} style={{ position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 14, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxWidth: "96vw", maxHeight: "94vh", overflow: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+      <div ref={dlgRef} data-level-plan-dialog="" onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 14, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", width: dlgSize.w, height: dlgSize.h, minWidth: 560, minHeight: 440, maxWidth: "98vw", maxHeight: "96vh", resize: "both", overflow: "hidden", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap", flex: "0 0 auto", minHeight: 34 /* #3970 — the same height with or without the "Colour holes by" choice */ }}>
           <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", color: "var(--color-text)" }}>{tr("Level plan")}</div>
           <label style={ctrl}>{tr("RL (m)")}{" "}<NumberInput allowEmpty value={rl === "" ? null : rl} onChange={(v) => setRl(v == null ? "" : String(v))} style={inp} aria-label={tr("Plan elevation (RL)")} /></label>
           <input type="range" min={Math.floor(zRange[0])} max={Math.ceil(zRange[1])} step={1} value={rl} onChange={(e) => setRl(e.target.value)} style={{ width: 160 }} aria-label={tr("Plan elevation slider")} />
@@ -290,7 +321,8 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
           <div style={{ flex: 1 }} />
           <button onClick={onClose} title={tr("Close")} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><XIcon size={18} /></button>
         </div>
-        <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="'Segoe UI', system-ui, Arial, sans-serif" role="img" aria-label={tr("Level plan at {rl} m", { rl })} onClick={onClick} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onDoubleClick={() => !drawing && setView(null)} style={{ display: "block", background: "#ffffff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: drawing ? "crosshair" : "grab", maxWidth: "100%", height: "auto", width: `min(calc(96vw - 30px), calc((94vh - 170px) * ${W / H}))` /* #2372 — the plan fills the window */ }}>
+        <div ref={plotRef} style={{ flex: "1 1 0", minHeight: 0, minWidth: 0, position: "relative", overflow: "hidden" }}>{/* #3970 — the plot box: the plot fills it */}
+        <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="'Segoe UI', system-ui, Arial, sans-serif" role="img" aria-label={tr("Level plan at {rl} m", { rl })} onClick={onClick} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onDoubleClick={() => !drawing && setView(null)} style={{ display: "block", background: "#ffffff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: drawing ? "crosshair" : "grab", position: "absolute", left: 0, top: 0 }}>
           {/* grid */}
           {gx.map((x) => <g key={`gx${x}`}><line x1={X(x)} y1={PAD / 2} x2={X(x)} y2={H - PAD / 2} stroke="#eceef2" /><text x={X(x)} y={H - 6} fontSize="10" fill="#7a8494" textAnchor="middle">{Math.round(x)}E</text></g>)}
           {gy.map((y) => <g key={`gy${y}`}><line x1={PAD / 2} y1={Y(y)} x2={W - PAD / 2} y2={Y(y)} stroke="#eceef2" /><text x={4} y={Y(y) - 3} fontSize="10" fill="#7a8494">{Math.round(y)}N</text></g>)}
@@ -339,25 +371,30 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
           <g transform={`translate(${W - 26},${PAD + 6})`}><path d="M0,-14 L6,6 L0,2 L-6,6 Z" fill="#1a2028" /><text x={0} y={18} fontSize="11" fontWeight="700" textAnchor="middle" fill="#1a2028">N</text></g>
           <g transform={`translate(${W - PAD - barM * s},${H - 22})`}><rect width={barM * s} height={5} fill="#1a2028" /><rect width={(barM * s) / 2} height={5} fill="#ffffff" stroke="#1a2028" strokeWidth={0.8} /><text x={(barM * s) / 2} y={-3} fontSize="10" textAnchor="middle" fill="#1a2028">{`${barM} m`}</text></g>
         </svg>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flex: 1, minWidth: 260 }}>
-            {tr("{pierceCount} {v} at {rl} m · {inSlab} {v2} in the slab · {voxelSlices} {v3} and {surfaceCuts} {v4} cut · equal E / N scale · wheel to zoom, drag to pan, double-click to reset. Hover a pierce point for its logs and assays.", { pierceCount, v: tr(pierceCount === 1 ? "pierce point" : "pierce points"), rl, inSlab, v2: tr(inSlab === 1 ? "hole" : "holes"), voxelSlices: data.voxelSlices.length, v3: tr(data.voxelSlices.length === 1 ? "block model" : "block models"), surfaceCuts: data.surfaceCuts.length, v4: tr(data.surfaceCuts.length === 1 ? "surface" : "surfaces") })}</div>
-          {idLabels && (idLabels.hidden > 0 || idLabels.grouped > 0) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flexBasis: "100%" }}>{tr("Hole ids: 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in, or hover a pierce point.", { hidden: idLabels.hidden })}</div>}{/* #2212 */}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap", flex: "0 0 auto", minHeight: 44 }}>
+          <div title={statusText} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flex: 1, minWidth: 260, height: "2.9em", overflow: "hidden", lineHeight: 1.45 }}>{/* #3970 — a fixed-height row: the text wraps or is cut, never grows */}
+            {statusText}
+            {idLabels && (idLabels.hidden > 0 || idLabels.grouped > 0) && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", display: "block" }}>{tr("Hole ids: 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in, or hover a pierce point.", { hidden: idLabels.hidden })}</span>}{/* #2212 */}
+          </div>
           {!drawing
             ? <button style={btn} onClick={() => { setDrawing(true); setPts([]); setNote(tr("Click points on the plan; Save outline when done.")); }}><Pencil size={14} />{" "}{tr("Draw outline")}</button>
             : <><button style={btn} onClick={saveOutline}><Check size={14} />{" "}{tr("Save outline")}</button><button style={btn} onClick={() => { setDrawing(false); setPts([]); setNote(null); }}>{tr("Cancel")}</button></>}
           <button style={btn} onClick={() => setRev((r) => r + 1)} title={tr("Rebuild from the current layers, filters and models")}>{tr("Refresh")}</button>
-          {building && <span role="status" ref={statusRef} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Building the plan…")}</span>}{/* #3137 */}
+          <span role="status" ref={statusRef} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", minWidth: 130, whiteSpace: "nowrap", visibility: building ? "visible" : "hidden" }}>{tr("Building the plan…")}</span>{/* #3137; #3970 — always there, so the row does not change when a build starts */}
           <button style={btn} onClick={() => exportPng(false)}><Download size={14} />{" "}{tr("PNG")}</button>
           <button style={btn} onClick={() => exportPng(true)}>{tr("Add to Layout")}</button>
         </div>
+        {/* #3970 — the legend and the note are fixed-height rows (the legend scrolls), so a different RL never moves the plot */}
+        <div style={{ flex: "0 0 auto", height: 40, overflowY: "auto", marginTop: 6 }}>
         {legend.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", maxWidth: W }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
             {legend.slice(0, 40).map(([label, color, o]) => <span key={label + color} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, background: color, borderRadius: o?.ring ? 5 : 2, border: o?.ring ? "1.5px solid #8a94a3" : "1px solid var(--color-border)", boxSizing: "border-box" }} />{label}</span>)}{/* ring: #3261 */}
             {legend.length > 40 && <span>{tr("+ {v} more", { v: legend.length - 40 })}</span>}
           </div>
         )}
-        {note && <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{note}</div>}
+        </div>
+        <div role="status" style={{ flex: "0 0 auto", height: "1.6em", marginTop: 4, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={typeof note === "string" ? note : undefined}>{note}</div>
       </div>
     </div>
   );

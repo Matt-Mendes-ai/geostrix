@@ -75,7 +75,7 @@ import { geophysLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #2878
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, pageFont, withPageFont } from "../lib/layoutFonts.js"; // TASKS.csv #2144
 import { useDismiss } from "../lib/useDismiss.js"; // TASKS.csv #3969
-import { toggleColumnBreak, clearColumnBreaks, hasColumnBreaks, startsColumn, carryColumnBreaks, legendGroupsOf, keepGroups, splitLegendByGroup, joinLegends } from "../lib/legendColumns.js"; // TASKS.csv #3959 (split / join: part B)
+import { toggleColumnBreak, clearColumnBreaks, hasColumnBreaks, startsColumn, carryColumnBreaks, legendGroupsOf, keepGroups, splitLegendByGroup, joinLegends, moveLegendRow } from "../lib/legendColumns.js"; // TASKS.csv #3959 (split / join: part B)
 import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLegendBox } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869; a sized box: #3395
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
@@ -1105,10 +1105,22 @@ export default function LayoutModule() {
   // 'Join legends': the legends bound to the same view on this page become one again, in reading order
   const splitSelectedLegend = () => {
     const el = elements.find((e) => e.id === selected);
-    const parts = el && splitLegendByGroup(el, { pageW: pagePx(pageFormat).w, pageH: pagePx(pageFormat).h, size: legendBoxSize, newId: (i) => `legend_${Date.now()}_${i}` });
+    const obstacles = elements.filter((e) => e.id !== el?.id).map(elementBox); // part C: the parts go clear of the section, the title block ...
+    const parts = el && splitLegendByGroup(el, { pageW: pagePx(pageFormat).w, pageH: pagePx(pageFormat).h, size: legendBoxSize, newId: (i) => `legend_${Date.now()}_${i}`, obstacles });
     if (!parts) return;
     setElements((els) => els.flatMap((x) => (x.id === el.id ? parts : [x])));
     setSyncNotice(tr("Split into {n} legends, one per group: each one is moved, sized and loaded from its view on its own.", { n: parts.length }));
+  };
+  // TASKS.csv #3959 part C — drag and drop of a legend's rows (a heading takes its whole group), in the sidebar list and on the sheet;
+  // one element edit, so one undo step; the set code order (#3130) follows the new order as the arrows' did
+  const legendDrag = useRef(null);
+  const [legendDropAt, setLegendDropAt] = useState(null);
+  const moveLegendRowOf = (el, from, to) => {
+    setLegendDropAt(null);
+    if (!el || from == null) return;
+    const items = moveLegendRow(el.items, from, to);
+    if (items === el.items) return;
+    setElements((els) => els.map((x) => (x.id === el.id ? { ...x, items, ...keptOrder(x, items) } : x)));
   };
   const joinSelectedLegend = () => {
     const el = elements.find((e) => e.id === selected);
@@ -1794,7 +1806,11 @@ export default function LayoutModule() {
                   );
                 })()}
                 {sel.items.map(([name, color, opt], i) => (
-                  <div key={i} data-legend-row={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5, ...(opt?.colBreak ? { borderTop: "2px dashed var(--color-selected-border)", paddingTop: 4 } : {}) /* #3959 */ }}>
+                  <div key={i} data-legend-row={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5, ...(opt?.colBreak ? { borderTop: "2px dashed var(--color-selected-border)", paddingTop: 4 } : {}) /* #3959 */, ...(legendDropAt === i ? { boxShadow: "0 -2px 0 var(--color-primary)" } : {}) /* part C: where it lands */ }}
+                    onDragOver={(e) => { if (legendDrag.current == null) return; e.preventDefault(); if (legendDropAt !== i) setLegendDropAt(i); }}
+                    onDrop={(e) => { e.preventDefault(); const from = legendDrag.current; legendDrag.current = null; moveLegendRowOf(sel, from, i); }}>
+                    {sel.type === "legend" && <span draggable data-legend-grip={i} onDragStart={(e) => { legendDrag.current = i; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); }} onDragEnd={() => { legendDrag.current = null; setLegendDropAt(null); }}
+                      title={tr("Drag to move this row; a group heading moves its whole group")} aria-hidden="true" style={{ cursor: "grab", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", lineHeight: 1, userSelect: "none", flexShrink: 0 }}>{"\u283F"}</span>}{/* #3959 part C */}
                     {opt?.heading || opt?.ramp || opt?.note || opt?.image /* TASKS.csv #725 — a group heading or a ramp has no single colour; #1633 a note; #2747 an image */
                       ? <span title={opt.ramp || opt.image ? tr("Colour scale") : opt.note ? tr("Note") : tr("Group heading")} style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 4, border: "1px solid var(--color-border)", background: opt.ramp ? `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` : "transparent" }} />
                       : <input type="color" value={color} onChange={(e) => {
@@ -1820,6 +1836,8 @@ export default function LayoutModule() {
                       onClick={() => { if (sel.items.length <= 1) return; updateSelected({ items: sel.items.filter((_, j) => j !== i) }); }} />
                   </div>
                 ))}
+                {sel.type === "legend" && <div data-legend-drop-end="" onDragOver={(e) => { if (legendDrag.current == null) return; e.preventDefault(); if (legendDropAt !== sel.items.length) setLegendDropAt(sel.items.length); }} onDrop={(e) => { e.preventDefault(); const from = legendDrag.current; legendDrag.current = null; moveLegendRowOf(sel, from, sel.items.length); }}
+                  style={{ height: 8, marginBottom: 4, ...(legendDropAt === sel.items.length ? { boxShadow: "0 -2px 0 var(--color-primary)" } : {}) }} />}{/* #3959 part C: drop here for the end */}
                 {sel.type === "legend" && hasColumnBreaks(sel.items) && <button type="button" onClick={() => updateSelected({ items: clearColumnBreaks(sel.items) })} style={{ ...smallBtn, marginBottom: 4 }}>{tr("Clear column breaks")}</button>}{/* #3959 */}
                 {sel.type === "legend" && (() => { /* TASKS.csv #3959 part B — split into one legend per group, and join them again */
                   const canSplit = legendGroupsOf(sel.items).length >= 2;
@@ -2249,7 +2267,7 @@ export default function LayoutModule() {
             <Lock key={`lock_${el.id}`} size={11} aria-hidden="true" style={{ position: "absolute", left: el.x - 13, top: el.y - 13, color: "var(--color-text-muted)", pointerEvents: "none", zIndex: 4 }} />
           ))}
           {withLiveScaleBars(elements).map((el) => (
-            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} onTextEdit={(id, text) => setElements((els) => els.map((x) => (x.id === id ? { ...x, text } : x)))} /* #2944 */ onLegendCols={setLegendColsFor} /* #3959 */ />
+            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} onTextEdit={(id, text) => setElements((els) => els.map((x) => (x.id === id ? { ...x, text } : x)))} /* #2944 */ onLegendCols={setLegendColsFor} /* #3959 */ onLegendMove={moveLegendRowOf} /* #3959 part C */ />
           ))}
           {guides.map((g, i) => ( /* TASKS.csv #910 */
             <div key={`guide${i}`} style={g.axis === "x"
@@ -2818,10 +2836,11 @@ function textContextFor(els, project, page, index, count, collars = null, credit
 }
 const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 
-function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null, onTextEdit = null, onLegendCols = null /* #3959 */ }) {
+function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null, onTextEdit = null, onLegendCols = null /* #3959 */, onLegendMove = null /* #3959 part C */ }) {
   // TASKS.csv #2944 (split from #2144) — a double-click on a title or text box edits its text in place (the raw text, placeholders and all);
   // Enter (a title) or Ctrl+Enter (a text), or leaving the box, keeps it; Escape leaves it as it was. The sidebar field stays the other way in.
   const [editing, setEditing] = useState(false);
+  const sheetDrag = useRef(null); // TASKS.csv #3959 part C — the legend row being dragged on the sheet
   const canEdit = !print && !el.locked && !!onTextEdit && (el.type === "title" || el.type === "text");
   const startEdit = canEdit ? (e) => { e.stopPropagation(); setEditing(true); } : undefined;
   const inPlace = (style, multi) => {
@@ -3077,10 +3096,24 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         )}
         <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: FONT, flexShrink: 0 }}>{tr("Legend")}</div>
         <div style={legendCols > 1 || box ? { columnCount: legendCols, columnGap: 18, columnFill: boxH ? "auto" : "balance", ...(boxH ? { flex: 1, minHeight: 0 } : {}) } : undefined}>
-          {rowsOf.map((ix) => ix.length > 1
-            ? <div key={ix[0]} style={{ breakInside: "avoid", ...(startsColumn(legendItems[ix[0]]) ? { breakBefore: "column" } : {}) /* #3959 */ }}>{legendRow(legendItems[ix[0]], ix[0])}{legendRow(legendItems[ix[1]], ix[1])}</div>
-            : startsColumn(legendItems[ix[0]]) ? <div key={ix[0]} style={{ breakBefore: "column" }}>{legendRow(legendItems[ix[0]], ix[0])}</div> /* #3959 — the user's column break */
-            : legendRow(legendItems[ix[0]], ix[0]))}
+          {rowsOf.map((ix) => {
+            const body = ix.length > 1
+              ? <div key={ix[0]} style={{ breakInside: "avoid", ...(startsColumn(legendItems[ix[0]]) ? { breakBefore: "column" } : {}) /* #3959 */ }}>{legendRow(legendItems[ix[0]], ix[0])}{legendRow(legendItems[ix[1]], ix[1])}</div>
+              : startsColumn(legendItems[ix[0]]) ? <div key={ix[0]} style={{ breakBefore: "column" }}>{legendRow(legendItems[ix[0]], ix[0])}</div> /* #3959 — the user's column break */
+              : legendRow(legendItems[ix[0]], ix[0]);
+            // TASKS.csv #3959 part C — the selected legend's rows take a grip on the sheet; one dropped on another row lands before it (a heading
+            // takes its group). Not on the print copy, nor on the 'rows that do not fit' note (not one of the legend's rows).
+            if (!handles || !onLegendMove || ix[0] >= (el.items || []).length) return body;
+            return (
+              <div key={`m${ix[0]}`} data-sheet-row={ix[0]} style={{ position: "relative", breakInside: "avoid", ...(startsColumn(legendItems[ix[0]]) ? { breakBefore: "column" } : {}) }}
+                onDragOver={(e) => { if (sheetDrag.current != null) e.preventDefault(); }}
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const from = sheetDrag.current; sheetDrag.current = null; if (from != null) onLegendMove(el, from, ix[0]); }}>
+                <span draggable data-sheet-grip={ix[0]} onMouseDown={(e) => e.stopPropagation()} onDragStart={(e) => { e.stopPropagation(); sheetDrag.current = ix[0]; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(ix[0])); }} onDragEnd={() => { sheetDrag.current = null; }}
+                  title={tr("Drag to move this row; a group heading moves its whole group")} aria-hidden="true" style={{ position: "absolute", left: -11, top: 1, cursor: "grab", fontSize: 10, lineHeight: 1, color: "var(--color-text-muted)", userSelect: "none" }}>{"\u283F"}</span>
+                {body}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
