@@ -14727,7 +14727,6 @@
   "All the drilling": "Todo el sondaje",
   "The box drawn": "El rectángulo dibujado",
   "Draw a box…": "Dibujar un rectángulo…",
-  "Drag on the view to draw it.": "Arrastre en la vista para dibujarlo.",
   "Drag a corner to change it.": "Arrastre una esquina para cambiarlo.",
   "Drag to move this row; a group heading moves its whole group": "Arrastra para mover esta fila; un encabezado de grupo mueve todo su grupo",
   "{label} was cut off: its project closed before the rest was added.": "{label} se interrumpió: su proyecto se cerró antes de agregar el resto.",
@@ -14853,5 +14852,10 @@
   " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " Como cobertura, su base es una sola superficie erosiva sobre las rocas en que descansa ({list}), y la pila se modela debajo de ella.",
   "For a cross-plot against an assay: Downhole logs (listed there as a log) or Geochem › X–Y scatter.": "Para un gráfico cruzado contra un ensaye: Registros de sondaje (figura allí como un registro) o Geoquímica › Dispersión X–Y.",
   "\"{name}\" is a block model evaluated onto the holes, read here as a log.": "\"{name}\" es un modelo de bloques evaluado sobre los sondajes, leído aquí como un registro.",
-  "Updated \"On holes: {name}\" (same layer, style kept): {rows} cell crossing(s) along {holes} hole(s).{routes}": "Se actualizó \"En sondajes: {name}\" (misma capa, estilo conservado): {rows} cruce(s) de celdas a lo largo de {holes} sondaje(s).{routes}"
+  "Updated \"On holes: {name}\" (same layer, style kept): {rows} cell crossing(s) along {holes} hole(s).{routes}": "Se actualizó \"En sondajes: {name}\" (misma capa, estilo conservado): {rows} cruce(s) de celdas a lo largo de {holes} sondaje(s).{routes}",
+  "The fence series' box (StrixViewer › Slice series)": "El rectángulo de la serie de secciones (StrixViewer › Serie de cortes)",
+  "Fence box": "Rectángulo de serie",
+  "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).": "Arrastre sobre el plano para dibujar el rectángulo de la serie, girado a su azimut ({a}°).",
+  "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.": "Rectángulo de la serie, {l} × {w} m a {a}°: arrastre una esquina para cambiarlo.",
+  "Drag on the view, or on Maps › Fence box, to draw it.": "Arrastre sobre la vista, o en Mapas › Rectángulo de serie, para dibujarlo."
 }

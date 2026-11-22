@@ -39,6 +39,7 @@ import { planLodTiles, tilesInView, tilePixelM, lodSourceKey, tileKey } from "..
 const CAPTURE_MAX_TILES = 600, CAPTURE_WAIT_MS = 20000; // TASKS.csv #3252 phase 4 — Snapshot to Layout's detail tiles (600 x 256 KB in memory at most) // TASKS.csv #3252 — detail tiles where the plan looks
 import { pointTransform, isGeographicCrs } from "../lib/reproject.js";
 import { graticule, graticuleLabel } from "../lib/planGraticule.js"; // TASKS.csv #3466 // TASKS.csv #2998 — longitude / latitude under the cursor
+import { useFenceBoxOnPlan } from "./MapsFenceBox.jsx"; // TASKS.csv #4004 — the fence series' box, drawn and edited here too
 import { perHoleValuesOf, perHoleFigureAtIntercepts } from "../lib/holeValueGrid.js"; // TASKS.csv #2658; perHoleValuesOf: #2991 (a coded log's values too)
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
@@ -228,6 +229,8 @@ export default function MapsPlanView() {
     if (ok) goToModule("layout");
   });
   const v = recapture?.view || view || (extent ? { cx: (extent[0] + extent[2]) / 2, cy: (extent[1] + extent[3]) / 2, mPerPx: Math.max((extent[2] - extent[0]) / size.w, (extent[3] - extent[1]) / size.h) * 1.08 } : null);
+  const planButton = { fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" };
+  const fenceBox = useFenceBoxOnPlan(recapture ? null : v, size, planButton, { position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: 10, maxWidth: 420, background: "rgba(255,255,255,0.9)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 7px", fontSize: "var(--font-size-sm)", color: "#1a2028" }); // #4004 — not on a Layout capture
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -530,6 +533,7 @@ export default function MapsPlanView() {
     <div ref={wrapRef} className="ge-maps-plan" style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <canvas ref={canvasRef} style={{ width: size.w, height: size.h, display: "block", cursor: drag.current ? "grabbing" : "crosshair" }} aria-label={tr("Plan of the map data")}
         onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { onUp(); setCursor(null); setStatusCursor({ x: null, y: null, z: null }); }} onDoubleClick={measuring ? undefined : fit /* #2128 — a double-click while measuring sets points */} />
+      {fenceBox.overlay}{/* #4004 — over the plan, under its panels */}
       {figure && <FigureLegend f={figure} chip={chip} />}
       {(collars.length > 0 || hiddenN > 0) && ( /* TASKS.csv #2459 / #2591 — the collars' colour and labels, and their legend */
         <div ref={chipRef} style={{ ...chip, left: 10, top: 10, maxWidth: 270, display: "flex", flexDirection: "column", gap: 4, lineHeight: 1.35 }} onMouseDown={(e) => e.stopPropagation()}>
@@ -621,7 +625,9 @@ export default function MapsPlanView() {
         {project?.crsSet !== false && project?.epsg && !isGeographicCrs(project.epsg) && <label style={{ display: "flex", alignItems: "center", gap: 3 }} title={tr("Longitude / latitude lines over the plan, to find a zone edge or a point given in degrees")}><input type="checkbox" checked={showLonLat} onChange={(e) => setShowLonLat(e.target.checked)} />{tr("Lon / lat")}</label>}{/* TASKS.csv #3466 */}
         <button onClick={toLayout} title={tr("Put this view on the Layout page, north up at its scale, with a legend of its layers")} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Snapshot to Layout")}</button>{/* #3194 — the 3D View's own words for the same thing */}
         <button onClick={() => { setMeasuring((m) => !m); setMPts([]); }} aria-pressed={measuring} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: `1px solid ${measuring ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 4, background: measuring ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{tr("Measure")}</button>
+        {fenceBox.button}
       </div>
+      {fenceBox.status}
       {measuring && ( /* TASKS.csv #2128 */
         <div role="status" aria-label={tr("Measured line")} style={{ ...chip, right: 10, bottom: 40, maxWidth: 340, lineHeight: 1.4, fontVariantNumeric: "tabular-nums" }}>
           {measured

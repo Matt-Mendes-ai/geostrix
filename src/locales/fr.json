@@ -14727,7 +14727,6 @@
   "All the drilling": "Tous les sondages",
   "The box drawn": "Le rectangle dessiné",
   "Draw a box…": "Dessiner un rectangle…",
-  "Drag on the view to draw it.": "Faites glisser dans la vue pour le dessiner.",
   "Drag a corner to change it.": "Faites glisser un coin pour le modifier.",
   "Drag to move this row; a group heading moves its whole group": "Faites glisser pour déplacer cette ligne ; un titre de groupe déplace tout son groupe",
   "{label} was cut off: its project closed before the rest was added.": "{label} a été interrompu : son projet a été fermé avant l'ajout du reste.",
@@ -14853,5 +14852,10 @@
   " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " En mort-terrain, sa base est une seule surface d'érosion sur les roches qu'elle recouvre ({list}), et la pile est modélisée dessous.",
   "For a cross-plot against an assay: Downhole logs (listed there as a log) or Geochem › X–Y scatter.": "Pour un graphique croisé contre un dosage : Logs de sondage (il y figure comme un log) ou Géochimie › Nuage X–Y.",
   "\"{name}\" is a block model evaluated onto the holes, read here as a log.": "« {name} » est un modèle de blocs évalué sur les sondages, lu ici comme un log.",
-  "Updated \"On holes: {name}\" (same layer, style kept): {rows} cell crossing(s) along {holes} hole(s).{routes}": "« Sur les sondages : {name} » mis à jour (même couche, style conservé) : {rows} traversée(s) de cellule le long de {holes} sondage(s).{routes}"
+  "Updated \"On holes: {name}\" (same layer, style kept): {rows} cell crossing(s) along {holes} hole(s).{routes}": "« Sur les sondages : {name} » mis à jour (même couche, style conservé) : {rows} traversée(s) de cellule le long de {holes} sondage(s).{routes}",
+  "The fence series' box (StrixViewer › Slice series)": "Le rectangle de la série de coupes (StrixViewer › Série de tranches)",
+  "Fence box": "Rectangle de série",
+  "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).": "Faites glisser sur le plan pour dessiner le rectangle de la série, tourné à son azimut ({a}°).",
+  "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.": "Rectangle de la série, {l} × {w} m à {a}° : faites glisser un coin pour le modifier.",
+  "Drag on the view, or on Maps › Fence box, to draw it.": "Faites glisser sur la vue, ou dans Cartes › Rectangle de série, pour le dessiner."
 }

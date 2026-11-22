@@ -14727,7 +14727,6 @@
   "All the drilling": "Toda a sondagem",
   "The box drawn": "O retângulo desenhado",
   "Draw a box…": "Desenhar um retângulo…",
-  "Drag on the view to draw it.": "Arraste na vista para desenhá-lo.",
   "Drag a corner to change it.": "Arraste um canto para alterá-lo.",
   "Drag to move this row; a group heading moves its whole group": "Arraste para mover esta linha; um cabeçalho de grupo move o grupo inteiro",
   "{label} was cut off: its project closed before the rest was added.": "{label} foi interrompido: o projeto foi fechado antes de o restante ser adicionado.",
@@ -14853,5 +14852,10 @@
   " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " Como cobertura, a base é uma só superfície erosiva sobre as rochas em que repousa ({list}), e a pilha é modelada abaixo dela.",
   "For a cross-plot against an assay: Downhole logs (listed there as a log) or Geochem › X–Y scatter.": "Para um gráfico cruzado contra uma análise: Logs de furo (aparece ali como um perfil) ou Geoquímica › Dispersão X–Y.",
   "\"{name}\" is a block model evaluated onto the holes, read here as a log.": "\"{name}\" é um modelo de blocos avaliado nos furos, lido aqui como um perfil.",
-  "Updated \"On holes: {name}\" (same layer, style kept): {rows} cell crossing(s) along {holes} hole(s).{routes}": "Atualizado \"Nos furos: {name}\" (mesma camada, estilo mantido): {rows} cruzamento(s) de células ao longo de {holes} furo(s).{routes}"
+  "Updated \"On holes: {name}\" (same layer, style kept): {rows} cell crossing(s) along {holes} hole(s).{routes}": "Atualizado \"Nos furos: {name}\" (mesma camada, estilo mantido): {rows} cruzamento(s) de células ao longo de {holes} furo(s).{routes}",
+  "The fence series' box (StrixViewer › Slice series)": "O retângulo da série de seções (StrixViewer › Série de fatias)",
+  "Fence box": "Retângulo da série",
+  "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).": "Arraste no plano para desenhar o retângulo da série, girado para o seu azimute ({a}°).",
+  "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.": "Retângulo da série, {l} × {w} m a {a}°: arraste um canto para alterá-lo.",
+  "Drag on the view, or on Maps › Fence box, to draw it.": "Arraste na vista, ou em Mapas › Retângulo da série, para desenhá-lo."
 }
