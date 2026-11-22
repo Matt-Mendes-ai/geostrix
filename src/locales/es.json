@@ -15092,5 +15092,7 @@
   "Delete the {n} layers of \"{source}\"?": "¿Eliminar las {n} capas de «{source}»?",
   "{n} picked": "{n} elegidas",
   "Delete this import's layers…": "Eliminar las capas de esta importación…",
-  "Delete all custom layers. Ctrl or Shift + click rows to pick several.": "Elimina todas las capas personalizadas. Ctrl o Mayús + clic en las filas para elegir varias."
+  "Delete all custom layers. Ctrl or Shift + click rows to pick several.": "Elimina todas las capas personalizadas. Ctrl o Mayús + clic en las filas para elegir varias.",
+  "Block models: each point the mean of the cells across the slab, on its far side.": "Modelos de bloques: cada punto es la media de las celdas a través de la franja, en su cara lejana.",
+  "Block models: the cells at the slab's middle, on its far side.": "Modelos de bloques: las celdas en el centro de la franja, en su cara lejana."
 }
