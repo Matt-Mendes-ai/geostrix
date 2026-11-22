@@ -159,6 +159,7 @@ import AssayStaleBadge from "../components/AssayStaleBadge.jsx"; // TASKS.csv #3
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/repeatClick.js"; // TASKS.csv #1152; #3159: not interpretation.js, which put the interpretation layers' code in startup
 import { syncInterpretPreview, hoverFirstCorner } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152; hover: #2682
+import { rayAtLevel, addLevelPlane } from "../lib/viewer/interpretLevel.js"; // TASKS.csv #3972
 import { tipWithMeaning } from "../lib/viewer/codeMeaning.js"; // TASKS.csv #2816
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
@@ -5444,8 +5445,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const rect = mountRef.current.getBoundingClientRect();
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(viewNdc(e, rect, mcDownRef.current) /* #2803 */, cameraRef.current);
-    const world = snapInterpretClick(raycastWorldPoint(raycaster), raycaster.ray, { on: interpretOpen === true && interpretRef.current.snap !== false /* lines only, not unit polygons */, traces: tracesRef.current, layers, visible: layerVisible, origin: originRef.current, camera: cameraRef.current, heightPx: rect.height }); // #2630
+    const lvl = interpretRef.current.level; // TASKS.csv #3972 — drawing on a level: the click on that plane, the vertex at its RL
+    const world = snapInterpretClick(Number.isFinite(lvl) ? rayAtLevel(raycaster.ray, lvl, originRef.current) : raycastWorldPoint(raycaster), raycaster.ray, { on: interpretOpen === true && interpretRef.current.snap !== false /* lines only, not unit polygons */, traces: tracesRef.current, layers, visible: layerVisible, origin: originRef.current, camera: cameraRef.current, heightPx: rect.height }); // #2630
     if (!world) return;
+    if (Number.isFinite(lvl)) world.z = lvl;
     const at = Date.now();
     setInterpret((s) => (isRepeatClick(s.points[s.points.length - 1], { ...world, at }) ? { ...s, finishSeq: s.finishSeq + 1 } : { ...s, points: [...s.points, { ...world, at }] }));
   }, [raycastWorldPoint, layers, layerVisible, interpretOpen]);
@@ -5453,6 +5456,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const scene = sceneRef.current; if (!scene) return;
     if (!interpretGroupRef.current) { interpretGroupRef.current = new THREE.Group(); scene.add(interpretGroupRef.current); }
     syncInterpretPreview(interpretGroupRef.current, interpret.on ? interpret.points : [], originRef.current);
+    addLevelPlane(interpretGroupRef.current, interpret.on ? interpret.level : null, originRef.current, tracesRef.current); // TASKS.csv #3972
   }, [interpret]);
   useModuleAction(["interpret-lines"], (a, payload) => { setInterpretOpen(true); setInterpret((s) => ({ ...s, survey: payload?.survey || null })); });
   // TASKS.csv #1780 (review #1646, Kodiak) — a block model's value range as a closed solid: the chargeability high, the resistivity
@@ -6147,7 +6151,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const openInterpret = (kind) => { if (interpretOpen) stopInterpret(); setInterpretOpen((v) => (v === kind ? false : kind)); };
   const interpretPane = interpretOpen && (<Suspense fallback={null}>{React.createElement(interpretOpen === "polygon" ? UnitPolygonPane : InterpretPane, { drawing: interpret, presetSurvey: interpret.survey,
     onStart: () => { setRectZoomMode(false); setSectionMode(false); setMeasureMode(null); setMeasurePts([]); setPickHoleMode(false); setInterpret((s) => ({ ...s, on: true, points: [], ring: interpretOpen === "polygon" /* #2682 */ })); },
-    onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onSnap: (v) => setInterpret((s) => ({ ...s, snap: v })) /* #2630 */, view: { scene: sceneRef, camera: cameraRef, renderer: rendererRef, dragHook: viewDragHookRef, origin: originRef, activity: lastActivityRef }, snapCtx: () => ({ traces: tracesRef.current, layers, visible: layerVisible }) /* #2767 */, onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
+    onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onSnap: (v) => setInterpret((s) => ({ ...s, snap: v })) /* #2630 */, onLevel: (v) => setInterpret((s) => ({ ...s, level: Number.isFinite(v) ? v : null })), sliceRL: slice3d.on && slice3d.mode === "horizontal" && sliceExtent ? sliceExtent.y0 + slice3d.pos * (sliceExtent.y1 - sliceExtent.y0) + originRef.current.z : null /* #3972 */, view: { scene: sceneRef, camera: cameraRef, renderer: rendererRef, dragHook: viewDragHookRef, origin: originRef, activity: lastActivityRef }, snapCtx: () => ({ traces: tracesRef.current, layers, visible: layerVisible }) /* #2767 */, onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
   const assayChipCounts = useMemo(() => assayValueCounts(assays), [assays]); // #2374
   const anomalyControls = <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>; // #1603 — also on the Surface Geology tab
   return (
