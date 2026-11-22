@@ -109,3 +109,14 @@ test("#4006 a finite fault: the ellipse around the evidence plus a margin; a mes
   const P = [c.x, c.y, c.z, c.x + 1, c.y, c.z, c.x, c.y + 1, c.z, c.x + e.u[0] * k, c.y + e.u[1] * k, c.z, c.x + e.u[0] * k + 1, c.y + e.u[1] * k, c.z, c.x + e.u[0] * k, c.y + e.u[1] * k + 1, c.z];
   assert.deepEqual(clipMeshToEllipse(P, [0, 1, 2, 3, 4, 5], e), { indices: [0, 1, 2], kept: 1, dropped: 1 });
 });
+
+test("#4006 a finite fault from a map trace alone still reaches down dip: at least half its length along strike", () => {
+  // a 4 km north-south trace at the ground (z 500), a fault dipping 30 east: its points span nothing down dip
+  const pts = Array.from({ length: 9 }, (_, i) => ({ x: 1000, y: i * 500, z: 500 }));
+  const d = (30 * Math.PI) / 180, plane = { centroid: { x: 1000, y: 2000, z: 500 }, normal: [Math.sin(d), 0, Math.cos(d)] };
+  const e = faultEllipse(pts, plane, 200);
+  near(e.a, 2200, 1e-6, "along strike: half the trace plus the margin");
+  near(e.b, 1100, 1e-6, "down dip: half of that, not just the margin");
+  const deep = { x: 1000 + 900 * Math.cos(d), y: 2000, z: 500 - 900 * Math.sin(d) }; // 900 m down dip, in the plane
+  assert.equal(inEllipse(e, deep), true, "900 m down dip is kept");
+});

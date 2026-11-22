@@ -31,7 +31,7 @@ export function drawnFaultLines(mapLayers) {
 
 // -> { picks, pickTypes, outcrop, logged, mapped, drawn, sectionStrings, surfaces, inStack }
 export function faultInventory({ faultCandidates = [], mapLayers = [], sections = [], implicitSurfaces = [], surfaceStructures = [], stackFaults = [], layers = {} } = {}) {
-  const faultPicks = (faultCandidates || []).filter((c) => c.faultLike);
+  const faultPicks = (faultCandidates || []).filter((c) => c.faultLike && !c.built); // built: a fault made in the Faults pane, not picks
   let logged = 0;
   for (const [key, rows] of Object.entries(layers || {})) if (key !== "structure" && Array.isArray(rows)) for (const r of rows) if (r && r.from != null && r.to != null && isFaultCode(r.value)) logged++;
   return {

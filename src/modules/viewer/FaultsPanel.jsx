@@ -7,6 +7,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { requestModuleAction } from "../../lib/menuRequests.js";
 import { faultInventory } from "../../lib/faultInventory.js";
 import { useStore } from "../../lib/store.jsx";
+import FaultBuilder from "./FaultBuilder.jsx"; // the builder, in this pane's chunk
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const pl = (n, one, many) => (n === 1 ? one : many); // a singular / plural pair, each its own key
@@ -29,7 +30,7 @@ export function faultTools() {
     ] },
     { group: tr("Draw and check fault evidence"), rows: [
       { id: "interpret", name: tr("Interpretation lines: draw a fault"), what: tr("A fault trace on the terrain or at a level, with its dip and dip direction."), open: () => requestModuleAction("interpret-lines", {}), has: (v) => tr("{n} drawn", { n: v.drawn }) },
-      { id: "section", name: tr("Section window: Draw fault"), what: tr("Fault strings drawn on a section: open a section from the Sections list, then Draw fault."), has: (v) => pl(v.sectionStrings, tr("{n} fault string", { n: v.sectionStrings }), tr("{n} fault strings", { n: v.sectionStrings })) },
+      { id: "section", name: tr("Section window: Draw fault"), what: tr("Fault strings drawn on a section (open a section from the Sections list, then Draw fault); the builder above now uses them."), has: (v) => pl(v.sectionStrings, tr("{n} fault string", { n: v.sectionStrings }), tr("{n} fault strings", { n: v.sectionStrings })) },
       { id: "stereonet", name: tr("Stereonet"), what: tr("The poles of the fault picks and outcrop faults: one cluster suggests one fault, a scatter several."), open: (c) => c.setStereonetOpen?.(true), has: (v) => picks(v.picks + v.outcrop) },
       { id: "tadpole", name: tr("Downhole plot"), what: tr("Where each hole's structure picks sit, by depth, beside its lithology."), open: (c) => c.setTadpoleOpen?.(true), has: () => "" },
       { id: "coreorient", name: tr("Core orientation"), what: tr("A true dip and dip direction for picks in non-oriented core."), open: (c) => c.setCoreOrientOpen?.(true), has: () => "" },
@@ -39,7 +40,7 @@ export function faultTools() {
 
 export default function FaultsPanel(props) {
   const { pBtn, faultCandidates, mapLayers, sections, implicitSurfaces, surfaceStructures, stackFaults } = props;
-  const { layers = {} } = useStore() || {}; // every logged interval layer (the pane's own `layers` are the units being modelled)
+  const { layers = {}, activeTabId } = useStore() || {}; // every logged interval layer (the pane's own `layers` are the units being modelled)
   const inv = useMemo(() => faultInventory({ faultCandidates, mapLayers, sections, implicitSurfaces, surfaceStructures, stackFaults, layers }), [faultCandidates, mapLayers, sections, implicitSurfaces, surfaceStructures, stackFaults, layers]);
   const small = { ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 8px", flex: "0 0 auto" };
   const tools = faultTools();
@@ -49,6 +50,7 @@ export default function FaultsPanel(props) {
       <div data-fault-evidence="" style={{ ...note, marginTop: 6 }}>
         {tr("Fault evidence in this project — oriented picks: {picks} · logged intervals: {logged} · outcrop measurements: {outcrop} · mapped lines: {mapped} · drawn lines: {drawn} · section strings: {strings}", { picks: inv.picks, logged: inv.logged, outcrop: inv.outcrop, mapped: inv.mapped, drawn: inv.drawn, strings: inv.sectionStrings })}
       </div>
+      <FaultBuilder key={activeTabId} {...props} />{/* every kind of evidence at once; its choices are this project tab's (the pane outlives a tab switch) */}
       {tools.map((g) => (
         <div key={g.group} role="group" aria-label={g.group}>
           <div style={head}>{g.group}</div>

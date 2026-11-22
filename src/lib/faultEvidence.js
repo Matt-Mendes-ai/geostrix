@@ -196,7 +196,10 @@ export function faultEllipse(points, plane, marginM = 200) {
   const v = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]];
   let a = 0, b = 0;
   for (const p of points) { const d = [p.x - c.x, p.y - c.y, p.z - c.z]; a = Math.max(a, Math.abs(d[0] * u[0] + d[1] * u[1] + d[2] * u[2])); b = Math.max(b, Math.abs(d[0] * v[0] + d[1] * v[1] + d[2] * v[2])); }
-  return { c, u, v, a: a + marginM, b: b + marginM };
+  // down dip it reaches at least half its length along strike (a fault's tip line is roughly an ellipse about twice as long as it is
+  // deep): evidence from a map trace alone spans almost nothing down dip, and without this the fault would stop a margin below the ground
+  const A = a + marginM;
+  return { c, u, v, a: A, b: Math.max(b + marginM, A / 2) };
 }
 export function inEllipse(e, p) {
   const d = [p.x - e.c.x, p.y - e.c.y, p.z - e.c.z];

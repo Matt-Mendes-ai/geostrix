@@ -327,7 +327,7 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #1335 — each surface's contacts, how far past them it may run, and (below) a model box sized to them
     const reachLib = limitToContacts ? await import("../../lib/contactReach.js") : null;
     const reachOf = new Map();
-    if (reachLib) specs.forEach((s) => { if (!s.fault) reachOf.set(s.meshName, reachLib.contactFootprint(s.points, contactReachM)); });
+    if (reachLib) specs.forEach((s) => { if (!s.fault && !s.params?.faultEvidence) reachOf.set(s.meshName, reachLib.contactFootprint(s.points, contactReachM)); }); // faultEvidence: #4006, a Faults-pane fault has its own extent
     // Extent spans every hole trace (not just these surfaces' own points) so the modelled surface(s)
     // cover the whole property, with ~15% padding on each side. Computed in API (east/north/up)
     // space to match the points/orientations above. #1335 — unless the surfaces stop near their own contacts: then only
@@ -351,7 +351,7 @@ export function createModellingRuns(ctx, mcRef) {
     // drilling: measured on the Orion map, 129 contact points reached 2.4 km south of a 4-hole extent
     // and every one of the 12 outcrop orientations sat outside it. The anisotropy centre above stays
     // anchored on the traces, as its comment requires.
-    const extentApiPts = [...(reachLib ? [] : allApiPts), ...specs.flatMap((s) => [...s.points, ...s.orientations])];
+    const extentApiPts = [...(reachLib ? [] : allApiPts), ...specs.flatMap((s) => [...s.points, ...s.orientations, ...(s.boxPts || [])])]; // boxPts: #4006, a fault from map traces reaches down dip
     const warpedApiPts = anisotropy.enabled ? extentApiPts.map((p) => anisoWarpPoint(p, anisoCenter, anisoBasis, anisoScl)) : extentApiPts;
 
     const xs = warpedApiPts.map((p) => p.x), ys = warpedApiPts.map((p) => p.y), zs = warpedApiPts.map((p) => p.z);
@@ -679,6 +679,14 @@ export function createModellingRuns(ctx, mcRef) {
         topoClipped = c.removed + c.split;
         if (!faces.length) { missing.push(`${spec.label} (lies entirely above the terrain surface)`); return; }
       }
+      // TASKS.csv #4006 — a fault built in the Faults pane ends where its evidence ends (an ellipse around it) or at another fault: keepInside
+      // tests a WORLD point; the cut is at the boundary, as the others
+      if (typeof spec.keepInside === "function") {
+        const o = originRef.current;
+        const c = clipMesh(sceneVerts, faces, (v) => { const a = sceneToApi(v); return !spec.keepInside({ x: a.x + o.x, y: a.y + o.y, z: a.z + o.z }); });
+        sceneVerts = c.verts; faces = c.faces;
+        if (!faces.length) { missing.push(`${spec.label} (nothing of it lies inside its extent)`); return; }
+      }
       // TASKS.csv #3045 — the clips above keep every input vertex: only those a kept triangle uses go into the mesh (its vertex count, the
       // exports, the checks below)
       if (sceneVerts.length && faces.length) {
@@ -754,6 +762,7 @@ export function createModellingRuns(ctx, mcRef) {
         ...(spec.params?.orientationsAveraged ? { orientationsAveraged: spec.params.orientationsAveraged } : {}), // #765
         ...(spec.params?.picksNearContacts ? { picksNearContacts: spec.params.picksNearContacts } : {}), // #1170
         ...(spec.package != null ? { package: spec.package } : {}), // #1309
+        ...(spec.params?.faultEvidence ? { faultEvidence: spec.params.faultEvidence } : {}), // #4006 — what the Faults pane built it from, and its extent
         ...(fit ? { contactFit: { points: fit.n, typicalMissM: +fit.typical.toFixed(2), worstMissM: +fit.worst.toFixed(2), meshCellM: Math.round(fit.cell) } } : {}), // #1171
         ...(cover?.left ? { contactsWithoutSurface: { left: cover.left, of: contactPts.length, byCut: cover.byCut, never: cover.never } } : {}), // #3152 — left out of contactFit
         ...(smoothReports.find((r) => r.meshName === spec.meshName) ? { clusteredContactsSmoothed: (({ smoothed, total, skipped }) => ({ smoothed, of: total, ...(skipped ? { skipped } : {}), method: "KDE (Scott, in the contacts' plane), nugget on points >= 2x even density and >= 0.5 of the max (von Harten et al. 2021)" }))(smoothReports.find((r) => r.meshName === spec.meshName)) } : {}), // #761
@@ -1994,6 +2003,11 @@ export function createModellingRuns(ctx, mcRef) {
 
   const gatherFaultSpec = (key, traces) => {
     const [type, id] = key.split("|");
+    if (type === "surf") { // TASKS.csv #4006 — a fault built in the Faults pane: the points and orientations it was solved from (world, kept on it)
+      const s = (ctx.generatedSurfaces || []).find((x) => x.id === id), inp = s?.params?.inputs, o = originRef.current;
+      if (!inp?.points?.length || !inp?.orientations?.length) return { why: tr("the fault surface is no longer in the project, or it keeps no inputs.") };
+      return { warnings: [], spec: { label: `Fault: ${s.name}`, meshName: s.name, points: inp.points.map(([x, y, z]) => ({ x: x - o.x, y: y - o.y, z: z - o.z })), orientations: inp.orientations.map(([x, y, z, dip, azimuth]) => ({ x: x - o.x, y: y - o.y, z: z - o.z, dip, azimuth })), color: colorForStructure("FLT"), type: "fault", fault: true } };
+    }
     const rows = (layers.structure || []).filter((s) => String(s.value) === type && (s.structure_id || "") === id && Number.isFinite(s.dip) && Number.isFinite(s.azimuth));
     const points = [];
     rows.forEach((s) => {
@@ -2019,6 +2033,11 @@ export function createModellingRuns(ctx, mcRef) {
   // doesn't need a separate structure-layer lookup, since the structure picks ARE the thing being
   // modelled here.
   const runStructuralModel = async (structType, opts = {}) => { // opts.rows: TASKS.csv #3919 — the guided Faults tool's declustered picks (a quick first model)
+    if (opts.faultSpecs) { // TASKS.csv #4006 — the Faults pane's faults, from every kind of evidence (api frame), each solved as its own fault surface
+      if (!tracesRef.current.length && opts.faultSpecs.some((s) => s.needsHoles)) { setNotices((p) => [...p, noCollarsNotice(tr("the fault model"), layers, assays)]); return; }
+      for (const spec of opts.faultSpecs) await runSurfaceModel(spec, { trendTool: "structural" });
+      return;
+    }
     if (!structType) return;
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the structural model"), layers, assays)]); return; }

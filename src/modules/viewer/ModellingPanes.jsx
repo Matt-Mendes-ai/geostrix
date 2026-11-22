@@ -1076,7 +1076,7 @@ export default function ModellingPanes(props) {
           {/* TASKS.csv #1225 — bedding and fractures are not faults: apart, for a geologist who knows a code the name does not show */}
           {[[true, tr("Named as faults")], [false, tr("Other structure types")]].map(([like, label]) => {
             const list = faultCandidates.filter((c) => !stackFaults.includes(c.key) && !!c.faultLike === like);
-            return list.length ? <optgroup key={label} label={label}>{list.map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}{faultK[c.key] ? (faultK[c.key].random ? tr(" · k {k}, no preferred orientation", { k: Number(faultK[c.key].k).toFixed(1) }) : tr(" · k {k}", { k: Number.isFinite(faultK[c.key].k) ? Number(faultK[c.key].k).toFixed(0) : "∞" })) : ""}</option>)}</optgroup> : null;
+            return list.length ? <optgroup key={label} label={label}>{list.map((c) => <option key={c.key} value={c.key}>{c.built ? tr("{name} (from the Faults pane)", { name: c.label }) /* #4006 */ : c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {c.built ? tr(c.n === 1 ? "{n} point" : "{n} points", { n: c.n }) : tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}{faultK[c.key] ? (faultK[c.key].random ? tr(" · k {k}, no preferred orientation", { k: Number(faultK[c.key].k).toFixed(1) }) : tr(" · k {k}", { k: Number.isFinite(faultK[c.key].k) ? Number(faultK[c.key].k).toFixed(0) : "∞" })) : ""}</option>)}</optgroup> : null;
           })}
         </select>
         {stackFaults.map((k, fi) => {
@@ -1084,7 +1084,7 @@ export default function ModellingPanes(props) {
           // stack: a cover laid down after the fault stays whole), and the faults listed after it that it also displaces
           const cfg = (stackFaultOffsets || {})[k] || {}, later = stackFaults.slice(fi + 1);
           const setCfg = (patch) => setStackFaultOffsets?.((p) => ({ ...p, [k]: { ...(p[k] || {}), ...patch } }));
-          const label = (x) => x.replace(/\|$/, " (all picks)").replace("|", " — ");
+          const label = (x) => { const b = faultCandidates.find((c) => c.key === x && c.built); return b ? tr("{name} (from the Faults pane)", { name: b.label }) : x.startsWith("surf|") ? tr("A Faults-pane fault not in this project (left out of the run)") : x.replace(/\|$/, " (all picks)").replace("|", " — "); }; // built: #4006 (the list outlives a project tab switch)
           return (
           <div key={k} style={{ padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
