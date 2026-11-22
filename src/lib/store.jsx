@@ -1180,6 +1180,8 @@ export function StoreProvider({ children }) {
   const setProjectCurrency = useCallback((currency) => setProject((p) => { const { currency: _old, ...rest } = p; const c = String(currency ?? "").trim().slice(0, 8); return c ? { ...rest, currency: c } : rest; }), []);
   const setProjectDataCredit = useCallback((dataCredit) => setProject((p) => { const { dataCredit: _old, ...rest } = p; return dataCredit ? { ...rest, dataCredit: String(dataCredit) } : rest; }), []);
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
+  // TASKS.csv #3962 (P3) — the drill programs (inputs and versions), kept with the project like the drill rates: project.drillPrograms = [...] (an older project has none: read as [])
+  const setDrillPrograms = useCallback((progs) => setProject((p) => ({ ...p, drillPrograms: (typeof progs === "function" ? progs(p.drillPrograms || []) : progs) || [] })), []);
   // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
   // project.logValidRange = { [layerKey]: ... } (an older project has none: read as {}). null / {} removes the log's entry.
   const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0 || entry.unit)) next[key] = entry; /* TASKS.csv #3448 — entry.unit: a built-in log's unit, kept beside its range */ else delete next[key]; return { ...p, logValidRange: next }; }), []);
@@ -2083,7 +2085,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setProjectTitle /* #3611 / #3612 */, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectCurrency /* #3797 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setProjectTitle /* #3611 / #3612 */, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectCurrency /* #3797 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDrillPrograms /* #3962 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135

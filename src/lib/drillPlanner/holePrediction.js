@@ -62,21 +62,54 @@ export function fitGradeModel(points, { model = "spherical", searchTrend = null 
   };
 }
 
-// a bucket grid over the data (in the frame) for the nearest-composite search
+// a bucket grid over the data (in the frame) for the nearest-composite search. #3962 (speed): numeric cell keys, and the cells of each
+// Chebyshev shell listed once (offsets), so nearestK walks outwards without testing every cell of the cube
 function dataIndex(d, cell) {
-  const map = new Map(), n = d.x.length, k = (i, j, l) => `${i},${j},${l}`;
-  for (let i = 0; i < n; i++) {
-    const key = k(Math.floor(d.x[i] / cell), Math.floor(d.y[i] / cell), Math.floor(d.z[i] / cell));
-    (map.get(key) || map.set(key, []).get(key)).push(i);
+  const n = d.x.length;
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  for (let i = 0; i < n; i++) { if (d.x[i] < x0) x0 = d.x[i]; if (d.x[i] > x1) x1 = d.x[i]; if (d.y[i] < y0) y0 = d.y[i]; if (d.y[i] > y1) y1 = d.y[i]; if (d.z[i] < z0) z0 = d.z[i]; if (d.z[i] > z1) z1 = d.z[i]; }
+  const ox = Math.floor(x0 / cell) - 1, oy = Math.floor(y0 / cell) - 1, oz = Math.floor(z0 / cell) - 1;
+  const nx = Math.floor(x1 / cell) - ox + 2, ny = Math.floor(y1 / cell) - oy + 2, nz = Math.floor(z1 / cell) - oz + 2;
+  const key = (i, j, l) => (i < 0 || j < 0 || l < 0 || i >= nx || j >= ny || l >= nz ? -1 : (i * ny + j) * nz + l);
+  const map = new Map();
+  for (let q = 0; q < n; q++) {
+    const kq = key(Math.floor(d.x[q] / cell) - ox, Math.floor(d.y[q] / cell) - oy, Math.floor(d.z[q] / cell) - oz);
+    (map.get(kq) || map.set(kq, []).get(kq)).push(q);
   }
-  return { cell, near(x, y, z, R) { // indices within R, with their squared distances
-    const out = [], r = Math.ceil(R / cell), ci = Math.floor(x / cell), cj = Math.floor(y / cell), cl = Math.floor(z / cell), R2 = R * R;
-    for (let i = ci - r; i <= ci + r; i++) for (let j = cj - r; j <= cj + r; j++) for (let l = cl - r; l <= cl + r; l++) {
-      const b = map.get(k(i, j, l)); if (!b) continue;
+  const shells = []; // shells[s]: the [di, dj, dl] at Chebyshev distance s
+  const shellOf = (s) => { while (shells.length <= s) { const t = shells.length, list = []; for (let i = -t; i <= t; i++) for (let j = -t; j <= t; j++) for (let l = -t; l <= t; l++) if (Math.max(Math.abs(i), Math.abs(j), Math.abs(l)) === t) list.push([i, j, l]); shells.push(list); } return shells[s]; };
+  const visit = (out, ci, cj, cl, s, x, y, z, R2) => {
+    for (const [di, dj, dl] of shellOf(s)) {
+      const kq = key(ci + di, cj + dj, cl + dl); if (kq < 0) continue;
+      const b = map.get(kq); if (!b) continue;
       for (const q of b) { const d2 = (d.x[q] - x) ** 2 + (d.y[q] - y) ** 2 + (d.z[q] - z) ** 2; if (d2 <= R2) out.push([q, d2]); }
     }
-    return out;
-  } };
+  };
+  return { cell,
+    near(x, y, z, R) { // indices within R, with their squared distances
+      const out = [], rMax = Math.ceil(R / cell), ci = Math.floor(x / cell) - ox, cj = Math.floor(y / cell) - oy, cl = Math.floor(z / cell) - oz;
+      for (let s = 0; s <= rMax; s++) visit(out, ci, cj, cl, s, x, y, z, R * R);
+      return out;
+    },
+    // the k nearest within R, exactly: shells of growing Chebyshev distance, stopping once k are found no farther than the nearest unvisited
+    // cell can be (s x cell after shell s). The same neighbours as near() sorted and cut to k; on 6,200 composites with a long range near()
+    // read and sorted every one of them for every point (90 % of a prediction's time).
+    nearestK(x, y, z, R, kMax) {
+      const out = [], rMax = Math.ceil(R / cell), ci = Math.floor(x / cell) - ox, cj = Math.floor(y / cell) - oy, cl = Math.floor(z / cell) - oz, R2 = R * R;
+      for (let s = 0; s <= rMax; s++) {
+        visit(out, ci, cj, cl, s, x, y, z, R2);
+        if (out.length >= kMax) { out.sort((a, b) => a[1] - b[1]); out.length = kMax; if (out[kMax - 1][1] <= (s * cell) ** 2) return out; }
+      }
+      return out.sort((a, b) => a[1] - b[1]).slice(0, kMax);
+    },
+  };
+}
+// the cell: a quarter of the search radius where a search ball holds many composites (the shells stop early), half of it where they are few
+function indexCell(d, R) {
+  const n = d.x.length; if (!n) return Math.max(1, R / 2);
+  let v = 1; for (const a of [d.x, d.y, d.z]) { let lo = Infinity, hi = -Infinity; for (let i = 0; i < n; i++) { if (a[i] < lo) lo = a[i]; if (a[i] > hi) hi = a[i]; } v *= Math.max(hi - lo, R / 4); }
+  const perBall = n * (4 / 3) * Math.PI * R ** 3 / v;
+  return Math.max(1, perBall > 200 ? R / 4 : R / 2);
 }
 
 const cov = (h, vg) => (h <= 1e-9 ? vg.sill : vg.sill - variogramModelValue(h, vg));
@@ -94,14 +127,14 @@ export function holeSteps(trace, step) {
 export function holePosterior(model, trace, { step = DEFAULTS.step, searchRadius, perPoint = DEFAULTS.perPoint, maxData = DEFAULTS.maxData, inside = null } = {}) {
   const R = searchRadius > 0 ? searchRadius : model.vg.range;
   const f = framer(model.frame, model.centre), d = model.data;
-  const idx = model._idx || (model._idx = dataIndex(d, Math.max(1, R / 2)));
+  const idx = model._idx?.R === R ? model._idx : (model._idx = Object.assign(dataIndex(d, indexCell(d, R)), { R }));
   const tops = holeSteps(trace, step);
   const P = tops.map((a) => { const p = pointOnTrace(trace, a + step / 2); return f(p.x, p.y, p.z); });
   const inReach = new Uint8Array(P.length);
   const nearest = new Map(); // data index -> its closest squared distance to the hole
   P.forEach(([x, y, z], i) => {
     if (inside && !inside.some(([a, b]) => tops[i] + step / 2 >= a && tops[i] + step / 2 <= b)) return;
-    const near = idx.near(x, y, z, R).sort((a, b) => a[1] - b[1]).slice(0, perPoint);
+    const near = idx.nearestK(x, y, z, R, perPoint);
     if (near.length) inReach[i] = 1;
     for (const [q, d2] of near) if (!(nearest.get(q) <= d2)) nearest.set(q, d2);
   });
@@ -121,20 +154,29 @@ export function holePosterior(model, trace, { step = DEFAULTS.step, searchRadius
   if (!ck) return { tops, inReach, mean: new Float64Array(0), L: null, m: 0, nData: n, beyondM, singular: true };
   // V = L^-1 k (n x m) and alpha = L^-1 z: mean = V' alpha, posterior covariance = C_hh - V'V
   const z = Float64Array.from(used, (q) => d.ns[q]), alpha = forwardSolve(ck.L, n, z);
-  const V = new Float64Array(n * m);
+  // #3962 (speed): V is kept by hole point (row j = L^-1 k_j, contiguous), solved in place, so the mean and V'V are contiguous dot products
+  const Vt = new Float64Array(m * n), L = ck.L;
   for (let j = 0; j < m; j++) {
-    const [x, y, zz] = pts[j], kj = new Float64Array(n);
-    for (let i = 0; i < n; i++) { const q = used[i]; kj[i] = cov(Math.hypot(d.x[q] - x, d.y[q] - y, d.z[q] - zz), vg); }
-    const v = forwardSolve(ck.L, n, kj);
-    for (let i = 0; i < n; i++) V[i * m + j] = v[i];
+    const [x, y, zz] = pts[j], o = j * n;
+    for (let i = 0; i < n; i++) {
+      const q = used[i];
+      let s = cov(Math.hypot(d.x[q] - x, d.y[q] - y, d.z[q] - zz), vg);
+      const r = i * n;
+      for (let k = 0; k < i; k++) s -= L[r + k] * Vt[o + k];
+      Vt[o + i] = s / L[r + i];
+    }
   }
   const mean = new Float64Array(m);
-  for (let j = 0; j < m; j++) { let s = 0; for (let i = 0; i < n; i++) s += V[i * m + j] * alpha[i]; mean[j] = s; }
+  for (let j = 0; j < m; j++) { let s = 0; const o = j * n; for (let i = 0; i < n; i++) s += Vt[o + i] * alpha[i]; mean[j] = s; }
   const S = new Float64Array(m * m);
-  for (let a = 0; a < m; a++) for (let b = a; b < m; b++) {
-    let s = a === b ? vg.sill : cov(Math.hypot(pts[a][0] - pts[b][0], pts[a][1] - pts[b][1], pts[a][2] - pts[b][2]), vg);
-    for (let i = 0; i < n; i++) s -= V[i * m + a] * V[i * m + b];
-    S[a * m + b] = s; S[b * m + a] = s;
+  for (let a = 0; a < m; a++) {
+    const oa = a * n;
+    for (let c = a; c < m; c++) {
+      let s = a === c ? vg.sill : cov(Math.hypot(pts[a][0] - pts[c][0], pts[a][1] - pts[c][1], pts[a][2] - pts[c][2]), vg);
+      const oc = c * n;
+      for (let i = 0; i < n; i++) s -= Vt[oa + i] * Vt[oc + i];
+      S[a * m + c] = s; S[c * m + a] = s;
+    }
   }
   const cs = cholesky(S, m, 1e-9);
   return { tops, inReach, mean, L: cs?.L || null, m, nData: n, beyondM, outsideM, pts, used, variance: Float64Array.from({ length: m }, (_, j) => S[j * m + j]) };

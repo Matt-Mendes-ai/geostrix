@@ -9,6 +9,7 @@ export function runPlanner(job, { onProgress, signal } = {}) {
     if (signal?.aborted) { reject(cancelled()); return; }
     const inline = () => Promise.all([import("./holePrediction.js"), import("./program.js")]).then(([m, pg]) => {
       if (job.kind === "program") return pg.selectProgram(job.model, job.candidates, job.rules, { ...job.opts, onProgress });
+      if (job.kind === "score") return pg.scoreCandidates(job.model, job.candidates, job.rules, { ...job.opts, onProgress });
       if (job.kind === "fit") return m.fitGradeModel(job.points, { model: job.modelType, searchTrend: job.searchTrend });
       const out = {};
       job.holes.forEach((h, i) => { if (signal?.aborted) throw cancelled(); out[h.id] = m.predictHole(job.model, h.trace, job.rules, job.opts); onProgress?.((i + 1) / job.holes.length); });
@@ -37,4 +38,17 @@ export function runPlanner(job, { onProgress, signal } = {}) {
     // the model's caches (a search index with functions) stay on this side: only its data cross
     worker.postMessage(job.model ? { ...job, model: Object.fromEntries(Object.entries(job.model).filter(([k]) => !k.startsWith("_"))) } : job);
   });
+}
+
+// #3962 (speed) — a program with its first pass spread over several workers (half the cores, at most 4, as the sidecar's BLAS cap): each
+// scores a share of the candidates exactly as one worker would, then one worker picks the program from those scores. The same program.
+export async function runProgram(job, { onProgress, signal, workers = null } = {}) {
+  const cores = (typeof navigator !== "undefined" && navigator.hardwareConcurrency) || 2;
+  const k = Math.max(1, Math.min(4, workers ?? Math.floor(cores / 2), Math.ceil(job.candidates.length / 100)));
+  const shares = Array.from({ length: k }, () => []);
+  job.candidates.forEach((c, i) => shares[i % k].push(c));
+  const done = new Array(k).fill(0), tell = () => onProgress?.(0.7 * done.reduce((t, f) => t + f, 0) / k);
+  const parts = await Promise.all(shares.map((cands, w) => runPlanner({ kind: "score", model: job.model, candidates: cands, rules: job.rules, opts: job.opts }, { signal, onProgress: (f) => { done[w] = f; tell(); } })));
+  const prescored = Object.assign({}, ...parts);
+  return runPlanner({ ...job, opts: { ...job.opts, prescored } }, { signal, onProgress: (f) => onProgress?.(0.7 + 0.3 * Math.max(0, (f - 0.6) / 0.4)) });
 }

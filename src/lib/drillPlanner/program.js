@@ -145,7 +145,16 @@ export function selectProgram(model0, candidates, rules, opts = {}) {
     counts.scored++;
     state.set(c.id, { pred, value: ruleValue(rule, pred, kappa) });
   };
-  candidates.forEach((c, i) => { score(c); if (i % 20 === 0) opts.onProgress?.(0.6 * (i + 1) / candidates.length); });
+  // #3962 (speed): the first pass may come scored already (scoreCandidates in several workers, drillPlannerClient.js runProgram); the same
+  // score() on the same model, so the program is the same as scoring here
+  if (opts.prescored) {
+    for (const c of candidates) {
+      const s = opts.prescored[c.id];
+      if (!s) { score(c); continue; }
+      if (s.skip === "twin") counts.twins++; else if (s.skip === "beyond") counts.beyond++; else counts.scored++;
+      state.set(c.id, s.skip ? { skip: s.skip } : { pred: s.pred, value: ruleValue(rule, s.pred, kappa) });
+    }
+  } else candidates.forEach((c, i) => { score(c); if (i % 20 === 0) opts.onProgress?.(0.6 * (i + 1) / candidates.length); });
   const chosen = [], perPadUsed = new Map(), usedPads = new Set();
   let cumCost = 0, cumMetres = 0;
   const reach = model0.vg.range; // in the model's frame a hole's composites move the posterior within the variogram's range of them
@@ -191,6 +200,24 @@ export function selectProgram(model0, candidates, rules, opts = {}) {
   let line = chosen.length;
   if (chosen.length) { const top = chosen[0].score; line = chosen.findIndex((h) => h.score < share * top); if (line < 0) line = chosen.length; }
   return { chosen, line, counts, rule, kappa };
+}
+
+// #3962 (speed) — the first pass alone, for a share of the candidates in one worker: { [id]: { pred } | { skip } }. Exactly selectProgram's
+// score() before any pick (the model unchanged, the twin test against the drilled composites only).
+export function scoreCandidates(model, candidates, rules, opts = {}) {
+  const step = opts.step || DEFAULTS.step, runs = opts.runs || PROGRAM_DEFAULTS.runs, minSpacing = opts.minSpacing > 0 ? opts.minSpacing : 0;
+  const searchRadius = opts.searchRadius || model.vg.range;
+  const near = pointIndex(Math.max(5, minSpacing || 10)), d = opts.drilled;
+  if (d) for (let i = 0; i < d.x.length; i++) near.add(d.x[i], d.y[i], d.z[i], d.ids?.[i] ?? "");
+  const out = {};
+  candidates.forEach((c, i) => {
+    const pts = minSpacing ? centres(c, step) : [];
+    if (pts.length) { let k = 0; for (const p of pts) if (near.nearest(p.x, p.y, p.z, minSpacing)) k++; if (k / pts.length > 0.5) { out[c.id] = { skip: "twin" }; return; } }
+    const pred = predictHole(model, c.trace, rules, { step, searchRadius, realizations: runs, inside: c.inside, maxData: PROGRAM_DEFAULTS.screenData });
+    out[c.id] = pred.beyond ? { skip: "beyond" } : { pred };
+    if (i % 20 === 0) opts.onProgress?.((i + 1) / candidates.length);
+  });
+  return out;
 }
 
 // the numbers behind a hole's "Why" sentence: the nearest drilled hole to its middle (in the target), how little the model knows there

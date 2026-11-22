@@ -85,7 +85,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   const seed = useMemo(() => drilledDefaults(collars, survey || []), [collars, survey]);
   const [draft, setDraft] = useState(() => ({ name: "", x: "", y: "", z: "", azimuth: seed?.azimuth ?? 0, dip: seed?.dip ?? -60, length: seed?.length ?? 100 }));
   // TASKS.csv #3347 — the next id of the project's own series, offered for a blank name (the drilled ids and the planned names so far)
-  const { plannedHoles: plannedSoFar } = useStore();
+  const { plannedHoles: plannedSoFar, voxelModels: storeModels, desurveyMethod: storeDesurvey } = useStore();
   const nameOffer = useMemo(() => nextHoleId([...(collars || []).map((c) => c.hole_id), ...(plannedSoFar || []).map((h) => h.name)]), [collars, plannedSoFar]);
   // TASKS.csv #1835 (review #1646, Kodiak) — where the collar's Elev came from, kept on the hole and written to the rig sheet
   // (z_source): a picked Elev is whatever the click hit (the top of an IP cell, there), and it reached the CSV / GPX unmarked
@@ -249,7 +249,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     setDraft((p) => ({ name: "", x: "", y: "", z: "", azimuth: p.azimuth, dip: p.dip, length: p.length })); // #2450 — the next hole starts like the last one
     setFromCollarId(""); setTarget({ x: "", y: "", z: "" }); setZSource("typed"); setCollarNote(null); setPickInForm(false); setUpward(false); // #1838; upward: #2257
   };
-  return (
+  return (<>
     <div style={{ padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <input placeholder={nameOffer ? tr("Hole name (blank: {id})", { id: nameOffer }) : tr("Hole name (optional)")} value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
       {collars.length > 0 && (
@@ -351,6 +351,10 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         {collarNote && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: collarNote.warn ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarNote.text}</div>}
       </div>
     </div>
+    {/* TASKS.csv #3962 — with no planned hole yet the pane shows no checks, where the panel otherwise sits: the drill program must be reachable
+        on a project with none (live, P3), so it is here until the first hole is added (no visible-surface targets until then) */}
+    {(plannedSoFar || []).length === 0 && <ProbableGradePanel plannedHoles={[]} collars={collars} survey={survey || []} voxelModels={storeModels || []} desurveyMethod={storeDesurvey} surfaces={[]} />}
+  </>
   );
 }
 // TASKS.csv #3824 (1) (Scottie Gold review) — Az 400 and Dip -91 were accepted and stored as typed (the row read 'Az 40° / Dip -91°', the rig CSV carried 400 and -91): an azimuth is
@@ -524,16 +528,20 @@ function PredictionLine({ hole }) {
   if (!p) return null;
   const unit = p.unit || "";
   const st = { marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 };
-  const after = state === "moved" ? <div style={{ ...st, color: "var(--color-warn-text)" }}>{tr("The hole has moved since this prediction: predict again.")}</div>
-    : state === "kept" ? <div style={st}>{tr("Drilled: the prediction is kept as it was made ({date}).", { date: String(p.date || "").slice(0, 10) })}</div> : null;
+  const after = state === "moved" ? <div style={{ ...st, color: "var(--color-warn-text)" }}>{tr("Moved since: predict again.")}</div>
+    : state === "kept" ? <div style={st}>{tr("Drilled: kept as made ({date}).", { date: String(p.date || "").slice(0, 10) })}</div> : null;
   if (p.beyond) return <div data-prediction="" style={st}>{tr("Beyond the drilling: no prediction.")}{after}</div>;
+  // TASKS.csv #3962 (P3) — the drilled hole's real result against this prediction (Compare drilled holes)
+  const a = hole.actual, real = a && a.element === p.element ? <div data-actual="" style={{ ...st, color: a.where === "inside" ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>
+    {tr(a.where === "inside" ? "Drilled: {gt} grade × metres, inside the range." : a.where === "below" ? "Drilled: {gt} grade × metres, below the range: the model was optimistic here." : "Drilled: {gt} grade × metres, above the range.", { gt: fmtPred(a.gt) })}</div> : null;
   const pc = Math.round((p.pHit || 0) * 100);
   return (
-    <div data-prediction="" style={st} title={tr("From {n} runs of the {element} grade model (P10 / P50 / P90); made {date}.", { n: p.realizations, element: p.element, date: String(p.date || "").slice(0, 10) })}>
+    <div data-prediction="" style={st}>
       {pc > 0 && p.hitLength ? tr("At {c} {unit}: a {p} % chance of an intercept; a typical hit {len} m at {g} {unit}.", { c: fmtPred(p.rules.cutoff), unit, p: pc, len: fmtPred(p.hitLength[1]), g: fmtPred(p.hitGrade[1]) })
         : tr("At {c} {unit}: a {p} % chance of an intercept.", { c: fmtPred(p.rules.cutoff), unit, p: pc })}
       {pc > 0 && <div>{tr("Grade × metres, low / middle / high: {a} / {b} / {c}", { a: fmtPred(p.gt[0]), b: fmtPred(p.gt[1]), c: fmtPred(p.gt[2]) })}</div>}
       {after}
+      {real}
     </div>
   );
 }
@@ -561,7 +569,7 @@ export function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { 
       <PredictionLine hole={hole} />
       {expanded && (
         <div style={{ marginTop: 6, borderTop: "1px solid var(--color-divider)", paddingTop: 6 }}>
-          {hole.prediction && !hole.prediction.beyond && <ProbableGradePlot prediction={hole.prediction} />}
+          {hole.prediction && !hole.prediction.beyond && <ProbableGradePlot prediction={hole.prediction} actual={hole.actual?.element === hole.prediction.element ? hole.actual.values : null} />}
           <input placeholder={tr("Name")} value={hole.name || ""} onChange={(e) => onUpdate(hole.id, { name: e.target.value })} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             <NumField label="E" value={hole.x} onChange={(v) => onUpdate(hole.id, { x: v })} />

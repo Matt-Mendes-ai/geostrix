@@ -16,7 +16,10 @@ import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the 
 import { estimateSources, freshSource, suggestedCutoff, modelStamp, predictionRecord, predictionState, fmt } from "../lib/drillPlanner/predictionInputs.js";
 import { runPlanner } from "../lib/drillPlanner/drillPlannerClient.js";
 import { askConfirm } from "../lib/confirmDialog.js";
+import { asDrilledOffers, compareToActual, calibration } from "../lib/drillPlanner/adaptive.js"; // TASKS.csv #3962 (P3)
+import { drilledCollars } from "../lib/collarStatus.js";
 import NumberInput from "./NumberInput.jsx";
+import MoreFold from "./MoreFold.jsx"; // #3962: the detail behind More
 import DrillProgramSection from "./DrillProgramSection.jsx"; // TASKS.csv #3962 (P2) — the suggested program, in the same chunk
 
 // the protective lines, always in view (design.md 5); written out in tr() so the guards (protectiveWarnings3899, the word count) read them
@@ -31,7 +34,7 @@ const label = { display: "flex", flexDirection: "column", gap: 2, flex: 1, minWi
 const btn = { width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", color: "var(--color-text)" };
 
 export default function ProbableGradePanel({ plannedHoles, collars, survey, voxelModels, desurveyMethod, surfaces = [] }) {
-  const { assays, assayElements, updatePlannedHole } = useStore();
+  const { assays, assayElements, updatePlannedHole, undoCheckpoint } = useStore();
   const elementUnits = useMemo(() => Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])), [assayElements]);
   const estimates = useMemo(() => estimateSources(voxelModels), [voxelModels]);
   const symbols = useMemo(() => (assayElements || []).map((e) => e.symbol), [assayElements]);
@@ -47,6 +50,36 @@ export default function ProbableGradePanel({ plannedHoles, collars, survey, voxe
   const minL = minLength ?? 2 * step, dil = dilution ?? step;
   const todo = plannedHoles.filter((h) => predictionState(h) !== "kept");
   const kept = plannedHoles.length - todo.length;
+  // TASKS.csv #3962 (P3) — the adaptive loop: a drilled collar named as a planned hole, or within 10 m of it, offered as its as-drilled hole;
+  // the linked holes compared with their real composites (each keeps `actual`), and the calibration over them
+  const offers = useMemo(() => asDrilledOffers(plannedHoles, drilledCollars(collars).collars, undefined, survey), [plannedHoles, collars, survey]);
+  const toCompare = plannedHoles.filter((h) => h.asDrilledHoleId && h.prediction && !h.prediction.beyond);
+  const cal = calibration(plannedHoles.map((h) => h.actual));
+  const link = (o) => updatePlannedHole(o.holeId, { asDrilledHoleId: o.collarId, status: "drilled" });
+  const compare = async () => {
+    if (!source || !toCompare.length) return;
+    setBusy(true); setError(null); setNote(null);
+    const ac = new AbortController(); abort.current = ac;
+    try {
+      const prep = await prepare(ac.signal, setError, false);
+      if (!prep) return;
+      const date = new Date().toISOString();
+      let n = 0, other = 0;
+      try { undoCheckpoint?.(); } catch { /* no history */ }
+      for (const h of toCompare) {
+        if (h.prediction.element !== source.element || h.prediction.step !== step) { other++; continue; }
+        const comps = prep.points.filter((p) => String(p.hole_id) === String(h.asDrilledHoleId)).map((p) => ({ from: p.from, to: p.to, value: p.value }));
+        const r = compareToActual(h.prediction, comps);
+        if (!r) continue;
+        n++;
+        updatePlannedHole(h.id, { actual: { date, element: source.element, hole: h.asDrilledHoleId, gt: Number(r.gt.toPrecision(4)), where: r.where, values: r.values.map(([m, v]) => [Math.round(m * 100) / 100, Number(v.toPrecision(4))]) } });
+      }
+      try { undoCheckpoint?.(tr("Compare drilled holes")); } catch { /* no history */ }
+      setNote({ compared: n, other });
+    } catch (e) {
+      if (!e?.cancelled) setError(e?.message || String(e));
+    } finally { setBusy(false); abort.current = null; }
+  };
 
   // the composites and the fitted model, kept for the session while the data and the source are the same (the program below reuses them).
   // -> { model, values, points } | null (said in `error`, or the weak fit declined)
@@ -60,7 +93,7 @@ export default function ProbableGradePanel({ plannedHoles, collars, survey, voxe
     const { points } = await samplePointsSliced(intervals, collars, survey, desurveyHole, desurveyMethod, { signal });
     const values = points.map((p) => p.value).filter(Number.isFinite);
     const model = await runPlanner({ kind: "fit", points: points.map((p) => ({ x: p.x, y: p.y, z: p.z, value: p.value, hole_id: p.hole_id })), modelType: source.vgModel, searchTrend: source.searchTrend }, { signal });
-    if (model.error) { onError(model.error === "few" ? tr("Only {n} {element} composites could be placed: too few for a grade model.", { n: model.n, element: source.element }) : tr("No variogram could be fitted to the {element} composites' normal scores (too few pairs at most lags).", { element: source.element })); return null; }
+    if (model.error) { onError(model.error === "few" ? tr("Too few {element} composites for a grade model ({n}).", { n: model.n, element: source.element }) : tr("No variogram fits the {element} normal scores: too few pairs.", { element: source.element })); return null; }
     if (ask && model.fit.weak && !(await askConfirm(tr("The variogram of the {element} normal scores fits weakly (r² {r2}): the ranges will be less reliable. Predict anyway?", { element: source.element, r2: fmt(model.fit.rSquared) })))) return null;
     const value = { model, values, points };
     prepared.current = { key, assays, collars, survey, value };
@@ -103,11 +136,11 @@ export default function ProbableGradePanel({ plannedHoles, collars, survey, voxe
           {options.filter((o) => o.id.startsWith("fit:")).map((o) => <option key={o.id} value={o.id}>{tr("{element}: 2 m composites, fitted now", { element: o.element })}</option>)}
         </select>
       </label>
-      {source && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
+      {source && <MoreFold style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
         {tr("{m} m composites of {element}; the variogram of their normal scores is fitted when you press Predict.", { m: fmt(step), element: source.element })}
         {source.capValue ? " " + tr("Capped at {v} {unit}, as in Grade estimation.", { v: source.capValue, unit }) : ""}
         {source.searchTrend ? " " + tr("In the trend \"{name}\".", { name: source.searchTrend.name }) : ""}
-      </div>}
+      </MoreFold>}
       <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "flex-end" }}>
         <label style={label}>{tr("Cut-off ({unit})", { unit })}<NumberInput value={cutoff ?? ""} allowEmpty placeholder={tr("upper quartile")} onChange={(v) => setCutoff(v == null ? null : Math.max(0, v))} disabled={busy} style={{ width: "100%" }} /></label>
         <label style={label}>{tr("Min. length (m)")}<NumberInput value={minL} onChange={(v) => setMinLength(Math.max(0, v))} disabled={busy} style={{ width: "100%" }} /></label>
@@ -119,15 +152,27 @@ export default function ProbableGradePanel({ plannedHoles, collars, survey, voxe
           <button type="button" onClick={() => abort.current?.abort()} style={{ ...btn, width: "auto" }}>{tr("Cancel")}</button>
         </div>
       ) : (
-        <button type="button" onClick={run} disabled={!todo.length || !source} style={btn} title={tr("Each hole's chance of an intercept and the low / middle / high of what it cuts, from 200 runs of the grade model; kept on the hole until you predict again")}>
+        <button type="button" onClick={run} disabled={!todo.length || !source} style={btn}>
           {tr(todo.length === 1 ? "Predict {n} planned hole" : "Predict {n} planned holes", { n: todo.length })}
         </button>
       )}
-      {kept > 0 && <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr(kept === 1 ? "{n} drilled hole keeps the prediction it had." : "{n} drilled holes keep the predictions they had.", { n: kept })}</div>}
+      {kept > 0 && <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Drilled holes keep their predictions ({n}).", { n: kept })}</div>}
+      {offers.map((o) => (
+        <div key={o.holeId} data-as-drilled-offer="" style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text)" }}>
+          <span style={{ flex: 1 }}>{tr("{plan} looks like {hole}, {d} m away.", { plan: o.holeName, hole: o.collarId, d: Math.round(o.distance) })}</span>
+          <button type="button" onClick={() => link(o)} disabled={busy} style={{ ...btn, width: "auto" }}>{tr("Link")}</button>
+        </div>))}
+      {toCompare.length > 0 && !busy && <button type="button" onClick={compare} style={{ ...btn, marginTop: 6 }}>{tr("Compare drilled holes ({n})", { n: toCompare.length })}</button>}
+      {cal.n > 0 && <div data-calibration="" role="status" style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: cal.overconfident ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4 }}>
+        {tr("Calibration: {k} of {n} drilled holes inside their range.", { k: cal.inside, n: cal.n })}
+        {cal.overconfident && " " + tr("Too few: the model is overconfident (check the variogram range and the domain).")}
+      </div>}
       {error && <div role="alert" style={{ marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)", lineHeight: 1.4 }}>{error}</div>}
-      {note && <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
-        {tr(note.n === 1 ? "Predicted {n} hole at a cut-off of {c} {unit}, from {d} composites in {h} holes. Normal-score variogram: {model}, range {r} m, nugget {nug} % of the sill (r² {r2})." : "Predicted {n} holes at a cut-off of {c} {unit}, from {d} composites in {h} holes. Normal-score variogram: {model}, range {r} m, nugget {nug} % of the sill (r² {r2}).", { n: note.n, c: fmt(note.cut), unit, d: note.model.n, h: note.model.holes, model: note.model.vg.model, r: fmt(note.model.vg.range), nug: Math.round(note.model.vg.nugget * 100), r2: fmt(note.model.fit.rSquared) })}
+      {note?.compared != null && <div role="status" style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Compared {n}; {o} predicted for another element or composite length.", { n: note.compared, o: note.other })}</div>}
+      {note && note.compared == null && <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
+        {tr(note.n === 1 ? "Predicted {n} hole at a cut-off of {c} {unit}." : "Predicted {n} holes at a cut-off of {c} {unit}.", { n: note.n, c: fmt(note.cut), unit })}
         {note.beyond > 0 && " " + tr(note.beyond === 1 ? "{n} hole is beyond the drilling: no prediction." : "{n} holes are beyond the drilling: no prediction.", { n: note.beyond })}
+        <MoreFold style={{ marginTop: 2, marginBottom: 0 }}>{tr("From {d} composites in {h} holes. Normal-score variogram: {model}, range {r} m, nugget {nug} % of the sill (r² {r2}).", { d: note.model.n, h: note.model.holes, model: note.model.vg.model, r: fmt(note.model.vg.range), nug: Math.round(note.model.vg.nugget * 100), r2: fmt(note.model.fit.rSquared) })}</MoreFold>
       </div>}
       {source && <DrillProgramSection source={source} unit={unit} step={step} prepare={prepare} rulesOf={rulesOf} onCutoff={(c) => { if (cutoff == null) setCutoff(c); }}
         collars={collars} survey={survey} plannedHoles={plannedHoles} surfaces={surfaces} busyElsewhere={busy} />}{/* TASKS.csv #3962 (P2) */}
