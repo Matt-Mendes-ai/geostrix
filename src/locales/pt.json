@@ -15079,5 +15079,11 @@
   "{n} orientation": "{n} orientação",
   "{n} orientations": "{n} orientações",
   "{n} item": "{n} item",
-  "{n} items": "{n} itens"
+  "{n} items": "{n} itens",
+  "Delete the {n} custom layers?": "Excluir as {n} camadas personalizadas?",
+  "Delete the {n} picked layers?": "Excluir as {n} camadas escolhidas?",
+  "Delete the {n} layers of \"{source}\"?": "Excluir as {n} camadas de \"{source}\"?",
+  "{n} picked": "{n} escolhidas",
+  "Delete this import's layers…": "Excluir as camadas desta importação…",
+  "Delete all custom layers. Ctrl or Shift + click rows to pick several.": "Exclui todas as camadas personalizadas. Ctrl ou Shift + clique nas linhas para escolher várias."
 }

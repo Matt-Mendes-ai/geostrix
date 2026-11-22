@@ -15079,5 +15079,11 @@
   "{n} orientation": "{n} توجيه",
   "{n} orientations": "{n} توجيهات",
   "{n} item": "{n} عنصر",
-  "{n} items": "{n} عناصر"
+  "{n} items": "{n} عناصر",
+  "Delete the {n} custom layers?": "هل تريد حذف الطبقات المخصصة وعددها {n}؟",
+  "Delete the {n} picked layers?": "هل تريد حذف الطبقات المختارة وعددها {n}؟",
+  "Delete the {n} layers of \"{source}\"?": "هل تريد حذف الطبقات وعددها {n} من \"{source}\"؟",
+  "{n} picked": "تم اختيار {n}",
+  "Delete this import's layers…": "حذف طبقات هذا الاستيراد…",
+  "Delete all custom layers. Ctrl or Shift + click rows to pick several.": "يحذف كل الطبقات المخصصة. Ctrl أو Shift مع النقر على الصفوف لاختيار عدة طبقات."
 }
