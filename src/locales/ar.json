@@ -6924,7 +6924,7 @@
   "Y (mm)": "Y (مم)",
   "W (mm)": "العرض (مم)",
   "H (mm)": "الارتفاع (مم)",
-  "Scale 1 :": "المقياس 1 :",
+  "Scale 1 :": "المقياس 1 :",
   "Plot scale": "مقياس الرسم",
   "free (as framed)": "حر (كما أُطّر)",
   "custom…": "مخصص…",
@@ -12481,7 +12481,7 @@
   "A positive dip points UP (negative = down): this hole would rise from the collar into the air. For a hole going down at {d}°, type -{d}.": "الميل الموجب يتجه إلى الأعلى (السالب = إلى الأسفل): سيرتفع هذا الثقب من الفوهة إلى الهواء. لثقب ينزل بزاوية {d}° اكتب -{d}.",
   "Only the {shown} of {total} holes checked in StrixViewer": "فقط الثقوب المحددة في StrixViewer وعددها {shown} من {total}",
   "A space ends a term: did you mean {term}? (_ stands for a space in a value.)": "المسافة تنهي المصطلح: هل تقصد {term}؟ (الرمز _ يمثل مسافة داخل القيمة.)",
-  "Typed scale 1 :": "مقياس مكتوب 1 :",
+  "Typed scale 1 :": "مقياس مكتوب 1 :",
   "Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.": "أي مقياس: 1 : 6,000 و1 : 7,500 ليسا في القائمة.",
   "Fill the page": "ملء الصفحة",
   "The frame takes the whole page inside 10 mm margins (the title block and key can be moved over it).": "يشغل الإطار الصفحة كاملة ضمن هوامش 10 مم (يمكن نقل لوحة العنوان والمفتاح فوقه).",
@@ -14851,5 +14851,6 @@
   "cover / casing": "غطاء / تغليف",
   "no recovery": "بلا استرداد",
   "{unit} starts {n} of the {h} holes at the collar: it is the cover. Its top there is the ground, not a contact, so a surface from its other tops is not its top (it sits off to one side). Model its base instead: Model > Cover and weathering, or set its role to Overburden in Modelling codes.": "تبدأ {unit} في {n} من أصل {h} ثقباً عند الفوهة: إنها الغطاء. قمتها هناك هي سطح الأرض لا تماس، فالسطح المبني من قممها الأخرى ليس قمتها (يقع في جانب واحد). نمذج قاعدتها بدلاً من ذلك: النموذج > الغطاء والتجوية، أو اجعل دورها غطاءً في رموز النمذجة.",
-  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " بوصفها غطاءً، قاعدتها سطح حتّ واحد فوق الصخور التي تستقر عليها ({list})، ويُنمذج العمود تحته."
+  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " بوصفها غطاءً، قاعدتها سطح حتّ واحد فوق الصخور التي تستقر عليها ({list})، ويُنمذج العمود تحته.",
+  "Section window": "نافذة المقطع"
 }

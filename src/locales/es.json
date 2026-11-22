@@ -14851,5 +14851,6 @@
   "cover / casing": "cobertura / casing",
   "no recovery": "sin recuperación",
   "{unit} starts {n} of the {h} holes at the collar: it is the cover. Its top there is the ground, not a contact, so a surface from its other tops is not its top (it sits off to one side). Model its base instead: Model > Cover and weathering, or set its role to Overburden in Modelling codes.": "{unit} inicia {n} de los {h} sondajes en el collar: es la cobertura. Allí su techo es el terreno, no un contacto, así que una superficie hecha con sus otros techos no es su techo (queda a un lado). Modele su base: Modelo > Cobertura y meteorización, o asigne el rol Cobertura en Códigos de modelado.",
-  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " Como cobertura, su base es una sola superficie erosiva sobre las rocas en que descansa ({list}), y la pila se modela debajo de ella."
+  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " Como cobertura, su base es una sola superficie erosiva sobre las rocas en que descansa ({list}), y la pila se modela debajo de ella.",
+  "Section window": "Ventana de sección"
 }

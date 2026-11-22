@@ -14851,5 +14851,6 @@
   "cover / casing": "couverture / tubage",
   "no recovery": "sans récupération",
   "{unit} starts {n} of the {h} holes at the collar: it is the cover. Its top there is the ground, not a contact, so a surface from its other tops is not its top (it sits off to one side). Model its base instead: Model > Cover and weathering, or set its role to Overburden in Modelling codes.": "{unit} commence {n} des {h} sondages au collet : c'est la couverture. Son toit y est le sol, pas un contact, donc une surface tirée de ses autres toits n'est pas son toit (elle se place d'un côté). Modélisez plutôt sa base : Modèle > Couverture et altération, ou donnez-lui le rôle Mort-terrain dans Codes de modélisation.",
-  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " En mort-terrain, sa base est une seule surface d'érosion sur les roches qu'elle recouvre ({list}), et la pile est modélisée dessous."
+  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " En mort-terrain, sa base est une seule surface d'érosion sur les roches qu'elle recouvre ({list}), et la pile est modélisée dessous.",
+  "Section window": "Fenêtre de coupe"
 }
