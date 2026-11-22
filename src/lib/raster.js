@@ -639,7 +639,7 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
 
   // TASKS.csv #419 — a user-set source CRS overrides the file's own tag (untagged or wrongly tagged DEMs).
   const epsgTag = mineSrc ? null : sourceEpsgOverride ? Number(sourceEpsgOverride) : tiles[0].epsgTag; // mineSrc: #2684 — the tag set aside
-  if (chooseProjectEpsg && epsgTag && !tieTo) targetEpsg = Number(chooseProjectEpsg(epsgTag, targetEpsg, [xmin, ymin, xmax, ymax])) || targetEpsg; // #607; the box: #2678
+  if (chooseProjectEpsg && epsgTag && !tieTo) targetEpsg = Number(await chooseProjectEpsg(epsgTag, targetEpsg, [xmin, ymin, xmax, ymax])) || targetEpsg; // #607; the box: #2678
   // #2648 — on a tied grid the DEM goes to the tie's CRS first (below), then into the grid
   const viaTie = !!(tieTo && epsgTag && tieReaches(tie, epsgTag));
   let tiedNote = null;
@@ -909,7 +909,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   const tagEpsg = parsed.epsgTag && !mineSrc ? Number(parsed.epsgTag) : sideUsed ? Number(sideCrs.epsg) : null;
   const srcEpsg = Number.isFinite(overrideEpsg) ? overrideEpsg : tagEpsg;
   let projEpsg = epsg == null || epsg === "" ? null : Number(epsg);
-  if (chooseProjectEpsg && srcEpsg) projEpsg = Number(chooseProjectEpsg(srcEpsg, projEpsg, parsed.bbox)) || projEpsg; // #607 — an empty project may take this CRS; the box: #2678
+  if (chooseProjectEpsg && srcEpsg) projEpsg = Number(await chooseProjectEpsg(srcEpsg, projEpsg, parsed.bbox)) || projEpsg; // #607 — an empty project may take this CRS; the box: #2678
   const srcLabel = Number.isFinite(overrideEpsg) ? "the Source CRS you set" : sideUsed ? `the CRS in "${sideCrs.from}"` : "this file's own CRS tag"; // sideUsed: #2830
   const srcLabelTr = Number.isFinite(overrideEpsg) ? tr("the Source CRS you set") : sideUsed ? tr("the CRS in \"{file}\"", { file: sideCrs.from }) : tr("this file's own CRS tag");
   const SrcLabelTr = Number.isFinite(overrideEpsg) ? tr("The Source CRS you set") : sideUsed ? tr("The CRS in \"{file}\"", { file: sideCrs.from }) : tr("This file's own CRS tag");

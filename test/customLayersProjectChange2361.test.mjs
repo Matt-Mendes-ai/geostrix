@@ -30,7 +30,7 @@ test("dropped groups leave the scene and the group map", () => {
 test("the restore effect rebuilds on the store's project counter", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /const fresh = customSeqRef\.current !== viewerUiStateSeq; customSeqRef\.current = viewerUiStateSeq;/);
-  assert.match(v, /setCustomLayers\(\(p\) => \(fresh \? rebuilt : \[\.\.\.p, \.\.\.rebuilt\]\)\);/);
+  assert.match(v, /setCustomLayers\(\(p\) => \(fresh \? rebuilt : arrangeLikeStore\(\[\.\.\.p\.filter\(\(l\) => !gone\.has\(l\.id\)\), \.\.\.rebuilt\], storeCustomLayers\)\)\);/); // #4018: in the store's order, minus what the store dropped
   assert.match(v, /\}, \[storeCustomLayers, sceneReady, viewerUiStateSeq\]\);/);
   // the store bumps the counter on New, Open, a tab switch and a tab close (all through newProject / loadProjectPayload)
   const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");

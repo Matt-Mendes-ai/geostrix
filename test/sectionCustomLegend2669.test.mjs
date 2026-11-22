@@ -29,5 +29,5 @@ test("#2669 the grouped key: the classes under their layer, the ramp as its own 
   // a list already grouped (rows with options other than a ramp) comes back unchanged
   const grouped = [["Lithology", null, { heading: true }], ["BAS", "#111"]];
   assert.equal(groupSectionLegend(grouped).length, 2);
-  assert.match(fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /legendItems\.push\(\.\.\.sectionCustomLegendItems\(customLayers, new Set\(/);
+  assert.match((fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/modules/viewer/sectionPayload.js", import.meta.url), "utf8")) /* #3996: the section payload moved out */, /legendItems\.push\(\.\.\.sectionCustomLegendItems\(customLayers, new Set\(/);
 });

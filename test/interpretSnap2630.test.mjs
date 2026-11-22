@@ -66,7 +66,7 @@ test("the line records its ties as an attribute and a field", () => {
 
 test("ViewerModule snaps line clicks (not unit polygons) and the pane has the switch", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /snapInterpretClick\(raycastWorldPoint\(raycaster\), raycaster\.ray, \{ on: interpretOpen === true && interpretRef\.current\.snap !== false/);
+  assert.match(v, /snapInterpretClick\([^;]*raycastWorldPoint\(raycaster\), raycaster\.ray, \{ on: interpretOpen === true && interpretRef\.current\.snap !== false/); // [^;]*: #3972's level click
   const p = readFileSync(new URL("../src/components/InterpretPane.jsx", import.meta.url), "utf8");
   assert.match(p, /checked=\{drawing\.snap !== false\} onChange=\{\(e\) => onSnap\(e\.target\.checked\)\}/);
 });

@@ -34,6 +34,7 @@ import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationConsts.js"; // TASKS.csv #1970; estimationConsts: #3961
 import { nextGroupColour, lithologyNoteRoles, setLithologyNoteRoles, setLithologyMeanings } from "./layers.js"; // TASKS.csv #1377; note roles: #2046
 import { titleToKeep, withProjectTitle } from "./projectTitle.js"; // TASKS.csv #3611 / #3612 — the project's title, apart from its file's name
+import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -857,8 +858,10 @@ export function StoreProvider({ children }) {
     const targetPageId = opts.pageId || null, viewState = opts.viewState || null, batch = opts.batch || null;
     // TASKS.csv #2303 — dpi (200 on the page, 300 for an export's print pass) and printPass (the image goes to printSrcs, not the element)
     const dpi = Number(opts.dpi) > 0 ? Number(opts.dpi) : null, printPass = !!opts.printPass;
+    // TASKS.csv #3965 — a resized frame (or its print pass) keeps the metres per page px it showed: the capture's extent follows the frame's size
+    const mPerPx = Number(opts.mPerPx) > 0 ? Number(opts.mPerPx) : null;
     setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale, elementW, elementH, targetPageId, printPass });
-    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch, dpi });
+    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch, dpi, mPerPx });
     setViewportRenderRequestSeq((s) => s + 1);
     return requestId;
   }, []);
@@ -887,7 +890,7 @@ export function StoreProvider({ children }) {
   // own page and the next request goes out from the 3D View (no hop back to Layout in between); Layout is shown once at the end
   const viewportBatchRef = useRef(null);
   const [viewportBatchDone, setViewportBatchDone] = useState(null);
-  const issueBatchItem = (it, b) => requestViewportRender(it.themeId || null, it.elementId, it.trueScale ?? true /* #2303: a print pass keeps the element's own */, false, { fixedScale: it.fixedScale, elementW: it.elementW, elementH: it.elementH, centreWorld: it.centreWorld, pageId: it.pageId, viewState: it.viewState || null, dpi: it.dpi, printPass: it.printPass, batch: { index: b.done + 1, total: b.total, ...(b.label ? { label: b.label } : {}) } });
+  const issueBatchItem = (it, b) => requestViewportRender(it.themeId || null, it.elementId, it.trueScale ?? true /* #2303: a print pass keeps the element's own */, false, { fixedScale: it.fixedScale, elementW: it.elementW, elementH: it.elementH, centreWorld: it.centreWorld, mPerPx: it.mPerPx, pageId: it.pageId, viewState: it.viewState || null, dpi: it.dpi, printPass: it.printPass, batch: { index: b.done + 1, total: b.total, ...(b.label ? { label: b.label } : {}) } });
   // TASKS.csv #2303 — an export's print pass: each viewport's 300 dpi image, session only (never in the project file or Undo), by element id
   const [printSrcs, setPrintSrcs] = useState({});
   const requestViewportBatch = useCallback((items) => {
@@ -1096,7 +1099,7 @@ export function StoreProvider({ children }) {
   // Marked unsaved; undo history cleared (an undo step would put old-CRS coordinates back under the new label).
   // Returns the report ({ counts, notes, maxRotationDeg }). setEpsg alone = "relabel only".
   const reprojectProjectTo = useCallback(async (toEpsg, opts = {}) => {
-    if (!sectionWindowsMayClose()) return { cancelled: true }; // #2620 — the reload closes the section windows: their unsaved lines first
+    if (!(await sectionWindowsMayClose())) return { cancelled: true }; // #2620 — the reload closes the section windows: their unsaved lines first
     const live = liveRef.current;
     const fromEpsg = live.project?.epsg;
     const { reprojectProject } = await import("./projectReproject.js");
@@ -1177,6 +1180,8 @@ export function StoreProvider({ children }) {
   const setProjectCurrency = useCallback((currency) => setProject((p) => { const { currency: _old, ...rest } = p; const c = String(currency ?? "").trim().slice(0, 8); return c ? { ...rest, currency: c } : rest; }), []);
   const setProjectDataCredit = useCallback((dataCredit) => setProject((p) => { const { dataCredit: _old, ...rest } = p; return dataCredit ? { ...rest, dataCredit: String(dataCredit) } : rest; }), []);
   const setDrillRates = useCallback((rates) => setProject((p) => ({ ...p, drillRates: (typeof rates === "function" ? rates(p.drillRates || {}) : rates) || null })), []); // TASKS.csv #2581 — $/m per hole type, kept with the project (a function: from the latest rates)
+  // TASKS.csv #3962 (P3) — the drill programs (inputs and versions), kept with the project like the drill rates: project.drillPrograms = [...] (an older project has none: read as [])
+  const setDrillPrograms = useCallback((progs) => setProject((p) => ({ ...p, drillPrograms: (typeof progs === "function" ? progs(p.drillPrograms || []) : progs) || [] })), []);
   // TASKS.csv #3116 — a built-in log's valid range and despike ({ range: [lo, hi], despikeM }), kept with the project like the drill rates:
   // project.logValidRange = { [layerKey]: ... } (an older project has none: read as {}). null / {} removes the log's entry.
   const setLogValidRange = useCallback((key, entry) => setProject((p) => { const next = { ...(p.logValidRange || {}) }; if (entry && (entry.range || entry.despikeM > 0 || entry.unit)) next[key] = entry; /* TASKS.csv #3448 — entry.unit: a built-in log's unit, kept beside its range */ else delete next[key]; return { ...p, logValidRange: next }; }), []);
@@ -1271,6 +1276,8 @@ export function StoreProvider({ children }) {
   if (!projectKeyRef.current) projectKeyRef.current = newProjectKey();
   const tabKeysRef = useRef(new Map()); // tab id -> its project's key (the shown tab's is set after each render, below)
   const restoreKeyRef = useRef(null); // a tab coming forward keeps its key: set just before its payload is loaded
+  // TASKS.csv #3963 — the tab that holds a project (null once it is closed): where a job's early notices go, whichever tab is shown now
+  const tabIdOfProjectKey = useCallback((key) => (key == null ? null : key === projectKeyRef.current ? activeTabIdRef.current : [...tabKeysRef.current].find(([, k]) => k === key)?.[0] || null), []);
   const getProjectToken = useCallback(() => ({ tabId: activeTabIdRef.current, seq: projectSeqRef.current, key: projectKeyRef.current }), []);
   const isSameProject = useCallback((tok) => !!tok && (tok.key ? tok.key === projectKeyRef.current : tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current), []);
   // TASKS.csv #2640 (side 2's Stage 1) — the last GemPy request as sent (modellingRuns.js): session only, not in FIELDS (never saved, never in
@@ -1298,7 +1305,7 @@ export function StoreProvider({ children }) {
   const answerSaveChoice = useCallback((choice) => { const r = saveChoiceResolveRef.current; saveChoiceResolveRef.current = null; setSaveChoice(null); r?.(choice); }, []);
   const saveProject = useLatestCallback(async ({ saveAs = false } = {}) => {
     // TASKS.csv #342 — last chance before an older build overwrites fields it can't see.
-    if (newerFormatTabsRef.current.has(activeTabId) && !window.confirm(tr("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?"))) return { ok: false, cancelled: true };
+    if (newerFormatTabsRef.current.has(activeTabId) && !await askConfirm(tr("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?"))) return { ok: false, cancelled: true };
     // TASKS.csv #467 — a failed save (disk full, no permission, OneDrive lock, a project too big to
     // serialise) used to be an unhandled rejection whose only sign was a missing "Saved". It now returns
     // {ok:false, error} for the caller to show; nothing about the open project changes.
@@ -1415,12 +1422,19 @@ export function StoreProvider({ children }) {
   const startProjectLoad = () => { projectLoadingRef.current = true; setProjectLoading(true); };
   const endProjectLoad = () => { if (!projectLoadingRef.current) return; projectLoadingRef.current = false; setProjectLoading(false); const w = loadWaitersRef.current; loadWaitersRef.current = []; for (const f of w) f(); };
   const whenProjectLoaded = useLatestCallback(() => (projectLoadingRef.current ? new Promise((ok) => { loadWaitersRef.current.push(ok); }) : Promise.resolve()));
-  const switchToTab = useLatestCallback((tabId) => {
+  const switchToTab = useLatestCallback(async (tabId) => {
     const seq = ++switchSeqRef.current; // first: a click back on the active tab also cancels a switch still expanding
     if (tabId === activeTabId) { endProjectLoad(); return; } // #3931: a click back on the active tab cancels a switch still expanding
+    if (!workspaceTabs.some((t) => t.id === tabId)) { endProjectLoad(); return; }
+    const ok = await sectionWindowsMayClose(); // #2620 — asked in the app's own dialog since #4000, so this waits for the answer
+    if (seq !== switchSeqRef.current) return; // a newer click came while the question was up: that one decides
+    if (!ok) { endProjectLoad(); return; }
+    switchChecked(tabId, seq);
+  });
+  const switchChecked = useLatestCallback((tabId, seq) => { // the rest of the switch, on the state as it is now (the question may have taken a while)
+    if (tabId === activeTabId) { endProjectLoad(); return; }
     const target = workspaceTabs.find((t) => t.id === tabId);
     if (!target) { endProjectLoad(); return; }
-    if (!sectionWindowsMayClose()) { endProjectLoad(); return; } // #2620
     if (!payloadHasTables(target.payload)) { switchNow(tabId, null, null); endProjectLoad(); return; }
     const from = activeTabIdRef.current, stashed = target.payload;
     startProjectLoad(); // #3931
@@ -1447,8 +1461,11 @@ export function StoreProvider({ children }) {
     clearUndoHistory();
   }); // project name: #1218 — a tab left behind keeps the name it has now
 
-  const newWorkspaceTab = useLatestCallback(() => {
-    if (!sectionWindowsMayClose()) return false; // #2620
+  const newWorkspaceTab = useLatestCallback(async () => { // #4000: false when the person kept a section's unsaved lines (the question is in the app's own dialog, so this waits)
+    if (!(await sectionWindowsMayClose())) return false; // #2620
+    return newTabNow();
+  });
+  const newTabNow = useLatestCallback(() => {
     const current = snapshotCurrentPayload();
     const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setWorkspaceTabs([
@@ -1463,8 +1480,8 @@ export function StoreProvider({ children }) {
   // the 3D View (the one ViewerModule instance) picks the request up and loads the sample once the fresh project renders
   const [sampleRequest, setSampleRequest] = useState(null);
   const hasWorkRef = useRef(false); // set below, where hasWork is computed
-  const requestSampleProject = useLatestCallback((which) => {
-    if (hasWorkRef.current && newWorkspaceTab() === false) return; // #2620 — the new tab was cancelled: never load the sample over this project
+  const requestSampleProject = useLatestCallback(async (which) => {
+    if (hasWorkRef.current && (await newWorkspaceTab()) === false) return; // #2620 — the new tab was cancelled: never load the sample over this project
     setSampleRequest({ which, seq: Date.now() });
   });
   const clearSampleRequest = useCallback(() => setSampleRequest(null), []);
@@ -1478,7 +1495,7 @@ export function StoreProvider({ children }) {
     // pre-rename .geox.json files a user already has saved are still selectable/openable here.
     const res = preRead?.content != null ? preRead : await openFile({ filters: [{ name: "GeoStrix Project", extensions: ["json"] }] });
     if (!res.ok) return res;
-    if (!sectionWindowsMayClose()) return { ok: false, canceled: true }; // #2620
+    if (!(await sectionWindowsMayClose())) return { ok: false, canceled: true }; // #2620
     // TASKS.csv #955 — a file already open in a tab (double-clicked again in Explorer, or picked again in File > Open)
     // switches to that tab: a second tab on the same file let two copies be saved over each other
     if (res.filePath) {
@@ -1494,7 +1511,7 @@ export function StoreProvider({ children }) {
       performance.measure?.("GeoStrix: project JSON.parse", { start: tParse, detail: { bytes: res.content.length } });
       const check = checkProjectFile(data); // TASKS.csv #342
       if (!check.ok) return { ok: false, error: check.error };
-      if (check.newer && !window.confirm(tr("This project was saved by a newer GeoStrix (file format {newer}; this version reads up to {reads}). What that version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
+      if (check.newer && !await askConfirm(tr("This project was saved by a newer GeoStrix (file format {newer}; this version reads up to {reads}). What that version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
       data = await expandPayloadSliced(data); // TASKS.csv #3423 — the column tables built into rows a slice at a time (one 1.4-1.9 s task before), before anything changes
       const current = snapshotCurrentPayload();
       const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -1529,12 +1546,12 @@ export function StoreProvider({ children }) {
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't
   // built to represent.
-  const closeWorkspaceTab = useLatestCallback((tabId) => {
+  const closeWorkspaceTab = useLatestCallback(async (tabId) => {
     const tab = workspaceTabs.find((t) => t.id === tabId);
     if (!tab) return;
-    if (tabId === activeTabId && !sectionWindowsMayClose()) return; // #2620 — closing the shown project closes its section windows
+    if (tabId === activeTabId && !(await sectionWindowsMayClose())) return; // #2620 — closing the shown project closes its section windows
     const dirty = tabId === activeTabId ? activeTabDirty : tab.dirty;
-    if (dirty && !window.confirm(tr("Close \"{name}\" without saving? Unsaved changes will be lost.", { name: tabId === activeTabId ? project.name : tab.name }))) return;
+    if (dirty && !await askConfirm(tr("Close \"{name}\" without saving? Unsaved changes will be lost.", { name: tabId === activeTabId ? project.name : tab.name }))) return;
     const remaining = workspaceTabs.filter((t) => t.id !== tabId);
     if (tabId !== activeTabId) { setWorkspaceTabs(remaining); return; }
     if (!remaining.length) {
@@ -1584,6 +1601,7 @@ export function StoreProvider({ children }) {
       text: e.kind === "held" ? tr("{label} finished for \"{project}\", which is open in another tab: it is added there when you show that tab.", { label: e.label, project: e.project })
         : e.kind === "delivered" ? tr("{label}: added to \"{project}\" now that it is shown.", { label: e.label, project: e.project })
         : e.kind === "cancelled" ? (e.reason === "replaced" ? tr("{label} cancelled: another project was opened in its tab.", { label: e.label }) : tr("{label} cancelled: its project was closed.", { label: e.label }))
+        : e.kind === "cutoff" ? tr("{label} was cut off: its project closed before the rest was added.", { label: e.label }) // TASKS.csv #3963
         : tr("{label} was not added: its project is no longer open.", { label: e.label }) }]),
   });
   const startProjectJob = useCallback((o) => jobsRef.current.start(o), []);
@@ -2067,7 +2085,7 @@ export function StoreProvider({ children }) {
   });
 
   const value = {
-    project, setProjectTitle /* #3611 / #3612 */, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectCurrency /* #3797 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    project, setProjectTitle /* #3611 / #3612 */, setEpsg, setLocalGrid /* #2180 */, setLocalGridTie /* #2288 */, setLocalGridDatum /* #2691 / #2661 */, setMineGrid /* #2586 */, setProjectName, setProjectDataCredit /* #3496 */, setProjectCurrency /* #3797 */, setProjectAzimuthNorth /* #3588 (6) */, setProjectQcLinks /* #3409 */, setProjectDensityRange /* #3587 */, setProjectQcChecked /* #3569 */, setDrillRates /* #2581 */, setLogValidRange /* #3116 */, setDrillPrograms /* #3962 */, setDisplayUnit /* #3236 */, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
@@ -2143,7 +2161,7 @@ export function StoreProvider({ children }) {
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     saveChoice, answerSaveChoice, // #3638 — the 'save over the recovered file?' question App draws
     getProjectToken, isSameProject, addVoxelModelToTab, // #466
-    startProjectJob, jobNotes, dismissJobNote, // #3953
+    startProjectJob, jobNotes, dismissJobNote, tabIdOfProjectKey, // #3953; tabIdOfProjectKey: #3963
     undo, redo, peekUndo, peekRedo, canUndo: undoCount > 0, canRedo: redoCount > 0, undoCheckpoint: commitUndoBurst, // #3184
     // TASKS.csv #3110 — a NEW calculated element's Add (GeochemModule): its own undo step, holding a token instead of the old assay table
     setAssaysWithInverse: (next, symbol) => { commitUndoBurst(); undoIntent.current = { next, token: calcUndoToken(next, symbol) }; setAssays(next); },

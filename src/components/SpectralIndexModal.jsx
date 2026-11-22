@@ -5,6 +5,7 @@
 // Planetary Computer, no account), only that area's window of the bands the index uses is read (lib/imageryFetch.js),
 // and the same importer takes it from there.
 import React, { useMemo, useRef, useState } from "react";
+import { isCancelledError } from "../lib/desktop.js"; // TASKS.csv #3976
 import { X, Upload, Rainbow, Search } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -18,7 +19,7 @@ import HyperspectralTab from "./HyperspectralTab.jsx"; // TASKS.csv #807
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { lastSummer } from "../lib/summerDates.js"; // TASKS.csv #2464 — the project's own hemisphere
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
-import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
+import { useStartProjectJob, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #3976 — // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the index lands only in the project it was made for
 
 const CUSTOM = "custom";
@@ -29,6 +30,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
   useEscapeKey(onClose);
   useFocusTrap();
   const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
+  const setTaskProgress = useSetTaskProgress(); // TASKS.csv #3976 — the scene's download in the status bar
   const fileInput = useRef(null);
   const [mode, setMode] = useState("fetch"); // "fetch" (#784) | "file" (#783)
   const [file, setFile] = useState(null); // { file, bands, width, height }
@@ -135,10 +137,13 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
     if (parsed.error) return;
     setBusy(true); setError(null);
     const job = startProjectJob ? startProjectJob({ label: tr("Spectral index") }) : noJob(tr("Spectral index")); // TASKS.csv #3953
+    // TASKS.csv #3976 — a scene's download: the bar in the status bar, with Cancel stopping the reads (#3963's signal)
+    const bar = fetchMode ? (await import("../lib/fetchProgress.js")).startFetchProgress(setTaskProgress, { label: tr("Spectral index"), stages: [["read", 0.85], ["index", 0.15]], onCancel: () => job.abort() }) : null;
+    bar?.step("read", 0, 1, tr("Connecting to {source}…", { source: "Sentinel-2" })); // #3976 — the bar at once (a moving bar until something is counted)
     try {
       if (fetchMode) {
         if (!scene) return;
-        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => setProgress({ d, n }), targetEpsg: tie ? Number(tie.epsg) : epsg }); // tie: #2648
+        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => { setProgress({ d, n }); bar?.step("read", d, n, tr("Reading the scene's bands {d} of {n}", { d, n })); }, targetEpsg: tie ? Number(tie.epsg) : epsg, signal: job.signal }); // tie: #2648; signal: #3963 — closing its project stops the download
         await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0, job);
       } else {
         if (!file || unmapped.length) return;
@@ -146,8 +151,8 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
         await makeIndex(file.file, Object.fromEntries((vegOn ? mapRoles : parsed.uses).map((r) => [r, bandOf(r)])), sensor, "", vegOn, job);
       }
     } catch (e) {
-      setError(e.message);
-    } finally { setBusy(false); setProgress(null); job.end(); } // job: TASKS.csv #3953
+      if (!job.gone) setError(isCancelledError(e) ? tr("Spectral index cancelled.") /* #3976 */ : e.message); // #3963 — a project closed mid-download: the banner says it
+    } finally { setBusy(false); setProgress(null); bar?.end(); job.end(); } // job: TASKS.csv #3953; bar: #3976
   };
 
   const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };

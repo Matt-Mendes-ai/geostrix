@@ -8,6 +8,19 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, session, shell, protocol, cli
 // event. Fixed at the source (see mainWindow.on("close", ...) below) with a real, always-visible native
 // confirm dialog instead, driven by a dirty-state flag the renderer now pushes over IPC.
 let rendererDirty = false;
+// TASKS.csv #3995 — the three questions the main process asks the person (install an update with unsaved work, quit without saving, close section windows with unsaved lines) are put in the
+// window's in-app dialog (electron/mainAsk.js: an IPC round trip), and in the OS box only when the window cannot answer (hung, gone, no dialog host): quitting a hung app still works.
+// STAY NATIVE ON PURPOSE (each says why where it is): the crashed renderer ('GeoStrix stopped': nothing in-app can draw), a network folder (\\host may be sent sign-in details), an AI app's
+// request to read / change the project and its download request (security questions: an OS dialog cannot be drawn, clicked or answered by page content or a script in the renderer, which is the
+// point of asking there). The 'may these sections close?' check a project load makes is in-app too since #4000 (an async invoke; it was a synchronous call that could only show an OS box).
+const nativeAsk = async (win, spec) => {
+  const i = (v) => spec.buttons.findIndex((b) => b.value === v);
+  const r = await dialog.showMessageBox(win && !win.isDestroyed() ? win : undefined, { type: "warning", title: spec.title, message: spec.message, detail: spec.detail || undefined, noLink: true,
+    buttons: spec.buttons.map((b) => b.label), defaultId: Math.max(0, spec.buttons.findIndex((b) => b.primary)), cancelId: Math.max(0, i(spec.cancelValue)) });
+  return spec.buttons[r.response]?.value ?? spec.cancelValue;
+};
+const { createAsker } = require("./mainAsk.js"); // TASKS.csv #3995 — the main process's questions in the window's own dialog, native when it cannot answer
+const askRenderer = createAsker({ ipc: ipcMain, nativeAsk }); // after its require: the other order threw 'Cannot access createAsker before initialization' and the app never started
 const path = require("path");
 const fs = require("fs");
 const dns = require("dns");
@@ -342,16 +355,13 @@ ipcMain.handle("updater-download", async () => {
 // disarmed (rendererDirty cleared) and the Python engine stopped first so no job is cut mid-write.
 ipcMain.handle("updater-install", async () => {
   if (rendererDirty && mainWindow && !mainWindow.isDestroyed()) {
-    const { response } = await dialog.showMessageBox(mainWindow, {
-      type: "warning",
-      buttons: ["Cancel — I'll save first", "Install without saving"],
-      defaultId: 0,
-      cancelId: 0,
+    const answer = await askRenderer(mainWindow, { // #3995 — in the window's own dialog; the OS box when it cannot answer
       title: "Unsaved changes",
       message: "Save your project before installing the update.",
       detail: "Installing closes GeoStrix straight away. Unsaved changes since the last save would be lost (autosave may not have them). Save with Ctrl+S, then click \"Restart & install\" again.",
+      buttons: [{ label: "Cancel — I'll save first", value: "cancel", primary: true }, { label: "Install without saving", value: "install" }], cancelValue: "cancel",
     });
-    if (response !== 1) return { ok: false, cancelled: true };
+    if (answer !== "install") return { ok: false, cancelled: true };
   }
   rendererDirty = false; // the close guard must not re-ask while the installer is closing the app
   try { stopPythonSidecar(); } catch (_) { /* best effort */ }
@@ -419,11 +429,16 @@ function createMainWindow() {
   // restores to.
   mainWindow.maximize();
   mainWindow.webContents.setWindowOpenHandler(openExternalOnly); // #345 — shared with every window
+  // TASKS.csv #3992 — an AI app's calls still waiting on this window fail at once when it reloads, navigates away, dies or closes (the change lock is free again)
+  const mcpLost = (why) => { try { mcpHost?.windowLost(why); } catch (_) { /* no host, or it is stopping */ } };
+  mainWindow.webContents.on("did-start-navigation", (e, url, inPlace, isMain) => { if ((e?.isMainFrame ?? isMain) && !(e?.isSameDocument ?? inPlace)) mcpLost("reloaded"); });
   if (isDev) mainWindow.webContents.openDevTools({ mode: "detach" });
   // TASKS.csv #1672 (review #1645, Copley) — a renderer that dies (it ran out of memory on a log-axis bug) left a black window with no
   // word and no way back. Say so and offer a reload; the autosave (at most a minute old) offers the work back on reload.
   mainWindow.webContents.on("render-process-gone", (_e, details) => {
     if (!details || details.reason === "clean-exit") return;
+    mcpLost("crashed"); // #3992
+    // TASKS.csv #3995 — NATIVE ON PURPOSE: the renderer is gone, so nothing in-app can show this question
     const choice = dialog.showMessageBoxSync(mainWindow, {
       type: "error", buttons: ["Reload", "Close GeoStrix"], defaultId: 0, cancelId: 1, title: "GeoStrix stopped",
       message: "The GeoStrix window stopped working (" + details.reason + ").",
@@ -435,27 +450,38 @@ function createMainWindow() {
   // See the top-of-file comment on rendererDirty for why this exists: intercepts the window close
   // (triggered by the X button, File > Exit, Cmd/Ctrl+Q, or app.quit() from anywhere) and shows a real
   // dialog when there are unsaved changes, instead of relying on beforeunload's silent-no-op-in-Electron
-  // behavior. showMessageBoxSync blocks the main process until answered, so this can't race with
-  // anything else trying to quit at the same time. Clicking "Quit Without Saving" clears the flag and
-  // re-issues close() — the listener sees rendererDirty is now false and lets the close proceed normally.
+  // behavior. Until #3995 that dialog was showMessageBoxSync (blocking); it is asked in the window now (below), one question at a time.
+  // Clicking "Quit Without Saving" clears the flag and re-issues close() — the listener lets that one through.
+  // TASKS.csv #3995 — the questions are asked in the window's own dialog (askRenderer), so the close is held (preventDefault) and finished when the answers are in; one set of questions at a time,
+  // and a close the person has confirmed is let through the listener when it is re-issued.
+  let closeAsking = false, closeConfirmed = false;
   mainWindow.on("close", (e) => {
-    if (!rendererDirty) { if (!mayCloseSections(mainWindow, [...sectionTabs.keys()])) e.preventDefault(); return; } // #1323 — section windows close with this one
+    if (closeConfirmed) return;
+    if (!rendererDirty && ![...sectionTabs.keys()].some((id) => sectionUnsaved.has(id))) return; // nothing to ask: it closes as it is
     e.preventDefault();
-    const choice = dialog.showMessageBoxSync(mainWindow, {
-      type: "warning",
-      buttons: ["Quit Without Saving", "Cancel"],
-      defaultId: 1,
-      cancelId: 1,
-      title: "Unsaved changes",
-      message: "This project has unsaved changes.",
-      detail: "Autosave keeps a periodic snapshot, but it may not include your most recent edits. Quit anyway?",
-    });
-    if (choice === 0) {
-      rendererDirty = false;
-      mainWindow.close();
-    }
+    if (closeAsking) return; // a second click on the X while the question is up
+    closeAsking = true;
+    (async () => {
+      try {
+        if (rendererDirty) {
+          const answer = await askRenderer(mainWindow, {
+            title: "Unsaved changes",
+            message: "This project has unsaved changes.",
+            detail: "Autosave keeps a periodic snapshot, but it may not include your most recent edits. Quit anyway?",
+            buttons: [{ label: "Quit Without Saving", value: "quit" }, { label: "Cancel", value: "cancel", primary: true }], cancelValue: "cancel",
+          });
+          if (answer !== "quit") return;
+          rendererDirty = false;
+        }
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        if (!(await mayCloseSectionsAsk(mainWindow, [...sectionTabs.keys()]))) return; // #1323 — section windows close with this one
+        closeConfirmed = true;
+        mainWindow.close();
+      } finally { closeAsking = false; closeConfirmed = false; }
+    })();
   });
   mainWindow.on("closed", () => {
+    mcpLost("closed"); // #3992
     mainWindow = null;
     for (const w of sectionHosts) if (!w.isDestroyed()) w.close();
   });
@@ -569,20 +595,20 @@ const sectionHosts = new Set(); // every section window, oldest first: new secti
 // TASKS.csv #1323 — sections with lines not saved yet, and the question in the interface's language (the main process has no translations of its own)
 const sectionUnsaved = new Set();
 let sectionUnsavedText = { title: "Unsaved lines", message: "Some lines on this section have not been saved.", detail: "Save contacts keeps them. If you close now, they are lost.", close: "Close without saving", cancel: "Cancel" };
+// #3995 — the same question in the window's own dialog (the section window's, or the main window's): true when these sections may close
+async function mayCloseSectionsAsk(win, ids) {
+  const at = ids.filter((id) => sectionUnsaved.has(id));
+  if (!at.length) return true;
+  const t = sectionUnsavedText;
+  const answer = await askRenderer(win, { title: t.title, message: at.length > 1 ? `${t.message} (${at.length})` : t.message, detail: t.detail, buttons: [{ label: t.close, value: "close" }, { label: t.cancel, value: "cancel", primary: true }], cancelValue: "cancel" });
+  if (answer !== "close") return false;
+  at.forEach((id) => sectionUnsaved.delete(id));
+  return true;
+}
 ipcMain.on("section-tab-unsaved", (_e, id, unsaved, text) => {
   if (unsaved) sectionUnsaved.add(id); else sectionUnsaved.delete(id);
   if (text && Object.keys(sectionUnsavedText).every((k) => typeof text[k] === "string")) sectionUnsavedText = { title: text.title, message: text.message, detail: text.detail, close: text.close, cancel: text.cancel };
 });
-// true when these sections may close: none has unsaved lines, or the person said to lose them
-function mayCloseSections(win, ids) {
-  const at = ids.filter((id) => sectionUnsaved.has(id));
-  if (!at.length) return true;
-  const t = sectionUnsavedText;
-  const keep = dialog.showMessageBoxSync(win, { type: "warning", buttons: [t.close, t.cancel], defaultId: 1, cancelId: 1, title: t.title, message: at.length > 1 ? `${t.message} (${at.length})` : t.message, detail: t.detail });
-  if (keep !== 0) return false;
-  at.forEach((id) => sectionUnsaved.delete(id));
-  return true;
-}
 ipcMain.handle("get-section-data", (ev) => {
   const win = BrowserWindow.fromWebContents(ev.sender);
   return [...sectionTabs].filter(([, w]) => w === win).map(([id]) => sectionPayloads.get(id));
@@ -623,7 +649,16 @@ function createSectionHost(title) {
   sectionHosts.add(win);
   win.on("resize", () => { if (!win.isMaximized() && !win.isMinimized() && !win.isFullScreen()) { const [width, height] = win.getSize(); lastSectionSize = { width, height }; } }); // #3574
   win.loadURL(resolveUrl("/section"));
-  win.on("close", (e) => { if (!mayCloseSections(win, [...sectionTabs].filter(([, w]) => w === win).map(([id]) => id))) e.preventDefault(); }); // #1323
+  let sectionCloseAsking = false, sectionCloseConfirmed = false; // #3995 — asked in the section window's own dialog, so the close is held and re-issued once confirmed
+  win.on("close", (e) => {
+    if (sectionCloseConfirmed) return;
+    const ids = [...sectionTabs].filter(([, w]) => w === win).map(([id]) => id);
+    if (!ids.some((id) => sectionUnsaved.has(id))) return; // nothing to ask: it closes as it is
+    e.preventDefault();
+    if (sectionCloseAsking) return;
+    sectionCloseAsking = true;
+    mayCloseSectionsAsk(win, ids).then((ok) => { if (ok && !win.isDestroyed()) { sectionCloseConfirmed = true; win.close(); } }).finally(() => { sectionCloseAsking = false; sectionCloseConfirmed = false; }); // #1323
+  });
   win.on("closed", () => {
     sectionHosts.delete(win);
     for (const [id, w] of sectionTabs) if (w === win) { sectionTabs.delete(id); sectionPayloads.delete(id); sectionUnsaved.delete(id); }
@@ -695,9 +730,13 @@ ipcMain.handle("open-section-window", (_e, payload) => {
 // TASKS.csv #2620 (re-test of #2516) — closing every section window on a project load skipped the 'Unsaved lines' question (#1323): a
 // drawn, unsaved contact was lost when a tab was opened or the project reprojected. The main window asks this BEFORE it replaces the
 // project (synchronously, so a store action can stop): true when no section has unsaved lines or the user chose to close them anyway.
-ipcMain.on("may-close-section-windows", (ev) => {
-  if (!mainWindow || BrowserWindow.fromWebContents(ev.sender) !== mainWindow) { ev.returnValue = true; return; }
-  ev.returnValue = mayCloseSections(mainWindow, [...sectionTabs.keys()]);
+// TASKS.csv #4000 — asked in the main window's own dialog (mayCloseSectionsAsk; the OS box only when the window cannot answer), so the store actions that call it wait for the answer. One question at a
+// time: a second call while one is up gets the same answer.
+let sectionsMayCloseAsk = null;
+ipcMain.handle("may-close-section-windows", (ev) => {
+  if (!mainWindow || BrowserWindow.fromWebContents(ev.sender) !== mainWindow) return true;
+  if (!sectionsMayCloseAsk) sectionsMayCloseAsk = mayCloseSectionsAsk(mainWindow, [...sectionTabs.keys()]).finally(() => { sectionsMayCloseAsk = null; });
+  return sectionsMayCloseAsk;
 });
 ipcMain.handle("close-section-windows", (ev) => {
   if (!mainWindow || BrowserWindow.fromWebContents(ev.sender) !== mainWindow) return { ok: false };
@@ -958,13 +997,25 @@ function friendlyDbError(err, config) {
 // no API key, no account. Not literally usgs.gov (their EarthExplorer/M2M API requires a personal
 // login, which doesn't fit a zero-config open-source desktop app — see src/lib/srtmFetch.js's header
 // comment for the full reasoning), but the same SRTM-heritage public elevation data.
-ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y } = {}) => {
+// TASKS.csv #3963 — a download the renderer can stop: its request carries an id (reqId), and "net-abort" with that id aborts the guardedFetch (its
+// signal), so a job cancelled by its project's close stops its network reads instead of finishing a download nobody will use. The answer then says
+// cancelled: true. No id: as before.
+const netAborts = new Map();
+async function netFetch(reqId, url, opts = {}) {
+  const ctrl = typeof reqId === "string" && reqId.length > 0 && reqId.length <= 64 ? new AbortController() : null;
+  if (ctrl) netAborts.set(reqId, ctrl);
+  try { return await guardedFetch(url, { ...opts, ...(ctrl ? { signal: ctrl.signal } : {}) }); } finally { if (ctrl && netAborts.get(reqId) === ctrl) netAborts.delete(reqId); }
+}
+ipcMain.on("net-abort", (_e, reqId) => { try { netAborts.get(String(reqId))?.abort(); } catch (_) { /* gone already */ } });
+const notOk = (res, extra = {}) => ({ ok: false, status: res.status, message: res.message, ...(res.cancelled ? { cancelled: true } : {}), ...extra });
+
+ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y, reqId } = {}) => {
   // TASKS.csv #350 — z/x/y were interpolated into the URL unchecked; now integers in the slippy-map range,
   // with a timeout and a size cap (a Terrarium tile is ~100 KB).
   if (!validTileIndex(z, x, y)) return { ok: false, status: 0, message: "Invalid elevation tile index." };
   const url = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
-  const res = await guardedFetch(url, { timeoutMs: 30000, maxBytes: 5 * 1024 * 1024 });
-  if (!res.ok) return { ok: false, status: res.status, message: res.message || `Tile fetch failed (HTTP ${res.status}) for z${z}/${x}/${y}.` };
+  const res = await netFetch(reqId, url, { timeoutMs: 30000, maxBytes: 5 * 1024 * 1024 });
+  if (!res.ok) return notOk(res, { message: res.message || `Tile fetch failed (HTTP ${res.status}) for z${z}/${x}/${y}.` });
   return { ok: true, base64: res.buffer.toString("base64") };
 });
 
@@ -988,9 +1039,9 @@ ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y } = {}) => {
 // plausibly hit (e.g. a cloud metadata endpoint or another local service).
 // TASKS.csv #350 — the hostname-pattern check (isBlockedWebLayerHost) is replaced by electron/netGuard.js:
 // every hop resolved and range-checked, redirects followed manually, timeout, byte cap.
-ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
-  const res = await guardedFetch(String(url || ""), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024 });
-  if (res.message) return { ok: false, status: res.status, message: res.message };
+ipcMain.handle("fetch-web-layer", async (_e, { url, reqId } = {}) => {
+  const res = await netFetch(reqId, String(url || ""), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024 });
+  if (res.message) return notOk(res);
   if (!res.ok) {
     // Servers often return a 200 with an XML ServiceExceptionReport instead of a real HTTP error —
     // that's handled renderer-side by inspecting the body — but a genuine non-2xx still deserves
@@ -1011,7 +1062,7 @@ ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
 const RS_PATH_LIMITS = { "storage.googleapis.com": "/climate-and-sustainability/gem-15/" };
 const rsPathOk = (u) => !RS_PATH_LIMITS[u.hostname] || String(u.pathname).startsWith(RS_PATH_LIMITS[u.hostname]);
 const RS_HOSTS = new Set(["earth-search.aws.element84.com", "sentinel-cogs.s3.us-west-2.amazonaws.com", "planetarycomputer.microsoft.com", "astersa.blob.core.windows.net", "naipeuwest.blob.core.windows.net", "copernicus-dem-30m.s3.amazonaws.com", "canelevation-dem.s3.ca-central-1.amazonaws.com", "datacube.services.geo.ca", "storage.googleapis.com"]); // NRCan: #815; storage.googleapis.com: #3721 (GEM-15, its path only)
-ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = null } = {}) => {
+ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = null, reqId } = {}) => {
   let u;
   try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
   if (u.protocol !== "https:" || !RS_HOSTS.has(u.hostname) || !rsPathOk(u)) return { ok: false, status: 0, message: `GeoStrix only reads imagery from ${[...RS_HOSTS].join(", ")}.` };
@@ -1027,8 +1078,8 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
     if (body.length > 65536) return { ok: false, status: 0, message: "Search request too large." };
     init = { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body };
   }
-  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init, allowHost: (h) => h.protocol === "https:" && RS_HOSTS.has(h.hostname) && rsPathOk(h) }); // #960 — every redirect hop too
-  if (res.message) return { ok: false, status: res.status, message: res.message };
+  const res = await netFetch(reqId, u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init, allowHost: (h) => h.protocol === "https:" && RS_HOSTS.has(h.hostname) && rsPathOk(h) }); // #960 — every redirect hop too
+  if (res.message) return notOk(res);
   return { ok: res.ok, status: res.status, contentType: res.contentType, contentRange: res.contentRange, data: res.buffer };
 });
 
@@ -1036,12 +1087,12 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
 // its API v2 (macrostrat.org: the map units at a point, their map sources). Data CC BY 4.0. GET only, only these two HTTPS hosts,
 // the #350 address checks on every hop, 16 MB, 60 s. Only when the user asks for the layer or the units.
 const MACROSTRAT_HOSTS = new Set(["macrostrat.org", "tiles.macrostrat.org"]);
-ipcMain.handle("macrostrat-fetch", async (_e, { url, binary = false } = {}) => {
+ipcMain.handle("macrostrat-fetch", async (_e, { url, binary = false, reqId } = {}) => {
   let u;
   try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
   if (u.protocol !== "https:" || !MACROSTRAT_HOSTS.has(u.hostname)) return { ok: false, status: 0, message: "GeoStrix only reads Macrostrat from macrostrat.org and tiles.macrostrat.org." };
-  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 16 * 1024 * 1024, allowHost: (h) => h.protocol === "https:" && MACROSTRAT_HOSTS.has(h.hostname) });
-  if (res.message) return { ok: false, status: res.status, message: res.message };
+  const res = await netFetch(reqId, u.toString(), { timeoutMs: 60000, maxBytes: 16 * 1024 * 1024, allowHost: (h) => h.protocol === "https:" && MACROSTRAT_HOSTS.has(h.hostname) });
+  if (res.message) return notOk(res);
   return { ok: res.ok, status: res.status, contentType: res.contentType, ...(binary ? { bytes: res.buffer } : { text: res.buffer.toString("utf8") }) };
 });
 
@@ -1256,6 +1307,7 @@ async function allowNetworkPath(p) {
   if (!isUncPath(p)) return true;
   const host = String(p).replace(/^[\\/]+/, "").split(/[\\/]/)[0].toLowerCase();
   if (approvedShareHosts.has(host)) return true;
+  // TASKS.csv #3995 — NATIVE ON PURPOSE: opening \\host may send the person's Windows sign-in details to that computer, so the question is an OS dialog that a page cannot draw or click for them
   const { response } = await dialog.showMessageBox(mainWindow, {
     type: "question", buttons: ["Open", "Cancel"], defaultId: 1, cancelId: 1, noLink: true,
     title: "Network folder", message: `Open the network location \\\\${host}?`,
@@ -1739,6 +1791,8 @@ function writePrefs(patch) { try { fs.writeFileSync(prefsPath(), JSON.stringify(
 
 // TASKS.csv #3190 (Matt's decisions, 2026-11-17) — AI App Access: an optional, local, read-only Model Context Protocol server (electron/mcpHost.js), off until the user switches it on, with a
 // per-launch token on a named pipe / Unix socket (no TCP port) and the first connection of each AI app asked here, in a native box the window cannot answer.
+// TASKS.csv #3995 — the two questions below (allow an AI app to read / change the project, allow its download) are asked in an OS box ON PURPOSE, not the in-app dialog: they are security questions,
+// and an OS dialog cannot be drawn, clicked or answered by page content or by a script running in the renderer, which is the whole point of asking there.
 let mcpHost = null, mcpAsk = Promise.resolve();
 function mcp() {
   if (mcpHost) return mcpHost;

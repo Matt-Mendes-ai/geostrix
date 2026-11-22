@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 
 test("#2432 the custom layer's sidebar row shows its notes (tooltip and an info mark)", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.ok(v.includes("title={l.notes ? `${l.name}\\n${l.notes}` : l.name}>{l.name}</span>"));
+  assert.ok(v.includes("title={l.notes ? `${l.name}\\n${l.notes}` : l.name}>{customPicks.names.get(l.id) ?? l.name")); // #4007 — the row shows the name's distinguishing part; the tooltip keeps the whole name and the notes
   assert.match(v, /\{l\.notes && <span title=\{l\.notes\}[^>]*><Info size=\{12\} aria-label=\{tr\("Layer notes: \{v\}", \{ v: l\.notes \}\)\} \/><\/span>\}/);
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))["Layer notes: {v}"], l);
 });

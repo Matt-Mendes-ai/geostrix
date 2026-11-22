@@ -25,6 +25,7 @@ export function useModelling(ctx) {
     modellingCodes, // TASKS.csv #599
     originRef,
     sceneToApi,
+    setNoticesToTab, // TASKS.csv #3963
     setStackUnits,
     stackUnits,
     tracesRef,
@@ -34,7 +35,9 @@ export function useModelling(ctx) {
   // hands the run the context of the render it was clicked in (ctxRef is refreshed every render).
   const ctxRef = useRef(ctx);
   const store = useStore(), logValidRange = store.project?.logValidRange; // #3116
-  ctxRef.current = { ...ctx, logValidRange, setLastImplicitRequest: store.setLastImplicitRequest /* #2640 */, startProjectJob: store.startProjectJob /* #3953 */ };
+  // TASKS.csv #3963 — a job's early notices go to the project it started in (its tab's list, or none once it is closed), not to the tab shown when it speaks
+  const setNoticesFor = (key, updater) => setNoticesToTab?.(store.tabIdOfProjectKey?.(key), updater);
+  ctxRef.current = { ...ctx, logValidRange, setLastImplicitRequest: store.setLastImplicitRequest /* #2640 */, startProjectJob: store.startProjectJob /* #3953 */, setNoticesFor /* #3963 */, generatedSurfaces: store.generatedSurfaces /* #4006 — a Faults-pane fault in the stack */ };
   const lazyRun = useCallback((name) => async (...args) => {
     let create;
     try {
@@ -66,8 +69,10 @@ export function useModelling(ctx) {
       const e = m.get(key) || { key, type: s.value, id: s.structure_id || "", n: 0, faultLike: faultLikeName(`${s.value} ${s.structure_id || ""}`) }; // #1549
       e.n++; m.set(key, e);
     });
-    return [...m.values()].sort((a, b) => (b.faultLike - a.faultLike) || a.key.localeCompare(b.key));
-  }, [layers.structure]);
+    // TASKS.csv #4006 — and the faults built in the Faults pane from every kind of evidence, solved again with the stack from the inputs kept on them
+    const built = (store.generatedSurfaces || []).filter((s) => s.params?.faultEvidence && s.params?.inputs?.points?.length).map((s) => ({ key: `surf|${s.id}`, type: s.name, id: "", n: s.params.inputs.points.length, faultLike: true, label: s.name, built: true }));
+    return [...built, ...[...m.values()].sort((a, b) => (b.faultLike - a.faultLike) || a.key.localeCompare(b.key))];
+  }, [layers.structure, store.generatedSurfaces]);
   const addStackUnit = useCallback((u) => {
     if (!u || stackUnits.includes(u)) return;
     // TASKS.csv #3162 — no cap here: the Layer-cake method has no unit limit, and a GemPy run checks its own before it starts (modellingRuns)

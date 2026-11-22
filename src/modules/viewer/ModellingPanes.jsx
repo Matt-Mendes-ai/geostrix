@@ -5,7 +5,7 @@
 // startup budget. The props are exactly the free identifiers of the moved JSX that ViewerModule declares (found by
 // Babel scope analysis, not by hand); module imports are re-imported here.
 import { isNotLogged } from "../../lib/notLogged.js"; // TASKS.csv #1740
-import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool } from "../../components/icons.js";
+import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool, SquareSplitVertical } from "../../components/icons.js";
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote, gradeShellBudgetMB, shellBudgetsFor, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #3651 // gradeShellBudgetMB, shellBudgetsFor: #3581
 import { useMachineMemoryGB, fetchFits, fetchBudgetMB } from "../../lib/fetchMemory.js"; // TASKS.csv #3581 // gradeShellBudgetNote: #1416
 import InfoButton from "../../components/InfoButton.jsx";
@@ -17,7 +17,9 @@ import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
 import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
-import { pileFromRuns, absentTops, orderFromHoles, movesToOrder } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles / movesToOrder: #2926
+import { pileFromRuns, absentTops, orderFromHoles } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles: #2926
+import { holesOrderPlan } from "../../lib/holesOrder.js"; import SortByHoles from "./SortByHoles.jsx"; // TASKS.csv #3994 — Sort by the holes
+import { addAllCandidates } from "../../lib/stackAddAll.js"; import AddAllUnits from "./AddAllUnits.jsx"; // TASKS.csv #3999 — Add all
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
@@ -53,9 +55,11 @@ import { ENVELOPE_RANGES } from "../../lib/viewer/shellEnvelope.js";
 import DomainUpdateSection from "./DomainUpdateSection.jsx"; // TASKS.csv #3673 phase 2 // TASKS.csv #3673 — the ranges said in the pane // TASKS.csv #2222 — the Estimation dialog's default cap (#1573) here too
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957
 const ModelAreaRange = lazy(() => import("../../components/ModelAreaRange.jsx")); // TASKS.csv #2536
 const GradeThicknessModal = lazy(() => import("../../components/GradeThicknessModal.jsx")); // TASKS.csv #2419
 const LithoSuggestBox = lazy(() => import("../../components/LithoSuggestBox.jsx")); // TASKS.csv #2004
+const FaultsPanel = lazy(() => import("./FaultsPanel.jsx")); // TASKS.csv #4006 — every fault tool in one pane
 
 export default function ModellingPanes(props) {
   const {
@@ -230,6 +234,7 @@ export default function ModellingPanes(props) {
     setThinWindowM,
     orientationReachM, setOrientationReachM, // TASKS.csv #1170
     stackBreaks, setStackBreaks, // TASKS.csv #1309
+    setStackUnits, // TASKS.csv #3994
     visibleHoles, // TASKS.csv #1315
     setVisibleHoles, setHoleFilter, // TASKS.csv #2536 — Model area by an E / N range; setHoleFilter: #3775 (4)
     setTrendPreviewId,
@@ -479,6 +484,20 @@ export default function ModellingPanes(props) {
     const r = orderFromHoles(layers.litho || [], stackUnits, codesOf);
     return r.conflicts.length ? r : null;
   }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
+  // TASKS.csv #3994 (Matt, Century) — the stack as the holes would put it: the fewest moves, units the holes never show together keep their place, contradictions listed (lib/holesOrder.js)
+  const stackCodesOf = (u) => { // the logged values that are this stack unit (a group's codes, a Modelling code's, or the code)
+    if (isLithoGroupKey(u)) return resolveLithoTarget(u)?.codes || [];
+    if (!isMcodeKey(u)) return [u];
+    const v = new Set(); for (const r of areaRuns()) if (r.code === u.slice(6)) for (const row of r.rows) v.add(row.value); return [...v];
+  };
+  const holesPlan = useMemo(() => {
+    if (toolPane !== "stack" || stackUnits.length < 2) return null;
+    return holesOrderPlan(layers.litho || [], stackUnits, stackCodesOf);
+  }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
+  // TASKS.csv #3999 — what 'Add all' could add: the codes the 'Add a unit…' list offers (not a cross-cutting, no-recovery, cover or left-out one), by the same rules
+  const [addAllOpen, setAddAllOpen] = useState(false);
+  const addAllC = useMemo(() => (toolPane !== "stack" ? null : addAllCandidates({ rows: layers.litho || [], litho_units, modellingCodeList, roleOf: rawRole, stackUnits, codesOf: stackCodesOf,
+    groupOf: (u) => lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u)), twinInStack })), [toolPane, layers.litho, litho_units, modellingCodeList, stackUnits, lithoGroups, areaRuns]);
   // the 'Add a unit' list in the order the holes give (youngest first), not by interval count
   const unitRank = useMemo(() => {
     if (toolPane !== "stack") return null;
@@ -819,7 +838,7 @@ export default function ModellingPanes(props) {
                 </div>
                 {crossCuts && <span title={tr("Contains a cross-cutting code (fault/dyke/breccia) — excluded from the Stratigraphic stack, same rail as a raw cross-cutting code")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", background: "#f3e3e3", border: "1px solid #dcc2c2", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("X-cut")}</span>}
                 {!crossCuts && role === "overburden" && <span title={tr("Every member is overburden — modelled as an overburden_base surface")} style={{ fontSize: "var(--font-size-xs)", color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("OB")}</span>}
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete lithology group \"{name}\"? Its codes stay in the log — they just stop being modelled together.", { name: g.name }))) removeLithoGroup(g.id); }, tr("Delete lithology group \"{name}\" (its codes stay in the log, just ungrouped)", { name: g.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Delete lithology group \"{name}\"? Its codes stay in the log — they just stop being modelled together.", { name: g.name }))) removeLithoGroup(g.id); }, tr("Delete lithology group \"{name}\" (its codes stay in the log, just ungrouped)", { name: g.name }))} />
               </div>
               {open && codesInGroup.length > 0 && ( /* TASKS.csv #2052 — one rule for the group's role, said here */
                 <div style={{ padding: "0 8px 6px", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
@@ -1004,15 +1023,18 @@ export default function ModellingPanes(props) {
               </optgroup>
             )}
           </select>
+          <button type="button" aria-expanded={addAllOpen} onClick={() => setAddAllOpen((v) => !v)} style={{ ...pBtn, width: "auto", marginBottom: 0, flex: "0 0 auto" }} title={tr("Add every modelling code, every logged code or the codes with enough logged metres, already in the order the holes give. You see the order before anything changes.")}>{tr("Add all…")}</button>{/* #3999 */}
         </div>
         {stackUnits.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No units added yet.")}</div>
         )}
+        {addAllC && <AddAllUnits open={addAllOpen} setOpen={setAddAllOpen} stackUnits={stackUnits} setStackUnits={setStackUnits} rows={layers.litho || []} candidates={addAllC} codesOf={stackCodesOf} label={(u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)} pBtn={pBtn} />}{/* #3999 */}
+        {holesPlan && <SortByHoles stackUnits={stackUnits} plan={holesPlan} label={(u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)} setStackUnits={setStackUnits} pBtn={pBtn} />}{/* #3994 */}
         {stackHoles && ( // TASKS.csv #2926 — checked as the units are added; the holes' order one click away
           <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
-            {tr("The holes give the order {order} (youngest first): {list}.", { order: stackHoles.order.map((u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)).join(", "),
+            {tr("The holes give the order {order} (youngest first): {list}.", { order: (holesPlan?.order || stackHoles.order).map((u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)).join(", "),
               list: stackHoles.conflicts.slice(0, 3).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: stackUnits[q.older].replace(/^mcode:/, ""), younger: stackUnits[q.younger].replace(/^mcode:/, ""), against: q.against, of: q.of })).join("; ") })}{" "}
-            <button type="button" onClick={() => movesToOrder(stackUnits, stackHoles.order).forEach(([u, d]) => moveStackUnit(u, d))} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
+            <button type="button" onClick={() => setStackUnits([...(holesPlan?.order || stackHoles.order)])} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
           </div>
         )}
         {stackUnits.map((u, i) => {
@@ -1054,7 +1076,7 @@ export default function ModellingPanes(props) {
           {/* TASKS.csv #1225 — bedding and fractures are not faults: apart, for a geologist who knows a code the name does not show */}
           {[[true, tr("Named as faults")], [false, tr("Other structure types")]].map(([like, label]) => {
             const list = faultCandidates.filter((c) => !stackFaults.includes(c.key) && !!c.faultLike === like);
-            return list.length ? <optgroup key={label} label={label}>{list.map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}{faultK[c.key] ? (faultK[c.key].random ? tr(" · k {k}, no preferred orientation", { k: Number(faultK[c.key].k).toFixed(1) }) : tr(" · k {k}", { k: Number.isFinite(faultK[c.key].k) ? Number(faultK[c.key].k).toFixed(0) : "∞" })) : ""}</option>)}</optgroup> : null;
+            return list.length ? <optgroup key={label} label={label}>{list.map((c) => <option key={c.key} value={c.key}>{c.built ? tr("{name} (from the Faults pane)", { name: c.label }) /* #4006 */ : c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {c.built ? tr(c.n === 1 ? "{n} point" : "{n} points", { n: c.n }) : tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}{faultK[c.key] ? (faultK[c.key].random ? tr(" · k {k}, no preferred orientation", { k: Number(faultK[c.key].k).toFixed(1) }) : tr(" · k {k}", { k: Number.isFinite(faultK[c.key].k) ? Number(faultK[c.key].k).toFixed(0) : "∞" })) : ""}</option>)}</optgroup> : null;
           })}
         </select>
         {stackFaults.map((k, fi) => {
@@ -1062,7 +1084,7 @@ export default function ModellingPanes(props) {
           // stack: a cover laid down after the fault stays whole), and the faults listed after it that it also displaces
           const cfg = (stackFaultOffsets || {})[k] || {}, later = stackFaults.slice(fi + 1);
           const setCfg = (patch) => setStackFaultOffsets?.((p) => ({ ...p, [k]: { ...(p[k] || {}), ...patch } }));
-          const label = (x) => x.replace(/\|$/, " (all picks)").replace("|", " — ");
+          const label = (x) => { const b = faultCandidates.find((c) => c.key === x && c.built); return b ? tr("{name} (from the Faults pane)", { name: b.label }) : x.startsWith("surf|") ? tr("A Faults-pane fault not in this project (left out of the run)") : x.replace(/\|$/, " (all picks)").replace("|", " — "); }; // built: #4006 (the list outlives a project tab switch)
           return (
           <div key={k} style={{ padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -1118,6 +1140,10 @@ export default function ModellingPanes(props) {
         ><Layers3 size={14} /> {implicitBusy ? tr("Running…") : tr(stackUnits.length === 1 ? "Run stack ({n} unit)" : "Run stack ({n} units)", { n: stackUnits.length })}</button>
 
 
+        </>)}
+        {toolPane === "faults" && (<>{/* TASKS.csv #4006 — every fault tool in one pane; it reads the props this component already has */}
+        {paneHeader("Faults", SquareSplitVertical, "model")}
+        <Suspense fallback={null}><FaultsPanel {...props} pBtn={pBtn} /></Suspense>
         </>)}
         {toolPane === "structural" && (<>
         {paneHeader("Structural modelling", Compass, "model")}

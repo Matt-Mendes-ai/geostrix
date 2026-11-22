@@ -5,6 +5,12 @@ export default [
     id: "geology-map",
     area: "Geological Mapping",
     title: "Geology map",
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Imports geology map layers, draped on the terrain and coloured by unit.",
+    picture: { help: "lands", alt: "A geology map in the right coordinate system lands on the holes; a zone off, it lands far from them." }, // N3 (#3978): check where it lands
+    instead: [{ text: "A 3D model", to: "Model it", page: "model-from-map" }],
+    keys: ["Import map layer…", "Colour by / .qml", "Legend (14 units)"],
+    strip: ["Open Perk-Rocky", "Check Colour by", "Import your own"],
     summary: "Imports geological map layers and drapes them on the terrain, coloured by an attribute such as the unit code.",
     more: "Polygons, lines or points from GeoPackage, shapefile (zipped, or the .shp with its .dbf and .prj), MapInfo TAB and MIF, GPX, GeoJSON and KML, with a QGIS .qml style if you have one. Each layer gets a card with its colours, legend, opacity and drape. Strike and dip measurements imported here are only dots: use Outcrop structures. Web map services (WMS / WFS) are under Maps > Web layers, claim outlines under Maps > Mineral claims. A table with no map objects (a MapInfo .TAB without its .MAP and .ID) is not added: import it from the tab its data belongs to. To carry the map underground, use Model it on the ribbon (3D Modelling > Model from map). To add your own map, press Import map layer… and select a layer's parts together; Model it builds a 3D model from it.",
     notFor: [
@@ -12,13 +18,13 @@ export default [
     ],
     fields: [
       { name: "Source CRS", what: "The coordinate system of the imported files: the file's own, else the project's.", more: "A layer is reprojected into the project CRS. A wrong zone or datum shifts the map by hundreds of metres. Change it only when a shapefile has no .prj or a wrong one." },
-      { name: "Import map layer…", what: "Opens the file dialog; select every part of a layer together.", more: "A .shp with its .dbf, .prj and .cpg; a MapInfo .TAB with its .MAP, .ID and .DAT; a .MIF with its .MID; and a .qml to style it. Every table of a GeoPackage becomes its own layer. Features far from the project's holes and samples are left out, and the message says how many." },
+      { name: "Import map layer…", gist: "select every part together", what: "Opens the file dialog; select every part of a layer together.", more: "A .shp with its .dbf, .prj and .cpg; a MapInfo .TAB with its .MAP, .ID and .DAT; a .MIF with its .MID; and a .qml to style it. Every table of a GeoPackage becomes its own layer. Features far from the project's holes and samples are left out, and the message says how many." },
       { name: "Choose what to import", what: "Shown when some tables do not belong on this map.", choose: "Keep the ticks.", more: "Only the map layers for this area are ticked. These are reference grids, text labels, regional location maps, and legends or page frames with no real position. A location map much larger than the property zooms the view far out." },
       { name: "Drape on terrain / Elev.", what: "Lays the layer on the terrain, else flat at Elev.", more: "Drape whenever a terrain is loaded; otherwise type an elevation near the ground." },
       { name: "Opacity", what: "How see-through the layer is.", more: "A layer that covers the whole area (a property outline) starts nearly transparent with outlines on. Lower it to see holes, samples or another layer underneath." },
-      { name: "Colour by / .qml", what: "The attribute the colours follow; .qml applies a QGIS Categorized style.", more: "A .qml picked with the layer at import does the same. Colour by the unit code your legend uses. One colour per value." },
+      { name: "Colour by / .qml", gist: "the unit field, or a QGIS style", what: "The attribute the colours follow; .qml applies a QGIS Categorized style.", more: "A .qml picked with the layer at import does the same. Colour by the unit code your legend uses. One colour per value." },
       { name: "Polygon outlines", what: "Draws polygon edges, so small units stay visible." },
-      { name: "Legend (14 units)", what: "The values with their counts; tick to show, swatch to recolour." },
+      { name: "Legend (14 units)", gist: "tick to show, swatch to recolour", what: "The values with their counts; tick to show, swatch to recolour." },
       { name: "Eye / bin", what: "Shows or hides the layer, or removes it from the project." },
     ],
     warnings: [
@@ -44,6 +50,12 @@ export default [
     id: "outcrop-structures",
     area: "Geological Mapping",
     title: "Outcrop structures",
+    // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Imports outcrop measurements and draws each as its map symbol on the ground.",
+    picture: { drop: ["map"], alt: "A strike-and-dip symbol on a geology map draped on the ground." }, // the three norths when it is drawn
+    instead: [{ text: "Oriented core", to: "with the drillholes", page: "import-drillholes" }, { text: "Fault traces, contacts", to: "Geology map", page: "geology-map" }],
+    keys: ["Import structure measurements…", "North / Measured on", "Symbol size"],
+    strip: ["Open Perk-Rocky", "Read the counts by type", "Open the Stereonet"],
     summary: "Imports outcrop structure measurements from a CSV or MapInfo point table and draws each as its USGS (FGDC) map symbol on the ground.",
     more: "Dip comes with a dip direction or a strike. Each symbol is a strike line, dip tick and dip number, one symbol per structure type (changeable in the set's list), coloured by type: fault, bedding, foliation, cleavage, contact, vein, joint. Dip directions and strikes measured from true or magnetic north are turned to grid north at import. The sets feed the stereonet and 3D Modelling's Model from map. Quadrant bearings such as N45E are not read: convert them to azimuths. Rows without coordinates, a dip from 0 to 90, and a dip direction or a strike are skipped. In the Perk-Rocky sample that means the PR_Master_StrPoint .TAB, .MAP, .ID and .DAT.",
     notFor: [
@@ -51,14 +63,14 @@ export default [
       "Fault traces and contacts are map layers: use Geology map.",
     ],
     fields: [
-      { name: "Import structure measurements…", what: "Reads a CSV, or a MapInfo .TAB or .MIF, of points.", choose: "One row per measurement, plain azimuths.", more: "A .TAB comes with its .MAP, .ID and .DAT, a .MIF with its .MID. A MapInfo table's point positions become the easting and northing." },
+      { name: "Import structure measurements…", gist: "one row per measurement", what: "Reads a CSV, or a MapInfo .TAB or .MIF, of points.", choose: "One row per measurement, plain azimuths.", more: "A .TAB comes with its .MAP, .ID and .DAT, a .MIF with its .MID. A MapInfo table's point positions become the easting and northing." },
       { name: "Column check (Easting, Northing, Elevation, Dip, Dip dir., Strike, Type, Station, Comments)", what: "The columns found, matched to what they hold; easting, northing, dip and a dip direction or strike are needed.", choose: "Check each match.", more: "A strike is read by the right-hand rule (dip direction = strike + 90°). (none) leaves a column out. For left-hand-rule strikes, map the dip direction or convert them first." },
       { name: "Source CRS", what: "The coordinate system of the file's easting and northing.", more: "A zone or datum mix-up moves points by hundreds of metres; NAD83 against NAD83(CSRS) only a metre or two. Grid dip directions are turned with the grid. Set it to what the GPS recorded. It is reprojected into the project CRS." },
-      { name: "North / Measured on", what: "Which north the dips and strikes were measured from: Grid, True or Magnetic (compass).", choose: "Use what the crew read.", more: "A compass reads magnetic north unless its declination was set. Magnetic needs the date the measurements were taken, for the declination. In BC that is well over ten degrees off grid, enough to swing every disc. Grid north is the project grid. If the notebook does not say, find out before modelling." },
+      { name: "North / Measured on", gist: "what the crew read", what: "Which north the dips and strikes were measured from: Grid, True or Magnetic (compass).", choose: "Use what the crew read.", more: "A compass reads magnetic north unless its declination was set. Magnetic needs the date the measurements were taken, for the declination. In BC that is well over ten degrees off grid, enough to swing every disc. Grid north is the project grid. If the notebook does not say, find out before modelling." },
       { name: "Import / Cancel", what: "Imports the set, or drops it.", more: "The message says what was skipped, derived or converted." },
       { name: "Set card (counts by type)", what: "Each set shows its counts by type, and MN or TN when not grid north.", choose: "Check the counts against your notebook." },
       { name: "Export…", what: "Writes the set as GeoPackage, KML (Google Earth) or CSV.", more: "Dip, dip direction and right-hand-rule strike are written in grid and true north. KML for a phone field check; GeoPackage for QGIS." },
-      { name: "Symbol size", what: "The length of each symbol's strike line in metres.", more: "Make it big enough to read without outcrops overlapping. The rest of the symbol scales with it." },
+      { name: "Symbol size", gist: "strike line length, in metres", what: "The length of each symbol's strike line in metres.", more: "Make it big enough to read without outcrops overlapping. The rest of the symbol scales with it." },
       { name: "Line thickness", what: "The width of the symbols' lines, as a multiple of the USGS standard (× 1).", more: "It applies in the 3D view, the Google Earth icons, the legends and the Layout. × 1 gives the standard's look; raise it for a printed map." },
       { name: "Sit every measurement on the terrain", what: "Places every symbol on the terrain; off, rows with an elevation use it.", choose: "Keep it on unless the elevations were surveyed.", more: "Handheld GPS elevations are often tens of metres off." },
     ],

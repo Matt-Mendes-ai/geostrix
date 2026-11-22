@@ -44,6 +44,7 @@ export const PANE_HELP = {
   "Stratigraphic stack": "stratigraphic-stack",
   "Explicit surface": "explicit-surface",
   "Structural modelling": "structural-modelling",
+  "Faults": "faults", // TASKS.csv #4006 — every fault tool in one pane
   "Vein / dyke modelling": "vein-dyke",
   "Alteration modelling": "alteration-modelling",
   "Grade shell": "grade-shell",
@@ -56,6 +57,7 @@ export const PANE_HELP = {
   "3D slice": "slice-3d",
   "Section by coordinates": "section-by-coordinates",
   "Slice series (fence sections)": "slice-series",
+  "Section window": "section-window", // TASKS.csv #4003 — the settings every section window offers
   "Interpretation lines": "interpretation-lines",
   "Unit polygons": "unit-polygons", // TASKS.csv #1439
   // Surface Geology
@@ -65,6 +67,7 @@ export const PANE_HELP = {
   "Evidence overlay": "evidence-overlay",
   "Undrilled zones": "undrilled-zones",
   "Planned drillholes": "planned-drillholes",
+  "Drill program": "drill-program", // TASKS.csv #3962 (P2) — the suggested program, in Planned drillholes
   "Voxel value ranges": "voxel-ranges",
   // Getting started and the data pages (TASKS.csv #3528) — the dialogs' own titles; their "?" opens them
   "First project": "first-project",

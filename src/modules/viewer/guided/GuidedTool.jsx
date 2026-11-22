@@ -8,6 +8,7 @@
 //   5. when the data cannot support it, nothing is built and the card says why.
 // Lazy: ViewerModule.jsx loads this file the first time the Model menu is used (nothing in the startup chunk).
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useDismiss } from "../../../lib/useDismiss.js"; // TASKS.csv #3969
 import { X } from "../../../components/icons.js";
 import { useStore } from "../../../lib/store.jsx";
 import { openHelp } from "../../../lib/help.js";
@@ -33,12 +34,19 @@ export default function GuidedTool({ tool: toolId, setTool, api }) {
   const ctx = useMemo(() => {
     let cache = null;
     const mcodes = store.modellingCodes?.codes || [];
-    return { rows, veins: store.layers?.vein || [], structures: store.layers?.structure || [], assays: store.assays || [], survey: store.survey || [] /* #3922: the Grade model's sample positions */, assayElements: store.assayElements || [], hasDensity: (store.layers?.sg || []).length > 0, gradeTrend: !!store.structuralTrends?.use?.gradeShell, collars: store.collars || [], hasTerrain: !!store.terrain, describe: () => "", target: (v) => (mcodes.some((c) => c.name === v) ? `mcode:${v}` : v), roleOf: (v) => mcodes.find((c) => c.name === v)?.role || roleForLithology(v), isCover: (v) => (mcodes.find((c) => c.name === v)?.role || roleForLithology(v)) === "overburden", intercepts: () => (cache ||= (api.computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
+    return { rows, veins: store.layers?.vein || [], structures: store.layers?.structure || [], alt: store.layers?.alt || [] /* #3932 batch 3 */, assays: store.assays || [], survey: store.survey || [] /* #3922: the Grade model's sample positions */, assayElements: store.assayElements || [], hasDensity: (store.layers?.sg || []).length > 0, gradeTrend: !!store.structuralTrends?.use?.gradeShell, collars: store.collars || [], hasTerrain: !!store.terrain, describe: () => "", target: (v) => (mcodes.some((c) => c.name === v) ? `mcode:${v}` : v), roleOf: (v) => mcodes.find((c) => c.name === v)?.role || roleForLithology(v), isCover: (v) => (mcodes.find((c) => c.name === v)?.role || roleForLithology(v)) === "overburden", intercepts: () => (cache ||= (api.computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
   }, [rows, store.layers, store.collars, store.terrain, store.modellingCodes, store.assays, store.survey, store.assayElements, store.structuralTrends]); // api.computeIntercepts follows the same logs
   const close = () => setTool(null);
+  // TASKS.csv #3969 — it stayed drawn over a dialog opened after it (Best intercepts): it closes when a modal dialog opens, on a press
+  // outside it (another ribbon button, the view) and on Escape. A build under way goes on (its progress and Cancel are in the status bar).
+  const box = useRef(null);
+  useDismiss(true, (n) => !!box.current?.contains(n), close);
   const tool = toolById(toolId);
-  if (!tool) return <StartHere ctx={ctx} setTool={setTool} close={close} />;
-  return <Tool key={tool.id} tool={tool} ctx={ctx} api={api} close={close} back={() => setTool("start")} />;
+  return (
+    <div ref={box} data-guided-card="">
+      {!tool ? <StartHere ctx={ctx} setTool={setTool} close={close} /> : <Tool key={tool.id} tool={tool} ctx={ctx} api={api} close={close} back={() => setTool("start")} />}
+    </div>
+  );
 }
 
 function Header({ title, close }) {

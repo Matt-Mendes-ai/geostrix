@@ -9,7 +9,14 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import { runChange } from "../src/lib/mcpActions.js";
+import { runChange, ACTIONS } from "../src/lib/mcpActions.js";
+// TASKS.csv #3962 (P5) — the drill planner's changes need a drilled field to model, which this made-up project is not: here (the relay and the
+// switch are what is tested) they stand in with the short answer each gives; drillPlannerP5_3962 runs them for real on a synthetic field
+const PLANNER_STANDINS = {
+  run_drill_planner: async () => ({ ok: true, tracked: true, say: "suggested a drill program", data: { changed: "a suggested program (no hole added)", program_id: "prog_x", holes: 5 } }),
+  add_program_holes: async () => ({ ok: true, tracked: true, say: "added planned holes", data: { changed: "planned holes added (proposed)", program_id: "prog_x" } }),
+  set_planned_hole_status: async () => ({ ok: true, tracked: true, say: "marked PLAN-1 approved", data: { changed: "a planned hole's status", hole: "PLAN-1", status: "approved" } }),
+};
 import { runTool } from "../src/lib/mcpTools.js";
 import { viewAction } from "../src/modules/viewer/useMcpViewActions.js";
 
@@ -51,6 +58,8 @@ function standInPanes(s) {
     else if (action === "mcp-view") p.reply(viewAction({ ...v, sections: s.sections }, p));
     else if (action === "mcp-fetch-satellite") p.reply({ ok: true, name: "Sentinel-2 test scene", ids: ["r1"], pictures: 1, over: "holes", area_cloud_percent: 0 });
     else if (action === "mcp-fetch-terrain") p.reply({ ok: true, name: "Copernicus DEM GLO-30", id: "t1", grid: "10 x 10" });
+    else if (action === "mcp-estimate-open") p.reply({ ok: true, changed: "block model", name: "Au estimate (idw2, 10m)", id: "v1", element: "Au", blocks: 120, lines: ["120 block(s) estimated"], not_a_resource_estimate: "Not a resource estimate.", revert() {} }); // #3932 batch 3
+    else if (action === "mcp-model") p.reply({ ok: true, changed: p.op === "surface" ? "body surface" : p.op === "block_model" || p.op === "shell_blocks" ? "block model" : p.op === "vein" ? "vein surface" : p.op === "alteration" ? "alteration halo" : "grade shell", built: ["Top of DYK"], ids: ["m1"], why: ["Cells 20 m"], notes: [], revert() {} }); // #3932 batch 2: the guided build, stood in for
   };
   window.addEventListener("geostrix-module-action", on);
   return () => window.removeEventListener("geostrix-module-action", on);
@@ -65,6 +74,16 @@ const CALLS = [ // each change tool with arguments its schema accepts
   ["set_view", { view: "top" }],
   ["fetch_satellite_image", { max_cloud_percent: 20 }],
   ["fetch_terrain", {}],
+  ["build_surface", { rock: "DYK" }], // #3932 batch 2
+  ["build_grade_shell", { element: "Au" }],
+  ["run_drill_planner", { element: "Au", max_holes: 5 }], // TASKS.csv #3962 (P5)
+  ["add_program_holes", { program_id: "prog_x", holes: "above_line" }],
+  ["set_planned_hole_status", { hole: "PLAN-1", status: "approved" }],
+  ["add_block_model", {}],
+  ["build_grade_estimate", { element: "Au" }], // #3932 batch 3
+  ["add_grade_shell_blocks", {}],
+  ["build_vein", { code: "QV" }],
+  ["build_alteration", { code: "SER" }],
 ];
 
 test("#3932 through the PowerShell relay, as Claude Desktop starts it: every change tool refused with the switch off (the window never sees one), then each done with it on", { skip: !win32 && "PowerShell bridge: Windows only" }, async () => {
@@ -74,10 +93,10 @@ test("#3932 through the PowerShell relay, as Claude Desktop starts it: every cha
   const win = { isDestroyed: () => false, webContents: { send: (ch, msg) => {
     if (ch !== "mcp-request") return;
     seen.push([msg.name, !!msg.change]);
-    (msg.change ? runChange(msg.name, msg.args, { getStore: () => s, client: msg.client, settle: async () => {} }) : Promise.resolve(runTool(msg.name, msg.args, s))).then((r) => host.respond(msg.id, r));
+    (msg.change ? runChange(msg.name, msg.args, { getStore: () => s, client: msg.client, settle: async () => {}, actions: { ...ACTIONS, ...PLANNER_STANDINS } }) : Promise.resolve(runTool(msg.name, msg.args, s))).then((r) => host.respond(msg.id, r));
   } } };
   const prefs = {};
-  host = createHost({ userDataDir: dir, getWindow: () => win, askAllow: async (c, o) => { asked.push(["allow", o?.changes ? "changes" : "read"]); return "once"; }, askNetwork: async (c, t) => { asked.push(["download", t]); return true; }, isOnline: () => true, readPrefs: () => prefs, writePrefs: (p) => Object.assign(prefs, p) });
+  host = createHost({ userDataDir: dir, getWindow: () => win, askAllow: async (c, o) => { asked.push(["allow", o?.changes ? "changes" : "read"]); return "once"; }, askNetwork: async (c, t) => { asked.push(["download", t]); return true; }, limits: { ...proto.LIMITS, changesPerMinute: 30 } /* #3932 batch 2: eleven change tools in one minute */, isOnline: () => true, readPrefs: () => prefs, writePrefs: (p) => Object.assign(prefs, p) });
   try {
     assert.ok((await host.setEnabled(true, false)).ok);
     const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", SCRIPT], { env: { ...process.env, GEOSTRIX_USER_DATA: dir }, stdio: ["pipe", "pipe", "pipe"], windowsHide: true });

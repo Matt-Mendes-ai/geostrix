@@ -4,13 +4,13 @@ import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #61
 import { exportCrs, gridBandsToWorld, imageToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #1021; a tied local grid: #2322
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
-import { runPfieldsJob } from "../lib/desktop.js"; // TASKS.csv #1985
+import { runPfieldsJob, isCancelledError } from "../lib/desktop.js"; // TASKS.csv #1985; isCancelledError: #3976
 import { terrainElevationAt } from "../lib/inversion.js"; // TASKS.csv #1985 — Euler solutions under the terrain
 import React, { useEffect, useMemo, useRef, useState } from "react"; // useEffect: #2865
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download, Crosshair, ChevronUp, ChevronDown } from "../components/icons.js"; // Chevron*: #2853 // Crosshair: #2657
 import { requestPlanZoom } from "../lib/planZoom.js"; // TASKS.csv #2657
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
-import { useStore } from "../lib/store.jsx";
+import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #3976
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a long job delivers only into the project it started in
 import { buildRasterImport, gridToSurveyRows, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
@@ -53,6 +53,7 @@ import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #2557 �
 import MiddleName from "../components/MiddleName.jsx"; // TASKS.csv #2852
 import { defaultFilterKind, magneticsFromName /* #2862 */ } from "../lib/filterDefault.js"; // TASKS.csv #1863
 import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -103,6 +104,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
 const GRAVITY_UNIT_RE = /^(mgal|µgal|μgal|ugal)$/i; // TASKS.csv #2947 — gridFilters.js GRAVITY_UNITS (that module loads on first use, so the form keeps its own copy)
 export default function RasterModule({ embedded = false } = {}) {
   const { assays = [], assayElements = [], rasters, addRaster, updateRaster, removeRaster, moveRaster /* #2853 */, terrain, project, collars, survey = [] /* #2126 */, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey, geophysSurveys = {}, layers = {} /* #2868 — the survey stations */, startProjectJob /* #3953 */ } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
+  const setTaskProgress = useSetTaskProgress(); // TASKS.csv #3976 — the fetch's bar in the status bar
   const beginJob = (label, cancel) => (startProjectJob ? startProjectJob({ label, cancel }) : noJob(label)); // TASKS.csv #3953
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
@@ -393,10 +395,14 @@ export default function RasterModule({ embedded = false } = {}) {
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
     const job = beginJob(tr("Imagery")); // TASKS.csv #3953
+    // TASKS.csv #3976 — the bar in the status bar: the pictures read, then placed; Cancel stops the reads (#3963's signal)
+    const bar = (await import("../lib/fetchProgress.js")).startFetchProgress(setTaskProgress, { label: tr("Imagery"), stages: [["read", 0.9], ["place", 0.1]], onCancel: () => job.abort() });
+    const srcName = src === "naip" ? "NAIP" : "Sentinel-2";
+    bar.step("read", 0, 1, tr("Connecting to {source}…", { source: srcName })); // #3976 — the bar at once (a moving bar until something is counted)
     try { // TASKS.csv #816 / #837 — the latest clear Sentinel-2 scene (Copernicus: free and open, any use with attribution)
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
       // #3251 — Full: NAIP at the imagery's own pixels, in up to 2 x 2 pictures (r.parts)
-      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, full: satLevel === "full", onProgress: (done, total) => setSatProgress({ done, total }), ...(Number.isFinite(ai?.maxTileCloud) ? { maxTileCloud: ai.maxTileCloud } : {}) };
+      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, full: satLevel === "full", signal: job.signal /* #3963 — closing its project stops the download */, onProgress: (done, total) => { setSatProgress({ done, total }); bar.step("read", done, total, tr("Reading {source} pictures {done} of {total}", { source: srcName, done, total })); } /* bar: #3976 */, ...(Number.isFinite(ai?.maxTileCloud) ? { maxTileCloud: ai.maxTileCloud } : {}) };
       const r = src === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
       let tieNote = "";
       const parts = [];
@@ -422,10 +428,11 @@ export default function RasterModule({ embedded = false } = {}) {
       setError({ info: src === "naip" ? !r.partial : r.areaCloud <= 0.1, text: (parts.length > 1 ? tr("Fetched and imported {n} pictures of \"{name}\" ({gridW} × {gridH} px each at most).", { n: parts.length, name: r.name.replace(/, part 1 of \d+$/, ""), gridW: arrMax(parts.map((p) => p.gridW)), gridH: arrMax(parts.map((p) => p.gridH)) }) : tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH })) + r.note + tieNote });
     } catch (err) {
       said({ ok: false, error: String(err?.message || "The image could not be fetched.") }); // #3932
-      setError({ info: false, text: err.message });
+      if (!job.gone) setError(isCancelledError(err) ? { info: true, text: tr("Imagery fetch cancelled.") } /* #3976 — the bar's Cancel */ : { info: false, text: err.message }); // #3963 — a project closed mid-download: the banner says it
     } finally {
       setSatBusy(false);
       setSatProgress(null);
+      bar.end(); // #3976
       job.end(); // TASKS.csv #3953
     }
   };
@@ -498,23 +505,26 @@ export default function RasterModule({ embedded = false } = {}) {
     if (!file) return;
     setError(null);
     setBusy(true);
+    const job = beginJob(file.name); // TASKS.csv #3963 — a plain file import belongs to the project it started in too
     try {
       const worldFile = world ? parseWorldFile(await world.text(), world.name) : null;
       // TASKS.csv #2830 — the Geosoft .xml beside a .grd / .gxf names its CRS (a Source CRS set by hand still wins)
       const xc = xml && !sourceEpsg ? geosoftXmlCrs(await xml.text()) : null;
       const pe = !xc && prj && !sourceEpsg ? guessEpsgFromPrjWkt(await prj.text()) : null; // #2857 — the .prj beside it (a Source CRS set by hand still wins)
       const sideCrs = xc ? { epsg: xc.epsg, from: xml.name } : pe ? { epsg: pe, from: prj.name } : null;
-      const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
+      const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name, live: job.isLive }); // #607; live: #3963 — the chooser runs inside the parser's await
       const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project), collarZ: collarZRange(collars), mineSource: mineSourceOf(project), sideCrs }); // tie: #2587; collarZ: #2129; mineSource: #2684; sideCrs: #2830
+      if (!(await landed(job))) return; // TASKS.csv #3963 — into the project it started in (the finally clears the busy state)
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name, stations: layers?.geophys_pts }); // stations: #2868; #1856 — the ground under this raster; #1505 — above the collars, stacked, or at the name's depth
       // TASKS.csv #2865 — the same file over the same area again is asked (it made a second card 5 m up)
-      if (sameRaster(raster, rasters) && !window.confirm(tr("\"{name}\" is already imported over the same area. Import it again?", { name: raster.name }))) { setError({ info: true, text: tr("\"{name}\" was not imported again.", { name: raster.name }) }); return; }
+      if (sameRaster(raster, rasters) && !await askConfirm(tr("\"{name}\" is already imported over the same area. Import it again?", { name: raster.name }))) { setError({ info: true, text: tr("\"{name}\" was not imported again.", { name: raster.name }) }); return; }
       addRaster({ ...raster, elevation: drape.z });
       setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });
     } catch (err) {
+      if (job.gone) return; // #3963 — its project is gone and the banner said so
       setError({ info: false, text: err.message });
     } finally {
-      setBusy(false);
+      setBusy(false); job.end(); // job: #3963
     }
   };
 
@@ -626,12 +636,12 @@ export default function RasterModule({ embedded = false } = {}) {
           <GeoreferencerModal
             projectEpsg={project?.epsg}
             onClose={() => setGeorefOpen(false)}
-            onImport={(raster) => {
+            onImport={async (raster) => {
               // TASKS.csv #2294 (review #2174) — a scan of the same footprint as a GeoTIFF landed at the collar median (an underground level,
               // mid-way through the fans) while the GeoTIFF went 5 m above the highest collar under it: the same rule now, and said
               const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: raster.name, stations: layers?.geophys_pts /* #2868 */ });
               // TASKS.csv #2590 (review #2486) — control points typed on a mine grid put the picture 6,240 km from the drilling, unasked
-              if (drape.far && !window.confirm(tr("These control points put the picture about {km} km from the {n} collars. Are they on a local mine grid, or in a CRS other than the project's?", { km: Math.round(drape.far.distM / 1000).toLocaleString(), n: collars.length.toLocaleString() }) + "\n\n" + tr("OK — import it there anyway.") + "\n" + tr("Cancel — go back to the control points."))) return;
+              if (drape.far && !await askConfirm(tr("These control points put the picture about {km} km from the {n} collars. Are they on a local mine grid, or in a CRS other than the project's?", { km: Math.round(drape.far.distM / 1000).toLocaleString(), n: collars.length.toLocaleString() }) + "\n\n" + tr("OK — import it there anyway.") + "\n" + tr("Cancel — go back to the control points."))) return;
               addRaster({ ...raster, elevation: drape.z });
               setGeorefOpen(false);
               setError({ info: true, text: tr("Georeferenced and imported \"{name}\".", { name: raster.name }) + " " + drapeElevationNote(drape) });
@@ -688,7 +698,7 @@ export default function RasterModule({ embedded = false } = {}) {
               {r.bbox && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: r.name })} title={tr("Zoom the plan to \"{name}\"", { name: r.name })} onClick={() => requestPlanZoom(r.bbox)} />}{/* TASKS.csv #2657 */}
               {rasters.length > 1 && <ChevronUp role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} title={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, -1)} />}{/* #2853 */}
               {rasters.length > 1 && <ChevronDown role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} title={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, 1)} />}
-              <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
+              <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
             </div>
             {r.grid && <ZonalStatsBox raster={r} boundaries={boundaries} onClip={(b) => clipRasterTo(r, b)} />}{/* TASKS.csv #2002 */}
             {r.terrainDerivative && r.terrainDerivative.terrainId != null && terrain?.id !== r.terrainDerivative.terrainId && ( /* TASKS.csv #1626 — made from a terrain since replaced */

@@ -18,7 +18,7 @@ test("a mark skips the build of its own commit only", () => {
 test("the viewer marks in the UI-state restore and the custom-layer restore, and the build checks", () => {
   const s = viewerSource().replace(/\r\n/g, "\n");
   assert.match(s, /lastHydratedSeq\.current = viewerUiStateSeq;\n {4}buildDefer\.mark\(\);/);
-  assert.match(s, /if \(!missing\.length\) \{ if \(fresh && drop\.length\) setCustomLayers\(\[\]\); return; \}\n {4}buildDefer\.mark\(\);/ /* #2361: a project change with nothing to build clears the list */);
+  assert.match(s, /if \(!missing\.length\) \{\n\s+if \(fresh && drop\.length\) setCustomLayers\(\[\]\);\n[^\n]*\n\s+return;\n {4}\}\n {4}buildDefer\.mark\(\);/ /* #2361: a project change with nothing to build clears the list; #4018: a removal in the store drops it from the list too */);
   assert.match(s, /if \(!groups\.litho \|\| buildDefer\.skip\(\) \|\| buildDefer\.held\?\.\(\)\) return;/ /* held: #3544 */);
   // the effects that mark are declared before the build effect, so they run before it in a commit
   assert.ok(s.indexOf("buildDefer.mark();") < s.indexOf("buildDefer.skip()"));

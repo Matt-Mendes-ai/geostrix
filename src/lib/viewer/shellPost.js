@@ -25,6 +25,16 @@ import { holeRuns, bodyHoles, trimOneHoleBodies } from "./shellBodies.js"; // TA
 import { cleanField, coarsenFactor, coarsenField, taubinSmooth } from "./shellEnvelope.js"; // TASKS.csv #3673
 import { meshInsideMask, meshInsideTester, signedDistance, priorField, blendWithPrior, updateReport } from "./domainUpdate.js"; // TASKS.csv #3673 phase 2
 
+// TASKS.csv #3932 batch 3 — the shell's own cells: the nodes at or above the iso in the field it was drawn from (after the ground cut and the trims),
+// as their index in the grid and their value (the grade; an envelope's field is a probability). For add_grade_shell_blocks. -> { idx: Uint32Array, value: Float32Array }
+export function insideCells(field, values, iso) {
+  let k = 0;
+  for (let i = 0; i < field.length; i++) if (field[i] >= iso) k++;
+  const idx = new Uint32Array(k), value = new Float32Array(k);
+  k = 0;
+  for (let i = 0; i < field.length; i++) if (field[i] >= iso) { idx[k] = i; value[k++] = Number.isFinite(values[i]) ? values[i] : NaN; }
+  return { idx, value };
+}
 export function shellPost(grid, post) {
   const { nx, ny, nz, origin, cellSize } = grid, iso = post.iso;
   // #3673 phase 2 — the old domain as a soft prior, blended with the new holes' estimate
@@ -44,6 +54,7 @@ export function shellPost(grid, post) {
   const trim = !env && post.bodies?.oneHoleReachM > 0 ? trimOneHoleBodies(cleaned ? cleaned.values : cut.values, grid, iso, post.bodies.atPoints, post.bodies.oneHoleReachM) : null;
   const field = trim ? trim.values : cleaned ? cleaned.values : cut.values;
   const noData = post.closeOutside ? "outside" : "skip";
+  const inside = post.keepCells ? insideCells(field, base, iso) : null; // #3932 batch 3
   let mc = marchingCubes(field, nx, ny, nz, iso, { origin, spacing: cellSize, noData });
   const trianglesFine = mc.faces.length, coarsen = env?.targetTriangles ? coarsenFactor(trianglesFine, env.targetTriangles) : 1;
   if (coarsen > 1) { const cf = coarsenField(field, grid, coarsen); mc = marchingCubes(cf.values, cf.grid.nx, cf.grid.ny, cf.grid.nz, iso, { origin: cf.grid.origin, spacing: cf.grid.cellSize, noData }); } // #3673: decimation by the field
@@ -84,7 +95,7 @@ export function shellPost(grid, post) {
     grades = { n: vs.length, sum: gs, w: gw, median: vs.length ? vs[Math.floor(vs.length / 2)] : null, atCut, values: Float64Array.from(vs) }; // values: for one median over every box
   }
   let hi = -Infinity; for (const v of grid.values) if (Number.isFinite(v) && v > hi) hi = v;
-  return { positions: smoothed, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, reachCut: reached.cut, ...(env ? { envelope: { clean: cleaned?.report || null, coarsen, trianglesFine, grades } } : {}), ...(update ? { update } : {}), inShell, far: far ? { inside: far.inside, far: far.far } : null, ...(bodies ? { bodies: { ...bodies, farAt: bodies.farAt ? { inside: bodies.farAt.inside, far: bodies.farAt.far } : null } } : {}) /* #3785 */, sum, n, hi };
+  return { positions: smoothed, faces, closingVertices: mc.closingVertices || 0, skippedCubes: mc.skippedCubes || 0, vertexSupport, capped: cut.capped, reachCut: reached.cut, ...(env ? { envelope: { clean: cleaned?.report || null, coarsen, trianglesFine, grades } } : {}), ...(update ? { update } : {}), inShell, far: far ? { inside: far.inside, far: far.far } : null, ...(bodies ? { bodies: { ...bodies, farAt: bodies.farAt ? { inside: bodies.farAt.inside, far: bodies.farAt.far } : null } } : {}) /* #3785 */, sum, n, hi, ...(inside ? { inside } : {}) };
 }
 
 // the ground per column of the lattice a dense grid over `bounds` at `cellSize` will have (estimation.js: gridShape, origin at the lower bound plus

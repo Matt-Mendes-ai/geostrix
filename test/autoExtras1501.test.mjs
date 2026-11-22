@@ -27,7 +27,7 @@ test("structures and veins: width as a number, descriptions as text of any lengt
 
 test("wired: the unseen commit passes them, fills the companion layer and says so", () => {
   const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
-  assert.match(p, /commitImportData\(\{ \.\.\.modalData, customFields: extras, unseen: true \}\)/);
-  assert.match(p, /if \(comp\) commitImportData\(\{ \.\.\.modalData, target: comp\.target, mapping: \{ \.\.\.mapping, value: comp\.column \}/);
+  assert.match(p, /await commitImportData\(\{ \.\.\.modalData, customFields: extras, unseen: true \}\)/);
+  assert.match(p, /if \(comp\) await commitImportData\(\{ \.\.\.modalData, target: comp\.target, mapping: \{ \.\.\.mapping, value: comp\.column \}/);
   assert.match(p, /kept \{n\} more column\(s\) with each row/);
 });

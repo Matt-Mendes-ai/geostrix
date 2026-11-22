@@ -19,8 +19,11 @@ export function mapLayerFeatures(layer) {
   const z = layer.drapeMode === "flat" && Number.isFinite(num(layer.elevation)) ? num(layer.elevation) : 0;
   const pt = ([x, y]) => [x, y, z];
   const features = [];
+  let hasZ = false; // TASKS.csv #3972 — a line drawn on a level keeps its RL on each vertex (DXF 3D, PolyLineZ, LineStringZ, KML absolute)
   (layer.features || []).forEach((f) => {
-    const parts = (f.parts || []).filter((p) => p?.length).map((p) => p.map(pt));
+    const lv = typeof f.attributes?.level_rl === "number" && Number.isFinite(f.attributes.level_rl) ? f.attributes.level_rl : null;
+    if (lv != null) hasZ = true;
+    const parts = (f.parts || []).filter((p) => p?.length).map((p) => p.map((v) => (lv != null ? [v[0], v[1], Number.isFinite(v[2]) ? v[2] : lv] : pt(v))));
     if (!parts.length) return;
     const attributes = { ...(f.attributes || {}) };
     if (geomType === "point") parts.forEach((p) => features.push({ geometry: [p[0]], attributes }));
@@ -28,7 +31,7 @@ export function mapLayerFeatures(layer) {
   });
   // #1060 — the DXF layer: the feature's category (its style field), else the map layer's name
   const dxfLayerOf = (f) => (layer.styleField && f.attributes?.[layer.styleField] != null ? `${layer.styleField}_${f.attributes[layer.styleField]}` : layer.name || "MAP");
-  return { features, geomType, dxfLayerOf, flat: z === 0 }; // #1246
+  return { features, geomType, dxfLayerOf, flat: z === 0 && !hasZ }; // #1246; hasZ: #3972
 }
 
 // ---------- boundaries / claims ----------
@@ -183,7 +186,8 @@ export function featuresToKml({ features, geomType }, { name = "GeoStrix export"
     if (geomType === "point") geom = `<Point><coordinates>${ll(f.geometry[0])}</coordinates></Point>`;
     else if (geomType === "polyline") {
       const parts = (f.parts?.length ? f.parts : [f.geometry]).filter((p) => p.length >= 2);
-      const one = (p) => `<LineString><tessellate>1</tessellate><coordinates>${coords(p)}</coordinates></LineString>`;
+      const atLevel = typeof f.attributes?.level_rl === "number" && Number.isFinite(f.attributes.level_rl); // TASKS.csv #3972 — at its RL, not on the ground
+      const one = (p) => (atLevel ? `<LineString><altitudeMode>absolute</altitudeMode><coordinates>${coords(p)}</coordinates></LineString>` : `<LineString><tessellate>1</tessellate><coordinates>${coords(p)}</coordinates></LineString>`);
       geom = parts.length === 1 ? one(parts[0]) : `<MultiGeometry>${parts.map(one).join("")}</MultiGeometry>`;
     } else {
       // the rings as written (longitude / latitude at 8 decimals, z kept), each split where it crosses itself, then grouped into polygons

@@ -2,23 +2,11 @@
 // Mineralization layer's tubes drawn wider where the per cent is higher: the layer style's 'Width by' (None, Total sulphides, or one mineral's
 // per cent). The radius goes linearly from WIDTH_MIN to WIDTH_MAX times the layer's radius between 0 and the 'full width' value (blank: the
 // 98th percentile of the values), capped there. The tube size choice (#3668 / #3876) then sizes the layer's base radius on screen and keeps
-// these ratios (lib/viewer/tubeShader.js uTubeBaseR). Pure: the choices, the scale per row, the legend's sizes.
-import { TOTAL_SULPHIDES_FIELD, wideMineralFields } from "./totalSulphides.js";
+// these ratios (lib/viewer/tubeShader.js uTubeBaseR). Pure: the scale per row, the legend's sizes (the choices: lib/totalSulphides.js, loaded with
+// the Style dialog).
 
 export const WIDTH_MIN = 0.35, WIDTH_MAX = 2.5;
 export const CODE_PREFIX = "code:"; // a long-form layer's one mineral: its rows' own per cent (extra); other minerals' rows draw at the minimum
-
-// -> [{ id, label }] the layer can be widened by (project text: the field and code names as logged)
-export function widthChoices(rows) {
-  const list = rows || [], out = [];
-  if (list.some((r) => r && Number.isFinite(Number(r[TOTAL_SULPHIDES_FIELD])) && r[TOTAL_SULPHIDES_FIELD] !== null)) out.push({ id: TOTAL_SULPHIDES_FIELD, label: TOTAL_SULPHIDES_FIELD });
-  const wide = wideMineralFields(list);
-  if (wide.length) { for (const f of wide) out.push({ id: f.key, label: f.key }); return out; }
-  const codes = new Map();
-  for (const r of list) { if (r?.value == null || r.value === "" || !Number.isFinite(Number(r.extra)) || r.extra === null || r.extra === "") continue; codes.set(String(r.value), (codes.get(String(r.value)) || 0) + 1); }
-  for (const [c] of [...codes].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 40)) out.push({ id: CODE_PREFIX + c, label: `${c} %` });
-  return out;
-}
 
 // the per cent a row is widened by (NaN: none logged)
 export function widthValueOf(row, by) {

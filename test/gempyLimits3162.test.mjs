@@ -30,7 +30,7 @@ test("the engine's list-length refusal in words where a run fails; other text un
   assert.equal(plainEngineError("Cancelled."), "Cancelled.");
   assert.equal(plainEngineError(undefined), undefined);
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(m, /errorNotice\(tr\("\{label\} failed: \{error\}", \{ label, error: plainEngineError\(res\.error\) \}\)\)/);
+  assert.match(m, /errorNotice\(tr\("\{label\} failed: \{error\}", \{ label, error: plainEngineError\(res\.error\) \}\)[,)]/); // #3986: the stack's names behind More
   // kept out of the startup bundle (#3159): desktop.js is eager
   assert.doesNotMatch(readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"), /gempyLimits/);
 });
@@ -138,7 +138,7 @@ test("a drillhole stack over the work budget is asked about before the run (afte
   assert.ok(at > s.indexOf("Run the stack as a layer-cake?"), "after the layer-cake offer");
   assert.ok(at < s.indexOf("\"Running {label} ("), "before the run starts");
   const block = s.slice(at, at + 4200);
-  assert.match(block, /if \(!window\.confirm\(tr\("This GemPy run is about \{x\} times a few-minute run/); // #3899: shorter
+  assert.match(block, /if \(!await askConfirm\(tr\("This GemPy run is about \{x\} times a few-minute run/); // #3899: shorter
   assert.match(block, /setImplicitBusy\(false\);\s*setNotices\(\(p\) => \[\.\.\.p, notice\("Not run: about \{x\} times the work/);
   assert.match(block, /overWork = x;/);
   assert.doesNotMatch(block, /thinForWork/, "logged picks are not thinned");
@@ -183,6 +183,6 @@ test("#3215 the engine's peak memory: the largest field's rows squared (measured
   // Main: over 70 % of this computer's memory (16 GB assumed where unread) it is refused, not asked about; before the question
   assert.match(s, /const info = await problemReportInfo\(\)\.catch\(\(\) => null\), ramGB = info\?\.memoryGB\?\.total > 0 \? info\.memoryGB\.total : null;/);
   assert.match(s, /if \(gb > GEMPY_RAM_SHARE \* \(ramGB \|\| GEMPY_ASSUMED_RAM_GB\)\) \{\s*setImplicitBusy\(false\);\s*setNotices\(\(p\) => \[\.\.\.p, errorNotice\(tr\("Not run: needs about \{g\} GB of memory/ /* #3899 */);
-  assert.ok(s.indexOf("if (gb > GEMPY_RAM_SHARE") < s.indexOf("if (!window.confirm(tr(\"This GemPy run is about"), "refused before it is asked");
+  assert.ok(s.indexOf("if (gb > GEMPY_RAM_SHARE") < s.indexOf("if (!await askConfirm(tr(\"This GemPy run is about"), "refused before it is asked");
   assert.equal(GEMPY_RAM_SHARE, 0.7); assert.equal(GEMPY_ASSUMED_RAM_GB, 16);
 });

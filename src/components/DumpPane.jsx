@@ -46,7 +46,7 @@ export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onC
     setF((q) => ({ ...q, ...(str ? { stringId: str.id } : {}), crestZ: val(p.crestZ), repose: val(p.reposeDeg), density: val(p.density), swell: val(p.swell) }));
     setEditingId(s.id); setMsg(str ? null : tr("Its footprint string \"{name}\" is no longer in the project: pick one.", { name: p.footprint || "" }));
   };
-  const removeDump = (s) => { if (!confirmDestructive(tr("Remove the dump \"{name}\"?", { name: s.name }), { recover: tr("run it again with the same inputs (Edit keeps them until then).") })) return; if (editingId === s.id) setEditingId(null); onRemove?.(s.id); };
+  const removeDump = async (s) => { if (!await confirmDestructive(tr("Remove the dump \"{name}\"?", { name: s.name }), { recover: tr("run it again with the same inputs (Edit keeps them until then).") })) return; if (editingId === s.id) setEditingId(null); onRemove?.(s.id); };
   const footprint = footprints.find((s) => s.id === f.stringId) || footprints[0] || null;
   const pit = pits.find((s) => s.id === f.pitId) || null;
   // TASKS.csv #2276 — not the surface between UNDERGROUND collars (a dump stood 168 m high at RL 86-250 under a surface near 400)

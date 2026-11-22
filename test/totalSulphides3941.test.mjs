@@ -69,11 +69,12 @@ test("#3941 the style keeps the ticks and the lowest total; the scene colours an
 
 test("#3941 wiring: the box in the Mineralization panel, the scene's styler, the legend given the styles", () => {
   const parts = fs.readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8");
-  assert.match(parts, /layerKey === "mnlgy" && rows\.length > 0 && <TotalSulphidesBox/);
+  assert.match(parts, /<TotalSulphidesBox rows=\{rows\} style=\{style\} onStyle=\{onStyle\} \/>/);
+  assert.match(parts, /const TotalSulphidesBox = React\.lazy\(\(\) => import\("\.\.\/\.\.\/components\/TotalSulphidesBox\.jsx"\)\)/); // its own chunk (startup size)
   const scene = fs.readFileSync(new URL("../src/modules/viewer/drillholeScene.js", import.meta.url), "utf8");
   assert.match(scene, /rb\?\.colourOf \? rb\.colourOf\(row\)/);
   assert.match(scene, /\(!rb \|\| rb\.shown\(r\)\)/);
   const vm = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /styles: layerStyles, hidden: categoryFilter/);
-  assert.match(vm, /onStyle=\{\(p\) => setLayerStyle\(key, "point", p\)\}/);
+  assert.match(vm, /onStyle=\{\(p\) => setLayerStyle\(key, styleKindFor\(key\) \|\| "point", p\)\}/); // the layer's own kind: #3987
 });

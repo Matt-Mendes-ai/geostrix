@@ -12,12 +12,15 @@ import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
+import { registerConfirmHost } from "../src/lib/confirmDialog.js";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let savedContent = null;
 globalThis.window = globalThis;
 globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
-globalThis.window.confirm = () => true;
+// TASKS.csv #3957 — the app's confirm is an in-app dialog now: this host answers OK to every ask unless a test registers its own
+const yesHost = (req) => req.resolve(req.kind === "confirm" ? true : undefined);
+registerConfirmHost(yesHost);
 globalThis.window.desktop = {
   saveFile: async ({ content }) => { savedContent = content; return { ok: true, filePath: "C:/tmp/test.geostrix.json" }; },
   openFile: async () => ({ ok: true, content: savedContent, filePath: "C:/tmp/test.geostrix.json", name: "test.geostrix.json" }),
@@ -154,10 +157,10 @@ test("#467 a failed save returns the reason instead of throwing", { timeout: 150
 // TASKS.csv #686 — a crash-recovery copy written by a NEWER GeoStrix keeps the #342 guard: Save asks first
 test("#686 restoring a newer build's autosave marks the tab, so Save asks before overwriting", { timeout: 15000 }, async () => {
   const newerFile = JSON.stringify({ version: 999, project: { name: "From the future", epsg: 32609 }, collars: [{ hole_id: "N-1", x: 1, y: 2, z: 3 }], activeDirty: true });
-  const prevRead = window.desktop.autosaveRead, prevConfirm = window.confirm;
+  const prevRead = window.desktop.autosaveRead;
   window.desktop.autosaveRead = async () => ({ ok: true, content: newerFile });
   let asked = 0;
-  window.confirm = () => { asked++; return false; };
+  registerConfirmHost((req) => { asked++; req.resolve(false); });
   try {
     const m = await mount();
     let rec;
@@ -170,5 +173,5 @@ test("#686 restoring a newer build's autosave marks the tab, so Save asks before
     assert.equal(asked, 1, "Save asked before writing");
     assert.equal(res.cancelled, true);
     await m.unmount();
-  } finally { window.desktop.autosaveRead = prevRead; window.confirm = prevConfirm; }
+  } finally { window.desktop.autosaveRead = prevRead; registerConfirmHost(yesHost); }
 });

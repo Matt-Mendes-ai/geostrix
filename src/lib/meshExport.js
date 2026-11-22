@@ -80,15 +80,18 @@ export function provenanceLines(name, provenance, extra = {}) {
   // to the enclosed volume) so the edited surface can be audited against the generated one.
   const me = extra.manualEdits;
   if (me && me.count > 0) {
-    out.push(`*** HAND-EDITED AFTER GENERATION — ${me.count} manual sculpt${me.count === 1 ? "" : "s"} applied. This mesh is NOT purely the output of the parameters stated below. ***`);
+    const pieceEdits = (me.edits || []).filter((e) => e.kind === "piece").length; // TASKS.csv #3991 — pieces removed / split by the user
+    out.push(`*** HAND-EDITED AFTER GENERATION — ${me.count} manual ${pieceEdits ? "edit" : "sculpt"}${me.count === 1 ? "" : "s"} applied. This mesh is NOT purely the output of the parameters stated below. ***`);
     if (me.volumeAsGeneratedM3 != null && me.volumeNowM3 != null) {
       const d = me.volumeNowM3 - me.volumeAsGeneratedM3;
       out.push(`Enclosed volume as generated: ${me.volumeAsGeneratedM3.toFixed(1)} m3 -> after manual editing: ${me.volumeNowM3.toFixed(1)} m3 (${d >= 0 ? "+" : ""}${d.toFixed(1)} m3). Any tonnage above is from the EDITED volume.`);
     }
     (me.edits || []).forEach((e, i) => {
+      if (e.kind === "piece") { out.push(`  edit ${i + 1}: ${e.at} — ${e.action}: piece ${e.piece} of ${e.piecesBefore}, ${e.facesBefore} -> ${e.facesAfter} triangles${e.volumeBeforeM3 != null && e.volumeAfterM3 != null ? `, enclosed volume ${e.volumeBeforeM3.toFixed(1)} -> ${e.volumeAfterM3.toFixed(1)} m3` : ""}`); return; }
       out.push(`  edit ${i + 1}: ${e.at} — ${e.offsetM >= 0 ? "+" : ""}${e.offsetM} m ${e.axis === "vertical" ? "vertical" : "along the surface normal"}, ${e.radiusM} m brush radius, ${e.verticesMoved} vertices moved, centred on ${e.anchorEasting} E / ${e.anchorNorthing} N / ${e.anchorElevation} m${e.flippedTriangles ? ` — WARNING: left ${e.flippedTriangles} inverted triangle(s)` : ""}`);
     });
-    out.push(`Manual edits move vertices only; triangle connectivity is unchanged, so the mesh is exactly as watertight (or not) as it was when generated.`);
+    if (pieceEdits < (me.edits || []).length) out.push(`Manual edits move vertices only; triangle connectivity is unchanged, so the mesh is exactly as watertight (or not) as it was when generated.`);
+    if (pieceEdits) out.push(`A piece edit removes whole separate pieces of the mesh (or splits them into meshes of their own); the pieces kept are unchanged.`);
   }
   if (extra.dataCredit) out.push(`Data credit: ${String(extra.dataCredit).replace(/\s+/g, " ")}`); // TASKS.csv #3717 — the data owner's credit travels with the mesh
   if (extra.epsg) out.push(`Project CRS: EPSG:${extra.epsg}`);

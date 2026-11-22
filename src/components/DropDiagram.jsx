@@ -9,8 +9,8 @@
 //                label={tr(…) — read aloud} tooltip={tr(…)} />
 import React, { useId } from "react";
 
-const V = (c) => `var(--color-${c})`;
-const paint = (fill, fo = 1, stroke = null, sw = 1) => ({ style: { fill: fill ? V(fill) : "none", fillOpacity: fo, stroke: stroke ? V(stroke) : "none", strokeWidth: sw } });
+export const V = (c) => `var(--color-${c})`; // V, paint, Block, holesOnFace, collarsOnTop exported: TASKS.csv #3978 (the Help pictures, src/help/diagrams/pictures.jsx, draw on the same block)
+export const paint = (fill, fo = 1, stroke = null, sw = 1) => ({ style: { fill: fill ? V(fill) : "none", fillOpacity: fo, stroke: stroke ? V(stroke) : "none", strokeWidth: sw } });
 const Grad = ({ id, a, oa, b, ob, x2 = 0, y2 = 1 }) => (
   <linearGradient id={id} x1="0" y1="0" x2={x2} y2={y2}><stop offset="0" style={{ stopColor: V(a), stopOpacity: oa }} /><stop offset="1" style={{ stopColor: V(b), stopOpacity: ob }} /></linearGradient>
 );
@@ -25,7 +25,7 @@ const TOP = "M18 46 L116 22 L206 46 L108 70 Z", LEFT = "M18 46 L108 70 L108 112 
 const ON_TOP = "matrix(0.9 0.24 0.98 -0.24 18 46)";
 const bandsOn = (x0, y0, x1, y1, list) => list.map(([t, c, o], k) => { const t1 = list[k + 1]?.[0] ?? 1; return <path key={k} d={`M${x0} ${y0 + 42 * t} L${x1} ${y1 + 42 * t} L${x1} ${y1 + 42 * t1} L${x0} ${y0 + 42 * t1} Z`} {...paint(c, o)} />; });
 const CONTOURS = [[34, 62, 20, 15], [72, 30, 17, 12]];
-function Block({ id, top = null, after = null, strata = true }) {
+export function Block({ id, top = null, after = null, strata = true }) {
   return (<>
     <defs>
       <Grad id={`${id}t`} a="bg" oa={1} b="text-muted" ob={0.38} x2={0.3} y2={1} />
@@ -53,13 +53,13 @@ function Block({ id, top = null, after = null, strata = true }) {
 
 // holes on the front face, with coloured intervals, and their collars on top
 const HOLE_SEGS = [["accent", 0.25], ["danger-solid", 0.15], ["tier-basic", 0.3], ["accent-dark", 0.3]];
-const holesOnFace = (spots) => spots.map(([x, y, L], k) => {
+export const holesOnFace = (spots) => spots.map(([x, y, L], k) => {
   let yy = y; const len = 44 * L;
   return (<g key={k}>{HOLE_SEGS.map(([c, f], j) => { const y2 = yy + len * f, el = <line key={j} x1={x} y1={yy} x2={x + 3} y2={y2} style={{ stroke: V(c), strokeWidth: 4, strokeLinecap: "round" }} />; yy = y2; return el; })}
     <ellipse cx={x} cy={y - 1} rx="3.2" ry="1.8" {...paint("tier-basic", 1)} /></g>);
 });
 const COLLARS = [[132, 38], [160, 44], [176, 36]];
-const collarsOnTop = COLLARS.map(([x, y], k) => <g key={k}><ellipse cx={x} cy={y} rx="3" ry="1.7" {...paint("tier-basic", 1)} /><line x1={x} y1={y} x2={x + 1} y2={y - 7} style={{ stroke: V("tier-basic"), strokeWidth: 1.4 }} /></g>);
+export const collarsOnTop = COLLARS.map(([x, y], k) => <g key={k}><ellipse cx={x} cy={y} rx="3" ry="1.7" {...paint("tier-basic", 1)} /><line x1={x} y1={y} x2={x + 1} y2={y - 7} style={{ stroke: V("tier-basic"), strokeWidth: 1.4 }} /></g>);
 
 const PICTURES = {
   // drill holes going in, with coloured intervals

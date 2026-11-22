@@ -14,7 +14,7 @@
 // server-side — there's no vector geometry to recover from a GetMap response. WFS layers come back as
 // real vector features (imported as a `boundaries` polylines layer) since that's exactly what GetFeature
 // returns.
-import { fetchWebLayerUrl } from "./desktop.js";
+import { fetchWebLayerUrl, cancelledError, isCancelledError } from "./desktop.js"; // cancelledError: TASKS.csv #3963
 import { reprojectXY, getProj4DefSync } from "./reproject.js";
 import { reprojectImageRGBA } from "./reprojectMore.js"; // TASKS.csv #3590
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
@@ -149,14 +149,14 @@ export function wmsTileBbox([lonMin, latMin, lonMax, latMax], width, height, { x
 export function defaultWmsArea(layerBboxLonLat, projectBboxLonLat) {
   return projectBboxLonLat || layerBboxLonLat || null;
 }
-async function getMapTile(baseUrl, layerName, [lonMin, latMin, lonMax, latMax], width, height, transparent, format) {
+async function getMapTile(baseUrl, layerName, [lonMin, latMin, lonMax, latMax], width, height, transparent, format, signal) { // signal: #3963
   const url = buildQuery(baseUrl, {
     SERVICE: "WMS", REQUEST: "GetMap", VERSION: "1.1.1",
     LAYERS: layerName, STYLES: "", SRS: "EPSG:4326",
     BBOX: `${lonMin},${latMin},${lonMax},${latMax}`,
     WIDTH: width, HEIGHT: height, FORMAT: format, TRANSPARENT: transparent ? "TRUE" : "FALSE",
   });
-  const { contentType, arrayBuffer } = await fetchWebLayerUrl(url);
+  const { contentType, arrayBuffer } = await fetchWebLayerUrl(url, { signal });
   if (contentType.includes("xml") || contentType.includes("text")) {
     // A GetMap failure comes back as an XML exception with an image content-type NOT set — same
     // exception shape GetCapabilities uses, so the same parser/message extraction applies.
@@ -168,7 +168,7 @@ async function getMapTile(baseUrl, layerName, [lonMin, latMin, lonMax, latMax], 
   return createImageBitmap(new Blob([arrayBuffer], { type: contentType || format }));
 }
 
-export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, projectEpsg, width, height, longPx = 1024, maxRequest = null, transparent = true, format = "image/png", onProgress }) {
+export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, projectEpsg, width, height, longPx = 1024, maxRequest = null, transparent = true, format = "image/png", onProgress, signal }) { // signal: TASKS.csv #3963 — a cancelled job stops its tile reads
   const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
   if (!width || !height) ({ width, height } = wmsImageSize(bboxLonLat, longPx)); // #543 / #840
   const maxW = Math.min(4096, maxRequest?.width || WMS_DEFAULT_MAX_REQUEST), maxH = Math.min(4096, maxRequest?.height || maxRequest?.width || WMS_DEFAULT_MAX_REQUEST);
@@ -191,12 +191,14 @@ export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, proj
   onProgress?.(0, tiles.length);
   const worker = async () => {
     while (next < tiles.length) {
+      if (signal && signal.aborted) throw cancelledError(); // #3963
       const t = tiles[next++];
       try {
-        const bmp = await getMapTile(baseUrl, layerName, wmsTileBbox(bboxLonLat, width, height, t), t.w, t.h, transparent, format);
+        const bmp = await getMapTile(baseUrl, layerName, wmsTileBbox(bboxLonLat, width, height, t), t.w, t.h, transparent, format, signal);
         sctx.drawImage(bmp, t.x0, t.y0, t.w, t.h);
         bmp.close?.();
       } catch (err) {
+        if (isCancelledError(err)) throw err; // #3963
         failed.push(err);
       }
       onProgress?.(++done, tiles.length);
@@ -270,14 +272,14 @@ function epsgFromCrsName(name) {
   const m = /EPSG(?::+|\/)(\d+)/i.exec(String(name || ""));
   return m ? Number(m[1]) : null;
 }
-async function wfsGetFeature(baseUrl, params) {
-  const { contentType, arrayBuffer } = await fetchWebLayerUrl(buildQuery(baseUrl, params));
+async function wfsGetFeature(baseUrl, params, signal) { // signal: #3963
+  const { contentType, arrayBuffer } = await fetchWebLayerUrl(buildQuery(baseUrl, params), { signal });
   const bodyText = new TextDecoder("utf-8").decode(arrayBuffer);
   if (contentType.includes("xml")) throw Object.assign(new Error(parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || tr("Server rejected the feature request — check the layer name.")), { serverRejected: true });
   try { return JSON.parse(bodyText); } catch { throw new Error(tr("Try another layer: the server did not return valid GeoJSON. It may not support OUTPUTFORMAT=application/json, or it may need GML, which GeoStrix does not read.")); }
 }
 const WFS_NORTHING_FIRST = new Set([2193]); // projected CRSs in this app whose EPSG axis order is northing, easting
-export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEpsg, maxFeatures = 2000, clipBboxLonLat = null }) {
+export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEpsg, maxFeatures = 2000, clipBboxLonLat = null, signal }) { // signal: TASKS.csv #3963
   const base = { SERVICE: "WFS", REQUEST: "GetFeature", VERSION: "2.0.0", TYPENAMES: typeName, OUTPUTFORMAT: "application/json", COUNT: maxFeatures };
   let areaProj = null;
   if (clipBboxLonLat && projectEpsg && ![4326, 4269, 4617, 4258, 4283].includes(Number(projectEpsg))) {
@@ -297,14 +299,14 @@ export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEps
       geojson = await wfsGetFeature(baseUrl, {
         ...base, SRSNAME: crs,
         ...(areaProj ? { BBOX: `${areaProj.join(",")},${crs}` } : {}),
-      });
+      }, signal);
       askedEpsg = Number(projectEpsg); usedServerFilter = !!areaProj;
     } catch (err) {
       if (!err.serverRejected) throw err;
       geojson = null; // server doesn't accept SRSNAME/BBOX — plain request below
     }
   }
-  if (!geojson) geojson = await wfsGetFeature(baseUrl, base);
+  if (!geojson) geojson = await wfsGetFeature(baseUrl, base, signal);
   const features = geojson.features || [];
   if (!features.length) throw new Error(usedServerFilter ? tr("No features of this layer fall inside the project area.") : tr("No features returned for this layer."));
   // Which CRS are these coordinates in? The server's own statement wins, then what we asked for, then

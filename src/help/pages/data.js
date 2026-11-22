@@ -7,16 +7,22 @@ export default [
     id: "first-project",
     area: "Getting started",
     title: "First project",
+    // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Open a sample or drop your files, check them, then look in 3D.",
+    picture: { diagram: "workflow", alt: "The usual order of work: add data, check it, look in 3D, sections and logs, lay out a page, export." },
+    cautions: ["A sample is not your project: start a new one for your files."],
+    instead: [{ text: "CRS, desurvey, cut-off", to: "their own dialogs" }],
+    keys: ["File > Open Sample Project > Macpass", "Your own files"],
+    strip: ["Open Macpass", "Run Data QC", "Open Geochem", "Start your own"],
     summary: "The usual first steps: bring in collars, surveys, logs, assays and densities, check them, then look at them in 3D.",
-    diagram: { id: "workflow", alt: "The usual order of work: add data, check it, look in 3D, sections and logs, lay out a page, export." },
     more: "The walk-through uses the bundled Macpass sample (Yukon: 559 holes, 32,546 assay intervals and 32,498 bulk densities, no logs), used with the permission of its owner, Fireweed Metals Corp. The owner's credit stays on the status bar while the sample is open and prints where a Layout page has the {credits} text.",
     notFor: [
       "It does not choose a coordinate system, a desurvey method or a cut-off: each has its own dialog.",
       "A sample is not your project: open it to try the tools, then start a new project for your files.",
     ],
     fields: [
-      { name: "File > Open Sample Project > Macpass", what: "Opens the sample with its collars, surveys, assays and densities loaded.", more: "How to choose: Try the steps below on it before importing your own files." },
-      { name: "Your own files", what: "Drop collars, surveys and logs on the 3D view; import assays in Geochem.", more: "How to choose: Collars first, then surveys, then logs, so each file finds its holes." },
+      { name: "File > Open Sample Project > Macpass", gist: "Macpass, ready to explore", what: "Opens the sample with its collars, surveys, assays and densities loaded.", more: "How to choose: Try the steps below on it before importing your own files." },
+      { name: "Your own files", gist: "drop them on the 3D view", what: "Drop collars, surveys and logs on the 3D view; import assays in Geochem.", more: "How to choose: Collars first, then surveys, then logs, so each file finds its holes." },
     ],
     warnings: [],
     howto: {
@@ -35,8 +41,14 @@ export default [
     id: "import-drillholes",
     area: "StrixViewer",
     title: "Import drillhole data",
+    // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Brings in collars, surveys and logs; it guesses the columns and previews.",
+    picture: { diagram: "filesWhere", alt: "Which file goes where: collars, survey and logs to StrixViewer, assays to Geochem, densities to the density layer." },
+    figure: { help: "norths", alt: "Grid, true and magnetic north on a map, with the angles between them." },
+    cautions: ["Rows with no hole id, depth or value are left out: Data QC counts them."],
+    instead: [{ text: "Assays", to: "Import assays", page: "import-assays" }, { text: "X, Y, value", to: "Point survey", page: "point-survey" }, { text: "Shapefile, GeoPackage", to: "Map layers", page: "map-layers" }],
+    keys: ["What kind of data is this?", "Dip sign convention", "Azimuths in this file are measured from"],
     summary: "Brings a table in as collars, survey stations or an interval layer (lithology, alteration, density…). It guesses the columns and previews before importing.",
-    diagram: { id: "filesWhere", alt: "Which file goes where: collars, survey and logs to StrixViewer, assays to Geochem, densities to the density layer." },
     more: "The dialog opens when you drop a file on the 3D view or use a layer's upload button. A file name such as sg.csv or litho.csv is a hint; the columns decide.",
     notFor: [
       "Assays go through Geochem's assay import; a table that looks like assays is handed there.",
@@ -44,10 +56,10 @@ export default [
       "A shapefile or GeoPackage of lines and polygons is a map layer.",
     ],
     fields: [
-      { name: "What kind of data is this?", what: "The layer the rows go to; the dialog pre-selects its best guess.", more: "How to choose: Change it when the guess is wrong." },
+      { name: "What kind of data is this?", gist: "the layer the rows go to", what: "The layer the rows go to; the dialog pre-selects its best guess.", more: "How to choose: Change it when the guess is wrong." },
       { name: "Column mapping", what: "Which column fills each field of the layer; mapped columns are highlighted in the preview.", more: "How to choose: Check them against the preview; pick a column for any required field left empty." },
-      { name: "Dip sign convention", what: "Whether a downward dip is negative (the usual drilling convention) or positive.", more: "How to choose: Import, look at a hole you know: if it points up, choose the other convention." },
-      { name: "Azimuths in this file are measured from", what: "True, grid or magnetic north; GeoStrix converts them to the project's grid north.", more: "How to choose: Take it from the survey's documentation; give the survey date for magnetic azimuths. Magnetic azimuths are corrected by the declination at the survey date, and every azimuth by the grid convergence at its hole." },
+      { name: "Dip sign convention", gist: "negative down is usual", what: "Whether a downward dip is negative (the usual drilling convention) or positive.", more: "How to choose: Import, look at a hole you know: if it points up, choose the other convention." },
+      { name: "Azimuths in this file are measured from", gist: "true, grid or magnetic north", what: "True, grid or magnetic north; GeoStrix converts them to the project's grid north.", more: "How to choose: Take it from the survey's documentation; give the survey date for magnetic azimuths. Magnetic azimuths are corrected by the declination at the survey date, and every azimuth by the grid convergence at its hole." },
       { name: "Units", what: "Metres or feet for the depths and lengths; feet are converted to metres." },
       { name: "Extra fields (optional)", what: "Other columns kept on each row and shown by Identify.", more: "How to choose: Keep what later checks need, such as a density's method or a log's recovery." },
     ],
@@ -72,16 +84,22 @@ export default [
     id: "import-assays",
     area: "Geochem",
     title: "Import assays",
+    // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Brings assays into Geochem: one value per element per interval, units kept.",
+    picture: { drop: ["table"], alt: "A table of assays, one column per element." },
+    cautions: ["A blank is not assayed, not zero: it is left out of grades."],
+    instead: [{ text: "Collars, surveys, logs", to: "Import drillhole data", page: "import-drillholes" }],
+    keys: ["Wide format (column per element) / Long format (row per analyte)", "Elements (ticked list) and the units shown beside each", "Not assayed (leave blank)"],
     summary: "Brings assay results into Geochem, one value per element per interval, keeping each element's unit and asking what blanks and negatives mean.",
     more: "A table with a column per element is wide format; a table with one row per analyte is long format. It does not convert between labs' units or set detection limits for you: it keeps the values as reported.",
     notFor: [
       "Collars, surveys and logs are not assays: import them in StrixViewer (see Import drillhole data).",
     ],
     fields: [
-      { name: "Wide format (column per element) / Long format (row per analyte)", what: "Whether each element has its own column, or each row names an analyte.", more: "How to choose: One row per interval with Ag_ppm, Pb_pct… columns is wide." },
+      { name: "Wide format (column per element) / Long format (row per analyte)", gist: "column per element or row per analyte", what: "Whether each element has its own column, or each row names an analyte.", more: "How to choose: One row per interval with Ag_ppm, Pb_pct… columns is wide." },
       { name: "Hole ID / From / To / Sample ID", what: "The columns that place each result.", more: "How to choose: Map a Sample ID when there is one: check samples and QC links find their sample by it." },
-      { name: "Elements (ticked list) and the units shown beside each", what: "Each recognized column with its element and unit, read from the column name.", choose: "Check every unit against the certificate: the unit is never guessed from the values." },
-      { name: "Not assayed (leave blank)", what: "What a small negative value means: below detection (half the limit, flagged <) or not assayed.", more: "How to choose: Take it from the lab's certificate." },
+      { name: "Elements (ticked list) and the units shown beside each", gist: "check each unit against the certificate", what: "Each recognized column with its element and unit, read from the column name.", choose: "Check every unit against the certificate: the unit is never guessed from the values." },
+      { name: "Not assayed (leave blank)", gist: "what a negative or blank means", what: "What a small negative value means: below detection (half the limit, flagged <) or not assayed.", more: "How to choose: Take it from the lab's certificate." },
       { name: "Not assayed — left out of grades (intercepts, composites, statistics) and reported as unsampled metres", what: "A blank cell is a sample not assayed for that element, not a zero.", more: "How to choose: Choose A real measured zero only when the lab reported zero." },
       { name: "QC columns (optional)", what: "Sample type, parent sample, standard, certificate and method, kept for Geochem's QC charts.", more: "How to choose: Map them when the file has them." },
     ],
@@ -105,6 +123,12 @@ export default [
     id: "import-density",
     area: "StrixViewer",
     title: "Import density (Specific gravity)",
+    // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "The Specific gravity layer: density in t/m³, the one tonnages use.",
+    picture: { drop: ["log"], alt: "A density value on each interval of a hole's log." },
+    cautions: ["kg/m³ is not t/m³: divide by 1000 in the file first.", "Intervals with no density give a tonnage with no measured density."],
+    instead: [{ text: "Downhole density log", to: "Downhole logs", page: "downhole-logs" }],
+    keys: ["Value (numeric)", "Extra fields (optional)"],
     summary: "The Specific gravity layer is the project's density in t/m³ (the same number as g/cc): the density tonnages are taken from.",
     more: "Grade-tonnage and the tonnages of solids use a length-weighted mean of its intervals. Import it as intervals: hole, From, To and a value.",
     notFor: [
@@ -113,8 +137,8 @@ export default [
       "A downhole density log read every few centimetres goes to Geophysics > Downhole logs.",
     ],
     fields: [
-      { name: "Value (numeric)", what: "The column holding the density, shown in t/m³.", choose: "Map the bulk density, not a weight or a count." },
-      { name: "Extra fields (optional)", what: "Other columns kept with each density: method, low-recovery flag, comment.", more: "How to choose: Keep the method: the notice and Data QC count each method." },
+      { name: "Value (numeric)", gist: "the bulk density column", what: "The column holding the density, shown in t/m³.", choose: "Map the bulk density, not a weight or a count." },
+      { name: "Extra fields (optional)", gist: "keep the method column", what: "Other columns kept with each density: method, low-recovery flag, comment.", more: "How to choose: Keep the method: the notice and Data QC count each method." },
       { name: "Rows", what: "Which rows to import, when a row filter is offered.", more: "How to choose: All of them, unless the file mixes methods you want apart." },
     ],
     warnings: [
@@ -137,6 +161,11 @@ export default [
     id: "data-qc",
     area: "StrixViewer",
     title: "Drillhole data QA/QC",
+    // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Lists problems that distort a model, worst first. It fixes nothing.",
+    picture: { drop: ["holes"], alt: "Drill holes whose collars, surveys and logs are checked." },
+    cautions: ["A clean list means nothing was found, not that the holes are right.", "Collars with no elevation sit at an ASSUMED elevation.", "Rows left out at import are counted here."],
+    keys: ["Dogleg over", "Collar vs terrain over", "Export CSV"],
     summary: "Checks collars, surveys, assays and every log for problems that distort a model, worst first. It fixes nothing: correct the files and import again.",
     more: "It also says what the project lacks, such as no log of any kind.",
     notFor: [
@@ -144,11 +173,11 @@ export default [
       "A warning is a question: a bend can be a real deflection, a gap can be core that was not cut.",
     ],
     fields: [
-      { name: "Dogleg over", what: "The bend rate (degrees per 30 m) above which a bend is listed.", more: "How to choose: Deviated holes bend 3 to 7° per 30 m; set it from your own drilling. A hole's bends are one row, its sharpest. A bend under 2° is within a survey tool's reading and is not counted; 20° per 30 m or more, over at least 5°, is an error." },
+      { name: "Dogleg over", gist: "bend rate that is listed", what: "The bend rate (degrees per 30 m) above which a bend is listed.", more: "How to choose: Deviated holes bend 3 to 7° per 30 m; set it from your own drilling. A hole's bends are one row, its sharpest. A bend under 2° is within a survey tool's reading and is not counted; 20° per 30 m or more, over at least 5°, is an error." },
       { name: "Density (t/m³)", what: "The densities this project accepts; a density outside them is left out of tonnages.", more: `How to choose: Raise the top for barite or massive sulphide. Kept with the project; 1 to 6 until changed. The tonnage tools (${MINE_DESIGN_ENABLED ? "Grade-tonnage, Pit shell, Stopes, a solid's tonnage" : "Grade-tonnage, a solid's tonnage"}) say how many densities they left out.` },
-      { name: "Collar vs terrain over", what: "How far (m) a collar may sit off the terrain before it is listed.", more: "How to choose: Above your terrain model's own error. The button beside it sets those collars on the terrain; Undo puts them back." },
+      { name: "Collar vs terrain over", gist: "how far off the ground", what: "How far (m) a collar may sit off the terrain before it is listed.", more: "How to choose: Above your terrain model's own error. The button beside it sets those collars on the terrain; Undo puts them back." },
       { name: "Filter by category", what: "Shows one category only (Collars, Survey, a layer, Assays…)." },
-      { name: "Export CSV", what: "Saves every issue, with the project, thresholds and desurvey method in a header.", more: "How to choose: Use it to send the list to the data's owner." },
+      { name: "Export CSV", gist: "every issue, with its header", what: "Saves every issue, with the project, thresholds and desurvey method in a header.", more: "How to choose: Use it to send the list to the data's owner." },
       { name: "Re-run", what: "Runs the checks again on the data as it is now." },
     ],
     warnings: [

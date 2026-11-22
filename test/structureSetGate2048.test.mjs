@@ -20,7 +20,7 @@ test("the Structures run asks before the solve when picks are random or many per
   const block = r.slice(gate, solve);
   assert.match(block, /fs\?\.noPreferred \? tr\("no preferred orientation \(k = \{k\}\)"/);
   assert.match(block, /group\.length >= 4 && perHole > 2\.5 \? tr\("\{n\} picks per hole"/);
-  assert.match(block, /if \(setLike\.length && !window\.confirm\(tr\("\{list\}: these picks behave like a vein set or fabric, not one surface;/ /* #3899 */);
+  assert.match(block, /if \(setLike\.length && !await askConfirm\(tr\("\{list\}: these picks behave like a vein set or fabric, not one surface;/ /* #3899 */);
   assert.match(block, /Stereonet > Add as structural trend[\s\S]*return;/);
 });
 test("the pick check says closely spaced picks apart from repeats", () => {

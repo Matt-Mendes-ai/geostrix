@@ -32,7 +32,7 @@ test("#3624 the camera is not a styling field: orbiting does not mark the projec
 test("#3624 the view reads the saved camera on open, keeps it across its own state pushes, and (master's #3555) frames a filter's holes", () => {
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /setSavedCamera\(s\?\.camera \|\| null\); if \(s\?\.camera\) applySavedCamera\(s\.camera, camState, cameraRef, hasAutoFitRef\);/);
-  assert.match(v, /holeFilter, camera: savedCamera, \/\/ #3624[^\n]*\n      modelArea, \/\/ #2535\n    \};\n    setViewerUiState\(ui\);/); // the one writer of viewerUiState (#1287) carries both
+  assert.match(v, /holeFilter, camera: savedCamera, \/\/ #3624[^\n]*\n      modelArea, \/\/ #2535\n      fenceArea, \/\/ #3971\n    \};\n    setViewerUiState\(ui\);/); // the one writer of viewerUiState (#1287) carries both
   assert.match(v, /useSavedCamera\(camState, hydratedFor === viewerUiStateSeq, setSavedCamera\);/);
   assert.match(v, /autoFitInitial = useCallback\(\(traces, nHoles\) => \{ const hole = nHoles \? traces\.slice\(0, nHoles\) : traces,/); // #3555 (master): the holes shown, when some are hidden
 });
@@ -40,6 +40,6 @@ test("#3624 the view reads the saved camera on open, keeps it across its own sta
 test("#3624 the hole filter's rule is saved with the checks and read back (and cleared for a new project)", () => {
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /setHoleFilter\(s\.holeFilter \|\| ""\); \/\/ #3624/);
-  assert.match(v, /setModelArea\("all"\); setHoleFilter\(""\); \/\/ #2535; #3624/);
-  assert.match(v, /markViewerUiBaseline, modelArea, holeFilter, savedCamera\]\);/);
+  assert.match(v, /setModelArea\("all"\); setHoleFilter\(""\); setFenceArea\(null\); \/\/ #2535; #3624; #4004/); // #4004: and the fence box
+  assert.match(v, /markViewerUiBaseline, modelArea, holeFilter, savedCamera, fenceArea\]\);/); // fenceArea: #3971
 });

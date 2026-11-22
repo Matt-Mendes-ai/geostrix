@@ -1,5 +1,6 @@
 import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3563
+import { useDismiss } from "../lib/useDismiss.js"; // TASKS.csv #3969
 import { correlationDefaults, bestPartner, BULK_COMMODITIES } from "../lib/preferredElement.js"; // BULK_COMMODITIES: #2911; // TASKS.csv #2512; bestPartner: #2741
 import { orderElements } from "../lib/elementOrder.js"; // TASKS.csv #2032
 import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2032
@@ -120,6 +121,7 @@ import { isMineSource, mineSourceOf, mineSourceToProject, mineSourceSentence } f
 import { flagColumns, flagQualifier, censoredSamples } from "../lib/assayFlags.js"; // TASKS.csv #2018
 import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2016
 import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 const VECTOR_FILE = /\.(shp|zip|gpkg|kml|kmz)$/i; // #2016 — sample points from GIS files
 const OWN_CRS = "(own CRS)"; // #2016 — sourceEpsgFrom when the CRS came from a .prj / GeoPackage SRS, not a column
 const SHP_GROUP = (list) => groupShapefileParts(list).files; // a .shp with its .dbf / .prj / .cpg as one file (#2121's rule)
@@ -204,6 +206,7 @@ export default function GeochemModule() {
   const qcInSource = useMemo(() => keptMemo([sourceAll], "qcIn", () => sourceAll.filter((a) => classifyQAQCRow(a) !== "regular").length), [sourceAll]);
   const sourceRows = useMemo(() => keptMemo([sourceAll], `rows|${plotQc}|${qcInSource}`, () => (plotQc || !qcInSource ? sourceAll : sourceAll.filter((a) => classifyQAQCRow(a) === "regular"))), [sourceAll, plotQc, qcInSource]);
   const [lithMenuOpen, setLithMenuOpen] = useState(false);
+  useDismiss(lithMenuOpen, (n) => !!n?.closest?.("[data-lith-menu]"), () => setLithMenuOpen(false)); // TASKS.csv #3969 — also when a dialog opens
   const [colorElement, setColorElement] = useKeptState(keptScope, "geochem.colorElement", null);
   // TASKS.csv #1091 — the element to colour by: the one chosen, else Au, else the first. colorElement is set only when an
   // assay file is imported here, so an opened project or a sample showed "by element" with every point the uniform blue
@@ -884,7 +887,7 @@ export default function GeochemModule() {
     const changed = holesWithChangedIntervals(assays, rows);
     let replaceHoles = [];
     if (changed.length) {
-      const ok = window.confirm(
+      const ok = await askConfirm(
         tr("{n} hole(s) in this file have different sample intervals from the assays already loaded (e.g. {examples}).", { n: changed.length, examples: changed.slice(0, 3).map((h) => tr("{hole}: old {interval} not in the file", { hole: h.hole_id, interval: h.example })).join("; ") + (changed.length > 3 ? "; …" : "") }) + "\n\n" +
         tr("OK — REPLACE those holes' assays with this file's (a corrected or re-split file).") + "\n" +
         tr("Cancel — keep both (the old intervals stay beside the new ones; intercepts and statistics then see both)."));
@@ -1110,7 +1113,7 @@ export default function GeochemModule() {
       const picked = await requestProjectCrs(tr("These samples' coordinates need the project's coordinate system: choose the one they are in."), pts);
       if (picked) toEpsg = Number(picked);
     }
-    const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName, at: rowAt }); // #607
+    const adopted = await askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName, at: rowAt }); // #607
     if (adopted) { setEpsg(adopted); toEpsg = adopted; setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{adopted}) from {fileName}.", { v: crsName(adopted), adopted, fileName: modal.fileName })]); }
     // TASKS.csv #2320 — a local-grid project: samples in a CRS come into the grid through its tie; with no tie their numbers are kept
     const gridTie = tieOf(project), localNoTie = project?.crsSet === false && project?.localGrid && !gridTie;
@@ -1176,10 +1179,10 @@ export default function GeochemModule() {
     if (twins.n) {
       const had = Object.entries(twins.media).map(([m, k]) => `${m} ${k}`).join(", ");
       const newMedia = [...new Set([...twins.existing.keys()].map((r) => r.medium))].join(", ");
-      if (window.confirm(tr("{n} of these sample ids are already in the project at the same positions (within 1 m), as {had}; this import would add them as {media}.", { n: twins.n, had, media: newMedia }) + "\n\n" + tr("OK — update those samples (they keep their medium).") + "\n" + tr("Cancel — choose whether to add them as new samples."))) {
+      if (await askConfirm(tr("{n} of these sample ids are already in the project at the same positions (within 1 m), as {had}; this import would add them as {media}.", { n: twins.n, had, media: newMedia }) + "\n\n" + tr("OK — update those samples (they keep their medium).") + "\n" + tr("Cancel — choose whether to add them as new samples."))) {
         rows = rows.map((r) => (twins.existing.has(r) ? { ...r, medium: twins.existing.get(r) } : r));
         twinNote = tr("{n} sample id(s) matched samples already in the project as {had} at the same positions: those were updated, keeping their medium.", { n: twins.n, had });
-      } else if (window.confirm(tr("Add the {n} sample(s) as {media} anyway? They sit on samples already in the project ({had}). Cancel stops the import.", { n: twins.n, media: newMedia, had }))) {
+      } else if (await askConfirm(tr("Add the {n} sample(s) as {media} anyway? They sit on samples already in the project ({had}). Cancel stops the import.", { n: twins.n, media: newMedia, had }))) {
         twinNote = tr("{n} sample(s) were added as {media} at the positions of samples already in the project as {had}.", { n: twins.n, media: newMedia, had });
       } else { setNotices((p) => [...p, notice("Surface sample import cancelled: nothing was added.")]); return; }
     }
@@ -1259,7 +1262,7 @@ export default function GeochemModule() {
   };
 
   const codeMeaning = (k) => { const d = entryOf(store.codeDictionary?.litho, k)?.desc; return d ? ` (${d})` : ""; }; // TASKS.csv #3292 — the project's own name for a logged code, in the notices
-  const runMethod = (methodKey, altSetup = null, volcanic = null) => { // volcanic: #2352 — the logged codes ticked as volcanic
+  const runMethod = async (methodKey, altSetup = null, volcanic = null) => { // volcanic: #2352 — the logged codes ticked as volcanic
     const method = GEOCHEM_METHODS[methodKey];
     const missing = method.requires.filter((s) => !availableSymbols.has(s));
     if (missing.length) { setNotices((p) => [...p, errorNotice(tr("{label}: missing {missing}.", { label: tr(method.label), missing: missing.join(", ") }))]); return; }
@@ -1280,7 +1283,7 @@ export default function GeochemModule() {
     if (methodKey === "alteration_boxplot" && !altSetup) { setAltBoxOpen(true); return; }
     const targetKey = method.target === "litho" ? "litho_gc" : "alt_gc";
     // TASKS.csv #1380 — replacing a geochem layer asks first (Winchester silently replaced Jensen's)
-    if ((layers[targetKey] || []).length && !window.confirm(tr("Replace the {n} intervals already in the {v} layer?", { n: layers[targetKey].length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)") }))) return;
+    if ((layers[targetKey] || []).length && !await askConfirm(tr("Replace the {n} intervals already in the {v} layer?", { n: layers[targetKey].length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)") }))) return;
     let lithoByHole = null, noProtolith = 0;
     const bdlLeft = {}; // #2501 — element -> samples left out of a ratio classifier (a below-detection operand)
     const sedSkipped = {}; // #1380 — logged code -> samples left out of a volcanic classifier
@@ -1669,7 +1672,7 @@ export default function GeochemModule() {
             {colorMode === "hole" && plottedHoles.length > KEY_MAX && <span style={{ fontSize: "var(--font-size-xs)", color: "#55606e" }}>{tr("{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)", { n: plottedHoles.length })}</span>}
           </div>
           {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
-          <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
+          <div data-lith-menu="" style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
               title={hasLithLog ? tr("Plot only samples from the chosen logged lithologies") : tr("Load a lithology log in StrixViewer to filter by it")}
               style={{ ...selectStyle, padding: "5px 8px", cursor: hasLithLog ? "pointer" : "not-allowed", opacity: hasLithLog ? 1 : 0.55 }}>
               {!hasLithLog ? tr("no log loaded") : !lithFilter ? tr("all ({lithCounts})", { lithCounts: lithCounts.length }) : tr("{size} of {lithCounts} selected", { size: lithFilter.size, lithCounts: lithCounts.length })} ▾
@@ -1928,23 +1931,23 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
     setAssayElements((prev) => prev.filter((e) => used.has(e.symbol)));
     if (colorElement && !used.has(colorElement)) setColorElement(null);
   };
-  const removeFile = (f) => {
+  const removeFile = async (f) => {
     const label = f.file == null ? "the assays imported before file names were recorded" : `"${f.file}"`;
-    if (!confirmDestructive(f.shared ? tr("Remove {label} ({intervals} interval(s); {shared} that also came from another file are kept)?", { label, intervals: (f.intervals - f.shared).toLocaleString(), shared: f.shared.toLocaleString() }) /* #2202 */ : tr("Remove {label} ({intervals} interval(s))?", { label, intervals: f.intervals.toLocaleString() }), { undoable: true })) return;
+    if (!await confirmDestructive(f.shared ? tr("Remove {label} ({intervals} interval(s); {shared} that also came from another file are kept)?", { label, intervals: (f.intervals - f.shared).toLocaleString(), shared: f.shared.toLocaleString() }) /* #2202 */ : tr("Remove {label} ({intervals} interval(s))?", { label, intervals: f.intervals.toLocaleString() }), { undoable: true })) return;
     const r = removeAssayFile(assays, f.file);
     setAssays(r.assays); dropUnusedElements(r.assays);
     setNotices((p) => [...p, notice("Removed {removed} assay interval(s) from {label}.{v} Ctrl+Z to undo.", { removed: r.removed.toLocaleString(), label, v: r.keptShared ? tr(" {keptShared} interval(s) also came from another file and were kept (their values can't be separated by file).", { keptShared: r.keptShared.toLocaleString() }) : "" })]);
   };
-  const removeElement = (sym) => {
-    if (!confirmDestructive(tr("Remove {sym} from every assay interval?", { sym }), { undoable: true })) return;
+  const removeElement = async (sym) => {
+    if (!await confirmDestructive(tr("Remove {sym} from every assay interval?", { sym }), { undoable: true })) return;
     const r = removeAssayElement(assays, sym);
     setAssays(r.assays);
     setAssayElements((prev) => prev.filter((e) => e.symbol !== sym));
     if (colorElement === sym) setColorElement(null);
     setNotices((p) => [...p, notice("Removed {sym} from {cleared} interval(s){v}. Ctrl+Z to undo.", { sym, cleared: r.cleared.toLocaleString(), v: r.emptied ? tr("; {emptied} interval(s) had no other element and were removed", { emptied: r.emptied.toLocaleString() }) : "" })]);
   };
-  const removeAll = () => {
-    if (!confirmDestructive(tr("Remove all {assays} assay intervals and {assayElements} element(s)?", { assays: assays.length.toLocaleString(), assayElements: assayElements.length }), { undoable: true })) return;
+  const removeAll = async () => {
+    if (!await confirmDestructive(tr("Remove all {assays} assay intervals and {assayElements} element(s)?", { assays: assays.length.toLocaleString(), assayElements: assayElements.length }), { undoable: true })) return;
     setAssays([]); setAssayElements([]); setColorElement(null);
     setNotices((p) => [...p, notice("Removed all assays. Ctrl+Z to undo.")]);
   };

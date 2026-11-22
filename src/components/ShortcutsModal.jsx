@@ -69,6 +69,8 @@ const SHORTCUT_GROUPS = [
       ["Scroll", "Zoom in / out"],
       ["+ / - (the 3D view focused: click it first)", "Zoom in / out"], // TASKS.csv #2788
       ["Home (the 3D view focused)", "Fit the view, as the Fit button"], // TASKS.csv #2788
+      ["T / B (pointer over the 3D view)", "Top / bottom view, as the Top and Bottom buttons"], // TASKS.csv #4005
+      ["N / S / E / W (pointer over the 3D view)", "Look level from the north / south / east / west side; the target and distance stay"], // TASKS.csv #4005
       ["Right-click (without dragging)", "Context menu"], // #2043
       ["Shift+F10 or the Menu key", "Context menu from the keyboard (the focused 3D view or a sidebar row); arrows move, Enter chooses, Escape closes"], // TASKS.csv #730
     ],

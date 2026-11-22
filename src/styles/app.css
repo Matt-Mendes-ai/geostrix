@@ -231,7 +231,7 @@ input, select { font-family: inherit; }
    visible so a button's popover can drop below the band. */
 .ge-ribbon {
   display: flex; align-items: stretch; flex-shrink: 0;
-  height: 76px; padding: 3px 6px 0;
+  height: calc(76px + 3.6 * var(--text-bump)); padding: 3px 6px 0; /* #3900 text size: a two-line label and the group caption grow with the bump (76 px at Normal; the captions fell off at Large / Larger) */
   background: var(--color-bg-subtlest); border-bottom: 1px solid var(--color-border);
   position: relative; z-index: 20;
 }
@@ -422,7 +422,7 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
    the content" treatment — scoped to the pop-out's own toolbar/chip-bar classes since it's a
    separate window from the main app and doesn't share .ge-toolbar/.ge-panel/.ge-status. */
 @media print {
-  .ge-section-toolbar, .ge-section-chips, .ge-section-tabbar { display: none !important; }
+  .ge-section-toolbar, .ge-section-chips, .ge-section-tabbar, .ge-section-overview { display: none !important; } /* overview: #3977, its inset goes in the figure */
   .ge-section-host { height: auto !important; display: block !important; } /* #1303 — only the shown tab prints: the others are display: none */
   .ge-section-panes, .ge-section-pane { height: auto !important; }
   .ge-section-body { padding: 0 !important; height: auto !important; overflow: visible !important; flex: none !important; }

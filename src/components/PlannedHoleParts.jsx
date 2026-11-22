@@ -20,6 +20,9 @@ import { collarFillAt, collarFillGround, collarFillSource, distanceText, judgedC
 import { nextHoleId } from "../lib/holeSeries.js"; // TASKS.csv #3347
 
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
+// TASKS.csv #3962 (P1) — probable grade along the planned holes: the panel (and its worker) and the band plot load with the pane
+const ProbableGradePanel = lazyModal(() => import("./ProbableGradePanel.jsx"));
+const ProbableGradePlot = lazyModal(() => import("./ProbableGradePlot.jsx"));
 import CollarPicker from "./CollarPicker.jsx"; // TASKS.csv #2104
 import PlannedHolePattern from "./PlannedHolePattern.jsx"; // TASKS.csv #2449 — a line / grid of holes
 import { plannedHolesFromRows } from "../lib/plannedImport.js"; // TASKS.csv #2651
@@ -30,6 +33,8 @@ import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2976 — 
 import { traceSpacing } from "../lib/traceSpacing.js"; // TASKS.csv #3820
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
+import { predictionState, fmt as fmtPred } from "../lib/drillPlanner/predictionInputs.js"; // TASKS.csv #3962 (P1)
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
 
@@ -75,12 +80,12 @@ const PAST_TARGET_M = 30;
 const appliedPicks = new WeakSet();
 // TASKS.csv #2257 — a handed-over target is used once, too: reopening the pane refilled Target E / N / Elev with a zone already planned
 const appliedPresets = new WeakSet();
-export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null, survey = null }) {
+export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null, survey = null, surfaces = [] }) {
   // TASKS.csv #2450 — the starting azimuth, dip and length from the drilled holes (median), else az 0 / dip -60 / 100 m as before
   const seed = useMemo(() => drilledDefaults(collars, survey || []), [collars, survey]);
   const [draft, setDraft] = useState(() => ({ name: "", x: "", y: "", z: "", azimuth: seed?.azimuth ?? 0, dip: seed?.dip ?? -60, length: seed?.length ?? 100 }));
   // TASKS.csv #3347 — the next id of the project's own series, offered for a blank name (the drilled ids and the planned names so far)
-  const { plannedHoles: plannedSoFar } = useStore();
+  const { plannedHoles: plannedSoFar, voxelModels: storeModels, desurveyMethod: storeDesurvey } = useStore();
   const nameOffer = useMemo(() => nextHoleId([...(collars || []).map((c) => c.hole_id), ...(plannedSoFar || []).map((h) => h.name)]), [collars, plannedSoFar]);
   // TASKS.csv #1835 (review #1646, Kodiak) — where the collar's Elev came from, kept on the hole and written to the rig sheet
   // (z_source): a picked Elev is whatever the click hit (the top of an IP cell, there), and it reached the CSV / GPX unmarked
@@ -124,17 +129,17 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       // first, never assumed. The form's azimuth goes to grid as the form's own (a true / magnetic one needs its offset, else only a vertical dip)
       if (r.noOrientation && r.missing.join(",") === "azimuth,dip") {
         const d = Number(draft.dip), az = Number.isFinite(Number(draft.azimuth)) ? (azOffset ? wrap360(Number(draft.azimuth) + azOffset.offset) : Math.abs(Math.abs(d) - 90) < 1e-9 ? 0 : NaN) : NaN;
-        if (Number.isFinite(az) && Number.isFinite(d) && window.confirm(tr("{f} has no azimuth or dip column. Add every hole at the form's Az {a}° / Dip {d}°?", { f: file.name, a: Math.round(az * 10) / 10, d }))) r = plannedHolesFromRows(rows, headers, { fallback: { azimuth: az, dip: d }, groundAt: groundForZ });
+        if (Number.isFinite(az) && Number.isFinite(d) && await askConfirm(tr("{f} has no azimuth or dip column. Add every hole at the form's Az {a}° / Dip {d}°?", { f: file.name, a: Math.round(az * 10) / 10, d }))) r = plannedHolesFromRows(rows, headers, { fallback: { azimuth: az, dip: d }, groundAt: groundForZ });
       }
       if (r.missing.length) { setImportMsg({ warn: true, text: r.onlyNonGridAzimuth && r.missing.join(",") === "azimuth" ? tr("{f} has {col} but no grid azimuth column (azimuth, azimuth_grid, az): a true or magnetic bearing is not converted on import. Nothing was added.", { f: file.name, col: r.onlyNonGridAzimuth }) : tr("{f} lacks the column(s) {cols} (E / N / Elev, azimuth, dip, length are needed). Nothing was added.", { f: file.name, cols: r.missing.join(", ") }) }); return; }
       let holes = r.holes;
       // GeoStrix keeps a downward hole's dip negative; a sheet whose every dip is positive may count down as positive: asked, never assumed
-      if (r.allDipsPositive && window.confirm(tr("Every dip in {f} is positive, which GeoStrix reads as upward. Are these downward holes (flip the dips to negative)?", { f: file.name }))) holes = holes.map((h) => ({ ...h, dip: -h.dip }));
+      if (r.allDipsPositive && await askConfirm(tr("Every dip in {f} is positive, which GeoStrix reads as upward. Are these downward holes (flip the dips to negative)?", { f: file.name }))) holes = holes.map((h) => ({ ...h, dip: -h.dip }));
       // TASKS.csv #3824 (10) — Import CSV read every azimuth as grid north, said only in the button's tooltip, on a project whose own surveys were true north. With the form's 'Azimuth from' set to
       // true or magnetic north the sheet is asked about, and each hole converted at its own collar (kept beside it, as a typed one is); with grid north the notice says how they were read
       let northNote = "";
       if (holes.length && azRef !== "grid") {
-        if (window.confirm(tr("Are the azimuths in {f} measured from {ref} (the form's 'Azimuth from')? OK converts each to grid at its own collar; Cancel reads them as grid north.", { f: file.name, ref: azRef === "true" ? tr("true north") : tr("magnetic north (today)") }))) {
+        if (await askConfirm(tr("Are the azimuths in {f} measured from {ref} (the form's 'Azimuth from')? OK converts each to grid at its own collar; Cancel reads them as grid north.", { f: file.name, ref: azRef === "true" ? tr("true north") : tr("magnetic north (today)") }))) {
           if (azRef === "magnetic") await loadIgrf();
           holes = holes.map((h) => { try { const o = azimuthToGridOffset(azRef, Number(h.x), Number(h.y), epsg, today); return { ...h, azimuthEntered: { value: h.azimuth, ref: azRef, date: today }, azimuth: Math.round(wrap360(h.azimuth + o.offset) * 100) / 100 }; } catch { return h; } });
           northNote = " " + tr("Azimuths read as {ref} and converted to grid at each collar.", { ref: azRef === "true" ? tr("true north") : tr("magnetic north (today)") });
@@ -244,7 +249,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     setDraft((p) => ({ name: "", x: "", y: "", z: "", azimuth: p.azimuth, dip: p.dip, length: p.length })); // #2450 — the next hole starts like the last one
     setFromCollarId(""); setTarget({ x: "", y: "", z: "" }); setZSource("typed"); setCollarNote(null); setPickInForm(false); setUpward(false); // #1838; upward: #2257
   };
-  return (
+  return (<>
     <div style={{ padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <input placeholder={nameOffer ? tr("Hole name (blank: {id})", { id: nameOffer }) : tr("Hole name (optional)")} value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
       {collars.length > 0 && (
@@ -346,6 +351,10 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         {collarNote && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: collarNote.warn ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarNote.text}</div>}
       </div>
     </div>
+    {/* TASKS.csv #3962 — with no planned hole yet the pane shows no checks, where the panel otherwise sits: the drill program must be reachable
+        on a project with none (live, P3), so it is here until the first hole is added, with the visible surfaces as targets */}
+    {(plannedSoFar || []).length === 0 && <ProbableGradePanel plannedHoles={[]} collars={collars} survey={survey || []} voxelModels={storeModels || []} desurveyMethod={storeDesurvey} surfaces={surfaces} />}
+  </>
   );
 }
 // TASKS.csv #3824 (1) (Scottie Gold review) — Az 400 and Dip -91 were accepted and stored as typed (the row read 'Az 40° / Dip -91°', the rig CSV carried 400 and -91): an azimuth is
@@ -412,7 +421,8 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
   const setRate = (type, v) => setDrillRates((prev) => ({ ...prev, [type]: v === "" ? undefined : v })); // from the latest rates: two quick edits kept only one
   const anyTargetModel = voxelModels.some(isTargetModel);
 
-  return (
+  return (<>
+    <ProbableGradePanel plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} surfaces={surfaces} />{/* TASKS.csv #3962 (P1) */}
     <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontWeight: 600, marginBottom: 6 }}>{tr("Planned hole checks")}</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 7 }}>
@@ -508,6 +518,31 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
       )}
       {surfaces.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Build or show a modelled surface (3D Modelling) to list where the planned holes cross it.")}</div>}
     </div>
+  </>);
+}
+
+// TASKS.csv #3962 (P1) — the hole's frozen prediction in one or two lines under its design: the chance of an intercept at the cut-off, a
+// typical hit, and the low / middle / high of grade x metres; said when the hole has moved since, or is drilled (the prediction kept)
+function PredictionLine({ hole }) {
+  const p = hole.prediction, state = predictionState(hole);
+  if (!p) return null;
+  const unit = p.unit || "";
+  const st = { marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 };
+  const after = state === "moved" ? <div style={{ ...st, color: "var(--color-warn-text)" }}>{tr("Moved since: predict again.")}</div>
+    : state === "kept" ? <div style={st}>{tr("Drilled: kept as made ({date}).", { date: String(p.date || "").slice(0, 10) })}</div> : null;
+  if (p.beyond) return <div data-prediction="" style={st}>{tr("Beyond the drilling: no prediction.")}{after}</div>;
+  // TASKS.csv #3962 (P3) — the drilled hole's real result against this prediction (Compare drilled holes)
+  const a = hole.actual, real = a && a.element === p.element ? <div data-actual="" style={{ ...st, color: a.where === "inside" ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>
+    {tr(a.where === "inside" ? "Drilled: {gt} grade × metres, inside the range." : a.where === "below" ? "Drilled: {gt} grade × metres, below the range: the model was optimistic here." : "Drilled: {gt} grade × metres, above the range.", { gt: fmtPred(a.gt) })}</div> : null;
+  const pc = Math.round((p.pHit || 0) * 100);
+  return (
+    <div data-prediction="" style={st}>
+      {pc > 0 && p.hitLength ? tr("At {c} {unit}: a {p} % chance of an intercept; a typical hit {len} m at {g} {unit}.", { c: fmtPred(p.rules.cutoff), unit, p: pc, len: fmtPred(p.hitLength[1]), g: fmtPred(p.hitGrade[1]) })
+        : tr("At {c} {unit}: a {p} % chance of an intercept.", { c: fmtPred(p.rules.cutoff), unit, p: pc })}
+      {pc > 0 && <div>{tr("Grade × metres, low / middle / high: {a} / {b} / {c}", { a: fmtPred(p.gt[0]), b: fmtPred(p.gt[1]), c: fmtPred(p.gt[2]) })}</div>}
+      {after}
+      {real}
+    </div>
   );
 }
 
@@ -527,12 +562,14 @@ export function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { 
         </div>
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || tr("Planned hole")}</div>
         {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(false), tr("Collapse this planned hole"))} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(true), tr("Expand this planned hole"))} />}
-        <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Remove planned hole \"{v}\"?", { v: hole.name || hole.id }))) onRemove(hole.id); }, tr("Remove planned hole \"{v}\"", { v: hole.name || hole.id }))} />
+        <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await askConfirm(tr("Remove planned hole \"{v}\"?", { v: hole.name || hole.id }))) onRemove(hole.id); }, tr("Remove planned hole \"{v}\"", { v: hole.name || hole.id }))} />
       </div>
       <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Az {v}° / Dip {v2}° / {v3} m{v4}", { v: Math.round(wrap360(Number(hole.azimuth))) % 360 /* #2257 — 359.6 is 0°, not 360° */, v2: dipPrinted(hole.dip) /* TASKS.csv #3878 - one sign, one decimal */, v3: Math.round(hole.length), v4: toe ? tr(" — toe E {x} N {y} Elev {z}", { x: toe.x.toFixed(0), y: toe.y.toFixed(0), z: toe.z.toFixed(0) }) : "" })}
       </div>
+      <PredictionLine hole={hole} />
       {expanded && (
         <div style={{ marginTop: 6, borderTop: "1px solid var(--color-divider)", paddingTop: 6 }}>
+          {hole.prediction && !hole.prediction.beyond && <ProbableGradePlot prediction={hole.prediction} actual={hole.actual?.element === hole.prediction.element ? hole.actual.values : null} />}
           <input placeholder={tr("Name")} value={hole.name || ""} onChange={(e) => onUpdate(hole.id, { name: e.target.value })} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             <NumField label="E" value={hole.x} onChange={(v) => onUpdate(hole.id, { x: v })} />

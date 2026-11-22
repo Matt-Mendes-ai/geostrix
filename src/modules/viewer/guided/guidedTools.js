@@ -8,7 +8,8 @@
 //         feed(ctx) -> null | why it cannot (a sentence), suggest(ctx) -> { value, reason }, choices(ctx) -> [unit],
 //         contacts(ctx, value) -> the contacts autoSurface sizes the model from, check(ctx, value) -> null | why it cannot,
 //         notes(ctx, value) -> [sentence], run(api, value), prefill(api, value) }
-import { stackOrder, suggestBody, suggestCover } from "../../../lib/auto/autoUnits.js";
+import { stackOrder, suggestBody, suggestCover, coverAdvice } from "../../../lib/auto/autoUnits.js";
+import { codedRuns, collarCover } from "../../../lib/modellingCodes.js"; // TASKS.csv #3997
 import { t as tr, fmtNum } from "../../../lib/i18n.js";
 import { autoGradeShell } from "../../../lib/auto/autoGradeShell.js";
 import { autoBlockModel } from "../../../lib/auto/autoBlockModel.js";
@@ -20,9 +21,13 @@ import { NUMERIC_CELL_DEFAULT, GRADE_SHELL_SEARCH_DEFAULT } from "../../../lib/e
 import { getUnsampledChoice, setUnsampledChoice } from "../../../lib/unsampledChoices.js";
 import { gradeUnitLabel } from "../../../lib/geochemColumns.js";
 import { desurveyHole, pointOnTrace } from "../../../lib/desurvey.js";
+import { isNotRecorded } from "../../../lib/notRecorded.js"; // TASKS.csv #3932 batch 3 — the Alteration halo's choices
+import { isNotLogged } from "../../../lib/notLogged.js"; // TASKS.csv #4011 — and the pane's own rule (#1740): 'N/A' is no assemblage, not offered
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
 const unitsByHoles = (ctx) => stackOrder(ctx.rows).units.map((u) => u.unit);
+// TASKS.csv #3997 — a rock that starts most holes at the collar is the cover (Century's limestone): not a layer's top, not a body
+const coverOf = (ctx, code) => (ctx.isCover?.(code) ? null : collarCover(codedRuns(ctx.rows, null, null), code));
 
 export const ROCK_LAYERS = {
   id: "layers",
@@ -45,7 +50,7 @@ export const ROCK_LAYERS = {
   ordered(ctx, picked) { const s = stackOrder(ctx.rows), rank = [...s.order, ...s.bodies, ...s.units.map((u) => u.unit)]; return [...picked].sort((a, b) => rank.indexOf(a) - rank.indexOf(b)); },
   check: (ctx, value) => (value.length >= 2 ? null : tr("Tick at least two rocks: a layer is drawn between two of them.")),
   contacts: (ctx, value) => ctx.intercepts().filter((c) => value.includes(String(c.unit))),
-  notes: () => [],
+  notes: (ctx, value) => { const c = value[0] ? coverOf(ctx, value[0]) : null; return c?.cover && c.onto.length > 1 ? [coverAdvice(value[0], c, { stack: true })] : []; }, // #3997
   run: (api, value) => api.runStackModel(value),
   prefill: (api, value) => api.setStackUnits(value),
 };
@@ -53,7 +58,7 @@ export const ROCK_LAYERS = {
 // TASKS.csv #3908 step 3 — one rock as a shape that cuts the others: the implicit run on that unit. The run draws a cross-cutting shape only
 // for a rock it reads as one (a dyke, vein, breccia or intrusion: its name, or its role in Modelling codes); any other rock it draws as the
 // top of a layer, so the tool says where to mark it instead of building the wrong surface (found live on WA lode gold: "cl").
-const BODY_ROLES = new Set(["dyke", "vein", "breccia", "intrusion", "cross-cutting"]);
+export const BODY_ROLES = new Set(["dyke", "vein", "breccia", "intrusion", "cross-cutting"]); // exported: an AI app's build_surface picks the tool by role (#3932)
 export const BODIES = {
   id: "bodies",
   title: "Intrusions and bodies",
@@ -70,7 +75,7 @@ export const BODIES = {
   },
   choices: unitsByHoles,
   check: (ctx, value) => (!value ? tr("Choose a rock first.")
-    : BODY_ROLES.has(ctx.roleOf(value)) ? null : tr("Mark {code} as an intrusion in 3D Modelling > Modelling codes, then build again: read as a layered rock, only its top would be drawn.", { code: value })),
+    : BODY_ROLES.has(ctx.roleOf(value)) ? null : coverOf(ctx, value)?.cover ? coverAdvice(value, coverOf(ctx, value)) /* #3997 */ : tr("Mark {code} as an intrusion in 3D Modelling > Modelling codes, then build again: read as a layered rock, only its top would be drawn.", { code: value })),
   contacts: (ctx, value) => ctx.intercepts().filter((c) => String(c.unit) === value),
   notes: () => [],
   run: (api, value, ctx) => api.runImplicitModel(ctx.target(value)), // mcode:<code> when Modelling codes give it its role (live: RSO marked overburden)
@@ -155,6 +160,50 @@ export const VEINS = {
   notes: () => [],
   run: (api, value) => api.runVeinModel(value),
   prefill: (api, value) => api.setVeinTarget(value),
+};
+
+// TASKS.csv #3932 batch 3 — an alteration halo from the Alteration log, as its pane runs it (modellingRuns.js runAlterationModel: 1 inside the intervals
+// with the code, 0 in every other logged alteration interval, so the halo closes between them). For the AI tool build_alteration, and since TASKS.csv #4011
+// (Matt: "yes make the alteration card visible") a Start here card after Veins and dykes; Change these opens the Alteration pane on the code. Refused when
+// fewer than three holes log the code, or when nothing logged is another alteration (no zero to close the halo); 'not recorded' codes are neither.
+function altChoices(ctx) {
+  const by = new Map();
+  for (const r of ctx.alt || []) {
+    if (isNotLogged(r.value) || isNotRecorded(r.value)) continue;
+    const k = String(r.value), e = by.get(k) || { holes: new Set(), rows: 0 };
+    e.holes.add(r.hole_id); e.rows++; by.set(k, e);
+  }
+  return [...by].map(([code, e]) => ({ code, holes: e.holes.size, rows: e.rows })).sort((a, b) => b.holes - a.holes || a.code.localeCompare(b.code));
+}
+export const ALTERATION = {
+  id: "alteration",
+  title: "Alteration halo",
+  line: "A halo round one alteration, from the holes that log it.",
+  sentence: "Builds the volume round one alteration code, closed between the holes by the other alteration logged.",
+  question: "Which alteration?",
+  multi: false,
+  help: "alteration-modelling",
+  expertPane: "alteration",
+  feed: (ctx) => (altChoices(ctx).length ? null : tr("No alteration logged: an Alteration log is needed.")),
+  suggest(ctx) {
+    const c = altChoices(ctx)[0];
+    return { value: c.code, reason: tr("{v} is logged in {n} holes, more than any other alteration.", { v: c.code, n: c.holes }) };
+  },
+  choices: (ctx) => altChoices(ctx).map((c) => c.code),
+  label: (k) => k,
+  check: (ctx, value) => (value ? null : tr("Choose an alteration code first.")),
+  auto(ctx, value) {
+    const all = altChoices(ctx), c = all.find((x) => x.code === value), n = c ? c.holes : 0;
+    if (n < 3) return { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Only {n} holes log {v}: a halo needs three or more.", { n, v: value })] };
+    if (all.length < 2) return { ok: false, values: null, reasons: [], notes: [], verdict: [tr("Every alteration interval logged is {v}: with no other alteration logged, nothing closes the halo between the holes.", { v: value })] };
+    return { ok: true, values: {}, reasons: [{ field: "holes", text: tr("{v} is logged in {n} holes; the other alteration logged closes the halo between them.", { v: value, n }) }], notes: [], verdict: null };
+  },
+  prepare: () => {},
+  ready: () => true,
+  contacts: () => [],
+  notes: () => [],
+  run: (api, value) => api.runAlterationModel(value),
+  prefill: (api, value) => api.setAlterationTarget?.(value), // #4011 — the pane opens on the code
 };
 
 // TASKS.csv #3909 — a fault from the measured picks: the Structural modelling run on one structure type of the structure log (picks with a
@@ -330,6 +379,6 @@ export const GRADE = {
 };
 
 // in the Start here card's order: what lies on top first
-export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS, FAULTS, GRADE];
+export const GUIDED_TOOLS = [COVER, ROCK_LAYERS, BODIES, VEINS, ALTERATION /* TASKS.csv #4011 */, FAULTS, GRADE];
 export const toolById = (id) => GUIDED_TOOLS.find((t) => t.id === id) || null;
 export { unitsByHoles };

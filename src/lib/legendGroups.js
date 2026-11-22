@@ -7,6 +7,8 @@ import { SYMBOLS, FAMILIES, familyFor, projectSymbolChoices, symbolSvg, typeKey 
 import { lineScaleOf } from "./structureSymbols.js"; // TASKS.csv #3091
 import { fieldRamp, fieldRampLegend } from "./customColour.js"; // TASKS.csv #3941
 import { widthScale, widthLegendGroup } from "./widthBy.js"; // TASKS.csv #3942
+import { assayBarScale, mineralBarScale, barLegendGroup, mineralBarColour } from "./traceBarsData.js"; // TASKS.csv #3943
+import { slicesModule } from "./viewer/slicesRegistry.js"; // TASKS.csv #3990 — the slices' module when loaded (it is, while a layer draws in slices)
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
@@ -89,7 +91,13 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
     const order = items.map((_, i) => i).sort((a, b) => String(items[a][0]).localeCompare(String(items[b][0])));
     if (items.length) groups.push({ key, label: LAYER_META[key].label, items: order.map((i) => items[i]), counts: order.map((i) => counts[i]), ...(isFiltered(h) ? { filtered: true } : {}) }); // filtered: #2044
     const ws = styles?.[key]?.widthBy ? widthScale(rows, styles[key]) : null; // TASKS.csv #3942 — Width by: its three sizes
+    const bs = Array.isArray(styles?.[key]?.bars) ? mineralBarScale(rows, styles[key].bars) : null; // TASKS.csv #3943 — the bars' scale
+    if (bs?.length) groups.push(barLegendGroup(`${key}_bars`, `${LAYER_META[key].label} bars`, bs, (id, i) => mineralBarColour(id, i, (v) => colorFor(key, v))));
     if (ws) groups.push(widthLegendGroup(key, LAYER_META[key].label, ws));
+    // TASKS.csv #3990 — slices of a wide layer are coloured by mineral field (the colour-blind-safe palette, by the field's place): their key here
+    // (a long-form layer's slices take its codes' colours, listed above)
+    const sl = styles?.[key]?.slices ? slicesModule()?.slicesOf(rows) : null;
+    if (sl?.form === "wide" && sl.codes.length) groups.push({ key: `${key}_slices`, label: `${LAYER_META[key].label} slices`, items: sl.codes.map((c, i) => [c, CATEGORICAL_SAFE_COLORS[i % CATEGORICAL_SAFE_COLORS.length]]) });
   });
   return groups;
 }
@@ -111,8 +119,9 @@ export function ppmAsPercent(assays, sym, unit) {
 
 // Assay grade classes are discrete swatches (one per class, with its range); an element with no classes gets one swatch
 // saying size shows grade.
-export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {}, displayUnits = null, withNote = false }) { // withNote: #3588 (2) // displayUnits: TASKS.csv #3236 - project.displayUnits
+export function assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements = [], assayStyle = {}, displayUnits = null, withNote = false, bars = false }) { // withNote: #3588 (2) // displayUnits: TASKS.csv #3236 - project.displayUnits
   if (!assayVisible || !assayDisplayElements.length || !(assays || []).length) return [];
+  if (bars) { const s = assayBarScale(assays, assayDisplayElements, Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]))); return s.length ? [barLegendGroup("assay_bars", "Assay bars", s, (id) => assayHue(id, assayElements))] : []; } // TASKS.csv #3943 — the bars' scale
   const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
   const groups = assayDisplayElements.map((sym, idx) => {
     const style = assayStyle[sym];

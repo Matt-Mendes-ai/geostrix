@@ -8,6 +8,8 @@
 //
 // What is counted (a word = a run of letters or digits, [\p{L}\p{N}][\p{L}\p{N}'%/.-]*; a {placeholder} is not a word):
 //  - Help, src/help/pages/*.js, by field: title, summary, notFor, a setting's name / what / choose, a warning's says / means / do, the walk-through steps.
+//    TASKS.csv #3973 — a card page (one with `line`) counts K1-K5 only as seen first: title, line, cautions, the Use-instead chips, the key settings (label and gist),
+//    the step strip; the rest of it is in its closed folds.
 //    "Seen first" is everything except a field called `more` (on a page, a setting or a warning) and a walk-through marked `folded`: the text kept behind the Help pane's "More" fold, which
 //    search still reads. Until a page has a `more` field, seen first = all.
 //  - Every tr() string outside Help (the interface's own words; a tr is any call of the i18n.js export `t`, whatever it is imported as), and every tx()
@@ -41,7 +43,7 @@ const median = (a) => { if (!a.length) return 0; const s = [...a].sort((x, y) =>
 // ---- working areas (plan_fable.md 3.1): first match wins; matched on the file's path under src/ with forward slashes
 export const AREAS = [
   ["Mine Design (hidden)", /(MineGrid|PitDesign|PitShell|NestedPits|Stopes?Pane|StopeRun|DesignLines|DesignStrings|DumpPane|DumpRun|UndergroundOre|mineDesign|[Mm]ineDesign)/],
-  ["Basic path", /(StartDialogs|startChecklist|startFlow|ImportMapping|AssayImport|importPipeline|useImportPipeline|importHelpers|EmptyViewerBody|EmptyState|SampleButtons|SampleDownload|modules\/ViewerModule|viewer\/ViewerParts|StripLog|strip[Ll]og|SectionWindow|SectionEdit|SectionTabs|SectionLinePlan|SectionGeoref|viewer\/guided|DataQC|dataQC|BestIntercepts|LayoutModule|[Ll]ayout|GenerateAtlas|CrsPicker|ProjectCrsModal|LocalGridPanel|DrillTableModal|TableColumnsModal|AttributeTable|ProjectReport|ProjectKmz|SaveRecovered|ReportProblem|ShortcutsModal|ExportToast|Ribbon|App\.jsx|HoleFilterBar|BrowserDock)/],
+  ["Basic path", /(StartDialogs|startChecklist|startFlow|ImportMapping|AssayImport|importPipeline|useImportPipeline|importHelpers|EmptyViewerBody|EmptyState|SampleButtons|SampleDownload|modules\/ViewerModule|viewer\/(sectionPayload|importSolid|exportSurface)\.js|viewer\/ViewerParts|StripLog|strip[Ll]og|SectionWindow|SectionEdit|SectionTabs|SectionLinePlan|SectionGeoref|viewer\/guided|DataQC|dataQC|BestIntercepts|LayoutModule|[Ll]ayout|GenerateAtlas|CrsPicker|ProjectCrsModal|LocalGridPanel|DrillTableModal|TableColumnsModal|AttributeTable|ProjectReport|ProjectKmz|SaveRecovered|ReportProblem|ShortcutsModal|ExportToast|Ribbon|App\.jsx|HoleFilterBar|BrowserDock)/],
   ["Geophysics", /(GeophysicsModule|Inversion|Dcip|Tem(Pane|Invert)|FdemPane|MtSoundings|Levelling|DiurnalCorrection|GravityReduction|Hyperspectral|EqsGrid|SpectralIndex|potential|geophys|Geophys|McdAnomaly|MagneticsBox)/],
   ["Modelling", /(ModellingPanes|modellingRuns|useModelling|ModellingCodes|modellingSimple|GradeEstimation|VariogramModal|DomainsPanel|DomainCaps|DomainUpdate|domainUpdate|ExplicitSurface|EstimateCheck|shell[A-Z]|Shell[A-Z]|estimationShells|BlockCalculator|BlockModel|GradeTonnage|GradeThickness|LongSectionGT|SurfaceSolids|SurfaceTonnage|Sculpt|intrusion|StructFit|UnsampledChoice|EndInOre|TopCutNote|MetalAtRisk|MiningWidth|PlanModels|SolidTools|AlterationBox|VolcanicCodes|openUnitVolume|geomathModelling|SurfaceCompare|SurfaceImport|surfaceUndo|surfacePlacement|SurfacePlacement)/],
   ["Targeting, Maps, Geological Mapping", /(Predictive|PlannedHole|SurveyPlanner|UndrilledZones|EvidenceOverlay|Catchments|MapsModule|MapsPlanView|CartographyModule|RasterModule|SurfaceMapping|SurfaceGeology|SurfacePlanMap|UnitPolygon|MapModel|MapImport|MapRedraw|Basemap|AddWebLayer|Macrostrat|Georeferencer|LocatorMap|CoveringLayers|SpatialAnalysis|ZonalStats|LidarImport|TrendsPanel|InterpretPane|Interpret|interpret|ThresholdToolkit)/],
@@ -51,6 +53,29 @@ export const AREAS = [
 export const areaOf = (rel) => AREAS.find(([, re]) => re.test(rel))[0];
 
 // ---- Help
+// TASKS.csv #3973 — one page's words: add(kind, text, behindMore). A card page (`line`) shows K1-K5 only (title, line, cautions, the Use-instead chips,
+// the key settings' labels and gists, the step strip); everything else is in its closed folds. Any other page: everything but `more` fields and a
+// folded walk-through.
+export function countHelpPage(p, add) {
+  if (p.line) {
+    const keys = new Set(p.keys || []);
+    add("title", p.title); add("line", p.line);
+    for (const s of p.cautions || []) add("caution", s);
+    for (const x of p.instead || []) add("instead", `${x.text || ""} ${x.to || ""}`);
+    for (const s of p.strip || []) add("strip", s);
+    add("summary", p.summary, true); add("more", p.more, true);
+    for (const s of p.notFor || []) add("notFor", s, true);
+    for (const fl of p.fields || []) { const key = keys.has(fl.name); add("name", fl.name, !key); add("gist", fl.gist, !key); add("what", fl.what, true); add("choose", fl.choose, true); add("more", fl.more, true); }
+    for (const w of p.warnings || []) { add("says", w.says, true); add("means", w.means, true); add("do", w.do, true); add("more", w.more, true); }
+    for (const s of p.howto?.steps || []) add("howto", s, true);
+    return;
+  }
+  add("title", p.title); add("summary", p.summary); add("more", p.more, true);
+  for (const s of p.notFor || []) add("notFor", s);
+  for (const fl of p.fields || []) { add("name", fl.name); add("what", fl.what); add("choose", fl.choose); add("more", fl.more, true); }
+  for (const w of p.warnings || []) { add("says", w.says); add("means", w.means); add("do", w.do); add("more", w.more, true); }
+  for (const s of p.howto?.steps || []) add("howto", s, !!p.howto.folded); // a folded walk-through is behind its closed heading
+}
 export async function collectHelp() {
   const dir = path.join(ROOT, "src", "help", "pages");
   const out = { pages: {}, fields: {}, seenFirst: 0, behindMore: 0, total: 0, settings: 0, warnings: 0, totalWithoutMineDesign: 0, seenFirstWithoutMineDesign: 0 };
@@ -59,11 +84,8 @@ export async function collectHelp() {
     const pages = (await import(pathToFileURL(path.join(dir, f)).href)).default;
     const acc = { id: f.replace(/\.js$/, ""), topics: pages.length, settings: 0, warnings: 0, total: 0, first: 0, more: 0, fields: {}, mineDesign: pages.every((p) => p.area === "Mine Design") };
     for (const p of pages) {
-      add(acc, "title", p.title); add(acc, "summary", p.summary); add(acc, "more", p.more, true);
-      for (const s of p.notFor || []) add(acc, "notFor", s);
-      for (const fl of p.fields || []) { acc.settings++; add(acc, "name", fl.name); add(acc, "what", fl.what); add(acc, "choose", fl.choose); add(acc, "more", fl.more, true); }
-      for (const w of p.warnings || []) { acc.warnings++; add(acc, "says", w.says); add(acc, "means", w.means); add(acc, "do", w.do); add(acc, "more", w.more, true); }
-      for (const s of p.howto?.steps || []) add(acc, "howto", s, !!p.howto.folded); // a folded walk-through is behind its closed heading
+      acc.settings += (p.fields || []).length; acc.warnings += (p.warnings || []).length;
+      countHelpPage(p, (kind, text, more) => add(acc, kind, text, more)); // #3973
     }
     out.pages[acc.id] = acc;
     for (const [k, v] of Object.entries(acc.fields)) out.fields[k] = (out.fields[k] || 0) + v;

@@ -9,13 +9,14 @@ import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 import { useStore } from "../../lib/store.jsx";
 import { LAYER_META } from "../../lib/layers.js";
+import { mineralAsTubes } from "../../lib/viewer/mineralDraw.js"; // TASKS.csv #3987
 
 export default function TubeSizeControl({ figureOverlay, setFigureOverlay }) {
   const all = figureOverlay.tubeSize || { mode: "auto" };
   const store = useStore() || {};
   const [layer, setLayer] = useState("");
   const layerList = useMemo(() => [
-    ...Object.entries(LAYER_META).filter(([k, m]) => m.kind === "interval" && (store.layers?.[k] || []).length > 0).map(([k, m]) => ({ key: k, name: tr(m.label) })),
+    ...Object.entries(LAYER_META).filter(([k, m]) => (m.kind === "interval" || (k === "mnlgy" && mineralAsTubes(store.layers?.[k]))) /* #3987 — its tubes too */ && (store.layers?.[k] || []).length > 0).map(([k, m]) => ({ key: k, name: tr(m.label) })),
     ...(store.customLayers || []).filter((c) => c?.id != null).map((c) => ({ key: String(c.id), name: c.name || String(c.id) })),
   ], [store.layers, store.customLayers]);
   const ts = layer ? all.byLayer?.[layer] || { mode: "same" } : all;

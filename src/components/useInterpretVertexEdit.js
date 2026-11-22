@@ -20,7 +20,8 @@ export function useInterpretVertexEdit({ view, layer, index, groundAt, snap, onM
     const scene = view?.scene?.current, dom = view?.renderer?.current?.domElement;
     if (!part || !scene || !dom || !view.dragHook) return undefined;
     const o = () => view.origin.current;
-    const zAt = (x, y) => { const g = groundAt ? groundAt(x, y) : NaN; return Number.isFinite(g) ? g : Number.isFinite(layer.elevation) ? layer.elevation : 0; };
+    const lv = layer.features?.[index]?.attributes?.level_rl; // TASKS.csv #3972 — a line on a level: its handles and drags on that RL
+    const zAt = (x, y) => { if (typeof lv === "number" && Number.isFinite(lv)) return lv; const g = groundAt ? groundAt(x, y) : NaN; return Number.isFinite(g) ? g : Number.isFinite(layer.elevation) ? layer.elevation : 0; };
     const toScene = (x, y, z) => new THREE.Vector3(x - o().x, z - o().z, -(y - o().y));
     const verts = part.map(([x, y]) => [x, y, zAt(x, y)]);
     // handles: screen-size points, always on top

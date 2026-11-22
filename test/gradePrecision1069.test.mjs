@@ -23,5 +23,5 @@ test("#1088 the raster and boundary trash icons confirm", () => {
   const rs = src("modules/viewer/RastersTerrainSection.jsx"); // the raster rows: #3891
   assert.ok(!/iconAction\(\(\) => removeRaster\(r\.id\)/.test(v) && !/iconAction\(\(\) => removeRaster\(r\.id\)/.test(rs));
   assert.ok(!/iconAction\(\(\) => removeBoundary\(b\.id\)/.test(v));
-  assert.match(rs, /iconAction\(\(\) => \{ if \(confirmDestructive\(tr\("Remove raster/);
+  assert.match(rs, /iconAction\(async \(\) => \{ if \(await confirmDestructive\(tr\("Remove raster/);
 });

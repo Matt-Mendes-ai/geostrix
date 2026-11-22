@@ -14,9 +14,11 @@ import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode
 import { orderFromHoles } from "../lib/pileTops.js"; // TASKS.csv #2926
 import { colorForLithology, LAYER_META } from "../lib/layers.js";
 import { findOnTrace } from "../lib/viewer/modelHelpers.js";
-import { combineSelection, intervalTouchesBox, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../lib/intervalBox.js"; // TASKS.csv #1333, #1337
+import { intervalsInBox } from "../lib/viewer/intervalsInBox.js"; // TASKS.csv #3998 — every drawn member, batches included
+import { combineSelection, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../lib/intervalBox.js"; // TASKS.csv #1333, #1337
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 const ROLE_HELP = {
   stratigraphic: "a layer in the pile: its top is a contact where it sits below a younger layer",
@@ -25,22 +27,6 @@ const ROLE_HELP = {
   overburden: "casing / overburden: the rock below it is not given a top there",
   ignore: "not modelled; the rock below it is not given a top there",
 };
-
-// #1333 — the drawn lithology intervals touched by a box in screen pixels: a mesh that is hidden, or in a hidden layer, is not drawn
-function intervalsInBox(view, box, rect) {
-  const group = view.groups.current?.litho, cam = view.camera.current;
-  if (!group || group.visible === false || !cam) return [];
-  const traces = new Map(view.traces.current.map((t) => [t.hole_id, t])), v = new THREE.Vector3(), seen = new Set(), out = [];
-  const screen = (p) => { v.set(p.x, p.y, p.z).project(cam); return v.z > 1 ? null : [(v.x + 1) / 2 * rect.width, (1 - v.y) / 2 * rect.height]; };
-  group.children.forEach((m) => {
-    const row = m.userData?.lithoRow, t = row && m.visible !== false && traces.get(row.hole_id);
-    if (!t || seen.has(rowKey(row))) return;
-    const from = Number(row.from), to = Number(row.to), pts = [];
-    for (let i = 0; i <= 4; i++) { const p = findOnTrace(t.pts, from + ((to - from) * i) / 4); pts.push(p ? screen(p) : null); }
-    if (intervalTouchesBox(pts, box)) { seen.add(rowKey(row)); out.push(row); }
-  });
-  return out;
-}
 
 // TASKS.csv #2722 — sheet n's colour in the preview: ten distinct hues in turn, so neighbouring sheets never share one
 const SHEET_COLOURS = ["#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#42d4f4", "#f032e6", "#9a6324", "#808000", "#000075"];
@@ -436,14 +422,14 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           </label>
         ))}
       </div>
-      <button disabled={!numberCodes.length} onClick={() => {
+      <button disabled={!numberCodes.length} onClick={async () => {
         // TASKS.csv #2533 (review #2486) — Auto-number re-coded 3,870 intervals in all 2,248 holes, not the 30 checked ones, and said nothing:
         // it follows the Model area (the holes checked, when it says so) and says what it did
         const rows = inArea ? litho.filter((r) => inArea(r.hole_id)) : litho;
         const keys = new Set(rows.filter(pickedRow).map(rowKey));
         const go = () => setModellingCodes((p) => { const base = p || mc; const assign = autoNumber(rows, numberCodes, { ...base, assign: Object.fromEntries(Object.entries(p?.assign || {}).filter(([k]) => !keys.has(k))) }, groupOf); return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) /* #2532 — P1 ... take P's role */ }; });
         const touched = rows.filter((r) => pickedRow(r) && mc.assign?.[rowKey(r)]).length;
-        if (touched && !window.confirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
+        if (touched && !await askConfirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
         go();
         setNumberMsg(tr("Numbered {n} interval(s) of {codes} in {h} hole(s){area}.", { n: keys.size.toLocaleString(), codes: numberCodes.join(", "), h: new Set(rows.filter((r) => keys.has(rowKey(r))).map((r) => r.hole_id)).size.toLocaleString(), area: inArea ? tr(" (the holes checked: Model area)") : "" })); // #2533
       }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Auto-number {v}", { v: numberCodes.join(", ") || "…" })}</button>
@@ -462,10 +448,10 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           </>)}
           <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("The largest distance across the sheets between two runs of one sheet. Blank = the median logged run of the code.")}>{tr("Gap (m)")}<NumberInput min={0} allowEmpty value={sheetAtt.gap === "" || sheetAtt.gap == null ? null : sheetAtt.gap} placeholder={tr("auto")} onChange={(n) => setSheetAtt((a) => ({ ...a, gap: n == null ? "" : String(n) }))} style={{ ...inputStyle, width: 56 }} aria-label={tr("Gap between sheets (m)")} /></label>
         </div>
-        <button disabled={!numberCodes.length || (sheetAtt.mode === "typed" && !(sheetAtt.dip !== "" && sheetAtt.dipDir !== ""))} onClick={() => {
+        <button disabled={!numberCodes.length || (sheetAtt.mode === "typed" && !(sheetAtt.dip !== "" && sheetAtt.dipDir !== ""))} onClick={async () => {
           const { rows, assign, msgs } = computeSheets(); // #2722 — the same matching the preview shows
           const touched = rows.filter((r) => pickedRow(r) && mc.assign?.[rowKey(r)]).length;
-          if (touched && !window.confirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
+          if (touched && !await askConfirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
           setModellingCodes((p) => { const base = p || mc; return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) }; });
           setSheetMsg(msgs.join(" ")); setSheetPreview(null);
         }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Correlate {v} into sheets", { v: numberCodes.join(", ") || "…" })}</button>
@@ -480,7 +466,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       </>)}
 
       <div style={{ ...small, marginTop: 10 }}>
-        {tr("{overrides} interval(s) with a code you set · {n} connection(s) drawn.", { overrides, n: (mc.ties || []).length })}{overrides > 0 && <> <span style={{ textDecoration: "underline", cursor: "pointer" }} {...iconAction(() => { if (window.confirm(tr("Reset all {overrides} interval code(s) to their logged codes and remove the connections? (Undo can bring them back.)", { overrides }))) setModellingCodes((p) => ({ ...(p || mc), assign: {}, ties: [] })); }, tr("Reset all interval codes"))}>{tr("Reset all")}</span></>}
+        {tr("{overrides} interval(s) with a code you set · {n} connection(s) drawn.", { overrides, n: (mc.ties || []).length })}{overrides > 0 && <> <span style={{ textDecoration: "underline", cursor: "pointer" }} {...iconAction(async () => { if (await askConfirm(tr("Reset all {overrides} interval code(s) to their logged codes and remove the connections? (Undo can bring them back.)", { overrides }))) setModellingCodes((p) => ({ ...(p || mc), assign: {}, ties: [] })); }, tr("Reset all interval codes"))}>{tr("Reset all")}</span></>}
       </div>
     </div>
   );

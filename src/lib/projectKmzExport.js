@@ -14,6 +14,7 @@ import { b64ToBytes } from "./base64.js";
 import { rgbaToPng, strikeSymbolPng } from "./strikeIcon.js";
 import { structureIconSet } from "./structureKmzIcons.js"; // #3068 part 2 — the icon set the outcrop KMZ uses too
 import { saveFile, safeFileName, EXPORT_RESULT_EVENT } from "./desktop.js";
+import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
 
 export const KMZ_WARN_BYTES = 150 * 1024 * 1024; // above this the export asks first
 
@@ -85,7 +86,7 @@ export function legendCanvasPng(group) {
 }
 
 // store: the useStore() value. -> { ok, filePath?, counts?, cancelled? }
-export async function exportProjectKmz(store, { confirm = (m) => window.confirm(m), include = null, lodPixelM = null } = {}) { // lodPixelM: TASKS.csv #3252 phase 4 — the imagery's pixel size chosen at export // include: TASKS.csv #3087 — the parts ticked
+export async function exportProjectKmz(store, { confirm = (m) => askConfirm(m), include = null, lodPixelM = null } = {}) { // lodPixelM: TASKS.csv #3252 phase 4 — the imagery's pixel size chosen at export // include: TASKS.csv #3087 — the parts ticked
   const project = store.project || {};
   // where the coordinates are on Earth: a local grid through its tie, else the project CRS (asked for when never chosen)
   const tie = tieOf(project);
@@ -116,7 +117,7 @@ export async function exportProjectKmz(store, { confirm = (m) => window.confirm(
     geophysSurveys: store.geophysSurveys, // TASKS.csv #3512 — a positions-only survey is written as grey points, not classed by its 0
   };
   const est = estimateProjectKmz(ctx);
-  if (est > KMZ_WARN_BYTES && !confirm(tr("This project's KMZ would hold about {mb} MB of KML before compression. Google Earth may be slow to open a file this large. Export anyway?", { mb: Math.round(est / 1048576).toLocaleString() }))) return { ok: false, cancelled: true };
+  if (est > KMZ_WARN_BYTES && !(await confirm(tr("This project's KMZ would hold about {mb} MB of KML before compression. Google Earth may be slow to open a file this large. Export anyway?", { mb: Math.round(est / 1048576).toLocaleString() })))) return { ok: false, cancelled: true };
   // the surface samples' anomaly classes, as the 3D View colours them (its settings are saved in layerStyles.surface_anomaly)
   const cfg = ui.layerStyles?.surface_anomaly;
   if (cfg && cfg.mode !== "medium" && (store.surfaceSamples || []).length) {

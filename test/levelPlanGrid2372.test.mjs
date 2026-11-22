@@ -23,7 +23,7 @@ test("wiring: the default by pierce points, the rings, the axis obstacles, the p
   assert.match(w, /const labels = labelsPick \?\? nPierce <= LABELS_AUTO_MAX;/);
   assert.match(w, /\.\.\.axisBoxes\(\)\], \/\/ axis labels: #2372/);
   assert.match(w, /\{ bounds: \[2, W - 2\], yBounds: \[20, H - 2\], rings: LABEL_RINGS \}/);
-  assert.match(w, /width: `min\(calc\(96vw - 30px\), calc\(\(94vh - 170px\) \* \$\{W \/ H\}\)\)`/);
+  assert.match(w, /flex: \"1 1 0\", minHeight: 0, minWidth: 0, position: \"relative\", overflow: \"hidden\"/); // #3970 — the plan fills the dialog's plot box (it filled the window by a width formula, #2372)
   const n = w.indexOf("const nPierce"), ret = w.indexOf("if (!ready || !plan) return (");
   assert.ok(n > 0 && n < ret, "the hook sits above the shell's early return");
 });

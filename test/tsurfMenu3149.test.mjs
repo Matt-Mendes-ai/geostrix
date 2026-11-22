@@ -18,7 +18,7 @@ test("the TSurf writer gives a GOCAD file in real-world coordinates", () => {
 });
 
 test("wiring: a TSurf button in the Export mesh row, and the ts branch saving a .ts file", () => {
-  const s = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const s = (fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/modules/viewer/importSolid.js", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/modules/viewer/exportSurface.js", import.meta.url), "utf8")) /* #3996: moved out of ViewerModule */;
   assert.match(s, /<button onClick=\{\(\) => exportImplicitSurface\(s\.id, "ts"\)\}[^\n]*\{tr\("TSurf"\)\}<\/button>/);
   assert.match(s, /\} else if \(format === "ts"\) \{[^\n]*\n\s+res = await saveFile\(\{ quiet: true, suggestedName: `\$\{baseName\}\.ts`, filters: \[\{ name: "GOCAD TSurf", extensions: \["ts"\] \}\], content: exportSurfaceTS\(/);
   assert.match(s, /format: format === "ts" \? "GOCAD TSurf" : format\.toUpperCase\(\)/);

@@ -5,6 +5,12 @@ export default [
     id: "evidence-overlay",
     area: "Targeting",
     title: "Evidence overlay",
+    // TASKS.csv #3983 — the card (#3967's plan, section 8, batch C5); the summary and the rest are in its folds
+    line: "Combines evidence on one grid into a score: a ranking, not a deposit probability.",
+    picture: { drop: ["points", "grid"], alt: "Samples, geophysics and structures on one grid become a coloured score." }, // N10 when it is drawn (batch B)
+    cautions: ["Change a membership and the ranking changes.", "Drillhole evidence alone ranks drilled ground, not new targets."],
+    keys: ["+ add evidence…", "0 = / 1 =", "Combine (and γ)"],
+    strip: ["Add evidence", "Set the ramps", "Compute", "Score to map"],
     summary: "Combines evidence on one grid into a score of where it agrees: a ranking under your memberships, not the probability of a deposit.",
     more: "Each evidence (value rasters, distance to map features, surface geochemistry, geophysics surveys, block models, and grades or logged codes along the drillholes) becomes a membership from 0 to 1 that you set. With known occurrences it also computes weights of evidence and a prediction-area plot. The recipe is saved with the project; the values are worked out again when the pane opens. Weights of evidence assume the layers are independent. Evidence from the drillholes alone ranks drilled ground, not untested targets: add a surface evidence (a survey, a raster, soil or rock samples, a map layer) to score beyond the holes. To isolate a value range of one 3D model, use Voxel value ranges; to find the parts of a modelled unit no hole has tested, use Undrilled zones. On Silvertip the grid line says the five rocks about 45 km south are left out; the optional occurrences are Zn at a grade you call mineralized.",
     notFor: [
@@ -15,15 +21,15 @@ export default [
     fields: [
       { name: "Area", what: "The ground the grid covers: everything, the surface samples, the drilling, the block models, or a typed box.", choose: "The area your question is about.", more: "A typed box is West (E), South (N), East (E) and North (N). The line above the field gives the grid's size in cells and metres. When a large regional sample program surrounds a small drilled block, most cells hold only one evidence; the surface-samples area leaves out samples far from the main group, and the grid line says how many." },
       { name: "Cell (m)", what: "The size of one grid cell. Blank is automatic.", choose: "About half your soil or station spacing.", more: "It is made coarser if the grid would pass its cell limit. With a terrain and the area on every source, the terrain's own grid is used. A cell much smaller than the spacing adds cells, not information. If the pane says the cell was coarsened, choose a smaller area. Automatic is the longest side of the area divided by 500." },
-      { name: "+ add evidence…", what: "Adds one evidence (raster, distance, samples, geophysics, block model, drillholes, logged code); × removes it.", choose: "Only evidence with a geological reason; two measuring the same thing count it twice.", more: "Samples gives an element's robust z or a pathfinder index. Block model gives the highest, lowest or mean in each column. Drillholes gives a grade, a pXRF reading, a numeric log or a mineral % along the holes; pXRF readings are offered apart because they are screening numbers, not assays. Each evidence gets its own card (Cu in soil and an index built with Cu count Cu twice). Kinds: Raster, Distance to, Samples, Geophysics, Block model, Drillholes, or a logged structure or code." },
+      { name: "+ add evidence…", gist: "a raster, distance, samples, model…", what: "Adds one evidence (raster, distance, samples, geophysics, block model, drillholes, logged code); × removes it.", choose: "Only evidence with a geological reason; two measuring the same thing count it twice.", more: "Samples gives an element's robust z or a pathfinder index. Block model gives the highest, lowest or mean in each column. Drillholes gives a grade, a pXRF reading, a numeric log or a mineral % along the holes; pXRF readings are offered apart because they are screening numbers, not assays. Each evidence gets its own card (Cu in soil and an index built with Cu count Cu twice). Kinds: Raster, Distance to, Samples, Geophysics, Block model, Drillholes, or a logged structure or code." },
       { name: "Samples (on a sample card)", what: "Which sample medium the evidence uses: soil, stream sediment, rock chip, or all together.", more: "Values are robust z-scores within each medium, so media with different backgrounds compare. A stream sediment speaks for its catchment, a soil for its spot; add a second card for the other medium. One medium per card. It starts on the medium with the most samples." },
       { name: "Reach (m)", what: "How far a point value spreads into the grid.", choose: "One to two sample spacings.", more: "For drillholes, ask how far one hole's grade tells you about the rock beside it. Inverse-distance weighting. It starts at twice the median distance between neighbouring samples of that medium, four times the mean station spacing for a survey, and 250 m for drillhole values." },
       { name: "Elevation from (m) / to (m) (block model card)", what: "The elevation band the model's column is read over; blank reads the whole column.", choose: "The depth your target sits at.", more: "The highest, lowest or mean of the blocks whose centres lie in the band. A whole column mixes every depth, and the deep cells of an inversion are the least constrained." },
       { name: "every feature / — value — (distance card)", what: "Limits a distance evidence to features with one attribute value, such as one fault set.", more: "Use it when only part of a layer is evidence." },
       { name: "favourable when high / favourable when low", what: "Which end of the values scores well; distance starts as low (near is good).", choose: "From your deposit model: low resistivity, high chargeability, near a fault." },
-      { name: "0 = / 1 =", what: "The two values the membership ramps between (0 at the first, 1 at the second).", choose: "The 1 end at a value you would call anomalous, the 0 end at background.", more: "The scores are 0.01 and 0.99 with the floor below. The values start at the 10th and 90th percentiles over the grid; a distance starts at 0 to the median distance, a logged structure or code at about one drill-site spacing. These starting values only describe this grid, not your deposit." },
+      { name: "0 = / 1 =", gist: "where the membership ramps", what: "The two values the membership ramps between (0 at the first, 1 at the second).", choose: "The 1 end at a value you would call anomalous, the 0 end at background.", more: "The scores are 0.01 and 0.99 with the floor below. The values start at the 10th and 90th percentiles over the grid; a distance starts at 0 to the median distance, a logged structure or code at about one drill-site spacing. These starting values only describe this grid, not your deposit." },
       { name: "log ramp", what: "Runs the ramp on the logarithm of the values.", choose: "For skewed values such as grades.", more: "On at first for drillhole grades; shown when both points are above zero. Off for roughly symmetric values." },
-      { name: "Combine (and γ)", what: "How the memberships join: AND (min), OR (max), product, sum, or gamma (a blend).", choose: "AND or gamma when every evidence is needed; OR or sum when any one is enough.", more: "AND, product and gamma score only cells where every evidence has a value; OR and sum score a cell where any evidence has one, so a survey can reach past the drilling. Try two operators: a target that holds under both is more robust than one that appears under one only. γ 1 is the sum, 0 the product." },
+      { name: "Combine (and γ)", gist: "AND, OR, gamma…", what: "How the memberships join: AND (min), OR (max), product, sum, or gamma (a blend).", choose: "AND or gamma when every evidence is needed; OR or sum when any one is enough.", more: "AND, product and gamma score only cells where every evidence has a value; OR and sum score a cell where any evidence has one, so a survey can reach past the drilling. Try two operators: a target that holds under both is more robust than one that appears under one only. γ 1 is the sum, 0 the product." },
       { name: "no single evidence vetoes a cell (0.01–0.99)", what: "Keeps memberships between 0.01 and 0.99, so no single evidence zeroes a cell.", choose: "On, unless one evidence is a must-have.", more: "A must-have is, for example, no host rock, no deposit." },
       { name: "Known occurrences (optional, for weights of evidence)", what: "Points that mark mineralization; they turn on weights of evidence.", choose: "Occurrences independent of the evidence, at a grade that means mineralization.", more: "A point map layer, drillholes with a grade, or surface samples above a value. Use a grade that is not a background high. They also turn on the posterior and the prediction-area plot. Drillholes means lab assays at or above the value you type, placed where the grade is along the hole. The same samples as evidence and occurrences is circular, and the pane says Circular." },
       { name: "Compute", what: "Builds the score and says how many cells were scored.", choose: "With occurrences, read C/s before the weights.", more: "With occurrences it gives each evidence's best cutoff, W+ and W− with their ±, and the studentized contrast C/s (bold when its size is 2 or more), then the conditional independence check. A small C/s means the weight cannot be told from zero with this many occurrences." },
@@ -60,6 +66,13 @@ export default [
     id: "undrilled-zones",
     area: "Targeting",
     title: "Undrilled zones",
+    // TASKS.csv #3983 — the card (#3967's plan, section 8, batch C5); the summary and the rest are in its folds
+    line: "Parts of a modelled unit farther than a distance from every hole.",
+    picture: { help: "support", alt: "A modelled body is firm between the drill holes, extrapolated beyond them, and held by one hole where only one cuts it." }, // N1: TASKS.csv #3978 (N9 is not drawn yet)
+    cautions: ["Untested ground, not a resource or a target ranking.", "Distance is to the hole trace, not the samples."],
+    instead: [{ text: "Where grade is", to: "Grade shell", page: "grade-shell" }, { text: "Where grade is", to: "Grade estimation", page: "grade-estimation" }],
+    keys: ["Covered within (m of a hole)", "Count planned holes as drilled (4)", "Plan a hole to here"],
+    strip: ["Make a grade shell", "Find undrilled zones", "Plan a hole to here"],
     summary: "Finds the parts of a modelled unit farther than a chosen distance from every drillhole: untested ground, not a resource or a target ranking.",
     more: "Distance is measured in 3D from the centre of each block of the unit (a closed solid). The pane reports how much of the unit is covered, lists each untested zone with its volume and position, and can add the zones to the 3D view or open Planned drillholes aimed at one. The undrilled parts of a shell built from one hole, or mostly extrapolated, are where the shell itself is least known, and the pane says so. Distance is to the hole trace, not to the sampled intervals: a hole counts as testing the rock beside it whether or not that interval was assayed. Build the unit as a closed volume in 3D Modelling, or make a shell under Voxel value ranges (Shell at this range).",
     notFor: [
@@ -69,13 +82,13 @@ export default [
     ],
     fields: [
       { name: "Modelled unit…", what: "The closed solid to measure: a unit, envelope, vein, imported solid, or a grade or range shell.", choose: "The body your drilling question is about.", more: "The pane warns when the solid rests on one hole or is mostly extrapolated." },
-      { name: "Covered within (m of a hole)", what: "A block counts as covered when a drillhole passes within this distance of its centre.", choose: "What one hole really tests; a narrow vein needs less than a halo.", more: "It starts at half the typical spacing of the drill sites (the median distance between neighbouring sites), and the line under the field says that spacing; it is a starting value from your drilling, not a rule. Run it again with a second distance: a zone that stays open at a generous distance is a real gap in the drilling." }, // TASKS.csv #2105 / #2452
+      { name: "Covered within (m of a hole)", gist: "what one hole really tests", what: "A block counts as covered when a drillhole passes within this distance of its centre.", choose: "What one hole really tests; a narrow vein needs less than a halo.", more: "It starts at half the typical spacing of the drill sites (the median distance between neighbouring sites), and the line under the field says that spacing; it is a starting value from your drilling, not a rule. Run it again with a second distance: a zone that stays open at a generous distance is a real gap in the drilling." }, // TASKS.csv #2105 / #2452
       { name: "Block size (m)", what: "The size of the blocks the unit is cut into; blank is automatic.", more: "Automatic is about 300,000 blocks in the unit's box (the placeholder shows the value), no coarser than half the coverage distance when that fits. Make it larger if the pane says the block count is over the limit. Keep it well under the coverage distance, or the gap edges come out coarse." },
       { name: "Ignore gaps under (m³)", what: "Smaller gaps are left out of the list; their volume is still counted.", choose: "The smallest volume that justifies a hole." },
       { name: "Count only the parts of holes inside the unit", what: "Off: a hole just outside still covers the rock beside it. On: only hole parts inside count.", more: "Turn it on when only drilling inside the body tells you about it." },
-      { name: "Count planned holes as drilled (4)", what: "Adds the planned holes' traces to the coverage.", choose: "To see what a plan leaves untested." },
+      { name: "Count planned holes as drilled (4)", gist: "what a plan leaves untested", what: "Adds the planned holes' traces to the coverage.", choose: "To see what a plan leaves untested." },
       { name: "Find undrilled zones", what: "Measures the covered share, the volume not covered and the zones, largest first.", choose: "Run it again with a second distance.", more: "Eight zones are listed." },
-      { name: "Plan a hole to here", what: "Opens Planned drillholes with the target at the zone's point farthest from the drilling.", more: "The result stays when you come back to this pane. Choose a collar there, then Solve." },
+      { name: "Plan a hole to here", gist: "opens Planned drillholes", what: "Opens Planned drillholes with the target at the zone's point farthest from the drilling.", more: "The result stays when you come back to this pane. Choose a collar there, then Solve." },
       { name: "Add the zones to the 3D view", what: "Adds the zones as one closed solid, Not covered by drilling.", more: "Use it to show the gaps on a section or a Layout page. The solid is named Not covered by drilling (> distance m) and the unit's name. It joins the model surfaces, where it can be exported, cut by sections or turned off." },
     ],
     warnings: [
@@ -105,6 +118,14 @@ export default [
     id: "planned-drillholes",
     area: "Targeting",
     title: "Planned drillholes",
+    // TASKS.csv #3983 — the card (#3967's plan, section 8, batch C5); the summary and the rest are in its folds
+    line: "Designs holes before drilling: typed, picked, from a collar, or solved to a target.",
+    picture: { drop: ["plan", "holes"], alt: "A collar on the plan becomes a planned hole to a target." }, // N9 when it is drawn (batch B)
+    figure: { help: "norths", alt: "Grid, true and magnetic north on a map, with the angles between them." }, // N4, beside Azimuth from: TASKS.csv #3978
+    cautions: ["A planned hole is a design, not a prediction.", "Blocks from one hole or extrapolated are not an intercept."],
+    instead: [{ text: "Targets", to: "Evidence overlay", page: "evidence-overlay" }, { text: "Targets", to: "Undrilled zones", page: "undrilled-zones" }, { text: "Targets", to: "Voxel ranges", page: "voxel-ranges" }],
+    keys: ["Az° / Dip° / Length m", "Solve az/dip/length to target", "Min. spacing (m)"],
+    strip: ["Make a shell", "Undrilled zones", "Plan a hole", "Export CSV"],
     summary: "Designs drillholes before they are drilled: typed, picked on the 3D view, taken from a collar, or solved to hit a target point.",
     more: "Each planned hole is drawn as a dashed orange line in the 3D view and on sections. The checks give the nearest existing hole, the metres inside a narrowed block-model range and where the hole crosses modelled surfaces; the holes export for the rig and the field crew as CSV, KML and GPX. A planned hole is a design, not a prediction of where the hole will go. To compare with a drilled hole, import its collar and survey as usual and link it in the hole's As-drilled tab. Sample walk-through: the Au grade shell is made under 3D Modelling > Grade shell with Close shell ticked, and Undrilled zones is run on it.",
     notFor: [
@@ -116,17 +137,19 @@ export default [
       { name: "Hole name (optional)", what: "The name used in the list, the checks and the exports." },
       { name: "Collar (E/N/Elev): custom, typed below", what: "Fills E, N and Elev from a drilled collar.", more: "Collars within 10 m of a drilled one count as the same pad, and the checks then skip that hole's first 50 m. It starts a new hole from the same place: choose the pad you would drill from." },
       { name: "E / N / Elev", what: "The collar position in project coordinates.", more: "With no terrain loaded, a picked Elev is whatever the click hit, and the form says so. Use surveyed or terrain elevations." },
-      { name: "Az° / Dip° / Length m", what: "The hole's direction and length; dip is negative downward.", choose: "A dip the rig can set up that crosses the target nearly square.", more: "A square intercept is short and near true width, an oblique one is long. Flat holes are hard to collar and wander more; the form warns when the dip is flatter than about 40°. Azimuth is from the north chosen under Azimuth from." },
+      { name: "Az° / Dip° / Length m", gist: "dip negative downward", what: "The hole's direction and length; dip is negative downward.", choose: "A dip the rig can set up that crosses the target nearly square.", more: "A square intercept is short and near true width, an oblique one is long. Flat holes are hard to collar and wander more; the form warns when the dip is flatter than about 40°. Azimuth is from the north chosen under Azimuth from." },
       { name: "Azimuth from", what: "Which north the typed azimuth is from: grid, true or magnetic (today).", choose: "The north your design was drawn in.", more: "Holes are stored in grid north; a true or magnetic entry is converted at the collar and kept beside it. Magnetic uses today's declination, so it needs a project CRS and the collar." },
       { name: "Pick on view (or Pick collar on the ribbon)", what: "The next click in the 3D view places the collar.", more: "Pick in a top view on the terrain, then check the Elev." },
       { name: "Target E / Target N / Target Elev", what: "The 3D point the hole should reach, saved with the hole.", choose: "From your model, or Plan a hole to here.", more: "A contact, an anomaly centre, an undrilled zone. A contact, an anomaly centre or an undrilled zone." },
-      { name: "Solve az/dip/length to target", what: "Works out a straight hole's azimuth and dip from the collar through the target.", more: "Length runs 30 m past the target. Check that you can drill the dip." },
+      { name: "Solve az/dip/length to target", gist: "a straight hole through it", what: "Works out a straight hole's azimuth and dip from the collar through the target.", more: "Length runs 30 m past the target. Check that you can drill the dip." },
       { name: "Solve collar for this dip/azimuth", what: "Keeps azimuth and dip; moves the collar to the terrain along a line through the target.", choose: "When the dip is fixed and the collar can move.", more: "With no terrain it uses the typed Elev." },
       { name: "+ Add hole", what: "Adds the hole to the list; click its name to edit it.", more: "Edit its numbers, notes and Target and As-drilled tabs from its name; it can still be edited." },
       { name: "Lift °/100 m / Drift °/100 m / Past target (m) (Target tab)", what: "Lift flattens the hole with depth, drift turns its azimuth clockwise; both curve the trace.", choose: "From surveys of your own holes in the same rocks; 0 if none.", more: "With them set, the tab gives an aim-off orientation that still reaches the target. The As-drilled tab shows how far earlier holes wandered. Lift is + for flatter, drift + for clockwise." },
-      { name: "Min. spacing (m)", what: "A planned hole closer than this to an existing hole is shown red.", choose: "From your target size and wanted intercept spacing.", more: "The check gives the depth where they are closest." },
+      { name: "Min. spacing (m)", gist: "too close shows red", what: "A planned hole closer than this to an existing hole is shown red.", choose: "From your target size and wanted intercept spacing.", more: "The check gives the depth where they are closest." },
       { name: "Cost ($/m)", what: "Your drilling rate; the checks estimate the program's cost.", more: "Use your contractor's all-in rate, not another project's." },
       { name: "Export … to CSV / KML / GPX", what: "CSV for the rig, KML for Google Earth, GPX for a handheld GPS.", choose: "Export close to the drilling date: magnetic azimuth uses that day's declination.", more: "Also on the ribbon under Export planned holes. CSV has the collar and toe in project coordinates and latitude / longitude, azimuth against grid, true and magnetic north, the target and where the collar elevation came from. KML has the collars and traces; GPX the collar waypoints and traces." },
+      // TASKS.csv #3962 (P1) — probable grade along the planned holes
+      { name: "Probable grade: Grade model / Cut-off / Predict", what: "Each planned hole's chance of an intercept at the cut-off, a typical hit, and the low / middle / high (P10 / P50 / P90) of grade × metres, from 200 runs of a grade model fitted to the drilled composites.", choose: "Pick the Grade estimation run whose settings to use; type your intercept cut-off.", more: "The model is kriging in normal scores, with Grade estimation's composites, cap, search and trend. The runs are drawn jointly down each hole, so neighbouring metres move together, and each run's intercepts follow Best intercepts' rules. The prediction is kept on the hole: it changes only when you predict again, and a drilled hole keeps the one it had. Expand a hole to see its band down the hole. The range comes from the spacing of the holes and the variogram only, not from the geology being wrong. A part of a hole with no composite within the search is beyond the drilling: no prediction there. This is exploration targeting, not a resource estimate." },
       { name: "Export pierce points (CSV)", what: "Where each planned hole crosses the visible modelled surfaces: depth, position and angle.", more: "Both downhole and vertical depth are given. Show only the surfaces you want listed first." },
     ],
     warnings: [
@@ -140,6 +163,8 @@ export default [
       { says: "A drilled hole's id: within your minimum spacing down to a depth, and so many metres apart at the toe.", do: "Nothing if they part before the target; if red at the toe, change azimuth or dip.", more: "A hole fanned from a shared pad: the pad's own hole is followed down the whole hole. The planned hole is closer than the minimum spacing to it down to that depth, and clear of it below; the nearest-hole line then compares the holes off the pad only." },
       { says: "Narrow a voxel model's Min/Max range in Targeting > Voxel ranges to check planned holes against a target band.", do: "Set a range under Targeting > Voxel ranges.", more: "The band then appears in the checks." },
       { says: "Current plan misses by some metres: right direction, but the hole is too short.", do: "Lengthen the hole, or press Apply." },
+      { says: "The variogram of the Au normal scores fits weakly (r² 0.31): the ranges will be less reliable. Predict anyway?", do: "Check the variogram in the Variogram tool, or predict and read the ranges as rough.", more: "A weak fit is usually too few holes, or two populations in one domain." },
+      { says: "Moved since: predict again.", do: "Press Predict to replace it, or move the hole back." },
       { says: "Exported the planned holes — magnetic azimuths use the IGRF-14 declination for today's date …; recheck it if drilling is months away.", do: "Export again close to the drilling date." },
     ],
     howto: {
@@ -156,9 +181,73 @@ export default [
     related: ["undrilled-zones", "voxel-ranges", "evidence-overlay", "section-by-coordinates", "terrain"],
   },
   {
+    id: "drill-program",
+    area: "Targeting",
+    title: "Drill program",
+    // TASKS.csv #3962 (P2) — the suggested program, under Probable grade in Planned drillholes (Review data\Drill planner\design.md 1.3-1.5, 3)
+    line: "Suggests holes from your pads, the best value per dollar first.",
+    picture: { drop: ["plan", "holes"], alt: "Pads on the plan, and the suggested holes from them into the target." },
+    cautions: [
+      "Exploration targeting, not a resource estimate: per-hole grade × metres only, no tonnes.",
+      "A suggestion, not an optimum: the rule is your choice, and you decide.",
+    ],
+    instead: [{ text: "One hole's grade", to: "Probable grade", page: "planned-drillholes" }, { text: "Where to look", to: "Undrilled zones", page: "undrilled-zones" }],
+    keys: ["Rule", "Pads: ticks / New pad E, N / Add pad", "Budget ($) / Max. holes / Holes per pad"],
+    summary: "Suggests a drill program: holes from the pads you tick, scored by the rule you pick per dollar (per metre with no drilling rate), each chosen as if the holes before it were drilled.",
+    more: "Candidates are every ticked pad at every azimuth step and dip, as long as the target needs plus 30 m. Each is scored from 40 runs of the Probable grade model on its nearest 200 composites; the best value per dollar is taken, its composites join the data at their predicted mean, and the holes near it are scored again, so the program spreads out instead of repeating the best hole. A hole whose composites mostly lie within the minimum spacing of a drilled or chosen hole is a twin and is skipped. The table then shows each hole's prediction from the drilling alone, from 200 runs, and that prediction is kept on the hole when you add it.",
+    notFor: [
+      "It does not estimate contained metal or tonnes: each hole's grade × metres only.",
+      "It does not drill, link or delete anything: it suggests holes you add as planned holes.",
+    ],
+    fields: [
+      { name: "Target", what: "A closed modelled solid the holes must cross, or anywhere the model reaches.", choose: "A grade shell or an undrilled zone added to the 3D view.", more: "With a target, a hole must cross it for the minimum length, only its composites inside it count, and it ends 30 m past it." },
+      { name: "Pads: ticks / New pad E, N / Add pad", gist: "where a rig can stand", what: "The drilled collars within 10 m of each other are one pad; tick the ones a rig can use, or add a new pad by its easting and northing.", more: "A new pad's elevation comes from the terrain, or from the collars around it. A new pad carries the per-pad cost the first time a hole uses it." },
+      { name: "Azimuth step (°) / Dips (°) / Max. length (m)", what: "The directions tried from each pad, and the longest hole the rig drills.", choose: "A coarser step for many pads; the dips your rig can set up." },
+      { name: "Hole type", what: "The type whose drilling rate prices the holes.", more: "The rates are the ones set in Planned hole checks: per metre by type, per hole and per new pad." },
+      { name: "Budget ($) / Max. holes / Holes per pad", gist: "where the program stops", what: "The program stops at the first limit reached; Max. metres is a limit too.", more: "The budget needs a drilling rate. Without one, holes are compared per metre." },
+      { name: "Min. spacing (m)", what: "A hole mostly this close to a drilled or chosen hole is a twin and is skipped.", more: "It starts at a quarter of the drilled holes' site spacing, as in Planned hole checks." },
+      { name: "Rule", gist: "Balanced, or one of three", what: "How a hole's value is scored, per dollar: Balanced, Most likely to hit, Most metal found, or Learn the most.", choose: "Balanced for most programs; Most likely to hit for infill; Learn the most for step-outs.", more: "Balanced is the middle grade × metres plus κ times its spread (P90 − P10); the slider runs from near known grade (κ 0) into the unknown. Most likely to hit is the chance of an intercept. Most metal found is the expected grade × metres. Learn the most is the hole's own kriging variance down its length: where the model knows least, whatever the grades." },
+      { name: "Suggest a program / Cancel", what: "Scores the candidates and builds the program; Cancel stops it." },
+      { name: "The program", what: "One row per hole in suggested drilling order: its pad, azimuth, dip and length, its cost and the running total, its chance of an intercept, its low / middle / high grade × metres, and why it is there.", more: "The summary sums the expected grade × metres and the expected number of holes with an intercept." },
+      { name: "The diminishing-returns line", what: "Under the last hole that still scores a quarter of the first; the holes below it are greyed.", choose: "Drop them unless they are needed for access or geology." },
+      { name: "Add … as planned holes", what: "Adds the holes above the line, or all of them, as planned holes in one Undo step.", more: "They are named by the project's own hole series, typed as the program's hole type, and each keeps its prediction." },
+      // TASKS.csv #3962 (P3) — the adaptive loop
+      { name: "Programs: Re-run / What changed", what: "Each program you add is kept with the project; Re-run suggests it again on today's data, as many holes as it still has to drill.", choose: "Re-run when a hole's assays come in, or when the list says New data since.", more: "What changed lists the planned holes still suggested, those to consider dropping, and new holes to consider adding, which Add the new ones adds to the same program. Each re-run is the program's next version." },
+      { name: "… looks like … / Link", what: "A drilled collar with a planned hole's name, or within 10 m of its collar, is offered as its as-drilled hole.", more: "Linking sets the hole's As-drilled link; its prediction is then kept as it was made." },
+      { name: "Compare drilled holes / Calibration", what: "Compares each linked hole's real composites with its prediction: its best intercept by the same rules, inside, below or above the low-high range.", choose: "About 8 in 10 should fall inside.", more: "The real composites show as dots on the hole's band. Far fewer inside means the model is overconfident: check the variogram range and the domain." },
+      // TASKS.csv #3962 (P5) — the AI-app tools
+      { name: "Asking an AI app (AI App Access)", what: "An AI app can list programs, explain a hole and predict one; with Allow AI apps to make changes it can also suggest a program, add its holes as proposed planned holes, and mark a hole proposed or approved.", more: "Its suggestion is saved like yours, listed as not added with an Add button. Adding is one Undo step. It never marks a hole drilled, links one, or deletes anything; its answers carry the same cautions: targeting, not a resource estimate, and a suggestion, not an optimum." },
+      { name: "Export the program (CSV)", what: "Writes the table with each hole's collar, direction, cost, prediction and reason, under a provenance header.", more: "The header says the rule, the grade model and the intercept rules, and that it is not a Mineral Resource estimate." },
+    ],
+    warnings: [
+      { says: "No hole crosses \"Au shell\" for 4 m: tick or add a nearer pad, or allow longer holes.", do: "Tick or add a pad nearer the target, or raise Max. length." },
+      { says: "Calibration: 3 of 6 drilled holes inside their range. Too few: the model is overconfident (check the variogram range and the domain).", do: "Check the variogram range and the domain, then predict again.", more: "Ranges that are too narrow come from a variogram range that is too long, or from mixing two populations in one domain." },
+      { says: "No drilling rate: compared per metre.", do: "Type your contractor's rate in Planned hole checks to plan to a budget." },
+      { says: "3240 candidates, over 2000: tick fewer pads or a coarser step.", do: "Untick pads far from the target, or raise the azimuth step.", more: "Nothing is scored until the candidates fit: a sample of them would leave whole pads out unseen." },
+    ],
+    howto: { folded: true,
+      sample: "WA lode gold",
+      steps: [
+        "File > Open Sample Project > WA lode gold.",
+        "Targeting > Planned holes; under Probable grade, check the Grade model and the Cut-off.",
+        "Under Drill program, tick the pads a rig can use and set Max. holes or a Budget.",
+        "Keep the rule on Balanced and press Suggest a program.",
+        "Read each hole's reason, then add the holes above the line as planned holes.",
+      ],
+    },
+    related: ["planned-drillholes", "undrilled-zones", "grade-estimation", "grade-shell"],
+  },
+  {
     id: "voxel-ranges",
     area: "Targeting",
     title: "Voxel value ranges",
+    // TASKS.csv #3983 — the card (#3967's plan, section 8, batch C5); the summary and the rest are in its folds
+    line: "Shows only a block model's cells between a Min and a Max.",
+    picture: { drop: ["grid"], alt: "A block model with only the cells between a Min and a Max shown." },
+    cautions: ["A property's shell is a target outline, not a geological contact."],
+    instead: [{ text: "Loading models", to: "Block models", page: "block-models" }, { text: "Combining evidence", to: "Evidence overlay", page: "evidence-overlay" }],
+    keys: ["Min / Max (slider and box)", "Largest body only", "Shell at this range → generated surfaces"],
+    strip: ["Estimate Au", "Raise Min", "Make the shell"],
     summary: "Shows only the cells of a block model or inversion between a Min and a Max. A shell of a property is a target outline, not a geological contact.",
     more: "The same range is used by the planned-hole checks, and Shell at this range turns it into a closed solid for sections, Undrilled zones and targeting. A band such as a chargeability high stands out. The model's colours, stretch and classes are on its card in Geophysics, and the cells outside the range are hidden. It looks at one model at a time. Import models under Geophysics > Block models, or from an OMF file.",
     notFor: [
@@ -168,10 +257,10 @@ export default [
     ],
     fields: [
       { name: "Eye and model name", what: "Shows or hides the whole model; a band tag shows when the range leaves out 2 % or more.", choose: "Hide the models you are not reading.", more: "A cutoff that only hides air cells is not a band. The 2 % is of the model's real cells." },
-      { name: "Min / Max (slider and box)", what: "The lowest and highest value shown, same as the model's cutoff in Geophysics.", choose: "From what the property means here; check it against the holes.", more: "A chargeability above the survey's background, a resistivity below the host rock's, a grade above your cut-off. Evaluate onto drillholes, on the model's card, checks it. A model imported with log colours steps the sliders on a log scale. Type a value or drag the slider." },
+      { name: "Min / Max (slider and box)", gist: "from what the property means here", what: "The lowest and highest value shown, same as the model's cutoff in Geophysics.", choose: "From what the property means here; check it against the holes.", more: "A chargeability above the survey's background, a resistivity below the host rock's, a grade above your cut-off. Evaluate onto drillholes, on the model's card, checks it. A model imported with log colours steps the sliders on a log scale. Type a value or drag the slider." },
       { name: "Showing 1,200 of 8,400 cell(s) / Reset", what: "How many cells the range keeps; Reset goes back to the model's full range.", choose: "Almost every cell shown means the range isolates nothing." },
-      { name: "Largest body only", what: "Keeps only the biggest connected body of the range in the shell.", choose: "For one main body and many specks.", more: "Leave it off when several separate bodies matter." },
-      { name: "Shell at this range → generated surfaces", what: "Draws a closed solid around the cells in the range.", choose: "Once the range is settled.", more: "Marching cubes on the model's grid. The shell can be cut by sections, queried, measured by Undrilled zones and exported. It is added to the generated surfaces, and a new range needs a new shell." },
+      { name: "Largest body only", gist: "one main body", what: "Keeps only the biggest connected body of the range in the shell.", choose: "For one main body and many specks.", more: "Leave it off when several separate bodies matter." },
+      { name: "Shell at this range → generated surfaces", gist: "a closed solid", what: "Draws a closed solid around the cells in the range.", choose: "Once the range is settled.", more: "Marching cubes on the model's grid. The shell can be cut by sections, queried, measured by Undrilled zones and exported. It is added to the generated surfaces, and a new range needs a new shell." },
       { name: "Hide this one", what: "Hides this model where two fill the same cells.", choose: "One model at a time where they overlap." },
     ],
     warnings: [

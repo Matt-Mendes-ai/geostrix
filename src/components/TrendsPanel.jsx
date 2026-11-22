@@ -17,6 +17,7 @@ import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a cl
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2779 — the drill spacing and the sample length
 import { trendThinness, trendContext } from "../lib/trendThin.js"; // TASKS.csv #2779
 import { parseDecimal } from "../lib/parseDecimal.js"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #3926 — these boxes keep their own draft (applied on blur / Enter, Escape cancels: #670, #3683), so they are not the shared NumberInput:
 // text boxes whose text is read with parseDecimal, so '0,05' is 0.05 as there; a text it cannot read is not applied (NaN)
 const numOf = (x) => { const r = parseDecimal(String(x ?? "")); return r.ok && !r.empty ? r.value : NaN; };
@@ -228,7 +229,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
               </div>
               {onView && <button type="button" onClick={() => onView(viewingId === t.id ? null : t)} style={{ ...btnStyle, width: "auto", padding: "2px 7px", marginBottom: 0 }} title={tr("Show this trend's plane and ellipsoid in the 3D view")}>{viewingId === t.id ? tr("Hide") : tr("View")}</button>}
               <Pencil size={14} style={{ cursor: "pointer", color: editing ? "var(--color-accent)" : "var(--color-text-secondary)" }} {...iconAction(() => setEditId(editing ? null : t.id), tr("Edit {name}", { name: t.name }))} />
-              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => { if (window.confirm(tr("Delete trend \"{name}\"? Models using it will no longer follow a trend.", { name: t.name }))) remove(t.id); }, tr("Delete {name}", { name: t.name }))} />
+              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(async () => { if (await askConfirm(tr("Delete trend \"{name}\"? Models using it will no longer follow a trend.", { name: t.name }))) remove(t.id); }, tr("Delete {name}", { name: t.name }))} />
             </div>
             {(() => { const th = trendThinness(t.ratios, ctx.spacingM, ctx.sampleM); return th ? <div role="note" style={{ ...small, color: "var(--color-warn-text)", marginTop: 4 }}>{tr("At {max} : {int} : {min}, a search reaching the next drill site ({s} m away) is only {t} m thick across the plane, less than a typical sample ({l} m): each block sees few samples, often one or none.", { max: t.ratios.max, int: t.ratios.int, min: t.ratios.min, s: metres(th.spacingM), t: metres(th.thickM), l: metres(th.sampleM) })}</div> : null; })()}{/* #2779 */}
             {editing && (

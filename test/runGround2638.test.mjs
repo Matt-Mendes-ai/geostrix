@@ -15,7 +15,7 @@ test("#2638 the station ground no longer replaces the project's terrain", () => 
   const i = p.indexOf("const groundFromStations = () => {"), body = p.slice(i, p.indexOf("\n  };", i));
   assert.ok(i > 0 && !/addTerrain\(/.test(body) && !/confirmReplaceTerrain/.test(body));
   assert.match(body, /setRunGround\(\{ survey: activeSurvey, t: \{ name,/);
-  assert.match(p, /const groundToProject = \(\) => \{[\s\S]*?if \(!confirmReplaceTerrain\(projectTerrain, t\.name\)\) return;/);
+  assert.match(p, /const groundToProject = async \(\) => \{[\s\S]*?if \(!\(await confirmReplaceTerrain\(projectTerrain, t\.name\)\)\) return;/);
   assert.match(p, /ground: runGround && runGround\.survey === activeSurvey \? `this run's own: \$\{runGround\.stats\.stations\} station elevations/);
   assert.match(p, /tr\("Use the project's terrain instead"\)/);
 });

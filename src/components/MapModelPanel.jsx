@@ -17,8 +17,10 @@ import { roleWithCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #3369 — 
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M, contactsAgainstOrder } from "../lib/holeMapContacts.js"; // TASKS.csv #1718; contactsAgainstOrder: #2408
 import { plainLith } from "../lib/lithText.js"; // TASKS.csv #3936: a Macrostrat unit name's lithology block in words (shown; the run keeps the value)
+import { unitAges, ageOrder, sameAgeBreaks, faciesGroups } from "../lib/mapAgeOrder.js"; // TASKS.csv #4001 — the map's own ages as the order
 import { cutMapOrder, mergeUnits } from "../lib/mapOrderCut.js"; // TASKS.csv #3936 — the order cut down to GemPy's limit, offered
-import { GEMPY_MAX_SURFACES } from "../lib/gempyLimits.js"; // TASKS.csv #3936
+import { GEMPY_MAX_SURFACES, GEMPY_MAX_FAULTS } from "../lib/gempyLimits.js"; // TASKS.csv #3936; faults: #3985
+import { faultType, faultMajor, dipDefault, lineLength, pickFaults, joinPieces } from "../lib/faultPick.js"; // TASKS.csv #3985
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
@@ -62,7 +64,8 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     const side = near ? (angle(near.dipDir, perp[0]) <= angle(near.dipDir, perp[1]) ? 0 : 1) : 0;
     const s = faultSet[i] || {};
     const name = String(Object.values(f.attributes || {}).find((v) => /fault|thrust|shear/i.test(String(v))) || tr("Fault")) + ` ${i + 1}`;
-    return { i, name, line, perp, on: s.on ?? true, dip: s.dip ?? (near ? near.dip : 45), dipDir: s.dipDir ?? perp[side], measured: !!near };
+    const type = faultType(f); // TASKS.csv #3985 — its type, length and a dip default from the type (thrust 30, normal 60), said to be a default
+    return { i, name, line, perp, on: s.on ?? true, dip: s.dip ?? (near ? near.dip : dipDefault(type)), dipDir: s.dipDir ?? perp[side], measured: !!near, type, major: faultMajor(f), lengthM: lineLength(line), dipIsDefault: s.dip == null && !near };
   }), [faultFeatures, measuredFaults, faultSet]);
   const setFault = (i, patch) => setFaultSet((p) => ({ ...p, [i]: { ...(p[i] || {}), ...patch } }));
 
@@ -81,10 +84,17 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const [cut, setCut] = useState(null); // { merge: { unit: merged name }, out: [unit] }
   useEffect(() => { setCut(null); }, [layer?.id, unitField]);
   const effLayer = useMemo(() => (cut ? mergeUnits(layer, unitField, cut.merge) : layer), [layer, unitField, cut]);
-  const suggestion = useMemo(() => {
+  const bedSuggestion = useMemo(() => {
     if (!effLayer || !unitField) return null;
     try { return suggestPileOrder({ layer: effLayer, field: unitField, descField: desc || null, bedding, faults: faults.filter((f) => f.on).map((f) => f.line), groundAt, nearestHole, roleOf: logRoleOf, loggedContacts }); } catch { return null; }
   }, [effLayer, unitField, desc, bedding, faults, groundAt, nearestHole, logRoleOf, loggedContacts]);
+  // TASKS.csv #4001 — the map's own ages (age fields or the labels' age codes) give the order when most units carry one: bedding younging ran
+  // almost upside down on a folded map (fit 10 %, by age 44 %). The bedding order stays one click away; not on the nearest-hole outlines.
+  const ages = useMemo(() => (!nearestHole && effLayer && unitField ? unitAges(effLayer, unitField, bedSuggestion?.order || []) : null), [nearestHole, effLayer, unitField, bedSuggestion]);
+  const ageSug = useMemo(() => (bedSuggestion && ages ? ageOrder(bedSuggestion.order, ages) : null), [bedSuggestion, ages]);
+  const [orderFrom, setOrderFrom] = useState("age");
+  const byAge = ageSug?.use && orderFrom === "age";
+  const suggestion = useMemo(() => (bedSuggestion && byAge ? { ...bedSuggestion, order: ageSug.order } : bedSuggestion), [bedSuggestion, byAge, ageSug]);
   const [order, setOrder] = useState([]);
   const [roles, setRoles] = useState({});
   // TASKS.csv #2408 — an order set by hand is kept when the suggestion is recomputed (unticking an orientation class put Basement back on top
@@ -104,6 +114,9 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const [relation, setRelation] = useState("onlap");
   const [fullDetail, setFullDetail] = useState(false); // TASKS.csv #3162 follow-up — skip the work budget for one run (#3198)
   const [showWhy, setShowWhy] = useState(false);
+  const [fit, setFit] = useState(null); // TASKS.csv #3989 — the last run's fit against this map, and its 'where it differs' overlay
+  const [showDiff, setShowDiff] = useState(false);
+  useEffect(() => { if (busy) { setFit(null); setShowDiff(false); } }, [busy]); // a new run: the card waits for its own fit
   const unitInfo = new Map((suggestion?.units || []).map((u) => [u.unit, u]));
   const leftOut = Object.keys(roles).filter((u) => roles[u] !== "stratigraphic");
   // TASKS.csv #821 — the units in the "intrusion" role, as closed bodies (outline to a depth, vertical or dipping walls)
@@ -139,6 +152,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const why = (u) => {
     const i = unitInfo.get(u);
     if (!i) return "";
+    if (byAge && ages?.[u]) return tr("map age: {age}", { age: ages[u].text }); // #4001
     if (i.evidence === "bedding" && i.overOthers && i.underOthers) return tr("between its neighbours"); // TASKS.csv #1311
     if (i.evidence === "bedding") return i.score > 0.15 ? tr("younger than its neighbours") : i.score < -0.15 ? tr("older than its neighbours") : tr("weak evidence");
     if (i.evidence === "logged") return i.score > 0.15 ? tr("younger than its neighbours in the logs") : i.score < -0.15 ? tr("older than its neighbours in the logs") : tr("weak evidence"); // TASKS.csv #3391
@@ -148,6 +162,10 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const planes = useMemo(() => (suggestion?.pairs || []).flatMap((p) => (p.fittedPlanes || []).map((q) => ({ x: q.x, y: q.y, dip: q.dip, dipDir: q.dipDir, younger: p.younger, older: p.older }))), [suggestion]); // younger, older: #1309
   const [breaks, setBreaks] = useState([]); // TASKS.csv #1309 — units with an unconformity below them
   const hasBreaks = breaks.some((b) => order.slice(0, -1).includes(b));
+  // TASKS.csv #4001 — Erosional with same-age neighbours (facies of one formation): one package each, or their shared contacts make GemPy singular
+  const runBreaks = !hasBreaks && relation === "erode" && ages ? sameAgeBreaks(order, ages) || breaks : breaks;
+  // Erosional only: their contacts are lateral, not tops; under the default relation they are useful evidence (fit 43 % with them, 31 % without)
+  const runFacies = relation === "erode" && ages ? faciesGroups(order, ages) : null;
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   const sel = { ...smallSel, flex: 1, minWidth: 0 };
 
@@ -187,6 +205,29 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     ? cutMapOrder({ layer: effLayer, field: unitField, ageField: fieldsOf(layer).find((f) => /^age$/i.test(f)) || null, order, units: suggestion.units, pairs: suggestion.pairs, collars: storeCollars, max: GEMPY_MAX_SURFACES })
     : null), [cut, nearestHole, suggestion, order, effLayer, unitField, layer, storeCollars]);
   const roleListRef = useRef(null);
+  // TASKS.csv #3985 — more faults ticked than GemPy takes: the pick offered (lib/faultPick.js), each with its reason; taking it unticks the rest and
+  // merges a fault's collinear pieces into one trace for the run; Undo puts the ticks back
+  const [faultPick, setFaultPick] = useState(null); // { keep, before, merged: [[i, ...]], undo: the ticks before }
+  useEffect(() => { setFaultPick(null); }, [faultLayer?.id]);
+  const faultPlan = useMemo(() => { const on = faults.filter((f) => f.on); return !faultPick && on.length > GEMPY_MAX_FAULTS ? pickFaults({ faults: on, layer, field: unitField, collars: storeCollars }) : null; }, [faults, faultPick, layer, unitField, storeCollars]);
+  const reasonOf = (e) => [e.insideM > 0 ? tr("{d} inside the model area", { d: fmtLen(e.insideM) }) : tr("outside the model area"), tr("offsets {n} unit pair(s)", { n: e.offset }), e.major > 0 ? tr("mapped as major") : e.major < 0 ? tr("mapped as minor") : null, e.pieces > 1 ? tr("{n} pieces merged", { n: e.pieces }) : null].filter(Boolean).join(", ");
+  const [faultWhy, setFaultWhy] = useState({}); // fault index -> the pick's reason (kept or left out)
+  const takeFaults = () => {
+    if (!faultPlan) return;
+    const undo = faultSet, next = { ...faultSet }, why = {};
+    for (const e of faultPlan.keep) for (const i of e.ids) { next[i] = { ...(next[i] || {}), on: true }; why[i] = reasonOf(e); }
+    for (const e of faultPlan.drop) for (const i of e.ids) { next[i] = { ...(next[i] || {}), on: false }; why[i] = tr("left out: {why}", { why: reasonOf(e) }); }
+    setFaultSet(next); setFaultWhy(why);
+    setFaultPick({ keep: faultPlan.keep.length, before: faultPlan.before, merged: faultPlan.keep.filter((e) => e.ids.length > 1).map((e) => e.ids), undo });
+  };
+  const undoFaults = () => { if (faultPick) setFaultSet(faultPick.undo); setFaultPick(null); setFaultWhy({}); };
+  // the faults the run gets: a merged fault's pieces as one trace (in order along its strike), named after its first piece
+  const runFaults = useMemo(() => {
+    const on = faults.filter((f) => f.on), byI = new Map(on.map((f) => [f.i, f])), done = new Set(), out = [];
+    for (const ids of faultPick?.merged || []) { const fs = ids.map((i) => byI.get(i)).filter(Boolean); if (fs.length < 2) continue; fs.forEach((f) => done.add(f.i)); out.push({ name: fs[0].name, line: joinPieces(fs.map((f) => f.line)), dip: fs[0].dip, dipDir: fs[0].dipDir }); }
+    for (const f of on) if (!done.has(f.i)) out.push({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir });
+    return out;
+  }, [faults, faultPick]);
   const takeCut = (thenEdit) => {
     if (!plan) return;
     const out = new Set(plan.leftOut.map((x) => x.unit));
@@ -226,16 +267,20 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
       {faults.map((f) => (
         <div key={f.i} style={{ ...row, fontSize: "var(--font-size-xs)" }}>
           <input type="checkbox" checked={f.on} onChange={(e) => setFault(f.i, { on: e.target.checked })} aria-label={f.name} />
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.measured ? tr("dip and side from the nearest measured fault") : tr("no measured fault nearby: set the dip")}>{f.name}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.name}\n${f.measured ? tr("dip and side from the nearest measured fault") : tr("no measured fault nearby: set the dip")}${faultWhy[f.i] ? `\n${faultWhy[f.i]}` : ""}`}>{tr(FAULT_TYPE_LABEL[f.type])} · {fmtLen(f.lengthM)}{faultWhy[f.i] ? <span style={{ color: "var(--color-text-muted)" }}> · {faultWhy[f.i]}</span> : null}</span>{/* #3985 — type and length; the pick's reason */}
+          {f.dipIsDefault && <span style={{ color: "var(--color-text-muted)" }} title={tr("From the line type: set the dip if you know it")}>{tr("default")}</span>}
           <NumberInput min={1} max={90} value={f.dip} onChange={(v) => setFault(f.i, { dip: v })} style={{ ...smallSel, width: 46 }} aria-label={tr("Dip")} />°
           <select value={Math.round(f.dipDir)} onChange={(e) => setFault(f.i, { dipDir: Number(e.target.value) })} style={{ ...smallSel, width: 62 }} aria-label={tr("Dips towards")}>
             {f.perp.map((a) => <option key={a} value={Math.round(a)}>{tr("to {a}°", { a: Math.round(a) })}</option>)}
           </select>
         </div>
       ))}
+      {faultPlan && <FaultPickOffer plan={faultPlan} names={Object.fromEntries(faults.map((f) => [f.i, `${tr(FAULT_TYPE_LABEL[f.type])} · ${fmtLen(f.lengthM)}`]))} reason={reasonOf} onTake={takeFaults} /> /* TASKS.csv #3985 */}
+      {faultPick && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Picked {k} of {n} faults for GemPy; the rest are unticked.", { k: faultPick.keep, n: faultPick.before })} <button type="button" onClick={undoFaults} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", cursor: "pointer" }}>{tr("Undo")}</button></div>}
       {plan && <CutOffer plan={plan} onTake={() => takeCut(false)} onChange={() => takeCut(true)} />}
       {cut && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Cut down for GemPy: {m} merged, {o} left out (listed under the order). Their roles can be changed there.", { m: Object.keys(cut.merge).length, o: cut.out.length })}{" "}<button type="button" onClick={() => { setCut(null); setOrderByHand(false); }} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "inherit" }}>{tr("Undo the cut")}</button></div>}
       <div ref={roleListRef} style={{ margin: "8px 0 4px", color: "var(--color-text)" }}>{tr("Stratigraphic order (youngest at the top)")}</div>
+      {ageSug?.use && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{byAge ? tr("By the map's ages ({n} of {m} units).", { n: ageSug.dated, m: ageSug.total }) : tr("By bedding younging.")}{" "}<button type="button" onClick={() => { setOrderFrom(byAge ? "bedding" : "age"); setOrderByHand(false); }} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "inherit" }}>{byAge ? tr("Use the bedding order") : tr("Use the map's ages")}</button></div> /* #4001 */}
       {!groundAt && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("Make a terrain in Maps > Terrain (fetch one, import a DEM, or build one offline from points, from the project's samples and collars, or from a block model's top): the model cannot run without one.") /* #1824 — the offline route; #1599 points, samples and collars */}</div>}
       {order.map((u, i) => (
         <React.Fragment key={u}>
@@ -264,6 +309,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         </div>
       )}
       <div role="button" tabIndex={0} onClick={() => setShowWhy((v) => !v)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowWhy((v) => !v); }} style={{ cursor: "pointer", fontSize: "var(--font-size-xs)", marginBottom: 4 }}>{showWhy ? "▾" : "▸"} {tr("Why this order (contact by contact)")}</div>
+      {showWhy && byAge && <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 2 }}>{tr("The order follows the map's ages; units of one age, or with none, keep their bedding order. The contacts below are the bedding evidence.")}</div> /* #4001 */}
       {showWhy && nearestHole && <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 2 }}>{tr("{n} border(s) between nearest-hole outlines: not contacts, not used.", { n: (suggestion?.pairs || []).filter((p) => p.nearestHole).length })}</div>}
       {showWhy && (suggestion?.pairs || []).filter((p) => p.weight || p.faulted).sort((a, b) => (b.weight || 0) - (a.weight || 0)).map((p) => (
         <div key={`${p.a}|${p.b}`} style={{ fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
@@ -312,10 +358,11 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           {tr("Terrain under {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest sit at the map layer's elevation{z}, where the surfaces are cut; a terrain over the whole map (Maps > Terrain) fixes that.", { a: groundCount.pointsOnGround, n: groundCount.points, b: groundCount.measurementsOnGround, m: groundCount.measurements, z: Number.isFinite(Number(layer?.elevation)) ? tr(" (RL {z})", { z: Math.round(Number(layer.elevation)) }) : "" })}
         </div>
       )}
-      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
+      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks: runBreaks /* #4001 */, facies: runFacies, bedding, planes, faults: runFaults /* #3985 — merged pieces as one trace */, relation, leftOut, onFit: setFit /* #3989 */, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
         disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
+      {fit && !busy && <MapFitCard fit={fit} shown={showDiff} onShow={(on) => { setShowDiff(on); fit.show(on); }} />}
       {groundAt && order.length < 2 && !busy && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{order.length === 1 ? tr("Only one unit ({unit}) is in the stratigraphic role: a model needs at least two. Set another unit's role to stratigraphic above, or build the unit as an intrusion body below.", { unit: order[0] }) : tr("No unit is in the stratigraphic role: a model needs at least two units in order. Set their roles above.")}</div>}{/* TASKS.csv #2086 — Build was disabled with no word */}
       {holeFit && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("No outcrop orientation: each top will get one fitted from its logged contacts ({n} in use), a least-squares plane through its contact points.", { n: holePreview.contacts.length.toLocaleString() })}</div>}{/* #2409 */}
       {noOrient && lithoRows?.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("From drillholes alone: 3D Modelling > Stratigraphic stack or Implicit surface; or tick 'Use the drillholes' logged contacts' above with each code's unit.")}</div>}{/* #2409 */}
@@ -375,6 +422,39 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   );
 }
 
+// TASKS.csv #3985 — the faults' type labels and a length in words
+const FAULT_TYPE_LABEL = { thrust: "Thrust", reverse: "Reverse", normal: "Normal", "strike-slip": "Strike-slip", fault: "Fault" };
+const fmtLen = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
+// TASKS.csv #3985 — the faults' offer: which ones the pick keeps and leaves out, and why, before the run
+// TASKS.csv #3989 (a) — after a run: how much of the mapped ground the model's unit at the terrain matches, per unit (largest first, a poor one
+// says what the model has there instead), and the 'where it differs' overlay on the terrain, hidden until ticked
+const pctOf = (v) => (v == null ? "–" : `${Math.round(100 * v)} %`);
+function MapFitCard({ fit, shown, onShow }) {
+  const line = { fontSize: "var(--font-size-xs)", lineHeight: 1.45, color: "var(--color-text)" };
+  const units = fit.units.slice(0, 8);
+  return (
+    <div role="status" style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", margin: "6px 0" }}>
+      <div style={{ ...line, fontWeight: 600 }}>{fit.overall == null ? tr("The model has none of the mapped units here, so its fit to the map cannot be scored.") : tr("Matches the map on {pct} of the mapped ground", { pct: pctOf(fit.overall) })}</div>
+      {units.map((u) => <div key={u.unit} style={line}>{u.unit}: {pctOf(u.pct)}{u.pct != null && u.pct < 0.5 && u.modelledAs ? <span style={{ color: "var(--color-text-muted)" }}> {tr("(mostly {unit})", { unit: u.modelledAs })}</span> : null}</div>)}
+      {fit.unscored.length > 0 && <div style={{ ...line, color: "var(--color-text-muted)" }}>{tr("Not scored, not in the model: {list}", { list: fit.unscored.slice(0, 6).join(", ") + (fit.unscored.length > 6 ? "…" : "") })}</div>}
+      {fit.differ > 0 && <label style={{ ...line, display: "flex", gap: 6, alignItems: "center", marginTop: 4, cursor: "pointer" }}>
+        <input type="checkbox" checked={shown} onChange={(e) => onShow(e.target.checked)} />{tr("Show where it differs (red, on the terrain)")}
+      </label>}
+    </div>
+  );
+}
+function FaultPickOffer({ plan, names, reason, onTake }) {
+  const line = { fontSize: "var(--font-size-xs)", lineHeight: 1.45, color: "var(--color-text)" };
+  const label = (e) => e.ids.map((i) => names[i]).filter(Boolean).slice(0, 2).join(" + ");
+  return (
+    <div role="note" style={{ border: "1px solid var(--color-warn-border, var(--color-border))", background: "var(--color-warn-bg, transparent)", borderRadius: 6, padding: "6px 8px", margin: "6px 0" }}>
+      <div style={{ ...line, fontWeight: 600 }}>{tr("GemPy takes at most {max} faults in one model, and {n} are ticked. GeoStrix can pick the {max} that matter:", { max: GEMPY_MAX_FAULTS, n: plan.before })}</div>
+      {plan.keep.map((e) => <div key={e.ids.join(",")} style={line}>✓ {label(e)} <span style={{ color: "var(--color-text-muted)" }}>({reason(e)})</span></div>)}
+      {plan.drop.map((e) => <div key={e.ids.join(",")} style={{ ...line, color: "var(--color-text-muted)" }}>– {label(e)} ({reason(e)})</div>)}
+      <button type="button" onClick={onTake} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", cursor: "pointer", marginTop: 4 }}>{tr("Pick the {max} for me", { max: GEMPY_MAX_FAULTS })}</button>
+    </div>
+  );
+}
 // TASKS.csv #3936 — the offer: what the cut would do and why, before the run
 function CutOffer({ plan, onTake, onChange }) {
   const names = (list) => list.map((x) => plainLith(x)).join(", ");

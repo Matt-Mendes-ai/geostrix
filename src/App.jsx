@@ -31,6 +31,7 @@ import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
 const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
+import ConfirmHost from "./components/ConfirmHost.jsx"; // TASKS.csv #3957 — the app's one confirm / alert dialog
 import TitleCards from "./components/TitleCards.jsx"; // TASKS.csv #3940 — the info card for every button that has only a native title
 import CollarZGate from "./components/CollarZGate.jsx"; // TASKS.csv #3955 — collar elevations from the terrain: the gate (the dialog, the offer and the planner load on first use)
 import { undoMessage, undoTooltip } from "./lib/undoLabels.js"; // TASKS.csv #1087; undoTooltip: #3616
@@ -40,6 +41,7 @@ import { recoveryTabNames } from "./lib/recoveryNames.js"; // TASKS.csv #3047
 import { HIDDEN_TABS } from "./lib/features.js"; // TASKS.csv #3897 — Mine Design switched off
 import { groupModules, TIER_CAPTION, TIER_GROUP_LABEL } from "./lib/moduleTiers.js"; // TASKS.csv #3890
 import { useImportGate } from "./lib/useImportGate.js"; // TASKS.csv #3931 — every file input waits while a project is coming forward
+import { askConfirm, askAlert } from "./lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
@@ -232,7 +234,7 @@ export default function App() {
   const [aiAccessOpen, setAiAccessOpen] = useState(false); // TASKS.csv #3190
   // TASKS.csv #3190 — an AI app's question about the open project (only ever sent while AI App Access is on) is answered from a snapshot of the store by src/lib/mcpTools.js, loaded on the first one
   const storeNow = useRef(store); storeNow.current = store;
-  useEffect(() => onMcpRequest(() => { const s = storeNow.current; return { project: s.project, collars: s.collars, survey: s.survey, layers: s.layers, assays: s.assays, assayElements: s.assayElements, sections: s.sections, codeDictionary: s.codeDictionary, desurveyMethod: s.desurveyMethod }; }, () => storeNow.current /* #3932 — change tools: the live store */), []);
+  useEffect(() => onMcpRequest(() => { const s = storeNow.current; return { project: s.project, collars: s.collars, survey: s.survey, layers: s.layers, assays: s.assays, assayElements: s.assayElements, sections: s.sections, codeDictionary: s.codeDictionary, desurveyMethod: s.desurveyMethod, plannedHoles: s.plannedHoles, voxelModels: s.voxelModels /* #3962 P5: the drill planner's reads */ }; }, () => storeNow.current /* #3932 — change tools: the live store */), []);
   const [lastExitUnclean, setLastExitUnclean] = useState(false);
   const openReportProblem = async (crashed = false) => {
     let screenshot = null;
@@ -362,15 +364,15 @@ export default function App() {
     const res = await saveProject(opts); // #553 — opts.saveAs for Save As
     if (res.ok) { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800); }
     // TASKS.csv #467 — say so when the file could not be written; the project stays open and unchanged.
-    else if (res.error) window.alert(tr("Save to another folder: the project could not be saved here.\n\n{error}\n\nYour work is still open. A full disk, a synced folder or antivirus can block a save.", { error: res.error }));
+    else if (res.error) askAlert(tr("Save to another folder: the project could not be saved here.\n\n{error}\n\nYour work is still open. A full disk, a synced folder or antivirus can block a save.", { error: res.error }));
   }, [saveProject]);
   // TASKS.csv #1262 — a file whose fields had the wrong shape opened with those fields empty: say which, before the user
   // saves it back over the original
-  const warnDropped = (res) => { if (res?.dropped?.length) window.alert(tr("Save under another name to keep the original: this file's {list} had the wrong form and were left empty; everything else was read.", { list: res.dropped.join(", ") })); };
+  const warnDropped = (res) => { if (res?.dropped?.length) askAlert(tr("Save under another name to keep the original: this file's {list} had the wrong form and were left empty; everything else was read.", { list: res.dropped.join(", ") })); };
   const doOpen = useCallback(async () => {
     const res = await openProject();
     if (res.ok) { setActive("viewer"); warnDropped(res); }
-    else if (res.error) window.alert(tr("Couldn't open that file: {error}", { error: res.error })); // TASKS.csv #342 — used to fail silently
+    else if (res.error) askAlert(tr("Couldn't open that file: {error}", { error: res.error })); // TASKS.csv #342 — used to fail silently
   }, [openProject]);
   // TASKS.csv #914 — a project file double-clicked in Explorer: taken once on start, and again whenever a running
   // GeoStrix is handed another one
@@ -386,10 +388,10 @@ export default function App() {
       try {
         for (;;) {
           const f = await takeLaunchFile();
-          if (!f?.ok) { if (f?.error) window.alert(tr("Couldn't open that file: {error}", { error: f.error })); if (!f?.more) return; continue; }
+          if (!f?.ok) { if (f?.error) askAlert(tr("Couldn't open that file: {error}", { error: f.error })); if (!f?.more) return; continue; }
           const res = await openProjectRef.current(f);
           if (res.ok) { setActive("viewer"); warnDropped(res); }
-          else if (res.error) window.alert(tr("Couldn't open that file: {error}", { error: res.error }));
+          else if (res.error) askAlert(tr("Couldn't open that file: {error}", { error: res.error }));
           if (!f.more) return;
           await new Promise((r) => setTimeout(r, 100));
         }
@@ -401,8 +403,8 @@ export default function App() {
   // TASKS.csv #34 — "New Project" now opens a fresh workspace tab instead of resetting the only
   // project in place, so nothing is ever discarded by this action and the old "unsaved changes will
   // be lost" confirm isn't needed anymore (see newWorkspaceTab's own comment in store.jsx).
-  const doNew = useCallback(() => {
-    newWorkspaceTab();
+  const doNew = useCallback(async () => {
+    if ((await newWorkspaceTab()) === false) return; // TASKS.csv #4000 — a section's unsaved lines were kept: no new project
     setStartDialog({ reason: "new" }); // TASKS.csv #3888
   }, [newWorkspaceTab]);
 
@@ -469,8 +471,8 @@ export default function App() {
   // to jump back to the main window.
   useEffect(() => {
     // TASKS.csv #395 — the same relay also carries a planned hole designed on a section.
-    const off = onSectionContacts(({ id, contacts, plannedHole, labels, step, refresh, by, corridor }) => {
-      if (step || refresh || corridor != null) { window.dispatchEvent(new CustomEvent("geostrix-section-step", { detail: { id, step, refresh, by, corridor } })); return; } // TASKS.csv #876 — ViewerModule opens / refreshes it; by / corridor: #1131
+    const off = onSectionContacts(({ id, contacts, plannedHole, labels, step, refresh, by, corridor, offsetM }) => {
+      if (step || refresh || corridor != null) { window.dispatchEvent(new CustomEvent("geostrix-section-step", { detail: { id, step, refresh, by, corridor, offsetM /* #3977 — dragged on the overview */ } })); return; } // TASKS.csv #876 — ViewerModule opens / refreshes it; by / corridor: #1131
       if (plannedHole) addPlannedHole(plannedHole); else if (labels) setSectionLabels(id, labels); else setSectionContacts(id, contacts);
     }); // labels: #823
     return off;
@@ -584,10 +586,10 @@ export default function App() {
   }, [recoveryStashed]);
   // TASKS.csv #340 — Discard permanently deletes the only copy of the recovered work, so it confirms
   // first (the button also no longer carries an X icon, which read as "close this banner").
-  const doDiscardRecovery = useCallback(() => {
+  const doDiscardRecovery = useCallback(async () => {
     const when = recovery?.autosavedAt ? ` autosaved ${timeAgo(recovery.autosavedAt)}` : "";
     const others = recovery?.otherTabs?.length ? ` and ${recovery.otherTabs.length} other unsaved tab(s)` : "";
-    if (!window.confirm(tr("Permanently delete the recovered work for \"{v}\"{others}{when}? This can't be undone.", { v: recovery?.projectName, others, when }))) return;
+    if (!await askConfirm(tr("Permanently delete the recovered work for \"{v}\"{others}{when}? This can't be undone.", { v: recovery?.projectName, others, when }))) return;
     discardAutosave();
     setRecovery(null); recoveryCheck.settle(null);
   }, [discardAutosave, recovery]);
@@ -755,6 +757,7 @@ export default function App() {
         </div>
       )}
       <TitleCards />
+      <ConfirmHost />{/* TASKS.csv #3957 */}
       <CollarZGate />
       {startDialog && <Suspense fallback={null}><StartDialogs reason={startDialog.reason} onClose={() => setStartDialog(null)} goTo={setActive} onOpenProject={doOpen} /></Suspense>}{/* TASKS.csv #3888 */}
       {sampleAsk && <Suspense fallback={null}><SampleDownloadModal id={sampleAsk} onClose={() => setSampleAsk(null)} onReady={(which) => { setSampleAsk(null); markSampleDownloaded(which); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); }} /></Suspense>}{/* #3100 */}

@@ -34,7 +34,9 @@ import { useStore } from "../../lib/store.jsx"; // TASKS.csv #2517 — the colla
 import AssayStaleBadge from "../../components/AssayStaleBadge.jsx"; // TASKS.csv #3686
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #3914 — Add data hands files to the drop import
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
-import TotalSulphidesBox from "../../components/TotalSulphidesBox.jsx"; // TASKS.csv #3941
+const TotalSulphidesBox = React.lazy(() => import("../../components/TotalSulphidesBox.jsx")); // TASKS.csv #3941 — loaded when the Mineralization panel opens (startup size)
+const MineralBarsChooser = React.lazy(() => import("../../components/TraceBarsChooser.jsx")); // TASKS.csv #3943
+import { mineralBarColour } from "../../lib/traceBarsData.js"; // TASKS.csv #3943
 import { useTextSize } from "../../lib/useTextSize.js"; // TASKS.csv #3900 — the hole rows grow with the text size
 import { TEXT_BUMP } from "../../lib/textSize.js";
 // TASKS.csv #1702 (review #1645, Copley) — "Intercepts" opened lithology boundary picks; to a geologist an intercept is "24 m @ 0.44 % Cu".
@@ -86,7 +88,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${openPopover === "model" ? "active" : ""}`} aria-expanded={openPopover === "model"} aria-haspopup="menu" onClick={() => toggle("model")}><ModelIcon size={22} color={RIBBON_TONES.model} /><span className="ge-ribbon-label">{tr("Model")}</span></button>
           </HoverToolInfo>
           {openPopover === "model" && (
-            <RibbonMenu label={tr("Model")} onClose={() => setOpenPopover(null)} style={{ ...popoverStyle, width: 220, padding: 6 }}>{/* #3928: focus in, arrows, Escape */}
+            <RibbonMenu label={tr("Model")} onClose={() => setOpenPopover(null)} data-ribbon-popover="" style={{ ...popoverStyle, width: 220, padding: 6 }}>{/* #3928: focus in, arrows, Escape */}
               {GUIDED_MENU.map(([id, label]) => <button key={id} type="button" role="menuitem" onClick={() => { setOpenPopover(null); requestModuleAction("guided-open", { tool: id }); }}
                 style={{ display: "block", width: "100%", textAlign: "start", padding: "6px 8px", border: "none", background: "transparent", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)", fontWeight: id === "start" ? 600 : 400 }}>{tr(label)}</button>)}
             </RibbonMenu>
@@ -99,7 +101,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><GridIcon size={22} color={RIBBON_TONES.view} /><span className="ge-ribbon-label">{tr("Grid")}</span></button>
           </HoverToolInfo>
           {openPopover === "grid" && (
-            <div style={popoverStyle}>
+            <div data-ribbon-popover="" style={popoverStyle}>
               <div style={popoverHeader}>{tr("Grid")}<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), tr("Close the grid settings popover"))} /></div>
               <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>
@@ -128,7 +130,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-expanded={openPopover === "figure"} aria-haspopup="dialog" onClick={() => toggle("figure")}><FigureIcon size={22} color={RIBBON_TONES.view} /><span className="ge-ribbon-label">{tr("Figure")}</span></button>
           </HoverToolInfo>
           {openPopover === "figure" && (
-            <div style={{ ...popoverStyle, width: 268 }}>
+            <div data-ribbon-popover="" style={{ ...popoverStyle, width: 268 }}>
               <div style={popoverHeader}>{tr("Figure overlay")}<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), tr("Close the figure overlay popover"))} /></div>
               <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} style={{ cursor: "pointer", color: figureOverlay.enabled ? "var(--color-accent)" : "var(--color-text-disabled)" }} {...iconAction(() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled })), tr("Toggle the figure overlay"))}>
@@ -176,7 +178,7 @@ export function ViewToolbar({
             <button className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-expanded={openPopover === "themes"} aria-haspopup="dialog" onClick={() => toggle("themes")}><ThemesIcon size={22} color={RIBBON_TONES.view} /><span className="ge-ribbon-label">{tr("Themes")}</span></button>
           </HoverToolInfo>
           {openPopover === "themes" && (
-            <div style={{ ...popoverStyle, width: 260 }}>
+            <div data-ribbon-popover="" style={{ ...popoverStyle, width: 260 }}>
               <div style={popoverHeader}>{tr("Themes")}<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), tr("Close the themes popover"))} /></div>
               <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                 <input
@@ -212,7 +214,7 @@ export function ViewToolbar({
                       </div>
                     )}
                     <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, tr("Rename theme \"{name}\"", { name: t.name }))} />
-                    <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Delete theme \"{name}\"?", { name: t.name }))) deleteTheme(t.id); }, tr("Delete theme \"{name}\"", { name: t.name }))} />
+                    <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Delete theme \"{name}\"?", { name: t.name }))) deleteTheme(t.id); }, tr("Delete theme \"{name}\"", { name: t.name }))} />
                   </div>
                 ))}
               </div>
@@ -305,7 +307,7 @@ export function ViewToolbar({
   );
 }
 // TASKS.csv #3908 — the Model menu: [guided tool id, label], in the order the Start here card lists them
-const GUIDED_MENU = [["start", "Start here"], ["cover", "Cover and weathering"], ["layers", "Rock layers"], ["bodies", "Intrusions and bodies"], ["veins", "Veins and dykes"], ["faults", "Faults"], ["grade", "Grade model"]];
+const GUIDED_MENU = [["start", "Start here"], ["cover", "Cover and weathering"], ["layers", "Rock layers"], ["bodies", "Intrusions and bodies"], ["veins", "Veins and dykes"], ["alteration", "Alteration halo"] /* TASKS.csv #4011 */, ["faults", "Faults"], ["grade", "Grade model"]];
 const popoverStyle = { position: "absolute", top: "calc(100% + 4px)", left: 0, width: 230, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 50 };
 const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: "var(--font-weight-title)" /* TASKS.csv #3892 */, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" };
 
@@ -492,7 +494,7 @@ export function LayerRow({ label, count, shown = null, visible, onToggle, onUplo
 // Deliberately terser than that modal (chips instead of rows with color pickers/labels/counts) since
 // the point of this view is a quick glance + quick toggle, not the full editing surface.
 
-export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategory, onIsolate, onRemoveSource, numericSym, onNumericSymChange, colorOf, labelOf, style, onStyle }) {
+export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategory, onIsolate, onRemoveSource, numericSym, onNumericSymChange, colorOf, labelOf, style, onStyle, customBars = null }) {
   const categories = meta.numeric ? [] : distinctValues(rows);
   const sources = (() => {
     const counts = new Map();
@@ -531,7 +533,8 @@ export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggle
           })}
         </div>
       )}
-      {layerKey === "mnlgy" && rows.length > 0 && <TotalSulphidesBox rows={rows} style={style} onStyle={onStyle} /> /* TASKS.csv #3941 */}
+      {layerKey === "mnlgy" && rows.length > 0 && <React.Suspense fallback={null}><TotalSulphidesBox rows={rows} style={style} onStyle={onStyle} /> {/* TASKS.csv #3941 */}
+        <MineralBarsChooser rows={rows} style={style} onStyle={onStyle} custom={customBars} colourOf={(id) => mineralBarColour(id, (style?.bars || []).indexOf(id), (v) => colorOf?.("mnlgy", v))} /></React.Suspense> /* TASKS.csv #3943 */}
       {sources.length > 1 && (
         <div>
           {sources.map(([src, count]) => (

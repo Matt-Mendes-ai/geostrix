@@ -7,6 +7,7 @@
 // neighbour (a geologic map is categorical: no blended colours), then warped into the project CRS by the same code as a WMS map.
 
 import { plainLith } from "./lithText.js"; // TASKS.csv #3936 — the unit names told apart by lithology, in words
+import { t as tr } from "./i18n.js"; // TASKS.csv #3974 — the scale sentence
 export const MACROSTRAT_TILE_URL = (z, x, y) => `https://tiles.macrostrat.org/carto/${z}/${x}/${y}.png`;
 export const MACROSTRAT_API = "https://macrostrat.org/api/v2";
 // project data stays English (the raster's provenance)
@@ -25,6 +26,51 @@ export function planMacrostratTiles([lonMin, latMin, lonMax, latMax], { maxTiles
     const count = (x1 - x0 + 1) * (y1 - y0 + 1);
     if (count <= maxTiles || z === minZoom) return { z, x0, x1, y0, y1, count };
   }
+  return null;
+}
+
+// TASKS.csv #3974 (Matt: "macrostrat is not available everywhere ... I tried a random place in Nigeria and didn't get any map") — Macrostrat
+// does cover Nigeria, with the 1:10,000,000 map of Africa, but its carto tiles hold that map at zoom 4-8 only and are blank from zoom 9 up;
+// the deepest zoom that fits (above) asked a property-sized area at zoom 9-12 and got nothing. The zooms to try: that one first, then one at a
+// time down to MACROSTRAT_FLOOR_ZOOM, while the requests stay within MACROSTRAT_FALLBACK_REQUESTS (a lower zoom needs fewer tiles). The
+// caller keeps the first zoom whose tiles hold units, so a zoom that works costs no extra request. -> [plan, ...]
+export const MACROSTRAT_FLOOR_ZOOM = 4, MACROSTRAT_FALLBACK_REQUESTS = 60;
+export function macrostratZoomSteps(bboxLonLat, { floor = MACROSTRAT_FLOOR_ZOOM, maxRequests = MACROSTRAT_FALLBACK_REQUESTS } = {}) {
+  const steps = [];
+  let total = 0, maxZoom = 12;
+  while (maxZoom >= floor) {
+    const p = planMacrostratTiles(bboxLonLat, { maxZoom, minZoom: floor });
+    if (!p || steps.some((s) => s.z === p.z)) break;
+    if (steps.length && total + p.count > maxRequests) break;
+    steps.push(p); total += p.count;
+    maxZoom = p.z - 1;
+  }
+  return steps;
+}
+// do the tiles (one zoom's) hold any unit polygon inside the area?
+export const tilesHoldUnits = (tiles, bboxLonLat) => macrostratLayersInArea(tiles, bboxLonLat).some((layers) => (layers || []).some((l) => l.name === "units" && (l.features || []).some((f) => f.type === "polygon")));
+// the steps tried in order with fetchZoom(plan) -> { count, tiles, ... } until one holds units: -> { got, index, requests } or null (all blank).
+// A fetchZoom that throws (offline, every tile failed) stops the search: that is not a blank map.
+export async function firstZoomWithUnits(steps, fetchZoom, bboxLonLat) {
+  let requests = 0;
+  for (let i = 0; i < (steps || []).length; i++) {
+    const got = await fetchZoom(steps[i]);
+    requests += got.count || 0;
+    if (tilesHoldUnits(got.tiles, bboxLonLat)) return { got, index: i, requests };
+  }
+  return null;
+}
+// the one line said when only a smaller-scale map covers the area: from the finest unit at the area's centre (parseMacrostratUnits: its scale
+// class, its map). A map's own scale written '1:n' is used as given; otherwise the class: tiny (a world map), small (a continent or country).
+// null for a regional or detailed map (medium, large), or when nothing is known.
+export function macrostratScaleNote(unitsAtCentre) {
+  const u = (unitsAtCentre || [])[0];
+  if (!u) return null;
+  // live (#3974, Nigeria): /defs/sources gives the class in `scale` ("small") and the scale in the title ("New edition of the 1:10,000,000 geological map of Africa")
+  const name = String(u.sourceName || "").trim(), m = /1\s*:\s*([\d,. ]{3,})/.exec(`${u.sourceScale || ""} ${u.sourceTitle || ""} ${name}`);
+  if (m) { const n = Number(m[1].replace(/[^\d]/g, "")); if (n >= 2000000) return tr("Only a 1:{n} map covers this area ({name}): regional, not property-scale.", { n: n.toLocaleString("en-CA"), name: name || tr("Macrostrat") }); }
+  if (u.scale === "tiny") return tr("Only a world-scale map covers this area ({name}): regional, not property-scale.", { name: name || tr("Macrostrat") });
+  if (u.scale === "small") return tr("Only a continent- or country-scale map covers this area ({name}): regional, not property-scale.", { name: name || tr("Macrostrat") });
   return null;
 }
 
@@ -184,6 +230,70 @@ export function macrostratUnitFeatures(tiles, bboxLonLat) {
     }
   }
   return { features, units: legend.units.map((u) => unitOf.get(u.id)), sources: legend.sources };
+}
+
+// TASKS.csv #3934 (Matt: the trend helper's regional hint should read Macrostrat's mapped faults and folds too) — the same tiles' LINES
+// layer: each line's `type` (fault, thrust fault, anticline, syncline, fold...) read as a fault or a fold axis; the other line kinds (moraines,
+// dikes, lineaments...) are left out. Each line is kept to its own tile's square (the tiles overlap by a buffer, which would count it twice)
+// and to the area, as runs of vertices inside both. Direction only: the tiles carry no dip, plunge or fold shape.
+//   -> [{ kind: "fault" | "fold", type, name, sourceId, parts: [[[lon, lat], ...]] }]
+export const lineKindOf = (type) => {
+  const s = String(type ?? "").toLowerCase();
+  if (/fault|thrust|shear zone|detachment/.test(s)) return "fault";
+  if (/fold|anticline|syncline|monocline|antiform|synform/.test(s)) return "fold";
+  return null;
+};
+// Liang-Barsky: the segment a-b inside the box [x0, y0, x1, y1] -> [a', b'] or null
+export function clipSegment(a, b, [x0, y0, x1, y1]) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  let t0 = 0, t1 = 1;
+  for (const [p, q] of [[-dx, a[0] - x0], [dx, x1 - a[0]], [-dy, a[1] - y0], [dy, y1 - a[1]]]) {
+    if (p === 0) { if (q < 0) return null; continue; }
+    const r = q / p;
+    if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; } else { if (r < t0) return null; if (r < t1) t1 = r; }
+  }
+  if (!(t1 > t0)) return null;
+  return [t0 === 0 ? a : [a[0] + t0 * dx, a[1] + t0 * dy], t1 === 1 ? b : [a[0] + t1 * dx, a[1] + t1 * dy]];
+}
+export function macrostratLineFeatures(tiles, bboxLonLat) {
+  const out = [];
+  for (const t of tiles || []) for (const l of t.layers || []) {
+    if (l.name !== "lines") continue;
+    const ext = l.extent || 4096;
+    const [bx0, by0] = lonLatToTilePx(t.z, t.x, t.y, ext, bboxLonLat[0], bboxLonLat[3]), [bx1, by1] = lonLatToTilePx(t.z, t.x, t.y, ext, bboxLonLat[2], bboxLonLat[1]);
+    const box = [Math.max(0, bx0), Math.max(0, by0), Math.min(ext, bx1), Math.min(ext, by1)];
+    if (!(box[2] > box[0] && box[3] > box[1])) continue;
+    for (const f of l.features || []) {
+      if (f.type !== "line" || !f.geometry?.length) continue;
+      const p = f.properties || {}, kind = lineKindOf(p.type ?? p.name);
+      if (!kind) continue;
+      for (const path of f.geometry) {
+        // each segment clipped to the box (a long straight segment across the tile has no vertex in it); pieces that meet are one run
+        let run = [];
+        const flush = () => { if (run.length >= 2) out.push({ kind, type: String(p.type || "").trim(), name: String(p.name || "").trim(), sourceId: p.source_id ?? null, parts: [run.map(([x, y]) => tileToLonLat(t.z, t.x, t.y, ext, x, y))] }); run = []; };
+        for (let i = 1; i < path.length; i++) {
+          const c = clipSegment(path[i - 1], path[i], box);
+          if (!c) { flush(); continue; }
+          const last = run[run.length - 1];
+          if (!last || last[0] !== c[0][0] || last[1] !== c[0][1]) { flush(); run = [c[0]]; }
+          run.push(c[1]);
+        }
+        flush();
+      }
+    }
+  }
+  return out;
+}
+// the original maps by Macrostrat source id, short (their title, else source, else authors), from any feature of the tiles that names one
+export function macrostratSourceNames(tiles) {
+  const m = new Map();
+  for (const t of tiles || []) for (const l of t.layers || []) for (const f of l.features || []) {
+    const p = f.properties || {};
+    if (p.source_id == null || m.has(p.source_id)) continue;
+    const s = String(p.ref_title || p.ref_source || p.ref_authors || "").trim();
+    if (s) m.set(p.source_id, s);
+  }
+  return m;
 }
 
 // TASKS.csv #3952 (Matt: "raster is too pixeled") — the image layer is drawn here from the unit polygons, not stitched from the PNG tiles: those

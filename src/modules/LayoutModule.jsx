@@ -40,7 +40,7 @@ import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx";
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, dropIdleStarterMapFurniture /* #3863 */, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
 import { legibleGridStep, keepLabelsApart } from "../lib/layoutGeometry.js"; // TASKS.csv #1488
-import { worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor, isDepthImage, depthScaleDenom, depthHeightForScale } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
+import { frameResized, coverScale, resizeRecaptureOpts /* #3965 */, worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor, isDepthImage, depthScaleDenom, depthHeightForScale } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -74,7 +74,8 @@ import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv 
 import { geophysLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #2878
 import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
 import { LAYOUT_FONTS, LAYOUT_FONT_TYPES, LAYOUT_DEFAULT_FONT, layoutFontStack, pageFont, withPageFont } from "../lib/layoutFonts.js"; // TASKS.csv #2144
-import { toggleColumnBreak, clearColumnBreaks, hasColumnBreaks, startsColumn, carryColumnBreaks, legendGroupsOf, keepGroups, splitLegendByGroup, joinLegends } from "../lib/legendColumns.js"; // TASKS.csv #3959 (split / join: part B)
+import { useDismiss } from "../lib/useDismiss.js"; // TASKS.csv #3969
+import { toggleColumnBreak, clearColumnBreaks, hasColumnBreaks, startsColumn, carryColumnBreaks, legendGroupsOf, keepGroups, splitLegendByGroup, joinLegends, moveLegendRow } from "../lib/legendColumns.js"; // TASKS.csv #3959 (split / join: part B)
 import { legendFit, legendRowH, legendLabelW, legendBoxSize, legendBoxFit, isLegendBox } from "../lib/legendFit.js"; // TASKS.csv #2134; row rules and box: #2869; a sized box: #3395
 import { scoreRasterLegendGroups, isScoreRaster } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2794
 import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
@@ -110,6 +111,7 @@ import { printPassItems, pagesWithPrintSrcs, PAGE_DPI } from "../lib/layoutPrint
 import MapRedrawControl from "../components/MapRedrawControl.jsx"; // TASKS.csv #3491
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 import NumberInput from "../components/NumberInput.jsx"; // TASKS.csv #3926
+import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 let handledPrintSeq = null;
@@ -182,6 +184,7 @@ export default function LayoutModule() {
     geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, // TASKS.csv #2878 — the survey points' ramps
     viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
     requestViewportBatch, printSrcs, setPrintSrcs, // TASKS.csv #2303 — the export's 300 dpi print pass
+    viewportPendingRequest, // TASKS.csv #3965 — a resized frame is not captured again while another capture is out
     undoCheckpoint, // TASKS.csv #3184 — each insert / duplicate / paste its own undo step
     setProjectTitle, // TASKS.csv #3611 / #3612 — the title the sheets print
   } = useStore();
@@ -231,7 +234,7 @@ export default function LayoutModule() {
   useEffect(() => { if (!exportNote) return undefined; const t = setTimeout(() => setExportNote(null), 12000); return () => clearTimeout(t); }, [exportNote]);
   // TASKS.csv #923 — one export per request: the store keeps the last request, and this module remounts on every visit
   // to the Layout tab, so "if (layoutPrintRequest)" re-ran the last PDF / PNG export (save dialog and all) each time
-  useEffect(() => {
+  useEffect(() => { (async () => { // TASKS.csv #3957 — the export questions are in-app dialogs now: awaited
     if (!layoutPrintRequest || layoutPrintRequest.seq === handledPrintSeq) return;
     handledPrintSeq = layoutPrintRequest.seq;
     // TASKS.csv #1481 (review #1352) — anything past the paper's edge was cut from the PDF / PNG in silence (a 73-row legend, an
@@ -257,22 +260,22 @@ export default function LayoutModule() {
       if (cut.length) past.push(tr("on {page}: {list}", { page: pp.id === activeLayoutPageId ? tr("this page") : pp.name, list: cut.map((f) => (f.box ? tr("Legend: {n} row(s) left out, its box is too small", { n: f.left }) : tr("Legend: {n} row(s) left out, no room on the sheet", { n: f.left }))).join(", ") }));
     }
     if (layoutPrintRequest.kind !== "png") for (const o of offSheetPages(layoutPages, activeLayoutPageId, (pp) => pagePx(pageFormatOf(pp)))) past.push(tr("on {page}: {list}", { page: o.name, list: o.items.map(namePast).join(", ") }));
-    if (past.length && !window.confirm(tr("Some elements reach past the sheet's edge ({list}): what lies outside is left out, and pages print at true size. Export anyway?", { list: past.join("; ") }) /* #3703 — says plainly what is left out */)) return;
+    if (past.length && !(await askConfirm(tr("Some elements reach past the sheet's edge ({list}): what lies outside is left out, and pages print at true size. Export anyway?", { list: past.join("; ") }) /* #3703 — says plainly what is left out */))) return;
     // TASKS.csv #2471 — a legend whose viewport was refreshed after it was loaded, and whose rows were edited, still lists the old view
     const staleLegends = staleBoundLegends(layoutPages).length;
-    if (staleLegends && !window.confirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport, which was refreshed after its edited rows were loaded; they were kept. Export anyway?" : "{n} legends are out of step with their viewports, refreshed after their edited rows were loaded; they were kept. Export anyway?", { n: staleLegends }))) return;
+    if (staleLegends && !(await askConfirm(tr(staleLegends === 1 ? "{n} legend is out of step with its viewport, which was refreshed after its edited rows were loaded; they were kept. Export anyway?" : "{n} legends are out of step with their viewports, refreshed after their edited rows were loaded; they were kept. Export anyway?", { n: staleLegends })))) return;
     // TASKS.csv #3636 — the project has a data credit and a page that is about to print does not carry it: say which, and let the user add it or export anyway
     if (creditsRef.current) {
       const toCheck = layoutPrintRequest.kind === "png" ? layoutPages.filter((pg) => pg.id === activeLayoutPageId) : layoutPages;
       const bare = pagesWithoutCredit(toCheck, activeLayoutPageId, elements);
       // TASKS.csv #3707 — the credit is on the page but under an opaque element (a drill plan over the whole sheet): it prints without it
       const hidden = pagesWithHiddenCredit(toCheck, activeLayoutPageId, elements);
-      if (hidden.length && !window.confirm(hidden.length === 1
+      if (hidden.length && !(await askConfirm(hidden.length === 1
         ? tr("Send the element over \"{page}\"'s data credit to the back (or move it) so the data owner is credited. Export without the credit?", { page: hidden[0] })
-        : tr("Send the elements over the data credit of {n} pages ({list}) to the back (or move them) so the data owner is credited. Export without the credit?", { n: hidden.length, list: hidden.slice(0, 5).join(", ") + (hidden.length > 5 ? ", …" : "") }))) return;
-      if (bare.length && !window.confirm(bare.length === 1
+        : tr("Send the elements over the data credit of {n} pages ({list}) to the back (or move them) so the data owner is credited. Export without the credit?", { n: hidden.length, list: hidden.slice(0, 5).join(", ") + (hidden.length > 5 ? ", …" : "") })))) return;
+      if (bare.length && !(await askConfirm(bare.length === 1
         ? tr("Add a text with {credits} (or a title block, which has a Data row) to \"{page}\" so the data owner is credited. Export without it?", { page: bare[0] })
-        : tr("Add a text with {credits} (or a title block, which has a Data row) to {n} pages ({list}) so the data owner is credited. Export without it?", { n: bare.length, list: bare.slice(0, 5).join(", ") + (bare.length > 5 ? ", …" : "") }))) return;
+        : tr("Add a text with {credits} (or a title block, which has a Data row) to {n} pages ({list}) so the data owner is credited. Export without it?", { n: bare.length, list: bare.slice(0, 5).join(", ") + (bare.length > 5 ? ", …" : "") })))) return;
     }
     // TASKS.csv #2303 — the page's viewports are 200 dpi captures: the export renders each again at 300 dpi first (in the 3D View, as an
     // atlas batch), then prints from those images; the page keeps its own
@@ -286,7 +289,7 @@ export default function LayoutModule() {
       return;
     }
     setPrinting(layoutPrintRequest);
-  }, [layoutPrintRequest]);
+  })(); }, [layoutPrintRequest]);
   // #2303 — the print pass is done: print (a viewport whose pass failed prints its page image)
   useEffect(() => {
     if (!viewportBatchDone?.printPass || !pendingPrint) return;
@@ -767,6 +770,22 @@ export default function LayoutModule() {
     const g = dragGuide(el); // #910 — the edges snap to the same lines (x / y of the box itself are the element's)
     dragState.current = { resize: handle, id: el.id, startX: px, startY: py, x0: el.x, y0: el.y, w0, h0, lockAspect: ASPECT_LOCKED.has(el.type) || e.shiftKey, widthOnly: WIDTH_ONLY.has(el.type) && !(el.type === "legend" && handle.includes("s")) /* #3395 — a legend's height */, arrow, guide: g };
   };
+  // TASKS.csv #3965 (Matt: "when I resize the view it creates a white frame around the previous view") — a 3D view frame resized with its
+  // handles (Shift too) or by typing W / H is captured again at its new size, at its scale and centre (resizeRecaptureOpts), once the size
+  // settles: when the handle is let go, or a moment after the typed size (the arrow keys step it). Undo puts back the size and the picture
+  // together, so nothing is asked then; a project saved with a resized frame is not captured on opening (its picture covers the frame).
+  const [recaptureAsk, setRecaptureAsk] = useState(null); // { id, delay, seq }
+  const askRecapture = (id, delay) => setRecaptureAsk({ id, delay, seq: Math.random() });
+  const now = useRef(null); now.current = { elements, pending: viewportPendingRequest }; // read when the timer fires, not when it was set
+  useEffect(() => {
+    if (!recaptureAsk) return undefined;
+    const t = setTimeout(() => {
+      const el = now.current.elements.find((e) => e.id === recaptureAsk.id);
+      if (dragState.current || now.current.pending || !frameResized(el) || el.refreshing) return;
+      startViewportRender(el.themeId || null, el.id, el.trueScale, resizeRecaptureOpts(el));
+    }, recaptureAsk.delay);
+    return () => clearTimeout(t);
+  }, [recaptureAsk]);
   // TASKS.csv #101 — derived (not stored) so it always reflects the bound viewport's LATEST scale.
   // Falls back to null (and the grid behaves exactly as before, mm-based) if nothing's bound, the
   // bound element was deleted, or that viewport hasn't been rendered yet (no worldHeightAtTarget/h
@@ -862,7 +881,7 @@ export default function LayoutModule() {
         setElements((els) => els.map((el) => el.id === id ? { ...el, x, y } : el));
       }
     };
-    const onUp = () => { dragState.current = null; setGuides([]); };
+    const onUp = () => { const d = dragState.current; dragState.current = null; setGuides([]); if (d?.resize) askRecapture(d.id, 120); }; // #3965
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     // TASKS.csv #207 — same "OS steals input mid-drag" safety net as SidebarResizeHandle.jsx (a
@@ -964,7 +983,9 @@ export default function LayoutModule() {
   // Samples table in its menu with All tools
   const basicToolsOn = useUiMode()?.mode === "simple";
   const [addMenu, setAddMenu] = useState(null); // the Add button's box while its menu is open
-  useEffect(() => { if (!addMenu) return undefined; const off = (e) => { if (!e.target.closest?.("[data-add-menu]")) setAddMenu(null); }, esc = (e) => { if (e.key === "Escape") setAddMenu(null); }; window.addEventListener("mousedown", off); window.addEventListener("keydown", esc); return () => { window.removeEventListener("mousedown", off); window.removeEventListener("keydown", esc); }; }, [addMenu]);
+  // TASKS.csv #3969 — the Add menu closes on a press elsewhere, on Escape and when a dialog opens (it closed on the first two only); its own
+  // button counts as inside, so pressing it again closes it
+  useDismiss(!!addMenu, (n) => !!n?.closest?.('[data-add-menu], [aria-expanded="true"]'), () => setAddMenu(null));
   const addItems = [["text", "Text"], ["north", "North arrow"], ["scale", "Scale bar"], ["legend", "Legend"], ["titleblock", "Title block"], ["table", "Collar table"], ...(basicToolsOn ? [] : [["logo", "Logo"], ...((surfaceSamples || []).length ? [["samplestable", "Samples table"]] : [])])];
 
   // TASKS.csv #19 — freehand pen. Toggled on from the palette; the next mousedown-drag on the page
@@ -1038,8 +1059,8 @@ export default function LayoutModule() {
     setTemplateMsg(r.replaced ? tr("Replaced the template \"{name}\" on this computer: every project now offers this version.", { name: tpl.name }) : tr("Kept the template \"{name}\" on this computer: every project offers it now.", { name: tpl.name }));
     setComputerTplKey((k) => k + 1);
   };
-  const loadTemplate = (tpl) => {
-    if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
+  const loadTemplate = async (tpl) => {
+    if (elements.length && !await askConfirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
     if (tpl.format) setLayoutPageFormat(activeLayoutPageId, tpl.format); // #1868 — a template keeps its paper size and orientation
     if (tpl.stock) { setElements(stockTemplateElements(tpl, Date.now(), { credit: !!credits, creditText: credits, shared: sharedTitleRows(layoutPages) /* #3714 */ })); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
     const idMap = new Map(tpl.elements.map((el) => [el.id, `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`]));
@@ -1085,10 +1106,22 @@ export default function LayoutModule() {
   // 'Join legends': the legends bound to the same view on this page become one again, in reading order
   const splitSelectedLegend = () => {
     const el = elements.find((e) => e.id === selected);
-    const parts = el && splitLegendByGroup(el, { pageW: pagePx(pageFormat).w, pageH: pagePx(pageFormat).h, size: legendBoxSize, newId: (i) => `legend_${Date.now()}_${i}` });
+    const obstacles = elements.filter((e) => e.id !== el?.id).map(elementBox); // part C: the parts go clear of the section, the title block ...
+    const parts = el && splitLegendByGroup(el, { pageW: pagePx(pageFormat).w, pageH: pagePx(pageFormat).h, size: legendBoxSize, newId: (i) => `legend_${Date.now()}_${i}`, obstacles });
     if (!parts) return;
     setElements((els) => els.flatMap((x) => (x.id === el.id ? parts : [x])));
     setSyncNotice(tr("Split into {n} legends, one per group: each one is moved, sized and loaded from its view on its own.", { n: parts.length }));
+  };
+  // TASKS.csv #3959 part C — drag and drop of a legend's rows (a heading takes its whole group), in the sidebar list and on the sheet;
+  // one element edit, so one undo step; the set code order (#3130) follows the new order as the arrows' did
+  const legendDrag = useRef(null);
+  const [legendDropAt, setLegendDropAt] = useState(null);
+  const moveLegendRowOf = (el, from, to) => {
+    setLegendDropAt(null);
+    if (!el || from == null) return;
+    const items = moveLegendRow(el.items, from, to);
+    if (items === el.items) return;
+    setElements((els) => els.map((x) => (x.id === el.id ? { ...x, items, ...keptOrder(x, items) } : x)));
   };
   const joinSelectedLegend = () => {
     const el = elements.find((e) => e.id === selected);
@@ -1513,7 +1546,7 @@ export default function LayoutModule() {
         {sel && (
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Selected: {type}", { type: sel.type })}</div>
-            <PlaceControls sel={sel} updateSelected={updateSelected} />{/* TASKS.csv #906 — position and size in mm */}
+            <PlaceControls sel={sel} updateSelected={(patch) => { updateSelected(patch); if (sel.type === "viewport" && ("w" in patch || "h" in patch)) askRecapture(sel.id, 700); }} />{/* TASKS.csv #906 — position and size in mm; #3965 */}
             {selPast.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr(selPast.includes("out") ? "This element lies wholly outside the sheet (past its {sides}): it is left out of the export. Move it back onto the sheet, or delete it." : "Part of this element reaches past the sheet's {sides}: that part is left out of the export, the rest prints. Move it, or make it smaller.", { sides: selPast.filter((sd) => sd !== "out").map((sd) => ({ left: tr("left edge"), top: tr("top edge"), right: tr("right edge"), bottom: tr("bottom edge") })[sd]).join(" / ") })}{/* #3703 — what is left out, plainly */}</div>}{/* #3612 (7) */}
             <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>{/* TASKS.csv #909 */}
               <button onClick={() => reorderSelected("front")} title={tr("Bring to front")} style={smallBtn}>{tr("To front")}</button>
@@ -1774,7 +1807,11 @@ export default function LayoutModule() {
                   );
                 })()}
                 {sel.items.map(([name, color, opt], i) => (
-                  <div key={i} data-legend-row={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5, ...(opt?.colBreak ? { borderTop: "2px dashed var(--color-selected-border)", paddingTop: 4 } : {}) /* #3959 */ }}>
+                  <div key={i} data-legend-row={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5, ...(opt?.colBreak ? { borderTop: "2px dashed var(--color-selected-border)", paddingTop: 4 } : {}) /* #3959 */, ...(legendDropAt === i ? { boxShadow: "0 -2px 0 var(--color-primary)" } : {}) /* part C: where it lands */ }}
+                    onDragOver={(e) => { if (legendDrag.current == null) return; e.preventDefault(); if (legendDropAt !== i) setLegendDropAt(i); }}
+                    onDrop={(e) => { e.preventDefault(); const from = legendDrag.current; legendDrag.current = null; moveLegendRowOf(sel, from, i); }}>
+                    {sel.type === "legend" && <span draggable data-legend-grip={i} onDragStart={(e) => { legendDrag.current = i; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); }} onDragEnd={() => { legendDrag.current = null; setLegendDropAt(null); }}
+                      title={tr("Drag to move this row; a group heading moves its whole group")} aria-hidden="true" style={{ cursor: "grab", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", lineHeight: 1, userSelect: "none", flexShrink: 0 }}>{"\u283F"}</span>}{/* #3959 part C */}
                     {opt?.heading || opt?.ramp || opt?.note || opt?.image /* TASKS.csv #725 — a group heading or a ramp has no single colour; #1633 a note; #2747 an image */
                       ? <span title={opt.ramp || opt.image ? tr("Colour scale") : opt.note ? tr("Note") : tr("Group heading")} style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 4, border: "1px solid var(--color-border)", background: opt.ramp ? `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` : "transparent" }} />
                       : <input type="color" value={color} onChange={(e) => {
@@ -1800,6 +1837,8 @@ export default function LayoutModule() {
                       onClick={() => { if (sel.items.length <= 1) return; updateSelected({ items: sel.items.filter((_, j) => j !== i) }); }} />
                   </div>
                 ))}
+                {sel.type === "legend" && <div data-legend-drop-end="" onDragOver={(e) => { if (legendDrag.current == null) return; e.preventDefault(); if (legendDropAt !== sel.items.length) setLegendDropAt(sel.items.length); }} onDrop={(e) => { e.preventDefault(); const from = legendDrag.current; legendDrag.current = null; moveLegendRowOf(sel, from, sel.items.length); }}
+                  style={{ height: 8, marginBottom: 4, ...(legendDropAt === sel.items.length ? { boxShadow: "0 -2px 0 var(--color-primary)" } : {}) }} />}{/* #3959 part C: drop here for the end */}
                 {sel.type === "legend" && hasColumnBreaks(sel.items) && <button type="button" onClick={() => updateSelected({ items: clearColumnBreaks(sel.items) })} style={{ ...smallBtn, marginBottom: 4 }}>{tr("Clear column breaks")}</button>}{/* #3959 */}
                 {sel.type === "legend" && (() => { /* TASKS.csv #3959 part B — split into one legend per group, and join them again */
                   const canSplit = legendGroupsOf(sel.items).length >= 2;
@@ -2002,7 +2041,7 @@ export default function LayoutModule() {
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("{elements} el.", { elements: t.elements.length })}</span>
                 <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Export the template \"{name}\" as a file", { name: t.name })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => exportTemplate(t)} />{/* #1868 */}
                 {hasComputerTemplates() && <HardDrive role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Keep the template \"{name}\" on this computer, for every project", { name: t.name })} title={tr("Keep the template \"{name}\" on this computer, for every project", { name: t.name })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => keepOnComputer(t)} />}{/* #1487 */}
-                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => { if (confirmDestructive(tr("Delete template \"{name}\"?", { name: t.name }))) deleteLayoutTemplate(t.id); }} aria-label={tr("Delete template \"{name}\"", { name: t.name })} title={tr("Delete template \"{name}\"", { name: t.name })} />
+                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={async () => { if (await confirmDestructive(tr("Delete template \"{name}\"?", { name: t.name }))) deleteLayoutTemplate(t.id); }} aria-label={tr("Delete template \"{name}\"", { name: t.name })} title={tr("Delete template \"{name}\"", { name: t.name })} />
               </div>
             ))}
           </div>
@@ -2090,7 +2129,7 @@ export default function LayoutModule() {
                   aria-label={tr("Delete page \"{name}\"", { name: p.name })} title={tr("Delete page \"{name}\"", { name: p.name })} /* TASKS.csv #238 — was keyboard-reachable but nameless */
                   size={12}
                   style={{ flexShrink: 0, color: "var(--color-text-muted)" }}
-                  onClick={(e) => { e.stopPropagation(); if (window.confirm(tr("Delete page \"{name}\"? (Ctrl+Z undoes this.)", { name: p.name }))) deleteLayoutPage(p.id); }}
+                  onClick={async (e) => { e.stopPropagation(); if (await askConfirm(tr("Delete page \"{name}\"? (Ctrl+Z undoes this.)", { name: p.name }))) deleteLayoutPage(p.id); }}
                 />
               </div>
             );
@@ -2116,7 +2155,7 @@ export default function LayoutModule() {
           )}
           {activePage?.batch && (() => { // #1636 — the generated pages of this one's run, in one action
             const ids = layoutPages.filter((p) => p.batch === activePage.batch).map((p) => p.id);
-            return ids.length > 1 ? <button onClick={() => { if (window.confirm(tr("Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)", { n: ids.length }))) deleteLayoutPage(ids); }}
+            return ids.length > 1 ? <button onClick={async () => { if (await askConfirm(tr("Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)", { n: ids.length }))) deleteLayoutPage(ids); }}
               style={{ height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", flexShrink: 0, background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>
               {tr("Remove these {n} generated pages", { n: ids.length })}</button> : null;
           })()}
@@ -2229,7 +2268,7 @@ export default function LayoutModule() {
             <Lock key={`lock_${el.id}`} size={11} aria-hidden="true" style={{ position: "absolute", left: el.x - 13, top: el.y - 13, color: "var(--color-text-muted)", pointerEvents: "none", zIndex: 4 }} />
           ))}
           {withLiveScaleBars(elements).map((el) => (
-            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} onTextEdit={(id, text) => setElements((els) => els.map((x) => (x.id === id ? { ...x, text } : x)))} /* #2944 */ onLegendCols={setLegendColsFor} /* #3959 */ />
+            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} onTextEdit={(id, text) => setElements((els) => els.map((x) => (x.id === id ? { ...x, text } : x)))} /* #2944 */ onLegendCols={setLegendColsFor} /* #3959 */ onLegendMove={moveLegendRowOf} /* #3959 part C */ />
           ))}
           {guides.map((g, i) => ( /* TASKS.csv #910 */
             <div key={`guide${i}`} style={g.axis === "x"
@@ -2640,7 +2679,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
         </div>
       )}
       {frameChanged && (
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The frame was resized since its capture: the image keeps its scale and size until you refresh, which fills the frame.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.")}</div>
       )}
       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<NumberInput value={sel.rotation || 0} onChange={asEvent((e) => updateSelected({ rotation: Number(e.target.value) || 0 }))} style={inp} />
       </label>
@@ -2798,10 +2837,11 @@ function textContextFor(els, project, page, index, count, collars = null, credit
 }
 const fillText = (text, ctx) => fillPlaceholders(text, ctx, PLACEHOLDER); // #2139 — an empty fill takes its separator with it
 
-function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null, onTextEdit = null, onLegendCols = null /* #3959 */ }) {
+function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null, onTextEdit = null, onLegendCols = null /* #3959 */, onLegendMove = null /* #3959 part C */ }) {
   // TASKS.csv #2944 (split from #2144) — a double-click on a title or text box edits its text in place (the raw text, placeholders and all);
   // Enter (a title) or Ctrl+Enter (a text), or leaving the box, keeps it; Escape leaves it as it was. The sidebar field stays the other way in.
   const [editing, setEditing] = useState(false);
+  const sheetDrag = useRef(null); // TASKS.csv #3959 part C — the legend row being dragged on the sheet
   const canEdit = !print && !el.locked && !!onTextEdit && (el.type === "title" || el.type === "text");
   const startEdit = canEdit ? (e) => { e.stopPropagation(); setEditing(true); } : undefined;
   const inPlace = (style, multi) => {
@@ -2899,27 +2939,31 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const frameW = el.frameStyle === "double" ? Math.max(3, (el.frameWidth || 1) * 3) : (el.frameWidth || 0);
     // TASKS.csv #906 — w x h is the IMAGE area and the frame is drawn outside it (the border used to sit inside the box,
     // so a 700 px frame showed its 926 m over 698 px: 1 : 5,014, not 1 : 5,000). The image is shown at the size it was
-    // captured for (capW x capH, centred), so resizing the frame never rescales it: the frame shows white where no
-    // ground was captured until the next refresh fills it. An older capture with no capW is fitted as before.
-    const W = el.w || 400, H = el.h || 260, imgW = el.capW || W, imgH = el.capH || H;
+    // captured for (capW x capH, centred). An older capture with no capW is fitted as before.
+    // TASKS.csv #3965 — a frame resized larger showed that picture in a white band: it is enlarged just enough to cover the frame (with its
+    // grid, overview box and hole mark) until the capture at the new size lands; a smaller frame crops it at its scale.
+    const W = el.w || 400, H = el.h || 260, imgW = el.capW || W, imgH = el.capH || H, cover = coverScale(W, H, imgW, imgH);
+    const capLayer = { position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH, ...(cover > 1 ? { transform: `scale(${cover})`, transformOrigin: "center center" } : {}) };
     return (
       <div
         style={{ ...wrap, width: W, height: H, transform: `rotate(${el.rotation || 0}deg)`, transformOrigin: "center center", outlineOffset: 3 + frameW /* #998 — outside the frame, or a double frame hid it */ }}
         onMouseDown={onDown} data-el-id={el.id} {...kb}
       >
         <div style={{ width: "100%", height: "100%", background: "#fff", position: "relative", overflow: "hidden" }}>
-          {el.src && <img src={el.src} alt={tr("viewport")} style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH, display: "block" }} draggable={false} />}
-          {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH }}><UtmGridOverlay el={{ ...el, w: imgW, h: imgH }} crs={ctx?.crs || ""} /></div>}
+          <div data-cap-layer="" style={{ ...capLayer, pointerEvents: "none" }}>
+          {el.src && <img src={el.src} alt={tr("viewport")} style={{ position: "absolute", left: 0, top: 0, width: imgW, height: imgH, display: "block" }} draggable={false} />}
+          {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", inset: 0 }}><UtmGridOverlay el={{ ...el, w: imgW, h: imgH }} crs={ctx?.crs || ""} /></div>}
           {el.overviewOf && (() => { /* TASKS.csv #912 — another viewport's ground footprint, as a rectangle */
             const poly = overviewPolygon(el, (ctx?.els || []).find((v) => v.id === el.overviewOf));
             return poly ? (
-              <svg style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, overflow: "visible", pointerEvents: "none" }} width={imgW} height={imgH}>
+              <svg style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }} width={imgW} height={imgH}>
                 <polygon points={poly.map((p) => p.join(",")).join(" ")} fill="rgba(224,64,64,0.12)" stroke="#d62f2f" strokeWidth="1.5" />
               </svg>
             ) : null;
           })()}
+          </div>
           {el.markHole && (() => { /* TASKS.csv #1644 — an atlas page's hole on the template's map */
-            const [u, v] = worldToVp(el, el.markHole.x, el.markHole.y), inFrame = Math.abs(u) <= W / 2 - 4 && Math.abs(v) <= H / 2 - 4;
+            const [u, v] = worldToVp(el, el.markHole.x, el.markHole.y).map((d) => d * cover) /* #3965 */, inFrame = Math.abs(u) <= W / 2 - 4 && Math.abs(v) <= H / 2 - 4;
             const font = { fontSize: printPx(printPt.small), fontFamily: FONT, fontWeight: 700 };
             return inFrame ? (
               <svg style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }} width={W} height={H}>
@@ -3033,7 +3077,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         <div key={i} style={{ marginBottom: 4, breakInside: "avoid" }}>
           <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}{opt.ramp.unit ? ` (${opt.ramp.unit})` : "" /* TASKS.csv #3529 */}{opt.ramp.log ? tr(" · log scale") : ""}</div>
           <div style={{ height: 10, width: 150, border: "1px solid #999", background: `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` }} />
-          <div style={{ display: "flex", justifyContent: "space-between", width: 152, fontSize: printPx(printPt.small), color: INK }}><span>{opt.ramp.minLabel}</span><span>{opt.ramp.maxLabel}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 6, minWidth: 152, width: "max-content", fontSize: printPx(printPt.small), color: INK }}><span>{opt.ramp.minLabel}</span><span>{opt.ramp.maxLabel}</span></div>{/* TASKS.csv #4010 — two long end labels never touch: a gap, and the row widens past the bar rather than overlap */}
         </div>
       ) : (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, breakInside: "avoid" /* #1480 — a row is never split between columns */ }}>
@@ -3053,10 +3097,24 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         )}
         <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: FONT, flexShrink: 0 }}>{tr("Legend")}</div>
         <div style={legendCols > 1 || box ? { columnCount: legendCols, columnGap: 18, columnFill: boxH ? "auto" : "balance", ...(boxH ? { flex: 1, minHeight: 0 } : {}) } : undefined}>
-          {rowsOf.map((ix) => ix.length > 1
-            ? <div key={ix[0]} style={{ breakInside: "avoid", ...(startsColumn(legendItems[ix[0]]) ? { breakBefore: "column" } : {}) /* #3959 */ }}>{legendRow(legendItems[ix[0]], ix[0])}{legendRow(legendItems[ix[1]], ix[1])}</div>
-            : startsColumn(legendItems[ix[0]]) ? <div key={ix[0]} style={{ breakBefore: "column" }}>{legendRow(legendItems[ix[0]], ix[0])}</div> /* #3959 — the user's column break */
-            : legendRow(legendItems[ix[0]], ix[0]))}
+          {rowsOf.map((ix) => {
+            const body = ix.length > 1
+              ? <div key={ix[0]} style={{ breakInside: "avoid", ...(startsColumn(legendItems[ix[0]]) ? { breakBefore: "column" } : {}) /* #3959 */ }}>{legendRow(legendItems[ix[0]], ix[0])}{legendRow(legendItems[ix[1]], ix[1])}</div>
+              : startsColumn(legendItems[ix[0]]) ? <div key={ix[0]} style={{ breakBefore: "column" }}>{legendRow(legendItems[ix[0]], ix[0])}</div> /* #3959 — the user's column break */
+              : legendRow(legendItems[ix[0]], ix[0]);
+            // TASKS.csv #3959 part C — the selected legend's rows take a grip on the sheet; one dropped on another row lands before it (a heading
+            // takes its group). Not on the print copy, nor on the 'rows that do not fit' note (not one of the legend's rows).
+            if (!handles || !onLegendMove || ix[0] >= (el.items || []).length) return body;
+            return (
+              <div key={`m${ix[0]}`} data-sheet-row={ix[0]} style={{ position: "relative", breakInside: "avoid", ...(startsColumn(legendItems[ix[0]]) ? { breakBefore: "column" } : {}) }}
+                onDragOver={(e) => { if (sheetDrag.current != null) e.preventDefault(); }}
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const from = sheetDrag.current; sheetDrag.current = null; if (from != null) onLegendMove(el, from, ix[0]); }}>
+                <span draggable data-sheet-grip={ix[0]} onMouseDown={(e) => e.stopPropagation()} onDragStart={(e) => { e.stopPropagation(); sheetDrag.current = ix[0]; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(ix[0])); }} onDragEnd={() => { sheetDrag.current = null; }}
+                  title={tr("Drag to move this row; a group heading moves its whole group")} aria-hidden="true" style={{ position: "absolute", left: -11, top: 1, cursor: "grab", fontSize: 10, lineHeight: 1, color: "var(--color-text-muted)", userSelect: "none" }}>{"\u283F"}</span>
+                {body}
+              </div>
+            );
+          })}
         </div>
       </div>
     );

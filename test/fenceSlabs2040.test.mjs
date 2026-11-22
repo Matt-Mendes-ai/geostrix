@@ -33,6 +33,6 @@ test("a dense model's cell corners keep their slabs", () => {
 
 test("the generator and the pane use it", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.ok(v.includes("const { lines, empty: emptySlabs } = fenceLinesWithData(pts, sliceSeriesAzimuth, width, shownT);")); // #3561: the holes shown
+  assert.ok(v.includes("const { lines, empty: emptySlabs, s0, s1 } = fenceLinesInBox(pts, sliceSeriesAzimuth, width, shownT, areaBox(fenceArea, sliceSeriesAzimuth, boundaries));")); // #3971: fenceLinesWithData within the box (lib/fenceBox.js) // #3561: the holes shown
   assert.ok(readFileSync(new URL("../src/modules/viewer/FenceOptions.jsx", import.meta.url), "utf8").includes("slab(s) with no hole or model cell are skipped"));
 });

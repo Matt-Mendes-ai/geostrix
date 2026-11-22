@@ -21,7 +21,7 @@ test("#1807 points within the corridor and the line's length, with their elevati
 });
 
 test("#1807 the payload and the section window carry them", () => {
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = (readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/sectionPayload.js", import.meta.url), "utf8")) /* #3996: the section payload moved out */;
   assert.ok(v.includes("geophysPts: layerVisible.geophys_pts ? layers.geophys_pts : null") && v.includes("scatter, scatterCounts: scatter.counts"));
   const w = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.ok(w.includes("scatter.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); });"));

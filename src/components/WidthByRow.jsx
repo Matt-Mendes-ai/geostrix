@@ -1,7 +1,8 @@
 // TASKS.csv #3942 — the Mineralization layer's 'Width by' in its Style dialog: None, Total sulphides (once it is added, #3941) or one mineral's
 // per cent, and the value drawn at full width (blank: the 98th percentile). The rules are in lib/widthBy.js.
 import React, { useMemo } from "react";
-import { widthChoices, widthScale } from "../lib/widthBy.js";
+import { widthScale } from "../lib/widthBy.js";
+import { widthChoices } from "../lib/totalSulphides.js";
 import NumberInput from "./NumberInput.jsx";
 import { t as tr } from "../lib/i18n.js";
 

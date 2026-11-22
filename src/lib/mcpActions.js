@@ -4,8 +4,8 @@
 //  - Nothing deletes or overwrites: an action only adds (a section, an intercept set, a Layout page, a raster) or changes what is shown; one that would replace
 //    something refuses and says why.
 //  - One action, one step: undoCheckpoint() before (the user's own last edit is its own step) and after (labelled with what the AI app did, for the Undo
-//    button's tooltip). What is in the undo history (sections, intercept sets, Layout pages) is taken back by Ctrl+Z; what never was (the view: hole colours,
-//    layers shown, the camera; rasters and the terrain) by the toast's Undo, which reverts exactly that change and nothing else.
+//    button's tooltip). What is in the undo history (sections, intercept sets, Layout pages since #3935) is taken back by Ctrl+Z; what never was (the view: hole colours,
+//    layers shown, the camera; rasters, the terrain, generated surfaces and shells) by the toast's Undo, which reverts exactly that change and nothing else.
 //  - Every change shows: a toast says what was done, with Undo, and stays until dismissed; the AI App Access window lists the change with the same Undo
 //    (lib/mcpChangeLog.js), so it is not lost with the toast; the answer to the app is short ({ ok, changed, name, id }).
 import { t as tr } from "./i18n.js";
@@ -21,6 +21,7 @@ const SETTLE_MS = 60; // the store's undo bookkeeping runs after React has rende
 export const settleRender = () => new Promise((r) => setTimeout(r, SETTLE_MS));
 const MODULE_WAIT_MS = 20000;
 const FETCH_WAIT_MS = 9 * 60000; // a download (the host gives a network tool 10 minutes)
+const MODEL_WAIT_MS = 9 * 60000; // a model run (the host gives a long tool 10 minutes, #3932 batch 2)
 const norm360 = (a) => ((a % 360) + 360) % 360;
 const r1 = (v) => Math.round(v * 10) / 10;
 const short = (v, n) => String(v ?? "").slice(0, n);
@@ -45,6 +46,11 @@ export function viaModule(s, tab, action, payload, waitMs = MODULE_WAIT_MS) {
 
 // name -> async (args, store, ctx) => { ok, data: { changed, name?, id? }, say (translated, for the toast), tracked (in the undo history), revert(store) } | { ok: false, error }
 export const ACTIONS = {
+  // TASKS.csv #3962 (P5) — the drill planner's changes (lib/drillPlanner/mcpPlanner.js, loaded on use): a suggested program (long), its holes
+  // added as proposed planned holes, a planned hole's status. All in the undo history (tracked: the project and the planned holes).
+  async run_drill_planner(a, s, ctx) { return (await import("./drillPlanner/mcpPlanner.js")).run_drill_planner(a, s, ctx); },
+  async add_program_holes(a, s) { return (await import("./drillPlanner/mcpPlanner.js")).add_program_holes(a, s); },
+  async set_planned_hole_status(a, s) { return (await import("./drillPlanner/mcpPlanner.js")).set_planned_hole_status(a, s); },
   // a new section: two points in the project's coordinates, or through a hole in its own plane (as the hole's 'Section through' does); never replaces one
   async make_section(a, s) {
     const hasPts = a.from !== undefined || a.to !== undefined;
@@ -78,7 +84,7 @@ export const ACTIONS = {
     const r = await viaModule(s, "layout", "mcp-make-sheet", { kind: a.kind });
     if (!r.ok) return r;
     const ids = r.ids || [];
-    return { ok: true, tracked: false, data: { changed: "layout page", name: r.name, id: ids[0] || null },
+    return { ok: true, tracked: true, data: { changed: "layout page", name: r.name, id: ids[0] || null }, // tracked: adding a page is an undo step since #3935 (it used to clear the history), so Ctrl+Z takes it back
       say: tr("added the Layout page '{name}'", { name: r.name }), revert: (st) => { const have = new Set((st?.layoutPages || []).map((p) => p.id)); const gone = ids.filter((x) => have.has(x)); if (gone.length) st.deleteLayoutPage(gone); } };
   },
   // Best intercepts (as the read tool best_intercepts computes them: the lab assays without the QC samples, uncut) as a table on a NEW Layout page, best first
@@ -103,7 +109,7 @@ export const ACTIONS = {
       title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: more > 0 ? [...body, [tr("… and {n} more intercept(s), not shown on this sheet", { n: more }), ...columns.slice(1).map(() => "")]] : body };
     const ids = addPagesOnPaper(s.addLayoutPages, s.setLayoutPageFormat, [{ name: tr("Best intercepts"), elements: [table] }], fmt);
     s.goToModule?.("layout");
-    return { ok: true, tracked: false, data: { changed: "layout page", name: tr("Best intercepts"), id: ids[0] || null, intercepts: d.total, on_the_page: shown.length },
+    return { ok: true, tracked: true, data: { changed: "layout page", name: tr("Best intercepts"), id: ids[0] || null, intercepts: d.total, on_the_page: shown.length }, // tracked: see make_sheet
       say: tr("added a Best intercepts page ({n} intercepts of {symbol})", { n: d.total, symbol: d.element }), revert: (st) => { const have = new Set((st?.layoutPages || []).map((p) => p.id)); const gone = ids.filter((x) => have.has(x)); if (gone.length) st.deleteLayoutPage(gone); } };
   },
   // the view tools: StrixViewer's own setters and camera (modules/viewer/useMcpViewActions.js); the view is not in the undo history, so the toast's Undo puts it back
@@ -142,6 +148,57 @@ export const ACTIONS = {
     const { ok, name, id, ...rest } = r;
     return { ok: true, tracked: false, data: { changed: "terrain", name, id: id || null, ...rest },
       say: tr("added the terrain '{name}'", { name }), revert: (st) => { if (st?.terrain && (!id || st.terrain.id === id)) st.removeTerrain(); } };
+  },
+  // TASKS.csv #3932 batch 2 — the modelling tools: a guided tool's own "Build it for me" (StrixViewer, modules/viewer/guided/guidedRun.js), with its checks, its settings read
+  // from the logs and its refusals; one model at a time; the engine's progress and Cancel are in the status bar. They only add a surface (nothing is replaced); generated surfaces
+  // are not in the undo history, so the toast's Undo takes out exactly what was added.
+  async build_surface(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "surface", rock: a.rock }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("built the surface '{name}'", { name: (r.built || [])[0] || a.rock }), revert };
+  },
+  // the last model's lithology blocks, added as a block model (the Result block's own 'Add as block model'); the blocks are the last model's: nothing is built here
+  async add_block_model(_a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "block_model" }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("added the model's blocks as the block model '{name}'", { name: r.name }), revert };
+  },
+  async build_grade_shell(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "grade_shell", element: a.element }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("built the {symbol} grade shell", { symbol: r.element || a.element }), revert };
+  },
+  // TASKS.csv #3932 batch 3 (Matt, 2026-11-22: "start batch 3") — grades into blocks, a shell's cells as blocks, a vein, an alteration halo. Block models and
+  // generated surfaces are not in the undo history: the toast's Undo takes out exactly what was added.
+  // Grade estimation, run in its own dialog (components/useMcpEstimate.js): its defaults from the data, Run, Add to project; long, so 'started' + job_status
+  async build_grade_estimate(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-estimate-open", { element: a.element }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("estimated {symbol} into the block model '{name}'", { symbol: r.element || a.element, name: r.name }), revert };
+  },
+  // the last grade shell's own cells as a block model (lib/lastShellCells.js)
+  async add_grade_shell_blocks(_a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "shell_blocks" }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("added the grade shell's cells as the block model '{name}'", { name: r.name }), revert };
+  },
+  // the guided Veins and dykes card, and the Alteration halo (guided/guidedTools.js VEINS, ALTERATION), with their verdicts
+  async build_vein(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "vein", code: a.code }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("built the vein '{name}'", { name: (r.built || [])[0] || a.code }), revert };
+  },
+  async build_alteration(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "alteration", code: a.code }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("built the alteration halo '{name}'", { name: (r.built || [])[0] || a.code }), revert };
   },
 };
 export const CHANGE_TOOL_NAMES = () => Object.keys(ACTIONS);

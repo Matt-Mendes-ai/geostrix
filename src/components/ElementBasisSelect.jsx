@@ -13,11 +13,11 @@ export default function ElementBasisSelect({ element, surface = false, onNotice 
   const choices = basisChoices(element);
   if (choices.length < 2) return null;
   const label = (c) => (c.oxide ? tr("as {oxide}", { oxide: c.oxide }) : tr("as {symbol}", { symbol: element.symbol }));
-  const change = (unit) => {
+  const change = async (unit) => {
     const to = choices.find((c) => c.unit === unit);
     if (!to || unit === element.unit) return;
     const q = tr("Report {symbol} {basis}? Every stored {symbol} value is converted, {from} → {to}. Cut-offs and colour ranges already typed for {symbol} keep their numbers: check them after.", { symbol: element.symbol, basis: label(to), from: element.unit, to: unit });
-    if (!confirmDestructive(q, { undoable: true })) return;
+    if (!await confirmDestructive(q, { undoable: true })) return;
     const r = setElementBasis(element.symbol, unit, { surface });
     if (r?.error) { onNotice?.(notice("{symbol} was not converted.", { symbol: element.symbol })); return; }
     const th = r.thresholdsChanged ? " " + tr("{n} threshold rule(s) decided for {symbol} converted with it.", { n: r.thresholdsChanged, symbol: element.symbol }) : "";

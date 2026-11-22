@@ -110,14 +110,14 @@ test("#3932 wiring: the native download box (safe default, the hosts named), the
   assert.match(main, /copernicus-dem-30m\.s3\.amazonaws\.com/); assert.match(main, /earth-search\.aws\.element84\.com and sentinel-cogs\.s3\.us-west-2\.amazonaws\.com/);
   assert.match(main, /isOnline: \(\) => \{ try \{ return require\("electron"\)\.net\.isOnline\(\); \}/);
   for (const lang of ["es", "pt", "fr", "ar"]) assert.match(main, new RegExp(`\\n  ${lang}: \\{ "GeoStrix Help"[^\\n]*"Download for the AI app\\?": "[^"]+"[^\\n]*"Don't download": "[^"]+"`), lang);
-  assert.match(host, /meta\.network \? NETWORK_CALL_TIMEOUT_MS : CALL_TIMEOUT_MS/);
+  assert.match(host, /meta\.network \|\| meta\.long \? NETWORK_CALL_TIMEOUT_MS : CALL_TIMEOUT_MS/);
   assert.match(maps, /useModuleAction\(\["mcp-fetch-terrain"\], \(_a, p\) => \{ setPane\("terrain"\); requestModuleAction\("mcp-terrain-run", p\); \}\);/);
   assert.match(maps, /useModuleAction\(\["mcp-fetch-satellite"\], \(_a, p\) => \{ setPane\("raster"\); requestModuleAction\("mcp-satellite-run", p\); \}\);/);
   assert.match(raster, /const runSatFetch = async \(bboxLonLat, ai = null\) => \{\n\s+const src = ai \? "sentinel2" : satSource;/);
   assert.match(raster, /\.\.\.\(Number\.isFinite\(ai\?\.maxTileCloud\) \? \{ maxTileCloud: ai\.maxTileCloud \} : \{\}\)/);
   assert.match(raster, /if \(p\?\.area !== "holes" && terrain\?\.bbox\)/, "over the terrain when there is one (Matt's request)");
   assert.match(geo, /const runSrtmFetch = async \(bboxLonLat, epsgOverride = null, ai = null\) => \{\n\s+const src = ai \? "copernicus" : terrainSource;/);
-  assert.match(geo, /if \(better && !ai && window\.confirm\(/, "an AI fetch never relabels the project's CRS");
+  assert.match(geo, /const relabelOk = better && !ai \? await askConfirm\(/, "an AI fetch never relabels the project's CRS");
   assert.match(geo, /if \(terrain\) return reply\(\{ ok: false, error: "A terrain is already loaded: remove it in GeoStrix first\." \}\);/);
   const runBody = geo.slice(geo.indexOf("const runSrtmFetch = async"), geo.indexOf("\n  };\n", geo.indexOf("const runSrtmFetch = async")));
   assert.ok(!/terrainSource/.test(runBody.slice(runBody.indexOf("const src = ") + 60)), "inside the fetch only `src` picks the source");

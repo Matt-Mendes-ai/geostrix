@@ -24,7 +24,7 @@ const zStats = (pos) => {
 
 // surfaces: the Generated surfaces list; worldMesh(id) -> { positions (E, N, Z), indices, color } | null;
 // origin: the scene origin (the block is built in that offset frame, as GemPy's is); onBuilt(lastModel, summary)
-export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldMesh, origin, terrain, sampleGround, onBuilt, onError, onClose, pBtn, smallSel, numInput }) {
+export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldMesh, origin, terrain, sampleGround, onBuilt, onError, onClose, pBtn, smallSel, numInput, inline = false }) {
   const runLabels = useMemo(() => surfaceOptionLabels(surfaces), [surfaces]); // #1550 — repeated runs carry their time, as in every dropdown
   // geometry and a default role for each surface, once per panel opening
   const items = useMemo(() => (surfaces || []).map((s) => {
@@ -129,13 +129,21 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
   };
 
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: "var(--font-size-sm)" };
+  // TASKS.csv #3988 — the block count and its note: one line beside the Build button when the panel sits in the Result block
+  const countText = nCells > 2_000_000 ? tr("{n} blocks: over the 2,000,000 limit — use a larger block size.", { n: nCells.toLocaleString() }) : nCells > 300_000 ? tr("{n} blocks in the box: quick to build, but slow and memory-hungry to add as a block model or unit volumes. A larger block size keeps it light.", { n: nCells.toLocaleString() }) /* #891 */ : tr("{n} blocks in the box.", { n: nCells.toLocaleString() });
+  const countLine = <div title={inline ? countText : undefined} style={{ fontSize: "var(--font-size-xs)", color: nCells > 300_000 ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: inline ? 0 : 6, ...(inline ? { flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } : null) }}>{countText}</div>;
+  const buildBtn = <button onClick={build} disabled={!used.length || !cell || nCells > 2_000_000} style={{ ...pBtn, marginBottom: 0, width: inline ? "auto" : undefined, opacity: used.length && nCells <= 2_000_000 ? 1 : 0.5 }}><Box size={14} />{" "}{tr("Build the blocks")}</button>;
   return (
-    <div style={{ margin: "4px 0 10px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
+    <div style={inline ? null : { margin: "4px 0 10px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
+      {inline && <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{buildBtn}{auto && countLine}</div>}
+      {!inline && (<>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
         <Box size={14} aria-hidden="true" /><span style={{ flex: 1 }}>{tr("Solid blocks from surfaces")}</span>
         <XIcon size={14} role="button" tabIndex={0} aria-label={tr("Close")} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }} />
       </div>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginBottom: 8 }}>{tr("Fills a block grid with units. An open surface is a unit's TOP, running down to the next top below; a closed surface's inside is its own unit, over the stack. Then add the units as closed solids or a block model.")}{" "}{tr("A surface set as a unit's base has the unit above it, up to its top; below a base, the next unit starts at its own top.")}</div>
+      </>)}
+      {(() => { const mid = (<>
       {!items.length && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("No surfaces with geometry yet: model or import one first.")}</div>}
       {items.map((it) => (
         <div key={it.id} style={row}>
@@ -167,9 +175,11 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
         </div>
         <label style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }} title={tr("Carries each contact along its dip to the box edge, so units end where contacts meet. Untick to stop each at its own edge, in a vertical wall.")}><input type="checkbox" checked={extend} onChange={(e) => setExtend(e.target.checked)} />{tr("Extend contacts until they meet")}</label>
         {terrain && <label style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }}><input type="checkbox" checked={cutGround} onChange={(e) => setCutGround(e.target.checked)} />{tr("Cut at the terrain (nothing above the ground)")}</label>}
-        <div style={{ fontSize: "var(--font-size-xs)", color: nCells > 300_000 ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6 }}>{nCells > 2_000_000 ? tr("{n} blocks: over the 2,000,000 limit — use a larger block size.", { n: nCells.toLocaleString() }) : nCells > 300_000 ? tr("{n} blocks in the box: quick to build, but slow and memory-hungry to add as a block model or unit volumes. A larger block size keeps it light.", { n: nCells.toLocaleString() }) /* #891 */ : tr("{n} blocks in the box.", { n: nCells.toLocaleString() })}</div>
       </>)}
-      <button onClick={build} disabled={!used.length || !cell || nCells > 2_000_000} style={{ ...pBtn, marginBottom: 0, opacity: used.length && nCells <= 2_000_000 ? 1 : 0.5 }}><Box size={14} />{" "}{tr("Build the blocks")}</button>
+      </>); return inline
+        ? <details style={{ marginTop: 6 }}>{/* #3988 */}<summary style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Surfaces and block settings")}</summary><div style={{ marginTop: 6 }}>{mid}</div></details>
+        : mid; })()}
+      {!inline && <>{auto && countLine}{buildBtn}</>}
       {result?.length > 0 && <div role="status" style={{ marginTop: 8, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.45, color: "var(--color-text)" }}>{result.map((t, i) => <div key={i} style={{ marginTop: i ? 4 : 0 }}>{t}</div>)}</div>}{/* #3151 */}
     </div>
   );

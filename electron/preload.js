@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld("desktop", {
   onAddonEvent: (cb) => { const h = (_e, ev) => cb(ev); ipcRenderer.on("addon-event", h); return () => ipcRenderer.removeListener("addon-event", h); },
   openSectionWindow: (payload) => ipcRenderer.invoke("open-section-window", payload),
   closeSectionWindows: () => ipcRenderer.invoke("close-section-windows"), // TASKS.csv #2516
-  sectionWindowsMayClose: () => ipcRenderer.sendSync("may-close-section-windows"), // TASKS.csv #2620 — the 'Unsaved lines' question, before a load
+  sectionWindowsMayClose: () => ipcRenderer.invoke("may-close-section-windows"), // TASKS.csv #2620 — the 'Unsaved lines' question, before a load (#4000: async, asked in the window)
   sendSectionSnapshot: (payload) => ipcRenderer.invoke("section-snapshot", payload),
   onSectionSnapshot: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-snapshot", h); return () => ipcRenderer.removeListener("section-snapshot", h); },
   sendSectionContacts: (payload) => ipcRenderer.invoke("section-contacts", payload),
@@ -29,8 +29,9 @@ contextBridge.exposeInMainWorld("desktop", {
   saveFile: (payload) => ipcRenderer.invoke("save-file", payload),
   saveFileTo: (payload) => ipcRenderer.invoke("save-file-to", payload), // TASKS.csv #553
   openFile: (payload) => ipcRenderer.invoke("open-file", payload),
-  fetchSRTMTile: (z, x, y) => ipcRenderer.invoke("fetch-srtm-tile", { z, x, y }),
-  fetchWebLayerUrl: (url) => ipcRenderer.invoke("fetch-web-layer", { url }),
+  fetchSRTMTile: (z, x, y, reqId) => ipcRenderer.invoke("fetch-srtm-tile", { z, x, y, reqId }), // reqId: TASKS.csv #3963 — the request abortNetFetch can stop
+  fetchWebLayerUrl: (url, reqId) => ipcRenderer.invoke("fetch-web-layer", { url, reqId }),
+  abortNetFetch: (reqId) => ipcRenderer.send("net-abort", reqId), // TASKS.csv #3963 — stops the download that carries this id
   remoteSensingFetch: (req) => ipcRenderer.invoke("remote-sensing-fetch", req), // TASKS.csv #784
   geochemFetch: (req) => ipcRenderer.invoke("geochem-fetch", req), // TASKS.csv #846
   macrostratFetch: (req) => ipcRenderer.invoke("macrostrat-fetch", req), // TASKS.csv #2005
@@ -94,6 +95,10 @@ contextBridge.exposeInMainWorld("desktop", {
   mcpConfig: () => ipcRenderer.invoke("mcp-config"),
   mcpRespond: (id, payload) => ipcRenderer.send("mcp-respond", { id, payload }),
   onMcpStatus: (cb) => { const h = (_e, s) => cb(s); ipcRenderer.on("mcp-status", h); return () => ipcRenderer.removeListener("mcp-status", h); },
+  // TASKS.csv #3995 — a question the main process asks in the window's own dialog (electron/mainAsk.js); onAsk(req), onCancel(id)
+  onMainAsk: (onAsk, onCancel) => { const a = (_e, r) => onAsk(r), c = (_e, id) => onCancel?.(id); ipcRenderer.on("main-ask", a); ipcRenderer.on("main-ask-cancel", c); return () => { ipcRenderer.removeListener("main-ask", a); ipcRenderer.removeListener("main-ask-cancel", c); }; },
+  mainAskAck: (id) => ipcRenderer.send("main-ask-ack", id),
+  mainAskAnswer: (id, value) => ipcRenderer.send("main-ask-answer", id, value),
   onMcpRequest: (cb) => { const h = (_e, r) => cb(r); ipcRenderer.on("mcp-request", h); return () => ipcRenderer.removeListener("mcp-request", h); },
   takeLaunchFile: () => ipcRenderer.invoke("take-launch-file"), // TASKS.csv #914
   onLaunchFile: (cb) => { const h = () => cb(); ipcRenderer.on("launch-file", h); return () => ipcRenderer.removeListener("launch-file", h); },

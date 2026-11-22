@@ -22,7 +22,7 @@ test("the legend lists the shown imported surfaces in the colour each is drawn i
   assert.equal(importedSurfaceLegendGroups([surfaces[0]], null)[0].items[0][1], "#8fa3b8", "no mesh colour: the imported family's first tone");
 });
 test("wiring: the rows sit under 'Boundaries and models', the legend takes them, and a drop's files take successive tones", () => {
-  const v = read("../src/modules/ViewerModule.jsx");
+  const v = (read("../src/modules/ViewerModule.jsx") + read("../src/modules/viewer/importSolid.js") /* #3996 */);
   assert.match(v, /implicitSurfaces\.some\(isImportedSurface\)\) && \(/);
   assert.match(v, /const ImportedSurfaceRows = React\.lazy\(\(\) => import\("\.\/viewer\/ImportedSurfaceRows\.jsx"\)\)/, "loaded when a surface has been imported, not at startup");
   assert.match(v, /<ImportedSurfaceRows surfaces=\{implicitSurfaces\} meshesRef=\{implicitMeshesRef\} labels=\{surfaceLabels\} toggle=\{toggleImplicitSurface\} zoom=\{zoomToImplicitSurface\} remove=\{removeImplicitSurface\} confirmRemove=\{confirmRemoveSurface\} \/>/);
@@ -36,7 +36,7 @@ test("wiring: the rows sit under 'Boundaries and models', the legend takes them,
 });
 test("the second file of a drop is not the first file's tone", () => {
   const COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4]; // ViewerModule's IMPORTED_SOLID_COLORS
-  assert.match(read("../src/modules/ViewerModule.jsx"), /const IMPORTED_SOLID_COLORS = \[0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4\];/);
+  assert.match((read("../src/modules/ViewerModule.jsx") + read("../src/modules/viewer/importSolid.js") /* #3996 */), /const IMPORTED_SOLID_COLORS = \[0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4\];/);
   const tones = [0, 1, 2, 3].map((before) => COLORS[(0 + before) % COLORS.length]); // four single-part files: k = 0, importedBefore = 0..3
   assert.equal(new Set(tones).size, 4);
 });

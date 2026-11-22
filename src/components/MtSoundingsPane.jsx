@@ -144,7 +144,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
       if (!parsed.length) { setMsg({ info: false, text: failed.join(" ") }); return; }
       let target = project?.epsg;
       const first = parsed.find((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon));
-      if (first) { const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: target, declaredEpsg: 4326, fileName: files[0].name, at: { lon: first.lon, lat: first.lat } }); if (adopted) { setEpsg(adopted); target = adopted; } }
+      if (first) { const adopted = await askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: target, declaredEpsg: 4326, fileName: files[0].name, at: { lon: first.lon, lat: first.lat } }); if (adopted) { setEpsg(adopted); target = adopted; } }
       const toXY = (lon, lat) => reprojectXY(lon, lat, 4326, target);
       const name = mtSurveyName(parsed);
       const merged = mergeStations(geophysSurveys?.[name]?.mt?.stations, ediStations(parsed, toXY));

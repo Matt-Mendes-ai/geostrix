@@ -8,6 +8,7 @@
 // host allow-listed). It is a SURFACE model (X-band radar, 2011-2015): in forest it reads some metres above the ground.
 // Cells over open ocean do not exist (404) and stay no data.
 import { openCog } from "./imageryFetch.js";
+import { cancelledError, isCancelledError } from "./desktop.js"; // TASKS.csv #3963 — a cancelled job stops its reads
 import { gridDims, finishTerrain } from "./terrainGrid.js";
 import { t as tr } from "./i18n.js";
 
@@ -41,7 +42,7 @@ function openCell(name, stats) {
 }
 
 // A pixel window of a cell (any level) as { data, x0, y0, w, h, rx, ry (degrees per pixel at that level), ox, oy }.
-async function readCellWindow(cell, lonMin, latMin, lonMax, latMax, wantDeg) {
+async function readCellWindow(cell, lonMin, latMin, lonMax, latMax, wantDeg, signal) { // signal: #3963
   // the coarsest level whose pixels are still at most half the wanted spacing (or the full resolution)
   let lv = cell.levels[0], scale = 1;
   for (const L of cell.levels.slice(1)) { const s = cell.levels[0].w / L.w; if (Math.abs(cell.rx) * s <= wantDeg / 2) { lv = L; scale = s; } }
@@ -49,28 +50,29 @@ async function readCellWindow(cell, lonMin, latMin, lonMax, latMax, wantDeg) {
   const x0 = Math.max(0, Math.floor((lonMin - cell.ox) / rx) - 1), x1 = Math.min(lv.w, Math.ceil((lonMax - cell.ox) / rx) + 1);
   const y0 = Math.max(0, Math.floor((latMax - cell.oy) / ry) - 1), y1 = Math.min(lv.h, Math.ceil((latMin - cell.oy) / ry) + 1);
   if (x1 <= x0 || y1 <= y0) return null;
-  const [data] = await lv.img.readRasters({ window: [x0, y0, x1, y1] });
+  const [data] = await lv.img.readRasters({ window: [x0, y0, x1, y1], signal });
   return { data, x0, y0, w: x1 - x0, h: y1 - y0, rx, ry, ox: cell.ox, oy: cell.oy };
 }
 
 // Elevations on a gridW x gridH lon/lat node grid over the box (row 0 north, NaN where there is no cell). A node is the
 // MEAN of the pixels whose centres fall in its cell when the cell spans more than ~1.5 pixels (the #799 rule), else a
 // bilinear sample.
-export async function readCopernicusGrid({ lonMin, latMin, lonMax, latMax }, gridW, gridH, { onProgress, stats } = {}) {
+export async function readCopernicusGrid({ lonMin, latMin, lonMax, latMax }, gridW, gridH, { onProgress, stats, signal } = {}) { // signal: #3963
   const out = new Float32Array(gridW * gridH).fill(NaN);
   const dLon = (lonMax - lonMin) / Math.max(1, gridW - 1), dLat = (latMax - latMin) / Math.max(1, gridH - 1);
   const tiles = copTilesFor(lonMin, latMin, lonMax, latMax);
   let done = 0, got = 0;
   const failed = [];
   for (const t of tiles) {
+    if (signal && signal.aborted) throw cancelledError(); // #3963
     try {
       const cell = await openCell(t.name, stats);
       if (cell) {
         const lo0 = Math.max(lonMin - dLon, t.lon), lo1 = Math.min(lonMax + dLon, t.lon + 1), la0 = Math.max(latMin - dLat, t.lat), la1 = Math.min(latMax + dLat, t.lat + 1);
-        const win = await readCellWindow(cell, lo0, la0, lo1, la1, Math.min(dLon, dLat));
+        const win = await readCellWindow(cell, lo0, la0, lo1, la1, Math.min(dLon, dLat), signal);
         if (win) { sampleInto(out, win, { lonMin, latMax, dLon, dLat, gridW, gridH }, t); got++; }
       }
-    } catch (e) { failed.push(e.message); }
+    } catch (e) { if (isCancelledError(e)) throw e; failed.push(e.message); }
     onProgress?.(++done, tiles.length);
   }
   return { elevations: out, cells: tiles.length, got, failed };
@@ -115,10 +117,10 @@ function sampleInto(out, win, g, t) {
 }
 
 // Same result shape as srtmFetch.fetchSRTMTerrain, so the import code treats both sources alike.
-export async function fetchCopernicusTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200 }) {
+export async function fetchCopernicusTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200, signal }) { // signal: #3963
   if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error(tr("Invalid area — check the coordinates."));
   const { gridW, gridH } = gridDims(lonMin, latMin, lonMax, latMax, gridMax);
-  const r = await readCopernicusGrid({ lonMin, latMin, lonMax, latMax }, gridW, gridH, { onProgress });
+  const r = await readCopernicusGrid({ lonMin, latMin, lonMax, latMax }, gridW, gridH, { onProgress, signal });
   if (!r.got && r.failed.length) throw new Error(tr("Couldn't read the Copernicus GLO-30 elevation model ({v}). Check your internet connection.", { v: r.failed[0] }));
   if (!r.got) throw new Error(tr("Copernicus GLO-30 has no land cells in this area (open ocean)."));
   const out = await finishTerrain(r.elevations, { lonMin, latMin, lonMax, latMax }, gridW, gridH, targetEpsg);
@@ -142,13 +144,13 @@ export const isArtifactCone = (awsRiseM, copRiseM) => copRiseM < 0.3 * awsRiseM 
 
 // GLO-30's own rise at (lon, lat): its highest pixel within ~2 pixels minus the median of a 48-point ring of radius
 // max(R, 150 m) (GLO-30 cannot resolve a narrower ring). null where it has no cell.
-export async function copernicusRise(lon, lat, radiusM) {
+export async function copernicusRise(lon, lat, radiusM, signal) { // signal: #3963
   const cell = await openCell(copTileName(Math.floor(lat), Math.floor(lon)));
   if (!cell) return null;
   const mx = Math.abs(cell.rx) * 111320 * Math.cos((lat * Math.PI) / 180), my = Math.abs(cell.ry) * 110570;
   const R = Math.max(radiusM, 150), n = Math.ceil(R / Math.min(mx, my)) + 2;
   const px = Math.floor((lon - cell.ox) / cell.rx), py = Math.floor((lat - cell.oy) / cell.ry), size = 2 * n + 1;
-  const [d] = await cell.levels[0].img.readRasters({ window: [px - n, py - n, px + n + 1, py + n + 1], fillValue: NaN });
+  const [d] = await cell.levels[0].img.readRasters({ window: [px - n, py - n, px + n + 1, py + n + 1], fillValue: NaN, signal });
   const at = (dx, dy) => d[(n + dy) * size + n + dx];
   let top = -Infinity;
   for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) top = Math.max(top, at(dx, dy));

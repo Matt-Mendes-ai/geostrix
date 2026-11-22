@@ -39,7 +39,8 @@ test("wiring: runs stamp their surfaces; the last model is stamped; the line and
   const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /const setLastLithBlock = \(lb\) => setLastLithBlockRaw\(lb && \{ \.\.\.lb, lithoStamp: layerStamp\(layers\.litho\) \}\);/);
   assert.match(v, /const lithoNow = useMemo\(\(\) => layerStamp\(layers\.litho\), \[layers\.litho\]\);/);
-  assert.match(v, /opacity: isStaleStamp\(lastLithBlock\.lithoStamp, lithoNow\) \? 0\.55 : 1/);
+  assert.match(v, /stale=\{!!lastLithBlock && isStaleStamp\(lastLithBlock\.lithoStamp, lithoNow\)\}/); // #3988 — the Result block dims the last-model line itself
+  assert.match(fs.readFileSync(new URL("../src/components/ModelResultBlock.jsx", import.meta.url), "utf8"), /opacity: stale \? 0\.55 : 1/);
   assert.match(v, /\{isStaleStamp\(s\.params\?\.lithoStamp, lithoNow\) && <span[^\n]*>\{tr\("source changed"\)\}<\/span>\}/);
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(fs.readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"))["source changed"], l);
 });

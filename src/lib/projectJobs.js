@@ -29,7 +29,11 @@ export function createProjectJobs(env) {
   const wake = (key) => { const w = waiters.get(key); if (!w) return; waiters.delete(key); for (const resolve of w) resolve(); };
 
   function start({ label = "Task", cancel = null, key = env.activeKey() } = {}) {
-    const job = { id: ++seq, key, label, cancel, gone: null, held: false, ended: false };
+    // TASKS.csv #3963 — every job has its own AbortSignal, aborted when its project is closed (or replaced) and by job.abort(): the fetchers take it
+    // (`signal: job.signal`), so a cancelled job stops its network reads instead of finishing a download nobody will use
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const job = { id: ++seq, key, label, cancel, gone: null, held: false, ended: false, signal: ctrl ? ctrl.signal : undefined };
+    job.abort = () => { try { ctrl?.abort(); } catch { /* an abort listener that throws must not stop the cancel */ } };
     job.landing = () => landing(job);
     job.end = () => { job.ended = true; jobs.delete(job.id); };
     job.isLive = () => !job.gone && env.activeKey() === job.key;
@@ -39,7 +43,12 @@ export function createProjectJobs(env) {
 
   async function landing(job) {
     for (;;) {
-      if (job.gone) throw job.gone;
+      if (job.gone) {
+        // TASKS.csv #3963 — a job that had landed already (a multi-model import: each model lands as it is made) loses its project partway: projectClosed
+        // said nothing for it (its work was done, as far as it knew), so the rest dropped with no notice. Said once, here.
+        if (job.landed && !job.cutOff) { job.cutOff = true; env.notify?.({ kind: "cutoff", label: job.label, reason: job.gone.reason }); }
+        throw job.gone;
+      }
       if (env.loading?.()) { await env.whenLoaded(); continue; }
       if (env.activeKey() === job.key) {
         if (job.held) { job.held = false; env.notify?.({ kind: "delivered", label: job.label, project: job.heldIn }); }
@@ -49,7 +58,8 @@ export function createProjectJobs(env) {
       const tab = env.tabOfKey(job.key);
       if (!tab) { // closed or replaced, and nobody cancelled it (a job not registered for the close): drop it here
         job.gone = new ProjectGoneError(job.label, "closed");
-        env.notify?.({ kind: "lost", label: job.label, reason: "closed" });
+        env.notify?.({ kind: job.landed ? "cutoff" : "lost", label: job.label, reason: "closed" }); // cutoff: #3963
+        job.cutOff = true;
         job.end();
         throw job.gone;
       }
@@ -69,6 +79,7 @@ export function createProjectJobs(env) {
       j.gone = new ProjectGoneError(j.label, reason);
       jobs.delete(j.id);
       if (j.landed) continue; // finished and delivered already: nothing to stop or say
+      j.abort?.(); // #3963 — its downloads stop
       try { j.cancel?.(); } catch { /* a cancel that throws must not stop the others */ }
       env.notify?.({ kind: "cancelled", label: j.label, reason });
       cancelled++;
@@ -101,7 +112,7 @@ export async function landed(job) {
   try { await job.landing(); return true; } catch (e) { if (isProjectGone(e)) return false; throw e; }
 }
 // a job for code that may run with no store (tests, a browser preview): it always lands
-export const noJob = (label = "Task") => ({ id: 0, key: null, label, landing: async () => "active", end() {}, isLive: () => true, gone: null });
+export const noJob = (label = "Task") => ({ id: 0, key: null, label, landing: async () => "active", end() {}, abort() {}, isLive: () => true, gone: null, signal: undefined });
 
 let keySeq = 0;
 // a fresh project key (a project created, opened or restored)

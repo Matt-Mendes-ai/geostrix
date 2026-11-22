@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useMemo, useState, useRef, useLayoutEffect } from "react";
 import { bearingText, sectionLookText } from "../lib/layoutLinks.js"; // TASKS.csv #2308 — the side the section is seen from
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
+import { drawnIntervalCount } from "../lib/sectionBars.js"; // TASKS.csv #4008 — the count includes the bars
 import { unpackSectionPayload } from "../lib/sectionPack.js"; // TASKS.csv #2343 — a pushed payload's packed bulk
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes, onSectionResnap } from "../lib/desktop.js"; // onSectionResnap: TASKS.csv #1485
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
@@ -25,6 +26,9 @@ import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3573 �
 import { sectionIntercepts, gradeBarAxis, gradeBarFrac } from "../lib/sectionIntercepts.js"; // TASKS.csv #3860
 import { defaultSectionVE, plotAspect, MAX_SECTION_VE } from "../lib/sectionVE.js"; // TASKS.csv #2363; plotAspect: #2933
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import { FIT, windowOf, normalize as normalizeZoom, zoomBy, panBy, plotFraction, zoomText, isFit, keepZoom, keptZoom, WHEEL_STEP, BUTTON_STEP } from "../lib/sectionZoom.js"; // TASKS.csv #4009 — the zoom
+import { lazyPart } from "../lib/lazyModal.jsx";
+const SectionOverview = lazyPart(() => import("./SectionOverview.jsx")); // TASKS.csv #3977 — on use only
 import { LABEL_KINDS, labelShow, floatLabelKind, labelsPatch, labelsPatchAll, crowdedDefault } from "../lib/sectionLabelKinds.js"; // TASKS.csv #3968
 // TASKS.csv #2933 / #2387 — the VE of the section a step (‹ ›) was taken from, for the section that step opens in the next tab of this
 // window (the tabs share this module): a parallel section keeps the user's 8x instead of opening at its own automatic 3x
@@ -80,6 +84,9 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   const [snapped, setSnapped] = useState(false);
   const [saved, setSaved] = useState(false);
   const svgRef = useRef(null);
+  // TASKS.csv #3977 — the overview pane's inset on the exports while its "Show on export" is ticked (SectionOverview sets it)
+  const overviewRef = useRef(null);
+  const ovInset = (markup) => (overviewRef.current && svgRef.current?.viewBox?.baseVal ? overviewRef.current.inset(markup, svgRef.current.viewBox.baseVal) : markup);
 
   // Finished contacts + the in-progress polyline being drawn. Both keyed in section-local/world coords
   // (l = distance along the section line in meters, z = elevation, x/y = world easting/northing) — see
@@ -246,7 +253,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // under the drawing (switchable, remembered) and drawn as a band in the exported copy only. models: block models are keyed by BlockModelKey.
   // TASKS.csv #3430 — the point surveys on the section: one ramp each (scatterCounts.legends, sectionScatter.js), drawn and exported as a model's
   const surveyKeys = (data?.scatterCounts?.legends || []).map((g) => ({ id: g.key, name: g.label, legend: g }));
-  const keyRows = (withModels) => (data ? groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, withModels ? [...(data.voxelSlices || []), ...surveyKeys] : [], tr("Model surfaces"))], ribbonOrder(data.intervals)) : []);
+  const keyRows = (withModels) => (data ? groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...(data.barKeyRows || []) /* #4002 — the bars' scale */, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, withModels ? [...(data.voxelSlices || []), ...surveyKeys] : [], tr("Model surfaces"))], ribbonOrder(data.intervals)) : []);
   const [showKey, setShowKey] = useState(() => { try { return localStorage.getItem("geostrix.sectionKey") !== "0"; } catch { return true; } });
   const toggleKey = () => setShowKey((v) => { try { localStorage.setItem("geostrix.sectionKey", v ? "0" : "1"); } catch { /* private mode */ } return !v; });
   const exportOpts = () => (showKey ? { furniture: sectionKeyFurniture(keyRows(true)) } : {});
@@ -262,18 +269,19 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     if (!svgEl || !dims) return;
     // #1089 — the same figure as the SVG / PNG export (font, size, white ground); #2604 — its print floor for the frame Layout
     // places it in (PLACED_W / textFactor page px), the one atPrintSize laid the labels out for
-    const { markup } = exportSvgMarkup(svgEl, { placedW: PLACED_W / (Number(textFactor) > 0 ? Number(textFactor) : 1) });
+    const markup = ovInset(exportSvgMarkup(svgEl, { placedW: PLACED_W / (Number(textFactor) > 0 ? Number(textFactor) : 1) }).markup); // ovInset: #3977
+    const figW = overviewRef.current?.width?.(markup) || dims.w; // #3977 — the inset beside it widens the figure
     const hScale = geomRef.current.hScale;
     // #2610 — the payload is built now (at the print size); the font goes in before it is sent
     const send = (p) => embedFigureFont(markup).catch(() => markup).then((m) => sendSectionSnapshot({ ...p, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(m)))}` }));
     send({
       label: `${data?.title || "Cross-section"}${data?.section ? ` · ${sectionLookText(Number(data.section.azimuth ?? ((Math.atan2(data.section.bx - data.section.ax, data.section.by - data.section.ay) * 180) / Math.PI + 360) % 360))}` : ""}`, // #2308 — page text, English
-      naturalW: dims.w, naturalH: dims.h,
+      naturalW: figW, naturalH: dims.h, // figW: #3977, widened by the overview beside it
       sectionTabId: tabId, textFactor: Number(textFactor) > 0 ? Number(textFactor) : 1, replaceElementId: replaceElementId || null, resnapRound: round, // #1485 — so Layout can ask for the text at its print size
       // TASKS.csv — Layout scale-bar assignment for cross-sections: the real-world horizontal span
       // this snapshot represents at its native (naturalW) pixel width, so Layout can derive a scale
       // bar the same way it already does for viewport snapshots (worldHeightAtTarget).
-      worldWidthAtCaptureM: hScale ? dims.w / hScale : null,
+      worldWidthAtCaptureM: hScale ? figW / hScale : null,
       verticalExaggeration: geomRef.current.ve || vExag || 1, // TASKS.csv #944 — Layout states it beside the section's plot scale
       // TASKS.csv #1489 — the section line's azimuth (start -> end), as the subtitle computes it, for 'Looking N..E' on the page
       sectionAzimuth: data?.section ? Number(data.section.azimuth ?? ((Math.atan2(data.section.bx - data.section.ax, data.section.by - data.section.ay) * 180) / Math.PI + 360) % 360) : null,
@@ -390,12 +398,12 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // changes needed.
   const baseName = (data?.title || "section").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
   const exportSVG = () => {
-    const xml = atPrintSize(() => (svgRef.current ? exportSvgMarkup(svgRef.current, exportOpts()).markup : null)); // #1090; key: #2523
+    const xml = atPrintSize(() => (svgRef.current ? ovInset(exportSvgMarkup(svgRef.current, exportOpts()).markup) : null)); // #1090; key: #2523; ovInset: #3977
     if (!xml) return;
     embedFigureFont(xml).catch(() => xml).then((content) => saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content })); // #2610
   };
   const exportPNG = () => {
-    const out = atPrintSize(() => { const svg = svgRef.current, d = svgDims(); if (!svg || !d) return null; const m = exportSvgMarkup(svg, exportOpts()), vbH = svg.viewBox?.baseVal?.height || 0; return { xml: m.markup, dims: vbH && m.height > vbH ? { w: d.w, h: d.h * (m.height / vbH) } : d }; }); // #1090; the key band's height: #2523
+    const out = atPrintSize(() => { const svg = svgRef.current, d = svgDims(); if (!svg || !d) return null; const m = exportSvgMarkup(svg, exportOpts()), vbH = svg.viewBox?.baseVal?.height || 0; const xml = ovInset(m.markup) /* #3977 */, w = overviewRef.current?.width?.(xml) || d.w; return { xml, dims: vbH && m.height > vbH ? { w, h: d.h * (m.height / vbH) } : { ...d, w } }; }); // #1090; the key band's height: #2523
     if (!out) return;
     embedFigureFont(out.xml).catch(() => out.xml).then((xml) => { // #2610 — the PNG drawn with the figure's own font
     const { dims } = out;
@@ -417,12 +425,85 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   };
   const exportPDF = () => { // #1143 — the whole figure on one page, on the paper that suits its shape
     const d = svgDims();
-    return savePDF(`${baseName}.pdf`, sectionPaper(d?.w || 1, d?.h || 0));
+    const undo = overviewRef.current?.pdf?.(svgRef.current); // #3977 — the inset on the printed figure, taken off after
+    return Promise.resolve(savePDF(`${baseName}.pdf`, sectionPaper(d?.w || 1, d?.h || 0))).finally(() => undo?.());
   };
 
   // TASKS.csv #1230 — the toolbar keeps its height while drawing: fewer controls would otherwise move the section the other way
   // TASKS.csv #2210 (review #2174, WA gold) — a step or refresh is built in the main window (0.1-0.3 s here, up to 1 s on a busy computer)
   // with nothing said meanwhile: the toolbar says it is coming, until the new section arrives (or 5 s, if it opened in another tab)
+  // TASKS.csv #4009 (Matt: 'zoom on the cross section so that I can draw easily') — the zoom: wheel about the pointer, the middle button or Space + drag to pan (a plain left drag
+  // stays for drawing), double-click on empty ground or Fit to return, + / - and a readout. A view only: the section's scale, VE and the exports are the fitted section's.
+  // Kept per tab for the session (lib/sectionZoom.js keepZoom) and shown on the overview pane as a box.
+  const [zoom, setZoomState] = useState(() => keptZoom(tabId));
+  const zoomRef = useRef(zoom); zoomRef.current = zoom;
+  const setZoom = (v) => { const n = normalizeZoom(v); zoomRef.current = n; setZoomState(n); keepZoom(tabId, n); };
+  const [zoomWin, setZoomWin] = useState(null); // the window on the overview: { l0, l1, k } or null
+  const onZoomWindow = (w) => setZoomWin((p) => (!w && !p ? p : w && p && Math.abs(p.l0 - w.l0) < 1e-6 && Math.abs(p.l1 - w.l1) < 1e-6 ? p : w));
+  const bodyRef = useRef(null), spaceRef = useRef(false), panRef = useRef(null), movedRef = useRef(false);
+  const [spaceDown, setSpaceDown] = useState(false);
+  const modeRef = useRef(false); modeRef.current = drawing || planning || !!editingId;
+  // the plot's rectangle and the drawing's size on screen, from the SVG itself (its clip path is the plot frame, in the drawing's units)
+  const plotInfo = () => {
+    const svg = svgRef.current, r = svg?.querySelector("clipPath rect"), vb = svg?.viewBox?.baseVal, rect = svg?.getBoundingClientRect(), ctm = svg?.getScreenCTM();
+    if (!svg || !r || !vb?.width || !ctm) return null;
+    return { svg, ctm, plot: { x0: +r.getAttribute("x"), y0: +r.getAttribute("y"), w: +r.getAttribute("width"), h: +r.getAttribute("height") }, unitPx: ctm.a || rect.width / vb.width };
+  };
+  const unitPoint = (info, e) => { const pt = info.svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(info.ctm.inverse()); };
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      const info = plotInfo();
+      if (!info || !info.svg.contains(e.target)) return; // outside the drawing the wheel scrolls as before
+      e.preventDefault();
+      const p = unitPoint(info, e), f = plotFraction(p.x, p.y, info.plot), step = Math.min(2, Math.max(0.5, Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0016))));
+      setZoom(zoomBy(zoomRef.current, Number.isFinite(step) ? step : WHEEL_STEP, f.px, f.pz));
+    };
+    const onDown = (e) => {
+      const pan = e.button === 1 || (e.button === 0 && spaceRef.current);
+      if (!pan) return;
+      const info = plotInfo();
+      if (!info || isFit(zoomRef.current)) { if (e.button === 1) e.preventDefault(); return; }
+      e.preventDefault(); e.stopPropagation();
+      panRef.current = { x: e.clientX, y: e.clientY, view: zoomRef.current, plotPx: { w: info.plot.w * info.unitPx, h: info.plot.h * info.unitPx } };
+      movedRef.current = false;
+      try { el.setPointerCapture?.(e.pointerId); } catch { /* not capturable */ }
+    };
+    const onMove = (e) => {
+      const d = panRef.current;
+      if (!d) return;
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (Math.abs(dx) + Math.abs(dy) > 2) movedRef.current = true;
+      setZoom(panBy(d.view, dx / d.plotPx.w, -dy / d.plotPx.h));
+    };
+    const onUp = () => { if (panRef.current) { panRef.current = null; setTimeout(() => { movedRef.current = false; }, 0); } };
+    // a pan must not draw a point: the mouse events of a Space-drag and the click after it stop here
+    const swallow = (e) => { if (spaceRef.current || panRef.current || (movedRef.current && e.type === "click") || e.button === 1) { e.stopPropagation(); if (e.type !== "click") e.preventDefault(); } };
+    const onDbl = (e) => {
+      if (modeRef.current || isFit(zoomRef.current)) return;
+      if (e.target?.closest?.("button, [role='button'], input, select, [data-iv], [data-mb], [data-snap]")) return;
+      if (plotInfo()?.svg.contains(e.target)) setZoom(FIT);
+    };
+    const keyDown = (e) => {
+      if (e.code !== "Space" || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target?.tagName || "") || e.target?.isContentEditable) return;
+      if (!spaceRef.current) { spaceRef.current = true; setSpaceDown(true); }
+      if (el.contains(e.target) || e.target === document.body) e.preventDefault(); // Space does not scroll the section while panning
+    };
+    const keyUp = (e) => { if (e.code === "Space") { spaceRef.current = false; setSpaceDown(false); } };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("pointerdown", onDown, true); el.addEventListener("pointermove", onMove); el.addEventListener("pointerup", onUp); el.addEventListener("pointercancel", onUp);
+    for (const t of ["mousedown", "mouseup", "click", "auxclick"]) el.addEventListener(t, swallow, true);
+    el.addEventListener("dblclick", onDbl);
+    window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("pointerdown", onDown, true); el.removeEventListener("pointermove", onMove); el.removeEventListener("pointerup", onUp); el.removeEventListener("pointercancel", onUp);
+      for (const t of ["mousedown", "mouseup", "click", "auxclick"]) el.removeEventListener(t, swallow, true);
+      el.removeEventListener("dblclick", onDbl);
+      window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp);
+    };
+  }, [rawData ? 1 : 0, tabId]);
   const [stepping, setStepping] = useState(false);
   useEffect(() => { setStepping(false); }, [rawData]);
   useEffect(() => (stepping ? onSectionData(() => setStepping(false)) : undefined), [stepping]); // the step opened in another tab of this window
@@ -437,7 +518,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       <div ref={toolbarRef} className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: "var(--font-size-lg)", color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, boxSizing: "border-box", ...(drawing && toolbarHeight.current ? { height: toolbarHeight.current } : null) }}>
         <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: "var(--font-size-sm)", marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ color: "#65717e", fontSize: "var(--font-size-sm)" }}>{tr("{v} · {v2} · {v3} · {v4}{v5}{v6}", { v: countText(data.holes?.length, "{n} hole", "{n} holes"), v2: countText(data.intervals?.length, "{n} interval", "{n} intervals"), v3: countText(data.points?.length, "{n} point", "{n} points"), v4: countText(data.planes?.length, "{n} structure", "{n} structures") /* #3280 — '1 holes' */, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
+          <span style={{ color: "#65717e", fontSize: "var(--font-size-sm)" }}>{tr("{v} · {v2} · {v3} · {v4}{v5}{v6}", { v: countText(data.holes?.length, "{n} hole", "{n} holes"), v2: countText(drawnIntervalCount(data.intervals, data.mineralBars), "{n} interval", "{n} intervals") /* #4008 — bars count too */, v3: countText(data.points?.length, "{n} point", "{n} points"), v4: countText(data.planes?.length, "{n} structure", "{n} structures") /* #3280 — '1 holes' */, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
           {stepping && <span role="status" style={{ color: "#8a6a1f", fontSize: "var(--font-size-sm)" }}>{tr("Building the section…")}</span>}{/* #2210 */}
           {!(data.holes?.length > 0) && data.hiddenHoleCount > 0 && <span role="status" style={{ color: "#8a6a1f", fontSize: "var(--font-size-sm)" }}>{tr(data.hiddenHoleCount === 1 ? "No hole is drawn: {n} hole is unchecked in the Holes list (show it, or move the line)" : "No hole is drawn: {n} holes are unchecked in the Holes list (show them, or move the line)", { n: data.hiddenHoleCount })}</span>}{/* #3680 */}
           {labelsLeftOut > 0 && <span style={{ color: "#8a6a1f", fontSize: "var(--font-size-sm)" }} title={tr("To show more labels, narrow the buffer, raise the VE, shrink the text or drag labels: ones with no free room are left out. Hover a hole for its name.")}>{labelsLeftOut === 1 ? tr("1 label left out: no room") : tr("{n} labels left out: no room", { n: labelsLeftOut })}</span>}{/* #1536 */}
@@ -548,6 +629,12 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<NumberInput min={0.1} max={MAX_SECTION_VE} step={0.5} value={vExag ?? null} onChange={(v) => setVExag(v)} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
             ×
           </label>
+          <span data-zoom-controls="" style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>{/* TASKS.csv #4009 */}
+            <button onClick={() => setZoom(zoomBy(zoom, 1 / BUTTON_STEP))} disabled={isFit(zoom)} style={{ ...btnStyle(false), padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} aria-label={tr("Zoom out")} title={tr("Zoom out")}>−</button>
+            <button onClick={() => setZoom(zoomBy(zoom, BUTTON_STEP))} style={{ ...btnStyle(false), padding: "2px 8px" }} aria-label={tr("Zoom in")} title={tr("Zoom in (or the wheel); pan with the middle button or Space + drag")}>+</button>
+            <button onClick={() => setZoom(FIT)} disabled={isFit(zoom)} style={{ ...btnStyle(false), padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} title={tr("Fit the whole section (or double-click empty ground)")}>{tr("Fit")}</button>
+            <span data-zoom-readout="" role="status" style={{ minWidth: 34, textAlign: "center", fontSize: "var(--font-size-sm)", color: "#55606e", fontVariantNumeric: "tabular-nums" }}>{zoomText(zoom)}</span>
+          </span>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
           {fitWhole && fitTextPx != null && fitTextPx < 7 && <span role="note" style={{ fontSize: "var(--font-size-sm)", color: "#8a6a1f" }} title={tr("Lower the VE or untick Fit to window to read the labels: fitted whole, they are under 7 px tall.")}>{tr("Text under 7 px: lower the VE, or untick to scroll")}</span>}{/* #3304 */}
           {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
@@ -619,7 +706,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         </div>
       )}
 
-      <div className={`ge-section-body${fitWhole ? " ge-section-fit" : ""}`} style={{ flex: 1, overflow: "auto", padding: 16 }}>
+      <div ref={bodyRef} className={`ge-section-body${fitWhole ? " ge-section-fit" : ""}`} style={{ flex: 1, overflow: "auto", padding: 16, ...(spaceDown && !isFit(zoom) ? { cursor: panRef.current ? "grabbing" : "grab" } : {}) }}>
         {fitWhole && <style>{"@media screen { .ge-section-fit > svg { max-height: calc(100vh - 250px); height: auto; } }"}</style>}{/* #3259 — not in print */}
         {/* TASKS.csv #1230 — over the section's title margin, not in the toolbar: wrapping there moved the section ~23 px under the cursor as the first click was aimed */}
         {drawing && (
@@ -631,12 +718,13 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           </div>
         )}
         {editingId && <div style={{ fontSize: "var(--font-size-sm)", color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click to delete it, click the line to add one{v2}. Click the pencil to finish; Save contacts keeps it.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG gradeLabels={{ mode: gradeLabelMode, cutoffs: interceptCutoffs }} /* #3860 */ patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} printing={printScale != null} /* #2761 */ textFont={textFont} textScale={printScale ?? textScale * autoText} /* #1090 — the print size while an export is drawn; #3574 — the grown size of a fitted tall section on screen */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} onAutoVE={(v) => setVExag((cur) => cur ?? v)} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG gradeLabels={{ mode: gradeLabelMode, cutoffs: interceptCutoffs }} /* #3860 */ patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} printing={printScale != null} /* #2761 */ textFont={textFont} textScale={printScale ?? textScale * autoText} /* #1090 — the print size while an export is drawn; #3574 — the grown size of a fitted tall section on screen */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} zoom={zoom} onWindow={onZoomWindow} /* #4009 */ contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} onAutoVE={(v) => setVExag((cur) => cur ?? v)} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps || outlineOnPlane} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
         <BlockModelKey slices={[...(data.voxelSlices || []), ...surveyKeys]} />{/* #3430: the surveys' ramps too */}
         <SectionKey rows={keyRows(false)} shown={showKey} onToggle={toggleKey} />{/* #2523 */}
       </div>
+      {data.overview && data.section && <SectionOverview model={data.overview} section={data.section} zoomWindow={zoomWin} exportRef={overviewRef} busy={stepping} onMove={(off) => stepTo({ id: data.id, step: Math.sign(off), offsetM: Math.abs(off) })} />}{/* #3977 */}
     </div>
   );
 }
@@ -665,7 +753,7 @@ function measureLabel(size, font) {
   };
 }
 
-function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */, printing = false, patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag: vExagIn, onAutoVE = null, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
+function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */, printing = false, patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag: vExagIn, onAutoVE = null, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false, zoom = null, onWindow = null }) { // zoom, onWindow: #4009
   const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`, patId = `${plotClipId}p`; // patId: #1995 // #1303 — a hidden tab's clip path would hide this one's drawing
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
   // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
@@ -687,9 +775,11 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   const leftOutRef = useRef(0);
   leftOutRef.current = 0;
   useEffect(() => { onLeftOut?.(leftOutRef.current); });
+  const winRef = useRef(null); // #4009 — the zoom window (along-line metres), told to the overview pane
+  useEffect(() => { onWindow?.(winRef.current); });
   const autoVERef = useRef(null); // #2363 — this section's opening VE, told to the toolbar once (it keeps it from then on)
   useEffect(() => { if (autoVERef.current != null && vExagIn == null) onAutoVE?.(autoVERef.current); });
-  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [], rlOffset = 0 } = data; // scatter: #1807; rlOffset: #2809
+  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [], rlOffset = 0, mineralBars = null } = data; // scatter: #1807; rlOffset: #2809; mineralBars: #4002
   const groundLabel = data.groundSource ? tr("Ground surface ({source})", { source: data.groundSource }) : tr("Ground surface"); // TASKS.csv #3949 — the terrain's own source, not always SRTM
   const show = labelShow(labels, (data.holes || []).length); // TASKS.csv #3968 — the kinds of label this section draws (its Labels menu)
   const rlOff = Number.isFinite(rlOffset) ? rlOffset : 0; // TASKS.csv #2809 — the mine grid's RL datum: grid RL = elevation + this; 0: the axis is elevation
@@ -737,7 +827,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   // TASKS.csv #3860 — each element's grade bars on its own axis: log over two decades or more (vein gold, 0.004-150 g/t, drew every bar but one a pixel
   // long), else linear as before; the sheet says which are log
   const barAxis = {};
-  for (const sym of new Set(points.filter((r) => r.assay).map((r) => r.assay.sym))) barAxis[sym] = gradeBarAxis(points.filter((r) => r.assay?.sym === sym).map((r) => r.assay.value));
+  for (const sym of new Set(points.filter((r) => r.assay && r.assay.f == null /* #4002 — the 3D view's bars: its own linear scale, keyed */).map((r) => r.assay.sym))) barAxis[sym] = gradeBarAxis(points.filter((r) => r.assay?.sym === sym).map((r) => r.assay.value));
   const logBars = Object.entries(barAxis).filter(([, a]) => a.log).map(([sym, a]) => { const u = points.find((r) => r.assay?.sym === sym)?.assay?.u; return `${sym} ${gradeText(a.lo)}–${gradeText(a.hi)}${u ? ` ${gradeUnitLabel(sym, u)}` : ""}`; });
   if (logBars.length) subtitleLines.push(...wrapText(tr("Grade bars on a log scale: {list}", { list: logBars.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10)))));
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }
@@ -751,18 +841,23 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   // looked like before #15 — H was a constant, so the vertical scale silently varied per section
   // depending on its elevation range, with no way to tell how exaggerated a given view already was).
   // The page's rendered height now follows from vScale rather than the other way around.
-  const hScale = (W - 2 * PAD) / (maxL - minL);
-  const vScale = hScale * (vExag || 1);
-  const H = Math.max(200, Math.round((maxZ - minZ) * vScale) + 2 * PAD);
+  const hScale0 = (W - 2 * PAD) / (maxL - minL);
+  const vScale0 = hScale0 * (vExag || 1);
+  const H = Math.max(200, Math.round((maxZ - minZ) * vScale0) + 2 * PAD);
+  // TASKS.csv #4009 — the zoom is a window on this fitted drawing: the same mapping with the window's left / bottom for minL / minZ and k times the scales (both,
+  // so the VE is unchanged). The drawing's size, its labels, ticks, hole width and strokes are as at fit (screen size); the exports draw the fitted section.
+  const win = windowOf(printing ? null : zoom, minL, maxL, minZ, maxZ);
+  const hScale = hScale0 * win.k, vScale = vScale0 * win.k;
+  winRef.current = win.k > 1 ? { l0: win.L0, l1: win.L1, k: win.k } : null;
   // TASKS.csv #1396 — a depth tick, EOH or offset label is drawn only for a point inside the plot frame: #1205 clipped the
   // traces, but the labels of a hole beyond the frame (PAD18 on a Silvertip section) were still placed over the elevation axis
   const inPlot = ([x, y]) => x >= PAD - 0.5 && x <= W - PAD + 0.5 && y >= PAD - 0.5 && y <= H - PAD + 0.5;
   // Mirrored out for snapshotToLayout (see that function's comment) — a plain ref write, not state,
   // since nothing here needs to re-render when it changes.
-  if (geomRef) geomRef.current = { hScale, ve: vExag }; // ve: #2363, the VE drawn
+  if (geomRef) geomRef.current = { hScale: hScale0, ve: vExag }; // ve: #2363, the VE drawn; the fitted scale (#4009)
 
-  const sx = (l) => PAD + (l - minL) * hScale; // minL: #2979
-  const sz = (z) => H - PAD - (z - minZ) * vScale;
+  const sx = (l) => PAD + (l - win.L0) * hScale; // win.L0 is minL at fit (#2979)
+  const sz = (z) => H - PAD - (z - win.Z0) * vScale;
   const totalH = H; // TASKS.csv #1128 — no key inside the section any more (#1043 drew one): it goes to Layout
   // TASKS.csv #2142 (review #2013, Woodjam) — the title sits above the subtitle lines, which grow with the ribbon list: with four or more lines
   // (or at a large text size) its top was above the frame and a Layout snapshot cut it in half. The drawing grows upward by what it needs.
@@ -771,8 +866,8 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   // Inverse of sx/sz — converts a click back to (l, z), then to world (x, y) via the section line's
   // own origin/direction, so a drawn contact point is stored as real-world coordinates, not a
   // screen-relative fraction (see store.jsx's `sections` comment).
-  const invSx = (screenX) => minL + (screenX - PAD) / hScale;
-  const invSz = (screenY) => minZ + (H - PAD - screenY) / vScale;
+  const invSx = (screenX) => win.L0 + (screenX - PAD) / hScale;
+  const invSz = (screenY) => win.Z0 + (H - PAD - screenY) / vScale;
 
   const traceByHole = Object.fromEntries(holes.map((h) => [h.hole_id, h.trace]));
   // TASKS.csv #392 — ribbon offsets per interval layer (px): 0, +7, -7, +14, -14 ... in first-seen order.
@@ -782,7 +877,14 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   // TASKS.csv #3139 (#3022, WA iron) — a grade bar was 36 px at any scale: on holes 25 m apart it ran across several neighbours. It now ends
   // within half the typical gap between collars (lib/sectionLabels.js gradeBarMax), one length for the section.
   const collarGap = collarGapPx(holes.map((h) => (h.trace?.length ? sx(along(h.trace[0].x, h.trace[0].y)) : NaN)));
-  const BAR_MAX = gradeBarMax(collarGap, ribbonReach, points.reduce((m, r) => (r.assay ? Math.max(m, (r.assay.idx || 0) + 1) : m), 1)); // n elements: no spread (#3031)
+  // TASKS.csv #4002 — the 3D view's mineral bars take the first lanes beyond the ribbons, the grade bars the lanes after them; every lane one length
+  const mLanes = mineralBars?.lanes?.length || 0, aLanes = points.reduce((m, r) => (r.assay ? Math.max(m, (r.assay.idx || 0) + 1) : m), 0);
+  const BAR_MAX = gradeBarMax(collarGap, ribbonReach, Math.max(1, mLanes + aLanes)); // n lanes: no spread (#3031)
+  const laneBase = (lane) => ribbonReach + 5 + lane * (BAR_MAX + 8);
+  // #4002 — the 3D view's bars sit on the hole's right as drawn (as in the 3D view), one side per hole (from its collar to its end, so a hole near
+  // the horizontal does not swap sides); the #392 grade bars keep their side, and keep their lanes when the 3D view's assay bars are off
+  const barSide = {}, sideOf = (holeId) => { if (barSide[holeId] == null) { const tr = traceByHole[holeId] || [], p = tr[0], q = tr[tr.length - 1]; const [nx, ny] = p && q ? screenNormal(sx(along(p.x, p.y)), sz(p.z), sx(along(q.x, q.y)), sz(q.z)) : [1, 0]; barSide[holeId] = nx < -1e-6 || (Math.abs(nx) <= 1e-6 && ny > 0) ? -1 : 1; } return barSide[holeId]; };
+  const assayLook = points.some((r) => r.assay?.f != null), aShift = assayLook ? mLanes : 0, aSide = (holeId) => (assayLook ? sideOf(holeId) : 1);
   const assayMax = {};
   points.forEach((r) => { if (r.assay && Number.isFinite(r.assay.value)) assayMax[r.assay.sym] = Math.max(assayMax[r.assay.sym] || 0, r.assay.value); });
   // label the 8 highest values per element in this section, not every sample (unreadable at section scale); #3860 — or its 8 best intercepts
@@ -807,7 +909,9 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   };
   const pointAt = (local) => {
     if (snap) {
-      const s = snapClick({ sx: local.x, sy: local.y }, { holes, targets: snap, toScreen: (x, y, z) => [sx(along(x, y)), sz(z)], along, radius: 12,
+      // #4009 — the snap distance is 12 screen pixels at any zoom and window size (the drawing's units are the viewBox's: a pixel is vb.width / drawn width of them)
+      const vbw = svgRef?.current?.viewBox?.baseVal, rect = svgRef?.current?.getBoundingClientRect(), pxPerUnit = vbw?.width && vbw.height && rect?.width ? Math.min(rect.width / vbw.width, rect.height / vbw.height) : 1;
+      const s = snapClick({ sx: local.x, sy: local.y }, { holes, targets: snap, toScreen: (x, y, z) => [sx(along(x, y)), sz(z)], along, radius: 12 / (pxPerUnit > 0 ? pxPerUnit : 1),
         strings: contacts.map((c) => ({ id: c.id, points: c.points, closed: c.kind === "outline" })), skip: dragRef.current ? { id: dragRef.current.id, i: dragRef.current.i } : null }); // strings: #876
       if (s) return projectSnaps ? onSectionPlane(s, { ax, ay, ux, uy }) : s;
     }
@@ -860,7 +964,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   // #1144 — what the hole names and other labels stay off (centre-x / baseline-y, as placeLabels): the elevation numbers, the
   // title band above the frame and the distance axis band below it
   const axisLabelBoxes = [
-    ...niceTicks(minZ + rlOff, maxZ + rlOff, 8).map((rl) => { const w = labelWidth(rl.toFixed(0), fs(10)); return { x: PAD - 8 - w / 2, y: sz(rl - rlOff) + fs(3), w, h: fs(10) + 2 }; }), // rl: #2809
+    ...niceTicks(win.Z0 + rlOff, win.Z1 + rlOff, 8).map((rl) => { const w = labelWidth(rl.toFixed(0), fs(10)); return { x: PAD - 8 - w / 2, y: sz(rl - rlOff) + fs(3), w, h: fs(10) + 2 }; }), // rl: #2809
     { x: W / 2, y: PAD - fs(3), w: W, h: PAD - fs(3) },
     { x: W / 2, y: H, w: W, h: PAD - 3 },
     { x: fs(16), y: H / 2 + fs(60), w: fs(13), h: fs(120) }, // #1700 — the rotated "Elevation (m)" title: a grade label was drawn over it
@@ -918,20 +1022,21 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
       {/* TASKS.csv #393 — round-number elevation ticks (were 8 equal steps: 612 / 683 / 754 ...) and a
           distance axis with ticks, plus the section's end coordinates and title/azimuth/VE drawn INSIDE
           the figure, so an exported PNG/SVG/PDF still says where and what it is. */}
-      {niceTicks(minZ + rlOff, maxZ + rlOff, 8).map((rl, i) => { const z = rl - rlOff; return ( /* TASKS.csv #2809 — on a mine grid with an RL datum the axis reads grid RLs (elevation + the datum) */
+      {niceTicks(win.Z0 + rlOff, win.Z1 + rlOff, 8).filter((rl) => rl - rlOff >= win.Z0 - 1e-9 && rl - rlOff <= win.Z1 + 1e-9).map((rl, i) => { const z = rl - rlOff; return ( /* TASKS.csv #2809 — on a mine grid with an RL datum the axis reads grid RLs (elevation + the datum) */
         <g key={i}>
           <line x1={PAD} y1={sz(z)} x2={W - PAD} y2={sz(z)} stroke="#eceef1" strokeWidth="0.5" />
           <text x={PAD - 8} y={sz(z) + fs(3)} fill="#65717e" fontSize={fs(10)} textAnchor="end">{rl.toFixed(0)}</text>
         </g>
       ); })}
-      {niceTicks(minL, maxL, 8).filter((l) => l >= minL && l <= maxL).map((l, i) => (
+      {niceTicks(win.L0, win.L1, 8).filter((l) => l >= win.L0 && l <= win.L1).map((l, i) => (
         <g key={`d${i}`}>
           <line x1={sx(l)} y1={H - PAD} x2={sx(l)} y2={H - PAD + 4} stroke="#65717e" strokeWidth="0.8" />
           <text x={sx(l)} y={H - PAD + 4 + fs(10)} fill="#65717e" fontSize={fs(10)} textAnchor="middle">{l.toFixed(0)}</text>
         </g>
       ))}
       {(() => { // the frame's ends (#2979); #3410 — the right one a line lower when the two would overprint (a narrow re-drawn section)
-        const left = `${Math.round(ax + minL * ux).toLocaleString()} E  ${Math.round(ay + minL * uy).toLocaleString()} N`, right = `${Math.round(ax + maxL * ux).toLocaleString()} E  ${Math.round(ay + maxL * uy).toLocaleString()} N`;
+        const zoomed = win.k > 1; // #4009 — zoomed, the corners are the window's, not the section's ends (no A / B)
+        const left = `${zoomed ? "" : "A  "}${Math.round(ax + win.L0 * ux).toLocaleString()} E  ${Math.round(ay + win.L0 * uy).toLocaleString()} N`, right = `${Math.round(ax + win.L1 * ux).toLocaleString()} E  ${Math.round(ay + win.L1 * uy).toLocaleString()} N${zoomed ? "" : "  B"}`; // A / B: #3977, as the overview names the ends
         const y = H - PAD + 4 + fs(26), stack = stackEndLabels(left, right, W, PAD, fs(10));
         // TASKS.csv #3574 (3) (Fireweed rehearsal) — no scale on screen (the ratio came only on the Layout sheet): a bar of a round length (1, 2 or 5 x
         // 10^n m, about a seventh of the frame) between the two end labels, on screen only (Layout draws its own bound scale bar), where it fits
@@ -1030,6 +1135,23 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
       })}
       </g>
 
+      {/* TASKS.csv #4002 — the 3D view's mineral bars (#3943): one lane per chosen mineral beyond the ribbons, perpendicular to the trace as seen,
+          the bar's length its per cent on the 3D view's scale (keyed), in its legend colour; the tooltip is written on hover (#2210) */}
+      {mLanes > 0 && mineralBars.bars?.length > 0 && (
+        <g data-mineral-bars="" clipPath={`url(#${plotClipId})`} onMouseOver={(e) => { const k = e.target?.dataset?.mb; const b = k != null ? mineralBars.bars[Number(k)] : null; if (b) hoverTitle(e.target, `${mineralBars.lanes[b.lane]?.label}: ${+Number(b.v).toPrecision(3)} ${mineralBars.lanes[b.lane]?.unit ?? "%"} (${+Number(b.from).toFixed(2)}–${+Number(b.to).toFixed(2)} m)`); }}>
+          {mineralBars.bars.map((b, i) => {
+            const trace = traceByHole[b.hole_id], lane = mineralBars.lanes[b.lane];
+            if (!trace || !lane) return null;
+            const q1 = interpTrace(trace, b.from), q2 = interpTrace(trace, b.to);
+            if (!q1 || !q2) return null;
+            const x1 = sx(along(q1.x, q1.y)), y1 = sz(q1.z), x2 = sx(along(q2.x, q2.y)), y2 = sz(q2.z);
+            const [nx0, ny0] = screenNormal(x1, y1, x2, y2), sd = sideOf(b.hole_id), nx = nx0 * sd, ny = ny0 * sd, base = laneBase(b.lane), len = Math.max(1, b.f * BAR_MAX);
+            const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+            return <line key={i} data-mb={i} x1={mx + nx * base} y1={my + ny * base} x2={mx + nx * (base + len)} y2={my + ny * (base + len)} stroke={lane.colour} strokeWidth={Math.min(Math.max(1.5, Math.hypot(x2 - x1, y2 - y1)), 6)} strokeLinecap="butt" />;
+          })}
+        </g>
+      )}
+
       {/* TASKS.csv #392 — assays as grade bars perpendicular to the trace, beyond the ribbons, length
           proportional to grade (per element, to the highest value in this section); the highest values
           are labelled. Non-assay point data stay dots. */}
@@ -1041,9 +1163,9 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
           const q1 = interpTrace(trace, a.from), q2 = interpTrace(trace, a.to);
           if (!q1 || !q2) return null;
           const x1 = sx(along(q1.x, q1.y)), y1 = sz(q1.z), x2 = sx(along(q2.x, q2.y)), y2 = sz(q2.z);
-          const [nx, ny] = screenNormal(x1, y1, x2, y2);
-          const base = ribbonReach + 5 + a.idx * (BAR_MAX + 8);
-          const len = assayMax[a.sym] > 0 ? Math.max(1, gradeBarFrac(a.value, barAxis[a.sym]) * BAR_MAX) : 1; // #3860 — log over two decades
+          const [nx0, ny0] = screenNormal(x1, y1, x2, y2), sd = aSide(row.hole_id), nx = nx0 * sd, ny = ny0 * sd;
+          const base = laneBase(aShift + a.idx); // #4002 — the 3D view's assay bars: after the mineral bars, on their side
+          const len = a.f != null ? Math.max(1, a.f * BAR_MAX) /* #4002 — the 3D view's bar */ : assayMax[a.sym] > 0 ? Math.max(1, gradeBarFrac(a.value, barAxis[a.sym]) * BAR_MAX) : 1; // #3860 — log over two decades
           const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
           const bx0 = mx + nx * base, by0 = my + ny * base, bx1 = mx + nx * (base + len), by1 = my + ny * (base + len);
           const thick = Math.max(1.5, Math.hypot(x2 - x1, y2 - y1));
@@ -1068,8 +1190,8 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
         const q1 = interpTrace(trace, c.from), q2 = interpTrace(trace, c.to);
         if (!q1 || !q2) return null;
         const x1 = sx(along(q1.x, q1.y)), y1 = sz(q1.z), x2 = sx(along(q2.x, q2.y)), y2 = sz(q2.z);
-        const [nx, ny] = screenNormal(x1, y1, x2, y2);
-        const idx = points.find((r) => r.assay?.sym === c.sym)?.assay?.idx || 0, off = ribbonReach + 5 + idx * (BAR_MAX + 8) + BAR_MAX + 3;
+        const [nx0, ny0] = screenNormal(x1, y1, x2, y2), sd = aSide(c.hole_id), nx = nx0 * sd, ny = ny0 * sd; // #4002 — beside its bars
+        const idx = points.find((r) => r.assay?.sym === c.sym)?.assay?.idx || 0, off = laneBase(aShift + idx) + BAR_MAX + 3; // aShift: #4002
         const ax0 = x1 + nx * off, ay0 = y1 + ny * off, ax1 = x2 + nx * off, ay1 = y2 + ny * off, mx = (ax0 + ax1) / 2, my = (ay0 + ay1) / 2;
         floatLabels.push({ key: `bi_${i}`, text: c.text, size: fs(9), fill: "#1a2028", prio: 2, within: [PAD, W - PAD, PAD, H - PAD], cands: [{ x: mx + nx * 3, y: my + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: mx + nx * 3, y: my + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: mx + nx * 3, y: my + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] });
         return <g key={`bi${i}`} stroke="#1a2028" strokeWidth="1.2" fill="none"><line x1={ax0} y1={ay0} x2={ax1} y2={ay1} /><line x1={ax0} y1={ay0} x2={ax0 - nx * 3} y2={ay0 - ny * 3} /><line x1={ax1} y1={ay1} x2={ax1 - nx * 3} y2={ay1 - ny * 3} /><title>{`${c.hole_id} ${+c.from.toFixed(2)}–${+c.to.toFixed(2)} m: ${c.text} (cut-off ${c.cutoff})`}</title></g>;

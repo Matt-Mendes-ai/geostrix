@@ -6,11 +6,16 @@
 const TOOLS = require("./mcpToolDefs.json");
 
 const SUPPORTED = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const LIMITS = { maxArgBytes: 4000, maxResultBytes: 100000, callsPerMinute: 60, changesPerMinute: 10, changeWaitMs: 30000 };
+const LIMITS = { maxArgBytes: 4000, maxResultBytes: 100000, callsPerMinute: 60, changesPerMinute: 10, changeWaitMs: 30000,
+  // TASKS.csv #3937 — a change that takes longer than asyncAfterMs is answered at once with "started" and a job id (job_status checks it); an app that sent a progressToken
+  // gets a notifications/progress every progressEveryMs meanwhile; the last jobsKept jobs are remembered
+  asyncAfterMs: 20000, progressEveryMs: 5000, jobsKept: 20 };
 // TASKS.csv #3932 (Matt's decision, 2026-11-21) — change tools: a tool whose MCP annotations say readOnlyHint: false makes a change in GeoStrix (through the store, one Undo step).
 // They are always listed, but refused HERE, before the window sees them, unless the user has ticked 'Allow AI apps to make changes' (Tools > AI App Access; off by default, off with
 // AI App Access); each AI app is asked once more about changes, they are capped at 10 a minute and only one runs at a time (across every connected app).
 const isChangeTool = (def) => def?.annotations?.readOnlyHint === false;
+// a change tool that runs for minutes (a model build; TASKS.csv #3932 batch 2): the window gets the long wait a download gets (callTool meta.long)
+const isLongTool = (def) => isChangeTool(def) && def?._meta?.["geostrix/long"] === true;
 // a change tool that downloads (MCP openWorldHint): asked for in a native box every time (askNetwork), refused offline
 const isNetworkTool = (def) => isChangeTool(def) && def?.annotations?.openWorldHint === true;
 const CHANGES_OFF = "Changes are switched off in GeoStrix. To allow them: Tools › AI App Access › Allow AI apps to make changes.";
@@ -126,12 +131,26 @@ function createChangeLock() {
   };
 }
 
+// TASKS.csv #3937 — the long changes (a download, later a model run) outlast an AI app's own request timeout, so a change still running after asyncAfterMs is answered at once
+// ("started", a job id) and the app checks on it with job_status. The registry belongs to the host (shared by every connection) and is scoped by the app's name: an app sees only its own jobs.
+function createJobs({ now = Date.now, kept = LIMITS.jobsKept } = {}) {
+  const list = []; let n = 0;
+  return {
+    create(tool, client) { const j = { id: `job-${++n}-${Math.random().toString(16).slice(2, 6)}`, tool, client, state: "queued", startedAt: now(), finishedAt: null, text: null }; list.push(j); while (list.length > kept) list.shift(); return j; },
+    finish(j, settled) { j.state = settled.isError ? "failed" : "done"; j.finishedAt = now(); j.text = settled.text; },
+    get(id, client) { return list.find((j) => j.id === id && j.client === client) || null; },
+    mine(client) { return list.filter((j) => j.client === client); },
+    view(j) { const text = j.text; let result; if (j.state === "done") { try { result = JSON.parse(text); } catch { result = text; } } return { job_id: j.id, tool: j.tool, state: j.state, seconds: Math.round(((j.finishedAt ?? now()) - j.startedAt) / 1000), ...(j.state === "done" ? { result } : {}), ...(j.state === "failed" ? { error: text } : {}) }; },
+  };
+}
+
 // One connection. callTool(name, args, { client, change }) -> Promise<{ ok, data } | { ok: false, error }> (the open project's side);
 // askAllow(clientName, { changes, again }) -> Promise<'once' | 'always' | 'refuse' | { answer, changes }> ('changes': the question said the app may also make changes;
 // 'again': an app already reading asks for changes; the object form says whether a remembered app is also remembered for changes);
 // changesAllowed() -> whether 'Allow AI apps to make changes' is on (#3932); onActivity(entry) is told of each call (tool, ok, bytes, refused) and of the client that connected.
 // askNetwork(clientName, toolName) -> Promise<boolean> (#3932: the download question; false = no), isOnline() -> boolean
-function createSession({ callTool, askAllow, changesAllowed = () => false, changeLock = createChangeLock(), askNetwork = async () => false, isOnline = () => true, tools = TOOLS, onActivity = () => {}, now = Date.now, limits = LIMITS }) {
+// jobs: the host's registry (createJobs) and emit(line): writes a server-to-app line (a progress notification) to this connection (#3937)
+function createSession({ callTool, askAllow, changesAllowed = () => false, changeLock = createChangeLock(), askNetwork = async () => false, isOnline = () => true, tools = TOOLS, onActivity = () => {}, now = Date.now, limits = LIMITS, jobs = createJobs({ now }), emit = null }) {
   let client = null, allowed = false, closed = false, changesOk = false;
   const stamps = [], changeStamps = [];
   const L = { ...LIMITS, ...limits };
@@ -189,19 +208,40 @@ function createSession({ callTool, askAllow, changesAllowed = () => false, chang
         }
       }
       stamps.push(t);
-      const run = async () => { try { return await callTool(name, params?.arguments || {}, change ? { client, change, ...(isNetworkTool(def) ? { network: true } : {}) } : { client }); } catch { return { ok: false, error: change ? "The change could not be made." : "The tool could not read the project." }; } }; // what failed inside the app (a stack, a path) is not passed on
-      let r;
-      if (change) { const out = await changeLock.run(run, L.changeWaitMs); if (out.waited) return refuse("busy", "Another change is still running in GeoStrix. Try again in a moment."); r = out.value; }
-      else r = await run();
-      if (!r?.ok) { log({ tool: name, ok: false, refused: "error", ...(change ? { change } : {}) }); return rpcResult(id, { content: [{ type: "text", text: scrub(String(r?.error || "The tool failed.").slice(0, 400)).value }], isError: true }); }
-      const { value, removed } = scrub(r.data);
-      const capped = capText(value, L.maxResultBytes);
-      log({ tool: name, ok: capped.ok, bytes: capped.bytes || 0, rows: r.rows ?? null, scrubbed: removed || undefined, refused: capped.ok ? undefined : "size", ...(change ? { change } : {}) });
-      return rpcResult(id, { content: [{ type: "text", text: capped.text }], isError: !capped.ok });
+      if (name === "job_status") { // #3937 — answered here: the registry is the host's, the window knows nothing of it
+        const want = params?.arguments?.job_id, j = want ? jobs.get(want, client) : null;
+        if (want && !j) { log({ tool: name, ok: false, refused: "error" }); return rpcResult(id, { content: [{ type: "text", text: `No job '${String(want).slice(0, 40)}' for this app: GeoStrix remembers the last ${LIMITS.jobsKept}.` }], isError: true }); }
+        const out = j ? jobs.view(j) : { jobs: jobs.mine(client).slice(-5).map((x) => jobs.view(x)) };
+        const capped = capText(scrub(out).value, L.maxResultBytes);
+        log({ tool: name, ok: capped.ok, bytes: capped.bytes || 0, refused: capped.ok ? undefined : "size" });
+        return rpcResult(id, { content: [{ type: "text", text: capped.text }], isError: !capped.ok });
+      }
+      const run = async () => { try { return await callTool(name, params?.arguments || {}, change ? { client, change, ...(isNetworkTool(def) ? { network: true } : isLongTool(def) ? { long: true } : {}) } : { client }); } catch { return { ok: false, error: change ? "The change could not be made." : "The tool could not read the project." }; } }; // what failed inside the app (a stack, a path) is not passed on
+      // what the window answered, as the reply's text (and the activity entry); a change that was answered "started" settles the same way, later
+      const settle = (r, waited = false) => {
+        if (waited) { log({ tool: name, ok: false, refused: "busy", change }); return { text: "Another change is still running in GeoStrix. Try again in a moment.", isError: true }; }
+        if (!r?.ok) { log({ tool: name, ok: false, refused: "error", ...(change ? { change } : {}) }); return { text: scrub(String(r?.error || "The tool failed.").slice(0, 400)).value, isError: true }; }
+        const { value, removed } = scrub(r.data);
+        const capped = capText(value, L.maxResultBytes);
+        log({ tool: name, ok: capped.ok, bytes: capped.bytes || 0, rows: r.rows ?? null, scrubbed: removed || undefined, refused: capped.ok ? undefined : "size", ...(change ? { change } : {}) });
+        return { text: capped.text, isError: !capped.ok };
+      };
+      const reply = (s) => rpcResult(id, { content: [{ type: "text", text: s.text }], isError: s.isError });
+      if (!change) return reply(settle(await run()));
+      // #3937 — a change runs in the background of this call: answered when it is done, or at once ("started") when it takes longer than asyncAfterMs
+      const job = jobs.create(name, client);
+      const lockP = changeLock.run(async () => { job.state = "running"; return run(); }, L.changeWaitMs).then((out) => { const s = out.waited ? settle(null, true) : settle(out.value); jobs.finish(job, s); return s; });
+      const rawTok = params?._meta?.progressToken, tok = (typeof rawTok === "string" && rawTok.length <= 64) || (typeof rawTok === "number" && Number.isFinite(rawTok)) ? rawTok : undefined;
+      let ticks = 0, tick = null, deadline = null;
+      if (emit && tok !== undefined) tick = setInterval(() => { try { emit(JSON.stringify({ jsonrpc: "2.0", method: "notifications/progress", params: { progressToken: tok, progress: ++ticks, message: `GeoStrix is working on it (${Math.round((ticks * L.progressEveryMs) / 1000)} s)…` } })); } catch { /* the connection is gone */ } }, L.progressEveryMs);
+      const first = await Promise.race([lockP, new Promise((res) => { deadline = setTimeout(() => res(null), L.asyncAfterMs); })]);
+      clearTimeout(deadline); if (tick) clearInterval(tick);
+      if (first) return reply(first);
+      return reply({ isError: false, text: JSON.stringify({ status: "started", job_id: job.id, tool: name, message: "Started: GeoStrix shows when it's done. Check on it with job_status." }) });
     }
     return rpcError(id, -32601, `Method not found: ${method.slice(0, 40)}`);
   }
   return { handleLine, get client() { return client; }, close: () => { closed = true; } };
 }
 
-module.exports = { TOOLS, SUPPORTED, LIMITS, CREDENTIAL_KEY, PATH_LIKE, CHANGES_OFF, isChangeTool, isNetworkTool, refuseArgs, scrub, capText, createSession, createChangeLock, cleanClientName, toolDef };
+module.exports = { createJobs, TOOLS, SUPPORTED, LIMITS, CREDENTIAL_KEY, PATH_LIKE, CHANGES_OFF, isChangeTool, isNetworkTool, isLongTool, refuseArgs, scrub, capText, createSession, createChangeLock, cleanClientName, toolDef };
