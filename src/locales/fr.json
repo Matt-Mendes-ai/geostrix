@@ -14973,5 +14973,7 @@
   "added planned holes {a} to {b}": "a ajouté les sondages prévus {a} à {b}",
   "marked {name} approved": "a marqué {name} comme approuvé",
   "marked {name} proposed": "a marqué {name} comme proposé",
-  "Compared {n}.": "{n} comparés."
+  "Compared {n}.": "{n} comparés.",
+  "Top view, north up (T). Also B: bottom; N, S, E, W: level, from that side": "Vue du dessus, nord en haut (T). Aussi B : du dessous ; N, S, E, W : à l'horizontale, de ce côté",
+  "Bottom view (B)": "Vue du dessous (B)"
 }

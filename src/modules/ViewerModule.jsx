@@ -70,6 +70,7 @@ import { layerStamp, isStaleStamp } from "../lib/layerStamp.js"; // TASKS.csv #2
 import ModelResultBlock from "../components/ModelResultBlock.jsx"; // TASKS.csv #3988
 import { outlineLinkCandidates, outlineOptionText, linkableOutline, linkDisabledReason } from "../lib/viewer/outlineLink.js"; // TASKS.csv #2235
 import { viewKeyZoom } from "../lib/viewer/viewKeys.js"; // TASKS.csv #2788
+import { applyViewDirection } from "../lib/viewer/viewDirections.js"; import { useViewDirectionKeys } from "./viewer/useViewDirectionKeys.js"; // TASKS.csv #4005 — T / B / N / S / E / W
 import { t as tr } from "../lib/i18n.js";
 import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
 import { featureCountText } from "../lib/featureCount.js"; // #1448 — "77 polygons", translated
@@ -1009,6 +1010,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const viewFocusRef = useRef(null);
   const contextMenuRef = useRef(null);
   const contextMenuByKeyRef = useRef(false);
+  useViewDirectionKeys({ viewRef: viewFocusRef, visibleRef, camState, cameraRef }); // TASKS.csv #4005 — the pointer over the view is enough; the Top / Bottom buttons below use the same views
   const onViewKeyDown = (e) => {
     if (e.target !== e.currentTarget) return; // a control inside the view (Fit, Top…) keeps its own keys
     if (viewKeyZoom(e, { zoom: (f) => { camState.current.radius = Math.min(4e6, Math.max(sceneFloor(tracesRef.current, visibleHolesRef.current, [voxelGroupRef.current, omfGroupRef.current, layerGroupsRef.current.geophys_pts, layerGroupsRef.current.surface_samples]) /* #3927: the wheel's floor */, camState.current.radius * f)); cameraRef.current?.__update?.(); }, fit: () => fitButton() })) return; // #2788 — + / - / Home
@@ -7015,8 +7017,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {identify.on && <Suspense fallback={null}><IdentifyPanel result={identify.result} onShow={identify.show} onClose={identify.stop} onZoom={(pt) => zoomToPoint(pt)} onStripLog={setStripLogHoleId} /></Suspense>}
         {guided && mode === "view" && <Suspense fallback={null}><GuidedTool tool={guided} setTool={setGuided} api={guidedApi} /></Suspense>}{/* TASKS.csv #3908 */}
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
-          <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
-          <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
+          <button onClick={() => { applyViewDirection(camState.current, "t"); cameraRef.current.__update(); }} style={miniBtn} title={tr("Top view, north up (T). Also B: bottom; N, S, E, W: level, from that side")}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
+          <button onClick={() => { applyViewDirection(camState.current, "b"); cameraRef.current.__update(); }} style={miniBtn} title={tr("Bottom view (B)")}>{tr("Bottom")}</button>
           <button onClick={fitButton} style={miniBtn} title={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)")} aria-label={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
           <ViewVeSelect figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} />
         </div>

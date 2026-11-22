@@ -14973,5 +14973,7 @@
   "added planned holes {a} to {b}": "adicionou os furos planejados {a} a {b}",
   "marked {name} approved": "marcou {name} como aprovado",
   "marked {name} proposed": "marcou {name} como proposto",
-  "Compared {n}.": "Comparados {n}."
+  "Compared {n}.": "Comparados {n}.",
+  "Top view, north up (T). Also B: bottom; N, S, E, W: level, from that side": "Vista de cima, norte para cima (T). Também B: de baixo; N, S, E, W: na horizontal, desse lado",
+  "Bottom view (B)": "Vista de baixo (B)"
 }
