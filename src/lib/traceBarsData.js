@@ -26,7 +26,7 @@ export function mineralBars(rows, chosen, { shown = null, max = MAX_BARS } = {})
     if (shown && !shown(r)) continue;
     const from = Number(r?.from), to = Number(r?.to);
     if (!Number.isFinite(from) || !Number.isFinite(to) || !(to > from)) continue;
-    ids.forEach((id, lane) => { const v = widthValueOf(r, id); if (Number.isFinite(v) && v > 0) bars.push({ hole_id: r.hole_id, from, to, lane, f: Math.min(1, v / full) }); });
+    ids.forEach((id, lane) => { const v = widthValueOf(r, id); if (Number.isFinite(v) && v > 0) bars.push({ hole_id: r.hole_id, from, to, lane, f: Math.min(1, v / full), v }); }); // v: the section's tooltip (#4002)
   }
   return { bars, scale: ids.map((id) => ({ id, label: barLabel(id), full, unit: "%" })) };
 }

@@ -251,7 +251,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // under the drawing (switchable, remembered) and drawn as a band in the exported copy only. models: block models are keyed by BlockModelKey.
   // TASKS.csv #3430 — the point surveys on the section: one ramp each (scatterCounts.legends, sectionScatter.js), drawn and exported as a model's
   const surveyKeys = (data?.scatterCounts?.legends || []).map((g) => ({ id: g.key, name: g.label, legend: g }));
-  const keyRows = (withModels) => (data ? groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, withModels ? [...(data.voxelSlices || []), ...surveyKeys] : [], tr("Model surfaces"))], ribbonOrder(data.intervals)) : []);
+  const keyRows = (withModels) => (data ? groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...(data.barKeyRows || []) /* #4002 — the bars' scale */, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, withModels ? [...(data.voxelSlices || []), ...surveyKeys] : [], tr("Model surfaces"))], ribbonOrder(data.intervals)) : []);
   const [showKey, setShowKey] = useState(() => { try { return localStorage.getItem("geostrix.sectionKey") !== "0"; } catch { return true; } });
   const toggleKey = () => setShowKey((v) => { try { localStorage.setItem("geostrix.sectionKey", v ? "0" : "1"); } catch { /* private mode */ } return !v; });
   const exportOpts = () => (showKey ? { furniture: sectionKeyFurniture(keyRows(true)) } : {});
@@ -697,7 +697,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   useEffect(() => { onLeftOut?.(leftOutRef.current); });
   const autoVERef = useRef(null); // #2363 — this section's opening VE, told to the toolbar once (it keeps it from then on)
   useEffect(() => { if (autoVERef.current != null && vExagIn == null) onAutoVE?.(autoVERef.current); });
-  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [], rlOffset = 0 } = data; // scatter: #1807; rlOffset: #2809
+  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [], rlOffset = 0, mineralBars = null } = data; // scatter: #1807; rlOffset: #2809; mineralBars: #4002
   const groundLabel = data.groundSource ? tr("Ground surface ({source})", { source: data.groundSource }) : tr("Ground surface"); // TASKS.csv #3949 — the terrain's own source, not always SRTM
   const show = labelShow(labels, (data.holes || []).length); // TASKS.csv #3968 — the kinds of label this section draws (its Labels menu)
   const rlOff = Number.isFinite(rlOffset) ? rlOffset : 0; // TASKS.csv #2809 — the mine grid's RL datum: grid RL = elevation + this; 0: the axis is elevation
@@ -745,7 +745,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   // TASKS.csv #3860 — each element's grade bars on its own axis: log over two decades or more (vein gold, 0.004-150 g/t, drew every bar but one a pixel
   // long), else linear as before; the sheet says which are log
   const barAxis = {};
-  for (const sym of new Set(points.filter((r) => r.assay).map((r) => r.assay.sym))) barAxis[sym] = gradeBarAxis(points.filter((r) => r.assay?.sym === sym).map((r) => r.assay.value));
+  for (const sym of new Set(points.filter((r) => r.assay && r.assay.f == null /* #4002 — the 3D view's bars: its own linear scale, keyed */).map((r) => r.assay.sym))) barAxis[sym] = gradeBarAxis(points.filter((r) => r.assay?.sym === sym).map((r) => r.assay.value));
   const logBars = Object.entries(barAxis).filter(([, a]) => a.log).map(([sym, a]) => { const u = points.find((r) => r.assay?.sym === sym)?.assay?.u; return `${sym} ${gradeText(a.lo)}–${gradeText(a.hi)}${u ? ` ${gradeUnitLabel(sym, u)}` : ""}`; });
   if (logBars.length) subtitleLines.push(...wrapText(tr("Grade bars on a log scale: {list}", { list: logBars.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10)))));
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }
@@ -790,7 +790,14 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
   // TASKS.csv #3139 (#3022, WA iron) — a grade bar was 36 px at any scale: on holes 25 m apart it ran across several neighbours. It now ends
   // within half the typical gap between collars (lib/sectionLabels.js gradeBarMax), one length for the section.
   const collarGap = collarGapPx(holes.map((h) => (h.trace?.length ? sx(along(h.trace[0].x, h.trace[0].y)) : NaN)));
-  const BAR_MAX = gradeBarMax(collarGap, ribbonReach, points.reduce((m, r) => (r.assay ? Math.max(m, (r.assay.idx || 0) + 1) : m), 1)); // n elements: no spread (#3031)
+  // TASKS.csv #4002 — the 3D view's mineral bars take the first lanes beyond the ribbons, the grade bars the lanes after them; every lane one length
+  const mLanes = mineralBars?.lanes?.length || 0, aLanes = points.reduce((m, r) => (r.assay ? Math.max(m, (r.assay.idx || 0) + 1) : m), 0);
+  const BAR_MAX = gradeBarMax(collarGap, ribbonReach, Math.max(1, mLanes + aLanes)); // n lanes: no spread (#3031)
+  const laneBase = (lane) => ribbonReach + 5 + lane * (BAR_MAX + 8);
+  // #4002 — the 3D view's bars sit on the hole's right as drawn (as in the 3D view), one side per hole (from its collar to its end, so a hole near
+  // the horizontal does not swap sides); the #392 grade bars keep their side, and keep their lanes when the 3D view's assay bars are off
+  const barSide = {}, sideOf = (holeId) => { if (barSide[holeId] == null) { const tr = traceByHole[holeId] || [], p = tr[0], q = tr[tr.length - 1]; const [nx, ny] = p && q ? screenNormal(sx(along(p.x, p.y)), sz(p.z), sx(along(q.x, q.y)), sz(q.z)) : [1, 0]; barSide[holeId] = nx < -1e-6 || (Math.abs(nx) <= 1e-6 && ny > 0) ? -1 : 1; } return barSide[holeId]; };
+  const assayLook = points.some((r) => r.assay?.f != null), aShift = assayLook ? mLanes : 0, aSide = (holeId) => (assayLook ? sideOf(holeId) : 1);
   const assayMax = {};
   points.forEach((r) => { if (r.assay && Number.isFinite(r.assay.value)) assayMax[r.assay.sym] = Math.max(assayMax[r.assay.sym] || 0, r.assay.value); });
   // label the 8 highest values per element in this section, not every sample (unreadable at section scale); #3860 — or its 8 best intercepts
@@ -1038,6 +1045,23 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
       })}
       </g>
 
+      {/* TASKS.csv #4002 — the 3D view's mineral bars (#3943): one lane per chosen mineral beyond the ribbons, perpendicular to the trace as seen,
+          the bar's length its per cent on the 3D view's scale (keyed), in its legend colour; the tooltip is written on hover (#2210) */}
+      {mLanes > 0 && mineralBars.bars?.length > 0 && (
+        <g data-mineral-bars="" clipPath={`url(#${plotClipId})`} onMouseOver={(e) => { const k = e.target?.dataset?.mb; const b = k != null ? mineralBars.bars[Number(k)] : null; if (b) hoverTitle(e.target, `${mineralBars.lanes[b.lane]?.label}: ${+Number(b.v).toPrecision(3)} % (${+Number(b.from).toFixed(2)}–${+Number(b.to).toFixed(2)} m)`); }}>
+          {mineralBars.bars.map((b, i) => {
+            const trace = traceByHole[b.hole_id], lane = mineralBars.lanes[b.lane];
+            if (!trace || !lane) return null;
+            const q1 = interpTrace(trace, b.from), q2 = interpTrace(trace, b.to);
+            if (!q1 || !q2) return null;
+            const x1 = sx(along(q1.x, q1.y)), y1 = sz(q1.z), x2 = sx(along(q2.x, q2.y)), y2 = sz(q2.z);
+            const [nx0, ny0] = screenNormal(x1, y1, x2, y2), sd = sideOf(b.hole_id), nx = nx0 * sd, ny = ny0 * sd, base = laneBase(b.lane), len = Math.max(1, b.f * BAR_MAX);
+            const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+            return <line key={i} data-mb={i} x1={mx + nx * base} y1={my + ny * base} x2={mx + nx * (base + len)} y2={my + ny * (base + len)} stroke={lane.colour} strokeWidth={Math.min(Math.max(1.5, Math.hypot(x2 - x1, y2 - y1)), 6)} strokeLinecap="butt" />;
+          })}
+        </g>
+      )}
+
       {/* TASKS.csv #392 — assays as grade bars perpendicular to the trace, beyond the ribbons, length
           proportional to grade (per element, to the highest value in this section); the highest values
           are labelled. Non-assay point data stay dots. */}
@@ -1049,9 +1073,9 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
           const q1 = interpTrace(trace, a.from), q2 = interpTrace(trace, a.to);
           if (!q1 || !q2) return null;
           const x1 = sx(along(q1.x, q1.y)), y1 = sz(q1.z), x2 = sx(along(q2.x, q2.y)), y2 = sz(q2.z);
-          const [nx, ny] = screenNormal(x1, y1, x2, y2);
-          const base = ribbonReach + 5 + a.idx * (BAR_MAX + 8);
-          const len = assayMax[a.sym] > 0 ? Math.max(1, gradeBarFrac(a.value, barAxis[a.sym]) * BAR_MAX) : 1; // #3860 — log over two decades
+          const [nx0, ny0] = screenNormal(x1, y1, x2, y2), sd = aSide(row.hole_id), nx = nx0 * sd, ny = ny0 * sd;
+          const base = laneBase(aShift + a.idx); // #4002 — the 3D view's assay bars: after the mineral bars, on their side
+          const len = a.f != null ? Math.max(1, a.f * BAR_MAX) /* #4002 — the 3D view's bar */ : assayMax[a.sym] > 0 ? Math.max(1, gradeBarFrac(a.value, barAxis[a.sym]) * BAR_MAX) : 1; // #3860 — log over two decades
           const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
           const bx0 = mx + nx * base, by0 = my + ny * base, bx1 = mx + nx * (base + len), by1 = my + ny * (base + len);
           const thick = Math.max(1.5, Math.hypot(x2 - x1, y2 - y1));
@@ -1076,8 +1100,8 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
         const q1 = interpTrace(trace, c.from), q2 = interpTrace(trace, c.to);
         if (!q1 || !q2) return null;
         const x1 = sx(along(q1.x, q1.y)), y1 = sz(q1.z), x2 = sx(along(q2.x, q2.y)), y2 = sz(q2.z);
-        const [nx, ny] = screenNormal(x1, y1, x2, y2);
-        const idx = points.find((r) => r.assay?.sym === c.sym)?.assay?.idx || 0, off = ribbonReach + 5 + idx * (BAR_MAX + 8) + BAR_MAX + 3;
+        const [nx0, ny0] = screenNormal(x1, y1, x2, y2), sd = aSide(c.hole_id), nx = nx0 * sd, ny = ny0 * sd; // #4002 — beside its bars
+        const idx = points.find((r) => r.assay?.sym === c.sym)?.assay?.idx || 0, off = laneBase(aShift + idx) + BAR_MAX + 3; // aShift: #4002
         const ax0 = x1 + nx * off, ay0 = y1 + ny * off, ax1 = x2 + nx * off, ay1 = y2 + ny * off, mx = (ax0 + ax1) / 2, my = (ay0 + ay1) / 2;
         floatLabels.push({ key: `bi_${i}`, text: c.text, size: fs(9), fill: "#1a2028", prio: 2, within: [PAD, W - PAD, PAD, H - PAD], cands: [{ x: mx + nx * 3, y: my + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: mx + nx * 3, y: my + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: mx + nx * 3, y: my + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] });
         return <g key={`bi${i}`} stroke="#1a2028" strokeWidth="1.2" fill="none"><line x1={ax0} y1={ay0} x2={ax1} y2={ay1} /><line x1={ax0} y1={ay0} x2={ax0 - nx * 3} y2={ay0 - ny * 3} /><line x1={ax1} y1={ay1} x2={ax1 - nx * 3} y2={ay1 - ny * 3} /><title>{`${c.hole_id} ${+c.from.toFixed(2)}–${+c.to.toFixed(2)} m: ${c.text} (cut-off ${c.cutoff})`}</title></g>;
