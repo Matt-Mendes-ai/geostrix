@@ -39,6 +39,8 @@ test("wiring: the ribbon's flags, empty groups hidden in Simple (#1707), Stereon
   assert.match(r, /<RibbonButton advanced=\{!simpleTools\.mapModel\} icon=\{MapIcon\} label="Model from map"/);
   // #3905 — groups named for what is built: geoML sits in Volumes (the group keeps its flag; Alteration, from an Advanced group, carries its own)
   assert.match(r, /<RibbonGroup advanced=\{!simpleTools\.geoml\} label="Volumes">\n\s*<RibbonButton advanced icon=\{Droplets\} label="Alteration"[^\n]*\n\s*<RibbonButton icon=\{Sparkles\} label="geoML models"/);
-  assert.match(r, /<RibbonGroup advanced=\{!simpleTools\.stereonet\} label="Faults and structure">/);
+  // #4006 — the group shows in Simple for its Faults button (every fault tool); the stereonet's flag, the group's until then, is the button's own
+  assert.match(r, /<RibbonGroup label="Faults and structure">[^\n]*\n\s*<RibbonButton icon=\{SquareSplitVertical\} label="Faults" [^\n]*\{\.\.\.paneProps\("faults"\)\}/);
+  assert.match(r, /<RibbonButton advanced=\{!simpleTools\.stereonet\} icon=\{Target\} label="Stereonet"/);
   assert.match(r, /label="Stereonet"[^\n]*disabled=\{!simpleTools\.stereonet\} disabledReason="No structure picks with an orientation, nor outcrop measurements, yet\."/);
 });

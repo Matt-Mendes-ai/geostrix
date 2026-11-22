@@ -44,6 +44,7 @@ export const PANE_HELP = {
   "Stratigraphic stack": "stratigraphic-stack",
   "Explicit surface": "explicit-surface",
   "Structural modelling": "structural-modelling",
+  "Faults": "faults", // TASKS.csv #4006 — every fault tool in one pane
   "Vein / dyke modelling": "vein-dyke",
   "Alteration modelling": "alteration-modelling",
   "Grade shell": "grade-shell",

@@ -3,7 +3,7 @@
 // three, since one mode shows at a time; the Geological Mapping ribbon is SurfaceRibbon (ViewerParts.jsx). Mine Design stays hidden by lib/features.js.
 import React from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../../components/Ribbon.jsx"; // TASKS.csv #458
-import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, Map as MapIcon, Mountain, Layers3, MapPin, Box, Compass, Activity, Ruler, Waypoints, GitCompare, Sparkles } from "../../components/icons.js";
+import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, Map as MapIcon, Mountain, Layers3, MapPin, Box, Compass, Activity, Ruler, Waypoints, GitCompare, Sparkles, SquareSplitVertical } from "../../components/icons.js";
 
 export default function ModeRibbons({ mode, show, paneProps, simpleTools, project, plannedHoles, pickHoleMode, setPickHoleMode, setToolPane, exportPlannedHoles, setTadpoleOpen, setCoreOrientOpen, setVariogramOpen, setFenceOpen, setSurfaceQueryOpen, setStereonetOpen }) {
   return (<>
@@ -33,9 +33,10 @@ export default function ModeRibbons({ mode, show, paneProps, simpleTools, projec
         <RibbonGroup advanced label="Veins and dykes">
           <RibbonButton icon={Waves} label="Veins / dykes" tone="model" title="Vein / dyke modelling" {...paneProps("vein")} />
         </RibbonGroup>
-        <RibbonGroup advanced={!simpleTools.stereonet} label="Faults and structure">
+        <RibbonGroup label="Faults and structure">{/* TASKS.csv #4006 — Faults, in Simple too, opens every fault tool in one pane; the group's old Simple flag (#2773) is now Stereonet's own */}
+          <RibbonButton icon={SquareSplitVertical} label="Faults" tone="model" title="Every fault tool in one place: fault surfaces from picks, mapped faults and drawn lines, faults in a model, and the checks" {...paneProps("faults")} />
           <RibbonButton advanced icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
-          <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" disabled={!simpleTools.stereonet} disabledReason="No structure picks with an orientation, nor outcrop measurements, yet." onClick={() => setStereonetOpen(true)} />{/* #2773 */}
+          <RibbonButton advanced={!simpleTools.stereonet} icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" disabled={!simpleTools.stereonet} disabledReason="No structure picks with an orientation, nor outcrop measurements, yet." onClick={() => setStereonetOpen(true)} />{/* #2773 */}
           <RibbonButton advanced icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
           <RibbonButton advanced icon={Crosshair} label="Core orient." tone="analyse" title="Core orientation (alpha-beta) calculator for non-oriented core" onClick={() => setCoreOrientOpen(true)} />
         </RibbonGroup>

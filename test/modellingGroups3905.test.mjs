@@ -14,7 +14,7 @@ test("#3905 the groups, in order, and the buttons in each", () => {
     ["Surfaces", ["Implicit surface", "Strat. stack", "Model from map", "Explicit surface"]],
     ["Volumes", ["Alteration", "geoML models"]],
     ["Veins and dykes", ["Veins / dykes"]],
-    ["Faults and structure", ["Structures", "Stereonet", "Downhole plot", "Core orient."]],
+    ["Faults and structure", ["Faults", "Structures", "Stereonet", "Downhole plot", "Core orient."]], // Faults: #4006
     ["Grade", ["Grade shell", "Estimation", "Variogram"]],
     ["Check", ["Fence diagram", "Surface query"]],
   ]);
