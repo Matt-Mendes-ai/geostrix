@@ -41,7 +41,9 @@ import { setTubeSizes } from "../lib/viewer/tubeShader.js"; // TASKS.csv #3668 �
 // labels below take the type scale in its JS-mirror form instead of "var(--font-size-sm)". Same
 // CSS-vs-JS boundary theme.js documents for colour.
 import { fontSizes } from "../lib/theme.js";
-import { rampTickLabels } from "../lib/legendScale.js"; // TASKS.csv #736
+import { textBump } from "../lib/textSize.js"; // TASKS.csv #4010
+import { useTextSize } from "../lib/useTextSize.js"; // TASKS.csv #4010 — the tick labels are measured again at a new text size
+import { rampTickLabels, endLabelsFit } from "../lib/legendScale.js"; // TASKS.csv #736; endLabelsFit: #4010
 import { allocateLegendRows, foldLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1398; fold: #3398
 import { swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #948
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -49,17 +51,20 @@ import { MAX_LEGEND_ITEMS, legendLayout } from "../lib/legendLayout.js"; // star
 
 // TASKS.csv #736 — the legend's tick text measured in its real font (the xs step), one cached canvas, memoised per
 // string: called when the legend renders, never per frame. Falls back to the old 6 px per character without a canvas.
+// TASKS.csv #4010 — at the size it is drawn: the xs step plus the window's text size (#3900: 12 px at Large, the default). Measured at 10 px,
+// a log ramp's '10' was kept beside the '22.8' end label and the two read as '1022.8'.
 const textWidthCache = new Map();
 let measureCtx;
+export const legendTextPx = () => fontSizes.xs + (Number(textBump()) || 0);
 function legendTextWidth(text) {
-  const s = String(text);
-  if (textWidthCache.has(s)) return textWidthCache.get(s);
-  let w = s.length * 6;
+  const px = legendTextPx(), s = String(text), key = `${px}|${s}`;
+  if (textWidthCache.has(key)) return textWidthCache.get(key);
+  let w = s.length * 0.6 * px;
   try {
     measureCtx ??= document.createElement("canvas").getContext("2d");
-    if (measureCtx) { measureCtx.font = `${fontSizes.xs}px 'Exo 2', system-ui, sans-serif`; w = measureCtx.measureText(s).width; }
+    if (measureCtx) { measureCtx.font = `${px}px 'Exo 2', system-ui, sans-serif`; w = measureCtx.measureText(s).width; }
   } catch { /* no canvas: keep the estimate */ }
-  textWidthCache.set(s, w);
+  textWidthCache.set(key, w);
   return w;
 }
 
@@ -95,6 +100,7 @@ export const legendFullSize = (groups) => { let rows = 1; for (const g of groups
 // kept in the figure settings (config.legendCollapsed, config.legendFolded: saved with the view, per project, and with its themes) through
 // onConfig; a saved choice also stops #3280 (1)'s collapse at open.
 export default function ViewportFigureOverlay({ config, title, legendGroups: allGroups, camStateRef, cameraRef, mountRef, camSignalRef, openKey = 0, onConfig = null }) {
+  useTextSize(); // TASKS.csv #4010 — a new text size measures the tick labels again
   const legendGroups = foldLegendGroups(allGroups, config.legendFolded); // #3398
   const barRectRef = useRef(null);
   const barTextRef = useRef(null);
@@ -286,14 +292,15 @@ export default function ViewportFigureOverlay({ config, title, legendGroups: all
               <div style={{ position: "relative", height: 9, width: 180, borderRadius: 2, border: "1px solid var(--color-border-light)", background: `linear-gradient(to right, ${g.ramp.colors.join(", ")})` }}>
                 {(g.ramp.ticks || []).map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, top: 5, width: 1, height: 4, background: "var(--color-text)" }} />)}
               </div>
-              <div style={{ position: "relative", height: 14, width: 180, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
-                <span style={{ position: "absolute", left: 0 }}>{g.ramp.minLabel ?? fmtR(g.ramp.min)}</span>
+              {(() => { const lo = g.ramp.minLabel ?? fmtR(g.ramp.min), hi = g.ramp.maxLabel ?? fmtR(g.ramp.max), split = !endLabelsFit(lo, hi, 180, legendTextWidth); /* #4010 — two long end labels: the max one on a line of its own */ return (
+              <div style={{ position: "relative", height: split ? 28 : 14, width: 180, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
+                <span style={{ position: "absolute", left: 0 }}>{lo}</span>
                 {/* a tick label that would touch the min/max label or the previous one is left out (its tick mark stays);
                     #736 measured in the real font, and the end labels use the ticks' format */}
-                {rampTickLabels(g.ramp.ticks, g.ramp.minLabel ?? fmtR(g.ramp.min), g.ramp.maxLabel ?? fmtR(g.ramp.max), 180, legendTextWidth)
+                {(split ? [] : rampTickLabels(g.ramp.ticks, lo, hi, 180, legendTextWidth))
                   .map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, transform: "translateX(-50%)" }}>{t.label}</span>)}
-                <span style={{ position: "absolute", right: 0 }}>{g.ramp.maxLabel ?? fmtR(g.ramp.max)}</span>
-              </div>
+                <span style={{ position: "absolute", right: 0, ...(split ? { top: 14 } : {}) }}>{hi}</span>
+              </div>); })()}
             </div>
           ))}
           {images.map((g) => ( /* #2747 */
