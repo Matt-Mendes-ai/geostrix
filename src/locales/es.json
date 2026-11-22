@@ -14741,5 +14741,11 @@
   "Undo: the last edit": "Deshacer: la última edición",
   "Within its limits": "Dentro de sus límites",
   "Outside its limits": "Fuera de sus límites",
-  "Mean, ±2 and ±3 SD": "Media, ±2 y ±3 DE"
+  "Mean, ±2 and ±3 SD": "Media, ±2 y ±3 DE",
+  "Show where this section is on the plan": "Mostrar dónde está esta sección en la planta",
+  "Overview": "Vista general",
+  "Show on export": "Mostrar al exportar",
+  "Hide the overview": "Ocultar la vista general",
+  "Drag the line to move the section ({m} m steps).": "Arrastre la línea para mover la sección (pasos de {m} m).",
+  "Drag the line to move the section.": "Arrastre la línea para mover la sección."
 }
