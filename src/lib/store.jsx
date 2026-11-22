@@ -1099,7 +1099,7 @@ export function StoreProvider({ children }) {
   // Marked unsaved; undo history cleared (an undo step would put old-CRS coordinates back under the new label).
   // Returns the report ({ counts, notes, maxRotationDeg }). setEpsg alone = "relabel only".
   const reprojectProjectTo = useCallback(async (toEpsg, opts = {}) => {
-    if (!sectionWindowsMayClose()) return { cancelled: true }; // #2620 — the reload closes the section windows: their unsaved lines first
+    if (!(await sectionWindowsMayClose())) return { cancelled: true }; // #2620 — the reload closes the section windows: their unsaved lines first
     const live = liveRef.current;
     const fromEpsg = live.project?.epsg;
     const { reprojectProject } = await import("./projectReproject.js");
@@ -1420,12 +1420,19 @@ export function StoreProvider({ children }) {
   const startProjectLoad = () => { projectLoadingRef.current = true; setProjectLoading(true); };
   const endProjectLoad = () => { if (!projectLoadingRef.current) return; projectLoadingRef.current = false; setProjectLoading(false); const w = loadWaitersRef.current; loadWaitersRef.current = []; for (const f of w) f(); };
   const whenProjectLoaded = useLatestCallback(() => (projectLoadingRef.current ? new Promise((ok) => { loadWaitersRef.current.push(ok); }) : Promise.resolve()));
-  const switchToTab = useLatestCallback((tabId) => {
+  const switchToTab = useLatestCallback(async (tabId) => {
     const seq = ++switchSeqRef.current; // first: a click back on the active tab also cancels a switch still expanding
     if (tabId === activeTabId) { endProjectLoad(); return; } // #3931: a click back on the active tab cancels a switch still expanding
+    if (!workspaceTabs.some((t) => t.id === tabId)) { endProjectLoad(); return; }
+    const ok = await sectionWindowsMayClose(); // #2620 — asked in the app's own dialog since #4000, so this waits for the answer
+    if (seq !== switchSeqRef.current) return; // a newer click came while the question was up: that one decides
+    if (!ok) { endProjectLoad(); return; }
+    switchChecked(tabId, seq);
+  });
+  const switchChecked = useLatestCallback((tabId, seq) => { // the rest of the switch, on the state as it is now (the question may have taken a while)
+    if (tabId === activeTabId) { endProjectLoad(); return; }
     const target = workspaceTabs.find((t) => t.id === tabId);
     if (!target) { endProjectLoad(); return; }
-    if (!sectionWindowsMayClose()) { endProjectLoad(); return; } // #2620
     if (!payloadHasTables(target.payload)) { switchNow(tabId, null, null); endProjectLoad(); return; }
     const from = activeTabIdRef.current, stashed = target.payload;
     startProjectLoad(); // #3931
@@ -1452,8 +1459,11 @@ export function StoreProvider({ children }) {
     clearUndoHistory();
   }); // project name: #1218 — a tab left behind keeps the name it has now
 
-  const newWorkspaceTab = useLatestCallback(() => {
-    if (!sectionWindowsMayClose()) return false; // #2620
+  const newWorkspaceTab = useLatestCallback(async () => { // #4000: false when the person kept a section's unsaved lines (the question is in the app's own dialog, so this waits)
+    if (!(await sectionWindowsMayClose())) return false; // #2620
+    return newTabNow();
+  });
+  const newTabNow = useLatestCallback(() => {
     const current = snapshotCurrentPayload();
     const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setWorkspaceTabs([
@@ -1468,8 +1478,8 @@ export function StoreProvider({ children }) {
   // the 3D View (the one ViewerModule instance) picks the request up and loads the sample once the fresh project renders
   const [sampleRequest, setSampleRequest] = useState(null);
   const hasWorkRef = useRef(false); // set below, where hasWork is computed
-  const requestSampleProject = useLatestCallback((which) => {
-    if (hasWorkRef.current && newWorkspaceTab() === false) return; // #2620 — the new tab was cancelled: never load the sample over this project
+  const requestSampleProject = useLatestCallback(async (which) => {
+    if (hasWorkRef.current && (await newWorkspaceTab()) === false) return; // #2620 — the new tab was cancelled: never load the sample over this project
     setSampleRequest({ which, seq: Date.now() });
   });
   const clearSampleRequest = useCallback(() => setSampleRequest(null), []);
@@ -1483,7 +1493,7 @@ export function StoreProvider({ children }) {
     // pre-rename .geox.json files a user already has saved are still selectable/openable here.
     const res = preRead?.content != null ? preRead : await openFile({ filters: [{ name: "GeoStrix Project", extensions: ["json"] }] });
     if (!res.ok) return res;
-    if (!sectionWindowsMayClose()) return { ok: false, canceled: true }; // #2620
+    if (!(await sectionWindowsMayClose())) return { ok: false, canceled: true }; // #2620
     // TASKS.csv #955 — a file already open in a tab (double-clicked again in Explorer, or picked again in File > Open)
     // switches to that tab: a second tab on the same file let two copies be saved over each other
     if (res.filePath) {
@@ -1537,7 +1547,7 @@ export function StoreProvider({ children }) {
   const closeWorkspaceTab = useLatestCallback(async (tabId) => {
     const tab = workspaceTabs.find((t) => t.id === tabId);
     if (!tab) return;
-    if (tabId === activeTabId && !sectionWindowsMayClose()) return; // #2620 — closing the shown project closes its section windows
+    if (tabId === activeTabId && !(await sectionWindowsMayClose())) return; // #2620 — closing the shown project closes its section windows
     const dirty = tabId === activeTabId ? activeTabDirty : tab.dirty;
     if (dirty && !await askConfirm(tr("Close \"{name}\" without saving? Unsaved changes will be lost.", { name: tabId === activeTabId ? project.name : tab.name }))) return;
     const remaining = workspaceTabs.filter((t) => t.id !== tabId);

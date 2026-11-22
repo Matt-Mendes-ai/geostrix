@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld("desktop", {
   onAddonEvent: (cb) => { const h = (_e, ev) => cb(ev); ipcRenderer.on("addon-event", h); return () => ipcRenderer.removeListener("addon-event", h); },
   openSectionWindow: (payload) => ipcRenderer.invoke("open-section-window", payload),
   closeSectionWindows: () => ipcRenderer.invoke("close-section-windows"), // TASKS.csv #2516
-  sectionWindowsMayClose: () => ipcRenderer.sendSync("may-close-section-windows"), // TASKS.csv #2620 — the 'Unsaved lines' question, before a load
+  sectionWindowsMayClose: () => ipcRenderer.invoke("may-close-section-windows"), // TASKS.csv #2620 — the 'Unsaved lines' question, before a load (#4000: async, asked in the window)
   sendSectionSnapshot: (payload) => ipcRenderer.invoke("section-snapshot", payload),
   onSectionSnapshot: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-snapshot", h); return () => ipcRenderer.removeListener("section-snapshot", h); },
   sendSectionContacts: (payload) => ipcRenderer.invoke("section-contacts", payload),
