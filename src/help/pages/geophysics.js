@@ -261,6 +261,7 @@ export default [
     // TASKS.csv #3973 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Imports values measured at points (mag, gravity, EM, IP…) and draws them in 3D.",
     picture: { drop: ["points", "grid"], alt: "Survey points become a coloured grid." },
+    figure: { help: "lands", alt: "In the right coordinate system a layer lands on the holes; in the wrong UTM zone it lands far away." }, // N3, beside Source CRS: TASKS.csv #3978
     cautions: ["IDW gridding is a quick look, not for resource estimation."],
     instead: [{ text: "Block model", to: "Block models", page: "block-models" }, { text: "Grids", to: "Maps > GeoTIFF / GXF" }, { text: "Downhole log", to: "with the drillholes", page: "import-drillholes" }, { text: "IP lines", to: "DC / IP", page: "dcip" }],
     keys: ["Source CRS", "Import CSV…", "Grid to raster (IDW, minimum curvature, spline)…"],

@@ -366,7 +366,8 @@ export default [
     title: "Grade shell",
     // TASKS.csv #3973 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "A wireframe around everything at or above a cutoff, from the assays.",
-    picture: { diagram: "surfaceShellBlock", alt: "A surface, a grade shell and a block model, side by side." }, // N1 / N5 when they are drawn (batch B)
+    picture: { help: "support", alt: "A modelled body is firm between the drill holes, extrapolated beyond them, and held by one hole where only one cuts it." }, // N1: TASKS.csv #3978
+    figure: { help: "cutoff", alt: "A grade histogram cut at the cutoff; the blocks at or above it form the shell." }, // N5: #3978
     cautions: ["Not a resource estimate, nor a Mineral Resource under NI 43-101 or JORC.", "A shell around one hole is the interpolator's shape.", "Closed at the search radius: that volume is your radius.", "A cap at or below the cutoff leaves nothing to enclose."],
     instead: [{ text: "Grades in blocks", to: "Grade estimation", page: "grade-estimation" }],
     keys: ["Cutoff (in the element's unit)", "Search (m)", "High-grade cap (in the element's unit)"],

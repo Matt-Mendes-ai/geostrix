@@ -87,7 +87,7 @@ export default [
     title: "Best intercepts",
     // TASKS.csv #3973 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Each hole's intersections above a cut-off, length-weighted, with internal dilution.",
-    picture: { drop: ["log", "table"], alt: "A hole's logged samples become a table of intercepts." }, // N6 / N8 when they are drawn (batch B)
+    picture: { help: "composite", alt: "A hole's samples of uneven length, the same metres as equal composites, and an intercept with internal dilution." }, // N6: TASKS.csv #3978 (N8, true width, is not drawn yet)
     cautions: ["A screening tool: check every intercept against the certificates.", "Lengths are downhole, not true widths, until you give the dip.", "A sample with no result is not zero."],
     keys: ["Cut-off", "Max internal dilution (m)", "Including at ≥"],
     strip: ["Pick Zn and a cut-off", "Read the table", "Fill Including at ≥"],
