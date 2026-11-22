@@ -29,12 +29,13 @@ test("the frame spans the holes' in-buffer runs past either end; the corner coor
   const w = fs.readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(w, /let minL = 0, maxL = len,/);
   assert.match(w, /if \(h\.runs && !h\.runs\.some\(\(\[m0, m1\]\) => p\.md >= m0 && p\.md <= m1\)\) continue; const l = \(p\.x - ax\) \* ux \+ \(p\.y - ay\) \* uy; if \(l < minL\) minL = l; if \(l > maxL\) maxL = l;/);
-  assert.match(w, /const hScale = \(W - 2 \* PAD\) \/ \(maxL - minL\);/);
-  assert.match(w, /const sx = \(l\) => PAD \+ \(l - minL\) \* hScale;/);
-  assert.match(w, /const invSx = \(screenX\) => minL \+ \(screenX - PAD\) \/ hScale;/);
-  assert.match(w, /niceTicks\(minL, maxL, 8\)\.filter\(\(l\) => l >= minL && l <= maxL\)/);
-  assert.match(w, /Math\.round\(ax \+ minL \* ux\)/);
-  assert.match(w, /Math\.round\(ax \+ maxL \* ux\)/);
+  // TASKS.csv #4009 — the same mapping through the zoom window (win.L0 is minL, win.L1 maxL at fit: windowOf returns the extents exactly)
+  assert.match(w, /const hScale0 = \(W - 2 \* PAD\) \/ \(maxL - minL\);/);
+  assert.match(w, /const sx = \(l\) => PAD \+ \(l - win\.L0\) \* hScale;/);
+  assert.match(w, /const invSx = \(screenX\) => win\.L0 \+ \(screenX - PAD\) \/ hScale;/);
+  assert.match(w, /niceTicks\(win\.L0, win\.L1, 8\)\.filter\(\(l\) => l >= win\.L0 && l <= win\.L1\)/);
+  assert.match(w, /Math\.round\(ax \+ win\.L0 \* ux\)/);
+  assert.match(w, /Math\.round\(ax \+ win\.L1 \* ux\)/);
   // the same along-the-line arithmetic: a hole 90 m past B on a 1,089 m line widens the axis to 1,179 m
   const len = 1089, ux = 1, uy = 0, ax = 0, ay = 0;
   let minL = 0, maxL = len;

@@ -14987,5 +14987,8 @@
   "estimated {symbol} into the block model '{name}'": "قدّر {symbol} في النموذج الكتلي '{name}'",
   "added the grade shell's cells as the block model '{name}'": "أضاف خلايا غلاف المحتوى كالنموذج الكتلي '{name}'",
   "built the vein '{name}'": "بنى العرق '{name}'",
-  "built the alteration halo '{name}'": "بنى هالة التحول '{name}'"
+  "built the alteration halo '{name}'": "بنى هالة التحول '{name}'",
+  "A bar beside the trace, its length following the value": "شريط بجانب المسار، يتبع طوله القيمة",
+  "Zoom in (or the wheel); pan with the middle button or Space + drag": "تكبير (أو العجلة)؛ حرّك بالزر الأوسط أو بالمسافة + سحب",
+  "Fit the whole section (or double-click empty ground)": "ملاءمة المقطع كاملًا (أو نقر مزدوج على مساحة فارغة)"
 }

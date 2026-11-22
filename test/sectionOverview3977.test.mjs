@@ -110,7 +110,7 @@ test("#3977 wired: built with each section sent, lazy in the window, the drag th
   assert.match(w, /const undo = overviewRef\.current\?\.pdf\?\.\(svgRef\.current\);/);
   assert.match(w, /naturalW: figW, naturalH: dims\.h/); assert.match(w, /worldWidthAtCaptureM: hScale \? figW \/ hScale : null/);
   assert.match(w, /w = overviewRef\.current\?\.width\?\.\(xml\) \|\| d\.w;/, "the PNG as wide as the widened figure");
-  assert.match(w, /const left = `A {2}\$\{/); assert.match(w, / N {2}B`;/);
+  assert.match(w, /const left = `\$\{zoomed \? "" : "A  "\}\$\{/); assert.match(w, /N\$\{zoomed \? "" : "  B"\}`;/); // #4009: A / B only at fit
   assert.match(css, /\.ge-section-tabbar, \.ge-section-overview \{ display: none !important; \}/);
   assert.match(o, /exportRef\.current = pref\.onExport \?/, "the inset only while ticked");
   assert.match(o, /const KEY = "geostrix\.sectionOverview";/);

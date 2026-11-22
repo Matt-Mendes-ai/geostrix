@@ -614,13 +614,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const axisGizmoRef = useRef(null); // TASKS.csv #189 — small camera-synced N/E/Z axis-triad widget, bottom-left of the 3D view
   const lastTracesRef = useRef([]);
   const lastHoleTraceCountRef = useRef(0); // #1181 — lastTracesRef starts with this many hole traces
-  // TASKS.csv — user report: "we have to make it stop resetting the zoom every time user loads a new layer." The rebuild effect called
-  // fitView() on every run, and any import reran it. The auto-fit now frames the data once, when it first appears (reset when the
-  // collars go back to zero); later changes leave the camera where the user put it. "Zoom to fit all" refits on request.
+  // TASKS.csv — the auto-fit frames the data once, when it first appears (reset when the collars go back to zero); later changes leave the camera alone.
   const hasAutoFitRef = useRef(false);
-  // Perf (user report: "the app is getting a bit heavy on my laptop") — an idle view rendered at 60 fps. lastActivityRef is bumped on every
-  // camera move (updateCamera) and scene change; animate() drops to a low idle rate after a quiet spell and is back at full rate on the next
-  // activity. A throttle, never a skip: a change from elsewhere still shows within one idle interval.
+  // Perf — lastActivityRef is bumped on every camera move and scene change; animate() drops to a low idle rate after a quiet spell and is back at
+  // full rate on the next activity (a throttle, never a skip).
   const lastActivityRef = useRef(Date.now());
   const lastFrameAtRef = useRef(0);
 
@@ -698,9 +695,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // means "not recategorized", the plain single-color behavior). Same save/restore/theme-capture
   // treatment as legendOverride/numericRange right above — view-display state, not raw project data.
   const [assayStyle, setAssayStyle] = useState({});
-  // TASKS.csv #1695 (review #1645, Copley) — which assay rows the ASSAYS markers, their size ranges and classes come from: "lab" (the
-  // default), "pxrf" (portable XRF readings on core: a screening number, zero-length points, 'not detected' zeros) or "both"; a
-  // pXRF marker is a cube and says pXRF, a lab one the element's own shape. Saved with the view / a theme.
+  // TASKS.csv #1695 — which assay rows the ASSAYS markers, their size ranges and classes come from: "lab" (the default), "pxrf" or "both". Saved with the view / a theme.
   const [assaySource, setAssaySource] = useState("lab");
   const hasPxrf = useMemo(() => assays.some(isPxrfRow), [assays]);
   const assayRowShown = useCallback((a) => (assaySource === "both" ? true : assaySource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a)), [assaySource]);
@@ -722,7 +717,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const r = assayClassRange(lab.length ? lab : assays, symbol); // #306 / #1696 percentile classes; #2519: '<' flags left out (lib/assayClasses.js)
     return (c.by[symbol] = r && { ...r, unit: assayElements.find((e) => e.symbol === symbol)?.unit }); // unit: a major component's round classes, #2935
   }, [assays, assayElements, assaySource]);
-  // TASKS.csv #3879 — a project saved with the old pick-order hues: classes GeoStrix seeded (not the user's) are re-seeded from the element's hue (lib/assayHueRepair.js)
+  // TASKS.csv #3879 — old pick-order hues are re-seeded from the element's hue (lib/assayHueRepair.js)
   useEffect(() => { setAssayStyle((p) => repairSeededHues(p, assayElements, assayRangeFor)); }, [assayStyle, assayElements, assayRangeFor]);
   // TASKS.csv #437 — the hover tooltip is written straight to its DOM node instead of React state:
   // setTooltip({x, y, text}) ran on every pointermove over an interval and re-rendered this whole
@@ -2429,8 +2424,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const zoomToFitAll = () => { const b = visibleSceneBox(sceneRef.current?.getObjectByName("root")); (shownTraces() || lastTracesRef.current || []).forEach((pts) => pts.forEach((p) => b.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(b); };
   // TASKS.csv #1181 — Fit frames the drilling, as the opening view does; All: right-click menu
   const zoomToHoles = () => { const s = shownTraces(); if (s) fitView(s); else autoFitInitial(lastTracesRef.current, lastHoleTraceCountRef.current); }; // shown: #2996
-  // TASKS.csv #3695 (Fireweed rehearsal round 3) — 'Only these' on holes far from the view left it blank (a save reopened on the blank view): after 'Only these' / 'Uncheck',
-  // when none of the holes left checked is in the view, the view frames them (a hole in view leaves the camera where it is)
+  // TASKS.csv #3695 — after 'Only these' / 'Uncheck', when none of the checked holes is in the view, the view frames them
   const framePendingRef = useRef(false);
   useEffect(() => {
     if (!framePendingRef.current) return;
@@ -3999,7 +3993,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const sameInputs = (a, b) => !!a && a.length === b.length && a.every((v, i) => v === b[i]);
   const clearGroup = (g) => { if (!g) return; while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); } };
   const assayInputs = [assays, assayDisplayElements, assayStyle, assayElements, assayVisible, collars, assaySource, layerStyles.assay]; // assaySource: #1695; layerStyles.assay: #3943 bars
-  useTraceBars({ groupsRef: layerGroupsRef, tracesRef, tracesSeq, mnlgy: layers.mnlgy, mnlgyStyle: layerStyles.mnlgy, mnlgyOn: layerVisible.mnlgy, mnlgyColour: (id, i) => mineralBarColour(id, i, (v) => effectiveColor("mnlgy", v)), assays, assaySyms: assayDisplayElements, assayStyle: layerStyles.assay, assayOn: assayVisible, assayShown: (a) => !isMarkedQcRow(a) && assayRowShown(a), assayElements }); // TASKS.csv #3943
+  useTraceBars({ groupsRef: layerGroupsRef, tracesRef, tracesSeq, mnlgy: layers.mnlgy, mnlgyStyle: layerStyles.mnlgy, mnlgyOn: layerVisible.mnlgy, mnlgyColour: (id, i) => mineralBarColour(id, i, (v) => effectiveColor("mnlgy", v)), assays, assaySyms: assayDisplayElements, assayStyle: layerStyles.assay, assayOn: assayVisible, assayShown: (a) => !isMarkedQcRow(a) && assayRowShown(a), assayElements, custom: { layers: customLayers, visible: customVisible, styles: layerStyles } }); // TASKS.csv #3943 / #4008
   const assayBuiltRef = useRef(null);
   const assayKeptRef = useRef(new Map()); // #3117 — each element's markers, kept while its inputs are the same
   const buildAssaySpheres = () => {
@@ -4997,7 +4991,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const openCustomStyle = (l) => {
     const intervals = (l.rows || []).filter((r) => r.to != null && !isNaN(r.to)).length;
     const kind = intervals >= (l.rows || []).length / 2 ? "interval" : "point";
-    setStyleTarget({ key: `custom:${l.id}`, kind, label: l.name, fields: customFields(l) /* #1697 */, defaults: { opacity: 1 }, sizeNote: kind === "interval" ? tr("Default tube radius 1.6 m.") : tr("Default marker radius 2.4 m.") });
+    setStyleTarget({ key: `custom:${l.id}`, kind, bars: kind === "interval" && !!l.rows?.length && l.rows.every((r, i) => i > 99 || r.value == null || r.value === "" || Number.isFinite(+r.value)), // #4008: numeric (the first 100 rows)
+      label: l.name, fields: customFields(l) /* #1697 */, defaults: { opacity: 1 }, sizeNote: kind === "interval" ? tr("Default tube radius 1.6 m.") : tr("Default marker radius 2.4 m.") });
   };
   const openRowMenu = (e, title, items) => { e.preventDefault(); setRowMenu({ x: e.clientX, y: e.clientY, title, items: items.filter(Boolean) }); };
   const zoomToObject = (obj) => { if (obj) { const b = new THREE.Box3().setFromObject(obj); if (!b.isEmpty()) fitBox(b); } };
@@ -5188,6 +5183,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()} colorOf={effectiveColor} labelOf={effectiveLabel}
           onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)}
           numericSym={numericSymbology[key]} style={layerStyles[key]} onStyle={(p) => setLayerStyle(key, styleKindFor(key) || "point", p)}
+          customBars={key === "mnlgy" ? { layers: customLayers, styles: layerStyles, set: (id, bar) => setLayerStyle(`custom:${id}`, "interval", { bar: bar || null }) } : null} /* #4008 */
           onNumericSymChange={(next) => setNumericSymbology((p) => { const n = { ...p }; if (next) n[key] = next; else delete n[key]; return n; })} />
       </LayerRow>
     );
@@ -5546,7 +5542,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // (on use, like sectionDigitise.js #903), not at startup; this already returned a promise
   const openSectionOrSay = async (sent) => { const payload = { ...sent, groundSource: terrainShortName(terrain) /* #3949 */, overview: (await import("../lib/sectionOverview.js")).sectionOverview({ traces: tracesRef.current, visible: visibleHoles, boundaries, sections, id: sent.id, section: sent.section }, terrain) /* #3977 */ }; const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); const { withLithoMeanings } = await import("../lib/sectionLegend.js"); /* #3996 — on use */ return openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho)))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
   // TASKS.csv #759 — the section payload and its model backdrop, in viewer/sectionPayload.js since #3996 (loaded with the first section)
-  const buildSectionPayload = async (...args) => (await import("./viewer/sectionPayload.js")).makeSectionPayload({ lastLithBlock, lithUnitColor, terrain, tracesRef, assayDisplayElements, assayElements, assayStyle, assays, layers, plannedHoles, customLayers, effectiveColor, effectiveLabel, geophysPtsColorMode, geophysPtsMax, geophysPtsMin, geophysPtsStops, geophysSurveys, implicitMeshesRef, implicitSurfaces, isRowVisible, layerPrimitivesFor, layerStyles, layerVisible, numericClip, numericLayerColor, numericSymbology, originRef, pierceSurfaces, placedSurfaceSamples, project, structurePicksWithHoleAttitude, visibleHoles, voxelModels })(...args);
+  const buildSectionPayload = async (...args) => (await import("./viewer/sectionPayload.js")).makeSectionPayload({ lastLithBlock, lithUnitColor, terrain, tracesRef, assayDisplayElements, assayElements, assayStyle, assays, layers, plannedHoles, customLayers, customVisible, effectiveColor, effectiveLabel, geophysPtsColorMode, geophysPtsMax, geophysPtsMin, geophysPtsStops, geophysSurveys, implicitMeshesRef, implicitSurfaces, isRowVisible, layerPrimitivesFor, layerStyles, layerVisible, numericClip, numericLayerColor, numericSymbology, originRef, pierceSurfaces, placedSurfaceSamples, project, structurePicksWithHoleAttitude, visibleHoles, voxelModels })(...args);
 
   // TASKS.csv #525 — a LEVEL PLAN: what the plane z = rl cuts and the slab rl ± half holds (hole runs, logs, assays, structures, pierce points,
   // block-model cells, model surfaces, planned holes), as a section draws them (layerPrimitivesFor). #3137 — built a slice at a time in
@@ -5664,7 +5660,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const g = sectionFromCentre({ e, n, azimuth: Number(typedSection.azimuth) || 0, length: Number(typedSection.length) || 500 });
     openDefinedSection(g, `Section ${Math.round(e)}E ${Math.round(n)}N az ${g.azimuth.toFixed(0)}°`);
   };
-  // TASKS.csv #3681 — a hole's own row menu (the Help says right-click a hole): the row's three buttons, and Rename / Delete, which change the id or remove the hole
+  // TASKS.csv #3681 — a hole's own row menu (right-click a hole): its buttons, Rename and Delete
   // in the collars, survey, every layer, the assays and the custom layers as one step (Undo restores it)
   const openHoleMenu = (e, holeId) => openRowMenu(e, holeId, [
     { label: tr("Zoom to {hole_id}", { hole_id: holeId }), onClick: () => zoomToHole(holeId) },

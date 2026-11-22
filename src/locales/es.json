@@ -14987,5 +14987,8 @@
   "estimated {symbol} into the block model '{name}'": "estimó {symbol} en el modelo de bloques '{name}'",
   "added the grade shell's cells as the block model '{name}'": "agregó las celdas de la envolvente de ley como el modelo de bloques '{name}'",
   "built the vein '{name}'": "construyó la veta '{name}'",
-  "built the alteration halo '{name}'": "construyó el halo de alteración '{name}'"
+  "built the alteration halo '{name}'": "construyó el halo de alteración '{name}'",
+  "A bar beside the trace, its length following the value": "Una barra junto a la traza, de largo según el valor",
+  "Zoom in (or the wheel); pan with the middle button or Space + drag": "Acercar (o la rueda); desplace con el botón central o Espacio + arrastrar",
+  "Fit the whole section (or double-click empty ground)": "Ajustar toda la sección (o doble clic en terreno vacío)"
 }

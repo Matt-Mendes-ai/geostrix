@@ -71,6 +71,7 @@ export function cleanLayerStyle(style, kind) {
   // TASKS.csv #3943 — bars along the trace: a Mineralization layer's chosen minerals (up to six ids), or true for the Assays drawn as bars
   if (Array.isArray(s.bars) && s.bars.length) out.bars = s.bars.filter((x) => typeof x === "string" && x).slice(0, 6).map((x) => x.slice(0, 120));
   else if (s.bars === true) out.bars = true;
+  if (s.bar === true) out.bar = true; // TASKS.csv #4008 — a numeric custom layer drawn as a bar beside the trace
   if (s.slices === true) out.slices = true; // TASKS.csv #3990 — a Mineralization layer's intervals cut into one wedge per mineral
   return Object.keys(out).length ? out : null;
 }

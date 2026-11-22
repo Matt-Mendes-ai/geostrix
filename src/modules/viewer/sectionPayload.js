@@ -6,6 +6,7 @@ import { LAYER_META, colorForVoxelValue } from "../../lib/layers.js";
 import { alphaOnlyFan, meanPole } from "../../lib/sectionStructures.js"; // TASKS.csv #1130
 import { assayLegendGroups, voxelLegendGroups, numericLayerLegendGroups, assayHue } from "../../lib/legendGroups.js";
 import { sectionBarSets, withAssayBarLook } from "../../lib/sectionBars.js"; // TASKS.csv #4002
+import { barLayers } from "../../lib/customBars.js"; // TASKS.csv #4008 — the numeric custom layers drawn as bars
 import { corridorRuns, mdInRuns } from "../../lib/sectionCorridor.js"; // TASKS.csv #499
 import { corridorScatter } from "../../lib/sectionScatter.js"; // TASKS.csv #1807
 import { sectionCustomLegendItems } from "../../lib/customColour.js"; // TASKS.csv #2669
@@ -21,7 +22,7 @@ const toRad = (d) => (d * Math.PI) / 180;
 const plannedHoleTrace = (hole) => plannedTrace(hole); // as ViewerModule's (TASKS.csv #188 / #524)
 
 export function makeSectionPayload(c) {
-  const { lastLithBlock, lithUnitColor, terrain, tracesRef, assayDisplayElements, assayElements, assayStyle, assays, layers, plannedHoles, customLayers, effectiveColor, effectiveLabel, geophysPtsColorMode, geophysPtsMax, geophysPtsMin, geophysPtsStops, geophysSurveys, implicitMeshesRef, implicitSurfaces, isRowVisible, layerPrimitivesFor, layerStyles, layerVisible, numericClip, numericLayerColor, numericSymbology, originRef, pierceSurfaces, placedSurfaceSamples, project, structurePicksWithHoleAttitude, visibleHoles, voxelModels } = c;
+  const { lastLithBlock, lithUnitColor, terrain, tracesRef, assayDisplayElements, assayElements, assayStyle, assays, layers, plannedHoles, customLayers, customVisible, effectiveColor, effectiveLabel, geophysPtsColorMode, geophysPtsMax, geophysPtsMin, geophysPtsStops, geophysSurveys, implicitMeshesRef, implicitSurfaces, isRowVisible, layerPrimitivesFor, layerStyles, layerVisible, numericClip, numericLayerColor, numericSymbology, originRef, pierceSurfaces, placedSurfaceSamples, project, structurePicksWithHoleAttitude, visibleHoles, voxelModels } = c;
   // TASKS.csv #759 — the last model's units on this section as a picture (drawn behind the holes in the section
   // window): exact when the run evaluated this saved section on this same line, else read from the model's block at its
   // cell size, and said so. Nodes above the ground are left out. Coordinates: world E / N / elevation.
@@ -152,7 +153,10 @@ export function makeSectionPayload(c) {
       const clip = (holeId, from, to) => (runsOf.get(holeId) || []).map(([r0, r1]) => [Math.max(from, r0), Math.min(to, r1)]).filter(([f, t]) => t - f > 1e-6);
       const mnOn = scope.layerKeys != null ? scope.layerKeys.includes("mnlgy") : layerVisible.mnlgy || !!scope.also?.includes("mnlgy");
       return sectionBarSets({ holeIds, clip, mineralTitle: LAYER_META.mnlgy.label,
-        mnlgy: { rows: layers.mnlgy, chosen: layerStyles?.mnlgy?.bars, on: mnOn, shown: (r) => isRowVisible("mnlgy", r), codeColour: (v) => effectiveColor("mnlgy", v) },
+        // no `shown`: the 3D view draws the chosen minerals whatever the code chips say (useTraceBars is not given mnlgyShown), so a layer whose every code is off (the
+        // tubes hidden, only the wide-form fields drawn as bars) still shows its bars here (TASKS.csv #4008: the section read "0 intervals" and drew none)
+        mnlgy: { rows: layers.mnlgy, chosen: layerStyles?.mnlgy?.bars, on: mnOn, codeColour: (v) => effectiveColor("mnlgy", v) },
+        custom: { layers: barLayers(customLayers, customVisible, layerStyles), styles: layerStyles }, // #4008 — shown in 3D, as the 3D view's lanes after the minerals
         assay: { on: !!layerStyles?.assay?.bars && points.some((p) => p.assay), rows: assays, syms: assayDisplayElements, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])), hue: (s) => assayHue(s, assayElements) } });
     })();
     if (barSets.assayLanes) { const looked = withAssayBarLook(points, barSets.assayLanes); points.length = 0; points.push(...looked); }

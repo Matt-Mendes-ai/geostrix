@@ -16,6 +16,7 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 // only — no shape or size — and "Original colours" instead of the legend's.
 import WidthByRow from "./WidthByRow.jsx"; // TASKS.csv #3942
 import MineralSlicesRow from "./MineralSlicesRow.jsx"; // TASKS.csv #3990
+import CustomBarRow from "./CustomBarRow.jsx"; // TASKS.csv #4008
 export default function LayerStyleModal({ target, style, onChange, onReset, onClose }) {
   useEscapeKey(onClose);
   const st = resolveLayerStyle(style, target.kind, target.defaults);
@@ -73,6 +74,7 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
           <span style={{ width: 40, textAlign: "right", color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>×{size.toFixed(2)}</span>
         </div>
         {target.key === "mnlgy" && <MineralSlicesRow rows={layers?.mnlgy} style={style} onChange={onChange} row={row} lbl={lbl} /> /* TASKS.csv #3990 */}
+        {target.bars && <CustomBarRow style={style} onChange={onChange} row={row} lbl={lbl} /> /* TASKS.csv #4008 */}
         {target.key === "mnlgy" && <WidthByRow rows={layers?.mnlgy} style={style} onChange={onChange} row={row} lbl={lbl} select={{ flex: 1, padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }} /> /* TASKS.csv #3942 */}
         </>}
         {target.sizeNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-6px 0 10px 82px" }}>{target.sizeNote}</div>}
