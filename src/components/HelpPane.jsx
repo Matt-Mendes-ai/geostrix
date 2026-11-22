@@ -8,6 +8,8 @@ import { HELP_AREAS, openShortcuts } from "../lib/help.js"; // openShortcuts: TA
 import { PAGES, pageById, searchPages } from "../help/content.js";
 import { DIAGRAMS } from "../help/diagrams/index.jsx"; // TASKS.csv #3899 — loaded with Help, never at startup
 import FirstSteps from "../help/FirstSteps.jsx"; // TASKS.csv #3887 — the First steps guide, a Help page
+import CardPage from "../help/CardPage.jsx"; // TASKS.csv #3973 — a page that gives the card fields
+import { openFoldsFor } from "../help/openFolds.js"; // TASKS.csv #3973
 
 const sectionHead = { fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)", margin: "14px 0 6px" };
 const muted = { color: "var(--color-text-muted)" };
@@ -26,12 +28,15 @@ export default function HelpPane({ initialId = null, area = null, onClose }) { /
   const [id, setId] = useState(() => (initialId && pageById(initialId) ? initialId : null));
   const [query, setQuery] = useState("");
   const [history, setHistory] = useState([]);
+  const [focus, setFocus] = useState(null); // TASKS.csv #3973 — the search a page was opened from: its folds that hold the words open
   const bodyRef = useRef(null), searchRef = useRef(null);
   const page = id ? pageById(id) : null;
   const results = useMemo(() => searchPages(query, undefined, { area }), [query, area]);
-  const go = (next) => { setHistory((h) => (id ? [...h, id] : h)); setId(next); setQuery(""); };
+  const go = (next, from = null) => { setHistory((h) => (id ? [...h, id] : h)); setId(next); setFocus(from); setQuery(""); };
   const back = () => { setHistory((h) => { const prev = h[h.length - 1] ?? null; setId(prev); return h.slice(0, -1); }); };
   useEffect(() => { bodyRef.current?.scrollTo?.(0, 0); }, [id, query]);
+  // #3973 — every sentence sits on the page or in a fold: a search hit's folds open, and the first one is brought into view
+  useEffect(() => { if (focus && !query && bodyRef.current) openFoldsFor(bodyRef.current, focus); }, [id, focus, query]);
   useEffect(() => { if (!initialId) searchRef.current?.focus(); }, [initialId]);
   const onKeyDown = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (query) setQuery(""); else onClose(); } };
   const english = (currentLanguage() || "en") === "en";
@@ -49,7 +54,7 @@ export default function HelpPane({ initialId = null, area = null, onClose }) { /
       <div ref={bodyRef} className="ge-help-body">
         {!english && <div style={{ ...muted, fontSize: "var(--font-size-xs)", marginBottom: 8 }}>{tr("These help pages are in English for now. Tool names follow the interface.")}</div>}
         {query.trim() ? (
-          <Results results={results} query={query} onOpen={go} />
+          <Results results={results} query={query} onOpen={(pid) => go(pid, query)} />
         ) : page ? (
           <Page page={page} onOpen={go} onBack={history.length ? back : () => setId(null)} backLabel={history.length ? tr("Back") : tr("All help pages")} />
         ) : (
@@ -98,6 +103,14 @@ function Results({ results, query, onOpen }) {
 
 function Page({ page, onOpen, onBack, backLabel }) {
   const related = (page.related || []).map((r) => pageById(r)).filter(Boolean);
+  if (page.line) { // TASKS.csv #3973 — the card shape (src/help/CardPage.jsx); a page without `line` reads as before
+    const seeAlso = related.length > 0 && (<>
+      <div style={sectionHead}>{tr("See also")}</div>
+      <ul style={{ margin: 0, paddingLeft: 16 }}>{related.map((r) => <li key={r.id}><button type="button" style={linkBtn} onClick={() => onOpen(r.id)}>{tr(r.title)}</button></li>)}</ul>
+    </>);
+    return <CardPage page={page} onOpen={onOpen} pageExists={(pid) => !!pageById(pid)} More={More} related={seeAlso}
+      backButton={<button type="button" style={{ ...linkBtn, fontSize: "var(--font-size-xs)", marginBottom: 6 }} onClick={onBack}>← {backLabel}</button>} />;
+  }
   return (
     <article style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.5, color: "var(--color-text-secondary)" }}>
       <button type="button" style={{ ...linkBtn, fontSize: "var(--font-size-xs)", marginBottom: 6 }} onClick={onBack}>← {backLabel}</button>
