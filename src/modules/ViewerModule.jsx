@@ -3290,6 +3290,10 @@ ${describeTrend(t)}` };
     if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return { ok: false, error: "The last model has no cells below its modelled tops inside the model box: nothing to add." }; }
     const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
     const legend = stops.map((st) => `${st.value} = ${st.label}`).join(", ");
+    const sm = await import("../lib/viewer/sameModelBlocks.js"), rep = await sm.toReplace(sm.sameModelBlocks(voxelModels, lb), "blocks"); // #3989 — never a silent copy
+    if (rep.cancelled) return { ok: false, error: "The user cancelled adding the blocks in GeoStrix." };
+    rep.drop.forEach((id) => removeVoxelModel(id));
+    if (rep.drop.length) setNotices((p) => [...p, notice("Replaced {n} block model(s) of the same model.", { n: rep.drop.length })]);
     // #802: blocks built from surfaces open opaque, so they draw as their outer faces (#793) - a GemPy block keeps its look
     const vid = addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: lb.fromSurfaces ? "surfaces" : "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])), ...(lb.fromSurfaces ? { opacity: 1 } : {}) });
     const done = lb.fromSurfaces
@@ -3310,6 +3314,10 @@ ${describeTrend(t)}` };
     const ust = blockUnitStats(lb.block); // TASKS.csv #877
     // #3112 — the run's lowest unit with no base (openBelow, #2917) is everything to the box floor: built only when asked, and named so
     const ob = lb.openBelow, openLabel = lb.block.labels.find((l) => l != null && isOpenUnit(ob, l)), whereTr = openLabel == null ? "" : ob.floorRL != null ? tr("below {top}, to the box floor at RL {rl}", { top: ob.top, rl: ob.floorRL }) : tr("below {top}, to the box floor", { top: ob.top });
+    const sm = await import("../lib/viewer/sameModelBlocks.js"), rep = await sm.toReplace(sm.sameModelVolumes(implicitSurfaces, lb), "volumes"); // #3989
+    if (rep.cancelled) return;
+    rep.drop.forEach((id) => removeImplicitSurface(id));
+    if (rep.drop.length) setNotices((p) => [...p, notice("Replaced {n} unit volume(s) of the same model.", { n: rep.drop.length })]);
     const withOpen = openLabel != null && await askConfirm(tr("{unit} has no modelled base: its solid would be everything {where}, not the unit's own body. Build it too?", { unit: openLabel, where: whereTr }));
     lb.block.labels.forEach((label, k) => {
       if (label == null) return;
@@ -3455,7 +3463,7 @@ ${describeTrend(t)}` };
     mapConstraint,
     mapContactWorldPoints,
     mapLayers,
-    addRaster, rasters, removeRaster, // TASKS.csv #758
+    addRaster, rasters, removeRaster, updateRaster, // TASKS.csv #758; updateRaster: #3989
     modelAbortControllerRef,
     modelDomainId,
     modelResolution,
@@ -4161,7 +4169,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [desurveyMethod]);
   useEffect(() => {
     // TASKS.csv #2176 step 1 — the drillhole scene build, moved unchanged into viewer/drillholeScene.js (#1084 size cap)
-    buildDrillholeScene({ slice: true /* #3648 */, applyCategoryVisibility, applyHoleVisibilityRef /* #3253 */, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers: sceneLayers /* #3241 */, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
+    buildDrillholeScene({ slice: true /* #3648 */, applyCategoryVisibility, applyHoleVisibilityRef /* #3253 */, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers: sceneLayers /* #3241 */, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, rasters, rebuildSeq, requestRebuild: () => setRebuildSeq((n) => n + 1) /* #3990 */, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels, pointBuildersStale: () => [!sameInputs(assayBuiltRef.current, assayInputs), !sameInputs(geophysBuiltRef.current, geophysInputs), !sameInputs(surfaceBuiltRef.current, surfaceInputs)] /* #2176 */ });
   }, [collars, survey, desurveyBites ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 / #2371 — not when every hole keeps one attitude (straight holes, the same for every method) */, noHoles ? sceneLayers : layersForBuild /* #1582; sceneLayers: #3241 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */, deferRound /* #3544 — a held build runs once at its release */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer

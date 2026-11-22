@@ -6,12 +6,14 @@ import { fieldStyler } from "../../lib/mineralFields.js"; // TASKS.csv #3941
 import { mineralAsTubes, tubeSpan, hasDepths, MIN_TUBE_M, MNLGY_RADIUS } from "../../lib/viewer/mineralDraw.js"; // TASKS.csv #3987
 import { widthScale } from "../../lib/widthBy.js"; // TASKS.csv #3942
 import { setTubeBaseRadius } from "../../lib/viewer/tubeShader.js"; // TASKS.csv #3942
+import { slicesModule, loadSlices } from "../../lib/viewer/slicesRegistry.js"; // TASKS.csv #3990 — the slices' drawing, loaded on use
+import { isLight } from "../../lib/viewer/lightDrawing.js"; // TASKS.csv #3990 — fewer arc segments per wedge, never fewer wedges
 import { unsurveyedSpans } from "../../lib/viewer/unsurveyedTail.js"; // TASKS.csv #3588 (5); #3761: every stretch with no survey station, not only the tail
 const sleeveToken = new WeakMap(); // TASKS.csv #3761 — the sleeves' code (lib/viewer/assumedSleeve.js) loads when a hole has an unsurveyed stretch: the latest build's token
 import * as THREE from "three";
 import { DRAW_ORDER } from "../../lib/viewer/drawOrder.js"; // TASKS.csv #2776
 import { t as tr } from "../../lib/i18n.js";
-import { LAYER_META, minMax } from "../../lib/layers.js";
+import { LAYER_META, minMax, CATEGORICAL_SAFE_COLORS } from "../../lib/layers.js"; // CATEGORICAL_SAFE_COLORS: #3990, a wide layer's wedges
 import { arrMin, arrMax } from "../../lib/arrayStats.js";
 import { desurveyHole, holeAttitudeAssumed } from "../../lib/desurvey.js";
 import { errorNotice, notice } from "../../lib/notices.js"; // notice: #2937
@@ -31,6 +33,7 @@ import { fieldColourer } from "../../lib/fieldColours.js"; // TASKS.csv #3553
 import { PROTO_CYLINDER, PROTO_SPHERE_8, PROTO_SPHERE_12, PROTO_CIRCLE_24, PROTO_PRISM_4, PROTO_SQUARE, PIN_AXIS, dipPinDir, intervalProto, lightSolid, PROTO_CROSS, UP_Y, DIR_TMP, POINT_PROTO } from "../../lib/viewer/protos.js";
 
 const toRad = (d) => (d * Math.PI) / 180;
+const ROLL_TMP = new THREE.Quaternion(); // TASKS.csv #3990 — a wedge's turn about the trace
 
 // TASKS.csv #378 — collar markers were a fixed cream (0xf2e9d8): 1.10:1 against this default background,
 // i.e. invisible in plan view, where a vertical hole IS its collar. They now take the dark text colour
@@ -213,7 +216,7 @@ export function keptOrigin(prev, mean, tol = ORIGIN_KEEP_M) {
 }
 
 export async function buildDrillholeScene(ctx) { // async: #3648 (slices only when ctx.slice)
-  const { applyCategoryVisibility, applyHoleVisibilityRef, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
+  const { applyCategoryVisibility, applyHoleVisibilityRef, applyLegendOverrideColors, autoFitInitial, baseColorForBuild, bgColorRef, boundaries, buildAssaySpheresRef, buildDefer, buildGeophysPtsRef, buildSurfaceSamplesRef, collarMaterialRef, collarSize /* #2823 */, collars, customLayers, desurveyMethod, effectiveLabel, fitBox, hasAutoFitRef, holeLabelAnchorsRef, holeLabelModeRef, isRowVisibleForBuild, lastHoleTraceCountRef, lastTracesRef, layerGroupsRef, layers, layerStyles, mapLayers, numericLayerColor, numericRange, numericSymbology, omfObjects, originRef, placedSurfaceSamples, pointBuildersStale, rasters, rebuildSeq, requestRebuild /* #3990 */, setDataLoaded, setNotices, setTracesSeq, surfaceStructures, survey, syncImplicitOrigin, terrain, tracesRef, voxelModels } = ctx;
   const groups = layerGroupsRef.current;
   if (!groups.litho || buildDefer.skip() || buildDefer.held?.()) return; // #1500 — a restore just scheduled its state: build once, next render; held: #3544 — the import queue builds once, at its end
   // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
@@ -483,6 +486,11 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
   const widthCache = new Map(); // #3942 — Width by: the radius factor per row
   const widthOf = (k) => { if (!widthCache.has(k)) widthCache.set(k, LAYER_META[k]?.numeric ? null : widthScale(layers[k], layerStyles[k])); return widthCache.get(k); };
   const rampBy = (k) => { if (!rampByCache.has(k)) rampByCache.set(k, LAYER_META[k]?.numeric ? null : fieldStyler(layers[k], layerStyles[k])); return rampByCache.get(k); };
+  // TASKS.csv #3990 — the Mineralization layer in slices: its wedges per row (lib/mineralSlices.js); the module not loaded yet (a project saved with
+  // slices), the plain tubes this once and one rebuild when it is in
+  const SL = layerStyles?.mnlgy?.slices && layers?.mnlgy?.length ? slicesModule() : null;
+  if (layerStyles?.mnlgy?.slices && layers?.mnlgy?.length && !SL) loadSlices().then(() => requestRebuild?.()).catch(() => {});
+  const mnlgySlices = SL ? SL.slicesOf(layers.mnlgy) : null;
   const buildErrors = [];
   const traceHoles = []; // #2176 step 3 — { holeId, pts, dashed } for addTraceChunks
   const sleeveHoles = []; // #3761 — { holeId, spans: [trace points] }: the pale sleeve over a hole's unsurveyed stretches
@@ -564,6 +572,19 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
        try {
         if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
         const rr = ws ? radius * ws.w(row) : radius; // #3942
+        // #3990 — in slices: this row's wedges (a long-form row: its mineral's; a wide row: one per mineral field), coloured by mineral; a repeated
+        // mineral of its interval is drawn once (no wedge), a wide row with no mineral over 0 keeps its plain tube
+        const parts = opt.slices ? opt.slices.parts.get(row) || null : null;
+        if (opt.slices && !parts && opt.slices.form !== "wide") return;
+        const wedge = parts && ((pt, len, x, y, z, ux, uy, uz) => {
+          const color = opt.slices.form === "wide" ? CATEGORICAL_SAFE_COLORS[pt.lane % CATEGORICAL_SAFE_COLORS.length] : baseColorForBuild(groupKey, row.value);
+          const m = new PickStandIn(SL.wedgeProto(pt.span, isLight()), { color, transparent: st.opacity < 1, opacity: st.opacity });
+          m.scale.set(rr, len, rr);
+          m.position.set(x, y, z);
+          m.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(ux, uy, uz)).multiply(SL.rollOf(pt.start, ROLL_TMP));
+          if (opt.slices.form === "wide") m.sliceLabel = `${pt.code}: ${pt.pct} %`;
+          return m;
+        });
         const [f0, t0] = opt.minLen ? tubeSpan(row, opt.minLen) : [row.from, row.to]; // #3987 — a short row of a mixed layer: a short tube, not a marker
         const p1 = look.at(f0), p2 = look.at(t0);
         const mid = look.between(f0, t0);
@@ -589,6 +610,8 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
           const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
           const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
           if (len < 1e-6) return;
+          if (parts) pieces = parts.map((pt) => wedge(pt, len, p1.x, p1.y, p1.z, dx / len, dy / len, dz / len)); // #3990
+          else {
           // TASKS.csv #312 — was a per-interval CylinderGeometry(radius, radius, len, 6, 1, false)
           // .translate(0, len/2, 0). Now the shared unit prototype (already translated the same
           // way) with the radius/length carried in .scale instead, which is what lets every
@@ -601,6 +624,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
           mesh_.scale.set(rr, len, rr);
           mesh_.position.set(p1.x, p1.y, p1.z);
           mesh_.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(dx / len, dy / len, dz / len)); // #1500 — shared vectors
+          }
         } else {
           // TASKS.csv #3279 (Galore review) — a curved interval was a CatmullRomCurve3 + TubeGeometry + material of its own (one draw call
           // each), all made again when a Desurvey switch moved the stations: 211 ms of a 539 ms build on WA gold (35,385 members). Now
@@ -613,6 +637,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
             const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (len < 1e-6) continue;
             const e0 = i > 0 ? ext : 0, e1 = i < last ? ext : 0, ux = dx / len, uy = dy / len, uz = dz / len;
+            if (parts) { for (const pt of parts) pieces.push(wedge(pt, len + e0 + e1, a.x - ux * e0, a.y - uy * e0, a.z - uz * e0, ux, uy, uz)); continue; } // #3990
             const m = new PickStandIn(intervalProto(st.shape, (layers?.[groupKey] || []).length), { color, transparent: st.opacity < 1, opacity: st.opacity }); // the count: #3987 — a big layer's bent intervals in ribbons too (light drawing), as its straight ones
             m.scale.set(rr, len + e0 + e1, rr);
             m.position.set(a.x - ux * e0, a.y - uy * e0, a.z - uz * e0);
@@ -623,7 +648,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
         // TASKS.csv #208 — a mapped Description in the tooltip; #227 — catValue for the category pass; #1500 — the tooltip made on first
         // read (lazyTip), holeId for the visible-holes pass
         for (const mesh of pieces || [mesh_]) {
-        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value + (meta.unit ? " " + meta.unit : "") /* #3529 */ : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
+        mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value + (meta.unit ? " " + meta.unit : "") /* #3529 */ : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${+row.from.toFixed(2)}–${+row.to.toFixed(2)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}${mesh.sliceLabel ? `\n${mesh.sliceLabel}` : ""}`); // lithoRow: TASKS.csv #599 picking; sliceLabel: #3990
         groups[groupKey].add(mesh);
         }
        } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
@@ -669,7 +694,7 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
     // point row as a MIN_TUBE_M tube on its depth), so one style (its shape, size, Width by, colour, the tube size choice) reaches them all; a
     // layer of points only keeps its markers (#684)
     const mnlgyTubes = mineralAsTubes(layers.mnlgy);
-    buildIntervalTube("mnlgy", { filter: mnlgyTubes ? hasDepths : isIntervalRow, minLen: mnlgyTubes ? MIN_TUBE_M : 0, meta: { radius: MNLGY_RADIUS, opacity: 0.85, extraSuffix: "%" } });
+    buildIntervalTube("mnlgy", { filter: mnlgyTubes ? hasDepths : isIntervalRow, minLen: mnlgyTubes ? MIN_TUBE_M : 0, meta: { radius: MNLGY_RADIUS, opacity: 0.85, extraSuffix: "%" }, slices: mnlgySlices /* #3990 */ });
     if (!mnlgyTubes) buildPointMarkers("mnlgy", (r) => !isIntervalRow(r));
     buildPointMarkers("magsusc");
 

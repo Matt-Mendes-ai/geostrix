@@ -8,6 +8,7 @@ import { lineScaleOf } from "./structureSymbols.js"; // TASKS.csv #3091
 import { fieldRamp, fieldRampLegend } from "./customColour.js"; // TASKS.csv #3941
 import { widthScale, widthLegendGroup } from "./widthBy.js"; // TASKS.csv #3942
 import { assayBarScale, mineralBarScale, barLegendGroup, mineralBarColour } from "./traceBarsData.js"; // TASKS.csv #3943
+import { slicesModule } from "./viewer/slicesRegistry.js"; // TASKS.csv #3990 — the slices' module when loaded (it is, while a layer draws in slices)
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
@@ -93,6 +94,10 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
     const bs = Array.isArray(styles?.[key]?.bars) ? mineralBarScale(rows, styles[key].bars) : null; // TASKS.csv #3943 — the bars' scale
     if (bs?.length) groups.push(barLegendGroup(`${key}_bars`, `${LAYER_META[key].label} bars`, bs, (id, i) => mineralBarColour(id, i, (v) => colorFor(key, v))));
     if (ws) groups.push(widthLegendGroup(key, LAYER_META[key].label, ws));
+    // TASKS.csv #3990 — slices of a wide layer are coloured by mineral field (the colour-blind-safe palette, by the field's place): their key here
+    // (a long-form layer's slices take its codes' colours, listed above)
+    const sl = styles?.[key]?.slices ? slicesModule()?.slicesOf(rows) : null;
+    if (sl?.form === "wide" && sl.codes.length) groups.push({ key: `${key}_slices`, label: `${LAYER_META[key].label} slices`, items: sl.codes.map((c, i) => [c, CATEGORICAL_SAFE_COLORS[i % CATEGORICAL_SAFE_COLORS.length]]) });
   });
   return groups;
 }

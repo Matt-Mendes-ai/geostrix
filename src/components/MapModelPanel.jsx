@@ -106,6 +106,9 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const [relation, setRelation] = useState("onlap");
   const [fullDetail, setFullDetail] = useState(false); // TASKS.csv #3162 follow-up — skip the work budget for one run (#3198)
   const [showWhy, setShowWhy] = useState(false);
+  const [fit, setFit] = useState(null); // TASKS.csv #3989 — the last run's fit against this map, and its 'where it differs' overlay
+  const [showDiff, setShowDiff] = useState(false);
+  useEffect(() => { if (busy) { setFit(null); setShowDiff(false); } }, [busy]); // a new run: the card waits for its own fit
   const unitInfo = new Map((suggestion?.units || []).map((u) => [u.unit, u]));
   const leftOut = Object.keys(roles).filter((u) => roles[u] !== "stratigraphic");
   // TASKS.csv #821 — the units in the "intrusion" role, as closed bodies (outline to a depth, vertical or dipping walls)
@@ -340,10 +343,11 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           {tr("Terrain under {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest sit at the map layer's elevation{z}, where the surfaces are cut; a terrain over the whole map (Maps > Terrain) fixes that.", { a: groundCount.pointsOnGround, n: groundCount.points, b: groundCount.measurementsOnGround, m: groundCount.measurements, z: Number.isFinite(Number(layer?.elevation)) ? tr(" (RL {z})", { z: Math.round(Number(layer.elevation)) }) : "" })}
         </div>
       )}
-      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks, bedding, planes, faults: runFaults /* #3985 — merged pieces as one trace */, relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
+      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks, bedding, planes, faults: runFaults /* #3985 — merged pieces as one trace */, relation, leftOut, onFit: setFit /* #3989 */, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
         disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
+      {fit && !busy && <MapFitCard fit={fit} shown={showDiff} onShow={(on) => { setShowDiff(on); fit.show(on); }} />}
       {groundAt && order.length < 2 && !busy && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{order.length === 1 ? tr("Only one unit ({unit}) is in the stratigraphic role: a model needs at least two. Set another unit's role to stratigraphic above, or build the unit as an intrusion body below.", { unit: order[0] }) : tr("No unit is in the stratigraphic role: a model needs at least two units in order. Set their roles above.")}</div>}{/* TASKS.csv #2086 — Build was disabled with no word */}
       {holeFit && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("No outcrop orientation: each top will get one fitted from its logged contacts ({n} in use), a least-squares plane through its contact points.", { n: holePreview.contacts.length.toLocaleString() })}</div>}{/* #2409 */}
       {noOrient && lithoRows?.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("From drillholes alone: 3D Modelling > Stratigraphic stack or Implicit surface; or tick 'Use the drillholes' logged contacts' above with each code's unit.")}</div>}{/* #2409 */}
@@ -407,6 +411,23 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
 const FAULT_TYPE_LABEL = { thrust: "Thrust", reverse: "Reverse", normal: "Normal", "strike-slip": "Strike-slip", fault: "Fault" };
 const fmtLen = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
 // TASKS.csv #3985 — the faults' offer: which ones the pick keeps and leaves out, and why, before the run
+// TASKS.csv #3989 (a) — after a run: how much of the mapped ground the model's unit at the terrain matches, per unit (largest first, a poor one
+// says what the model has there instead), and the 'where it differs' overlay on the terrain, hidden until ticked
+const pctOf = (v) => (v == null ? "–" : `${Math.round(100 * v)} %`);
+function MapFitCard({ fit, shown, onShow }) {
+  const line = { fontSize: "var(--font-size-xs)", lineHeight: 1.45, color: "var(--color-text)" };
+  const units = fit.units.slice(0, 8);
+  return (
+    <div role="status" style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", margin: "6px 0" }}>
+      <div style={{ ...line, fontWeight: 600 }}>{fit.overall == null ? tr("The model has none of the mapped units here, so its fit to the map cannot be scored.") : tr("Matches the map on {pct} of the mapped ground", { pct: pctOf(fit.overall) })}</div>
+      {units.map((u) => <div key={u.unit} style={line}>{u.unit}: {pctOf(u.pct)}{u.pct != null && u.pct < 0.5 && u.modelledAs ? <span style={{ color: "var(--color-text-muted)" }}> {tr("(mostly {unit})", { unit: u.modelledAs })}</span> : null}</div>)}
+      {fit.unscored.length > 0 && <div style={{ ...line, color: "var(--color-text-muted)" }}>{tr("Not scored, not in the model: {list}", { list: fit.unscored.slice(0, 6).join(", ") + (fit.unscored.length > 6 ? "…" : "") })}</div>}
+      {fit.differ > 0 && <label style={{ ...line, display: "flex", gap: 6, alignItems: "center", marginTop: 4, cursor: "pointer" }}>
+        <input type="checkbox" checked={shown} onChange={(e) => onShow(e.target.checked)} />{tr("Show where it differs (red, on the terrain)")}
+      </label>}
+    </div>
+  );
+}
 function FaultPickOffer({ plan, names, reason, onTake }) {
   const line = { fontSize: "var(--font-size-xs)", lineHeight: 1.45, color: "var(--color-text)" };
   const label = (e) => e.ids.map((i) => names[i]).filter(Boolean).slice(0, 2).join(" + ");
