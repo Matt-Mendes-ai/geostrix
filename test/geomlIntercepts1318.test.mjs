@@ -34,7 +34,7 @@ test("an older add-on, a failed check or a wrong count gives no claim", () => {
   assert.equal(scoreIntercepts([], []), null);
 });
 test("the CSV quotes a hole name that needs it", () => {
-  assert.equal(missedInterceptsCsv([{ hole_id: 'A,"1', from: 1.234, to: 2, best: 0.4567 }]), 'hole_id,from_m,to_m,length_m,highest_probability\r\n"A,""1",1.23,2,0.77,0.457\r\n');
+  assert.equal(missedInterceptsCsv([{ hole_id: 'A,"1', from: 1.234, to: 2, best: 0.4567 }]), 'hole_id,from_m,to_m,length_m,highest_probability,reason\r\n"A,""1",1.23,2,0.77,0.457,near the 50% line\r\n'); // reason: TASKS.csv #4019 (no block given: by the % alone)
 });
 test("the add-on predicts at the app's points and the panel lists what it misses", () => {
   const m = readFileSync("addons/geoml/geostrix_geoml/models.py", "utf8"), p = readFileSync("src/components/PredictivePanel.jsx", "utf8");

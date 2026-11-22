@@ -6,8 +6,8 @@
     "tooltips": 18000,
     "infoPopups": 1100,
     "notices": 14528,
-    "interface.other": 96304,
-    "interface.all": 129932,
+    "interface.other": 96427,
+    "interface.all": 130055,
     "help.page.data": 332,
     "help.page.everyday": 294,
     "help.page.geophysics": 917,
@@ -25,8 +25,8 @@
     "interface.area.Basic path": 16633,
     "interface.area.Geophysics": 13286,
     "interface.area.Modelling": 18463,
-    "interface.area.Targeting, Maps, Geological Mapping": 15248,
+    "interface.area.Targeting, Maps, Geological Mapping": 15259,
     "interface.area.Geochem": 5628,
-    "interface.area.Everything else (shared dialogs and library messages)": 18832
+    "interface.area.Everything else (shared dialogs and library messages)": 18944
   }
 }
