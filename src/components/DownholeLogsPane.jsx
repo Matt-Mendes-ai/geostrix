@@ -7,7 +7,7 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // foldDomainRows: TASKS.csv #2790
 import { LAYER_META } from "../lib/layers.js";
-import { groupLogByCode, rankLogGroups, shortenCode, shortCodes /* #3442 */, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, allAboveZero, countAtOrBelowZero, sig3, orderLogSources, logScaleFor } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
+import { groupLogByCode, rankLogGroups, shortenCode, shortCodes /* #3442 */, codeTable, ratioComparable, assayIndex, logVsAssayIndexed, logVsModel, NOT_LOGGED, strideSample, SCATTER_MAX, allAboveZero, countAtOrBelowZero, sig3, orderLogSources, logScaleFor, withEvaluatedLogs /* #3813 */ } from "../lib/downholeLogs.js"; // logVsModel: #1595; strideSample: #2331; logScaleSuits...: #2558; groupLogByCode / rankLogGroups: #2948
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr, fmtNum } from "../lib/i18n.js";
@@ -182,7 +182,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   // TASKS.csv #2967 — built-in and imported logs in one list, the most readings first (orderLogSources): it opened on 'Recovery (3,408)'
   const { project, setLogValidRange } = useStore(); // #3116 — the built-in logs' range / despike
   const logValidRange = project?.logValidRange || null;
-  const sources = useMemo(() => orderLogSources(numericSourceChoices({ layers, customLayers, models: false, logValidRange }).filter((s) => s.layerId == null || !modelIds.has(s.layerId))), [logValidRange, layers, customLayers, modelIds]);
+  // TASKS.csv #3813 — and the models evaluated onto the holes after them: with assays and no log the pane said 'No downhole log yet'
+  const sources = useMemo(() => withEvaluatedLogs(orderLogSources(numericSourceChoices({ layers, customLayers, models: false, logValidRange }).filter((s) => s.layerId == null || !modelIds.has(s.layerId))), numericSourceChoices({ customLayers: customLayers.filter((l) => modelIds.has(l.id)), models: true }), (id) => customLayers.find((c) => c.id === id)?.defaultRampScale), [logValidRange, layers, customLayers, modelIds]);
   // TASKS.csv #2394 (review #2325) — the pane forgot its log, code layer, element and model on reopen, and the stall of picking the log
   // again was paid every time: kept per project as Geochem's and Geophysics' panels keep theirs (#1284)
   const keptScope = scopeOf(useStore().getProjectToken());
@@ -279,7 +280,8 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   // TASKS.csv #1595 — against a block model evaluated onto the holes (Block models > Evaluate onto drillholes)
   const onHoles = useMemo(() => customLayers.filter((l) => rowSome(rowsRefOf(l), (r) => r.modelled && (r.numeric || (typeof r.value === "number" && Number.isFinite(r.value))), "modelled")) /* rows from Evaluate (the store's copy keeps only id / name / rows). #2240: and drops 'numeric', so a modelled row with a number counts (categorical evaluations carry text) */, [customLayers]);
   const [modelLayerId, setModelLayerId] = useKeptState(keptScope, "dhlogs.model", "");
-  const modelLayer = onHoles.find((l) => String(l.id) === modelLayerId) || onHoles[0] || null;
+  const onHolesVs = useMemo(() => onHoles.filter((l) => String(l.id) !== String(source?.layerId)), [onHoles, source]); // #3813 — not the Log against itself (#2558)
+  const modelLayer = onHolesVs.find((l) => String(l.id) === modelLayerId) || onHolesVs[0] || null;
   const { value: vm, pending: vmPending } = useDeferredMemo(() => (data && modelLayer ? logVsModel(data.assays, data.symbol, modelLayer.rows) : null), [data, modelLayer], heavy); // #2948
   const vmLogX = useMemo(() => !!vm && allAboveZero(vm.pairs.map((p) => p[0])), [vm]), vmLogY = useMemo(() => !!vm && allAboveZero(vm.pairs.map((p) => p[1])), [vm]);
   const working = (text) => <div style={note} role="status">{text}</div>;
@@ -291,6 +293,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={note}>{tr("Petrophysics from the holes: a log by logged code (magnetite destruction shows as a low mag-susc class) and against an assay element, reading by reading.")}</div>
+          {source?.evaluated && <div style={note}>{tr("\"{name}\" is a block model evaluated onto the holes, read here as a log.", { name: source.label })}</div>}{/* TASKS.csv #3813 */}
           <label style={row}>{tr("Log")}
             <select value={source?.key || ""} onChange={(e) => setSourceKey(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Downhole log")}>
               {sources.map((s) => <option key={s.key} value={s.key}>{s.label} ({fmtNum(s.n)})</option>)}
@@ -379,11 +382,11 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               ) : <div style={note}>{tr("Fewer than three readings fall inside an assay interval of the same hole.")}</div>}
             </>
           )}
-          {onHoles.length > 0 ? (
+          {onHolesVs.length > 0 ? (
             <>
               <label style={{ ...row, marginTop: 8 }}>{tr("Against a model on the holes")}
                 <select value={modelLayer ? String(modelLayer.id) : ""} onChange={(e) => setModelLayerId(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Block model evaluated onto the holes")}>
-                  {onHoles.map((l) => <option key={l.id} value={String(l.id)}>{l.name}</option>)}
+                  {onHolesVs.map((l) => <option key={l.id} value={String(l.id)}>{l.name}</option>)}
                 </select></label>
               {vmPending ? working(tr("Pairing {n} readings with the model…", { n: fmtNum(nRows) })) : vm && vm.n >= 3 ? (
                 <>
@@ -395,7 +398,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
                 </>
               ) : <div style={note}>{tr("Fewer than three readings fall inside a cell of this model.")}</div>}
             </>
-          ) : <div style={{ ...note, marginTop: 8 }}>{tr("To compare this log with a block model, evaluate the model onto the holes first (Block models > the model's drillhole icon); it then appears here.")}</div>}
+          ) : source?.evaluated ? null : <div style={{ ...note, marginTop: 8 }}>{tr("To compare this log with a block model, evaluate the model onto the holes first (Block models > the model's drillhole icon); it then appears here.")}</div>}
           <div style={{ ...note, marginTop: 8 }}>{tr("To grid this log into a block model or shell it, use 3D Modelling > Estimation or Grade shell and pick it as the source.")}{onEstimate && <>{" "}<button type="button" onClick={onEstimate} style={{ ...smallSel, cursor: "pointer" }}>{tr("Open 3D Modelling")}</button></>}</div>
         </div>
       )}

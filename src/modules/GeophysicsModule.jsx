@@ -271,12 +271,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const labelOf = (v) => (model.valueLabels && model.valueLabels[v]) || v;
     const out = rows.map((r) => ({ ...r, value: discrete ? labelOf(r.value) : r.value, modelled: true, ...(discrete ? {} : { numeric: true }), modelColor: colorForVoxelValue(model, r.value) }));
     // TASKS.csv #3813 — a second evaluation of the same model replaces its layer (same id: its style and the axis lists keep it) instead of adding a second layer of the same name
-    const prevLayer = (customLayers || []).find((l) => l.sourceModel === model.id && /^On holes: /.test(String(l.name)));
+    // and, by its name, the layer of a model removed and imported again (a new id)
+    const prevLayer = (customLayers || []).find((l) => l.sourceModel === model.id && /^On holes: /.test(String(l.name))) || (customLayers || []).find((l) => l.sourceModel != null && String(l.name) === `On holes: ${model.name}`);
     // TASKS.csv #3813 (Matt's decision, 2026-11-21) — the layer starts on the model's own scale: log when its colours are log-spaced, else linear (switchable in the layer's Style)
     const scale = discrete ? undefined : stopsAreLogSpaced(model.stops) ? "log" : "linear";
     const id = prevLayer?.id || `custom_${Date.now()}`;
     setCustomLayers((p) => (p.some((l) => l.id === id) ? p.map((l) => (l.id === id ? { ...l, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null, defaultRampScale: scale } : l)) : [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null, defaultRampScale: scale }]));
-    setVoxelError({ info: true, text: tr("Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs.{routes}", { name: model.name, routes: onHolesRoutes(assays, layers), rows: rows.length.toLocaleString(), holes }) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
+    const said = { name: model.name, routes: onHolesRoutes(assays, layers), rows: rows.length.toLocaleString(), holes };
+    setVoxelError({ info: true, text: (prevLayer ? tr("Updated \"On holes: {name}\" (same layer, style kept): {rows} cell crossing(s) along {holes} hole(s).{routes}", said) : tr("Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs.{routes}", said)) + " " + tr("({s} s)", { s: secs < 10 ? secs.toFixed(1) : Math.round(secs) }) });
   };
   // User question after the MAX_CELLS coarsening budget was lowered (perf investigation done in this
   // sandbox, which has no real GPU — see voxel.js's MAX_CELLS comment): "do you think we can increase

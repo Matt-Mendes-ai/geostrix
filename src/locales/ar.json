@@ -12833,7 +12833,6 @@
   "\"{name}\" is a 3D UBC mesh ({nx} × {ny} × {nz} cells): import it under Geophysics › Block models › Import UBC mesh + model. This reads one 2D line.": "\"{name}\" شبكة UBC ثلاثية الأبعاد ({nx} × {ny} × {nz} خلية): استوردها من الجيوفيزياء › نماذج الكتل › استيراد شبكة + نموذج UBC. هذا يقرأ خطاً ثنائي الأبعاد واحداً.",
   "One 2D line only. A UBC 3D mesh goes to Block models; a cloud of apparent values (X Y Z value) to Point survey.": "خط ثنائي الأبعاد واحد فقط. تذهب شبكة UBC ثلاثية الأبعاد إلى نماذج الكتل؛ وسحابة القيم الظاهرية (X Y Z قيمة) إلى مسح نقطي.",
   "Cross-plots: Downhole logs against a log, Geochem › X–Y scatter against an assay.": "المخططات المتقاطعة: سجلات الثقب مقابل سجل، الجيوكيمياء › مبعثر X–Y مقابل تحليل.",
-  "For a cross-plot against an assay, use Geochem › X–Y scatter (the model's values are listed as 'On holes: …').": "للمخطط المتقاطع مقابل تحليل، استخدم الجيوكيمياء › مبعثر X–Y (تُدرج قيم النموذج باسم 'On holes: …').",
   "For a cross-plot against a log, use Downhole logs.": "للمخطط المتقاطع مقابل سجل، استخدم سجلات الثقب.",
   "Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs.{routes}": "أُضيف «على الثقوب: {name}» — قيمة النموذج في {rows} عبور خلية على طول {holes} ثقب. افتح سجل الشريط لثقب لمقارنتها بالسجلات.{routes}",
   "No magnetic survey yet: import one above.": "لا يوجد مسح مغناطيسي بعد: استورد واحداً أعلاه.",
@@ -14851,5 +14850,8 @@
   "cover / casing": "غطاء / تغليف",
   "no recovery": "بلا استرداد",
   "{unit} starts {n} of the {h} holes at the collar: it is the cover. Its top there is the ground, not a contact, so a surface from its other tops is not its top (it sits off to one side). Model its base instead: Model > Cover and weathering, or set its role to Overburden in Modelling codes.": "تبدأ {unit} في {n} من أصل {h} ثقباً عند الفوهة: إنها الغطاء. قمتها هناك هي سطح الأرض لا تماس، فالسطح المبني من قممها الأخرى ليس قمتها (يقع في جانب واحد). نمذج قاعدتها بدلاً من ذلك: النموذج > الغطاء والتجوية، أو اجعل دورها غطاءً في رموز النمذجة.",
-  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " بوصفها غطاءً، قاعدتها سطح حتّ واحد فوق الصخور التي تستقر عليها ({list})، ويُنمذج العمود تحته."
+  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " بوصفها غطاءً، قاعدتها سطح حتّ واحد فوق الصخور التي تستقر عليها ({list})، ويُنمذج العمود تحته.",
+  "For a cross-plot against an assay: Downhole logs (listed there as a log) or Geochem › X–Y scatter.": "للمخطط المتقاطع مقابل تحليل: سجلات ثقب الحفر (مُدرج هناك كسجل) أو الجيوكيمياء › مبعثر X–Y.",
+  "\"{name}\" is a block model evaluated onto the holes, read here as a log.": "«{name}» نموذج كتلي مُقيَّم على الثقوب، يُقرأ هنا كسجل.",
+  "Updated \"On holes: {name}\" (same layer, style kept): {rows} cell crossing(s) along {holes} hole(s).{routes}": "حُدِّث «على الثقوب: {name}» (الطبقة نفسها، بنمطها): {rows} عبور خلية على طول {holes} ثقب.{routes}"
 }
