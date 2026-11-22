@@ -29,6 +29,7 @@ export const PROTECTIVE = [
   ["the range comes from the spacing and the variogram only (probable grade)", "components/ProbableGradePanel.jsx", ["spacing of the holes", "variogram only", "geology"]],
   ["a prediction from nearby holes, not a measurement (probable grade)", "components/ProbableGradePanel.jsx", ["prediction", "not a measurement"]],
   ["beyond the drilling: no prediction (a planned hole's row)", "components/PlannedHoleParts.jsx", ["beyond the drilling", "no prediction"]],
+  ["a suggested program, not an order: the geologist decides (drill program)", "components/DrillProgramSection.jsx", ["a suggestion", "you decide"]], // TASKS.csv #3962 (P2)
   ["a picture of where the grade is, not a resource estimate (guided tool)", "modules/viewer/guided/guidedTools.js", ["not a resource estimate"]],
   // extrapolated, or held by one hole
   ["blocks that rest on one hole or are extrapolated (pit shell)", "components/PitShellPane.jsx", ["one hole", "extrapolated"]],

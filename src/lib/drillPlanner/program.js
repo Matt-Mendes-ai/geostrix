@@ -20,7 +20,7 @@ import { predictHole, holePosterior, DEFAULTS } from "./holePrediction.js";
 import { plannedTrace } from "../plannedTrace.js";
 
 export const RULES = ["balanced", "hit", "metal", "learn"];
-export const PROGRAM_DEFAULTS = { azStep: 30, dips: [-50, -65, -80], maxLength: 250, pastTargetM: 30, maxHoles: 10, perPad: 3, kappa: 0.5, runs: 60, lineShare: 0.25, padM: 10, maxCandidates: 2000 };
+export const PROGRAM_DEFAULTS = { azStep: 45, dips: [-50, -65, -80], maxLength: 250, pastTargetM: 30, maxHoles: 10, perPad: 3, kappa: 0.5, runs: 40, screenData: 200, lineShare: 0.25, padM: 10, maxCandidates: 2000 };
 
 // drilled collars [{ hole_id, x, y, z }] -> pads [{ id, x, y, z, holes, isNew: false }]: a collar within padM of a pad's centre joins it
 export function padsFromCollars(collars, padM = PROGRAM_DEFAULTS.padM) {
@@ -129,7 +129,8 @@ export function selectProgram(model0, candidates, rules, opts = {}) {
   const step = opts.step || DEFAULTS.step, runs = opts.runs || PROGRAM_DEFAULTS.runs, minSpacing = opts.minSpacing > 0 ? opts.minSpacing : 0;
   const lim = { maxHoles: PROGRAM_DEFAULTS.maxHoles, perPad: PROGRAM_DEFAULTS.perPad, ...(opts.limits || {}) };
   const searchRadius = opts.searchRadius || model0.vg.range;
-  const pOpts = (c) => ({ step, searchRadius, realizations: runs, inside: c.inside });
+  // screening: 40 runs on the nearest 200 composites (the table's numbers are the 200-run predictions from all of them, made after)
+  const pOpts = (c) => ({ step, searchRadius, realizations: runs, inside: c.inside, maxData: PROGRAM_DEFAULTS.screenData });
   const near = pointIndex(Math.max(5, minSpacing || 10)), drilledNear = pointIndex(50); // drilled and chosen (the twin test); drilled only (Why)
   const d = opts.drilled;
   if (d) for (let i = 0; i < d.x.length; i++) { near.add(d.x[i], d.y[i], d.z[i], d.ids?.[i] ?? ""); drilledNear.add(d.x[i], d.y[i], d.z[i], d.ids?.[i] ?? ""); }
@@ -172,7 +173,7 @@ export function selectProgram(model0, candidates, rules, opts = {}) {
     s.taken = true;
     cumCost += k.cost; cumMetres += c.length;
     perPadUsed.set(c.pad, (perPadUsed.get(c.pad) || 0) + 1); usedPads.add(c.pad);
-    chosen.push({ order: chosen.length + 1, id: c.id, pad: c.pad, x: c.x, y: c.y, z: c.z, azimuth: c.azimuth, dip: c.dip, length: c.length, inside: c.inside, value: s.value, cost: k.cost, money: k.money, score: best.score, cumCost, cumMetres, facts: facts(c, s.pred, drilledNear, step) });
+    chosen.push({ order: chosen.length + 1, id: c.id, pad: c.pad, x: c.x, y: c.y, z: c.z, azimuth: c.azimuth, dip: c.dip, length: c.length, inside: c.inside, value: s.value, cost: k.cost, money: k.money, score: best.score, cumCost, cumMetres, facts: facts(c, s.pred, drilledNear, step, model0.vg.nugget) });
     // as if drilled: its composites join the data at their predicted mean, and its centres join the twin test; the candidates near it are scored again
     model = believe(model, c, pOpts(c));
     for (const p of centres(c, step)) near.add(p.x, p.y, p.z, `#${c.id}`);
@@ -194,11 +195,14 @@ export function selectProgram(model0, candidates, rules, opts = {}) {
 
 // the numbers behind a hole's "Why" sentence: the nearest drilled hole to its middle (in the target), how little the model knows there
 // (the mean kriging variance of its composites, normal scores: 0 at a drilled composite, 1 where nothing is known), its P(hit)
-function facts(c, pred, near, step) {
+// unknown: the mean kriging variance above the nugget, as a share of what is left above it (0 at a drilled composite, 1 where nothing is
+// known): a 45 % nugget makes even a point beside a hole half "unknown", which is not what "the model knows little there" means
+function facts(c, pred, near, step, nugget = 0) {
   const pts = centres(c, step);
   const mid = pts[Math.floor(pts.length / 2)] || c.trace[c.trace.length - 1];
   let n = null;
   for (const R of [50, 150, 500, 2000]) { n = near.nearest(mid.x, mid.y, mid.z, R); if (n) break; }
   const inReach = pred.band?.md?.length || 0;
-  return { nearestHole: n ? n.id : null, nearestM: n ? Math.round(n.d) : null, meanVar: inReach ? pred.varM / (inReach * step) : null, pHit: pred.pHit, midMd: mid.md };
+  const meanVar = inReach ? pred.varM / (inReach * step) : null;
+  return { nearestHole: n ? n.id : null, nearestM: n ? Math.round(n.d) : null, meanVar, unknown: meanVar == null ? null : Math.max(0, Math.min(1, (meanVar - nugget) / Math.max(1e-9, 1 - nugget))), pHit: pred.pHit, midMd: mid.md };
 }

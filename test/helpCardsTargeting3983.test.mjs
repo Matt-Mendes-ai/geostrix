@@ -6,6 +6,7 @@ import { wordsOf } from "../scripts/word-count.mjs";
 
 const { pageById } = await import("../src/help/content.js");
 const TARGETING = ["evidence-overlay", "undrilled-zones", "planned-drillholes", "voxel-ranges"];
+// TASKS.csv #3962 (P2): the Drill program card joined the group later, with its own test (drillPlannerP2_3962)
 const cautions = (id) => pageById(id).cautions.join(" | ").toLowerCase();
 
 test("the four Targeting pages are cards: a picture from the existing kit, their cautions in view, their strips", () => {

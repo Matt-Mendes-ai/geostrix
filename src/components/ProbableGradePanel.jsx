@@ -17,6 +17,7 @@ import { estimateSources, freshSource, suggestedCutoff, modelStamp, predictionRe
 import { runPlanner } from "../lib/drillPlanner/drillPlannerClient.js";
 import { askConfirm } from "../lib/confirmDialog.js";
 import NumberInput from "./NumberInput.jsx";
+import DrillProgramSection from "./DrillProgramSection.jsx"; // TASKS.csv #3962 (P2) — the suggested program, in the same chunk
 
 // the protective lines, always in view (design.md 5); written out in tr() so the guards (protectiveWarnings3899, the word count) read them
 const cautions = () => [
@@ -29,7 +30,7 @@ const box = { marginTop: 10, padding: "9px 10px", background: "var(--color-bg)",
 const label = { display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
 const btn = { width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", color: "var(--color-text)" };
 
-export default function ProbableGradePanel({ plannedHoles, collars, survey, voxelModels, desurveyMethod }) {
+export default function ProbableGradePanel({ plannedHoles, collars, survey, voxelModels, desurveyMethod, surfaces = [] }) {
   const { assays, assayElements, updatePlannedHole } = useStore();
   const elementUnits = useMemo(() => Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])), [assayElements]);
   const estimates = useMemo(() => estimateSources(voxelModels), [voxelModels]);
@@ -47,19 +48,35 @@ export default function ProbableGradePanel({ plannedHoles, collars, survey, voxe
   const todo = plannedHoles.filter((h) => predictionState(h) !== "kept");
   const kept = plannedHoles.length - todo.length;
 
+  // the composites and the fitted model, kept for the session while the data and the source are the same (the program below reuses them).
+  // -> { model, values, points } | null (said in `error`, or the weak fit declined)
+  const prepared = useRef(null);
+  const prepare = async (signal, onError, ask = true) => {
+    const key = [source.id, unit, step];
+    const hit = prepared.current;
+    if (hit && hit.assays === assays && hit.collars === collars && hit.survey === survey && hit.key.join("|") === key.join("|")) return hit.value;
+    const rows = excludeQAQC(rowsOf(assays));
+    const intervals = await compositeDownholeSliced(rows, source.element, unit, elementUnits, { length: step, minCoverage: source.minCoverage, capValue: source.capValue }, { signal });
+    const { points } = await samplePointsSliced(intervals, collars, survey, desurveyHole, desurveyMethod, { signal });
+    const values = points.map((p) => p.value).filter(Number.isFinite);
+    const model = await runPlanner({ kind: "fit", points: points.map((p) => ({ x: p.x, y: p.y, z: p.z, value: p.value, hole_id: p.hole_id })), modelType: source.vgModel, searchTrend: source.searchTrend }, { signal });
+    if (model.error) { onError(model.error === "few" ? tr("Only {n} {element} composites could be placed: too few for a grade model.", { n: model.n, element: source.element }) : tr("No variogram could be fitted to the {element} composites' normal scores (too few pairs at most lags).", { element: source.element })); return null; }
+    if (ask && model.fit.weak && !(await askConfirm(tr("The variogram of the {element} normal scores fits weakly (r² {r2}): the ranges will be less reliable. Predict anyway?", { element: source.element, r2: fmt(model.fit.rSquared) })))) return null;
+    const value = { model, values, points };
+    prepared.current = { key, assays, collars, survey, value };
+    return value;
+  };
+  const rulesOf = (values) => ({ cutoff: cutoff ?? suggestedCutoff(values), minLength: minL, maxInternalDilution: dil });
+
   const run = async () => {
     if (!source || !todo.length) return;
     setBusy(true); setError(null); setNote(null); setProgress(0);
     const ac = new AbortController(); abort.current = ac;
     try {
-      const rows = excludeQAQC(rowsOf(assays));
-      const intervals = await compositeDownholeSliced(rows, source.element, unit, elementUnits, { length: step, minCoverage: source.minCoverage, capValue: source.capValue }, { signal: ac.signal });
-      const { points } = await samplePointsSliced(intervals, collars, survey, desurveyHole, desurveyMethod, { signal: ac.signal });
-      const values = points.map((p) => p.value).filter(Number.isFinite);
-      const model = await runPlanner({ kind: "fit", points: points.map((p) => ({ x: p.x, y: p.y, z: p.z, value: p.value, hole_id: p.hole_id })), modelType: source.vgModel, searchTrend: source.searchTrend }, { signal: ac.signal });
-      if (model.error) { setError(model.error === "few" ? tr("Only {n} {element} composites could be placed: too few for a grade model.", { n: model.n, element: source.element }) : tr("No variogram could be fitted to the {element} composites' normal scores (too few pairs at most lags).", { element: source.element })); return; }
-      if (model.fit.weak && !(await askConfirm(tr("The variogram of the {element} normal scores fits weakly (r² {r2}): the ranges will be less reliable. Predict anyway?", { element: source.element, r2: fmt(model.fit.rSquared) })))) return;
-      const cut = cutoff ?? suggestedCutoff(values);
+      const prep = await prepare(ac.signal, setError);
+      if (!prep) return;
+      const { model, values } = prep;
+      const cut = rulesOf(values).cutoff;
       const rules = { cutoff: cut, minLength: minL, maxInternalDilution: dil };
       const holes = todo.map((h) => ({ id: h.id, trace: plannedTrace(h).map((p) => ({ md: p.md, x: p.x, y: p.y, z: p.z })) }));
       const preds = await runPlanner({ kind: "predict", model, holes, rules, opts: { step, searchRadius: source.searchRadiusM || model.vg.range } }, { signal: ac.signal, onProgress: setProgress });
@@ -112,6 +129,8 @@ export default function ProbableGradePanel({ plannedHoles, collars, survey, voxe
         {tr(note.n === 1 ? "Predicted {n} hole at a cut-off of {c} {unit}, from {d} composites in {h} holes. Normal-score variogram: {model}, range {r} m, nugget {nug} % of the sill (r² {r2})." : "Predicted {n} holes at a cut-off of {c} {unit}, from {d} composites in {h} holes. Normal-score variogram: {model}, range {r} m, nugget {nug} % of the sill (r² {r2}).", { n: note.n, c: fmt(note.cut), unit, d: note.model.n, h: note.model.holes, model: note.model.vg.model, r: fmt(note.model.vg.range), nug: Math.round(note.model.vg.nugget * 100), r2: fmt(note.model.fit.rSquared) })}
         {note.beyond > 0 && " " + tr(note.beyond === 1 ? "{n} hole is beyond the drilling: no prediction." : "{n} holes are beyond the drilling: no prediction.", { n: note.beyond })}
       </div>}
+      {source && <DrillProgramSection source={source} unit={unit} step={step} prepare={prepare} rulesOf={rulesOf} onCutoff={(c) => { if (cutoff == null) setCutoff(c); }}
+        collars={collars} survey={survey} plannedHoles={plannedHoles} surfaces={surfaces} busyElsewhere={busy} />}{/* TASKS.csv #3962 (P2) */}
     </div>
   );
 }

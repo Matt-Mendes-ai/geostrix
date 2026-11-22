@@ -121,3 +121,40 @@ test("a budget laptop's time: about 400 candidates and a 10-hole program", () =>
   assert.ok(ms < 30000, `${ms} ms for ${Math.min(400, candidates.length)} candidates`); // design.md 2.2: under 10 s on a budget laptop; CI has headroom
   console.log(`program: ${Math.min(400, candidates.length)} candidates, ${r.counts.scored} scored, ${r.counts.twins} twins, 10 holes in ${ms} ms`);
 });
+
+import { programCsvText } from "../src/lib/drillPlanner/programExport.js";
+import { readFileSync } from "node:fs";
+const { pageById } = await import("../src/help/content.js");
+
+test("the CSV: one row per hole, the line, English reasons, and the provenance header (not a resource, per-hole grade x metres only)", () => {
+  const { composites, collars } = field(9);
+  const model = fitGradeModel(composites);
+  const pads = padsFromCollars(collars).slice(0, 6);
+  const { candidates } = candidateHoles(pads, { azimuths: [0, 90, 180, 270], dips: [-60], maxLength: 120 });
+  const r = selectProgram(model, candidates, RULES, { rule: "balanced", runs: 30, minSpacing: 12, drilled: drilledOf(composites), rates: { "": 150 }, limits: { maxHoles: 4 } });
+  const rows = r.chosen.map((h) => ({ h, pred: predictHole(model, candidates.find((c) => c.id === h.id).trace, RULES) }));
+  const text = programCsvText({ rows, names: rows.map((_, i) => `D5${i}`), above: r.line, money: true, cur: "$", unit: "g/t", type: "RC", why: () => "Between holes, 30 m from D11: a 60 % chance of an intercept.", padName: (id) => `pad ${id}`,
+    rule: "balanced", ruleName: "Balanced", kappa: 0.5, source: { element: "Au" }, model, rules: RULES, step: 2, target: null, version: "0.0.0", epsg: 28351 });
+  const lines = text.split(/\r?\n/);
+  assert.match(lines[0], /^# GeoStrix exploration output — not a Mineral Resource estimate/);
+  assert.ok(lines.some((l) => /^# Rule: Balanced \(kappa 0\.5\), per \$/.test(l)));
+  assert.ok(lines.some((l) => /^# Per-hole grade x metres only: no tonnes, no contained metal/.test(l)));
+  const head = lines.find((l) => !l.startsWith("#"));
+  for (const c of ["order", "suggested_name", "azimuth_grid", "cost_$", "cumulative_cost_$", "p_hit", "grade_x_m_p10_g/t", "grade_x_m_p90_g/t", "above_line", "why"]) assert.ok(head.split(",").includes(c), c);
+  assert.equal(lines.filter((l) => l && !l.startsWith("#")).length, rows.length + 1);
+});
+
+test("the Drill program card and the section's wiring: cautions in view, the pane's own title, ViewerModule untouched, project data in English", () => {
+  const p = pageById("drill-program");
+  assert.equal(p.area, "Targeting"); assert.equal(p.title, "Drill program");
+  const c = p.cautions.join(" | ").toLowerCase();
+  assert.match(c, /not a resource estimate/); assert.match(c, /no tonnes/); assert.match(c, /a suggestion, not an optimum/);
+  assert.ok(p.keys.every((k) => p.fields.some((f) => f.name === k)));
+  const section = readFileSync(new URL("../src/components/DrillProgramSection.jsx", import.meta.url), "utf8");
+  assert.match(section, /undoCheckpoint\?\.\(\);[\s\S]*addPlannedHole[\s\S]*undoCheckpoint\?\.\(trRaw\("Add the suggested drill program"\)\)/, "one Undo step");
+  assert.match(section, /nextHoleId\(/, "the project's own hole series");
+  assert.match(section, /notes: english\(/, "a hole's note is project data: English");
+  assert.match(section, /runPlanner\(\{ kind: "program"/);
+  assert.match(readFileSync(new URL("../src/components/ProbableGradePanel.jsx", import.meta.url), "utf8"), /<DrillProgramSection /);
+  assert.doesNotMatch(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /DrillProgram|drillPlanner/);
+});

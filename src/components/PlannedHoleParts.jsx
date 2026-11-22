@@ -418,7 +418,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
   const anyTargetModel = voxelModels.some(isTargetModel);
 
   return (<>
-    <ProbableGradePanel plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} />{/* TASKS.csv #3962 (P1) */}
+    <ProbableGradePanel plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} surfaces={surfaces} />{/* TASKS.csv #3962 (P1) */}
     <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontWeight: 600, marginBottom: 6 }}>{tr("Planned hole checks")}</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 7 }}>
