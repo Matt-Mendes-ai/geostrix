@@ -27,7 +27,7 @@ test("every card page gives the card fields, within the plan's limits", () => {
       assert.ok(f.gist && wordsOf(f.gist) <= 8, `${id}: "${k}" has a gist of at most 8 words`);
     }
     for (const x of p.instead || []) if (x.page) assert.ok(pageById(x.page), `${id}: the chip's page ${x.page} exists`);
-    assert.ok(p.summary && p.fields.length && p.warnings.length, `${id}: the original text is still there`);
+    assert.ok(p.summary && p.fields.length && Array.isArray(p.warnings), `${id}: the original text is still there`); // #3979 — Using GeoStrix Help has no messages
   }
   assert.deepEqual(pageById("best-intercepts").strip, ["Pick Zn and a cut-off", "Read the table", "Fill Including at ≥"], "a strip where the walk-through was in view");
   assert.equal(pageById("grade-shell").strip, undefined, "none where it was folded");
