@@ -265,6 +265,7 @@ import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.c
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
+import { useMeshSelect } from "./viewer/useMeshSelect.jsx"; // TASKS.csv #3991
 import { useCollarMarkerSize } from "./viewer/useCollarMarkerSize.js"; // TASKS.csv #2823
 import { useModellingSimple } from "./viewer/useModellingSimple.js"; // TASKS.csv #2390 / #2773
 import LightDrawingControl from "./viewer/LightDrawingControl.jsx"; // #3620 — Auto / Light / Full
@@ -4553,6 +4554,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples", holes: "Drillholes" /* #2041 */ }[k] || k),
     kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]], rlOffset: rlOffsetOf(project) /* #2809 */ });
   identifyStopRef.current = () => { if (!identify.on) return false; identify.stop(); return true; };
+  const meshSelect = useMeshSelect({ implicitMeshesRef, implicitGroupRef, omfMeshesRef, implicitSurfaces, setImplicitSurfaces, surfaceGrave, surfacesNowRef, pickHits, mountRef, cameraRef, mcDownRef, lastActivityRef, toggleImplicitSurface, removeImplicitSurface, setExpandedSurfaceId, expandedSurfaceId, omfObjects, updateOmfObject, removeOmfObject, fitBox, setExplicitSurfaces }); // TASKS.csv #3991
   const sculpt = useSculpt({
     surfaces: implicitSurfaces, // so sculpt mode can't be left pointing at a surface that no longer exists
     meshesRef: implicitMeshesRef,
@@ -7336,7 +7338,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); if (!pickHoleMode) identify.handleViewClick(e) /* TASKS.csv #3824 (8) — Pick on view on a drilled trace also fired Identify, whose callout stayed on the view */; }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); if (!pickHoleMode) identify.handleViewClick(e) /* TASKS.csv #3824 (8) — Pick on view on a drilled trace also fired Identify, whose callout stayed on the view */; if (!(pickHoleMode || identify.on || sectionMode || measureMode || interpretRef.current.on || mcPickMode || explicitPickFor || sculpt.targetId)) meshSelect.handleViewClick(e); /* #3991 — no tool armed */ }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%", outline: "1px solid var(--color-border)", outlineOffset: -1 /* #3966 — a white view keeps its edge */ }} />
         <BackgroundColourBox visible={visible} bgColor={bgColor} setBgColor={setBgColor} />{/* #3966 — Edit > Background colour... */}
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
@@ -7412,6 +7414,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onClose={() => setShowBasemap(false)}
           />
         )}
+        {meshSelect.bar}{/* TASKS.csv #3991 */}
         {identify.on && <Suspense fallback={null}><IdentifyPanel result={identify.result} onShow={identify.show} onClose={identify.stop} onZoom={(pt) => zoomToPoint(pt)} onStripLog={setStripLogHoleId} /></Suspense>}
         {guided && mode === "view" && <Suspense fallback={null}><GuidedTool tool={guided} setTool={setGuided} api={guidedApi} /></Suspense>}{/* TASKS.csv #3908 */}
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}

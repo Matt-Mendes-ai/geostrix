@@ -14750,5 +14750,17 @@
   "Drag the line to move the section.": "Arraste a linha para mover a seção.",
   "built the surface '{name}'": "construiu a superfície '{name}'",
   "built the {symbol} grade shell": "construiu a envoltória de teor de {symbol}",
-  "added the model's blocks as the block model '{name}'": "adicionou os blocos do modelo como o modelo de blocos '{name}'"
+  "added the model's blocks as the block model '{name}'": "adicionou os blocos do modelo como o modelo de blocos '{name}'",
+  "Selected mesh": "Malha selecionada",
+  "{n} meshes selected": "{n} malhas selecionadas",
+  "Delete": "Excluir",
+  "Properties": "Propriedades",
+  "Select a piece": "Selecionar uma parte",
+  "Click one of its {n} pieces.": "Clique em uma das suas {n} partes.",
+  "Piece {k} of {n}": "Parte {k} de {n}",
+  "Delete this piece": "Excluir esta parte",
+  "Keep only this piece": "Manter só esta parte",
+  "Split into separate meshes": "Dividir em malhas separadas",
+  "Clear the selection": "Limpar a seleção",
+  "(a separate piece removed or split off).": "(uma parte separada foi removida ou separada)."
 }
