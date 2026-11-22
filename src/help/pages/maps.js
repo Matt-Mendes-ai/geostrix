@@ -68,7 +68,7 @@ export default [
       { name: "Import structure measurements…", what: "Reads outcrop measurements from a CSV or a MapInfo point table.", choose: "Easting, northing, dip and either dip direction or strike are needed.", more: "The columns are Easting, Northing, Elevation, Dip, Dip dir., Strike, Type, Station and Comments. A strike alone gives the dip direction by the right-hand rule. A column check follows." },
       { name: "Source CRS (structures)", what: "The coordinate system of the measurements; it defaults to the project's.", more: "Grid dip directions are turned with the grid when reprojected. Set it when the data were recorded in another zone or datum." },
       { name: "North / Measured on", gist: "grid, true or magnetic", what: "Which north the dips and strikes were measured from: Grid, True or Magnetic (compass).", more: "Magnetic needs the measurement date, for the declination (IGRF-14). All are converted to grid north on import. Take it from the field notes: uncorrected compass readings are magnetic." },
-      { name: "Structure set card: Export…, Disc size, Sit every measurement on the terrain", what: "Export writes GeoPackage, KML or CSV; the last box places every disc on the terrain.", choose: "Keep the discs on the terrain unless the elevations were surveyed.", more: "Export gives dip, dip direction and right-hand-rule strike in grid and true north. Unticked, rows with an elevation use it. Disc size is in metres. GPS elevations are often tens of metres off." },
+      { name: "Structure set card: Export…, Symbol size, Sit every measurement on the terrain", what: "Export writes GeoPackage, KML or CSV; the last box places every symbol on the terrain.", choose: "Keep the discs on the terrain unless the elevations were surveyed.", more: "Export gives dip, dip direction and right-hand-rule strike in grid and true north. Unticked, rows with an elevation use it. Symbol size is in metres. GPS elevations are often tens of metres off." },
     ],
     warnings: [
       { says: "geology.shp: none of its 412 features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).", do: "Set the Source CRS and import again.", more: "The whole layer lies far from the project, almost always because its coordinate system is missing or wrong." },
@@ -84,7 +84,7 @@ export default [
         "Open the Perk-Rocky sample.",
         "Geological Mapping > Geology map: on PR-Litho_interpV3, check Colour by is Litho_code and untick a unit in its Legend.",
         "Turn on PR-Alt_interpV2 and lower its Opacity.",
-        "Outcrop structures: change Disc size; leave Sit every measurement on the terrain ticked.",
+        "Outcrop structures: change Symbol size; leave Sit every measurement on the terrain ticked.",
       ],
     },
     related: ["geology-map", "outcrop-structures", "boundaries", "terrain", "web-layers"],

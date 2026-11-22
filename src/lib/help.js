@@ -56,6 +56,7 @@ export const PANE_HELP = {
   "3D slice": "slice-3d",
   "Section by coordinates": "section-by-coordinates",
   "Slice series (fence sections)": "slice-series",
+  "Section window": "section-window", // TASKS.csv #4003 — the settings every section window offers
   "Interpretation lines": "interpretation-lines",
   "Unit polygons": "unit-polygons", // TASKS.csv #1439
   // Surface Geology

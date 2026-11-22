@@ -12,13 +12,16 @@ import { wordsOf, countHelpPage } from "../scripts/word-count.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const { pageById, searchPages } = await import("../src/help/content.js");
-const FILES = { maps: ["boundaries", "map-layers", "claims", "web-layers"], surface: ["geology-map", "outcrop-structures"], layout: ["layout", "layout-title-block", "maps-plan-view"], view: ["slice-3d", "section-by-coordinates", "slice-series", "unit-polygons", "interpretation-lines"] };
+const FILES = { maps: ["boundaries", "map-layers", "claims", "web-layers"], surface: ["geology-map", "outcrop-structures"], layout: ["layout", "layout-title-block", "maps-plan-view"], view: ["slice-3d", "section-by-coordinates", "slice-series", "section-window", "unit-polygons", "interpretation-lines"] }; // #4003: the section window's own card, between the section pages and the polygons
 const IDS = Object.values(FILES).flat();
 
 // the cautions each page keeps in view, by their key words (all in one caution); a page not listed has none
 const CAUTIONS = {
   "interpretation-lines": [["your interpretation", "nothing is picked"]],
   "maps-plan-view": [["where a hole goes", "not what it hit"], ["degrees", "not to scale", "crs"]],
+  "section-by-coordinates": [["dashed", "projected", "no data"]], // #4003: the buffer's projected holes (the long form is the message on the page)
+  "slice-series": [["dashed", "projected", "no data"]],
+  "section-window": [["dashed", "projected", "no data"]],
   claims: [["checks no registry", "status current"]],
   "web-layers": [["wms", "a picture", "no values"]],
   layout: [["scale bar", "only for the view it is assigned to"]],

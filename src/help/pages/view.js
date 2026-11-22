@@ -2,11 +2,11 @@
 // TASKS.csv #3899 (T4) — rewritten to the rule of plan_fable 3.2: short summaries and fields, the detail behind "More", the section / fence / strip
 // log diagram. "Advanced" in the walk-throughs is now the ribbon's All tools switch, as the interface says.
 
-// What every section window offers once a section is open (SectionWindow.jsx), shared by the two section pages
+// What every section window offers once a section is open (SectionWindow.jsx): TASKS.csv #4003, one 'Section window' card the two section pages link to
 const sectionWindowFields = [
   { name: "Buffer ± (section window)", gist: "how far either side data is taken", what: "How far either side of the line holes and data are included; Enter redraws.", more: "How to choose: About half the distance between drill sections, so each hole shows on one. It is saved with the section. Traces drawn dashed are projected from farther away; a wider buffer where holes are sparse shows data projected from farther off the line." },
-  { name: "VE (section window)", what: "Vertical exaggeration; 1x is true scale.", more: "How to choose: 1x to read dips and true widths; say so on the figure if you exaggerate." },
-  { name: "What to draw / Save contacts (section window)", what: "Draws a contact, fault, string or outline, snapping to the logged tops; Save contacts sends them to modelling.", more: "How to choose: Draw across strike; save before moving to the next section." },
+  { name: "VE (section window)", gist: "1x is true scale", what: "Vertical exaggeration; 1x is true scale.", more: "How to choose: 1x to read dips and true widths; say so on the figure if you exaggerate." },
+  { name: "What to draw / Save contacts (section window)", gist: "snaps to the logged tops", what: "Draws a contact, fault, string or outline, snapping to the logged tops; Save contacts sends them to modelling.", more: "How to choose: Draw across strike; save before moving to the next section." },
   { name: "Plan a hole (section window)", what: "Click a collar, then a target: azimuth, dip and length, and Add planned hole.", more: "How to choose: To aim a hole at a contact or intercept on the section." },
   { name: "Snapshot to Layout / PNG / SVG / PDF (section window)", what: "Sends the section to Layout, or exports it as drawn.", more: "How to choose: SVG or PDF to edit or print large; PNG for a quick image." },
   { name: "Own window (section window)", what: "Opens the section in its own window, beside another.", more: "How to choose: Only to compare two side by side; it uses more memory than a tab." },
@@ -57,8 +57,9 @@ export default [
     // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds. Its diagram is the card's picture.
     line: "Opens a vertical section from a centre, an azimuth and a length.",
     picture: { diagram: "sectionFenceLog", alt: "In plan: a section is one line through the holes, a fence is several parallel lines, a strip log is one hole down its length." },
+    cautions: ["A dashed hole is outside the buffer: projected, with no data."],
     instead: [{ text: "Two clicks", to: "Draw section" }, { text: "Parallel sections", to: "Fence series", page: "slice-series" }, { text: "Along one hole", to: "the scissors" }],
-    keys: ["Centre E / Centre N", "Azimuth (°)", "Buffer ± (section window)"],
+    keys: ["Centre E / Centre N", "Azimuth (°)", "Length (m)"],
     summary: "Opens a vertical section from a centre, an azimuth and a length, in its own window with the nearby holes, logs, models and surfaces.",
     more: "Leave the centre blank to centre it on the drilling. The section is kept in the Cross-sections list. In its window you can draw contacts, plan a hole, send a snapshot to Layout and export it.",
     notFor: [
@@ -68,10 +69,9 @@ export default [
     fields: [
       { name: "Centre E / Centre N", gist: "blank: the view's centre", what: "The middle of the line; blank uses the view's centre.", more: "How to choose: A target, an intercept or an anomaly." },
       { name: "Azimuth (°)", gist: "clockwise from north", what: "The line's direction, clockwise from north.", more: "How to choose: Across the target's strike, so dips read true." },
-      { name: "Length (m)", what: "The line's full length, half each side of the centre.", more: "How to choose: The target and the holes either side, with a margin." },
+      { name: "Length (m)", gist: "half each side of the centre", what: "The line's full length, half each side of the centre.", more: "How to choose: The target and the holes either side, with a margin." },
       { name: "Open section", what: "Opens the section; the same line again reopens the saved one.", more: "How to choose: Set Buffer (m) on the Draw section tool first, or Buffer ± in the window after." },
       { name: "Scissors (Holes list)", what: "A section in the plane of that hole, the whole hole long.", choose: "To look along one hole's intercepts.", more: "A vertical hole has no bearing: the section uses the azimuth typed here." },
-      ...sectionWindowFields,
     ],
     warnings: [
       { says: "Enter a centre easting and northing — there are no drillholes to centre the section on.", do: "Type Centre E and Centre N." },
@@ -90,7 +90,7 @@ export default [
         "Plan a hole at an intercept, or Snapshot to Layout for a figure.",
       ],
     },
-    related: ["slice-series", "slice-3d", "planned-drillholes", "explicit-surface", "section-correlation"],
+    related: ["section-window", "slice-series", "slice-3d", "planned-drillholes", "explicit-surface", "section-correlation"],
   },
   {
     id: "slice-series",
@@ -99,6 +99,7 @@ export default [
     // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Parallel sections at one azimuth, a fixed width apart, tiling the drilling.",
     picture: { diagram: "sectionFenceLog", alt: "In plan: a fence is several parallel section lines through the holes." },
+    cautions: ["A dashed hole is outside the buffer: projected, with no data."],
     instead: [{ text: "One section", to: "By coordinates or Draw section", page: "section-by-coordinates" }, { text: "A correlation panel", to: "Fence diagram", page: "section-correlation" }],
     keys: ["Azimuth (°)", "Width (m)"],
     summary: "Makes parallel vertical sections at one azimuth, a fixed width apart, that tile the drilling with no gaps or overlap.",
@@ -113,7 +114,6 @@ export default [
       { name: "Also cover the visible block models", what: "Also covers the visible models' extent, not only the drilling.", more: "How to choose: Off when the model is much larger than the drilling." },
       { name: "This makes 8 section(s).", what: "How many sections the settings make.", more: "How to choose: If large, widen the spacing." },
       { name: "Generate", what: "Adds the sections, grouped, to the Cross-sections list; over 50 asks first." },
-      ...sectionWindowFields,
     ],
     warnings: [
       { says: "Slice series needs a visible voxel/block model or at least one drillhole to know what extent to cover — nothing found.", do: "Load holes or show a block model, then Generate." },
@@ -130,7 +130,39 @@ export default [
         "Open the sections one by one from the Cross-sections list.",
       ],
     },
-    related: ["section-by-coordinates", "slice-3d", "block-models", "section-correlation"],
+    related: ["section-window", "section-by-coordinates", "slice-3d", "block-models", "section-correlation"],
+  },
+  {
+    id: "section-window",
+    area: "StrixViewer",
+    title: "Section window",
+    // TASKS.csv #4003 — the settings every section window offers, once, for the section pages (#3967's plan, section 8)
+    line: "What a section window offers: buffer, exaggeration, drawing, a snapshot.",
+    picture: { diagram: "sectionFenceLog", alt: "In plan: a section is one line through the holes, a fence is several parallel lines, a strip log is one hole down its length." },
+    cautions: ["A dashed hole is outside the buffer: projected, with no data."],
+    instead: [{ text: "Open a section at coordinates", to: "By coordinates", page: "section-by-coordinates" }, { text: "Several parallel sections", to: "Fence series", page: "slice-series" }],
+    keys: ["Buffer ± (section window)", "VE (section window)", "What to draw / Save contacts (section window)"],
+    summary: "Every section opens in this window, with the nearby holes, logs, models and surfaces drawn on it.",
+    more: "A section from Section by coordinates, Draw section or Fence series opens here. Buffer ± sets which holes are drawn on it, and each hole outside it is drawn dashed.",
+    notFor: [
+      "Opening a section: Section by coordinates, Draw section or Fence series.",
+    ],
+    fields: [
+      ...sectionWindowFields,
+    ],
+    warnings: [
+      { says: "NB23-009: outside the ±25 m buffer — projected onto the section, no data drawn here", do: "Widen Buffer ± to see its data on this section." },
+    ],
+    howto: { folded: true,
+      sample: "WA lode gold",
+      steps: [
+        "File > Open Sample Project > WA lode gold (66 inclined drillholes, oriented structures).",
+        "Switch to All tools; on StrixViewer, Sections > By coordinates; leave the centre blank and press Open section.",
+        "In the window, set Buffer ± to half the distance to the next line and press Enter.",
+        "Draw a contact across strike, or press Snapshot to Layout for a figure.",
+      ],
+    },
+    related: ["section-by-coordinates", "slice-series", "section-correlation", "planned-drillholes", "layout"],
   },
   {
     id: "unit-polygons",
