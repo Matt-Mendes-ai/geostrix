@@ -14735,5 +14735,11 @@
   "Surfaces and block settings": "الأسطح وإعدادات الكتل",
   "Fold the result block": "طيّ كتلة النتيجة",
   "Open the result block": "فتح كتلة النتيجة",
-  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Result block at the top of the panel.{v}": "بُنيت {n} كتلة ({nx} × {ny} × {nz}) من الأسطح: {units}. استخدم «إضافة أحجام الوحدات (مغلقة)» أو «إضافة كنموذج كتل» في كتلة النتيجة أعلى اللوحة.{v}"
+  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Result block at the top of the panel.{v}": "بُنيت {n} كتلة ({nx} × {ny} × {nz}) من الأسطح: {units}. استخدم «إضافة أحجام الوحدات (مغلقة)» أو «إضافة كنموذج كتل» في كتلة النتيجة أعلى اللوحة.{v}",
+  "Save: your project file": "حفظ: ملف المشروع",
+  "Autosave: a crash copy": "الحفظ التلقائي: نسخة احتياطية عند الانهيار",
+  "Undo: the last edit": "تراجع: آخر تعديل",
+  "Within its limits": "ضمن حدوده",
+  "Outside its limits": "خارج حدوده",
+  "Mean, ±2 and ±3 SD": "المتوسط، ±2 و±3 انحراف معياري"
 }

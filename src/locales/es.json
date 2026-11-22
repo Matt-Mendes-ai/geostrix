@@ -14735,5 +14735,11 @@
   "Surfaces and block settings": "Superficies y ajustes de bloques",
   "Fold the result block": "Plegar el bloque de resultado",
   "Open the result block": "Desplegar el bloque de resultado",
-  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Result block at the top of the panel.{v}": "Se construyeron {n} bloques ({nx} × {ny} × {nz}) a partir de las superficies: {units}. Use «Agregar volúmenes de unidades (cerrados)» o «Agregar como modelo de bloques» en el bloque Resultado, arriba del panel.{v}"
+  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Result block at the top of the panel.{v}": "Se construyeron {n} bloques ({nx} × {ny} × {nz}) a partir de las superficies: {units}. Use «Agregar volúmenes de unidades (cerrados)» o «Agregar como modelo de bloques» en el bloque Resultado, arriba del panel.{v}",
+  "Save: your project file": "Guardar: el archivo del proyecto",
+  "Autosave: a crash copy": "Autoguardado: una copia para un fallo",
+  "Undo: the last edit": "Deshacer: la última edición",
+  "Within its limits": "Dentro de sus límites",
+  "Outside its limits": "Fuera de sus límites",
+  "Mean, ±2 and ±3 SD": "Media, ±2 y ±3 DE"
 }

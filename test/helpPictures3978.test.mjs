@@ -18,8 +18,8 @@ const React = (await import("react")).default, { renderToStaticMarkup } = await 
 const { HELP_PICTURES, SWATCH } = await import(pathToFileURL(picsFile).href);
 const { pageById, PAGES } = await import("../src/help/content.js");
 
-test("six pictures, each an SVG with no word in it and colours from tokens only", () => {
-  assert.deepEqual(Object.keys(HELP_PICTURES), ["support", "depth", "lands", "norths", "cutoff", "composite"]);
+test("eight pictures (N1-N6, and N12 and N13 of #3979), each an SVG with no word in it and colours from tokens only", () => {
+  assert.deepEqual(Object.keys(HELP_PICTURES), ["support", "depth", "lands", "norths", "cutoff", "composite", "save", "control"]);
   for (const [id, { Pic, legend }] of Object.entries(HELP_PICTURES)) {
     const svg = renderToStaticMarkup(React.createElement(Pic, { id: `t${id}` }));
     assert.match(svg, /^<svg viewBox="0 0 224 122"/, id);
