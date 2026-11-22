@@ -138,6 +138,157 @@
     }
   },
   {
+    "name": "list_drill_programs",
+    "description": "Read-only. The project's drill programs (GeoStrix's Drill program, in Targeting > Planned holes): for each, when it was made, its element and rule, its versions, how many holes it suggested, whether they were added as planned holes, how many are drilled, and whether new data came in since. Exploration targeting, not a resource estimate.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "get_drill_program",
+    "description": "Read-only. One drill program: its holes in suggested drilling order (pad, collar, azimuth, dip, length, cost, score, whether above the diminishing-returns line, and why it is there in a sentence GeoStrix computed), each hole's prediction (chance of an intercept, grade x metres low / middle / high = P10 / P50 / P90, a typical hit), the drilled results against their range and the calibration, and the cautions to pass on. Per-hole grade x metres only: no tonnes, not a resource.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "program_id": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "The program_id list_drill_programs gives."
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 999,
+          "description": "A version number; without it the latest."
+        }
+      },
+      "required": [
+        "program_id"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "explain_hole",
+    "description": "Read-only. Why a planned hole is where it is: its design, the reason the drill program gave, the nearest drilled collar, its prediction and whether it is still current (or the hole has moved, or is drilled), and the drilled result against the prediction. Build any explanation from these facts, not from guesses.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "hole": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "A planned hole's id or name."
+        }
+      },
+      "required": [
+        "hole"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "predict_hole",
+    "description": "Read-only. What a hole would probably cut, from the drilled composites: the chance of an intercept at the cut-off and grade x metres low / middle / high (P10 / P50 / P90 of 200 runs of a kriging-based grade model, the settings of the newest Grade estimation run or its defaults). Give a planned hole, or a collar with azimuth, dip and length. It computes for a few seconds and keeps nothing. The range comes from the hole spacing and the variogram only; it is exploration targeting, not a resource estimate.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "hole": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "A planned hole's id or name (or give collar, azimuth, dip and length)."
+        },
+        "collar": {
+          "type": "object",
+          "properties": {
+            "easting": {
+              "type": "number"
+            },
+            "northing": {
+              "type": "number"
+            },
+            "elevation": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "easting",
+            "northing",
+            "elevation"
+          ],
+          "additionalProperties": false,
+          "description": "In the project's coordinates."
+        },
+        "azimuth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 360,
+          "description": "Degrees from grid north."
+        },
+        "dip": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 0,
+          "description": "Negative for a hole pointing down."
+        },
+        "length": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 3000,
+          "description": "Metres."
+        },
+        "element": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "The element; without it the newest Grade estimation run's, else the first assayed."
+        },
+        "cutoff": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The intercept cut-off in the element's unit; without it the composites' upper quartile."
+        },
+        "min_length": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 500,
+          "description": "The shortest intercept, metres."
+        },
+        "internal_dilution": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 500,
+          "description": "The longest gap bridged inside an intercept, metres."
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "make_section",
     "description": "Makes a change in GeoStrix: adds a new cross-section to the project (it shows in StrixViewer's section list), either between two points in the project's coordinates (list_holes gives the collars') or through one hole in its own plane. Nothing is replaced: a name already used gets ' (2)'. Undo in GeoStrix takes it back.",
     "inputSchema": {
@@ -277,5 +428,176 @@
     },
     "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false },
     "_meta": { "geostrix/long": true }
+  },
+  {
+    "name": "run_drill_planner",
+    "description": "Makes a change in GeoStrix: suggests a drill program from the drilled pads, as the Drill program section does, and saves it in the project as a suggestion. It adds no hole: add_program_holes does, after you ask the user. Each candidate hole is scored by the rule per dollar (per metre with no drilling rate): balanced (the default: middle grade x metres plus kappa x its spread), hit (the chance of an intercept), metal (expected grade x metres) or learn (where the model knows least, for step-outs); holes are chosen one by one as if the ones before were drilled. Anywhere the model reaches: a target solid is chosen in GeoStrix itself. It can take a minute: after about 20 seconds the answer is 'started' with a job_id (check it with job_status). The answer has each hole's reason and prediction and the cautions to pass on: exploration targeting, not a resource estimate; a suggestion, not an optimum. One Undo in GeoStrix takes it back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "The element; without it the newest Grade estimation run's, else the first assayed."
+        },
+        "rule": {
+          "type": "string",
+          "enum": [
+            "balanced",
+            "hit",
+            "metal",
+            "learn"
+          ],
+          "description": "How a hole's value is scored, per dollar."
+        },
+        "kappa": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "For balanced: 0 near known grade, 2 into the unknown (default 0.5)."
+        },
+        "cutoff": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The intercept cut-off in the element's unit; without it the composites' upper quartile."
+        },
+        "min_length": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 500,
+          "description": "The shortest intercept, metres."
+        },
+        "internal_dilution": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 500,
+          "description": "The longest gap bridged inside an intercept, metres."
+        },
+        "max_holes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Default 10."
+        },
+        "holes_per_pad": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Default 3."
+        },
+        "max_metres": {
+          "type": "number",
+          "minimum": 1,
+          "description": "A limit on the program's metres."
+        },
+        "budget": {
+          "type": "number",
+          "minimum": 1,
+          "description": "In the project currency; needs a drilling rate in GeoStrix."
+        },
+        "azimuth_step": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 180,
+          "description": "Degrees between the directions tried from each pad (default 45)."
+        },
+        "dips": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": -1
+          },
+          "maxItems": 8,
+          "description": "The dips tried (default -50, -65, -80)."
+        },
+        "max_length": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 2000,
+          "description": "The longest hole, metres (default 250)."
+        },
+        "hole_type": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "The hole type whose drilling rate prices the holes."
+        },
+        "accept_weak_fit": {
+          "type": "boolean",
+          "description": "Only after the user agreed: run even when the grade model's variogram fits weakly."
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "geostrix/long": true
+    }
+  },
+  {
+    "name": "add_program_holes",
+    "description": "Makes a change in GeoStrix: adds a suggested program's holes as proposed planned holes, named by the project's own hole series, each with its prediction kept on it. Ask the user before calling it. It adds and replaces nothing; one Undo in GeoStrix takes them all back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "program_id": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "The program_id run_drill_planner gave."
+        },
+        "holes": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "'all' (the default), 'above_line' (above the diminishing-returns line), or the holes' order numbers separated by commas, e.g. '1,2,5'."
+        }
+      },
+      "required": [
+        "program_id"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "set_planned_hole_status",
+    "description": "Makes a change in GeoStrix: marks a planned hole proposed or approved. Never drilled: a hole becomes drilled only when the geologist links its as-drilled hole in GeoStrix. One Undo in GeoStrix takes it back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "hole": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "A planned hole's id or name."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "approved"
+          ]
+        }
+      },
+      "required": [
+        "hole",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
   }
 ]

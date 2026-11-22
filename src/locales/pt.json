@@ -14966,5 +14966,12 @@
   "Calibration: {k} of {n} drilled holes inside their range.": "Calibração: {k} de {n} furos perfurados dentro da sua faixa.",
   "Too few: the model is overconfident (check the variogram range and the domain).": "Poucos demais: o modelo está confiante demais (verifique o alcance do variograma e o domínio).",
   "Compared {n}; {o} predicted for another element or composite length.": "Comparados {n}; {o} previstos para outro elemento ou comprimento de composto.",
-  "Add the new one": "Adicionar o novo"
+  "Add the new one": "Adicionar o novo",
+  "Program of {date} by {by}: {n} holes suggested, not added.": "Programa de {date} de {by}: {n} furos sugeridos, não adicionados.",
+  "suggested a drill program: {n} holes, not added": "sugeriu um programa de perfuração: {n} furos, não adicionados",
+  "added planned hole {name}": "adicionou o furo planejado {name}",
+  "added planned holes {a} to {b}": "adicionou os furos planejados {a} a {b}",
+  "marked {name} approved": "marcou {name} como aprovado",
+  "marked {name} proposed": "marcou {name} como proposto",
+  "Compared {n}.": "Comparados {n}."
 }

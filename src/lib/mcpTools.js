@@ -8,6 +8,7 @@ import { holeTraces } from "./evidenceSources.js";
 import { corridorRuns, distToSegment, signedOffset } from "./sectionCorridor.js";
 import { dipPrinted } from "./dipText.js";
 import { suggestTrend } from "./mcpTrend.js"; // TASKS.csv #3932 batch 2 — the trend helper's suggestion, read-only
+import { list_drill_programs, get_drill_program, explain_hole, predict_hole } from "./drillPlanner/mcpPlanner.js"; // TASKS.csv #3962 (P5) — the drill planner's reads
 
 export const MAX_ROWS = 200, DEFAULT_ROWS = 50, MAX_BYTES = 90000;
 // a name that holds a secret (never an argument, never in a reply); a text that points at a file
@@ -169,6 +170,8 @@ const TOOLS = {
 TOOLS.suggest_trend = (snap, a) => suggestTrend(snap, a.element != null ? elementOrFail(snap, a.element).symbol : null);
 const sectionOut = (s) => ({ name: str(s.name, 120), id: s.id, from: { easting: r3(s.ax, 1), northing: r3(s.ay, 1) }, to: { easting: r3(s.bx, 1), northing: r3(s.by, 1) }, azimuth: r3(s.azimuth, 1), length_m: r3(Math.hypot(s.bx - s.ax, s.by - s.ay), 1), corridor_half_width_m: r3(Number(s.corridor), 1) });
 
+// TASKS.csv #3962 (P5) — the drill planner's reads: programs, one program, why a hole is where it is, and a hole's prediction (computed: async)
+Object.assign(TOOLS, { list_drill_programs, get_drill_program, explain_hole, predict_hole });
 export const TOOL_NAMES = Object.keys(TOOLS);
 // -> { ok: true, data, rows } | { ok: false, error }. Never throws, never writes.
 export function runTool(name, args, snap) {
@@ -178,9 +181,12 @@ export function runTool(name, args, snap) {
     const why = refusal(a);
     if (why) return { ok: false, error: why };
     if (!snap || !Array.isArray(snap.collars)) return { ok: false, error: "No project is open in GeoStrix." };
-    const data = scrubbed(TOOLS[name](snap, a));
-    return { ok: true, data, rows: Array.isArray(data?.rows) ? data.rows.length : null };
+    const out = TOOLS[name](snap, a);
+    const done = (d) => { const data = scrubbed(d); return { ok: true, data, rows: Array.isArray(data?.rows) ? data.rows.length : null }; };
+    // #3962 (P5) — a read that computes (predict_hole) answers with a promise; desktop.js awaits it
+    if (out && typeof out.then === "function") return out.then(done, (e) => ({ ok: false, error: e instanceof ToolError || e?.toolMessage ? e.message : "The tool could not read the project." }));
+    return done(out);
   } catch (e) {
-    return { ok: false, error: e instanceof ToolError ? e.message : "The tool could not read the project." }; // nothing from inside the app (a stack, a path) goes out
+    return { ok: false, error: e instanceof ToolError || e?.toolMessage ? e.message : "The tool could not read the project." }; // nothing from inside the app (a stack, a path) goes out
   }
 }

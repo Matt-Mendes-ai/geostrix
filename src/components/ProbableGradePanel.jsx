@@ -168,7 +168,7 @@ export default function ProbableGradePanel({ plannedHoles, collars, survey, voxe
         {cal.overconfident && " " + tr("Too few: the model is overconfident (check the variogram range and the domain).")}
       </div>}
       {error && <div role="alert" style={{ marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)", lineHeight: 1.4 }}>{error}</div>}
-      {note?.compared != null && <div role="status" style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Compared {n}; {o} predicted for another element or composite length.", { n: note.compared, o: note.other })}</div>}
+      {note?.compared != null && <div role="status" style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{note.other > 0 ? tr("Compared {n}; {o} predicted for another element or composite length.", { n: note.compared, o: note.other }) : tr("Compared {n}.", { n: note.compared })}</div>}
       {note && note.compared == null && <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
         {tr(note.n === 1 ? "Predicted {n} hole at a cut-off of {c} {unit}." : "Predicted {n} holes at a cut-off of {c} {unit}.", { n: note.n, c: fmt(note.cut), unit })}
         {note.beyond > 0 && " " + tr(note.beyond === 1 ? "{n} hole is beyond the drilling: no prediction." : "{n} holes are beyond the drilling: no prediction.", { n: note.beyond })}

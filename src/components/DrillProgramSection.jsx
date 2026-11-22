@@ -18,6 +18,7 @@ import { buildMeshQuery, intervalsInsideMesh, isMeshClosed } from "../lib/meshQu
 import { padsFromCollars, candidateHoles, insideRuns, PROGRAM_DEFAULTS } from "../lib/drillPlanner/program.js";
 import { runPlanner, runProgram } from "../lib/drillPlanner/drillPlannerClient.js";
 import { whatChanged, dataStamp } from "../lib/drillPlanner/adaptive.js"; // TASKS.csv #3962 (P3)
+import { add_program_holes } from "../lib/drillPlanner/mcpPlanner.js"; // TASKS.csv #3962 (P5) — an AI app's suggested program, added here
 import { assayStamp } from "../lib/assayStamp.js";
 import { rowsOf } from "../lib/rowTable.js";
 import { modelStamp, predictionRecord, fmt } from "../lib/drillPlanner/predictionInputs.js";
@@ -36,7 +37,8 @@ const RULE_KEYS = ["balanced", "hit", "metal", "learn"];
 const english = (k, v) => String(k).replace(/\{(\w+)\}/g, (_, n) => (v && v[n] != null ? v[n] : ""));
 
 export default function DrillProgramSection({ source, unit, step, prepare, rulesOf, onCutoff, collars, survey, plannedHoles, surfaces, busyElsewhere }) {
-  const { project, terrain, assays, addPlannedHole, setDrillPrograms, undoCheckpoint } = useStore();
+  const storeAll = useStore();
+  const { project, terrain, assays, addPlannedHole, setDrillPrograms, undoCheckpoint } = storeAll;
   const programs = project?.drillPrograms || []; // TASKS.csv #3962 (P3): kept with the project, like the drill rates
   const stampNow = useMemo(() => dataStamp(assayStamp(rowsOf(assays)), collars), [assays, collars]);
   const cur = currencyOf(project), tr = (k, v) => withCurrency(trRaw(k, v), cur);
@@ -242,6 +244,12 @@ export default function DrillProgramSection({ source, unit, step, prepare, rules
         <div data-drill-programs="" style={{ marginTop: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
           {programs.slice(-3).reverse().map((prog) => {
             const mine = plannedHoles.filter((h) => h.programId === prog.id), drilledN = mine.filter((h) => h.asDrilledHoleId).length, v = prog.versions[prog.versions.length - 1];
+            // TASKS.csv #3962 (P5) — suggested by an AI app (run_drill_planner) and not added yet: added here in one Undo step, as add_program_holes does
+            if (prog.scenario && mine.length === 0) return (
+              <div key={prog.id} data-drill-program-row="" style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+                <span style={{ flex: 1 }}>{tr("Program of {date} by {by}: {n} holes suggested, not added.", { date: String(prog.date).slice(0, 10), by: prog.by || "?", n: v.holes.length })}</span>
+                <button type="button" disabled={off} onClick={() => { try { undoCheckpoint?.(); } catch { /* no history */ } add_program_holes({ program_id: prog.id, holes: "all" }, { ...storeAll, plannedHoles }); try { undoCheckpoint?.(trRaw("Add the suggested drill program")); } catch { /* no history */ } }} style={{ ...btn, width: "auto" }}>{tr("Add")}</button>
+              </div>);
             return (
               <div key={prog.id} data-drill-program-row="" style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                 <span style={{ flex: 1 }}>{tr("Program of {date}: {n} holes, {k} drilled.", { date: String(prog.date).slice(0, 10), n: mine.length, k: drilledN })}

@@ -9,7 +9,14 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import { runChange } from "../src/lib/mcpActions.js";
+import { runChange, ACTIONS } from "../src/lib/mcpActions.js";
+// TASKS.csv #3962 (P5) — the drill planner's changes need a drilled field to model, which this made-up project is not: here (the relay and the
+// switch are what is tested) they stand in with the short answer each gives; drillPlannerP5_3962 runs them for real on a synthetic field
+const PLANNER_STANDINS = {
+  run_drill_planner: async () => ({ ok: true, tracked: true, say: "suggested a drill program", data: { changed: "a suggested program (no hole added)", program_id: "prog_x", holes: 5 } }),
+  add_program_holes: async () => ({ ok: true, tracked: true, say: "added planned holes", data: { changed: "planned holes added (proposed)", program_id: "prog_x" } }),
+  set_planned_hole_status: async () => ({ ok: true, tracked: true, say: "marked PLAN-1 approved", data: { changed: "a planned hole's status", hole: "PLAN-1", status: "approved" } }),
+};
 import { runTool } from "../src/lib/mcpTools.js";
 import { viewAction } from "../src/modules/viewer/useMcpViewActions.js";
 
@@ -68,6 +75,9 @@ const CALLS = [ // each change tool with arguments its schema accepts
   ["fetch_terrain", {}],
   ["build_surface", { rock: "DYK" }], // #3932 batch 2
   ["build_grade_shell", { element: "Au" }],
+  ["run_drill_planner", { element: "Au", max_holes: 5 }], // TASKS.csv #3962 (P5)
+  ["add_program_holes", { program_id: "prog_x", holes: "above_line" }],
+  ["set_planned_hole_status", { hole: "PLAN-1", status: "approved" }],
   ["add_block_model", {}],
 ];
 
@@ -78,7 +88,7 @@ test("#3932 through the PowerShell relay, as Claude Desktop starts it: every cha
   const win = { isDestroyed: () => false, webContents: { send: (ch, msg) => {
     if (ch !== "mcp-request") return;
     seen.push([msg.name, !!msg.change]);
-    (msg.change ? runChange(msg.name, msg.args, { getStore: () => s, client: msg.client, settle: async () => {} }) : Promise.resolve(runTool(msg.name, msg.args, s))).then((r) => host.respond(msg.id, r));
+    (msg.change ? runChange(msg.name, msg.args, { getStore: () => s, client: msg.client, settle: async () => {}, actions: { ...ACTIONS, ...PLANNER_STANDINS } }) : Promise.resolve(runTool(msg.name, msg.args, s))).then((r) => host.respond(msg.id, r));
   } } };
   const prefs = {};
   host = createHost({ userDataDir: dir, getWindow: () => win, askAllow: async (c, o) => { asked.push(["allow", o?.changes ? "changes" : "read"]); return "once"; }, askNetwork: async (c, t) => { asked.push(["download", t]); return true; }, limits: { ...proto.LIMITS, changesPerMinute: 30 } /* #3932 batch 2: eleven change tools in one minute */, isOnline: () => true, readPrefs: () => prefs, writePrefs: (p) => Object.assign(prefs, p) });

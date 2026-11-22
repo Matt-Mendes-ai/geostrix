@@ -535,7 +535,7 @@ export function onMcpRequest(getSnapshot, getStore) {
       catch { d.mcpRespond(req.id, { ok: false, error: "The change could not be made." }); }
       return;
     }
-    try { const { runTool } = await import("./mcpTools.js"); d.mcpRespond(req.id, runTool(req.name, req.args, getSnapshot())); }
+    try { const { runTool } = await import("./mcpTools.js"); d.mcpRespond(req.id, await runTool(req.name, req.args, getSnapshot())); } // await: a read that computes (#3962 P5)
     catch { d.mcpRespond(req.id, { ok: false, error: "The tool could not read the project." }); }
   });
 }
