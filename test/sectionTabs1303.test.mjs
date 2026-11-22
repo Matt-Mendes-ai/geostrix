@@ -21,6 +21,6 @@ test("#1303 the main process routes by section id; one window for all, a pop-out
 });
 test("#1303 only the shown tab prints, and a hidden tab stays mounted", () => {
   const css = read("src/styles/app.css");
-  assert.match(css, /\.ge-section-toolbar, \.ge-section-chips, \.ge-section-tabbar \{ display: none !important; \}/);
+  assert.match(css, /\.ge-section-toolbar, \.ge-section-chips, \.ge-section-tabbar(, \.ge-section-overview)? \{ display: none !important; \}/ /* overview: #3977 */);
   assert.match(tabs, /display: t\.id === shown \? "block" : "none"/);
 });

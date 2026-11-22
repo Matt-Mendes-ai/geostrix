@@ -471,8 +471,8 @@ export default function App() {
   // to jump back to the main window.
   useEffect(() => {
     // TASKS.csv #395 — the same relay also carries a planned hole designed on a section.
-    const off = onSectionContacts(({ id, contacts, plannedHole, labels, step, refresh, by, corridor }) => {
-      if (step || refresh || corridor != null) { window.dispatchEvent(new CustomEvent("geostrix-section-step", { detail: { id, step, refresh, by, corridor } })); return; } // TASKS.csv #876 — ViewerModule opens / refreshes it; by / corridor: #1131
+    const off = onSectionContacts(({ id, contacts, plannedHole, labels, step, refresh, by, corridor, offsetM }) => {
+      if (step || refresh || corridor != null) { window.dispatchEvent(new CustomEvent("geostrix-section-step", { detail: { id, step, refresh, by, corridor, offsetM /* #3977 — dragged on the overview */ } })); return; } // TASKS.csv #876 — ViewerModule opens / refreshes it; by / corridor: #1131
       if (plannedHole) addPlannedHole(plannedHole); else if (labels) setSectionLabels(id, labels); else setSectionContacts(id, contacts);
     }); // labels: #823
     return off;

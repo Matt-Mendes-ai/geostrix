@@ -14741,5 +14741,11 @@
   "Undo: the last edit": "Annuler : la dernière modification",
   "Within its limits": "Dans ses limites",
   "Outside its limits": "Hors de ses limites",
-  "Mean, ±2 and ±3 SD": "Moyenne, ±2 et ±3 ET"
+  "Mean, ±2 and ±3 SD": "Moyenne, ±2 et ±3 ET",
+  "Show where this section is on the plan": "Montrer où se trouve cette coupe sur le plan",
+  "Overview": "Vue d'ensemble",
+  "Show on export": "Afficher à l'export",
+  "Hide the overview": "Masquer la vue d'ensemble",
+  "Drag the line to move the section ({m} m steps).": "Faites glisser la ligne pour déplacer la coupe (pas de {m} m).",
+  "Drag the line to move the section.": "Faites glisser la ligne pour déplacer la coupe."
 }

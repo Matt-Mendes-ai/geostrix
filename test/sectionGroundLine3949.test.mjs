@@ -29,5 +29,5 @@ test("the section window draws the ground as a line, labelled with the source; V
   assert.match(w, /const groundLabel = data\.groundSource \? tr\("Ground surface \(\{source\}\)", \{ source: data\.groundSource \}\) : tr\("Ground surface"\);/);
   assert.doesNotMatch(w, /Ground surface \(SRTM\)/);
   const v = read("../src/modules/ViewerModule.jsx");
-  assert.match(v, /const openSectionOrSay = async \(sent\) => \{ const payload = \{ \.\.\.sent, groundSource: terrainShortName\(terrain\) \/\* #3949 \*\/ \};/, "every section opens through openSectionOrSay, which adds it");
+  assert.match(v, /const openSectionOrSay = async \(sent\) => \{ const payload = \{ \.\.\.sent, groundSource: terrainShortName\(terrain\) \/\* #3949 \*\/(, overview: [^;]+)? \};/ /* overview: #3977 */, "every section opens through openSectionOrSay, which adds it");
 });

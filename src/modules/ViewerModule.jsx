@@ -5743,7 +5743,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #1276 — the main process refuses a new section window past what this computer can hold
   // TASKS.csv #1995 — the litho patterns go with the payload. TASKS.csv #3159: lithoPatterns.js loads with the first section opened
   // (on use, like sectionDigitise.js #903), not at startup; this already returned a promise
-  const openSectionOrSay = async (sent) => { const payload = { ...sent, groundSource: terrainShortName(terrain) /* #3949 */ }; const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho)))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
+  const openSectionOrSay = async (sent) => { const payload = { ...sent, groundSource: terrainShortName(terrain) /* #3949 */, overview: (await import("../lib/sectionOverview.js")).sectionOverview({ traces: tracesRef.current, visible: visibleHoles, boundaries, sections, id: sent.id, section: sent.section }, terrain) /* #3977 */ }; const { lithoPatternMap, withSectionPatterns } = await import("../lib/lithoPatterns.js"); return openSectionWindow(withLithoMeanings(withSectionPatterns({ ...payload, rlOffset: rlOffsetOf(project) /* #2809 */ }, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho)))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; }); };
   const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => (visibleHoles[t.hole_id] !== false || t.hole_id === scope.holeAsked /* #3680 — asked for by name */) && t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
@@ -6002,7 +6002,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // TASKS.csv #876 — the section window's ‹ › (previous / next parallel section) and Refresh
   const sectionStepRef = useRef(null);
-  sectionStepRef.current = async ({ id, step, refresh, by, corridor }) => {
+  sectionStepRef.current = async ({ id, step, refresh, by, corridor, offsetM }) => { // offsetM: #3977, dragged on the overview
     const s = (sections || []).find((x) => x.id === id);
     if (!s) return;
     // TASKS.csv #1131 — the buffer changed in the section window: saved with the section and the window redrawn
@@ -6010,7 +6010,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (refresh) { reopenSection(s); return; }
     const { stepSection } = await import("../lib/sectionDigitise.js"); // on use: #903
     const buf = s.corridor || sectionCorridor || 25;
-    const r = s.stepped && s.stepM > 0 && by !== "buffer" ? stepSection(s, sections, step, { fallback: s.stepM, exact: true }) // #2525 — a moving section keeps its step
+    const r = offsetM > 0 ? stepSection(s, sections, step, { fallback: offsetM, exact: true }) : s.stepped && s.stepM > 0 && by !== "buffer" ? stepSection(s, sections, step, { fallback: s.stepM, exact: true }) // #2525 — a moving section keeps its step
       : by === "buffer" ? stepSection(s, sections, step, { fallback: buf, exact: true }) // #1131 — ± exactly the buffer
       : stepSection(s, sections, step, { fallback: Math.max(25, 2 * buf) });
     if (r.existing) { reopenSection(r.existing); return; }
