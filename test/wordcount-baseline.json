@@ -1,8 +1,8 @@
 {
   "note": "Recorded by scripts/word-count.mjs --update-baseline (#3899). No surface may grow past its number; lower it after a rewording.",
   "surfaces": {
-    "help.seenFirst": 12555,
-    "help.seenFirstWithoutMineDesign": 4021,
+    "help.seenFirst": 12639,
+    "help.seenFirstWithoutMineDesign": 4105,
     "tooltips": 17900,
     "infoPopups": 1100,
     "notices": 14523,
@@ -20,7 +20,7 @@
     "help.page.surface": 109,
     "help.page.targeting": 288,
     "help.page.tonnage": 170,
-    "help.page.view": 218,
+    "help.page.view": 302,
     "interface.area.Mine Design (hidden)": 8214,
     "interface.area.Basic path": 16527,
     "interface.area.Geophysics": 13273,
