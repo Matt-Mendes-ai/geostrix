@@ -13263,7 +13263,7 @@
   "The regional geology could not be fetched ({error}).": "No se pudo obtener la geología regional ({error}).",
   "Looking…": "Buscando…",
   "Look at the regional geology": "Consultar la geología regional",
-  "Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction the mapped contacts run: a regional direction only, not a dip.": "Envía la zona alrededor del proyecto a Macrostrat (macrostrat.org) para obtener su mapa geológico publicado, y lee la dirección en que corren los contactos mapeados: solo una dirección regional, no un manteo.",
+  "Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction its contacts, faults and fold axes run: a regional direction only, not a dip.": "Envía el área alrededor del proyecto a Macrostrat (macrostrat.org) para su mapa geológico publicado, y lee la dirección de sus contactos, fallas y ejes de pliegue: solo una dirección regional, no un buzamiento.",
   "Thin sheets, from where the holes cut them.": "Láminas delgadas, a partir de donde las cortan los sondajes.",
   "Builds a thin sheet with a thickness through the places where the holes cut a vein or dyke.": "Construye una lámina delgada con espesor a través de los puntos donde los sondajes cortan una veta o un dique.",
   "Which vein or dyke?": "¿Qué veta o dique?",
@@ -14690,5 +14690,9 @@
   "Macrostrat": "Macrostrat",
   "Use instead": "Usar en su lugar",
   "All settings ({n})": "Todos los ajustes ({n})",
-  "Messages ({n})": "Mensajes ({n})"
+  "Messages ({n})": "Mensajes ({n})",
+  "Mapped faults around the project ({km} km, Macrostrat, CC BY 4.0).": "Fallas cartografiadas alrededor del proyecto ({km} km, Macrostrat, CC BY 4.0).",
+  "Mapped fold axes around the project ({km} km, Macrostrat, CC BY 4.0).": "Ejes de pliegue cartografiados alrededor del proyecto ({km} km, Macrostrat, CC BY 4.0).",
+  "Maps: {list}.": "Mapas: {list}.",
+  "Direction only: no dips, plunges or fold shape.": "Solo dirección: sin buzamientos, inmersiones ni forma de pliegues."
 }

@@ -4,7 +4,7 @@ import { macrostratFetch, cancelledError, isCancelledError } from "./desktop.js"
 import { getProj4DefSync } from "./reproject.js";
 import { reprojectImageRGBA } from "./reprojectMore.js"; // TASKS.csv #3590
 import { wmsImageSize, wmsPixelMetres } from "./webLayers.js";
-import { MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, macrostratZoomSteps, firstZoomWithUnits, macrostratScaleNote /* #3974 */, parseMacrostratUnits, parseMacrostratSources, macrostratLegend, macrostratUnitFeatures, macrostratLayersInArea, drawUnitsRGBA, unitImageLongPx } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
+import { MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, macrostratZoomSteps, firstZoomWithUnits, macrostratScaleNote /* #3974 */, parseMacrostratUnits, parseMacrostratSources, macrostratLegend, macrostratUnitFeatures, macrostratLayersInArea, macrostratLineFeatures, macrostratSourceNames /* #3934 */, drawUnitsRGBA, unitImageLongPx } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
 import { parseLithologies } from "./macrostratColours.js";
 import { readVectorTile } from "./mvt.js"; // TASKS.csv #2011
 import { buildLayer } from "./mapLayerBuild.js"; // TASKS.csv #2012
@@ -107,10 +107,11 @@ export async function fetchMacrostratLegend({ bboxLonLat, onProgress, signal }) 
 }
 
 // TASKS.csv #3911 — the unit polygons alone, in longitude / latitude, from the same vector tiles (the trend helper's regional direction,
-// lib/regionalGrain.js). -> { features, zoom, tiles, failedTiles }
+// lib/regionalGrain.js). #3934: and the same tiles' faults and fold axes, with their maps' names (no other request, no other host).
+// -> { features, lines, sourceNames, zoom, tiles, failedTiles, scaleNote }
 export async function fetchMacrostratUnitPolygons({ bboxLonLat, onProgress, signal }) {
   const { plan, count, tiles, failed, scaleNote } = await fetchMacrostratTiles(bboxLonLat, onProgress, signal); // scaleNote: #3974
-  return { features: macrostratUnitFeatures(tiles, bboxLonLat).features, zoom: plan.z, tiles: count, failedTiles: failed.length, scaleNote };
+  return { features: macrostratUnitFeatures(tiles, bboxLonLat).features, lines: macrostratLineFeatures(tiles, bboxLonLat), sourceNames: macrostratSourceNames(tiles), zoom: plan.z, tiles: count, failedTiles: failed.length, scaleNote };
 }
 
 // TASKS.csv #2012 — the units as a geology map layer (polygons with a unit field, Macrostrat's colours), reprojected into the project

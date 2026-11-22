@@ -65,6 +65,53 @@ export function regionalCandidate(grain) {
   c.numbers = candidateNumbers(c);
   return c;
 }
+// TASKS.csv #3934 (Matt: the regional hint should read Macrostrat's mapped faults and fold axes too, not only the contacts) — the faults and
+// the fold axes of the same tiles (macrostratLineFeatures), each kind on its own: the way they run, length-weighted as an axis (as the
+// contacts above), how much of it runs one way, their length and their maps. Direction only: the map gives no dip, plunge or fold shape.
+// lines -> { fault?: { strikeDeg, R, km, pieces, sources, strength }, fold?: {...} } (a kind with no lines is absent; strength null: no grain)
+export function regionalLines(lines) {
+  const out = {};
+  for (const kind of ["fault", "fold"]) {
+    const ls = (lines || []).filter((l) => l?.kind === kind && l.parts?.length);
+    if (!ls.length) continue;
+    let lat0 = 0, k = 0;
+    for (const l of ls) for (const run of l.parts) for (const p of run) if (Number.isFinite(p?.[1])) { lat0 += p[1]; k++; }
+    lat0 = k ? lat0 / k : 0;
+    const mx = 111320 * Math.max(0.05, Math.cos((lat0 * Math.PI) / 180)), my = 110574;
+    let sx = 0, sy = 0, len = 0;
+    for (const l of ls) for (const run of l.parts) for (let i = 1; i < run.length; i++) {
+      const a = run[i - 1], b = run[i], dx = (b[0] - a[0]) * mx, dy = (b[1] - a[1]) * my, d = Math.hypot(dx, dy);
+      if (!(d > 0)) continue;
+      const t = 2 * Math.atan2(dx, dy);
+      sx += d * Math.sin(t); sy += d * Math.cos(t); len += d;
+    }
+    if (!(len > 0)) continue;
+    const R = Math.hypot(sx, sy) / len;
+    out[kind] = { strikeDeg: Math.round((n360((Math.atan2(sx, sy) * deg) / 2) % 180) * 10) / 10, R: Math.round(R * 100) / 100, km: Math.round(len / 100) / 10, pieces: ls.length,
+      sources: [...new Set(ls.map((l) => l.sourceId).filter((s) => s != null))], strength: R >= GRAIN_FAIR ? "fair" : R >= GRAIN_WEAK ? "weak" : null };
+  }
+  return out;
+}
+// the cards for the faults and the fold axes (each with a direction), never suggested; sourceNames: Map source id -> the map's name (the credit)
+export function regionalLineCandidates(res, sourceNames = new Map()) {
+  const cards = [];
+  for (const kind of ["fault", "fold"]) {
+    const g = res?.[kind];
+    if (!g?.strength) continue;
+    const maps = g.sources.map((s) => sourceNames.get(s)).filter(Boolean);
+    const mapText = maps.length ? " " + tr("Maps: {list}.", { list: maps.slice(0, 2).join("; ") + (maps.length > 2 ? ` (+${maps.length - 2})` : "") }) : "";
+    const c = { id: `regional_${kind}s`, source: "regional", kind: null, dip: 90, dipAzimuth: n360(g.strikeDeg + 90), directionOnly: true, n: g.pieces, strength: g.strength, score: g.R,
+      reason: (kind === "fault"
+        ? tr("Mapped faults around the project ({km} km, Macrostrat, CC BY 4.0).", { km: g.km.toLocaleString() })
+        : tr("Mapped fold axes around the project ({km} km, Macrostrat, CC BY 4.0).", { km: g.km.toLocaleString() })) + mapText,
+      warnings: [tr("Direction only: no dips, plunges or fold shape.")], agreesWith: [], suggested: false, drilling: false };
+    c.words = describeCandidate(c);
+    c.numbers = candidateNumbers(c);
+    cards.push(c);
+  }
+  return cards;
+}
+
 // what to say when there is no card
 export function regionalNoneText(grain, { offline = false } = {}) {
   if (offline) return tr("No internet connection: the regional geology can't be looked at now.");
