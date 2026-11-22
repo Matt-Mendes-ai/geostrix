@@ -14681,5 +14681,6 @@
   "Draw a box…": "Dibujar un rectángulo…",
   "Drag on the view to draw it.": "Arrastre en la vista para dibujarlo.",
   "Drag a corner to change it.": "Arrastre una esquina para cambiarlo.",
-  "Drag to move this row; a group heading moves its whole group": "Arrastra para mover esta fila; un encabezado de grupo mueve todo su grupo"
+  "Drag to move this row; a group heading moves its whole group": "Arrastra para mover esta fila; un encabezado de grupo mueve todo su grupo",
+  "{label} was cut off: its project closed before the rest was added.": "{label} se interrumpió: su proyecto se cerró antes de agregar el resto."
 }

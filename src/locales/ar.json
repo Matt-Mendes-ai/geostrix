@@ -14681,5 +14681,6 @@
   "Draw a box…": "ارسم مستطيلًا…",
   "Drag on the view to draw it.": "اسحب على العرض لرسمه.",
   "Drag a corner to change it.": "اسحب زاوية لتغييره.",
-  "Drag to move this row; a group heading moves its whole group": "اسحب لنقل هذا الصف؛ يحرّك عنوان المجموعة مجموعته كلها"
+  "Drag to move this row; a group heading moves its whole group": "اسحب لنقل هذا الصف؛ يحرّك عنوان المجموعة مجموعته كلها",
+  "{label} was cut off: its project closed before the rest was added.": "توقف {label}: أُغلق مشروعه قبل إضافة الباقي."
 }

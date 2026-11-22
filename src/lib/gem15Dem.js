@@ -9,7 +9,7 @@
 // Read as copernicusDem.js / nrcanDem.js read theirs: HTTP byte ranges through the main process (imageryFetch.js openCog -> electron/main.js remote-sensing-fetch; that host is
 // allowed for this bucket's path only). Cells are found from the STAC (the group catalogue lists a group's cells by their ids; an item gives the COG's href and EPSG) and the
 // index is kept for the session.
-import { remoteSensingFetch } from "./desktop.js";
+import { remoteSensingFetch, isCancelledError } from "./desktop.js"; // isCancelledError: TASKS.csv #3963
 import { gridDims, finishTerrain } from "./terrainGrid.js";
 import { nodeGrid, readInto } from "./nrcanDem.js";
 import { readCopernicusGrid } from "./copernicusDem.js";
@@ -65,7 +65,7 @@ export async function gemCellsInBox(box) {
 }
 
 // Elevations of the lon/lat node grid from GEM-15 alone (row 0 north, NaN where there is no value or no cell). band: "dtm" | "dsm".
-export async function readGemGrid(box, gridW, gridH, { band = "dtm", onProgress, stats } = {}) {
+export async function readGemGrid(box, gridW, gridH, { band = "dtm", onProgress, stats, signal } = {}) { // signal: #3963
   const out = new Float32Array(gridW * gridH).fill(NaN);
   const { cells, asked } = await gemCellsInBox(box);
   let done = 0, read = 0;
@@ -74,22 +74,22 @@ export async function readGemGrid(box, gridW, gridH, { band = "dtm", onProgress,
     const href = c.hrefs[band] || c.hrefs.dtm || c.hrefs.dsm;
     try {
       const g = nodeGrid(box, gridW, gridH, pointTransform(4326, c.epsg));
-      const r = await readInto(out, href, g, stats, { samples: [0] }); // the first band: dtm is one band, dsm's first is the surface
+      const r = await readInto(out, href, g, stats, { samples: [0], signal }); // the first band: dtm is one band, dsm's first is the surface
       if (r.filled) read++;
-    } catch (e) { failed.push(`${c.id}: ${e.message}`); }
+    } catch (e) { if (isCancelledError(e)) throw e; failed.push(`${c.id}: ${e.message}`); }
     onProgress?.(++done, cells.length);
   }
   return { elevations: out, asked, cells: cells.length, read, failed };
 }
 
 // Same result shape as copernicusDem.fetchCopernicusTerrain / nrcanDem.fetchNrcanTerrain. band: "dtm" | "dsm".
-export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200, source = "gem15", gapFill = "delta", smoothSteps = false }) { // smoothSteps: #3950, off by default // gapFill "plain": GLO-30 as it is (the fill before #3871), for measuring
+export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = 200, source = "gem15", gapFill = "delta", smoothSteps = false, signal }) { // signal: TASKS.csv #3963; smoothSteps: #3950, off by default // gapFill "plain": GLO-30 as it is (the fill before #3871), for measuring
   if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error(tr("Invalid area — check the coordinates."));
   const band = source === "gem15dsm" ? "dsm" : "dtm";
   const box = { lonMin, latMin, lonMax, latMax };
   const { gridW, gridH } = gridDims(lonMin, latMin, lonMax, latMax, gridMax);
   let r;
-  try { r = await readGemGrid(box, gridW, gridH, { band, onProgress: (d, t) => onProgress?.(d, t + 1) }); } catch (e) { throw new Error(tr("Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.", { v: e.message })); }
+  try { r = await readGemGrid(box, gridW, gridH, { band, signal, onProgress: (d, t) => onProgress?.(d, t + 1) }); } catch (e) { if (isCancelledError(e)) throw e; throw new Error(tr("Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.", { v: e.message })); }
   if (!r.cells) throw new Error(tr("Choose Copernicus GLO-30 or the AWS Terrain Tiles: GEM-15 has no data in this area (it covers 60°S to 84°N, without Russia, China, Mongolia, Greenland, Antarctica, water, snow and ice)."));
   if (!r.read && r.failed.length) throw new Error(tr("Couldn't read Google's GEM-15 elevation model ({v}). Check your internet connection.", { v: r.failed[0] }));
   const out = r.elevations, total = out.length;
@@ -102,7 +102,7 @@ export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEp
   let filled = 0, copFailed = null, seam = null;
   if (own < total) {
     try {
-      const cop = await readCopernicusGrid(box, gridW, gridH, {});
+      const cop = await readCopernicusGrid(box, gridW, gridH, { signal });
       // TASKS.csv #3871 — not GLO-30 as it is (a surface model above EGM2008, metres to tens of metres off the bare earth above EGM96: every gap outline was a cliff in the terrain and its hillshade):
       // GLO-30 plus the (GEM-15 - GLO-30) difference interpolated in from the nodes GEM-15 has, so the fill meets GEM-15 at the edge. The seam's jump before and after is kept.
       const own0 = new Uint8Array(total); for (let i = 0; i < total; i++) own0[i] = Number.isNaN(out[i]) ? 0 : 1;
@@ -110,7 +110,7 @@ export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEp
       const r2 = gapFill === "plain" ? { out: plain, filled: plain.reduce((n, v, i) => n + (own0[i] || Number.isNaN(v) ? 0 : 1), 0), nValid: 0 } : fillWithDelta(out, cop.elevations, gridW, gridH); filled = r2.filled;
       seam = { before: seamJump(plain, own0, gridW, gridH), after: seamJump(r2.out, own0, gridW, gridH), offsetM: r2.delta || null, deltaFilled: r2.nValid > 0 };
       out.set(r2.out);
-    } catch (e) { copFailed = e.message; }
+    } catch (e) { if (isCancelledError(e)) throw e; copFailed = e.message; } // #3963
   }
   onProgress?.(r.cells + 1, r.cells + 1);
   if (!own && !filled) throw new Error(tr("Choose Copernicus GLO-30 or the AWS Terrain Tiles: GEM-15 has no data in this area (it covers 60°S to 84°N, without Russia, China, Mongolia, Greenland, Antarctica, water, snow and ice)."));

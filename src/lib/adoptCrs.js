@@ -46,8 +46,12 @@ export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName, at =
 // (sourceEpsg, currentEpsg) => epsg function they call once the file's CRS is known.
 // bbox (TASKS.csv #2678): the file's box in its own CRS. A geographic tag on numbers that are not degrees (a mis-tagged GeoTIFF in metres)
 // is not offered at all: it would have made the whole project EPSG:4326. A box in degrees is offered the metric CRS of its place (#1148).
-export function projectEpsgChooser({ isEmpty, setEpsg, fileName, notify }, confirm = undefined) {
+// live (TASKS.csv #3963): () => boolean, a plain file import's job (job.isLive): the chooser runs INSIDE the parser's own await, and the project
+// may have changed by then; setEpsg and the question belong to the project the import started in, so a chooser that is no longer live asks nothing and
+// sets nothing (the import then lands nowhere: its landed() is false)
+export function projectEpsgChooser({ isEmpty, setEpsg, fileName, notify, live = null }, confirm = undefined) {
   return (sourceEpsg, currentEpsg, bbox = null) => {
+    if (live && !live()) return currentEpsg;
     let at = null;
     if (isGeographicCrs(Number(sourceEpsg)) && Array.isArray(bbox) && bbox.length === 4 && bbox.every(Number.isFinite)) {
       const [x0, y0, x1, y1] = bbox;

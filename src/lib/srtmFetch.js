@@ -17,7 +17,7 @@
 //
 // Actual tile bytes are fetched via desktop.js's fetchSRTMTile (proxied through Electron's main
 // process when available, direct fetch as a browser/dev fallback) — see that file's header comment.
-import { fetchSRTMTile } from "./desktop.js";
+import { fetchSRTMTile, cancelledError, isCancelledError } from "./desktop.js"; // cancelledError: TASKS.csv #3963
 import { pointTransform } from "./reproject.js";
 import { neighbourUtmZones } from "./reprojectMore.js"; // TASKS.csv #3590
 import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #614; #927 — never compared with the fill
@@ -92,8 +92,8 @@ export function planTerrainFetch([lonMin, latMin, lonMax, latMax], gridMax = GRI
   return { nodeM, sourcePixelM, nativeM, zoom, tiles, downloadMB: source === "aws" ? +(tiles * 0.1).toFixed(1) : null, memoryMB, fullSideKm: (nativeM * (gridMax - 1)) / 1000, effectiveM: Math.max(nodeM, sourcePixelM) };
 }
 
-export async function decodeTerrariumTile(z, x, y) {
-  const bytes = await fetchSRTMTile(z, x, y);
+export async function decodeTerrariumTile(z, x, y, signal) { // signal: TASKS.csv #3963
+  const bytes = await fetchSRTMTile(z, x, y, { signal });
   const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
   const canvas = document.createElement("canvas");
   canvas.width = bitmap.width;
@@ -312,7 +312,7 @@ export async function findBetterUtmZone(collars, epsg, misfit) {
 // reprojects into targetEpsg the same way parseDEMFiles does for a geographic source, and returns the
 // same shape: { name, bbox, gridW, gridH, elevations, reprojectedTo, reprojectNote, tileCount, zoom }.
 // onProgress(done, total) is called after each tile finishes downloading, for a progress indicator.
-export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = GRID_MAX }) { // gridMax: TASKS.csv #796 terrain detail
+export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = GRID_MAX, signal }) { // signal: TASKS.csv #3963 — a cancelled job stops its tile reads; // gridMax: TASKS.csv #796 terrain detail
   if (!(Number.isFinite(lonMin) && Number.isFinite(latMin) && Number.isFinite(lonMax) && Number.isFinite(latMax))) {
     throw new Error(tr("Invalid area — couldn't determine a bounding box to fetch."));
   }
@@ -333,13 +333,15 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
   const failed = [];
   const worker = async () => {
     while (next < jobs.length) {
+      if (signal && signal.aborted) throw cancelledError(); // #3963
       const [tx, ty] = jobs[next++];
       try {
-        const tile = await decodeTerrariumTile(zoom, nw.x + tx, nw.y + ty);
+        const tile = await decodeTerrariumTile(zoom, nw.x + tx, nw.y + ty, signal);
         if (tile.width !== TILE || tile.height !== TILE) throw new Error(tr("unexpected tile size {width} x {height}", { width: tile.width, height: tile.height }));
         for (let row = 0; row < TILE; row++) mosaic.set(tile.data.subarray(row * TILE, (row + 1) * TILE), (ty * TILE + row) * mw + tx * TILE);
         got++;
       } catch (err) {
+        if (isCancelledError(err)) throw err; // #3963
         failed.push(err.message);
       }
       done++;
@@ -373,7 +375,7 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
     const [lon, lat] = toLonLat(c.x, c.y);
     if (lon < lonMin || lon > lonMax || lat < latMin || lat > latMax) continue;
     let copRise = null;
-    try { copRise = await copernicusRise(lon, lat, c.radiusM); } catch { conesUnchecked++; continue; }
+    try { copRise = await copernicusRise(lon, lat, c.radiusM, signal); } catch (e) { if (isCancelledError(e)) throw e; conesUnchecked++; continue; } // cancelled: #3963
     if (copRise != null && !isArtifactCone(c.riseM, copRise)) continue; // GLO-30 has it too: a real peak
     const p = toProject ? toProject(lon, lat) : [lon, lat];
     suspectCones.push({ lon, lat, x: p?.[0], y: p?.[1], top: mosaic[c.y * mw + c.x], riseM: c.riseM, copRiseM: copRise });

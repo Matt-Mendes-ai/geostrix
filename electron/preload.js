@@ -29,8 +29,9 @@ contextBridge.exposeInMainWorld("desktop", {
   saveFile: (payload) => ipcRenderer.invoke("save-file", payload),
   saveFileTo: (payload) => ipcRenderer.invoke("save-file-to", payload), // TASKS.csv #553
   openFile: (payload) => ipcRenderer.invoke("open-file", payload),
-  fetchSRTMTile: (z, x, y) => ipcRenderer.invoke("fetch-srtm-tile", { z, x, y }),
-  fetchWebLayerUrl: (url) => ipcRenderer.invoke("fetch-web-layer", { url }),
+  fetchSRTMTile: (z, x, y, reqId) => ipcRenderer.invoke("fetch-srtm-tile", { z, x, y, reqId }), // reqId: TASKS.csv #3963 — the request abortNetFetch can stop
+  fetchWebLayerUrl: (url, reqId) => ipcRenderer.invoke("fetch-web-layer", { url, reqId }),
+  abortNetFetch: (reqId) => ipcRenderer.send("net-abort", reqId), // TASKS.csv #3963 — stops the download that carries this id
   remoteSensingFetch: (req) => ipcRenderer.invoke("remote-sensing-fetch", req), // TASKS.csv #784
   geochemFetch: (req) => ipcRenderer.invoke("geochem-fetch", req), // TASKS.csv #846
   macrostratFetch: (req) => ipcRenderer.invoke("macrostrat-fetch", req), // TASKS.csv #2005

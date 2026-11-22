@@ -99,8 +99,8 @@ export function naipTiles(box, cellM, { tile = TILE_PX, maxSide = MAX_SIDE_TILES
   return { cell, nx, ny, width, height, tiles };
 }
 
-export async function fetchNaip(bboxLonLat, { targetEpsg = null, maxPx = 2048, full = false, onProgress } = {}) {
-  const d = await stacSearch(PC_SEARCH, { collections: ["naip"], bbox: bboxLonLat, limit: 250, sortby: [{ field: "properties.datetime", direction: "desc" }] });
+export async function fetchNaip(bboxLonLat, { targetEpsg = null, maxPx = 2048, full = false, onProgress, signal } = {}) { // signal: TASKS.csv #3963
+  const d = await stacSearch(PC_SEARCH, { collections: ["naip"], bbox: bboxLonLat, limit: 250, sortby: [{ field: "properties.datetime", direction: "desc" }] }, signal);
   const found = (d.features || []).filter((f) => f.assets?.image?.href).map((f) => ({ id: f.id, date: String(f.properties.datetime).slice(0, 10), gsd: f.properties.gsd, epsg: itemEpsg(f.properties), bbox: f.bbox, geometry: f.geometry, href: f.assets.image.href }));
   if (!found.length) throw new Error(tr("No NAIP imagery here. NAIP covers the USA only; elsewhere use the Sentinel-2 source."));
   const { items, cover } = chooseNaipItems(found, bboxLonLat);
@@ -118,7 +118,7 @@ export async function fetchNaip(bboxLonLat, { targetEpsg = null, maxPx = 2048, f
   const steps = plan.tiles.length * items.length;
   for (const [k, grid] of plan.tiles.entries()) {
     const tileLonLat = gridLonLat(grid, dst);
-    const part = await paintNaipGrid(grid, tileLonLat, items, dst, () => onProgress?.(++done, steps));
+    const part = await paintNaipGrid(grid, tileLonLat, items, dst, () => onProgress?.(++done, steps), signal);
     if (!part) continue;
     const name = `NAIP ${yearText} natural colour (~${pixel} m pixels)${plan.tiles.length > 1 ? `, part ${k + 1} of ${plan.tiles.length}` : ""}`;
     parts.push({ name, bbox: grid.box, dataUrl: part, gridW: grid.width, gridH: grid.height, pixelM: grid.cell });
@@ -147,7 +147,7 @@ function gridLonLat(grid, epsg) {
 
 // the images painted onto one grid -> { rgba, painted }. openTiff(href) -> a geotiff (signed and opened here by default; the detail tiles
 // pass one that keeps the opened images, TASKS.csv #3252)
-export async function paintNaipRgba(grid, bboxLonLat, items, dst, step = () => {}, { openTiff = async (href) => openCog(await signPc(href, NAIP_TOKEN)) } = {}) {
+export async function paintNaipRgba(grid, bboxLonLat, items, dst, step = () => {}, { signal, openTiff = async (href) => openCog(await signPc(href, NAIP_TOKEN, signal), undefined, signal) } = {}) { // signal: #3963
   const rgba = new Uint8ClampedArray(grid.width * grid.height * 4);
   let painted = 0;
   for (const it of items) {
@@ -155,7 +155,7 @@ export async function paintNaipRgba(grid, bboxLonLat, items, dst, step = () => {
     if (ov[0] < ov[2] && ov[1] < ov[3]) {
       const w = windowGrid(ov, it.epsg, grid.cell, Infinity);
       const tiff = await openTiff(it.href);
-      const bands = await tiff.readRasters({ bbox: w.box, width: w.width, height: w.height, resampleMethod: "nearest", samples: [0, 1, 2], fillValue: 0 });
+      const bands = await tiff.readRasters({ bbox: w.box, width: w.width, height: w.height, resampleMethod: "nearest", samples: [0, 1, 2], fillValue: 0, signal });
       const c = [[ov[0], ov[1]], [ov[2], ov[1]], [ov[2], ov[3]], [ov[0], ov[3]]].map(([x, y]) => reprojectXY(x, y, 4326, dst));
       painted += paintWindow(rgba, grid, { box: w.box, width: w.width, height: w.height, cell: w.cell, bands, xmin: Math.min(...c.map((p) => p.x)), xmax: Math.max(...c.map((p) => p.x)), ymin: Math.min(...c.map((p) => p.y)), ymax: Math.max(...c.map((p) => p.y)) }, latticeMapper(grid, dst, it.epsg));
     }
@@ -166,8 +166,8 @@ export async function paintNaipRgba(grid, bboxLonLat, items, dst, step = () => {
 export { gridLonLat, NAIP_TOKEN };
 
 // the images painted onto one grid -> a data URL (WebP 0.9, else PNG), or null when nothing landed on it
-async function paintNaipGrid(grid, bboxLonLat, items, dst, step) {
-  const { rgba, painted } = await paintNaipRgba(grid, bboxLonLat, items, dst, step);
+async function paintNaipGrid(grid, bboxLonLat, items, dst, step, signal) {
+  const { rgba, painted } = await paintNaipRgba(grid, bboxLonLat, items, dst, step, { signal });
   if (!painted) return null;
   const canvas = document.createElement("canvas");
   canvas.width = grid.width; canvas.height = grid.height;

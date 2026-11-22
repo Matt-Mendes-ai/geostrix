@@ -47,5 +47,5 @@ test("both budget menus give memory (the grade shell time too) in one form", () 
 test("the notice is built before cs is reassigned (the updater runs later)", () => {
   const i = runs.indexOf("const fitNotice = ");
   assert.ok(i > 0 && i < runs.indexOf("cs = fit;", i));
-  assert.match(runs, /setNotices\(\(p\) => \[\.\.\.p, fitNotice\]\)/);
+  assert.match(runs, /(setNotices|jobNotices)\(\(p\) => \[\.\.\.p, fitNotice\]\)/); // jobNotices: #3963 — to the project the run started in
 });

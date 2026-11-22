@@ -138,7 +138,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
     try {
       if (fetchMode) {
         if (!scene) return;
-        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => setProgress({ d, n }), targetEpsg: tie ? Number(tie.epsg) : epsg }); // tie: #2648
+        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => setProgress({ d, n }), targetEpsg: tie ? Number(tie.epsg) : epsg, signal: job.signal }); // tie: #2648; signal: #3963 — closing its project stops the download
         await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0, job);
       } else {
         if (!file || unmapped.length) return;
@@ -146,7 +146,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
         await makeIndex(file.file, Object.fromEntries((vegOn ? mapRoles : parsed.uses).map((r) => [r, bandOf(r)])), sensor, "", vegOn, job);
       }
     } catch (e) {
-      setError(e.message);
+      if (!job.gone) setError(e.message); // #3963 — a project closed mid-download: the banner says it
     } finally { setBusy(false); setProgress(null); job.end(); } // job: TASKS.csv #3953
   };
 

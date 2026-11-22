@@ -396,7 +396,7 @@ export default function RasterModule({ embedded = false } = {}) {
     try { // TASKS.csv #816 / #837 — the latest clear Sentinel-2 scene (Copernicus: free and open, any use with attribution)
       const tie = tieOf(project); // TASKS.csv #2648 — a tied local grid: fetched in the tie's CRS, then brought into the grid
       // #3251 — Full: NAIP at the imagery's own pixels, in up to 2 x 2 pictures (r.parts)
-      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, full: satLevel === "full", onProgress: (done, total) => setSatProgress({ done, total }), ...(Number.isFinite(ai?.maxTileCloud) ? { maxTileCloud: ai.maxTileCloud } : {}) };
+      const opts = { targetEpsg: tie ? Number(tie.epsg) : project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, full: satLevel === "full", signal: job.signal /* #3963 — closing its project stops the download */, onProgress: (done, total) => setSatProgress({ done, total }), ...(Number.isFinite(ai?.maxTileCloud) ? { maxTileCloud: ai.maxTileCloud } : {}) };
       const r = src === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
       let tieNote = "";
       const parts = [];
@@ -422,7 +422,7 @@ export default function RasterModule({ embedded = false } = {}) {
       setError({ info: src === "naip" ? !r.partial : r.areaCloud <= 0.1, text: (parts.length > 1 ? tr("Fetched and imported {n} pictures of \"{name}\" ({gridW} × {gridH} px each at most).", { n: parts.length, name: r.name.replace(/, part 1 of \d+$/, ""), gridW: arrMax(parts.map((p) => p.gridW)), gridH: arrMax(parts.map((p) => p.gridH)) }) : tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH })) + r.note + tieNote });
     } catch (err) {
       said({ ok: false, error: String(err?.message || "The image could not be fetched.") }); // #3932
-      setError({ info: false, text: err.message });
+      if (!job.gone) setError({ info: false, text: err.message }); // #3963 — a project closed mid-download: the banner says it
     } finally {
       setSatBusy(false);
       setSatProgress(null);
@@ -498,23 +498,26 @@ export default function RasterModule({ embedded = false } = {}) {
     if (!file) return;
     setError(null);
     setBusy(true);
+    const job = beginJob(file.name); // TASKS.csv #3963 — a plain file import belongs to the project it started in too
     try {
       const worldFile = world ? parseWorldFile(await world.text(), world.name) : null;
       // TASKS.csv #2830 — the Geosoft .xml beside a .grd / .gxf names its CRS (a Source CRS set by hand still wins)
       const xc = xml && !sourceEpsg ? geosoftXmlCrs(await xml.text()) : null;
       const pe = !xc && prj && !sourceEpsg ? guessEpsgFromPrjWkt(await prj.text()) : null; // #2857 — the .prj beside it (a Source CRS set by hand still wins)
       const sideCrs = xc ? { epsg: xc.epsg, from: xml.name } : pe ? { epsg: pe, from: prj.name } : null;
-      const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
+      const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name, live: job.isLive }); // #607; live: #3963 — the chooser runs inside the parser's await
       const { raster, msg } = await buildRasterImport(file, { epsg: projectTargetEpsg(project), defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile, tie: tieOf(project), collarZ: collarZRange(collars), mineSource: mineSourceOf(project), sideCrs }); // tie: #2587; collarZ: #2129; mineSource: #2684; sideCrs: #2830
+      if (!(await landed(job))) return; // TASKS.csv #3963 — into the project it started in (the finally clears the busy state)
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name, stations: layers?.geophys_pts }); // stations: #2868; #1856 — the ground under this raster; #1505 — above the collars, stacked, or at the name's depth
       // TASKS.csv #2865 — the same file over the same area again is asked (it made a second card 5 m up)
       if (sameRaster(raster, rasters) && !window.confirm(tr("\"{name}\" is already imported over the same area. Import it again?", { name: raster.name }))) { setError({ info: true, text: tr("\"{name}\" was not imported again.", { name: raster.name }) }); return; }
       addRaster({ ...raster, elevation: drape.z });
       setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });
     } catch (err) {
+      if (job.gone) return; // #3963 — its project is gone and the banner said so
       setError({ info: false, text: err.message });
     } finally {
-      setBusy(false);
+      setBusy(false); job.end(); // job: #3963
     }
   };
 
