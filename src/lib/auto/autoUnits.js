@@ -63,6 +63,13 @@ export function stackOrder(rows) {
   return { units: list, order: ranked.filter(layered), bodies: ranked.filter((u) => !layered(u)), agree, holeCount: holes.size };
 }
 
+// TASKS.csv #3997 — why a cover code cannot be modelled by its top, and the route that works: c is collarCover() (lib/modellingCodes.js).
+// stack: also say that, as Overburden, its base is one eroding surface over the rocks it rests on (the stack folds it in, #1684).
+export function coverAdvice(unit, c, { stack = false } = {}) {
+  const s = tr("{unit} starts {n} of the {h} holes at the collar: it is the cover. Its top there is the ground, not a contact, so a surface from its other tops is not its top (it sits off to one side). Model its base instead: Model > Cover and weathering, or set its role to Overburden in Modelling codes.", { unit, n: c.starts, h: c.holes });
+  return stack && c.onto.length > 1 ? s + tr(" As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.", { list: c.onto.slice(0, 6).join(", ") }) : s;
+}
+
 // the cover: the code that starts the most holes, and reads like cover. describe(code) -> the code's description, if the project has one
 export function suggestCover(rows, describe = () => "") {
   const holes = runsByHole(rows);

@@ -14807,5 +14807,7 @@
   "This is {n} units: GemPy takes at most {max} in one model.": "هذه {n} وحدات: يقبل GemPy {max} كحد أقصى في نموذج واحد.",
   "Under {pct} % of the logged metres, left out: {names}.": "أقل من {pct} % من الأمتار المسجلة، تُستبعد: {names}.",
   "cover / casing": "غطاء / تغليف",
-  "no recovery": "بلا استرداد"
+  "no recovery": "بلا استرداد",
+  "{unit} starts {n} of the {h} holes at the collar: it is the cover. Its top there is the ground, not a contact, so a surface from its other tops is not its top (it sits off to one side). Model its base instead: Model > Cover and weathering, or set its role to Overburden in Modelling codes.": "تبدأ {unit} في {n} من أصل {h} ثقباً عند الفوهة: إنها الغطاء. قمتها هناك هي سطح الأرض لا تماس، فالسطح المبني من قممها الأخرى ليس قمتها (يقع في جانب واحد). نمذج قاعدتها بدلاً من ذلك: النموذج > الغطاء والتجوية، أو اجعل دورها غطاءً في رموز النمذجة.",
+  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " بوصفها غطاءً، قاعدتها سطح حتّ واحد فوق الصخور التي تستقر عليها ({list})، ويُنمذج العمود تحته."
 }

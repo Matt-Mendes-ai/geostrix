@@ -8,7 +8,8 @@
 //         feed(ctx) -> null | why it cannot (a sentence), suggest(ctx) -> { value, reason }, choices(ctx) -> [unit],
 //         contacts(ctx, value) -> the contacts autoSurface sizes the model from, check(ctx, value) -> null | why it cannot,
 //         notes(ctx, value) -> [sentence], run(api, value), prefill(api, value) }
-import { stackOrder, suggestBody, suggestCover } from "../../../lib/auto/autoUnits.js";
+import { stackOrder, suggestBody, suggestCover, coverAdvice } from "../../../lib/auto/autoUnits.js";
+import { codedRuns, collarCover } from "../../../lib/modellingCodes.js"; // TASKS.csv #3997
 import { t as tr, fmtNum } from "../../../lib/i18n.js";
 import { autoGradeShell } from "../../../lib/auto/autoGradeShell.js";
 import { autoBlockModel } from "../../../lib/auto/autoBlockModel.js";
@@ -23,6 +24,8 @@ import { desurveyHole, pointOnTrace } from "../../../lib/desurvey.js";
 
 const noLogs = (ctx) => (ctx.rows.length ? null : tr("No lithology log yet: import one (Add data) and this tool reads it."));
 const unitsByHoles = (ctx) => stackOrder(ctx.rows).units.map((u) => u.unit);
+// TASKS.csv #3997 — a rock that starts most holes at the collar is the cover (Century's limestone): not a layer's top, not a body
+const coverOf = (ctx, code) => (ctx.isCover?.(code) ? null : collarCover(codedRuns(ctx.rows, null, null), code));
 
 export const ROCK_LAYERS = {
   id: "layers",
@@ -45,7 +48,7 @@ export const ROCK_LAYERS = {
   ordered(ctx, picked) { const s = stackOrder(ctx.rows), rank = [...s.order, ...s.bodies, ...s.units.map((u) => u.unit)]; return [...picked].sort((a, b) => rank.indexOf(a) - rank.indexOf(b)); },
   check: (ctx, value) => (value.length >= 2 ? null : tr("Tick at least two rocks: a layer is drawn between two of them.")),
   contacts: (ctx, value) => ctx.intercepts().filter((c) => value.includes(String(c.unit))),
-  notes: () => [],
+  notes: (ctx, value) => { const c = value[0] ? coverOf(ctx, value[0]) : null; return c?.cover && c.onto.length > 1 ? [coverAdvice(value[0], c, { stack: true })] : []; }, // #3997
   run: (api, value) => api.runStackModel(value),
   prefill: (api, value) => api.setStackUnits(value),
 };
@@ -70,7 +73,7 @@ export const BODIES = {
   },
   choices: unitsByHoles,
   check: (ctx, value) => (!value ? tr("Choose a rock first.")
-    : BODY_ROLES.has(ctx.roleOf(value)) ? null : tr("Mark {code} as an intrusion in 3D Modelling > Modelling codes, then build again: read as a layered rock, only its top would be drawn.", { code: value })),
+    : BODY_ROLES.has(ctx.roleOf(value)) ? null : coverOf(ctx, value)?.cover ? coverAdvice(value, coverOf(ctx, value)) /* #3997 */ : tr("Mark {code} as an intrusion in 3D Modelling > Modelling codes, then build again: read as a layered rock, only its top would be drawn.", { code: value })),
   contacts: (ctx, value) => ctx.intercepts().filter((c) => String(c.unit) === value),
   notes: () => [],
   run: (api, value, ctx) => api.runImplicitModel(ctx.target(value)), // mcode:<code> when Modelling codes give it its role (live: RSO marked overburden)

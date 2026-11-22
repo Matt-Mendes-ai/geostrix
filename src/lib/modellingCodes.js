@@ -127,6 +127,26 @@ export function overburdenBases(runs, mc, defaultRole, match = null) {
   return { bases, skipped };
 }
 
+// TASKS.csv #3997 — is this code the cover? On Century, LMST starts 31 of the 34 logged holes at the collar: its top there is the ground,
+// never a contact (#2527), so its own top keeps one stray pick and the surface from it is a slab off to one side; the Implicit surface,
+// the stack and a body all failed on it. A code that starts at least half the holes, and at least half of the holes that cut it (three or
+// more), is the cover; what it rests on (`onto`, most first) says whether its base is an eroding surface over several rocks.
+// -> { starts, holes, cut (holes that cut it), onto: [code], cover }
+export function collarCover(runs, code) {
+  const holes = new Set(), cut = new Set(), belowOf = new Map(), ontoN = new Map();
+  let starts = 0;
+  for (const r of runs) { holes.add(r.hole_id); if (r.above) belowOf.set(r.above, r); }
+  for (const r of runs) {
+    if (r.code !== code) continue;
+    cut.add(r.hole_id);
+    if (r.holeStart) starts++;
+    const b = belowOf.get(r);
+    if (b && b.code !== code) ontoN.set(b.code, (ontoN.get(b.code) || 0) + 1);
+  }
+  const onto = [...ontoN].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]))).map(([c]) => c);
+  return { starts, holes: holes.size, cut: cut.size, onto, cover: starts >= 3 && 2 * starts >= holes.size && 2 * starts >= cut.size };
+}
+
 // The tops ("Top of <code>" interface points) of one code, and why the other starts were not used. #1684: a start directly
 // under overburden is counted apart (skipped.underOverburden), and is a top when `underOverburden` is on.
 export function topsForCode(runs, code, mc, defaultRole, { underOverburden = false } = {}) {

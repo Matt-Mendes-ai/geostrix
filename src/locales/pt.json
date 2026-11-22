@@ -14807,5 +14807,7 @@
   "This is {n} units: GemPy takes at most {max} in one model.": "São {n} unidades: o GemPy aceita no máximo {max} em um modelo.",
   "Under {pct} % of the logged metres, left out: {names}.": "Com menos de {pct} % dos metros registrados, ficam de fora: {names}.",
   "cover / casing": "cobertura / revestimento",
-  "no recovery": "sem recuperação"
+  "no recovery": "sem recuperação",
+  "{unit} starts {n} of the {h} holes at the collar: it is the cover. Its top there is the ground, not a contact, so a surface from its other tops is not its top (it sits off to one side). Model its base instead: Model > Cover and weathering, or set its role to Overburden in Modelling codes.": "{unit} inicia {n} dos {h} furos no colar: é a cobertura. Ali o topo é o terreno, não um contato, então uma superfície feita com os outros topos não é o topo (fica de lado). Modele a base: Modelo > Cobertura e intemperismo, ou defina o papel Cobertura em Códigos de modelagem.",
+  " As Overburden, its base is one eroding surface over the rocks it rests on ({list}), and the stack is modelled under it.": " Como cobertura, a base é uma só superfície erosiva sobre as rochas em que repousa ({list}), e a pilha é modelada abaixo dela."
 }
