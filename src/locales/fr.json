@@ -5830,7 +5830,6 @@
   "Build the blocks": "Construire les blocs",
   "{unit} {v} Mm³": "{unit} {v} Mm³",
   "{unit} covers {pct}% of the box": "{unit} couvre {pct} % de la boîte",
-  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}": "{n} blocs construits ({nx} × {ny} × {nz}) à partir des surfaces : {units}. Utilisez « Ajouter les volumes d'unités (fermés) » ou « Ajouter comme modèle de blocs » dans le cadre Dernier modèle, au-dessus de la liste des surfaces.{v}",
   "no unit cells": "aucune cellule d'unité",
   " Beyond a top's footprint the unit above it continues down: {list}.": " Au-delà de l'emprise d'un toit, l'unité au-dessus continue vers le bas : {list}.",
   "Solid blocks from surfaces…": "Blocs solides à partir de surfaces…",
@@ -14724,5 +14723,11 @@
   "Samples: uneven lengths": "Échantillons : longueurs inégales",
   "Equal composites": "Composites égaux",
   "No sample": "Sans échantillon",
-  "Intercept, with internal dilution": "Intersection, avec dilution interne"
+  "Intercept, with internal dilution": "Intersection, avec dilution interne",
+  "No model yet.": "Pas encore de modèle.",
+  "Build the blocks first.": "Construisez d'abord les blocs.",
+  "Surfaces and block settings": "Surfaces et réglages des blocs",
+  "Fold the result block": "Replier le bloc de résultat",
+  "Open the result block": "Déplier le bloc de résultat",
+  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Result block at the top of the panel.{v}": "{n} blocs construits ({nx} × {ny} × {nz}) à partir des surfaces : {units}. Utilisez « Ajouter les volumes d'unités (fermés) » ou « Ajouter comme modèle de blocs » dans le bloc Résultat, en haut du panneau.{v}"
 }

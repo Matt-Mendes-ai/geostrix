@@ -74,6 +74,7 @@ import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 �
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
 import { layerStamp, isStaleStamp } from "../lib/layerStamp.js"; // TASKS.csv #2388
+import ModelResultBlock from "../components/ModelResultBlock.jsx"; // TASKS.csv #3988
 import { outlineLinkCandidates, outlineOptionText, linkableOutline, linkDisabledReason } from "../lib/viewer/outlineLink.js"; // TASKS.csv #2235
 import { viewKeyZoom } from "../lib/viewer/viewKeys.js"; // TASKS.csv #2788
 import { t as tr } from "../lib/i18n.js";
@@ -3281,7 +3282,7 @@ ${describeTrend(t)}` };
     const out = [], say = (n) => { out.push(n.text); setNotices((p) => [...p, n]); };
     if (sum.notExtended?.length) say(notice("Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.", { names: sum.notExtended.join(", ") })); // #1194
     const partial = Object.entries(sum.coverage).filter(([, f]) => f < 0.999).map(([u, f]) => tr("{unit} covers {pct}% of the box", { unit: u, pct: Math.round(100 * f) }));
-    say(notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? (sum.extended /* #1138 */ ? tr(" Contacts were extended past their own edges until they meet ({list} as drawn).", { list: partial.join("; ") }) : tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") })) : "")
+    say(notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Result block at the top of the panel.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? (sum.extended /* #1138 */ ? tr(" Contacts were extended past their own edges until they meet ({list} as drawn).", { list: partial.join("; ") }) : tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") })) : "")
       + (sum.inverted?.baseAboveTop ? tr(" In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.", { n: sum.inverted.baseAboveTop, m: sum.inverted.columns }) : "") // #860
       + (sum.inverted?.crossingTops ? tr(" In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.", { n: sum.inverted.crossingTops, m: sum.inverted.columns }) : "") }));
     { const xn = extrapolationNotice(implicitSurfaces.filter((s) => lb.source?.ids?.includes(s.id))); if (xn) say(xn); } // #1840
@@ -6732,14 +6733,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         {/* TASKS.csv #356 — the last run's lithology block, on request (not added automatically: every run
             would otherwise leave another block model and layer behind). */}
-        {lastLithBlock && (
-          <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
-            <div style={{ color: "var(--color-text)", marginBottom: 6, opacity: isStaleStamp(lastLithBlock.lithoStamp, lithoNow) ? 0.55 : 1 }}>{isStaleStamp(lastLithBlock.lithoStamp, lithoNow) && tr("Built from a lithology log that has changed since:") + " "}{lastLithBlock.matchedPct != null ? tr("Last model ({title}, {when}) reproduces {pct}% of the logged metres.", { title: lastLithBlock.title, when: lastLithBlock.when, pct: lastLithBlock.matchedPct }) : tr("Last model ({title}, {when}).", { title: lastLithBlock.title, when: lastLithBlock.when })}</div>
-            {!lastLithBlock.structural && <>{/* #1554 */}
-            <button onClick={addUnitVolumes} style={{ ...pBtn, marginBottom: 4 }} title={tr("Each modelled unit as a closed solid (closed at the model box): export as DXF / OBJ, volume / tonnage, cut on sections and plans, and a grade-estimation domain")}><Box size={14} />{" "}{tr("Add unit volumes (closed)")}</button>
-            <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title={tr("The model's units as a block model, with the 3D view, slice, cutoff and section tools of any block model. The space above every modelled top is left out.")}><Box size={14} />{" "}{tr("Add as block model")}</button>
-            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title={tr("An interval layer of the modelled unit at each logged litho interval, shown beside the logged litho in the strip log and on the holes in 3D and sections.")}><Layers3 size={14} />{" "}{tr("Add \"modelled unit\" layer to holes")}</button></>}
-          </div>
+        {(lastLithBlock || surfaceSolidsOpen) && (/* TASKS.csv #3988 — the Result block: the last model, Build the blocks and the Add buttons together, pinned */
+          <ModelResultBlock last={lastLithBlock} stale={!!lastLithBlock && isStaleStamp(lastLithBlock.lithoStamp, lithoNow)} onClose={() => setSurfaceSolidsOpen(false)} pBtn={pBtn}
+            onUnitVolumes={addUnitVolumes} onBlockModel={addLithBlockModel} onModelledLayer={addModelledLayer}
+            buildPanel={implicitSurfaces.length ? <Suspense fallback={null}><SurfaceSolidsPanel inline surfaces={implicitSurfaces} explicitDefs={explicitSurfaces || []} /* #830 */ worldMesh={surfaceWorldMesh} origin={originRef.current} terrain={terrain} sampleGround={(x, y) => terrainGroundAt(terrain, x, y)} onBuilt={surfaceSolidsBuilt} onError={(e) => setNotices((p) => [...p, e])} pBtn={pBtn} smallSel={smallSel} numInput={smallSel} /></Suspense> : null} />
         )}
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Generated surfaces")}</div>
         {/* TASKS.csv #146 — query the generated surfaces rather than only look at them: how far is each
@@ -6790,14 +6787,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           ))}
           <button onClick={buildVeinSolid} disabled={!veinHw || !veinFw || veinHw === veinFw} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: veinHw && veinFw && veinHw !== veinFw ? 1 : 0.5 }}>{tr("Make the solid")}</button>
         </div>
-        {surfaceSolidsOpen && (<Suspense fallback={null}>
-          <SurfaceSolidsPanel
-            surfaces={implicitSurfaces} explicitDefs={explicitSurfaces || []} /* #830 */ worldMesh={surfaceWorldMesh} origin={originRef.current}
-            terrain={terrain} sampleGround={(x, y) => terrainGroundAt(terrain, x, y)}
-            onBuilt={surfaceSolidsBuilt} onError={(e) => setNotices((p) => [...p, e])} onClose={() => setSurfaceSolidsOpen(false)}
-            pBtn={pBtn} smallSel={smallSel} numInput={smallSel}
-          />
-        </Suspense>)}
         <input
           ref={importSolidRef}
           type="file"
