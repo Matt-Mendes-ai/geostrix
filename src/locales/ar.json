@@ -14973,5 +14973,8 @@
   "added planned holes {a} to {b}": "أضاف الثقوب المخططة من {a} إلى {b}",
   "marked {name} approved": "وضع علامة معتمد على {name}",
   "marked {name} proposed": "وضع علامة مقترح على {name}",
-  "Compared {n}.": "قورن {n}."
+  "Compared {n}.": "قورن {n}.",
+  "A bar beside the trace, its length following the value": "شريط بجانب المسار، يتبع طوله القيمة",
+  "Zoom in (or the wheel); pan with the middle button or Space + drag": "تكبير (أو العجلة)؛ حرّك بالزر الأوسط أو بالمسافة + سحب",
+  "Fit the whole section (or double-click empty ground)": "ملاءمة المقطع كاملًا (أو نقر مزدوج على مساحة فارغة)"
 }

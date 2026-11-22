@@ -14973,5 +14973,8 @@
   "added planned holes {a} to {b}": "adicionou os furos planejados {a} a {b}",
   "marked {name} approved": "marcou {name} como aprovado",
   "marked {name} proposed": "marcou {name} como proposto",
-  "Compared {n}.": "Comparados {n}."
+  "Compared {n}.": "Comparados {n}.",
+  "A bar beside the trace, its length following the value": "Uma barra ao lado do traço, com comprimento segundo o valor",
+  "Zoom in (or the wheel); pan with the middle button or Space + drag": "Ampliar (ou a roda); mova com o botão do meio ou Espaço + arrastar",
+  "Fit the whole section (or double-click empty ground)": "Ajustar toda a seção (ou clique duplo em área vazia)"
 }

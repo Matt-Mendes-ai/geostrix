@@ -13,7 +13,8 @@ import { assayHue } from "../legendGroups.js";
 const dispose = (m) => { m?.geometry?.dispose?.(); m?.material?.dispose?.(); };
 export const barColour = (lane) => CATEGORICAL_SAFE_COLORS[lane % CATEGORICAL_SAFE_COLORS.length];
 
-export function useTraceBars({ groupsRef, tracesRef, tracesSeq, mnlgy, mnlgyStyle, mnlgyOn, mnlgyShown, mnlgyColour, assays, assaySyms, assayStyle, assayOn, assayShown, assayElements }) {
+// custom: { layers, visible, styles } (#4008) — the numeric custom layers drawn as bars (each layer's style `bar`), in lanes after the minerals
+export function useTraceBars({ groupsRef, tracesRef, tracesSeq, mnlgy, mnlgyStyle, mnlgyOn, mnlgyShown, mnlgyColour, assays, assaySyms, assayStyle, assayOn, assayShown, assayElements, custom }) {
   const groupRef = useRef(null);
   const ensure = () => {
     const parent = groupsRef.current?.holes?.parent;
@@ -23,15 +24,17 @@ export function useTraceBars({ groupsRef, tracesRef, tracesSeq, mnlgy, mnlgyStyl
     return groupRef.current;
   };
   const minChosen = mnlgyStyle?.bars, asOn = !!assayStyle?.bars;
+  const customOn = custom ? Object.keys(custom.styles || {}).filter((k) => k.startsWith("custom:") && custom.styles[k]?.bar).join("|") + "#" + (custom.layers || []).map((l) => l.id + (custom.visible?.[l.id] === false ? "-" : "")).join(",") : "";
+  const wantCustom = !!customOn.split("#")[0];
   useEffect(() => {
     const g = ensure();
     if (!g) return undefined;
     while (g.children.length) dispose(g.children.pop());
     const wantMin = !!(minChosen?.length && mnlgyOn), wantAssay = !!(asOn && assayOn && assaySyms?.length);
-    if (!wantMin && !wantAssay) return undefined;
+    if (!wantMin && !wantAssay && !wantCustom) return undefined;
     let gone = false;
     // the bars' code (the mesh, its shader, the bar data) loads with the first bar chosen (startup size)
-    Promise.all([import("./traceBars.js"), import("../traceBarsData.js")]).then(([{ traceBarsMesh }, { mineralBars, assayBars }]) => {
+    Promise.all([import("./traceBars.js"), import("../traceBarsData.js"), wantCustom ? import("../customBars.js") : null]).then(([{ traceBarsMesh }, { mineralBars, assayBars }, cb]) => {
     if (gone) return;
     const max = isLight() ? LIGHT_MAX_BARS : MAX_BARS;
     const looks = new Map(), traceOf = new Map((tracesRef.current || []).map((t) => [t.hole_id, t.pts]));
@@ -41,6 +44,11 @@ export function useTraceBars({ groupsRef, tracesRef, tracesSeq, mnlgy, mnlgyStyl
       const ids = minChosen.slice(0, max), m = traceBarsMesh(bars, lookOf, (lane) => (mnlgyColour ? mnlgyColour(ids[lane], lane) : barColour(lane)));
       if (m) { m.name = "mnlgy_bars"; g.add(m); }
     }
+    if (wantCustom && cb) { // #4008 — numeric custom layers: a lane each, after the minerals
+      const lay = cb.barLayers(custom.layers, custom.visible, custom.styles, max), { bars } = cb.customBars(lay, { laneStart: wantMin ? Math.min(minChosen.length, max) : 0 });
+      const first = wantMin ? Math.min(minChosen.length, max) : 0, m = traceBarsMesh(bars, lookOf, (lane) => cb.customBarColour(lay[lane - first] || lay[0], lane, custom.styles));
+      if (m) { m.name = "custom_bars"; g.add(m); }
+    }
     if (wantAssay) {
       const { bars } = assayBars(assays, assaySyms, { shown: assayShown, max });
       const m = traceBarsMesh(bars, lookOf, (lane) => assayHue(assaySyms[lane], assayElements)); // lane: the element's place among those chosen; its own hue (the markers')
@@ -48,6 +56,6 @@ export function useTraceBars({ groupsRef, tracesRef, tracesSeq, mnlgy, mnlgyStyl
     }
     }).catch(() => { /* offline chunk: no bars */ });
     return () => { gone = true; };
-  }, [mnlgy, minChosen, mnlgyOn, assays, assaySyms, asOn, assayOn, assayElements, tracesSeq]); // the shown / colour callbacks are read when it builds
+  }, [mnlgy, minChosen, mnlgyOn, assays, assaySyms, asOn, assayOn, assayElements, tracesSeq, customOn, custom?.layers]); // the shown / colour callbacks are read when it builds
   useEffect(() => () => { const g = groupRef.current; if (!g) return; while (g.children.length) dispose(g.children.pop()); g.parent?.remove(g); }, []);
 }

@@ -494,7 +494,7 @@ export function LayerRow({ label, count, shown = null, visible, onToggle, onUplo
 // Deliberately terser than that modal (chips instead of rows with color pickers/labels/counts) since
 // the point of this view is a quick glance + quick toggle, not the full editing surface.
 
-export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategory, onIsolate, onRemoveSource, numericSym, onNumericSymChange, colorOf, labelOf, style, onStyle }) {
+export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategory, onIsolate, onRemoveSource, numericSym, onNumericSymChange, colorOf, labelOf, style, onStyle, customBars = null }) {
   const categories = meta.numeric ? [] : distinctValues(rows);
   const sources = (() => {
     const counts = new Map();
@@ -534,7 +534,7 @@ export function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggle
         </div>
       )}
       {layerKey === "mnlgy" && rows.length > 0 && <React.Suspense fallback={null}><TotalSulphidesBox rows={rows} style={style} onStyle={onStyle} /> {/* TASKS.csv #3941 */}
-        <MineralBarsChooser rows={rows} style={style} onStyle={onStyle} colourOf={(id) => mineralBarColour(id, (style?.bars || []).indexOf(id), (v) => colorOf?.("mnlgy", v))} /></React.Suspense> /* TASKS.csv #3943 */}
+        <MineralBarsChooser rows={rows} style={style} onStyle={onStyle} custom={customBars} colourOf={(id) => mineralBarColour(id, (style?.bars || []).indexOf(id), (v) => colorOf?.("mnlgy", v))} /></React.Suspense> /* TASKS.csv #3943 */}
       {sources.length > 1 && (
         <div>
           {sources.map(([src, count]) => (

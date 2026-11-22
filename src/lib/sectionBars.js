@@ -3,6 +3,7 @@
 // at the project's 98th percentile). Same choices, colours and scale as the 3D view, so a bar reads the same in both; nothing when the 3D view
 // draws no bars. Pure: sectionPayload.js calls it, SectionWindow's SectionSVG draws the result and its key lists keyRows.
 import { MAX_BARS, mineralBars, assayBarScale, mineralBarColour } from "./traceBarsData.js";
+import { customBars, customBarColour } from "./customBars.js"; // TASKS.csv #4008
 
 const fmt = (v) => String(+Number(v).toPrecision(3));
 const scaleText = (s) => `▮ = ${fmt(s.full)}${s.unit ? ` ${s.unit}` : ""}`;
@@ -10,7 +11,8 @@ const scaleText = (s) => `▮ = ${fmt(s.full)}${s.unit ? ` ${s.unit}` : ""}`;
 // mnlgy: { rows, chosen, on, shown(row), codeColour(code) } -> the 3D view's Mineralization bars on the holes in holeIds, clipped by clip(hole, from, to)
 // to the runs inside the buffer; assay: { on, rows, syms, units, hue(sym) } -> each drawn element's lane, colour and full bar.
 // -> { mineralBars: { bars: [{ hole_id, from, to, lane, f, v }], lanes: [{ id, label, colour, full, unit }] } | null, assayLanes: { [sym]: { lane, colour, full, unit } } | null, keyRows }
-export function sectionBarSets({ holeIds, clip = null, mnlgy = null, assay = null, mineralTitle = "Mineralization" }) {
+// custom (#4008): { layers: the numeric custom layers drawn as bars, styles } -> lanes after the minerals, each its own colour and unit (a shared scale where units match)
+export function sectionBarSets({ holeIds, clip = null, mnlgy = null, assay = null, custom = null, mineralTitle = "Mineralization" }) {
   const keyRows = [];
   let mineral = null, assayLanes = null;
   const chosen = Array.isArray(mnlgy?.chosen) ? mnlgy.chosen.slice(0, MAX_BARS) : [];
@@ -24,6 +26,18 @@ export function sectionBarSets({ holeIds, clip = null, mnlgy = null, assay = nul
       for (const l of lanes) keyRows.push([`${mineralTitle} bars: ${l.label} ${scaleText(l)}`, l.colour]);
     }
   }
+  if (custom?.layers?.length) {
+    const laneStart = mineral ? mineral.lanes.length : 0, { bars, scale } = customBars(custom.layers, { laneStart, shown: (h) => holeIds.has(h) });
+    if (scale.length) {
+      const lanes = scale.map((s) => ({ id: s.id, label: s.label, full: s.full, unit: s.unit, colour: customBarColour(custom.layers.find((l) => `custom:${l.id}` === s.id), s.lane, custom.styles) }));
+      const kept = clip ? bars.flatMap((b) => clip(b.hole_id, b.from, b.to).map(([from, to]) => ({ ...b, from, to }))) : bars;
+      // the lanes of the layers that drew nothing are left out, so lane numbers stay the position in `lanes`
+      const at = new Map(scale.map((s, i) => [s.lane, laneStart + i]));
+      const placed = kept.map((b) => ({ ...b, lane: at.get(b.lane) }));
+      mineral = { bars: [...(mineral?.bars || []), ...placed], lanes: [...(mineral?.lanes || []), ...lanes] };
+      for (const l of lanes) keyRows.push([`Custom layer bars: ${l.label} ${scaleText(l)}`, l.colour]);
+    }
+  }
   if (assay?.on && assay.syms?.length) {
     const scale = assayBarScale(assay.rows, assay.syms, assay.units || {});
     if (scale.length) {
@@ -32,6 +46,15 @@ export function sectionBarSets({ holeIds, clip = null, mnlgy = null, assay = nul
     }
   }
   return { mineralBars: mineral, assayLanes, keyRows };
+}
+
+// TASKS.csv #4008 — the intervals a section draws: the tubes plus the intervals that carry bars and no tube (a Mineralization layer with every
+// code off draws bars only). Distinct (hole, from, to), so a tube and its bars count once. -> number
+export function drawnIntervalCount(intervals, mineralBars) {
+  const key = (r) => `${r.hole_id}|${r.from}|${r.to}`, seen = new Set((intervals || []).map(key));
+  let n = (intervals || []).length;
+  for (const b of mineralBars?.bars || []) { const k = key(b); if (!seen.has(k)) { seen.add(k); n++; } }
+  return n;
 }
 
 // the section's assay points (buildSectionPayload's { assay: { sym, value, idx } }) drawn as the 3D view's bars: only the elements with a lane,
