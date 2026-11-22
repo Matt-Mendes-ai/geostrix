@@ -10,7 +10,9 @@ import { useStore } from "../../lib/store.jsx";
 import { smallSel } from "../../lib/sidebarStyles.js";
 import NumberInput from "../../components/NumberInput.jsx";
 import { faultSpec } from "../../lib/faultEvidence.js";
-import { gatherFaultEvidence, keepInsideWorld, downDipReach } from "./faultGather.js";
+import { gatherFaultEvidence, keepInsideWorld, downDipReach, faultBox, faultPlaneMeshes } from "./faultGather.js";
+import { normalOf } from "../../lib/sheetedPlanes.js";
+import { terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { buildMeshQuery, closestPointOnMesh } from "../../lib/meshQuery.js";
 import { colorForStructure } from "../../lib/layers.js";
 
@@ -41,7 +43,7 @@ function planeOf(spec) {
 }
 
 export default function FaultBuilder(props) {
-  const { pBtn, tracesRef, tracesSeq, mapLayers, sections, terrain, surfaceStructures, originRef, implicitSurfaces, runStructuralModel, implicitBusy, setStackFaults, stackFaults } = props;
+  const { pBtn, tracesRef, tracesSeq, mapLayers, sections, terrain, surfaceStructures, originRef, implicitSurfaces, runStructuralModel, implicitBusy, setStackFaults, stackFaults, addWorldMeshSurface } = props;
   const { layers = {}, generatedSurfaces = [] } = useStore() || {};
   const items = useMemo(() => gatherFaultEvidence({ traces: tracesRef?.current || [], layers, surfaceStructures, mapLayers, sections, terrain }), [tracesSeq, tracesRef, layers, surfaceStructures, mapLayers, sections, terrain]); // tracesSeq: the traces' version (tracesRef is a ref)
   const [off, setOff] = useState({}); // kind -> true: not used
@@ -49,6 +51,9 @@ export default function FaultBuilder(props) {
   const [names, setNames] = useState([tr("Fault {n}", { n: 1 })]);
   const [dips, setDips] = useState({}); // fault index -> { dip, dipDir } for a fault with no orientation
   const [extent, setExtent] = useState("box");
+  // #4013 (Matt: "it should be straight planes ... sheeted planes") — flat, parallel sheets by default; one curved GemPy surface on request
+  const [shape, setShape] = useState("planes");
+  const [gapM, setGapM] = useState(25); // sheets closer than this along their normal are one sheet
   const [marginM, setMarginM] = useState(200);
   const [until, setUntil] = useState("");
   const [said, setSaid] = useState([]);
@@ -72,6 +77,7 @@ export default function FaultBuilder(props) {
     const o = originRef?.current || { x: 0, y: 0, z: 0 }, msgs = [], specs = [];
     const other = extent === "until" ? (generatedSurfaces || []).find((s) => s.id === until) : null;
     if (extent === "until" && !other) msgs.push(tr("Choose the fault the new faults end at."));
+    if (shape === "planes") { buildPlanes(other, msgs); setSaid(msgs); return; }
     for (const f of faults) {
       if (!f.spec) continue;
       if (!f.spec.ok) { msgs.push(f.spec.why === "no-orientation" ? tr("{name}: its points lie along one line, which fits no plane; give it a dip and a dip direction.", { name: f.name }) : tr("{name}: no point of its evidence could be placed.", { name: f.name })); continue; }
@@ -91,6 +97,36 @@ export default function FaultBuilder(props) {
     }
     setSaid(msgs);
     if (specs.length) runStructuralModel?.(null, { faultSpecs: specs });
+  };
+
+  // #4013 — each fault as flat, parallel sheets (lib/sheetedPlanes.js via faultPlaneMeshes): no solver, so no sidecar and no wait. Each
+  // sheet is a surface of its own, registered like an imported one, with what it was built from, its fit and its inputs (Use in the stack)
+  const buildPlanes = (other, msgs) => {
+    if (extent === "until" && !other) return;
+    const ok = faults.filter((f) => f.spec?.ok), ground = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null;
+    const extra = ok.filter((f) => !f.items.some((it) => it.holes)).map((f) => downDipReach(f.spec.points, planeOf(f.spec), extent === "finite" ? marginM : 0)).filter(Boolean);
+    const box = faultBox({ traces: tracesRef?.current || [], points: ok.flatMap((f) => f.spec.points), extra });
+    for (const f of faults) {
+      if (!f.spec) continue;
+      if (!f.spec.ok) { msgs.push(f.spec.why === "no-orientation" ? tr("{name}: its points lie along one line, which fits no plane; give it a dip and a dip direction.", { name: f.name }) : tr("{name}: no point of its evidence could be placed.", { name: f.name })); continue; }
+      const d = dips[f.i], given = f.spec.said.some((x) => x.key === "user-dip") && Number.isFinite(d?.dip) && Number.isFinite(d?.dipDir) ? normalOf(d.dip, d.dipDir) : null;
+      const res = faultPlaneMeshes({ spec: f.spec, extent, marginM, other: other ? { positions: other.vertices, indices: other.indices } : null, box, ground, gapM, normal: given });
+      if (!res.ok || !res.sheets.length) { msgs.push(tr("{name}: no part of its planes lies inside its extent and under the ground.", { name: f.name })); continue; }
+      const kinds = {}; for (const it of f.items) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
+      const n = res.sheets.length;
+      res.sheets.forEach((s, k) => {
+        const name = n > 1 ? `Fault: ${f.name} · sheet ${k + 1}` : `Fault: ${f.name}`; // project data: English
+        addWorldMeshSurface?.({
+          name, positions: s.positions, indices: s.indices, color: colorForStructure("FLT"), opacity: 0.7, type: "fault",
+          params: {
+            tool: "Faults pane: sheeted planes", contactFit: s.fit, inputs: s.inputs,
+            faultEvidence: { kinds, items: f.items.map((it) => it.name).slice(0, 30), extent, ...(extent === "finite" ? { marginM } : {}), ...(other ? { endsAt: other.name } : {}), guess: f.spec.guess, shape: "planes", sheet: k + 1, sheets: n, dip: Math.round(s.dip), dipDir: Math.round(s.dipDir), ...(s.fold.folded ? { folded: true } : {}) },
+          },
+        });
+        if (s.fold.folded) msgs.push(tr("{name} reads as folded: the plane misses its points by {m} m, and a curved surface fits much better. Choose One curved surface for it.", { name, m: Math.round(s.fold.rmsPlane) }));
+      });
+      if (res.unassigned) msgs.push(res.unassigned === 1 ? tr("{name}: 1 point lies on no sheet and was left out.", { name: f.name }) : tr("{name}: {n} points lie on no sheet and were left out.", { name: f.name, n: res.unassigned }));
+    }
   };
 
   // the model check: how many of a built fault's points it misses by more than N m (world positions and the inputs kept on it)
@@ -151,6 +187,14 @@ export default function FaultBuilder(props) {
         </div>
       ))}
       {nOk > 0 && <>
+        <label style={{ display: "block", marginTop: 8, ...note }}>{tr("Shape")}
+          <select value={shape} onChange={(e) => setShape(e.target.value)} style={{ ...smallSel, display: "block", width: "100%", marginTop: 2 }} aria-label={tr("Shape")}>
+            <option value="planes">{tr("Sheeted planes: flat, parallel sheets")}</option>
+            <option value="curved">{tr("One curved surface (GemPy)")}</option>
+          </select>
+        </label>
+        {shape === "planes" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, ...note }}>{tr("One sheet when closer than")} <NumberInput value={gapM} min={1} onChange={(v) => setGapM(v ?? 25)} aria-label={tr("Sheet spacing (m)")} style={{ width: 48 }} /> m</div>}
+        <div style={{ ...note, marginTop: 3 }}>{shape === "planes" ? tr("Each fault is one or more flat planes: its dips grouped into sets, each set into parallel sheets. No solver: built at once.") : tr("One surface through all its evidence, curved where the evidence bends (GemPy). For a folded fault.")}</div>
         <label style={{ display: "block", marginTop: 8, ...note }}>{tr("Extent")}
           <select value={extent} onChange={(e) => setExtent(e.target.value)} style={{ ...smallSel, display: "block", width: "100%", marginTop: 2 }} aria-label={tr("Extent")}>
             <option value="box">{tr("Through the model box")}</option>
@@ -164,7 +208,7 @@ export default function FaultBuilder(props) {
           {faultSurfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>}
         <div style={{ ...note, marginTop: 3 }}>{extent === "box" ? tr("Through the model box, the surface runs past its evidence: there it is extrapolated, not observed.") : extent === "finite" ? tr("The surface stops at an ellipse around its evidence plus the margin, in the fault's plane; down dip it reaches at least half its length along strike.") : tr("The surface stops at the other fault, on the side its evidence is on.")}</div>
-        <button type="button" style={{ ...pBtn, marginTop: 6 }} disabled={implicitBusy} onClick={build}>{nOk === 1 ? tr("Build the fault surface") : tr("Build {n} fault surfaces", { n: nOk })}</button>
+        <button type="button" style={{ ...pBtn, marginTop: 6 }} disabled={implicitBusy && shape === "curved"} onClick={build}>{shape === "planes" ? (nOk === 1 ? tr("Build the fault planes") : tr("Build the planes of {n} faults", { n: nOk })) : nOk === 1 ? tr("Build the fault surface") : tr("Build {n} fault surfaces", { n: nOk })}</button>
       </>}
       {said.map((m) => <div key={m} style={warn}>{m}</div>)}
       {built.length > 0 && (

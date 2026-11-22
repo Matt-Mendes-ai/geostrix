@@ -9,6 +9,8 @@ import { evidenceItems, faultEllipse, inEllipse } from "../../lib/faultEvidence.
 import { mappedFaultFeatures, drawnFaultLines } from "../../lib/faultInventory.js";
 import { buildMeshQuery, closestPointOnMesh } from "../../lib/meshQuery.js";
 import { orientedFault } from "../../lib/explicitTrim.js";
+import { sheetedPlanes, foldTest, planeMesh, sheetRegion, normalOf, attitudeOf } from "../../lib/sheetedPlanes.js";
+import { arrMin, arrMax } from "../../lib/arrayStats.js";
 
 // a depth on a hole, in world coordinates; null off the hole (no clamping to its ends)
 function onHole(traces, holeId, md) {
@@ -77,4 +79,52 @@ export function keepInsideWorld({ extent, points, plane, marginM = 200, other = 
     return own ? (p) => side(p) !== -own : null; // on the fault itself (0) counts as kept
   }
   return null;
+}
+
+// the box a fault is drawn through ("through the model box" / "until another fault" as sheeted planes): the hole traces and the
+// evidence (plus `extra`, e.g. a map-only fault's down-dip reach), padded on each axis by 15 % of its span, between 50 and padM metres
+export function faultBox({ traces = [], points = [], extra = [], padM = 500 } = {}) {
+  const xs = [], ys = [], zs = [];
+  for (const t of traces) for (let i = 0; i < (t.wx?.length || 0); i++) if (Number.isFinite(t.wx[i]) && Number.isFinite(t.wy[i]) && Number.isFinite(t.wz[i])) { xs.push(t.wx[i]); ys.push(t.wy[i]); zs.push(t.wz[i]); }
+  for (const p of [...points, ...extra]) if (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) { xs.push(p.x); ys.push(p.y); zs.push(p.z); }
+  if (!xs.length) return null;
+  const pad = (a) => { const lo = arrMin(a), hi = arrMax(a), p = Math.min(Math.max(0.15 * (hi - lo), 50), padM); return [lo - p, hi + p]; };
+  const [x0, x1] = pad(xs), [y0, y1] = pad(ys), [z0, z1] = pad(zs);
+  return { x0, x1, y0, y1, z0, z1 };
+}
+
+/**
+ * TASKS.csv #4013 (Matt: "it should be straight planes ... sheeted planes") — one fault's evidence as flat, parallel sheets
+ * (lib/sheetedPlanes.js), each a mesh cut to the extent: "finite" -> the ellipse around the sheet's points plus the margin; "box" -> the
+ * box; "until" -> the box, on the side of `other` (world positions / indices) its points are on. Always cut at the ground when there is one.
+ * spec: faultSpec's { points, orientations } (world); normal: the geologist's plane normal, or null; ground(x, y) -> z or NaN.
+ * -> { ok, why?, sheets: [{ positions, indices, dip, dipDir, fit: { points, typicalMissM, worstMissM }, fold, inputs }], empty, unassigned, dropped }
+ */
+export function faultPlaneMeshes({ spec, extent = "box", marginM = 200, other = null, box = null, ground = null, gapM = 25, tolDeg = 20, normal = null }) {
+  const obs = [...spec.points.map((p) => ({ x: p.x, y: p.y, z: p.z })), ...spec.orientations.map((q) => ({ x: q.x, y: q.y, z: q.z, normal: normalOf(q.dip, q.azimuth) }))];
+  const r = sheetedPlanes(obs, { gapM, tolDeg, normal });
+  if (!r.ok) return { ok: false, why: r.why, sheets: [] };
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const below = ground ? (p) => { const g = ground(p.x, p.y); return !Number.isFinite(g) || p.z <= g + 1; } : null;
+  const inBox = box ? (p) => p.x >= box.x0 && p.x <= box.x1 && p.y >= box.y0 && p.y <= box.y1 && p.z >= box.z0 && p.z <= box.z1 : null;
+  const out = [];
+  for (const set of r.sets) for (const sh of set.sheets) {
+    const all = sh.ids.map((i) => obs[i]), pts = all.filter((p) => !p.normal), use = pts.length ? pts : all;
+    const side = extent === "until" ? keepInsideWorld({ extent, plane: { centroid: sh.centroid, normal: sh.normal }, other }) : null;
+    const region = sheetRegion(sh, use, extent === "finite" ? "finite" : "box", { marginM, box });
+    const keep = (p) => (extent === "finite" || !inBox || inBox(p)) && (!below || below(p)) && (!side || side(p));
+    const mesh = planeMesh(sh.normal, sh.centroid, region, keep);
+    const miss = use.map((p) => Math.abs((p.x - sh.centroid.x) * sh.normal[0] + (p.y - sh.centroid.y) * sh.normal[1] + (p.z - sh.centroid.z) * sh.normal[2])).sort((a, b) => a - b);
+    const att = attitudeOf(sh.normal);
+    const measured = all.filter((p) => p.normal).map((p) => { const a = attitudeOf(p.normal); return [p.x, p.y, p.z, r2(a.dip), r2(a.dipDir)]; });
+    out.push({
+      ...mesh, dip: att.dip, dipDir: att.dipDir,
+      fit: { points: use.length, typicalMissM: r2(miss[Math.floor(miss.length / 2)]), worstMissM: r2(miss[miss.length - 1]) },
+      fold: foldTest(use, sh.normal),
+      // what the stack solves it from (gatherFaultSpec "surf|"): its points, its measured orientations and the sheet's own at its centre
+      inputs: { points: use.map((p) => [p.x, p.y, p.z, 0]), orientations: [[sh.centroid.x, sh.centroid.y, sh.centroid.z, r2(att.dip), r2(att.dipDir)], ...measured] },
+    });
+  }
+  const sheets = out.filter((s) => s.indices.length);
+  return { ok: true, sheets, empty: out.length - sheets.length, unassigned: r.unassigned.length, dropped: r.dropped };
 }

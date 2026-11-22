@@ -73,4 +73,44 @@ test("#4006 wiring: the run, the cut to the extent, the provenance, the stack", 
   assert.match(b, /setStackFaults\?\.\(\(p\) => \(p\.includes\(k\) \|\| p\.length >= 6 \? p : \[\.\.\.p, k\]\)\)/);
   assert.doesNotMatch(b, /fault: true/, "solved on its own, not as a stack's fault group");
   assert.match(read("../src/modules/viewer/FaultsPanel.jsx"), /<FaultBuilder key=\{activeTabId\} \{\.\.\.props\} \/>/); // a project tab's own choices
+  // sheeted planes: no solver; each sheet registered as a fault surface through the world-mesh route, with its inputs for the stack
+  assert.match(b, /const \[shape, setShape\] = useState\("planes"\);/);
+  assert.match(b, /if \(shape === "planes"\) \{ buildPlanes\(other, msgs\); setSaid\(msgs\); return; \}/);
+  assert.match(b, /addWorldMeshSurface\?\.\(\{\n\s*name, positions: s\.positions, indices: s\.indices, color: colorForStructure\("FLT"\), opacity: 0\.7, type: "fault",/);
+  assert.match(read("../src/modules/ViewerModule.jsx"), /params = \{\}, type = "geoml" \/\* #4013[^\n]*\n[\s\S]{0,2400}faceCount: nTris, type, relationships/);
+});
+
+test("#4006 sheeted planes: two parallel faults 80 m apart become two flat sheets, cut at the ground and to the box; until another fault", async () => {
+  const { faultPlaneMeshes, faultBox } = await import("../src/modules/viewer/faultGather.js");
+  const { normalOf, planeFrame } = await import("../src/lib/sheetedPlanes.js");
+  // made-up evidence: points on two planes dipping 70 towards 090, 80 m apart, a measured dip at every third point
+  const { n, u, v } = planeFrame(normalOf(70, 90));
+  const on = (off, k) => Array.from({ length: 10 }, (_, i) => { const a = (i - 4.5) * 40, b = -((i * 7 + k) % 10) * 25; /* v points up dip: these go down */ return { x: n[0] * off + u[0] * a + v[0] * b, y: n[1] * off + u[1] * a + v[1] * b, z: -50 + n[2] * off + u[2] * a + v[2] * b }; });
+  const points = [...on(0, 1), ...on(80, 3)];
+  const orientations = points.filter((_, i) => i % 3 === 0).map((p) => ({ ...p, dip: 70, azimuth: 90 }));
+  const box = faultBox({ points });
+  for (const p of points) assert.ok(p.x - box.x0 >= 50 && box.x1 - p.x >= 50 && p.y - box.y0 >= 50 && box.y1 - p.y >= 50 && p.z - box.z0 >= 50 && box.z1 - p.z >= 50, "the box holds the evidence plus at least 50 m");
+  const ground = () => 0; // flat ground at z 0
+  const r = faultPlaneMeshes({ spec: { points, orientations }, extent: "box", box, ground, gapM: 25 });
+  assert.equal(r.ok, true);
+  assert.equal(r.sheets.length, 2, "two sheets");
+  for (const s of r.sheets) {
+    assert.ok(Math.abs(s.dip - 70) < 0.5 && Math.abs(s.dipDir - 90) < 0.5, `flat at 70 -> 090: ${s.dip} -> ${s.dipDir}`);
+    assert.ok(s.fit.worstMissM < 0.01, "its points lie on it");
+    assert.equal(s.fold.folded, false);
+    const I = s.indices, P = s.positions;
+    for (let t = 0; t < I.length; t += 3) assert.ok((P[I[t] * 3 + 2] + P[I[t + 1] * 3 + 2] + P[I[t + 2] * 3 + 2]) / 3 <= 1, "every kept triangle's centre under the ground");
+    assert.equal(s.inputs.points.length, 10);
+    assert.deepEqual(s.inputs.orientations[0].slice(3), [70, 90]);
+  }
+  // a second fault ending at the first: no kept triangle lies across it from its own points
+  const first = r.sheets[0], other = { positions: first.positions, indices: first.indices };
+  const u2 = faultPlaneMeshes({ spec: { points: on(80, 3), orientations: [] }, extent: "until", box, ground, other, normal: normalOf(30, 270) });
+  assert.equal(u2.ok, true);
+  const f0 = [first.positions[0], first.positions[1], first.positions[2]];
+  const side = (x, y, z) => Math.sign(n[0] * (x - f0[0]) + n[1] * (y - f0[1]) + n[2] * (z - f0[2]));
+  const s0 = side(...u2.sheets[0].inputs.points[0].slice(0, 3));
+  const P = u2.sheets[0].positions, I = u2.sheets[0].indices;
+  assert.ok(I.length > 0);
+  for (let t = 0; t < I.length; t += 3) { const c = [0, 1, 2].map((k) => (P[I[t] * 3 + k] + P[I[t + 1] * 3 + k] + P[I[t + 2] * 3 + k]) / 3); assert.notEqual(side(...c), -s0, "no triangle across the other fault"); }
 });
