@@ -14750,5 +14750,17 @@
   "Drag the line to move the section.": "اسحب الخط لتحريك المقطع.",
   "built the surface '{name}'": "أنشأ السطح '{name}'",
   "built the {symbol} grade shell": "أنشأ غلاف المحتوى لعنصر {symbol}",
-  "added the model's blocks as the block model '{name}'": "أضاف كتل النموذج كنموذج الكتل '{name}'"
+  "added the model's blocks as the block model '{name}'": "أضاف كتل النموذج كنموذج الكتل '{name}'",
+  "Selected mesh": "الشبكة المحددة",
+  "{n} meshes selected": "{n} شبكات محددة",
+  "Delete": "حذف",
+  "Properties": "الخصائص",
+  "Select a piece": "تحديد قطعة",
+  "Click one of its {n} pieces.": "انقر على إحدى قطعها الـ {n}.",
+  "Piece {k} of {n}": "القطعة {k} من {n}",
+  "Delete this piece": "حذف هذه القطعة",
+  "Keep only this piece": "الإبقاء على هذه القطعة فقط",
+  "Split into separate meshes": "التقسيم إلى شبكات منفصلة",
+  "Clear the selection": "مسح التحديد",
+  "(a separate piece removed or split off).": "(أُزيلت قطعة منفصلة أو فُصلت)."
 }
