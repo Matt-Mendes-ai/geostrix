@@ -232,6 +232,70 @@ export function macrostratUnitFeatures(tiles, bboxLonLat) {
   return { features, units: legend.units.map((u) => unitOf.get(u.id)), sources: legend.sources };
 }
 
+// TASKS.csv #3934 (Matt: the trend helper's regional hint should read Macrostrat's mapped faults and folds too) — the same tiles' LINES
+// layer: each line's `type` (fault, thrust fault, anticline, syncline, fold...) read as a fault or a fold axis; the other line kinds (moraines,
+// dikes, lineaments...) are left out. Each line is kept to its own tile's square (the tiles overlap by a buffer, which would count it twice)
+// and to the area, as runs of vertices inside both. Direction only: the tiles carry no dip, plunge or fold shape.
+//   -> [{ kind: "fault" | "fold", type, name, sourceId, parts: [[[lon, lat], ...]] }]
+export const lineKindOf = (type) => {
+  const s = String(type ?? "").toLowerCase();
+  if (/fault|thrust|shear zone|detachment/.test(s)) return "fault";
+  if (/fold|anticline|syncline|monocline|antiform|synform/.test(s)) return "fold";
+  return null;
+};
+// Liang-Barsky: the segment a-b inside the box [x0, y0, x1, y1] -> [a', b'] or null
+export function clipSegment(a, b, [x0, y0, x1, y1]) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  let t0 = 0, t1 = 1;
+  for (const [p, q] of [[-dx, a[0] - x0], [dx, x1 - a[0]], [-dy, a[1] - y0], [dy, y1 - a[1]]]) {
+    if (p === 0) { if (q < 0) return null; continue; }
+    const r = q / p;
+    if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; } else { if (r < t0) return null; if (r < t1) t1 = r; }
+  }
+  if (!(t1 > t0)) return null;
+  return [t0 === 0 ? a : [a[0] + t0 * dx, a[1] + t0 * dy], t1 === 1 ? b : [a[0] + t1 * dx, a[1] + t1 * dy]];
+}
+export function macrostratLineFeatures(tiles, bboxLonLat) {
+  const out = [];
+  for (const t of tiles || []) for (const l of t.layers || []) {
+    if (l.name !== "lines") continue;
+    const ext = l.extent || 4096;
+    const [bx0, by0] = lonLatToTilePx(t.z, t.x, t.y, ext, bboxLonLat[0], bboxLonLat[3]), [bx1, by1] = lonLatToTilePx(t.z, t.x, t.y, ext, bboxLonLat[2], bboxLonLat[1]);
+    const box = [Math.max(0, bx0), Math.max(0, by0), Math.min(ext, bx1), Math.min(ext, by1)];
+    if (!(box[2] > box[0] && box[3] > box[1])) continue;
+    for (const f of l.features || []) {
+      if (f.type !== "line" || !f.geometry?.length) continue;
+      const p = f.properties || {}, kind = lineKindOf(p.type ?? p.name);
+      if (!kind) continue;
+      for (const path of f.geometry) {
+        // each segment clipped to the box (a long straight segment across the tile has no vertex in it); pieces that meet are one run
+        let run = [];
+        const flush = () => { if (run.length >= 2) out.push({ kind, type: String(p.type || "").trim(), name: String(p.name || "").trim(), sourceId: p.source_id ?? null, parts: [run.map(([x, y]) => tileToLonLat(t.z, t.x, t.y, ext, x, y))] }); run = []; };
+        for (let i = 1; i < path.length; i++) {
+          const c = clipSegment(path[i - 1], path[i], box);
+          if (!c) { flush(); continue; }
+          const last = run[run.length - 1];
+          if (!last || last[0] !== c[0][0] || last[1] !== c[0][1]) { flush(); run = [c[0]]; }
+          run.push(c[1]);
+        }
+        flush();
+      }
+    }
+  }
+  return out;
+}
+// the original maps by Macrostrat source id, short (their title, else source, else authors), from any feature of the tiles that names one
+export function macrostratSourceNames(tiles) {
+  const m = new Map();
+  for (const t of tiles || []) for (const l of t.layers || []) for (const f of l.features || []) {
+    const p = f.properties || {};
+    if (p.source_id == null || m.has(p.source_id)) continue;
+    const s = String(p.ref_title || p.ref_source || p.ref_authors || "").trim();
+    if (s) m.set(p.source_id, s);
+  }
+  return m;
+}
+
 // TASKS.csv #3952 (Matt: "raster is too pixeled") — the image layer is drawn here from the unit polygons, not stitched from the PNG tiles: those
 // stop at zoom 12 (~21 m pixels at 56°N), so a 1.6 km project area was about 75 tile pixels across, blown up. The polygons are sharp at any
 // size, so the image is sized to the area (unitImageLongPx) at no extra download. features: macrostratUnitFeatures' (lon / lat rings, the

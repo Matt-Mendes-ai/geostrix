@@ -13263,7 +13263,7 @@
   "The regional geology could not be fetched ({error}).": "La géologie régionale n'a pas pu être récupérée ({error}).",
   "Looking…": "Recherche…",
   "Look at the regional geology": "Consulter la géologie régionale",
-  "Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction the mapped contacts run: a regional direction only, not a dip.": "Envoie la zone autour du projet à Macrostrat (macrostrat.org) pour sa carte géologique publiée, et lit la direction suivie par les contacts cartographiés : une direction régionale seulement, pas un pendage.",
+  "Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction its contacts, faults and fold axes run: a regional direction only, not a dip.": "Envoie la zone autour du projet à Macrostrat (macrostrat.org) pour sa carte géologique publiée, et lit la direction de ses contacts, failles et axes de plis : une direction régionale seulement, pas un pendage.",
   "Thin sheets, from where the holes cut them.": "Des feuillets minces, à partir des endroits où les sondages les recoupent.",
   "Builds a thin sheet with a thickness through the places where the holes cut a vein or dyke.": "Construit un feuillet mince avec une épaisseur passant par les endroits où les sondages recoupent une veine ou un dyke.",
   "Which vein or dyke?": "Quelle veine ou quel dyke ?",
@@ -14690,5 +14690,9 @@
   "Macrostrat": "Macrostrat",
   "Use instead": "Utiliser plutôt",
   "All settings ({n})": "Tous les réglages ({n})",
-  "Messages ({n})": "Messages ({n})"
+  "Messages ({n})": "Messages ({n})",
+  "Mapped faults around the project ({km} km, Macrostrat, CC BY 4.0).": "Failles cartographiées autour du projet ({km} km, Macrostrat, CC BY 4.0).",
+  "Mapped fold axes around the project ({km} km, Macrostrat, CC BY 4.0).": "Axes de plis cartographiés autour du projet ({km} km, Macrostrat, CC BY 4.0).",
+  "Maps: {list}.": "Cartes : {list}.",
+  "Direction only: no dips, plunges or fold shape.": "Direction seulement : ni pendages, ni plongements, ni forme de plis."
 }

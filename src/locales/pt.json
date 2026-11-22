@@ -13263,7 +13263,7 @@
   "The regional geology could not be fetched ({error}).": "Não foi possível obter a geologia regional ({error}).",
   "Looking…": "Procurando…",
   "Look at the regional geology": "Consultar a geologia regional",
-  "Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction the mapped contacts run: a regional direction only, not a dip.": "Envia a área ao redor do projeto ao Macrostrat (macrostrat.org) para obter seu mapa geológico publicado, e lê a direção em que correm os contatos mapeados: apenas uma direção regional, não um mergulho.",
+  "Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction its contacts, faults and fold axes run: a regional direction only, not a dip.": "Envia a área ao redor do projeto ao Macrostrat (macrostrat.org) para o seu mapa geológico publicado, e lê a direção dos seus contatos, falhas e eixos de dobra: apenas uma direção regional, não um mergulho.",
   "Thin sheets, from where the holes cut them.": "Lâminas finas, a partir de onde os furos as cortam.",
   "Builds a thin sheet with a thickness through the places where the holes cut a vein or dyke.": "Constrói uma lâmina fina com espessura através dos pontos onde os furos cortam um veio ou dique.",
   "Which vein or dyke?": "Qual veio ou dique?",
@@ -14690,5 +14690,9 @@
   "Macrostrat": "Macrostrat",
   "Use instead": "Use em vez disso",
   "All settings ({n})": "Todos os ajustes ({n})",
-  "Messages ({n})": "Mensagens ({n})"
+  "Messages ({n})": "Mensagens ({n})",
+  "Mapped faults around the project ({km} km, Macrostrat, CC BY 4.0).": "Falhas mapeadas ao redor do projeto ({km} km, Macrostrat, CC BY 4.0).",
+  "Mapped fold axes around the project ({km} km, Macrostrat, CC BY 4.0).": "Eixos de dobra mapeados ao redor do projeto ({km} km, Macrostrat, CC BY 4.0).",
+  "Maps: {list}.": "Mapas: {list}.",
+  "Direction only: no dips, plunges or fold shape.": "Apenas direção: sem mergulhos, caimentos nem forma de dobras."
 }
