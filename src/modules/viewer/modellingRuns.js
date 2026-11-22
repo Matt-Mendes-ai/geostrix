@@ -68,7 +68,8 @@ import { captureInputs, implicitRequestRecord, withSolveFacts } from "../../lib/
 import { inversionCheck, FOLD_CONTACT_TYPES, meshMeanDipDeg, STEEP_DIP_DEG, FOLD_EXPLAIN } from "../../lib/topology.js"; // TASKS.csv #2058 — the fold-back check in the run's own notice; the steep test and the one explanation: #3777
 import { shellBudgetAdvice, sharePct } from "../../lib/shellBudget.js"; // TASKS.csv #2223
 import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js"; // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
-import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957
+import { askConfirm, askChoice } from "../../lib/confirmDialog.js"; // TASKS.csv #3957; askChoice: #3994
+import { holesOrderPlan, movesText } from "../../lib/holesOrder.js"; // TASKS.csv #3994
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
@@ -194,6 +195,7 @@ export function createModellingRuns(ctx, mcRef) {
     stackFaultOffsets, // TASKS.csv #1054
     stackRelation,
     stackBreaks, // TASKS.csv #1309
+    setStackUnits, // TASKS.csv #3994 — 'Use the holes' order' puts the stack in it
     structureRowsToOrientations,
     surfaceOrientationsNear,
     survey,
@@ -1626,7 +1628,7 @@ export function createModellingRuns(ctx, mcRef) {
   // non-crossing assumption this tool exists to enforce, so they're excluded from this tool by scope
   // (model them with the Structural tool instead, which has no such constraint) rather than trying to
   // half-support fault-cuts-through-stack modelling as a first pass — noted as a real follow-up (#52).
-  const runStackModel = async (unitNames, { method = "gempy" } = {}) => {
+  const runStackModel = async (unitNames, { method = "gempy", orderAsked = false } = {}) => { // orderAsked: the order was settled (#3994), do not ask again
     if (!unitNames || unitNames.length < 2) return;
     const cake = method === "layercake"; // TASKS.csv #2905
     // TASKS.csv #3086 — the layer-cake takes the stack's faults (a cake per fault block, lib/layerCake.js); it refused them before
@@ -1745,10 +1747,22 @@ export function createModellingRuns(ctx, mcRef) {
       const kOf = new Map();
       specs.forEach((s, k) => (s.codes || [s.meshName]).forEach((c) => { if (!kOf.has(c)) kOf.set(c, k); }));
       const ord = stackOrderFromHoles(layers.litho || [], kOf, specs.length);
-      if (ord.conflicts.length) {
+      if (ord.conflicts.length && !orderAsked) {
         const list = ord.conflicts.slice(0, 4).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: specs[q.older].meshName, younger: specs[q.younger].meshName, against: q.against, of: q.of })).join("; ");
-        const holesOrder = ord.order.map((k) => specs[k].meshName).join(", ");
-        if (!await askConfirm(tr("The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first). Run in the order given anyway?", { list, order: holesOrder }))) {
+        // TASKS.csv #3994 (Matt, Century) — three answers, not two: the order the holes give is one click away. The plan changes as little as it can: units the holes never show together keep
+        // their place, a contradiction is not forced (lib/holesOrder.js); a marked unconformity is kept by unit, so it goes with its unit.
+        const disp = (u) => specKey.get(u)?.meshName || String(u).replace(/^mcode:/, "");
+        const plan = holesOrderPlan(layers.litho || [], unitNames, (u) => (specKey.get(u) ? specKey.get(u).codes || [specKey.get(u).meshName] : []));
+        const holesOrder = plan.order.map(disp).join(", ");
+        const unsettled = plan.contradictions.length ? "\n\n" + tr("The holes do not settle {list}: those stay as you set them.", { list: plan.contradictions.slice(0, 3).map((c) => c.units.map(disp).join(" / ")).join("; ") }) : "";
+        const answer = await askChoice(tr("The stack's order does not match the holes: {list}. Down the holes the order is {order} (youngest first).", { list, order: holesOrder }) + unsettled,
+          [{ label: "Cancel", value: "cancel" }, { label: "Run as it is", value: "asis" }, { label: "Use the holes' order", value: "holes", primary: true }]);
+        if (answer === "holes" && !plan.same && typeof setStackUnits === "function") {
+          setStackUnits(plan.order);
+          setNotices((p) => [...p, notice("Stack put in the order the holes give (youngest first): {order}. Moves: {moves}. A marked unconformity went with its unit.", { order: holesOrder, moves: movesText(plan, disp).join(", ") })]);
+          return runStackModel(plan.order, { method, orderAsked: true }); // every package, break and order-dependent step is gathered again from the new order
+        }
+        if (answer !== "asis" && answer !== "holes") {
           setNotices((p) => [...p, notice("Stack run cancelled before solving: the holes give the order {order} (youngest first). 'Use the order from the holes' over the stack's units puts them in it; then run again.", { order: holesOrder }) /* #2926 */]);
           return;
         }

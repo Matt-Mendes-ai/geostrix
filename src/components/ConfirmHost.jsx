@@ -10,21 +10,22 @@ import { t as tr } from "../lib/i18n.js";
 function Ask({ req, done }) {
   useFocusTrap();
   const okRef = useRef(null), cancelRef = useRef(null);
-  const confirmKind = req.kind === "confirm";
+  const confirmKind = req.kind === "confirm", choiceKind = req.kind === "choice"; // choice: #3994
   const answer = (v) => done(v);
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); answer(false); } };
+    const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); answer(choiceKind ? null : false); } };
     document.addEventListener("keydown", onKey, true);
     const f = requestAnimationFrame(() => ((confirmKind && req.destructive ? cancelRef : okRef).current || okRef.current)?.focus());
     return () => { document.removeEventListener("keydown", onKey, true); cancelAnimationFrame(f); };
   }, []);
   return (
     <div style={{ ...overlay, zIndex: 70 }}>
-      <div style={panel({ width: "min(460px, calc(100vw - 32px))" })} role="alertdialog" aria-modal="true" aria-label={tr(confirmKind ? "Please confirm" : "Notice")} onClick={(e) => e.stopPropagation()}>
+      <div style={panel({ width: "min(460px, calc(100vw - 32px))" })} role="alertdialog" aria-modal="true" aria-label={tr(confirmKind || choiceKind ? "Please confirm" : "Notice")} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "16px 18px", fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.5, whiteSpace: "pre-line", overflowWrap: "anywhere", maxHeight: "60vh", overflowY: "auto" }}>{req.message}</div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
+          {choiceKind && req.choices.map((c, i) => <button key={i} ref={c.primary ? okRef : undefined} type="button" style={rowBtn(c.primary)} onClick={() => answer(c.value)}>{tr(c.label)}</button>)}
           {confirmKind && <button ref={cancelRef} type="button" style={rowBtn(false)} onClick={() => answer(false)}>{tr(req.cancelLabel)}</button>}
-          <button ref={okRef} type="button" style={req.destructive ? { ...rowBtn(false), borderColor: "var(--color-danger-border, var(--color-danger-icon))", color: "var(--color-danger-text)" } : rowBtn(true)} onClick={() => answer(true)}>{tr(req.okLabel)}</button>
+          {!choiceKind && <button ref={okRef} type="button" style={req.destructive ? { ...rowBtn(false), borderColor: "var(--color-danger-border, var(--color-danger-icon))", color: "var(--color-danger-text)" } : rowBtn(true)} onClick={() => answer(true)}>{tr(req.okLabel)}</button>}
         </div>
       </div>
     </div>
@@ -36,5 +37,5 @@ export default function ConfirmHost() {
   useEffect(() => registerConfirmHost((req) => setQueue((q) => [...q, req])), []);
   const req = queue[0];
   if (!req) return null;
-  return <Ask key={queue.length + req.message} req={req} done={(v) => { setQueue((q) => q.slice(1)); req.resolve(req.kind === "confirm" ? !!v : undefined); }} />;
+  return <Ask key={queue.length + req.message} req={req} done={(v) => { setQueue((q) => q.slice(1)); req.resolve(req.kind === "confirm" ? !!v : req.kind === "choice" ? (v ?? null) : undefined); }} />;
 }
