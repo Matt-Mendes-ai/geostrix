@@ -10,7 +10,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // #3031 — no spread ov
 
 const W = 240, PAD_L = 34, PAD_R = 8, PAD_T = 6, PAD_B = 22;
 
-export default function ProbableGradePlot({ prediction: p }) {
+export default function ProbableGradePlot({ prediction: p, actual = null }) { // actual: the drilled hole's [[md, grade]] (#3962 P3)
   if (!p || p.beyond || !p.band?.md?.length) return null;
   const { md, p10, p50, p90 } = p.band, cut = p.rules?.cutoff;
   const L = p.lengthM || md[md.length - 1] + p.step / 2;
@@ -33,7 +33,7 @@ export default function ProbableGradePlot({ prediction: p }) {
   return (<div>
     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 2 }}>{tr(logX ? "{element} ({unit}, log scale); depth down the hole (m)" : "{element} ({unit}); depth down the hole (m)", { element: p.element, unit })}</div>
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" data-probable-plot=""
-      aria-label={tr("Probable {element} down the hole: the low to high band (P10 to P90) and the middle line (P50), with the cut-off", { element: p.element })}>
+      aria-label={tr("Probable {element} down the hole (P10 to P90, P50, cut-off)", { element: p.element })}>
       <rect x={PAD_L} y={PAD_T} width={W - PAD_L - PAD_R} height={H - PAD_T - PAD_B} fill="none" stroke={colors.border} />
       {runs.map((r, k) => (
         <g key={k}>
@@ -41,6 +41,7 @@ export default function ProbableGradePlot({ prediction: p }) {
           <polyline points={r.map((i) => `${x(p50[i])},${y(md[i])}`).join(" ")} fill="none" stroke={colors.planned} strokeWidth="1.5" />
         </g>
       ))}
+      {(actual || []).filter(([m]) => m <= L).map(([m, g], i) => <circle key={i} cx={x(g)} cy={y(m)} r="1.8" fill={colors.text} />)}
       {Number(cut) > 0 && <line x1={x(cut)} x2={x(cut)} y1={PAD_T} y2={H - PAD_B} stroke={colors.textSecondary} strokeDasharray="4 3" />}
       {ticks.map((g) => <text key={g} x={x(g)} y={H - PAD_B + 12} fontSize="10" textAnchor="middle" fill={colors.textMuted}>{fmt(g)}</text>)}
       {[0, L / 2, L].map((d) => <text key={d} x={PAD_L - 4} y={y(d) + 3} fontSize="10" textAnchor="end" fill={colors.textMuted}>{Math.round(d)}</text>)}

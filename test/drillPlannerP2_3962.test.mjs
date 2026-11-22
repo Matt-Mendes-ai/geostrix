@@ -154,7 +154,36 @@ test("the Drill program card and the section's wiring: cautions in view, the pan
   assert.match(section, /undoCheckpoint\?\.\(\);[\s\S]*addPlannedHole[\s\S]*undoCheckpoint\?\.\(trRaw\("Add the suggested drill program"\)\)/, "one Undo step");
   assert.match(section, /nextHoleId\(/, "the project's own hole series");
   assert.match(section, /notes: english\(/, "a hole's note is project data: English");
-  assert.match(section, /runPlanner\(\{ kind: "program"/);
+  assert.match(section, /runProgram\(\{ kind: "program"/); // the first pass split over workers (speed)
   assert.match(readFileSync(new URL("../src/components/ProbableGradePanel.jsx", import.meta.url), "utf8"), /<DrillProgramSection /);
   assert.doesNotMatch(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8"), /DrillProgram|drillPlanner/);
+});
+
+import { scoreCandidates } from "../src/lib/drillPlanner/program.js";
+test("speed: the first pass split over workers (scoreCandidates on shares) gives exactly the same program as one worker", () => {
+  const { composites, collars } = field(10);
+  const model = fitGradeModel(composites);
+  const pads = padsFromCollars(collars);
+  const { candidates } = candidateHoles(pads.slice(0, 10), { azimuths: [0, 90, 180, 270], dips: [-55, -75], maxLength: 150 });
+  const opts = { rule: "balanced", minSpacing: 12, drilled: drilledOf(composites), rates: { "": 100 }, limits: { maxHoles: 6, perPad: 2 } };
+  const one = selectProgram(model, candidates, RULES, opts);
+  const shares = [[], [], []]; candidates.forEach((c, i) => shares[i % 3].push(c));
+  const prescored = Object.assign({}, ...shares.map((s) => JSON.parse(JSON.stringify(scoreCandidates(model, s, RULES, opts))))); // as it crosses from a worker
+  const split = selectProgram(model, candidates, RULES, { ...opts, prescored });
+  assert.deepEqual(split.chosen.map((h) => [h.id, h.score]), one.chosen.map((h) => [h.id, h.score]));
+  assert.deepEqual(split.counts, one.counts);
+});
+
+test("speed: the k-nearest search finds exactly the composites the full search finds, sorted and cut", async () => {
+  const { composites } = field(11);
+  const model = fitGradeModel(composites);
+  const { holePosterior: hp } = await import("../src/lib/drillPlanner/holePrediction.js");
+  hp(model, plannedTrace(hole(80, 60, 45, -60, 150)), { step: 3 }); // builds the index
+  const idx = model._idx, e = normalStream(12);
+  for (let t = 0; t < 300; t++) {
+    const x = 250 * Math.abs(e()) - 25, y = 200 * Math.abs(e()) - 25, z = 500 - 90 * Math.abs(e()), R = 10 + 80 * Math.abs(e()), k = 1 + (t % 20);
+    const full = idx.near(x, y, z, R).sort((a, b) => a[1] - b[1] || a[0] - b[0]).slice(0, k).map((p) => p[1]);
+    const fast = idx.nearestK(x, y, z, R, k).map((p) => p[1]);
+    assert.deepEqual(fast, full, `point ${t}`);
+  }
 });
