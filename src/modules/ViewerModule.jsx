@@ -193,7 +193,7 @@ import { PRECIOUS_METALS, gradeUnitLabel } from "../lib/geochemColumns.js"; // T
 const ClosureNote = lazyPart(() => import("./viewer/ClosureNote.jsx")); // TASKS.csv #1689; #3961: lazy (an artificially closed surface's card)
 const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); // TASKS.csv #1690; #3159: lazy (shown only for an expanded closed surface), it brought gradeTonnage.js into startup
 // TASKS.csv #1136 — off the startup chunk: the Targeting tab's planned-hole parts, the measure readout and the numeric
-// symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
+// symbology editor load the first time they are shown
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
 const PlannedHoleAddForm = plannedPart("PlannedHoleAddForm"), PlannedHoleRow = plannedPart("PlannedHoleRow"), PlannedHoleChecks = plannedPart("PlannedHoleChecks");
 import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, LayerRow, LayerQuickPanel, VoxelRangeRow, miniBtn, iconBtn, miniField, typedSectionInput } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1084 — moved out at the size cap
@@ -6872,7 +6872,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <FileBarChart2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => exportPlannedHoles("csv"), tr("Export all planned holes to CSV"))} />
           )}
         </div>
-        <PlannedHoleAddForm presetTarget={planTarget} noTerrain={!terrain} groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null} /* #1835 */ onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} epsg={project?.epsg} survey={survey} />
+        <PlannedHoleAddForm presetTarget={planTarget} noTerrain={!terrain} groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null} /* #1835 */ onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} surfaces={pierceSurfaces} /* #3962 */ collars={collars} epsg={project?.epsg} survey={survey} />
         {plannedHoles.length === 0 ? (
           <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("No planned holes yet: add a collar position and design orientation above. A planned hole is a dashed orange line, in 3D, on sections, plans and the rig KML.")}</div>
         ) : (

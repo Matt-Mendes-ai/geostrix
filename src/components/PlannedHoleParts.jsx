@@ -80,7 +80,7 @@ const PAST_TARGET_M = 30;
 const appliedPicks = new WeakSet();
 // TASKS.csv #2257 — a handed-over target is used once, too: reopening the pane refilled Target E / N / Elev with a zone already planned
 const appliedPresets = new WeakSet();
-export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null, survey = null }) {
+export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null, survey = null, surfaces = [] }) {
   // TASKS.csv #2450 — the starting azimuth, dip and length from the drilled holes (median), else az 0 / dip -60 / 100 m as before
   const seed = useMemo(() => drilledDefaults(collars, survey || []), [collars, survey]);
   const [draft, setDraft] = useState(() => ({ name: "", x: "", y: "", z: "", azimuth: seed?.azimuth ?? 0, dip: seed?.dip ?? -60, length: seed?.length ?? 100 }));
@@ -352,8 +352,8 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       </div>
     </div>
     {/* TASKS.csv #3962 — with no planned hole yet the pane shows no checks, where the panel otherwise sits: the drill program must be reachable
-        on a project with none (live, P3), so it is here until the first hole is added (no visible-surface targets until then) */}
-    {(plannedSoFar || []).length === 0 && <ProbableGradePanel plannedHoles={[]} collars={collars} survey={survey || []} voxelModels={storeModels || []} desurveyMethod={storeDesurvey} surfaces={[]} />}
+        on a project with none (live, P3), so it is here until the first hole is added, with the visible surfaces as targets */}
+    {(plannedSoFar || []).length === 0 && <ProbableGradePanel plannedHoles={[]} collars={collars} survey={survey || []} voxelModels={storeModels || []} desurveyMethod={storeDesurvey} surfaces={surfaces} />}
   </>
   );
 }

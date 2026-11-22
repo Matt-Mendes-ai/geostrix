@@ -14966,5 +14966,12 @@
   "Calibration: {k} of {n} drilled holes inside their range.": "المعايرة: {k} من {n} ثقوب محفورة داخل نطاقها.",
   "Too few: the model is overconfident (check the variogram range and the domain).": "قليلة جدًا: النموذج مفرط الثقة (تحقق من مدى المتغيّر المكاني والنطاق).",
   "Compared {n}; {o} predicted for another element or composite length.": "قورن {n}؛ {o} متنبأ بها لعنصر آخر أو طول عينة مركّبة آخر.",
-  "Add the new one": "إضافة الجديد"
+  "Add the new one": "إضافة الجديد",
+  "Program of {date} by {by}: {n} holes suggested, not added.": "برنامج {date} من {by}: {n} ثقوب مقترحة، لم تُضَف.",
+  "suggested a drill program: {n} holes, not added": "اقترح برنامج حفر: {n} ثقوب، لم تُضَف",
+  "added planned hole {name}": "أضاف الثقب المخطط {name}",
+  "added planned holes {a} to {b}": "أضاف الثقوب المخططة من {a} إلى {b}",
+  "marked {name} approved": "وضع علامة معتمد على {name}",
+  "marked {name} proposed": "وضع علامة مقترح على {name}",
+  "Compared {n}.": "قورن {n}."
 }

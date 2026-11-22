@@ -46,6 +46,11 @@ export function viaModule(s, tab, action, payload, waitMs = MODULE_WAIT_MS) {
 
 // name -> async (args, store, ctx) => { ok, data: { changed, name?, id? }, say (translated, for the toast), tracked (in the undo history), revert(store) } | { ok: false, error }
 export const ACTIONS = {
+  // TASKS.csv #3962 (P5) — the drill planner's changes (lib/drillPlanner/mcpPlanner.js, loaded on use): a suggested program (long), its holes
+  // added as proposed planned holes, a planned hole's status. All in the undo history (tracked: the project and the planned holes).
+  async run_drill_planner(a, s, ctx) { return (await import("./drillPlanner/mcpPlanner.js")).run_drill_planner(a, s, ctx); },
+  async add_program_holes(a, s) { return (await import("./drillPlanner/mcpPlanner.js")).add_program_holes(a, s); },
+  async set_planned_hole_status(a, s) { return (await import("./drillPlanner/mcpPlanner.js")).set_planned_hole_status(a, s); },
   // a new section: two points in the project's coordinates, or through a hole in its own plane (as the hole's 'Section through' does); never replaces one
   async make_section(a, s) {
     const hasPts = a.from !== undefined || a.to !== undefined;

@@ -67,7 +67,7 @@ export function predictionRecord(pred, { source, model, rules, hole, stamp, date
   if (pred.beyond) return { ...base, beyond: true };
   return {
     ...base, beyond: false, realizations: pred.realizations,
-    pHit: sig(pred.pHit, 3), length: sig3(pred.length), gt: sig3(pred.gt), totalM: sig3(pred.totalM), hitLength: sig3(pred.hitLength), hitGrade: sig3(pred.hitGrade), hitFrom: sig3(pred.hitFrom),
+    pHit: sig(pred.pHit, 3), gtMean: sig(pred.gtMean), length: sig3(pred.length), gt: sig3(pred.gt), totalM: sig3(pred.totalM), hitLength: sig3(pred.hitLength), hitGrade: sig3(pred.hitGrade), hitFrom: sig3(pred.hitFrom),
     band: { md: pred.band.md.map((x) => sig(x, 6)), p10: pred.band.p10.map((x) => sig(x)), p50: pred.band.p50.map((x) => sig(x)), p90: pred.band.p90.map((x) => sig(x)) },
   };
 }

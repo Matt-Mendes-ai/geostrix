@@ -234,7 +234,7 @@ export default function App() {
   const [aiAccessOpen, setAiAccessOpen] = useState(false); // TASKS.csv #3190
   // TASKS.csv #3190 — an AI app's question about the open project (only ever sent while AI App Access is on) is answered from a snapshot of the store by src/lib/mcpTools.js, loaded on the first one
   const storeNow = useRef(store); storeNow.current = store;
-  useEffect(() => onMcpRequest(() => { const s = storeNow.current; return { project: s.project, collars: s.collars, survey: s.survey, layers: s.layers, assays: s.assays, assayElements: s.assayElements, sections: s.sections, codeDictionary: s.codeDictionary, desurveyMethod: s.desurveyMethod }; }, () => storeNow.current /* #3932 — change tools: the live store */), []);
+  useEffect(() => onMcpRequest(() => { const s = storeNow.current; return { project: s.project, collars: s.collars, survey: s.survey, layers: s.layers, assays: s.assays, assayElements: s.assayElements, sections: s.sections, codeDictionary: s.codeDictionary, desurveyMethod: s.desurveyMethod, plannedHoles: s.plannedHoles, voxelModels: s.voxelModels /* #3962 P5: the drill planner's reads */ }; }, () => storeNow.current /* #3932 — change tools: the live store */), []);
   const [lastExitUnclean, setLastExitUnclean] = useState(false);
   const openReportProblem = async (crashed = false) => {
     let screenshot = null;
