@@ -62,7 +62,10 @@ export function tubeSizeUniforms(setting) {
 
 // the prototypes an interval tube is drawn with (protos.js: the 6- and 16-sided cylinders, the square prism, the crossed ribbons of light drawing)
 const TUBE_KEYS = new Set(["cyl6", "cyl16", "prism4", "cross"]);
-export const isTubeProto = (geometry) => TUBE_KEYS.has(geometry?.userData?.protoKey);
+// TASKS.csv #3990 — a Mineralization slice's wedge ('wedge<span>', 'wedgeL<span>': lib/viewer/mineralSlices3d.js) is a tube piece too: the same pixel
+// floor about the trace, the same pick near its axis
+const WEDGE_KEY = /^wedgeL?\d+$/;
+export const isTubeProto = (geometry) => { const k = geometry?.userData?.protoKey; return TUBE_KEYS.has(k) || (typeof k === "string" && WEDGE_KEY.test(k)); };
 
 // TASKS.csv #3876 (#3668's open point: the choice PER HOLE LAYER) — each layer's tube materials get that layer's own pair of uniforms (three.js compiles
 // one program for them all, the uniforms are each material's), set from the view's setting: figureOverlay.tubeSize { mode, px, byLayer: { [layer

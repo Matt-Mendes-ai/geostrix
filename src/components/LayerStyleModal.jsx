@@ -13,8 +13,9 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 // panel (not a blocking dialog) beside the 3D view, so every change is seen live; changes apply as they are made
 // and are saved with the project's view state. target: { key, kind: "interval" | "point" | "plane", label,
 // defaults: { opacity }, sizeNote, onEditColours? }. kind "surface" (#636, a generated surface): colour and opacity
-// only — no shape or size — and "Original colours" instead of the legend's.
+// only — no shape or size — and "Original colours" instead of the legend's.
 import WidthByRow from "./WidthByRow.jsx"; // TASKS.csv #3942
+import MineralSlicesRow from "./MineralSlicesRow.jsx"; // TASKS.csv #3990
 export default function LayerStyleModal({ target, style, onChange, onReset, onClose }) {
   useEscapeKey(onClose);
   const st = resolveLayerStyle(style, target.kind, target.defaults);
@@ -71,6 +72,7 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
           <input type="range" min={SIZE_MIN} max={SIZE_MAX} step={0.05} value={size} onChange={slide("size")} aria-label={tr("Size")} style={{ flex: 1 }} />
           <span style={{ width: 40, textAlign: "right", color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>×{size.toFixed(2)}</span>
         </div>
+        {target.key === "mnlgy" && <MineralSlicesRow rows={layers?.mnlgy} style={style} onChange={onChange} row={row} lbl={lbl} /> /* TASKS.csv #3990 */}
         {target.key === "mnlgy" && <WidthByRow rows={layers?.mnlgy} style={style} onChange={onChange} row={row} lbl={lbl} select={{ flex: 1, padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }} /> /* TASKS.csv #3942 */}
         </>}
         {target.sizeNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-6px 0 10px 82px" }}>{target.sizeNote}</div>}
