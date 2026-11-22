@@ -14,7 +14,8 @@ import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode
 import { orderFromHoles } from "../lib/pileTops.js"; // TASKS.csv #2926
 import { colorForLithology, LAYER_META } from "../lib/layers.js";
 import { findOnTrace } from "../lib/viewer/modelHelpers.js";
-import { combineSelection, intervalTouchesBox, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../lib/intervalBox.js"; // TASKS.csv #1333, #1337
+import { intervalsInBox } from "../lib/viewer/intervalsInBox.js"; // TASKS.csv #3998 — every drawn member, batches included
+import { combineSelection, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../lib/intervalBox.js"; // TASKS.csv #1333, #1337
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
@@ -26,22 +27,6 @@ const ROLE_HELP = {
   overburden: "casing / overburden: the rock below it is not given a top there",
   ignore: "not modelled; the rock below it is not given a top there",
 };
-
-// #1333 — the drawn lithology intervals touched by a box in screen pixels: a mesh that is hidden, or in a hidden layer, is not drawn
-function intervalsInBox(view, box, rect) {
-  const group = view.groups.current?.litho, cam = view.camera.current;
-  if (!group || group.visible === false || !cam) return [];
-  const traces = new Map(view.traces.current.map((t) => [t.hole_id, t])), v = new THREE.Vector3(), seen = new Set(), out = [];
-  const screen = (p) => { v.set(p.x, p.y, p.z).project(cam); return v.z > 1 ? null : [(v.x + 1) / 2 * rect.width, (1 - v.y) / 2 * rect.height]; };
-  group.children.forEach((m) => {
-    const row = m.userData?.lithoRow, t = row && m.visible !== false && traces.get(row.hole_id);
-    if (!t || seen.has(rowKey(row))) return;
-    const from = Number(row.from), to = Number(row.to), pts = [];
-    for (let i = 0; i <= 4; i++) { const p = findOnTrace(t.pts, from + ((to - from) * i) / 4); pts.push(p ? screen(p) : null); }
-    if (intervalTouchesBox(pts, box)) { seen.add(rowKey(row)); out.push(row); }
-  });
-  return out;
-}
 
 // TASKS.csv #2722 — sheet n's colour in the preview: ten distinct hues in turn, so neighbouring sheets never share one
 const SHEET_COLOURS = ["#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#42d4f4", "#f032e6", "#9a6324", "#808000", "#000075"];
