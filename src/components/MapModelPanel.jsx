@@ -18,7 +18,8 @@ import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M, contactsAgainstOrder } from "../lib/holeMapContacts.js"; // TASKS.csv #1718; contactsAgainstOrder: #2408
 import { plainLith } from "../lib/lithText.js"; // TASKS.csv #3936: a Macrostrat unit name's lithology block in words (shown; the run keeps the value)
 import { cutMapOrder, mergeUnits } from "../lib/mapOrderCut.js"; // TASKS.csv #3936 — the order cut down to GemPy's limit, offered
-import { GEMPY_MAX_SURFACES } from "../lib/gempyLimits.js"; // TASKS.csv #3936
+import { GEMPY_MAX_SURFACES, GEMPY_MAX_FAULTS } from "../lib/gempyLimits.js"; // TASKS.csv #3936; faults: #3985
+import { faultType, faultMajor, dipDefault, lineLength, pickFaults, joinPieces } from "../lib/faultPick.js"; // TASKS.csv #3985
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
@@ -62,7 +63,8 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     const side = near ? (angle(near.dipDir, perp[0]) <= angle(near.dipDir, perp[1]) ? 0 : 1) : 0;
     const s = faultSet[i] || {};
     const name = String(Object.values(f.attributes || {}).find((v) => /fault|thrust|shear/i.test(String(v))) || tr("Fault")) + ` ${i + 1}`;
-    return { i, name, line, perp, on: s.on ?? true, dip: s.dip ?? (near ? near.dip : 45), dipDir: s.dipDir ?? perp[side], measured: !!near };
+    const type = faultType(f); // TASKS.csv #3985 — its type, length and a dip default from the type (thrust 30, normal 60), said to be a default
+    return { i, name, line, perp, on: s.on ?? true, dip: s.dip ?? (near ? near.dip : dipDefault(type)), dipDir: s.dipDir ?? perp[side], measured: !!near, type, major: faultMajor(f), lengthM: lineLength(line), dipIsDefault: s.dip == null && !near };
   }), [faultFeatures, measuredFaults, faultSet]);
   const setFault = (i, patch) => setFaultSet((p) => ({ ...p, [i]: { ...(p[i] || {}), ...patch } }));
 
@@ -187,6 +189,29 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     ? cutMapOrder({ layer: effLayer, field: unitField, ageField: fieldsOf(layer).find((f) => /^age$/i.test(f)) || null, order, units: suggestion.units, pairs: suggestion.pairs, collars: storeCollars, max: GEMPY_MAX_SURFACES })
     : null), [cut, nearestHole, suggestion, order, effLayer, unitField, layer, storeCollars]);
   const roleListRef = useRef(null);
+  // TASKS.csv #3985 — more faults ticked than GemPy takes: the pick offered (lib/faultPick.js), each with its reason; taking it unticks the rest and
+  // merges a fault's collinear pieces into one trace for the run; Undo puts the ticks back
+  const [faultPick, setFaultPick] = useState(null); // { keep, before, merged: [[i, ...]], undo: the ticks before }
+  useEffect(() => { setFaultPick(null); }, [faultLayer?.id]);
+  const faultPlan = useMemo(() => { const on = faults.filter((f) => f.on); return !faultPick && on.length > GEMPY_MAX_FAULTS ? pickFaults({ faults: on, layer, field: unitField, collars: storeCollars }) : null; }, [faults, faultPick, layer, unitField, storeCollars]);
+  const reasonOf = (e) => [e.insideM > 0 ? tr("{d} inside the model area", { d: fmtLen(e.insideM) }) : tr("outside the model area"), tr("offsets {n} unit pair(s)", { n: e.offset }), e.major > 0 ? tr("mapped as major") : e.major < 0 ? tr("mapped as minor") : null, e.pieces > 1 ? tr("{n} pieces merged", { n: e.pieces }) : null].filter(Boolean).join(", ");
+  const [faultWhy, setFaultWhy] = useState({}); // fault index -> the pick's reason (kept or left out)
+  const takeFaults = () => {
+    if (!faultPlan) return;
+    const undo = faultSet, next = { ...faultSet }, why = {};
+    for (const e of faultPlan.keep) for (const i of e.ids) { next[i] = { ...(next[i] || {}), on: true }; why[i] = reasonOf(e); }
+    for (const e of faultPlan.drop) for (const i of e.ids) { next[i] = { ...(next[i] || {}), on: false }; why[i] = tr("left out: {why}", { why: reasonOf(e) }); }
+    setFaultSet(next); setFaultWhy(why);
+    setFaultPick({ keep: faultPlan.keep.length, before: faultPlan.before, merged: faultPlan.keep.filter((e) => e.ids.length > 1).map((e) => e.ids), undo });
+  };
+  const undoFaults = () => { if (faultPick) setFaultSet(faultPick.undo); setFaultPick(null); setFaultWhy({}); };
+  // the faults the run gets: a merged fault's pieces as one trace (in order along its strike), named after its first piece
+  const runFaults = useMemo(() => {
+    const on = faults.filter((f) => f.on), byI = new Map(on.map((f) => [f.i, f])), done = new Set(), out = [];
+    for (const ids of faultPick?.merged || []) { const fs = ids.map((i) => byI.get(i)).filter(Boolean); if (fs.length < 2) continue; fs.forEach((f) => done.add(f.i)); out.push({ name: fs[0].name, line: joinPieces(fs.map((f) => f.line)), dip: fs[0].dip, dipDir: fs[0].dipDir }); }
+    for (const f of on) if (!done.has(f.i)) out.push({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir });
+    return out;
+  }, [faults, faultPick]);
   const takeCut = (thenEdit) => {
     if (!plan) return;
     const out = new Set(plan.leftOut.map((x) => x.unit));
@@ -226,13 +251,16 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
       {faults.map((f) => (
         <div key={f.i} style={{ ...row, fontSize: "var(--font-size-xs)" }}>
           <input type="checkbox" checked={f.on} onChange={(e) => setFault(f.i, { on: e.target.checked })} aria-label={f.name} />
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.measured ? tr("dip and side from the nearest measured fault") : tr("no measured fault nearby: set the dip")}>{f.name}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.name}\n${f.measured ? tr("dip and side from the nearest measured fault") : tr("no measured fault nearby: set the dip")}${faultWhy[f.i] ? `\n${faultWhy[f.i]}` : ""}`}>{tr(FAULT_TYPE_LABEL[f.type])} · {fmtLen(f.lengthM)}{faultWhy[f.i] ? <span style={{ color: "var(--color-text-muted)" }}> · {faultWhy[f.i]}</span> : null}</span>{/* #3985 — type and length; the pick's reason */}
+          {f.dipIsDefault && <span style={{ color: "var(--color-text-muted)" }} title={tr("From the line type: set the dip if you know it")}>{tr("default")}</span>}
           <NumberInput min={1} max={90} value={f.dip} onChange={(v) => setFault(f.i, { dip: v })} style={{ ...smallSel, width: 46 }} aria-label={tr("Dip")} />°
           <select value={Math.round(f.dipDir)} onChange={(e) => setFault(f.i, { dipDir: Number(e.target.value) })} style={{ ...smallSel, width: 62 }} aria-label={tr("Dips towards")}>
             {f.perp.map((a) => <option key={a} value={Math.round(a)}>{tr("to {a}°", { a: Math.round(a) })}</option>)}
           </select>
         </div>
       ))}
+      {faultPlan && <FaultPickOffer plan={faultPlan} names={Object.fromEntries(faults.map((f) => [f.i, `${tr(FAULT_TYPE_LABEL[f.type])} · ${fmtLen(f.lengthM)}`]))} reason={reasonOf} onTake={takeFaults} /> /* TASKS.csv #3985 */}
+      {faultPick && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Picked {k} of {n} faults for GemPy; the rest are unticked.", { k: faultPick.keep, n: faultPick.before })} <button type="button" onClick={undoFaults} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", cursor: "pointer" }}>{tr("Undo")}</button></div>}
       {plan && <CutOffer plan={plan} onTake={() => takeCut(false)} onChange={() => takeCut(true)} />}
       {cut && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Cut down for GemPy: {m} merged, {o} left out (listed under the order). Their roles can be changed there.", { m: Object.keys(cut.merge).length, o: cut.out.length })}{" "}<button type="button" onClick={() => { setCut(null); setOrderByHand(false); }} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "inherit" }}>{tr("Undo the cut")}</button></div>}
       <div ref={roleListRef} style={{ margin: "8px 0 4px", color: "var(--color-text)" }}>{tr("Stratigraphic order (youngest at the top)")}</div>
@@ -312,7 +340,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           {tr("Terrain under {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest sit at the map layer's elevation{z}, where the surfaces are cut; a terrain over the whole map (Maps > Terrain) fixes that.", { a: groundCount.pointsOnGround, n: groundCount.points, b: groundCount.measurementsOnGround, m: groundCount.measurements, z: Number.isFinite(Number(layer?.elevation)) ? tr(" (RL {z})", { z: Math.round(Number(layer.elevation)) }) : "" })}
         </div>
       )}
-      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
+      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks, bedding, planes, faults: runFaults /* #3985 — merged pieces as one trace */, relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
         disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
@@ -375,6 +403,22 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   );
 }
 
+// TASKS.csv #3985 — the faults' type labels and a length in words
+const FAULT_TYPE_LABEL = { thrust: "Thrust", reverse: "Reverse", normal: "Normal", "strike-slip": "Strike-slip", fault: "Fault" };
+const fmtLen = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
+// TASKS.csv #3985 — the faults' offer: which ones the pick keeps and leaves out, and why, before the run
+function FaultPickOffer({ plan, names, reason, onTake }) {
+  const line = { fontSize: "var(--font-size-xs)", lineHeight: 1.45, color: "var(--color-text)" };
+  const label = (e) => e.ids.map((i) => names[i]).filter(Boolean).slice(0, 2).join(" + ");
+  return (
+    <div role="note" style={{ border: "1px solid var(--color-warn-border, var(--color-border))", background: "var(--color-warn-bg, transparent)", borderRadius: 6, padding: "6px 8px", margin: "6px 0" }}>
+      <div style={{ ...line, fontWeight: 600 }}>{tr("GemPy takes at most {max} faults in one model, and {n} are ticked. GeoStrix can pick the {max} that matter:", { max: GEMPY_MAX_FAULTS, n: plan.before })}</div>
+      {plan.keep.map((e) => <div key={e.ids.join(",")} style={line}>✓ {label(e)} <span style={{ color: "var(--color-text-muted)" }}>({reason(e)})</span></div>)}
+      {plan.drop.map((e) => <div key={e.ids.join(",")} style={{ ...line, color: "var(--color-text-muted)" }}>– {label(e)} ({reason(e)})</div>)}
+      <button type="button" onClick={onTake} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", cursor: "pointer", marginTop: 4 }}>{tr("Pick the {max} for me", { max: GEMPY_MAX_FAULTS })}</button>
+    </div>
+  );
+}
 // TASKS.csv #3936 — the offer: what the cut would do and why, before the run
 function CutOffer({ plan, onTake, onChange }) {
   const names = (list) => list.map((x) => plainLith(x)).join(", ");
