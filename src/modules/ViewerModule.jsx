@@ -160,6 +160,7 @@ import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vect
 import { isRepeatClick } from "../lib/repeatClick.js"; // TASKS.csv #1152; #3159: not interpretation.js, which put the interpretation layers' code in startup
 import { syncInterpretPreview, hoverFirstCorner } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152; hover: #2682
 import { rayAtLevel, addLevelPlane } from "../lib/viewer/interpretLevel.js"; // TASKS.csv #3972
+import { mineralAsTubes, MNLGY_RADIUS } from "../lib/viewer/mineralDraw.js"; // TASKS.csv #3987
 import { tipWithMeaning } from "../lib/viewer/codeMeaning.js"; // TASKS.csv #2816
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2703
 import { rightDragTracker } from "./viewer/rightDrag.js"; // TASKS.csv #2213
@@ -5150,13 +5151,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // every sidebar row gets a right-click menu (rowMenu) with the actions that fit it.
   const styleKindFor = (key) => {
     if (key === "surface_samples") return "point";
-    const k = LAYER_META[key]?.kind;
+    const k = key === "mnlgy" && mineralAsTubes(layers.mnlgy) ? "interval" : LAYER_META[key]?.kind; // #3987 — drawn as tubes: an interval style
     return k === "interval" ? "interval" : k === "point" || k === "point3d" ? "point" : k === "plane" ? "plane" : null;
   };
   const openLayerStyle = (key, label) => {
     const meta = LAYER_META[key], kind = styleKindFor(key);
     if (!kind) return;
-    const sizeNote = kind === "interval" ? tr("Default tube radius {radius} m.", { radius: meta.radius }) : kind === "plane" ? tr("Default disc radius 6 m.") : meta?.numeric ? tr("By default the marker grows with the value; this scales all of them.") : null;
+    const sizeNote = kind === "interval" ? tr("Default tube radius {radius} m.", { radius: meta.radius ?? MNLGY_RADIUS /* #3987 */ }) : kind === "plane" ? tr("Default disc radius 6 m.") : meta?.numeric ? tr("By default the marker grows with the value; this scales all of them.") : null;
     setStyleTarget({ key, kind, label: label || meta?.label || key, defaults: { opacity: kind === "interval" ? meta.opacity : kind === "plane" ? 0.55 : 1 }, sizeNote, colourKey: meta && !meta.numeric && key !== "geophys_pts" ? key : null,
       labelChoices: key === "surface_samples" ? [["none", tr("No label")], ["id", tr("Sample ID")], ...(surfaceElements || []).map((e) => [`el:${e.symbol}`, e.symbol])] : null }); // labelChoices: TASKS.csv #1443
   };
@@ -5353,7 +5354,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       >
         <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()} colorOf={effectiveColor} labelOf={effectiveLabel}
           onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)}
-          numericSym={numericSymbology[key]} style={layerStyles[key]} onStyle={(p) => setLayerStyle(key, "point", p)}
+          numericSym={numericSymbology[key]} style={layerStyles[key]} onStyle={(p) => setLayerStyle(key, styleKindFor(key) || "point", p)}
           onNumericSymChange={(next) => setNumericSymbology((p) => { const n = { ...p }; if (next) n[key] = next; else delete n[key]; return n; })} />
       </LayerRow>
     );
