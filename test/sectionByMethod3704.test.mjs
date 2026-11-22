@@ -31,7 +31,7 @@ test("the ribbons take the method's colour and leave out a hidden method", () =>
 });
 
 test("wiring: the section's primitives and key read it", () => {
-  const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const vm = (readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/sectionPayload.js", import.meta.url), "utf8")) /* #3996: the section payload moved out */;
   assert.match(vm, /const bf = meta\.numeric \? fieldColourer\(numericSymbology\[key\], layers\[key\]\) : null; \/\/ #3704/);
   assert.match(vm, /\(bf && !bf\.shown\(row\)\)\) return;/);
   assert.match(vm, /const color = bf \? bf\.colourOf\(row\) : meta\.numeric \? numericLayerColor\(key, row\.value, key === "sg"/);

@@ -37,10 +37,10 @@ test("the hint: the nearer reading wins when it is 10 times nearer, else none", 
 });
 
 test("the wiring in importSolidFile: tied grids only, one confirm, the parts replaced before the bounds, the notice and provenance say so", () => {
-  const v = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const v = (fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/modules/viewer/importSolid.js", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/modules/viewer/exportSurface.js", import.meta.url), "utf8")) /* #3996: moved out of ViewerModule */.replace(/\r\n/g, "\n");
   assert.match(v, /const gridTie = tieOf\(project\);\n\s*let viaTie = false;\n\s*if \(gridTie\) \{/);
-  assert.match(v, /if \(viaTie\) solid\.parts = \(await import\("\.\.\/lib\/solidTie\.js"\)\)\.solidPartsToLocal\(solid\.parts, gridTie\);\n\s*\}\n\s*const bounds = solidBounds\(solid\.parts\);/);
+  assert.match(v, /if \(viaTie\) solid\.parts = \(await import\("(\.\.\/)+lib\/solidTie\.js"\)\)\.solidPartsToLocal\(solid\.parts, gridTie\);\n\s*\}\n\s*const bounds = solidBounds\(solid\.parts\);/);
   assert.match(v, /crsAssumed: viaTie \? `placed onto the local grid through its tie/);
   assert.match(v, /viaTie \? notice\("Imported \\"\{name\}\\" as a solid:/);
-  assert.match(v, /\[fitBox, project\?\.epsg, project\?\.crsSet, project\?\.localGrid, setTaskProgress\]/);
+  assert.match(v, /\[fitBox, project, setTaskProgress\]\); \/\/ project: its epsg \/ crsSet \/ localGrid \(the tie, #3186\)/); // #3996: the whole project (it covers the three)
 });

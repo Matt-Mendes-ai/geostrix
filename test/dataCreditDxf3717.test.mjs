@@ -35,7 +35,7 @@ test("#3717 the drillhole traces' DXF and the GOCAD header carry the credit; wit
 test("#3717 a surface mesh's provenance (OBJ, DXF, TSurf, glTF) names the credit; the pieces are wired", () => {
   assert.ok(provenanceLines("Shell", null, { dataCredit: CREDIT, epsg: 26909 }).some((l) => /^Data credit: Drilling data courtesy/.test(l)));
   assert.ok(!provenanceLines("Shell", null, { epsg: 26909 }).some((l) => /Data credit/.test(l)));
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const v = (readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/importSolid.js", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/exportSurface.js", import.meta.url), "utf8")) /* #3996: moved out of ViewerModule */.replace(/\r\n/g, "\n");
   assert.match(v, /crs: crsCell\(project\), credit: project\?\.dataCredit \/\* #3717 \*\/ \}\);/g);
   assert.equal((v.match(/credit: project\?\.dataCredit \/\* #3717 \*\//g) || []).length, 2); // the vector DXF and the vector GOCAD
   assert.match(v, /dataCredit: project\?\.dataCredit \/\* #3717 \*\/, densityTPerM3/); // the mesh export's provenance

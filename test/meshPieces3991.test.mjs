@@ -76,7 +76,9 @@ test("#3991 one Undo step: the old surface out (to the grave), its pieces in, in
 });
 
 test("#3991 wired: the click goes to the selection only when no tool is armed; the bar is drawn; the piece edit replaces the surface in one update", () => {
-  const v = read("../src/modules/ViewerModule.jsx"), h = read("../src/modules/viewer/useMeshSelect.jsx"), c = read("../src/lib/meshPiecesClient.js");
+  const v = read("../src/modules/ViewerModule.jsx"), h = read("../src/modules/viewer/MeshSelect.jsx"), c = read("../src/lib/meshPiecesClient.js"), u = read("../src/modules/viewer/useMeshSelect.jsx");
+  // #3996 — the startup hook only checks for a mesh under the click; the rest loads then
+  assert.match(u, /const MeshSelect = lazyPart\(\(\) => import\("\.\/MeshSelect\.jsx"\)\);/); assert.doesNotMatch(u, /meshPieces|stashSurface|i18n/);
   assert.match(v, /import \{ useMeshSelect \} from "\.\/viewer\/useMeshSelect\.jsx";/);
   assert.match(v, /if \(!\(pickHoleMode \|\| identify\.on \|\| sectionMode \|\| measureMode \|\| interpretRef\.current\.on \|\| mcPickMode \|\| explicitPickFor \|\| sculpt\.targetId\)\) meshSelect\.handleViewClick\(e\);/);
   assert.match(v, /\{meshSelect\.bar\}/);

@@ -55,6 +55,6 @@ test("the wiring: the 3D build, the layer panel, the section legend", () => {
   assert.equal((s.match(/&& \(!bf \|\| bf\.shown\(r\)\)/g) || []).length, 2);
   const p = readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8");
   assert.match(p, /<FieldColourPanel rows=\{rows\} sym=\{numericSym\} onChange=\{onNumericSymChange\}>/);
-  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const v = (readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8") + readFileSync(new URL("../src/modules/viewer/sectionPayload.js", import.meta.url), "utf8")) /* #3996: the section payload moved out */;
   assert.match(v, /clips: numericClip, fieldColours: true \/\* #3553 off; #3704 — the key names the methods the ribbons are coloured by \*\/ \}\)\)\); \} \/\/ TASKS\.csv #3377/); // #3704: the section follows the 3D view
 });

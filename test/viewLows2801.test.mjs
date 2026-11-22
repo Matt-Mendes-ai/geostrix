@@ -18,7 +18,7 @@ test("#2801 an imported solid's checks, part by part, with 'weld' for repeated v
   assert.match(n, /1 part\(s\) are clean closed solids\./);
   assert.match(solidCheckNote([tet], () => "big", { maxTriangles: 2 }), /Not checked \(over 2 triangles\): big\./);
   assert.match(solidProblems({ coincidentVertices: 4 }).join(), /4 vertex\(es\) repeated at the same place \(weld them/);
-  assert.match(read("../src/modules/ViewerModule.jsx"), /import\("\.\.\/lib\/solidCheckNote\.js"\)\.then\(\(\{ solidCheckNote \}\) =>/);
+  assert.match(read("../src/modules/viewer/importSolid.js") /* #3996 */, /import\("\.\.\/\.\.\/lib\/solidCheckNote\.js"\)\.then\(\(\{ solidCheckNote \}\) =>/);
   assert.match(read("../src/components/SurfaceSolidsPanel.jsx"), /repeated at the same place \(weld them in the program that made the file\)/);
 });
 
