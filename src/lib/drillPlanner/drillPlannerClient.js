@@ -7,7 +7,8 @@ export function runPlanner(job, { onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
     const cancelled = () => Object.assign(new Error("Cancelled."), { cancelled: true });
     if (signal?.aborted) { reject(cancelled()); return; }
-    const inline = () => import("./holePrediction.js").then((m) => {
+    const inline = () => Promise.all([import("./holePrediction.js"), import("./program.js")]).then(([m, pg]) => {
+      if (job.kind === "program") return pg.selectProgram(job.model, job.candidates, job.rules, { ...job.opts, onProgress });
       if (job.kind === "fit") return m.fitGradeModel(job.points, { model: job.modelType, searchTrend: job.searchTrend });
       const out = {};
       job.holes.forEach((h, i) => { if (signal?.aborted) throw cancelled(); out[h.id] = m.predictHole(job.model, h.trace, job.rules, job.opts); onProgress?.((i + 1) / job.holes.length); });

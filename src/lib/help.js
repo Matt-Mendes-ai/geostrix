@@ -66,6 +66,7 @@ export const PANE_HELP = {
   "Evidence overlay": "evidence-overlay",
   "Undrilled zones": "undrilled-zones",
   "Planned drillholes": "planned-drillholes",
+  "Drill program": "drill-program", // TASKS.csv #3962 (P2) — the suggested program, in Planned drillholes
   "Voxel value ranges": "voxel-ranges",
   // Getting started and the data pages (TASKS.csv #3528) — the dialogs' own titles; their "?" opens them
   "First project": "first-project",

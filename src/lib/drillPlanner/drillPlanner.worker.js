@@ -1,7 +1,9 @@
 // TASKS.csv #3962 (P1) — the drill planner's grade model off the interface thread (drillPlannerClient.js runPlanner).
 //   { kind: "fit", points, modelType, searchTrend }            -> the normal-score model (fitGradeModel)
 //   { kind: "predict", model, holes: [{ id, trace }], rules, opts } -> { [id]: prediction }, with progress per hole
+//   { kind: "program", model, candidates, rules, opts }        -> selectProgram's suggested program (#3962 P2)
 import { fitGradeModel, predictHole } from "./holePrediction.js";
+import { selectProgram } from "./program.js"; // #3962 P2
 
 self.onmessage = (e) => {
   const d = e.data || {};
@@ -13,6 +15,7 @@ self.onmessage = (e) => {
       self.postMessage({ type: "done", result: out });
       return;
     }
+    if (d.kind === "program") { self.postMessage({ type: "done", result: selectProgram(d.model, d.candidates, d.rules, { ...d.opts, onProgress: (f) => self.postMessage({ type: "progress", fraction: f }) }) }); return; }
     self.postMessage({ type: "error", message: `unknown job ${d.kind}` });
   } catch (err) {
     self.postMessage({ type: "error", message: err?.message || String(err) });
