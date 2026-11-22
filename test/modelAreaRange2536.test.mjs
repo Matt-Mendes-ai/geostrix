@@ -30,5 +30,5 @@ test("wired: the box under Model area when it is 'holes checked'; ViewerModule p
   assert.match(c, /visibilityPatch\(v, collars\.map\(\(c\) => c\.hole_id\), hit\.ids, "only"\)/);
   assert.match(c, /\{n\} of \{m\} holes in \{w\} × \{h\} m\./);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /<ModellingPanes \{\.\.\.\{ visibleHoles, setVisibleHoles,/);
+  assert.match(v, /<ModellingPanes \{\.\.\.\{ setStackUnits, visibleHoles, setVisibleHoles,/);
 });
