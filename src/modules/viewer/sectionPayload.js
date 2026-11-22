@@ -4,7 +4,8 @@
 // loaded with the first section, with modelSection / sectionScatter / sectionLegend / piercePoints). c: the viewer's state, refs and helpers.
 import { LAYER_META, colorForVoxelValue } from "../../lib/layers.js";
 import { alphaOnlyFan, meanPole } from "../../lib/sectionStructures.js"; // TASKS.csv #1130
-import { assayLegendGroups, voxelLegendGroups, numericLayerLegendGroups } from "../../lib/legendGroups.js";
+import { assayLegendGroups, voxelLegendGroups, numericLayerLegendGroups, assayHue } from "../../lib/legendGroups.js";
+import { sectionBarSets, withAssayBarLook } from "../../lib/sectionBars.js"; // TASKS.csv #4002
 import { corridorRuns, mdInRuns } from "../../lib/sectionCorridor.js"; // TASKS.csv #499
 import { corridorScatter } from "../../lib/sectionScatter.js"; // TASKS.csv #1807
 import { sectionCustomLegendItems } from "../../lib/customColour.js"; // TASKS.csv #2669
@@ -144,6 +145,17 @@ export function makeSectionPayload(c) {
       const keptPlanes = planes.filter((pl) => mdInRuns(pl.depth, runsOf.get(pl.hole_id)));
       planes.length = 0; planes.push(...keptPlanes);
     }
+    // TASKS.csv #4002 — the 3D view's bars along the trace (#3943), clipped to the runs in the buffer as above: its chosen minerals as lanes, and
+    // its assay bars as the look of the grade bars; none when the 3D view draws none (or this section leaves the layer out)
+    const barSets = (() => {
+      const runsOf = new Map(holes.map((h) => [h.hole_id, h.runs]));
+      const clip = (holeId, from, to) => (runsOf.get(holeId) || []).map(([r0, r1]) => [Math.max(from, r0), Math.min(to, r1)]).filter(([f, t]) => t - f > 1e-6);
+      const mnOn = scope.layerKeys != null ? scope.layerKeys.includes("mnlgy") : layerVisible.mnlgy || !!scope.also?.includes("mnlgy");
+      return sectionBarSets({ holeIds, clip, mineralTitle: LAYER_META.mnlgy.label,
+        mnlgy: { rows: layers.mnlgy, chosen: layerStyles?.mnlgy?.bars, on: mnOn, shown: (r) => isRowVisible("mnlgy", r), codeColour: (v) => effectiveColor("mnlgy", v) },
+        assay: { on: !!layerStyles?.assay?.bars && points.some((p) => p.assay), rows: assays, syms: assayDisplayElements, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])), hue: (s) => assayHue(s, assayElements) } });
+    })();
+    if (barSets.assayLanes) { const looked = withAssayBarLook(points, barSets.assayLanes); points.length = 0; points.push(...looked); }
 
     // User request (TASKS.csv #112): "Will need an elevation profile on the cross section from SRTM."
     // Samples the loaded terrain surface at regular steps along the section line (same
@@ -250,9 +262,9 @@ export function makeSectionPayload(c) {
 
     const modelBackdrop = modelBackdropFor(a, b, secId, showTerrain, corridor); // #759
     if (modelBackdrop) modelBackdrop.legend.forEach((it) => legendItems.push(it));
-    const assayLegend = assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits }); // #3236 // #1475 — the section window keys the grades it draws
+    const assayLegend = barSets.assayLanes ? [] /* #4002 — bars in the elements' hues: their scale is keyed instead */ : assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle, displayUnits: project?.displayUnits }); // #3236 // #1475 — the section window keys the grades it draws
     const scatter = corridorScatter({ geophysPts: layerVisible.geophys_pts ? layers.geophys_pts : null, geophysStyle: { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, surveys: geophysSurveys /* #1587 */ }, samples: layerVisible.surface_samples ? placedSurfaceSamples : null }, a, b, corridor); // #1807
-    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts: scatter.counts };
+    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts: scatter.counts, mineralBars: barSets.mineralBars, barKeyRows: barSets.keyRows /* #4002 */ };
   };
   return buildSectionPayload;
 }

@@ -12,7 +12,7 @@ let rendererDirty = false;
 // window's in-app dialog (electron/mainAsk.js: an IPC round trip), and in the OS box only when the window cannot answer (hung, gone, no dialog host): quitting a hung app still works.
 // STAY NATIVE ON PURPOSE (each says why where it is): the crashed renderer ('GeoStrix stopped': nothing in-app can draw), a network folder (\\host may be sent sign-in details), an AI app's
 // request to read / change the project and its download request (security questions: an OS dialog cannot be drawn, clicked or answered by page content or a script in the renderer, which is the
-// point of asking there), and the synchronous 'may-close-section-windows' check a project load makes (the window is blocked in that call, so only an OS box can be shown).
+// point of asking there). The 'may these sections close?' check a project load makes is in-app too since #4000 (an async invoke; it was a synchronous call that could only show an OS box).
 const nativeAsk = async (win, spec) => {
   const i = (v) => spec.buttons.findIndex((b) => b.value === v);
   const r = await dialog.showMessageBox(win && !win.isDestroyed() ? win : undefined, { type: "warning", title: spec.title, message: spec.message, detail: spec.detail || undefined, noLink: true,
@@ -609,18 +609,6 @@ ipcMain.on("section-tab-unsaved", (_e, id, unsaved, text) => {
   if (unsaved) sectionUnsaved.add(id); else sectionUnsaved.delete(id);
   if (text && Object.keys(sectionUnsavedText).every((k) => typeof text[k] === "string")) sectionUnsavedText = { title: text.title, message: text.message, detail: text.detail, close: text.close, cancel: text.cancel };
 });
-// true when these sections may close: none has unsaved lines, or the person said to lose them
-// TASKS.csv #3995 — NATIVE ON PURPOSE, for the one caller left: the SYNCHRONOUS check a project load makes (ipcMain 'may-close-section-windows' below), where the window that asks is blocked in the call and can
-// show nothing; the closes of the main window and of a section window ask in the window's own dialog (mayCloseSectionsAsk)
-function mayCloseSections(win, ids) {
-  const at = ids.filter((id) => sectionUnsaved.has(id));
-  if (!at.length) return true;
-  const t = sectionUnsavedText;
-  const keep = dialog.showMessageBoxSync(win, { type: "warning", buttons: [t.close, t.cancel], defaultId: 1, cancelId: 1, title: t.title, message: at.length > 1 ? `${t.message} (${at.length})` : t.message, detail: t.detail });
-  if (keep !== 0) return false;
-  at.forEach((id) => sectionUnsaved.delete(id));
-  return true;
-}
 ipcMain.handle("get-section-data", (ev) => {
   const win = BrowserWindow.fromWebContents(ev.sender);
   return [...sectionTabs].filter(([, w]) => w === win).map(([id]) => sectionPayloads.get(id));
@@ -742,9 +730,13 @@ ipcMain.handle("open-section-window", (_e, payload) => {
 // TASKS.csv #2620 (re-test of #2516) — closing every section window on a project load skipped the 'Unsaved lines' question (#1323): a
 // drawn, unsaved contact was lost when a tab was opened or the project reprojected. The main window asks this BEFORE it replaces the
 // project (synchronously, so a store action can stop): true when no section has unsaved lines or the user chose to close them anyway.
-ipcMain.on("may-close-section-windows", (ev) => {
-  if (!mainWindow || BrowserWindow.fromWebContents(ev.sender) !== mainWindow) { ev.returnValue = true; return; }
-  ev.returnValue = mayCloseSections(mainWindow, [...sectionTabs.keys()]);
+// TASKS.csv #4000 — asked in the main window's own dialog (mayCloseSectionsAsk; the OS box only when the window cannot answer), so the store actions that call it wait for the answer. One question at a
+// time: a second call while one is up gets the same answer.
+let sectionsMayCloseAsk = null;
+ipcMain.handle("may-close-section-windows", (ev) => {
+  if (!mainWindow || BrowserWindow.fromWebContents(ev.sender) !== mainWindow) return true;
+  if (!sectionsMayCloseAsk) sectionsMayCloseAsk = mayCloseSectionsAsk(mainWindow, [...sectionTabs.keys()]).finally(() => { sectionsMayCloseAsk = null; });
+  return sectionsMayCloseAsk;
 });
 ipcMain.handle("close-section-windows", (ev) => {
   if (!mainWindow || BrowserWindow.fromWebContents(ev.sender) !== mainWindow) return { ok: false };

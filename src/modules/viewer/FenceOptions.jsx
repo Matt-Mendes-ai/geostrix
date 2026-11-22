@@ -11,6 +11,7 @@ import { fenceExtentPoints } from "../../lib/sectionDefs.js";
 import { fenceTracesOf } from "../../lib/holeFilter.js"; // TASKS.csv #3561
 import { fetchAreaChoices } from "../../lib/fetchAreas.js";
 import { fenceLinesInBox, areaBox, boxCorners, boxFromCorners, moveCorner } from "../../lib/fenceBox.js";
+import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #4004 — #3954's Margin (m) for a boundary or claim
 
 // the box on the view (an outline and its four corner handles, over everything), and the pointer: a corner dragged, or a new box drawn
 function useBoxOnView(view, box, azimuth, drawing, level, onBox) {
@@ -92,7 +93,7 @@ export default function FenceOptions({ voxelModels, tracesRef, tracesSeq, visibl
     setDrawing(v === "draw");
     if (v === "draw") topView?.();
     else if (v === "all") setArea?.(null);
-    else if (v.startsWith("b:")) setArea?.({ kind: "boundary", id: v.slice(2) });
+    else if (v.startsWith("b:")) setArea?.({ kind: "boundary", id: v.slice(2), ...(area?.margin > 0 ? { margin: area.margin } : {}) }); // #4004 — the margin kept from one boundary to the next
   };
   return (
     <>
@@ -104,7 +105,12 @@ export default function FenceOptions({ voxelModels, tracesRef, tracesSeq, visibl
           {outlines.map((c) => <option key={c.id} value={`b:${c.id.replace(/^boundary_/, "")}`}>{c.label}</option>)}
         </select>
       </label>
-      {(drawing || area?.kind === "box") && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{drawing ? tr("Drag on the view to draw it.") : tr("Drag a corner to change it.")}</div>}
+      {(drawing || area?.kind === "box") && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{drawing ? tr("Drag on the view, or on Maps › Fence box, to draw it.") /* #4004 */ : tr("Drag a corner to change it.")}</div>}
+      {area?.kind === "boundary" && ( /* TASKS.csv #4004 — the box round a boundary or claim, widened by a margin on every side (0 allowed) */
+        <label style={{ ...labelStyle, display: "flex", gap: 6, alignItems: "center" }}>{tr("Margin (m)")}
+          <NumberInput value={area.margin || 0} min={0} step={50} onChange={(m) => setArea?.({ ...area, margin: Math.max(0, Number(m) || 0) })} aria-label={tr("Margin (m)")} style={{ width: 64, fontSize: "var(--font-size-sm)" }} />
+        </label>
+      )}
       <label style={{ ...labelStyle, display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={cover} onChange={(e) => setCover(e.target.checked)} />{tr("Also cover the visible block models")}</label>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }} data-fence-count={n}>{tr("This makes {n} section(s).", { n })}{traces.length < (all || []).length ? " " + tr("Over the {shown} of {total} holes shown.", { shown: traces.length.toLocaleString(), total: all.length.toLocaleString() }) : ""}{r.empty > 0 ? " " + tr("{e} slab(s) with no hole or model cell are skipped.", { e: r.empty }) : ""}</div>{/* #2040 */}
     </>

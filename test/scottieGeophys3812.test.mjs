@@ -24,15 +24,16 @@ test("#3812 a 3D UBC mesh is told where it goes; the pane says where a 3D model 
 });
 
 test("#3813 the notice names the route this project can use; a repeat evaluation replaces its layer", () => {
-  assert.match(onHolesRoutes([{ hole_id: "A" }], { litho: [{}] }), /Geochem › X–Y scatter \(the model's values are listed as 'On holes: …'\)/); // assays, no numeric log (Scottie)
+  assert.match(onHolesRoutes([{ hole_id: "A" }], { litho: [{}] }), /Downhole logs \(listed there as a log\) or Geochem › X–Y scatter\./); // assays, no numeric log (Scottie). #3813 (2026-11-22): Downhole logs lists it too
   assert.match(onHolesRoutes([], { sg: [{ hole_id: "A" }] }), /use Downhole logs\./);
   assert.match(onHolesRoutes([{}], { sg: [{}] }), /Downhole logs against a log, Geochem › X–Y scatter against an assay/);
   assert.equal(onHolesRoutes([], {}), ""); assert.equal(onHolesRoutes(null, null), "");
-  assert.match(gm, /const prevLayer = \(customLayers \|\| \[\]\)\.find\(\(l\) => l\.sourceModel === model\.id && \/\^On holes: \/\.test\(String\(l\.name\)\)\);/);
+  assert.match(gm, /const prevLayer = \(customLayers \|\| \[\]\)\.find\(\(l\) => l\.sourceModel === model\.id && \/\^On holes: \/\.test\(String\(l\.name\)\)\) \|\| \(customLayers \|\| \[\]\)\.find\(\(l\) => l\.sourceModel != null && String\(l\.name\) === `On holes: \$\{model\.name\}`\);/); // #3813: or by its name
   assert.match(gm, /const id = prevLayer\?\.id \|\| `custom_\$\{Date\.now\(\)\}`;/);
-  assert.match(gm, /the logs\.\{routes\}", \{ name: model\.name, routes: onHolesRoutes\(assays, layers\)/);
+  assert.match(gm, /const said = \{ name: model\.name, routes: onHolesRoutes\(assays, layers\)/);
+  assert.match(gm, /prevLayer \? tr\("Updated \\"On holes: \{name\}\\" \(same layer, style kept\)/);
   hasKeys(["Cross-plots: Downhole logs against a log, Geochem › X–Y scatter against an assay.", "For a cross-plot against a log, use Downhole logs.",
-    "For a cross-plot against an assay, use Geochem › X–Y scatter (the model's values are listed as 'On holes: …')."]);
+    "For a cross-plot against an assay: Downhole logs (listed there as a log) or Geochem › X–Y scatter."]);
 });
 
 test("#3814 a method's pane lists that method's surveys; the others are named apart", () => {

@@ -97,12 +97,12 @@ test("#3995 main.js: the three questions ask the window (a hung renderer still r
   assert.doesNotMatch(m, /dialog\.showMessageBoxSync\(mainWindow, \{\s+type: "warning",\s+buttons: \["Quit Without Saving"/, "the blocking quit box is gone");
   // the natives, each with its reason
   const nativeCalls = [...m.matchAll(/dialog\.showMessageBox(Sync)?\(/g)].length;
-  assert.equal(nativeCalls, 6, "the OS box helper, the crashed renderer, the synchronous sections check, the network folder, the two AI questions");
-  assert.equal((m.match(/NATIVE ON PURPOSE/g) || []).length, 4, "the list at the top, and the crashed renderer, the synchronous sections check and the network folder each say why where they are");
+  assert.equal(nativeCalls, 5, "the OS box helper, the crashed renderer, the network folder, the two AI questions (#4000: the project load's sections check is in-app now)");
+  assert.equal((m.match(/NATIVE ON PURPOSE/g) || []).length, 3, "the list at the top, and the crashed renderer and the network folder each say why where they are");
   assert.match(m, /STAY NATIVE ON PURPOSE \(each says why where it is\): the crashed renderer/);
   assert.match(m, /the two questions below \(allow an AI app to read \/ change the project, allow its download\) are asked in an OS box ON PURPOSE/);
   assert.match(m, /an OS dialog cannot be drawn, clicked or answered by page content or by a script running in the renderer/);
-  assert.match(m, /the SYNCHRONOUS check a project load makes/);
+  assert.doesNotMatch(m, /showMessageBoxSync\(win, \{ type: "warning", buttons: \[t\.close, t\.cancel\]/, "#4000: the project load's sections check is no longer a blocking box");
 });
 
 test("#3995 the window side: the host draws the question and answers (acknowledging first), a cancel takes it down; preload carries the three channels; the texts are in every language", () => {

@@ -403,8 +403,8 @@ export default function App() {
   // TASKS.csv #34 — "New Project" now opens a fresh workspace tab instead of resetting the only
   // project in place, so nothing is ever discarded by this action and the old "unsaved changes will
   // be lost" confirm isn't needed anymore (see newWorkspaceTab's own comment in store.jsx).
-  const doNew = useCallback(() => {
-    newWorkspaceTab();
+  const doNew = useCallback(async () => {
+    if ((await newWorkspaceTab()) === false) return; // TASKS.csv #4000 — a section's unsaved lines were kept: no new project
     setStartDialog({ reason: "new" }); // TASKS.csv #3888
   }, [newWorkspaceTab]);
 

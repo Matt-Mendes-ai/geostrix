@@ -16,6 +16,7 @@ import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, Suspense } from "react";
 import { useDataGeneration, generationTables, useCallbackGen as useCallback, useMemoGen as useMemo } from "./viewer/dataGeneration.js"; // TASKS.csv #3483 — the memos made again when a big table is replaced (a leak of every earlier generation)
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
+import { shareFenceAzimuth } from "../lib/fenceShare.js"; // TASKS.csv #4004
 import { requestCollarZFromTerrain } from "../lib/collarTerrainRequests.js"; // TASKS.csv #3955
 import { isPxrfRow } from "../lib/qaqcCore.js"; // TASKS.csv #1695; #3159: qaqcCore, not qaqc.js (the QAQC charts' code, not needed at startup)
 import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
@@ -821,6 +822,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // voxel in equal parts on a specified azi and width"). See generateSliceSeries below.
   const shownCollars = useMemo(() => (collars.some((c) => visibleHoles[c.hole_id] === false) ? collars.filter((c) => visibleHoles[c.hole_id] !== false) : collars), [collars, visibleHoles]); // TASKS.csv #3561 — the series follows the holes shown
   const { sliceSeriesAzimuth, setSliceSeriesAzimuth, sliceSeriesWidth, setSliceSeriesWidth, typedSection, setTypedSection, lineCentre, lineNote } = useDrillLineDefaults(shownCollars, survey); // #2366; survey: #3763
+  useEffect(() => { shareFenceAzimuth(sliceSeriesAzimuth); }, [sliceSeriesAzimuth]); // TASKS.csv #4004 — the Maps plan's fence box
   const [fenceCoverModels, setFenceCoverModels] = useState(false); // #1180
 
   const [gridConfig, setGridConfig] = useState({ ...DEFAULT_GRID });
@@ -1224,6 +1226,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #1546 — Model area: "all" | "checked" (the checked holes only feed the modelling tools)
   const [modelArea, setModelArea] = useState("all");
   const [fenceArea, setFenceArea] = useState(null); // TASKS.csv #3971 — the fence series' area: null (all the drilling) | { kind: "box", box } | { kind: "boundary", id } (lib/fenceBox.js)
+  // TASKS.csv #4004 — the Maps plan draws and edits the same box: it sends the change here, and reads the azimuth from fenceShare
+  useModuleAction(["fence-area"], (a, area) => setFenceArea(area || null));
   const { unitLayers, unitField, setUnitField, unitFields } = useUnitSource(layers, customLayers); // #2378, #2529 — which Lithology field is the unit
   // TASKS.csv #3266 — the interval angles with a beta (a fault-zone layer, the Veins layer) oriented as the structure picks are: they join the
   // structure picks the modelling tools, the Structures menu, the Stereonet and the Downhole plot read (lib/layerPickOrientation.js)
@@ -1558,7 +1562,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       setHoleLabelMode("none");
       setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY }); // TASKS.csv #311
       setLayerStyles({}); // #635
-      setModelArea("all"); setHoleFilter(""); // #2535; #3624
+      setModelArea("all"); setHoleFilter(""); setFenceArea(null); // #2535; #3624; #4004 (a new project kept the last one's box)
       return;
     }
     if (s.layerVisible) setLayerVisible({ ...DEFAULT_LAYER_VISIBLE, ...s.layerVisible });
@@ -5572,7 +5576,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const launchSection = async () => {
     const [a, b] = sectionPts.current;
     const corridor = sectionCorridor;
-    const { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend /* #1769 */, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts } = await buildSectionPayload(a, b, corridor); // scatter: #1807
+    const { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend /* #1769 */, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts, mineralBars, barKeyRows /* #4002 */ } = await buildSectionPayload(a, b, corridor); // scatter: #1807
     const id = `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     // TASKS.csv #1960 (Vulcan review) — two E-W sections were both 'Section 90°': the window's tabs and the linker's refusal
     // could not tell them apart. A second section at the same azimuth takes (2), (3) ...
@@ -5586,17 +5590,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // to an actual litho unit, tagged as that unit's upper contact, is what #98 needs to feed drawn
     // contacts into 3D surface generation as real interface points later).
     const sectionImgs = await sectionImagesFor(a, b, corridor);
-    openSectionOrSay({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, assayLegend, contacts: [], lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, scatter, scatterCounts, /* #1807 */ sectionImages: sectionImgs, modelBackdrop,
+    openSectionOrSay({ id, title: name, mineralBars, barKeyRows, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, assayLegend, contacts: [], lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, scatter, scatterCounts, /* #1807 */ sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: (await import("../lib/sectionDigitise.js")).ghostStrings({ id, ax: a.x, ay: a.y, bx: b.x, by: b.y }, sections), /* on use: #903 */ outlineNames: outlineNamesOf(sections) }); // #519; outlineNames: #874
   };
 
   const reopenSection = useCallback(async (s, { quiet = false } = {}) => { // quiet: TASKS.csv #876 — refresh an open window only
     const a = { x: s.ax, y: s.ay }, b = { x: s.bx, y: s.by };
-    const { holes, intervals, points, planes, elevationProfile, legendItems, assayLegend /* #1769 */, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts } = await buildSectionPayload(a, b, s.corridor, s.holeAsked ? { ...(s.scope || {}), holeAsked: s.holeAsked } : (s.scope || {}), s.id); // scatter: #1807; holeAsked: #3680
+    const { holes, intervals, points, planes, elevationProfile, legendItems, assayLegend /* #1769 */, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts, mineralBars, barKeyRows /* #4002 */ } = await buildSectionPayload(a, b, s.corridor, s.holeAsked ? { ...(s.scope || {}), holeAsked: s.holeAsked } : (s.scope || {}), s.id); // scatter: #1807; holeAsked: #3680
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
-    openSectionOrSay({ id: s.id, title: s.name, hiddenHoleCount: Object.values(visibleHoles).filter((v) => v === false).length /* #3680 */, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, assayLegend, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, scatter, scatterCounts, /* #1807 */ sectionImages: sectionImgs, modelBackdrop,
+    openSectionOrSay({ id: s.id, title: s.name, mineralBars, barKeyRows, hiddenHoleCount: Object.values(visibleHoles).filter((v) => v === false).length /* #3680 */, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, assayLegend, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, scatter, scatterCounts, /* #1807 */ sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: (await import("../lib/sectionDigitise.js")).ghostStrings(s, sections), /* on use: #903 */ outlineNames: outlineNamesOf(sections), ...(quiet ? { refreshOnly: true, ifOpen: true } : {}) }); // #519 — the neighbouring sections' strings; outlineNames: #874; quiet: #876
-  }, [structurePicksWithHoleAttitude, layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, assayRowShown /* #2362 */, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock, pierceSurfaces, placedSurfaceSamples, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax /* #1807 */]); // pierceSurfaces: #1010
+  }, [structurePicksWithHoleAttitude, layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, assayRowShown /* #2362 */, isRowVisible, layerStyles /* #4002 — the bars */, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock, pierceSurfaces, placedSurfaceSamples, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax /* #1807 */]); // pierceSurfaces: #1010
 
   // TASKS.csv #876 — the section window's ‹ › (previous / next parallel section) and Refresh
   const sectionStepRef = useRef(null);
@@ -5847,7 +5851,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
 
-        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} area={fenceArea} setArea={setFenceArea} boundaries={boundaries} topView={() => sectionTopView(camState.current, cameraRef.current, setNotices)} view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} /* #3971 */ />
+        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} area={fenceArea} setArea={setFenceArea} boundaries={boundaries} topView={() => sectionTopView(camState.current, cameraRef.current, null) /* #4004: not "Draw section: click the two ends"; the pane says drag */} view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} /* #3971 */ />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         <RastersTerrainSection {...{ rasters, terrain, updateTerrain, updateRaster, removeRaster, openRowMenu, zoomToObject, terrainMeshRef, rasterMeshesRef, goToModule, lodTiles }} />{/* #3891: first */}
