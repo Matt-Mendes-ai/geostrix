@@ -145,8 +145,17 @@ function createHost({ userDataDir, getWindow, askAllow, askNetwork, isOnline, re
     if (r.ok && p.allowChanges) { changesOn = true; push(); }
     return r;
   };
+  // TASKS.csv #3992 — the window that was asked reloaded, navigated away, crashed or closed: it can no longer answer the calls waiting on it, so each fails at once with a plain line
+  // (instead of holding the one-change-at-a-time lock until the call's own 10 minutes ran out). What a change had already done in that window is not known here, so the line says so.
+  const LOST = { reloaded: "was reloaded", crashed: "stopped working", closed: "was closed" };
+  function windowLost(reason = "reloaded") {
+    const n = pending.size; if (!n) return 0;
+    const error = `GeoStrix's window ${LOST[reason] || LOST.reloaded} before it answered, so this call cannot say whether it finished: check the project in GeoStrix.`;
+    for (const [id, f] of [...pending]) { pending.delete(id); f({ ok: false, error }); }
+    return n;
+  }
   const forgetClients = () => { const p = readPrefs().mcp || {}; writePrefs({ mcp: { ...p, allowed: [], allowedChanges: [] } }); push(); return { ok: true }; };
-  return { start, stop, setEnabled, setChanges, resumeIfRemembered, forgetClients, status, respond, callTool, _endpointFile: endpointFile };
+  return { start, stop, setEnabled, setChanges, resumeIfRemembered, forgetClients, status, respond, callTool, windowLost, _endpointFile: endpointFile };
 }
 
 module.exports = { createHost, HANDSHAKE_MS, CALL_TIMEOUT_MS };
