@@ -7,7 +7,7 @@ export default [
     title: "Boundaries",
     // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Imports property lines, grids and survey outlines as lines in 3D.",
-    picture: { drop: ["map"], alt: "Outlines draped on the ground." }, // the lands-here / far-off picture when it is drawn
+    picture: { help: "lands", alt: "Outlines in the right coordinate system land on the holes; a zone off, they land far from them." }, // N3 (#3978): check where it lands
     instead: [{ text: "Claims with tenure", to: "Mineral claims", page: "claims" }, { text: "Coloured units", to: "Geology map", page: "geology-map" }],
     keys: ["Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…", "Drape on terrain"],
     summary: "Imports property lines, grid outlines and survey extents as lines in the 3D view.",
@@ -47,7 +47,7 @@ export default [
     title: "Map layers & outcrop structures",
     // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Imports mapping layers and outcrop structures, draped on the terrain.",
-    picture: { drop: ["map"], alt: "A geology map and a strike-and-dip symbol draped on the ground." },
+    picture: { help: "lands", alt: "A map layer in the right coordinate system lands on the holes; a zone off, it lands far from them." }, // N3 (#3978): check where it lands
     instead: [{ text: "Outlines", to: "Boundaries", page: "boundaries" }, { text: "Claims", to: "Mineral claims", page: "claims" }, { text: "Grids", to: "Maps > GeoTIFF / GXF" }, { text: "Oriented core", to: "with the drillholes", page: "import-drillholes" }],
     keys: ["Import map layer…", "Colour by / .qml", "North / Measured on"],
     strip: ["Open Perk-Rocky", "Colour by the unit", "Lower an Opacity", "Set the Symbol size"],
@@ -95,7 +95,7 @@ export default [
     title: "Mineral claims / tenure",
     // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Imports claim outlines with tenure number, status and expiry; status sets the colour.",
-    picture: { drop: ["map"], alt: "Claim outlines draped on the ground, coloured by status." }, // the lands-here / far-off picture when it is drawn
+    picture: { help: "lands", alt: "Claim outlines in the right coordinate system land on the holes; a zone off, they land far from them." }, // N3 (#3978): check where it lands
     cautions: ["It checks no registry: keep the status current yourself."],
     instead: [{ text: "MapInfo .tab, or every attribute", to: "Geology map", page: "geology-map" }],
     keys: ["Status", "Area"],
@@ -137,7 +137,7 @@ export default [
     title: "Web layers (WMS / WFS)",
     // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Adds a layer from an online WMS (a picture) or WFS (features) by its URL.",
-    picture: { drop: ["map"], alt: "A layer from an online service, draped on the ground." }, // the WMS / WFS tiles when they are drawn
+    picture: { help: "lands", alt: "A layer from an online service in the right coordinate system lands on the holes; a zone off, far from them." }, // N3 (#3978): check where it lands
     cautions: ["A WMS layer is a picture, with no values."],
     instead: [{ text: "A real grid", to: "Maps > GeoTIFF / GXF" }],
     keys: ["WMS / WFS, the URL and Fetch layers", "Limit to the current project area (recommended for province/country-wide layers)", "Import as"],

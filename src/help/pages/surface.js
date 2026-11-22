@@ -7,7 +7,7 @@ export default [
     title: "Geology map",
     // TASKS.csv #3982 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Imports geology map layers, draped on the terrain and coloured by unit.",
-    picture: { drop: ["units"], alt: "Map units draped on the ground, coloured by unit." }, // the lands-here / far-off picture when it is drawn
+    picture: { help: "lands", alt: "A geology map in the right coordinate system lands on the holes; a zone off, it lands far from them." }, // N3 (#3978): check where it lands
     instead: [{ text: "A 3D model", to: "Model it", page: "model-from-map" }],
     keys: ["Import map layer…", "Colour by / .qml", "Legend (14 units)"],
     strip: ["Open Perk-Rocky", "Check Colour by", "Import your own"],

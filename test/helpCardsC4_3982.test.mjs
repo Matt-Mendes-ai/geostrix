@@ -27,6 +27,17 @@ const CAUTIONS = {
 const STRIPS = ["map-layers", "geology-map", "outcrop-structures", "layout"]; // the walk-throughs that were in view (not folded)
 const diagrams = [...readFileSync(path.join(here, "..", "src", "help", "diagrams", "index.jsx"), "utf8").match(/export const DIAGRAMS = \{([^}]*)\}/)[1].matchAll(/(\w+):/g)].map((m) => m[1]);
 const drops = [...readFileSync(path.join(here, "..", "src", "components", "DropDiagram.jsx"), "utf8").matchAll(/^ {2}(\w+): \(id\) =>/gm)].map((m) => m[1]);
+// batch B's Help pictures (#3978): their names in pictures.jsx
+const helpPics = [...readFileSync(path.join(here, "..", "src", "help", "diagrams", "pictures.jsx"), "utf8").matchAll(/^ {2}(\w+): \{ Pic:/gm)].map((m) => m[1]);
+
+test("#3982 the five pages that read a coordinate system show N3, 'check where it lands', as their picture (in view)", () => {
+  assert.ok(helpPics.includes("lands"));
+  for (const id of ["boundaries", "map-layers", "claims", "web-layers", "geology-map"]) {
+    const p = pageById(id);
+    assert.equal(p.picture?.help, "lands", id);
+    assert.match(p.picture.alt, /lands? on the holes/, id);
+  }
+});
 
 test("#3982 the 14 pages give the card fields, within the plan's limits", async () => {
   for (const [file, ids] of Object.entries(FILES)) {
@@ -38,6 +49,7 @@ test("#3982 the 14 pages give the card fields, within the plan's limits", async 
     assert.ok(p.line && wordsOf(p.line) <= 15, `${id}: one line of at most 15 words`);
     assert.ok(p.picture?.alt, `${id}: a picture with its alt`);
     if (p.picture.diagram) assert.ok(diagrams.includes(p.picture.diagram), `${id}: the diagram ${p.picture.diagram} exists`);
+    else if (p.picture.help) assert.ok(helpPics.includes(p.picture.help), `${id}: the picture ${p.picture.help} exists`);
     else { assert.ok(p.picture.drop?.length >= 1 && p.picture.drop.length <= 2, id); for (const d of p.picture.drop) assert.ok(drops.includes(d), `${id}: the picture ${d} exists`); }
     assert.equal(p.diagram, undefined, `${id}: a diagram is the card's picture, not a second one`);
     assert.ok(p.keys.length >= 2 && p.keys.length <= 4, `${id}: two to four key settings`);
