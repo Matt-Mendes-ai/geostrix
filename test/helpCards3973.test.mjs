@@ -19,7 +19,7 @@ test("every card page gives the card fields, within the plan's limits", () => {
     const p = pageById(id);
     assert.ok(p.line && wordsOf(p.line) <= 15, `${id}: one line of at most 15 words`);
     assert.ok(p.picture && (p.picture.help || p.picture.diagram || p.picture.drop?.length) && p.picture.alt, `${id}: a picture with its alt`); // help: #3978
-    assert.ok(p.cautions?.length >= 1, id);
+    assert.ok(p.cautions?.length >= 1 || p.instead?.length >= 1, `${id}: a caution in view, or (a page with none) its "Use instead" routes`); // TASKS.csv #3981 — Downhole logs, Cell budget and Magnetics have no warning, only routes
     assert.ok(p.keys.length >= 2 && p.keys.length <= 4, `${id}: two to four key settings`);
     for (const k of p.keys) {
       const f = p.fields.find((x) => x.name === k);
@@ -43,7 +43,7 @@ test("every card page gives the card fields, within the plan's limits", () => {
 test("the search still finds every sentence of a card page (fields, messages, Not for, walk-through, More)", () => {
   for (const id of CARD_IDS) {
     const p = pageById(id);
-    const sentences = [p.summary, p.more, ...(p.notFor || []), ...p.fields.flatMap((f) => [f.what, f.choose, f.more]), ...p.warnings.flatMap((w) => [w.says, w.means, w.do]), ...(p.howto?.steps || []), p.line, ...p.cautions].filter(Boolean);
+    const sentences = [p.summary, p.more, ...(p.notFor || []), ...p.fields.flatMap((f) => [f.what, f.choose, f.more]), ...p.warnings.flatMap((w) => [w.says, w.means, w.do]), ...(p.howto?.steps || []), p.line, ...(p.cautions || [])].filter(Boolean);
     for (const s of sentences) {
       const q = s.replace(/\{[^}]*\}/g, " ").split(/\s+/).map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")).filter((w) => /^[\p{L}\p{N}]{4,}$/u.test(w)).slice(0, 6).join(" ");
       if (!q) continue;
