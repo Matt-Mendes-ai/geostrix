@@ -5830,7 +5830,6 @@
   "Build the blocks": "بناء الكتل",
   "{unit} {v} Mm³": "{unit} {v} مليون م³",
   "{unit} covers {pct}% of the box": "{unit} يغطي {pct}% من الصندوق",
-  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}": "بُنيت {n} كتلة ({nx} × {ny} × {nz}) من الأسطح: {units}. استخدم «إضافة أحجام الوحدات (مغلقة)» أو «إضافة كنموذج كتل» في مربع آخر نموذج فوق قائمة الأسطح.{v}",
   "no unit cells": "لا خلايا وحدات",
   " Beyond a top's footprint the unit above it continues down: {list}.": " خارج امتداد السقف تستمر الوحدة التي فوقه نزولًا: {list}.",
   "Solid blocks from surfaces…": "كتل صلبة من الأسطح…",
@@ -14711,5 +14710,6 @@
   "Build the blocks first.": "ابنِ الكتل أولًا.",
   "Surfaces and block settings": "الأسطح وإعدادات الكتل",
   "Fold the result block": "طيّ كتلة النتيجة",
-  "Open the result block": "فتح كتلة النتيجة"
+  "Open the result block": "فتح كتلة النتيجة",
+  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Result block at the top of the panel.{v}": "بُنيت {n} كتلة ({nx} × {ny} × {nz}) من الأسطح: {units}. استخدم «إضافة أحجام الوحدات (مغلقة)» أو «إضافة كنموذج كتل» في كتلة النتيجة أعلى اللوحة.{v}"
 }

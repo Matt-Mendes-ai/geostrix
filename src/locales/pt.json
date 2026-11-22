@@ -5830,7 +5830,6 @@
   "Build the blocks": "Construir os blocos",
   "{unit} {v} Mm³": "{unit} {v} Mm³",
   "{unit} covers {pct}% of the box": "{unit} cobre {pct}% da caixa",
-  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}": "Foram construídos {n} blocos ({nx} × {ny} × {nz}) a partir das superfícies: {units}. Use «Adicionar volumes das unidades (fechados)» ou «Adicionar como modelo de blocos» no quadro Último modelo, acima da lista de superfícies.{v}",
   "no unit cells": "nenhuma célula de unidade",
   " Beyond a top's footprint the unit above it continues down: {list}.": " Fora da área de um topo, a unidade acima continua para baixo: {list}.",
   "Solid blocks from surfaces…": "Blocos sólidos a partir de superfícies…",
@@ -14711,5 +14710,6 @@
   "Build the blocks first.": "Construa os blocos primeiro.",
   "Surfaces and block settings": "Superfícies e ajustes dos blocos",
   "Fold the result block": "Recolher o bloco de resultado",
-  "Open the result block": "Expandir o bloco de resultado"
+  "Open the result block": "Expandir o bloco de resultado",
+  "Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Result block at the top of the panel.{v}": "Foram construídos {n} blocos ({nx} × {ny} × {nz}) a partir das superfícies: {units}. Use «Adicionar volumes das unidades (fechados)» ou «Adicionar como modelo de blocos» no bloco Resultado, no topo do painel.{v}"
 }
