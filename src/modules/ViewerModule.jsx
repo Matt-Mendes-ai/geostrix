@@ -37,7 +37,7 @@ const BasemapView = lazyModal(() => import("../components/BasemapView.jsx"));  /
 const PromptModal = lazyPart(() => import("../components/PromptModal.jsx")); // TASKS.csv #3961: lazy (drawn only while a question is open)
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
-import { customLayerSync, detachCustomGroups } from "./viewer/customLayerSync.js"; // #2361
+import { customLayerSync, detachCustomGroups, arrangeLikeStore } from "./viewer/customLayerSync.js"; // #2361; #4018
 import { layerWith, layerRowCount } from "../lib/tableFields.js"; // #3424
 import { toastBoxStyle } from "../lib/viewer/toastBox.js"; // #3537 — a copy that keeps a log's rows unbuilt
 import { rlOffsetOf } from "../lib/localGridDatum.js"; // TASKS.csv #2809 — the grid RL in Identify and the section
@@ -1520,6 +1520,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // layer was deleted, and autosave saved the loss. Nothing is written back until the restore has run once.
   const buildDefer = useBuildDefer(); // #1500
   const deferRound = buildDefer.round; // #1980 — the effects that place objects by the scene origin run again after a deferred build
+  const customKnownRef = useRef(null); // TASKS.csv #4018 — the ids the store's custom layers had at the last sync
   const customRestoredRef = useRef(false), customSeqRef = useRef(null); // customSeqRef: #2361
   useEffect(() => {
     if (!customRestoredRef.current) return;
@@ -1745,9 +1746,14 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     if (!sceneRef.current) return;
     customRestoredRef.current = true; // #1527 — from here the mirror above may write
     const fresh = customSeqRef.current !== viewerUiStateSeq; customSeqRef.current = viewerUiStateSeq; // #2361 — a project change: rebuilt from the store alone
-    const { drop, missing } = customLayerSync(customLayers, storeCustomLayers, fresh);
+    const { drop, missing } = customLayerSync(customLayers, storeCustomLayers, fresh, customKnownRef.current); // #4018 — known: what the store held last time
+    customKnownRef.current = new Set((storeCustomLayers || []).map((l) => l.id));
     detachCustomGroups(drop, layerGroupsRef.current);
-    if (!missing.length) { if (fresh && drop.length) setCustomLayers([]); return; }
+    if (!missing.length) {
+      if (fresh && drop.length) setCustomLayers([]);
+      else if (drop.length) { const gone = new Set(drop.map((l) => l.id)); setCustomLayers((p) => arrangeLikeStore(p.filter((l) => !gone.has(l.id)), storeCustomLayers)); } // #4018 — removed in the store (Redo): out of the list too
+      return;
+    }
     buildDefer.mark();
     const root = sceneRef.current.getObjectByName("root");
     const rebuilt = missing.map((l) => {
@@ -1756,7 +1762,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       root.add(group);
       return layerWith(l, { group }); // #3424 (was { ...l, group }: it built a Table layer's rows)
     });
-    setCustomLayers((p) => (fresh ? rebuilt : [...p, ...rebuilt]));
+    const gone = new Set(drop.map((l) => l.id));
+    setCustomLayers((p) => (fresh ? rebuilt : arrangeLikeStore([...p.filter((l) => !gone.has(l.id)), ...rebuilt], storeCustomLayers))); // #4018 — the store's order: an Undo puts a layer back where it was
     setCustomVisible((p) => ({ ...p, ...Object.fromEntries(missing.map((l) => [l.id, true])) }));
   }, [storeCustomLayers, sceneReady, viewerUiStateSeq]);
 
