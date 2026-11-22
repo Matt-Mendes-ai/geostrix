@@ -18,8 +18,8 @@ const quick = { sleep: (ms) => sleep(Math.min(ms, 2)), quietMs: 20, settingsWait
 
 // ---- a stand-in engine: the api GuidedTool is given, with the busy flag the real runs raise
 function engine({ makes = (target) => { const t = String(target).replace(/^mcode:/, ""); return [{ id: `s_${t}`, name: `Top of ${t}`, params: { volumeM3: 1.2e6 } }]; }, busyMs = 25, startBusy = false } = {}) {
-  const st = { surfaces: [], busy: startBusy, modelResolution: 36, numeric: ["", "", "", "", "", ""], runs: [], removed: [] };
-  const run = (key) => async (...args) => { st.runs.push([key, ...args]); st.busy = true; await sleep(busyMs); st.surfaces = [...st.surfaces, ...makes(args[0])]; st.busy = false; };
+  const st = { notices: [{ text: "an old message that mentions extrapolation" }], notify: [], surfaces: [], busy: startBusy, modelResolution: 36, numeric: ["", "", "", "", "", ""], runs: [], removed: [] };
+  const run = (key) => async (...args) => { st.runs.push([key, ...args]); st.busy = true; await sleep(busyMs); st.surfaces = [...st.surfaces, ...makes(args[0])]; st.notices = [...st.notices, ...st.notify.map((text) => ({ text, level: "info" }))]; st.busy = false; };
   const api = () => ({
     get busy() { return st.busy; }, get surfaces() { return st.surfaces; }, get modelResolution() { return st.modelResolution; },
     setModelResolution: (v) => { st.modelResolution = v; }, // the render that applies it is the next poll
@@ -40,7 +40,7 @@ const layerRows = [...holes.flatMap((h) => [{ hole_id: h.hole_id, from: 0, to: 5
   { hole_id: "DH-23-00", from: 60, to: 70, value: "ODD" }, { hole_id: "DH-23-01", from: 1, to: 3, value: "ODD" }, { hole_id: "DH-23-02", from: 61, to: 70, value: "ODD" }, { hole_id: "DH-23-03", from: 2, to: 3, value: "ODD" }];
 const layered = { layers: { litho: layerRows, vein: [], structure: [], sg: [] }, modellingCodes: { codes: [{ name: "TILL", role: "overburden" }] } };
 const contactsOf = () => holes.flatMap((h) => [{ layerKey: "litho", unit: "DYK", hole_id: h.hole_id, from: 20, x: h.x, y: h.y, z: -20 }, { layerKey: "litho", unit: "SST", hole_id: h.hole_id, from: 5, x: h.x, y: h.y, z: -5 }, { layerKey: "litho", unit: "SLT", hole_id: h.hole_id, from: 24, x: h.x, y: h.y, z: -24 }]);
-const ctxOf = (e, over) => ({ store: store(over), api: e.api(), removeSurfaces: (ids) => { e.st.removed.push(ids); e.st.surfaces = e.st.surfaces.filter((s) => !ids.includes(s.id)); } });
+const ctxOf = (e, over) => ({ store: store(over), api: e.api(), get notices() { return e.st.notices; }, removeSurfaces: (ids) => { e.st.removed.push(ids); e.st.surfaces = e.st.surfaces.filter((s) => !ids.includes(s.id)); } });
 
 test("#3932b the guided tool's own run, as a promise: checks, automatic settings, the run once they have rendered, the surfaces it made", async () => {
   const e = engine(); e.st.intercepts = contactsOf();
@@ -97,8 +97,10 @@ test("#3932b build_surface: the rock's role picks the tool (overburden: the cove
 
 test("#3932b build_grade_shell: the Grade model's cut-off, cells and search read from the drilling; the notice that it is not a resource estimate; the revert takes out only what it added", async () => {
   const e = engine({ makes: () => [{ id: "shell_1", name: "Au shell ≥ 0.5 g/t", closure: null, params: { volumeM3: 2.4e5 } }] });
+  e.st.notify = ["\"Au > 0.093 g/t shell\" data support — grid: 15,666 interpolated (25%), 20,473 extrapolated (32%). Only \"interpolated\" means the composites that produced that part of the shell bracket it on all three axes from at least two holes. This is a geometric data-support measure, NOT a statistical confidence or a kriging variance.", "Au shell: 12 blocks added", "\"Au shell\" was closed ARTIFICIALLY at the search-radius boundary (40 of its vertices sit on that wall)."];
   const r = await modelAction(() => ctxOf(e), { op: "grade_shell", element: "au" });
   assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.warnings.length, 2, "the run's protective messages, and only the ones the run added"); assert.match(r.warnings[0], /^"Au > 0\.093 g\/t shell" data support — grid: 15,666 interpolated \(25%\), 20,473 extrapolated \(32%\)\. Only "interpolated" means .* NOT a statistical confidence or a kriging variance\.$/); assert.match(r.warnings[1], /closed ARTIFICIALLY at the search-radius boundary/);
   assert.equal(r.changed, "grade shell"); assert.equal(r.element, "Au"); assert.deepEqual(r.ids, ["shell_1"]);
   assert.equal(e.st.runs[0][0], "numeric"); assert.equal(e.st.numeric[0], "Au", "the metal was put in place before the run");
   assert.ok(Number(e.st.numeric[1]) > 0, "a cut-off read from the grades"); assert.ok(Number(e.st.numeric[2]) > 0, "the cells from the drill spacing");
@@ -163,15 +165,15 @@ test("#3932b make_sheet and add_best_intercepts are tracked: a Layout page is an
   assert.match(store, /const pageStep = \(\) => \{ commitUndoBurst\(\); undoOwnStep\.current = true; \};/, "adding a page is a step of its own");
 });
 
-test("#3932b StrixViewer: the hook answers only in the 3D View, the guided card and the AI tools share one api, nothing of it is in the startup chunk", () => {
+test("#3932b StrixViewer: the hook answers from any tab, the guided card and the AI tools share one api, nothing of it is in the startup chunk", () => {
   const vm = read("../src/modules/ViewerModule.jsx");
   assert.match(vm, /const guidedApi = \{ runStackModel, runImplicitModel,/);
-  assert.match(vm, /useMcpModelActions\(\(\) => \(\{ store: \{ layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain \}, api: guidedApi, removeSurfaces, lastLithBlock, addLithBlockModel, removeVoxelModel \}\), mode === "view"\);/);
+  assert.match(vm, /useMcpModelActions\(\(\) => \(\{ store: \{ layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain \}, api: guidedApi, removeSurfaces, notices, lastLithBlock, addLithBlockModel, removeVoxelModel \}\)\);/);
   assert.match(vm, /<GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{guidedApi\} \/>/);
   const hook = read("../src/modules/viewer/useMcpModelActions.js");
   assert.match(hook, /load = \(\) => import\("\.\/guided\/guidedRun\.js"\)/, "loaded on first use");
   assert.doesNotMatch(hook, /^import .*guided/m);
-  assert.match(hook, /if \(!enabled\) return;/);
+  assert.doesNotMatch(hook, /if \(!enabled\) return;/, "no mode gate: the tab switch has not rendered when the request arrives");
   // the ctx is built as GuidedTool builds it: the same fields
   const card = read("../src/modules/viewer/guided/GuidedTool.jsx"), mine = read("../src/modules/viewer/guided/guidedRun.js");
   for (const f of ["rows", "veins", "structures", "assays", "survey", "assayElements", "hasDensity", "gradeTrend", "collars", "hasTerrain", "describe", "target", "roleOf", "isCover", "intercepts"]) {
@@ -200,7 +202,7 @@ test("#3932c add_block_model: needs the last model's blocks (said when there are
   assert.match(vm, /const addLithBlockModel = async \(\) => \{ \/\/ returns what it did, for an AI app's add_block_model/);
   assert.match(vm, /const vid = addVoxelModel\(\{ name: `Model units: \$\{lb\.title\} \(\$\{lb\.when\}\)`/);
   assert.match(vm, /return \{ ok: true, id: vid, name: `Model units: \$\{lb\.title\} \(\$\{lb\.when\}\)`, cells: cells\.length, units: stops\.map\(\(st\) => st\.label\), notes: \[done\.text, xn\?\.text\]\.filter\(Boolean\) \};/);
-  assert.match(vm, /useMcpModelActions\(\(\) => \(\{.*lastLithBlock, addLithBlockModel, removeVoxelModel \}\), mode === "view"\);/);
+  assert.match(vm, /useMcpModelActions\(\(\) => \(\{.*notices, lastLithBlock, addLithBlockModel, removeVoxelModel \}\)\);/);
   // the tool, in the protocol and the actions
   const d = proto.TOOLS.find((t) => t.name === "add_block_model");
   assert.ok(d); assert.equal(proto.isChangeTool(d), true); assert.equal(proto.isLongTool(d), true); assert.match(d.description, /^Makes a change in GeoStrix:/);

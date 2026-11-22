@@ -44,17 +44,16 @@ export async function modelAction(c, p, load = () => import("./guided/guidedRun.
     const id = r.id;
     return { ok: true, changed: "block model", name: line(r.name).slice(0, 120), id, cells: r.cells, units: r.units, notes: lines(r.notes, 4), revert: () => { try { now().removeVoxelModel?.(id); } catch { /* already gone */ } } };
   } else return fail("Unknown model request.");
-  const r = await G.runGuided({ tool, value, ctx, getApi });
+  const r = await G.runGuided({ tool, value, ctx, getApi, getNotices: () => now().notices });
   if (!r.ok) return fail(line(r.error).slice(0, 400));
   const ids = r.ids;
-  return { ok: true, changed, rock: rockName, element: p.op === "grade_shell" ? value : undefined, built: r.built.map((n) => line(n).slice(0, 80)).slice(0, 6), ids, tool: said,
-    why: lines(r.reasons, 4), notes: lines(r.notes, 4), revert: (st) => { try { (st?.removeSurfaces || now().removeSurfaces)?.(ids); } catch { /* already gone */ } } };
+  return { ok: true, changed, rock: rockName, element: p.op === "grade_shell" ? value : undefined, built: r.built.map((n) => line(n).slice(0, 80)).slice(0, 12), ids, tool: said,
+    why: lines(r.reasons, 4), notes: lines(r.notes, 4), ...(r.messages?.length ? { warnings: r.messages } : {}), /* the run's own warnings (data support, extrapolation, ...) word for word */ revert: (st) => { try { (st?.removeSurfaces || now().removeSurfaces)?.(ids); } catch { /* already gone */ } } };
 }
 
-export function useMcpModelActions(ctx, enabled = true) {
+export function useMcpModelActions(ctx) {
   const ref = useRef(ctx); ref.current = ctx;
   useModuleAction(["mcp-model"], (_a, p) => {
-    if (!enabled) return; // the 3D View instance answers: the guided tools live there
     let done; try { done = modelAction(() => ref.current(), p); } catch { done = Promise.resolve(fail("The model could not be built.")); }
     done.catch(() => fail("The model could not be built.")).then((r) => { try { p?.reply?.(r); } catch { /* the app has gone */ } });
   });

@@ -26,7 +26,10 @@ export const toolForRock = (ctx, rock) => (ctx.isCover(rock) ? COVER : BODY_ROLE
 export { toolById, GRADE, ROCK_LAYERS, unitsByHoles };
 
 // -> { ok: true, built: [names], ids, reasons: [text], notes: [text] } | { ok: false, error }
-export async function runGuided({ tool, value, mode, ctx, getApi, sleep = realSleep, settingsWaitMs = SETTINGS_WAIT_MS, quietMs = QUIET_MS, runWaitMs = RUN_WAIT_MS }) {
+// the run's own warnings, word for word (data support, closed at the search radius, extrapolation, one hole): the messages it added under the sidebar that say how far to trust it
+const PROTECTIVE = /ARTIFICIALLY|data support|extrapolat|not a resource|NOT a statistical|one hole alone|Part of this shell|beyond the drilling|dilute/i;
+const noticeText = (n) => (typeof n === "string" ? n : n?.message ?? n?.text ?? "");
+export async function runGuided({ tool, value, mode, ctx, getApi, getNotices = () => [], sleep = realSleep, settingsWaitMs = SETTINGS_WAIT_MS, quietMs = QUIET_MS, runWaitMs = RUN_WAIT_MS }) {
   if (!tool) return fail("Unknown model tool.");
   const feed = tool.feed(ctx);
   if (feed) return fail(feed);
@@ -37,7 +40,7 @@ export async function runGuided({ tool, value, mode, ctx, getApi, sleep = realSl
   const api0 = getApi();
   if (!api0) return fail("StrixViewer is not ready.");
   if (api0.busy) return fail("Another model is running in GeoStrix: one at a time. Try again when it has finished.");
-  const before = new Set((api0.surfaces || []).map((s) => s.id));
+  const before = new Set((api0.surfaces || []).map((s) => s.id)), noticesBefore = new Set(getNotices() || []);
   try { (tool.prepare || ((a, v) => a.setModelResolution(v.resolution)))(api0, auto.values); } catch { return fail("The model's settings could not be put in place."); }
   const ready = tool.ready || ((a, v) => a.modelResolution === v.resolution);
   for (let waited = 0; !ready(getApi(), auto.values); waited += 30) { if (waited >= settingsWaitMs) return fail("GeoStrix did not apply the model's settings. Try again."); await sleep(30); }
@@ -57,5 +60,6 @@ export async function runGuided({ tool, value, mode, ctx, getApi, sleep = realSl
   if (!made.length) return fail("Nothing was built: it was cancelled, or the run stopped with a message (the messages under the sidebar say why).");
   const reasons = (auto.reasons || []).map((x) => x.text).filter(Boolean);
   const notes = [...(tool.result ? tool.result(made, ctx, getApi()) : []), ...(auto.notes || []), ...tool.notes(ctx, value)].filter(Boolean);
-  return { ok: true, built: made.map((s) => s.name), ids: made.map((s) => s.id), made, reasons, notes };
+  const messages = (getNotices() || []).filter((n) => !noticesBefore.has(n)).map(noticeText).filter((t) => PROTECTIVE.test(t)).map((t) => t.replace(/\s+/g, " ").trim().slice(0, 900)).slice(0, 5);
+  return { ok: true, built: made.map((s) => s.name), ids: made.map((s) => s.id), made, reasons, notes, messages };
 }
