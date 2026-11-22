@@ -42,7 +42,8 @@ import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 —
 import { terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, bodyCellPastRuns, seamCells /* #2384 */, mergedRuns, splitIntervalForSampling, spatialClusters } from "../../lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthIndexAt } from "../../lib/viewer/intervals.js";
-import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684
+import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases, collarCover } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684; #3997
+import { coverAdvice } from "../../lib/auto/autoUnits.js"; // TASKS.csv #3997
 import { samplesInsideShell } from "../../lib/shellSupport.js"; // TASKS.csv #1735
 import { clipMesh } from "../../lib/clipMesh.js";
 import { holeCounts } from "../../lib/intervalBox.js"; // TASKS.csv #1337
@@ -1335,6 +1336,12 @@ export function createModellingRuns(ctx, mcRef) {
     // contact tagged with the same unit name + "this is its upper contact" IS an interface point for
     // that surface, no separate matching step. Domain-filtered the same way litho points are, so a
     // contact drawn outside the active modelling domain doesn't leak into a run scoped to exclude it.
+    // TASKS.csv #3997 — the cover (it starts most holes at the collar) has almost no top: say so and the route that works (its base); with
+    // fewer than three tops left the run stops rather than draw a slab through them
+    if (!silent && !isOverburdenUnit) {
+      const cc = collarCover(codedRuns(layers.litho, isMcode ? modellingCodes : null, isMcode || isGroup ? mcodeGroupOf : null), unitName);
+      if (cc.cover) { const few = points.length < 3; setNotices((p) => [...p, (few ? errorNotice : infoNotice)(coverAdvice(unitName, cc))]); if (few) return null; }
+    }
     if (holeStartSkipped || gapSkipped) setNotices((p) => [...p, notice("{unitName}: {a} interval start(s) at a hole start and {b} below an unlogged gap were not used as contacts: a top needs a logged unit above it.", { unitName, a: holeStartSkipped, b: gapSkipped })]); // #2527
     if (splitsSkipped && !silent) setNotices((p) => [...p, notice("{unitName}: {splitsSkipped} interval start(s) inside the unit (the row above in the same hole is the same {v}) were not used as contacts.", { unitName, splitsSkipped, v: isGroup ? tr("group") : tr("unit") })]);
     // TASKS.csv #1371 (review #1352) — one surface forced through several tops of the same hole (SSZ24-PAD34-001 gave 6, a 199 m
@@ -1653,6 +1660,10 @@ export function createModellingRuns(ctx, mcRef) {
         ? notice("{ovb}: not a surface of its own in the stack. Its base is the top of {next}, the unit under it: the contact every hole shares.", { ovb: ovbName, next: nextName })
         : notice("{ovb}: nothing in the stack below it, so its base is not modelled here. Model {ovb} on its own with the Implicit tool for \"Base of {ovb}\".", { ovb: ovbName })]);
     }
+    // TASKS.csv #3997 — the youngest unit when it is the cover (it starts most holes at the collar): its few tops would put a slab in the
+    // stack, so with fewer than three it is left out as one that needs none; and it is said that its base is the surface to model
+    const coverAt = unitNames.findIndex((_, i) => i !== ovbAt), coverT = coverAt >= 0 ? targets[coverAt] : null;
+    const coverCC = coverT ? collarCover(codedRuns(layers.litho, coverT.kind === "mcode" ? modellingCodes : null, typeof coverT === "object" ? mcodeGroupOf : null), typeof coverT === "object" ? coverT.name : coverT) : null;
     unitNames.forEach((u, i) => {
       // TASKS.csv #176 — stackUnits carries `group:<id>` keys verbatim; resolve to the group object
       // only here, at the point the spec is actually gathered.
@@ -1661,7 +1672,8 @@ export function createModellingRuns(ctx, mcRef) {
       const under = ovbAt >= 0 && i === ovbAt + 1; // #1684
       const myCodes = under ? new Set(typeof target === "object" && !target.kind ? target.codes || [] : [typeof target === "object" ? target.name : target]) : null;
       const extraBases = under ? ovbBases.filter((b) => !myCodes.has(b.below) && !myCodes.has(b.row.value) && !(typeof target === "object" && !target.kind && mcodeGroupOf(b.row.value) === target.name)) : null;
-      const spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true, pileOrder, underOverburden: under, extraBases }) : null;
+      let spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true, pileOrder, underOverburden: under, extraBases }) : null;
+      if (spec && i === coverAt && coverCC?.cover && spec.points.length < 3) spec = null; // #3997
       if (spec) { specs.push(spec); specKey.set(u, spec); } else skipped.push(target && typeof target === "object" ? target.name : target || "(deleted group)");
       if (stackBreaks?.includes(u) && specs.length) breakAt.add(specs.length - 1);
     });
@@ -1682,6 +1694,7 @@ export function createModellingRuns(ctx, mcRef) {
     const youngestSkipped = youngestAt >= 0 && !specKey.has(unitNames[youngestAt]) && !!targets[youngestAt];
     const otherSkipped = youngestSkipped ? skipped.slice(1) : skipped; // overburden is never in skipped, so the youngest is first
     if (youngestSkipped) setNotices((p) => [...p, notice("{unit}: no top contacts it can use (the notes above say why). As the youngest unit of the stack it needs none: the stack is modelled from the top of the unit below it down.", { unit: youngestName })]);
+    if (coverCC?.cover && coverCC.onto.length > 1) setNotices((p) => [...p, infoNotice(coverAdvice(youngestName, coverCC, { stack: true }))]); // #3997: on several rocks (on one, it is a layer like the rest)
     if (otherSkipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.", { skipped: otherSkipped.join(", ") }) /* #1370 */]);
     // one surface left because the youngest unit needs no top, or because overburden's base is folded into the unit under it (#1684):
     // that contact is still a model — a stack of one is the same solve (runSurfaceModel is runSurfaceStack([spec]))
