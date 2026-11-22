@@ -85,6 +85,12 @@ export default [
     id: "best-intercepts",
     area: "Geochem",
     title: "Best intercepts",
+    // TASKS.csv #3973 — the card (#3967's plan, section 8); the summary and the rest are in its folds
+    line: "Each hole's intersections above a cut-off, length-weighted, with internal dilution.",
+    picture: { drop: ["log", "table"], alt: "A hole's logged samples become a table of intercepts." }, // N6 / N8 when they are drawn (batch B)
+    cautions: ["A screening tool: check every intercept against the certificates.", "Lengths are downhole, not true widths, until you give the dip.", "A sample with no result is not zero."],
+    keys: ["Cut-off", "Max internal dilution (m)", "Including at ≥"],
+    strip: ["Pick Zn and a cut-off", "Read the table", "Fill Including at ≥"],
     summary: "Lists each hole's intersections above a cut-off, with an internal-dilution allowance; grades length-weighted, lengths downhole.",
     more: "An intercept starts at a sample at or above the cut-off; below-cut-off core between two samples at or above the cut-off is still folded into one intercept when it is within the dilution allowance. Ask for a true width with the structure's orientation.",
     notFor: [
@@ -94,10 +100,10 @@ export default [
     ],
     fields: [
       { name: "Element", what: "The element the intercepts are cut on.", more: "How to choose: The metal you report; Also show averages the others." },
-      { name: "Cut-off", what: "The grade at or above which a sample starts or continues an intercept.", more: "How to choose: Your reporting cut-off; the suggested 90th percentile is only a start." },
-      { name: "Max internal dilution (m)", what: "How much waste core between two samples at or above the cut-off is folded in.", more: "How to choose: About the minimum mining width." },
+      { name: "Cut-off", gist: "where an intercept starts", what: "The grade at or above which a sample starts or continues an intercept.", more: "How to choose: Your reporting cut-off; the suggested 90th percentile is only a start." },
+      { name: "Max internal dilution (m)", gist: "waste core folded in", what: "How much waste core between two samples at or above the cut-off is folded in.", more: "How to choose: About the minimum mining width." },
       { name: "Min length (m)", what: "The shortest intercept reported.", more: "How to choose: The smallest mineable width, or the sample length for screening." },
-      { name: "Including at ≥", what: "Higher-grade cores shown inside each intercept (42 m @ 1.2, including 6 m @ 5.1).", more: "How to choose: The grade of the core you quote." },
+      { name: "Including at ≥", gist: "the high-grade core inside", what: "Higher-grade cores shown inside each intercept (42 m @ 1.2, including 6 m @ 5.1).", more: "How to choose: The grade of the core you quote." },
       { name: "Min grade × length", what: "Hides intercepts below this grade times length.", more: "How to choose: 0 until you know what is reportable." },
       { name: "Structure dip dir", what: "With the dip, turns downhole lengths into true widths across the structure.", more: "How to choose: From the mapped or modelled orientation." },
       { name: "Show in", what: "The unit shown (shared with Grade statistics); the cut-off is typed in it.", more: "How to choose: The unit your reports use." },
