@@ -12,7 +12,7 @@ const KEY = "geostrix.sectionOverview";
 const readPref = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || "null"); return v && typeof v === "object" ? v : {}; } catch { return {}; } };
 const MIN_W = 160, MIN_H = 120;
 
-export default function SectionOverview({ model, section, onMove, exportRef, busy = false }) {
+export default function SectionOverview({ model, section, onMove, exportRef, busy = false, zoomWindow = null }) { // zoomWindow: #4009 { l0, l1 } along the line, metres from A
   const [pref, setPref] = useState(() => ({ open: true, w: 260, h: 260, onExport: false, ...readPref() }));
   const save = (patch) => setPref((p) => { const n = { ...p, ...patch }; try { localStorage.setItem(KEY, JSON.stringify(n)); } catch { /* private mode */ } return n; });
   const boxRef = useRef(null);
@@ -77,6 +77,11 @@ export default function SectionOverview({ model, section, onMove, exportRef, bus
             <line x1={X(s.a[0] + d[0])} y1={Y(s.a[1] + d[1])} x2={X(s.b[0] + d[0])} y2={Y(s.b[1] + d[1])} stroke="#c0392b" strokeWidth="1.8" strokeDasharray="5 3" />
             <text x={X((s.a[0] + s.b[0]) / 2 + d[0])} y={Y((s.a[1] + s.b[1]) / 2 + d[1]) - 6} fontSize="11" fontWeight="700" fill="#c0392b" textAnchor="middle" stroke="#ffffff" strokeWidth="2.5" paintOrder="stroke">{`${drag.off > 0 ? "+" : ""}${drag.off} m`}</text>
           </g>)}
+          {zoomWindow && (() => { // #4009 — the section window's zoom: the part of the line in view, as a box across the buffer band
+            const c = Math.max(s.corridor, 0.04 * Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1])), P = (l, m) => [s.a[0] + s.u[0] * l + s.n[0] * c * m, s.a[1] + s.u[1] * l + s.n[1] * c * m];
+            const pts = [P(zoomWindow.l0, 1), P(zoomWindow.l1, 1), P(zoomWindow.l1, -1), P(zoomWindow.l0, -1)].map(([x, y]) => `${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
+            return <polygon data-zoom-box="" points={pts} fill="#1f5fa8" fillOpacity="0.14" stroke="#1f5fa8" strokeWidth="1.6" pointerEvents="none" />;
+          })()}
           <line x1={X(s.a[0])} y1={Y(s.a[1])} x2={X(s.b[0])} y2={Y(s.b[1])} stroke="transparent" strokeWidth="14" style={{ cursor: busy ? "progress" : "move", pointerEvents: "stroke" }} onPointerDown={down}>
             <title>{model.stepM ? tr("Drag the line to move the section ({m} m steps).", { m: model.stepM }) : tr("Drag the line to move the section.")}</title>
           </line>

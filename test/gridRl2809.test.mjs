@@ -61,7 +61,7 @@ test("wiring: the datum reaches Identify, the status bar and the section (axis t
   assert.match(app, /const off = rlOffsetOf\(project\), rl = gridRlOf\(cursor\.z, off\);/);
   const sw = src("../src/components/SectionWindow.jsx");
   assert.match(sw, /scatter = \[\], rlOffset = 0(?:, [\w = \[\]]+)* \} = data;/); // #4002 adds fields after it (mineralBars, barKeyRows)
-  assert.match(sw, /niceTicks\(minZ \+ rlOff, maxZ \+ rlOff, 8\)\.map\(\(rl, i\) => \{ const z = rl - rlOff;/);
+  assert.match(sw, /niceTicks\(win\.Z0 \+ rlOff, win\.Z1 \+ rlOff, 8\)\.filter\(.*\)\.map\(\(rl, i\) => \{ const z = rl - rlOff;/); // #4009: the zoom window's elevations (the whole section at fit)
   assert.match(sw, /\{rlOff \? tr\("RL \(m\)"\) : tr\("Elevation \(m\)"\)\}/);
   assert.match(sw, /tr\(rlOff \? "Azimuth \{v\}° · looking \{look\} · \{v2\}\{v3\} · RL in m" : "Azimuth/);
 });
