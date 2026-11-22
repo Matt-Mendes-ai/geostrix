@@ -12,9 +12,10 @@ import { wordsOf, countHelpPage } from "../scripts/word-count.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PILOTS = ["best-intercepts", "grade-shell", "point-survey"];
 const { PAGES, pageById, searchPages } = await import("../src/help/content.js");
+const CARD_IDS = PAGES.filter((p) => p.line).map((p) => p.id); // TASKS.csv #3983 — every page converted so far, the batches after the pilots too
 
-test("the pilots give the card fields, within the plan's limits", () => {
-  for (const id of PILOTS) {
+test("every card page gives the card fields, within the plan's limits", () => {
+  for (const id of CARD_IDS) {
     const p = pageById(id);
     assert.ok(p.line && wordsOf(p.line) <= 15, `${id}: one line of at most 15 words`);
     assert.ok(p.picture && (p.picture.diagram || p.picture.drop?.length) && p.picture.alt, `${id}: a picture with its alt`);
@@ -36,12 +37,11 @@ test("the pilots give the card fields, within the plan's limits", () => {
   const bi = pageById("best-intercepts").cautions.join(" | ").toLowerCase();
   for (const w of ["certificates", "not true widths", "not zero"]) assert.ok(bi.includes(w), `best intercepts: "${w}"`);
   assert.match(pageById("point-survey").cautions[0], /not for resource estimation/);
-  // the other pages are untouched
-  assert.equal(PAGES.filter((p) => p.line).map((p) => p.id).sort().join(), [...PILOTS].sort().join());
+  for (const id of PILOTS) assert.ok(CARD_IDS.includes(id), `${id} is a card page`);
 });
 
-test("the search still finds every sentence of a pilot page (fields, messages, Not for, walk-through, More)", () => {
-  for (const id of PILOTS) {
+test("the search still finds every sentence of a card page (fields, messages, Not for, walk-through, More)", () => {
+  for (const id of CARD_IDS) {
     const p = pageById(id);
     const sentences = [p.summary, p.more, ...(p.notFor || []), ...p.fields.flatMap((f) => [f.what, f.choose, f.more]), ...p.warnings.flatMap((w) => [w.says, w.means, w.do]), ...(p.howto?.steps || []), p.line, ...p.cautions].filter(Boolean);
     for (const s of sentences) {
