@@ -1,6 +1,7 @@
 import { tickedHoles } from "../lib/holeFilter.js"; // TASKS.csv #1315
 import { unitIntercepts, interceptCheckPoints, scoreIntercepts } from "../lib/geomlIntercepts.js"; // TASKS.csv #1318
-import GeomlMissedIntercepts from "./GeomlMissedIntercepts.jsx"; // TASKS.csv #1318
+import GeomlMissedIntercepts, { GeomlRunAdvice, mixText } from "./GeomlMissedIntercepts.jsx"; // TASKS.csv #1318; advice: #4019
+import { unitMix, runAdvice } from "../lib/geomlIntercepts.js"; // TASKS.csv #4019 — why intercepts are missed, and what to change
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
 import { planDomain, planGrade, roughTime, INDUCING_CAP, INDUCING_LIMIT_NO_CAP, FOCUS_SPACING, FOCUS_OTHER } from "../lib/geomlPlan.js"; // TASKS.csv #1146; #1312
@@ -30,7 +31,7 @@ const QUALITY = {
 const fmtMB = (b) => (b ? `${Math.round(b / 1e6).toLocaleString()} MB` : "—");
 const PROB_STOPS = labStopsAt([{ value: 0, color: "#f4f1de" }, { value: 0.5, color: "#f2b134" }, { value: 0.8, color: "#d9601a" }, { value: 1, color: "#8f1f3d" }]); // #702 — Lab, like the other ramps
 
-export default function PredictivePanel({ visibleHoles, collars: allCollars, survey: allSurvey, litho: allLitho, assays: allAssays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices }) {
+export default function PredictivePanel({ lithoGroups = [], modellingCodes = null /* #4019 */, visibleHoles, collars: allCollars, survey: allSurvey, litho: allLitho, assays: allAssays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices }) {
   // TASKS.csv #1315 — Matt: "geoML is modelling unseen holes". Every hole in the project was sent, whatever the hole list said. Now only the ticked ones, unless asked.
   const [useHidden, setUseHidden] = useState(false);
   const hiddenCount = useMemo(() => allCollars.length - tickedHoles(allCollars, visibleHoles).length, [allCollars, visibleHoles]);
@@ -69,6 +70,16 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
   const [unitName, setUnitName] = useState("");
   const [deep, setDeep] = useState(false);
   const [quality, setQuality] = useState("standard");
+  // TASKS.csv #4019 — a block size set by a fix after a run (smaller than the quality's own: thin intercepts), null = the quality's
+  const [blockOverride, setBlockOverride] = useState(null);
+  // #4019 — the codes ticked for one run that differ (litho groups, Modelling-codes roles, intercept lengths): said before the run
+  const mix = useMemo(() => (unit.size > 1 ? unitMix({ codes: [...unit], intervals: (litho || []).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).map((r) => ({ hole_id: String(r.hole_id), from: r.from, to: r.to, value: r.value })), lithoGroups, modellingCodes }) : null), [unit, litho, lithoGroups, modellingCodes]);
+  const applyFix = (f) => { // #4019 — a fix changes the settings; Model runs it
+    if (f.key === "oneUnit" && f.unit) setUnit(new Set([f.unit]));
+    else if (f.key === "smaller") setBlockOverride(f.blockM);
+    else if (f.key === "standard") setQuality("standard");
+    else if (f.key === "heldOut") setHeldOut(true);
+  };
   // ---- grade ----
   const elements = (assayElements || []).map((e) => e.symbol);
   const [element, setElement] = useState("");
@@ -133,7 +144,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       const res = await runJob(kind, params, (s) => { if (!getRun()?.cancelling) updateRun({ progress: s.progress, message: s.message, elapsed: s.elapsed }); toBar(s.progress); }, ctrl.signal);
       const note = `${await onResult(res, pj)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""}`;
       const secs = Math.round((Date.now() - t0) / 1000);
-      record = { label, note, secs, at: new Date().toLocaleTimeString(), intercepts: res.intercepts || null };
+      record = { label, note, secs, at: new Date().toLocaleTimeString(), intercepts: res.intercepts || null, advice: res.advice || null, mix: res.mix || null, blockM: res.blocks?.cell ?? null }; // advice, mix, blockM: #4019
       setNotices((p) => [...p, notice("geoML — {label}: {note} ({secs} s).", { label, note, secs })]);
     } catch (e) {
       if (e.busyJobId) setBusyJob(e.busyJobId); // #691 — a model left running earlier: offer to cancel it
@@ -142,12 +153,13 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
   };
 
   const runUnit = async () => {
+    const runMix = mix; // #4019 — the codes' mix as this run was asked
     const name = unitName.trim() || [...unit].join(" + ");
     const intervals = (litho || []).filter((r) => r.value != null && r.value !== "" && Number.isFinite(r.from) && Number.isFinite(r.to)).map((r) => ({ hole_id: String(r.hole_id), from: r.from, to: r.to, value: String(r.value) }));
     // #1146 — sized before it is sent: holes near the unit only, then a coarser spacing, when the whole project will not fit
     const plan = unitPlan;
     const sent = plan?.holeIds ? intervals.filter((r) => plan.holeIds.has(r.hole_id)) : intervals;
-    const params = { ...holes(plan?.holeIds), intervals: sent, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain, ...(plan ? { train_spacing: plan.trainSpacing, inducing_spacing: plan.inducingSpacing } : {}), max_inducing: INDUCING_CAP, ...(plan?.denseOn ? { focus_spacing: FOCUS_SPACING, focus_other: FOCUS_OTHER } : {}), ...(heldOut ? { held_out: true } : {}) }; // #1312: an older add-on ignores these
+    const params = { ...holes(plan?.holeIds), intervals: sent, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain, ...(plan ? { train_spacing: plan.trainSpacing, inducing_spacing: plan.inducingSpacing } : {}), max_inducing: INDUCING_CAP, ...(plan?.denseOn ? { focus_spacing: FOCUS_SPACING, focus_other: FOCUS_OTHER } : {}), ...(heldOut ? { held_out: true } : {}), ...(blockOverride ? { block_size: blockOverride } : {}) /* #4019 */ }; // #1312: an older add-on ignores these
     const { desurveyHole, pointOnTrace } = await import("../lib/desurvey.js");
     const check = interceptCheckPoints(unitIntercepts(sent, unit), collars, survey || [], desurveyHole, pointOnTrace, desurveyMethod); // #1318
     params.check_points = check.points;
@@ -155,6 +167,9 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
     run(`${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`, "domain", params, async (res, pj) => { // pj: TASKS.csv #3953
       const parts = [];
       const intercepts = res.intercepts = scoreIntercepts(check.spans, res.check_probability); // #1318
+      // #4019 — the reasons: each missed intercept against the run's block, the fit's causes and the fixes (kept with the run in This session)
+      if (intercepts) intercepts.blockM = res.blocks?.cell;
+      res.advice = runAdvice({ fit: res.fit, intercepts, blockM: res.blocks?.cell, secs: res.seconds, quality, heldOut, mix: runMix }); res.mix = runMix;
       // #673 — clip to the range the model LEARNT when the add-on reports it (0.1.2+); 400 m is only training's start
       const range = Math.round(res.range?.trained || 400);
       const clip = await clipper(sent, range);
@@ -286,6 +301,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
                 {Object.entries(QUALITY).map(([k, q]) => <option key={k} value={k}>{tr(q.label)}</option>)}
               </select>
             </div>{tr("On 20 to 40 holes, Fast and Standard take a few minutes; time grows with holes and quality, so start with Fast. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
+            {blockOverride && <div style={{ marginTop: 4 }}>{tr("Blocks of {b} m for the next rock-unit run.", { b: blockOverride })}{" "}<button type="button" style={{ fontSize: "var(--font-size-xs)" }} onClick={() => setBlockOverride(null)}>{tr("Reset")}</button></div>}{/* TASKS.csv #4019 */}
           </div>
 
           <div style={box}>
@@ -347,6 +363,11 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
                     {unitPlan.capped && <div style={{ color: "var(--color-text-muted)" }}>{tr("{c} contacts need {n} inducing points; an up-to-date add-on keeps {cap} along the holes, so the model will be coarse. Check its fit to the logs.", { c: unitPlan.contacts.toLocaleString(), n: unitPlan.inducingBuilt.toLocaleString(), cap: INDUCING_CAP })}</div>}
                   </div>
                 )}
+                {mix?.mixed && ( /* TASKS.csv #4019 — before the run: one unit (or one package) per run models best */
+                  <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginTop: 6, lineHeight: 1.4 }}>
+                    {mixText(mix)}{" "}<button type="button" style={{ fontSize: "var(--font-size-xs)" }} onClick={() => setUnit(new Set([mix.largest]))}>{tr("Model {u} alone", { u: mix.largest })}</button>
+                  </div>
+                )}
                 <button type="button" style={{ ...btn(true, !ready || !unit.size), marginTop: 8, width: "100%" }} disabled={!ready || !unit.size} onClick={runUnit}>{tr("Model {v}", { v: unit.size ? (unitName.trim() || [...unit].join(" + ")) : tr("the unit") })}</button>
               </>
             )}
@@ -389,7 +410,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
           {runs.length > 0 && (
             <div style={box}>
               <div style={h}>{tr("This session")}</div>
-              {runs.map((r, i) => <div key={i} style={{ marginBottom: 4 }}><strong>{r.label}</strong> · {r.secs} s · {r.at}<br />{r.note}<GeomlMissedIntercepts result={r.intercepts} label={r.label} /></div>)}
+              {runs.map((r, i) => <div key={i} style={{ marginBottom: 4 }}><strong>{r.label}</strong> · {r.secs} s · {r.at}<br />{r.note}<GeomlRunAdvice advice={r.advice} mix={r.mix} blockM={r.blockM} onFix={applyFix} /* #4019 */ /><GeomlMissedIntercepts result={r.intercepts} label={r.label} /></div>)}
             </div>
           )}
 
