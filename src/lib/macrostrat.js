@@ -7,6 +7,7 @@
 // neighbour (a geologic map is categorical: no blended colours), then warped into the project CRS by the same code as a WMS map.
 
 import { plainLith } from "./lithText.js"; // TASKS.csv #3936 — the unit names told apart by lithology, in words
+import { t as tr } from "./i18n.js"; // TASKS.csv #3974 — the scale sentence
 export const MACROSTRAT_TILE_URL = (z, x, y) => `https://tiles.macrostrat.org/carto/${z}/${x}/${y}.png`;
 export const MACROSTRAT_API = "https://macrostrat.org/api/v2";
 // project data stays English (the raster's provenance)
@@ -25,6 +26,51 @@ export function planMacrostratTiles([lonMin, latMin, lonMax, latMax], { maxTiles
     const count = (x1 - x0 + 1) * (y1 - y0 + 1);
     if (count <= maxTiles || z === minZoom) return { z, x0, x1, y0, y1, count };
   }
+  return null;
+}
+
+// TASKS.csv #3974 (Matt: "macrostrat is not available everywhere ... I tried a random place in Nigeria and didn't get any map") — Macrostrat
+// does cover Nigeria, with the 1:10,000,000 map of Africa, but its carto tiles hold that map at zoom 4-8 only and are blank from zoom 9 up;
+// the deepest zoom that fits (above) asked a property-sized area at zoom 9-12 and got nothing. The zooms to try: that one first, then one at a
+// time down to MACROSTRAT_FLOOR_ZOOM, while the requests stay within MACROSTRAT_FALLBACK_REQUESTS (a lower zoom needs fewer tiles). The
+// caller keeps the first zoom whose tiles hold units, so a zoom that works costs no extra request. -> [plan, ...]
+export const MACROSTRAT_FLOOR_ZOOM = 4, MACROSTRAT_FALLBACK_REQUESTS = 60;
+export function macrostratZoomSteps(bboxLonLat, { floor = MACROSTRAT_FLOOR_ZOOM, maxRequests = MACROSTRAT_FALLBACK_REQUESTS } = {}) {
+  const steps = [];
+  let total = 0, maxZoom = 12;
+  while (maxZoom >= floor) {
+    const p = planMacrostratTiles(bboxLonLat, { maxZoom, minZoom: floor });
+    if (!p || steps.some((s) => s.z === p.z)) break;
+    if (steps.length && total + p.count > maxRequests) break;
+    steps.push(p); total += p.count;
+    maxZoom = p.z - 1;
+  }
+  return steps;
+}
+// do the tiles (one zoom's) hold any unit polygon inside the area?
+export const tilesHoldUnits = (tiles, bboxLonLat) => macrostratLayersInArea(tiles, bboxLonLat).some((layers) => (layers || []).some((l) => l.name === "units" && (l.features || []).some((f) => f.type === "polygon")));
+// the steps tried in order with fetchZoom(plan) -> { count, tiles, ... } until one holds units: -> { got, index, requests } or null (all blank).
+// A fetchZoom that throws (offline, every tile failed) stops the search: that is not a blank map.
+export async function firstZoomWithUnits(steps, fetchZoom, bboxLonLat) {
+  let requests = 0;
+  for (let i = 0; i < (steps || []).length; i++) {
+    const got = await fetchZoom(steps[i]);
+    requests += got.count || 0;
+    if (tilesHoldUnits(got.tiles, bboxLonLat)) return { got, index: i, requests };
+  }
+  return null;
+}
+// the one line said when only a smaller-scale map covers the area: from the finest unit at the area's centre (parseMacrostratUnits: its scale
+// class, its map). A map's own scale written '1:n' is used as given; otherwise the class: tiny (a world map), small (a continent or country).
+// null for a regional or detailed map (medium, large), or when nothing is known.
+export function macrostratScaleNote(unitsAtCentre) {
+  const u = (unitsAtCentre || [])[0];
+  if (!u) return null;
+  // live (#3974, Nigeria): /defs/sources gives the class in `scale` ("small") and the scale in the title ("New edition of the 1:10,000,000 geological map of Africa")
+  const name = String(u.sourceName || "").trim(), m = /1\s*:\s*([\d,. ]{3,})/.exec(`${u.sourceScale || ""} ${u.sourceTitle || ""} ${name}`);
+  if (m) { const n = Number(m[1].replace(/[^\d]/g, "")); if (n >= 2000000) return tr("Only a 1:{n} map covers this area ({name}): regional, not property-scale.", { n: n.toLocaleString("en-CA"), name: name || tr("Macrostrat") }); }
+  if (u.scale === "tiny") return tr("Only a world-scale map covers this area ({name}): regional, not property-scale.", { name: name || tr("Macrostrat") });
+  if (u.scale === "small") return tr("Only a continent- or country-scale map covers this area ({name}): regional, not property-scale.", { name: name || tr("Macrostrat") });
   return null;
 }
 
