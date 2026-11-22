@@ -37,8 +37,7 @@ export function useModelling(ctx) {
   const store = useStore(), logValidRange = store.project?.logValidRange; // #3116
   // TASKS.csv #3963 — a job's early notices go to the project it started in (its tab's list, or none once it is closed), not to the tab shown when it speaks
   const setNoticesFor = (key, updater) => setNoticesToTab?.(store.tabIdOfProjectKey?.(key), updater);
-  ctxRef.current = { ...ctx, logValidRange, setLastImplicitRequest: store.setLastImplicitRequest /* #2640 */, startProjectJob: store.startProjectJob /* #3953 */, setNoticesFor /* #3963 */ };
-  ctxRef.current.generatedSurfaces = store.generatedSurfaces; // #4006 — a Faults-pane fault in the stack
+  ctxRef.current = { ...ctx, logValidRange, setLastImplicitRequest: store.setLastImplicitRequest /* #2640 */, startProjectJob: store.startProjectJob /* #3953 */, setNoticesFor /* #3963 */, generatedSurfaces: store.generatedSurfaces /* #4006 — a Faults-pane fault in the stack */ };
   const lazyRun = useCallback((name) => async (...args) => {
     let create;
     try {
