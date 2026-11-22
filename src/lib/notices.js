@@ -11,7 +11,7 @@ const ERROR_RE = /couldn'?t|can'?t|cannot|failed|error|unable|invalid|unsupporte
 // turns a caught error into errorNotice(...) (or pushes the Error itself).
 export const noticeText = (n) => (typeof n === "string" ? n : n instanceof Error ? n.message : n?.text ?? "");
 export const noticeLevel = (n) => (n instanceof Error ? "error" : (n && typeof n === "object" && n.level) || (ERROR_RE.test(noticeText(n)) ? "error" : "info"));
-export const errorNotice = (text) => ({ text, level: "error" });
+export const errorNotice = (text, more = null) => (more ? { text, level: "error", more } : { text, level: "error" }); // more: TASKS.csv #3986 — the details behind More
 export const infoNotice = (text) => ({ text, level: "info" });
 
 // TASKS.csv #786 — a notice in the interface language: the text is translated (English key, {name} placeholders, see

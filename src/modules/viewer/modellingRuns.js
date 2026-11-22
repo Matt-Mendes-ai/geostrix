@@ -37,6 +37,8 @@ import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText, gradeUni
 import { assayIndicatorInGaps } from "../../lib/assayInGaps.js"; // TASKS.csv #2634
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice, infoNotice } from "../../lib/notices.js"; // infoNotice: #2047
+import { checkStackInputs, anyFix, isSingularError } from "../../lib/gempyInputCheck.js"; // TASKS.csv #3986
+import { inputCheckNotice, singularCause } from "../../lib/gempyInputWords.js"; // TASKS.csv #3986
 import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 — what is waiting for collars
 import { terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, bodyCellPastRuns, seamCells /* #2384 */, mergedRuns, splitIntervalForSampling, spatialClusters } from "../../lib/viewer/geomathModelling.js"; // TASKS.csv #3590
@@ -252,7 +254,7 @@ export function createModellingRuns(ctx, mcRef) {
         setNotices((p) => [...p, notice("\"{label}\": dropped {parts} with a missing/invalid x, y, z, dip, or azimuth value before sending to the sidecar — check the source CSV for blank or non-numeric cells in those columns.", { label: spec.label, parts: parts.join(" and ") })]);
       }
       if (!points.length) { setNotices((p) => [...p, notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: spec.label })]); return; }
-      if (!orientations.length && !cakeRun) { setNotices((p) => [...p, notice("\"{label}\": no usable orientations left after removing invalid ones — skipped.", { label: spec.label })]); return; } // #2905: a layer-cake needs none
+      // #2905: a layer-cake needs none; #3986: a surface with none is kept for the input check below, which gives it the nearest measured one
       specs.push({ ...spec, points, orientations });
     });
     // TASKS.csv #3162 — more units or faults than the engine takes in one model: said before the run, with what can be done here, instead
@@ -279,6 +281,11 @@ export function createModellingRuns(ctx, mcRef) {
       held.push(notice("Left out of this run: {n} hole(s) whose collar elevation looks like a missing value ({list}), with {k} contact(s) on them. Their contacts would sit at that elevation and stretch the model box; fix the collar RL and re-import the collars to use them.", { n: suspectZ.size, list: [...suspectZ].slice(0, 5).map((id) => `${id} (${Math.round(zOf.get(id))} m)`).join(", ") + (suspectZ.size > 5 ? " …" : ""), k: dropped }));
       for (let k = specs.length - 1; k >= 0; k--) if (!specs[k].points.length) { held.push(notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: specs[k].label })); specs.splice(k, 1); }
     }
+    // TASKS.csv #3986 — the inputs checked for what makes GemPy's matrix singular, fixed where it can be, and said (lib/gempyInputCheck.js)
+    const inputCheck = checkStackInputs(specs, { needOrientation: !cakeRun });
+    specs.splice(0, specs.length, ...inputCheck.specs);
+    for (let k = specs.length - 1; k >= 0; k--) if (!cakeRun && !specs[k].orientations.length) { held.push(notice("\"{label}\": no usable orientations left after removing invalid ones — skipped.", { label: specs[k].label })); specs.splice(k, 1); }
+    if (anyFix(inputCheck.fixes)) held.push(inputCheckNotice(inputCheck.fixes));
     if (!specs.length) { setNotices((p) => [...p, ...held, notice("Nothing left to model after removing invalid points/orientations — see notices above for which columns to check.")]); return; } // ...held: #2918's, said before it
     // TASKS.csv #762 — the picks themselves, before the solve (GemPy's condition number was measured blind to most of this)
     // TASKS.csv #2539 (review #2486) — an orientation the run estimated itself (no structure pick) is not a pick to 'fix or exclude': worded apart
@@ -451,7 +458,10 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #1189 — it still runs: the geologist may want the plane; it just must not pass for a modelled contact
     const thinSpecs = specs.filter((s) => !s.fault && tooFewContacts(s.points));
     if (thinSpecs.length) held.push(notice("Too few contacts to shape a surface: {list}. Fewer than three, or all in a line, so its shape comes from the structure picks alone.", { list: thinSpecs.map((s) => tr("{label} ({n})", { label: s.label, n: s.points.length })).join(", ") }));
-    const label = specs.length === 1 ? specs[0].label : `Stratigraphic stack (${specs.map((s) => s.meshName).join(", ")})`;
+    // TASKS.csv #3986 — a stack's name is its count (the run's notices, the status bar, the finished banner), not every unit and fault in one line
+    // across the window; the names are behind More when it fails
+    const nFaults = specs.filter((s) => s.fault).length, stackNames = specs.map((s) => s.meshName).join(", ");
+    const label = specs.length === 1 ? specs[0].label : `Stratigraphic stack (${specs.length - nFaults} units${nFaults ? `, ${nFaults} faults` : ""})`;
     const totalPoints = specs.reduce((s, x) => s + x.points.length, 0);
     const totalOrientations = specs.reduce((s, x) => s + x.orientations.length, 0);
 
@@ -554,7 +564,9 @@ export function createModellingRuns(ctx, mcRef) {
     modelAbortControllerRef.current = null;
     if (!res.ok) {
       setTaskProgress?.(null);
-      if (!res.cancelled) setNotices((p) => [...p, errorNotice(tr("{label} failed: {error}", { label, error: plainEngineError(res.error) }))]); // plainEngineError: #3162
+      // #3986 — a singular matrix: one short line with the likely cause; the stack's names and the engine's words behind More
+      if (!res.cancelled) setNotices((p) => [...p, isSingularError(res.error) ? errorNotice(tr("GemPy could not solve this model (singular matrix): {cause}", { cause: singularCause(inputCheck.risks) }), `${stackNames}: ${plainEngineError(res.error)}`)
+        : errorNotice(tr("{label} failed: {error}", { label, error: plainEngineError(res.error) }), specs.length > 1 ? stackNames : null)]); // plainEngineError: #3162
       return;
     }
     // TASKS.csv #466 — the model came back after a switch to another project (tab change, Open, New). Its

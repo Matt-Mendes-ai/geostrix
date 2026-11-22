@@ -30,7 +30,7 @@ test("the engine's list-length refusal in words where a run fails; other text un
   assert.equal(plainEngineError("Cancelled."), "Cancelled.");
   assert.equal(plainEngineError(undefined), undefined);
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(m, /errorNotice\(tr\("\{label\} failed: \{error\}", \{ label, error: plainEngineError\(res\.error\) \}\)\)/);
+  assert.match(m, /errorNotice\(tr\("\{label\} failed: \{error\}", \{ label, error: plainEngineError\(res\.error\) \}\)[,)]/); // #3986: the stack's names behind More
   // kept out of the startup bundle (#3159): desktop.js is eager
   assert.doesNotMatch(readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8").replace(/\r\n/g, "\n"), /gempyLimits/);
 });
