@@ -20,6 +20,9 @@ import { collarFillAt, collarFillGround, collarFillSource, distanceText, judgedC
 import { nextHoleId } from "../lib/holeSeries.js"; // TASKS.csv #3347
 
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
+// TASKS.csv #3962 (P1) — probable grade along the planned holes: the panel (and its worker) and the band plot load with the pane
+const ProbableGradePanel = lazyModal(() => import("./ProbableGradePanel.jsx"));
+const ProbableGradePlot = lazyModal(() => import("./ProbableGradePlot.jsx"));
 import CollarPicker from "./CollarPicker.jsx"; // TASKS.csv #2104
 import PlannedHolePattern from "./PlannedHolePattern.jsx"; // TASKS.csv #2449 — a line / grid of holes
 import { plannedHolesFromRows } from "../lib/plannedImport.js"; // TASKS.csv #2651
@@ -31,6 +34,7 @@ import { traceSpacing } from "../lib/traceSpacing.js"; // TASKS.csv #3820
 import { dipPrinted } from "../lib/dipText.js"; // TASKS.csv #3878
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
+import { predictionState, fmt as fmtPred } from "../lib/drillPlanner/predictionInputs.js"; // TASKS.csv #3962 (P1)
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
 const plannedHoleTrace = (hole) => plannedTrace(hole);
 
@@ -413,7 +417,8 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
   const setRate = (type, v) => setDrillRates((prev) => ({ ...prev, [type]: v === "" ? undefined : v })); // from the latest rates: two quick edits kept only one
   const anyTargetModel = voxelModels.some(isTargetModel);
 
-  return (
+  return (<>
+    <ProbableGradePanel plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} />{/* TASKS.csv #3962 (P1) */}
     <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontWeight: 600, marginBottom: 6 }}>{tr("Planned hole checks")}</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 7 }}>
@@ -509,6 +514,27 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
       )}
       {surfaces.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Build or show a modelled surface (3D Modelling) to list where the planned holes cross it.")}</div>}
     </div>
+  </>);
+}
+
+// TASKS.csv #3962 (P1) — the hole's frozen prediction in one or two lines under its design: the chance of an intercept at the cut-off, a
+// typical hit, and the low / middle / high of grade x metres; said when the hole has moved since, or is drilled (the prediction kept)
+function PredictionLine({ hole }) {
+  const p = hole.prediction, state = predictionState(hole);
+  if (!p) return null;
+  const unit = p.unit || "";
+  const st = { marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 };
+  const after = state === "moved" ? <div style={{ ...st, color: "var(--color-warn-text)" }}>{tr("The hole has moved since this prediction: predict again.")}</div>
+    : state === "kept" ? <div style={st}>{tr("Drilled: the prediction is kept as it was made ({date}).", { date: String(p.date || "").slice(0, 10) })}</div> : null;
+  if (p.beyond) return <div data-prediction="" style={st}>{tr("Beyond the drilling: no prediction.")}{after}</div>;
+  const pc = Math.round((p.pHit || 0) * 100);
+  return (
+    <div data-prediction="" style={st} title={tr("From {n} runs of the {element} grade model (P10 / P50 / P90); made {date}.", { n: p.realizations, element: p.element, date: String(p.date || "").slice(0, 10) })}>
+      {pc > 0 && p.hitLength ? tr("At {c} {unit}: a {p} % chance of an intercept; a typical hit {len} m at {g} {unit}.", { c: fmtPred(p.rules.cutoff), unit, p: pc, len: fmtPred(p.hitLength[1]), g: fmtPred(p.hitGrade[1]) })
+        : tr("At {c} {unit}: a {p} % chance of an intercept.", { c: fmtPred(p.rules.cutoff), unit, p: pc })}
+      {pc > 0 && <div>{tr("Grade × metres, low / middle / high: {a} / {b} / {c}", { a: fmtPred(p.gt[0]), b: fmtPred(p.gt[1]), c: fmtPred(p.gt[2]) })}</div>}
+      {after}
+    </div>
   );
 }
 
@@ -532,8 +558,10 @@ export function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { 
       </div>
       <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Az {v}° / Dip {v2}° / {v3} m{v4}", { v: Math.round(wrap360(Number(hole.azimuth))) % 360 /* #2257 — 359.6 is 0°, not 360° */, v2: dipPrinted(hole.dip) /* TASKS.csv #3878 - one sign, one decimal */, v3: Math.round(hole.length), v4: toe ? tr(" — toe E {x} N {y} Elev {z}", { x: toe.x.toFixed(0), y: toe.y.toFixed(0), z: toe.z.toFixed(0) }) : "" })}
       </div>
+      <PredictionLine hole={hole} />
       {expanded && (
         <div style={{ marginTop: 6, borderTop: "1px solid var(--color-divider)", paddingTop: 6 }}>
+          {hole.prediction && !hole.prediction.beyond && <ProbableGradePlot prediction={hole.prediction} />}
           <input placeholder={tr("Name")} value={hole.name || ""} onChange={(e) => onUpdate(hole.id, { name: e.target.value })} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             <NumField label="E" value={hole.x} onChange={(v) => onUpdate(hole.id, { x: v })} />
