@@ -14687,5 +14687,17 @@
   "Only a world-scale map covers this area ({name}): regional, not property-scale.": "Solo un mapa a escala mundial cubre esta área ({name}): regional, no a escala de propiedad.",
   "Only a continent- or country-scale map covers this area ({name}): regional, not property-scale.": "Solo un mapa a escala de continente o país cubre esta área ({name}): regional, no a escala de propiedad.",
   "Macrostrat has no map here, even at a continent's scale. Try Maps > Web layers, or a georeferenced survey map.": "Macrostrat no tiene mapa aquí, ni a escala continental. Pruebe Mapas > Capas web o un mapa georreferenciado.",
-  "Macrostrat": "Macrostrat"
+  "Macrostrat": "Macrostrat",
+  "{n} s": "{n} s",
+  " — about {t} left": " — quedan unos {t}",
+  "Filling gaps": "Rellenando huecos",
+  "Reading {source} tiles {done} of {total}": "Leyendo teselas de {source}: {done} de {total}",
+  "Building the terrain": "Construyendo el terreno",
+  "Terrain fetch cancelled.": "Descarga del terreno cancelada.",
+  "Reading {source} pictures {done} of {total}": "Leyendo imágenes de {source}: {done} de {total}",
+  "Imagery fetch cancelled.": "Descarga de imágenes cancelada.",
+  "Macrostrat fetch cancelled.": "Descarga de Macrostrat cancelada.",
+  "Reading the scene's bands {d} of {n}": "Leyendo las bandas de la escena: {d} de {n}",
+  "Spectral index cancelled.": "Índice espectral cancelado.",
+  "Connecting to {source}…": "Conectando con {source}…"
 }

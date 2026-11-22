@@ -43,7 +43,7 @@ import { geosoftXmlCrs } from "../lib/geosoftXml.js"; // TASKS.csv #2901
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { closedPartsOf } from "../lib/areaBoundary.js"; // TASKS.csv #3827
 import { groundArea } from "../lib/groundArea.js"; // TASKS.csv #3468 — areas on the ground, not on the grid
-import { saveFile, safeFileName, runPfieldsJob } from "../lib/desktop.js"; // safeFileName: #1114; runPfieldsJob: #2846 (the spline)
+import { saveFile, safeFileName, runPfieldsJob, isCancelledError } from "../lib/desktop.js"; // isCancelledError: #3976 // safeFileName: #1114; runPfieldsJob: #2846 (the spline)
 import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411; #1041
 import { stampLines, withStamp, stampBeside, stampPlacement, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
@@ -1163,17 +1163,26 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setTerrainBusy(true);
     setSrtmProgress({ done: 0, total: 1 });
     const job = beginJob(tr("Terrain")); // TASKS.csv #3953 — a zone relabel below fetches again as its own job
+    // TASKS.csv #3976 — the bar in the status bar: the tiles read, then the terrain built; Cancel stops the reads (#3963's signal)
+    const bar = (await import("../lib/fetchProgress.js")).startFetchProgress(setTaskProgress, { label: tr("Terrain"), stages: [["read", 0.85], ["build", 0.15]], onCancel: () => job.abort() });
+    const srcName = { gem15: "GEM-15", gem15dsm: "GEM-15", copernicus: "Copernicus GLO-30", mrdem: "NRCan MRDEM", hrdem: "NRCan HRDEM" }[src] || "AWS Terrain Tiles";
+    bar.step("read", 0, 1, tr("Connecting to {source}…", { source: srcName })); // #3976 — the bar at once (a moving bar until something is counted)
     try {
       const nrcan = src === "mrdem" || src === "hrdem"; // TASKS.csv #815
       const gem = src === "gem15" || src === "gem15dsm"; // TASKS.csv #3721
       const fetcher = gem ? (await import("../lib/gem15Dem.js")).fetchGemTerrain : nrcan ? (await import("../lib/nrcanDem.js")).fetchNrcanTerrain : src === "copernicus" ? fetchCopernicusTerrain : fetchSRTMTerrain; // #814
       let parsed = await fetcher({
         lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
-        onProgress: (done, total) => setSrtmProgress({ done, total }),
+        onProgress: (done, total) => {
+          setSrtmProgress({ done, total });
+          // #3976 — GEM-15's last step is its gap fill (its tiles counted with one more step for it)
+          bar.step("read", done, total, gem && total > 1 && done === total - 1 ? tr("Filling gaps") : tr("Reading {source} tiles {done} of {total}", { source: srcName, done, total }));
+        },
         source: src, smoothSteps: gem && gemSmooth, // #3950
         signal: job.signal, // TASKS.csv #3963 — closing its project stops the download
       });
       if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in (the finally clears the busy state; an AI app hears "not fetched")
+      bar.step("build", 0, 1, tr("Building the terrain")); // #3976
       let tieNote = "";
       if (tie) { // #2648
         const local = tieTerrainToLocal(parsed, tie, targetEpsg, terrainDetail);
@@ -1205,6 +1214,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           const c = [[bx0, by0], [bx1, by0], [bx0, by1], [bx1, by1]].map(([x, y]) => T(x, y));
           relabelNote.current = tr(" Project CRS relabelled from EPSG:{targetEpsg} to {name} (EPSG:{code}): the collars sit on the ground. Re-fetch any satellite imagery, hillshade or online layer.", { targetEpsg, name: better.name, code: better.code });
           job.end(); // TASKS.csv #3953 — the fetch in the new zone is a job of its own
+          bar.end(); // #3976 — and its own bar
           return await runSrtmFetch([Math.min(...c.map((p) => p[0])), Math.min(...c.map((p) => p[1])), Math.max(...c.map((p) => p[0])), Math.max(...c.map((p) => p[1]))], better.code);
         }
         misfitNote = better
@@ -1246,10 +1256,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       said({ ok: true, name: parsed.name, id: terrainId, grid: `${parsed.gridW} x ${parsed.gridH}`, ...(ai?.misfit || {}) }); // #3932
     } catch (err) {
       said({ ok: false, error: String(err?.message || "The terrain could not be fetched.") }); // #3932
-      if (!job.gone) setTerrainError({ info: false, text: err.message }); // #3963 — a project closed mid-download: the banner says it
+      if (!job.gone) setTerrainError(isCancelledError(err) ? { info: true, text: tr("Terrain fetch cancelled.") } /* #3976 — the bar's Cancel */ : { info: false, text: err.message }); // #3963 — a project closed mid-download: the banner says it
     } finally {
       setTerrainBusy(false);
       setSrtmProgress(null);
+      bar.end(); // #3976
       job.end(); // TASKS.csv #3953
     }
   };
