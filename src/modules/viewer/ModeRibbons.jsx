@@ -34,7 +34,7 @@ export default function ModeRibbons({ mode, show, paneProps, simpleTools, projec
           <RibbonButton icon={Waves} label="Veins / dykes" tone="model" title="Vein / dyke modelling" {...paneProps("vein")} />
         </RibbonGroup>
         <RibbonGroup label="Faults and structure">{/* TASKS.csv #4006 — Faults, in Simple too, opens every fault tool in one pane; the group's old Simple flag (#2773) is now Stereonet's own */}
-          <RibbonButton icon={SquareSplitVertical} label="Faults" tone="model" title="Every fault tool in one place: fault surfaces from picks, mapped faults and drawn lines, faults in a model, and the checks" {...paneProps("faults")} />
+          <RibbonButton icon={SquareSplitVertical} label="Faults" tone="model" title="Every fault tool in one place" {...paneProps("faults")} />
           <RibbonButton advanced icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
           <RibbonButton advanced={!simpleTools.stereonet} icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" disabled={!simpleTools.stereonet} disabledReason="No structure picks with an orientation, nor outcrop measurements, yet." onClick={() => setStereonetOpen(true)} />{/* #2773 */}
           <RibbonButton advanced icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
