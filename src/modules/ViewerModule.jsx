@@ -52,6 +52,7 @@ import { collarsToEditRows, editRowsToCollars } from "../lib/collarEditRows.js";
 import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
+import { sampleLithOnly } from "../lib/sampleLithOnly.js"; // TASKS.csv #4039
 import SampleButtons from "./viewer/SampleButtons.jsx"; // TASKS.csv #3541
 import { sampleCardsFor, sampleFootnote, askSampleDownload, emptyCardSamples } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133; emptyCardSamples: #3948
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
@@ -1776,7 +1777,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     });
     const gone = new Set(drop.map((l) => l.id));
     setCustomLayers((p) => (fresh ? rebuilt : arrangeLikeStore([...p.filter((l) => !gone.has(l.id)), ...rebuilt], storeCustomLayers))); // #4018 — the store's order: an Undo puts a layer back where it was
-    setCustomVisible((p) => ({ ...p, ...Object.fromEntries(missing.map((l) => [l.id, true])) }));
+    setCustomVisible((p) => ({ ...p, ...Object.fromEntries(missing.map((l) => [l.id, !sampleLithOnly.takeHiddenCustom(l.id) /* #4039 — a lithology-led sample's own custom layer starts hidden */])) }));
   }, [storeCustomLayers, sceneReady, viewerUiStateSeq]);
 
   // User report: "Z value is stuck at 1619.9. let's make it capture the Z of the feature the mouse is
@@ -4868,7 +4869,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const req = store.sampleRequest;
     if (!req) return;
     store.clearSampleRequest();
-    loadSample(req.which);
+    loadSample(req.which).finally(() => sampleLithOnly.finish()); // TASKS.csv #4039 — the end of a lithology-led sample's own loading: what its extras add started hidden
   }, [store.sampleRequest]);
   const loadSample = async (which) => {
     if (await askSampleDownload(which)) return; // #3133 — a BC sample not here: the download dialog first, nothing renamed or read
@@ -4916,7 +4917,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       try {
         const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
         if (WA_SAMPLES[which].showFirst) showOnLoad.current = WA_SAMPLES[which].showFirst; // #3588 (1) — before the load: the element is switched on when its assays land
-        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]), addRaster: store.addRaster, setProjectDataCredit: store.setProjectDataCredit /* #3496 */, setTaskProgress /* #3539 */ },
+        const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => { if (sampleLithOnly.led()) sampleLithOnly.hideCustom(l.id); /* #4039 */ setStoreCustomLayers((p) => [...(p || []), l]); }, addRaster: store.addRaster, setProjectDataCredit: store.setProjectDataCredit /* #3496 */, setTaskProgress /* #3539 */ },
           { existingElements: assayElements, existingSurfaceElements: surfaceElements, project: importStateRef.current?.project || store.project });
         setNotices((p) => [...p, ...notes]);
       } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
@@ -4933,7 +4934,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (ok && which === "wa_uranium") { // TASKS.csv #2168 — assays into Geochem, the gamma log as a numeric custom layer (the store hydrates its group)
       try {
         const { loadWaUraniumExtras } = await import("../lib/sampleWaUranium.js");
-        const notes = await loadWaUraniumExtras(async (rel) => (await loadSampleFiles("wa_uranium", [rel]))[0], { setAssays, setAssayElements, addCustomLayer: (l) => setStoreCustomLayers((p) => [...(p || []), l]) }, { existingElements: assayElements });
+        const notes = await loadWaUraniumExtras(async (rel) => (await loadSampleFiles("wa_uranium", [rel]))[0], { setAssays, setAssayElements, addCustomLayer: (l) => { if (sampleLithOnly.led()) sampleLithOnly.hideCustom(l.id); /* #4039 */ setStoreCustomLayers((p) => [...(p || []), l]); } }, { existingElements: assayElements });
         setNotices((p) => [...p, ...notes]);
       } catch (e) { setNotices((p) => [...p, errorNotice(tr("The WA uranium sample's assays and gamma log could not be loaded: {message}", { message: e.message }))]); }
       return;

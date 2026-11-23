@@ -36,6 +36,7 @@ import { recoveryColumns, recoveryPct } from "../../lib/recoveryCalc.js"; // TAS
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning, logReadings, logRange, rangeText, assayIntervals } from "../../lib/downholeLogChannels.js"; // logRange: #3041; assayIntervals: #3039 // logReadings: #3038
 import { logTableFits } from "../../lib/logOnRead.js"; // TASKS.csv #3038 // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
 import { loadSampleFiles, readSiblingFiles, sampleStatus } from "../../lib/desktop.js"; // sampleStatus: TASKS.csv #3100
+import { sampleLithOnly, hasLithology } from "../../lib/sampleLithOnly.js"; // TASKS.csv #4039 — a sample with a lithology log opens showing Lithology only
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
@@ -501,13 +502,14 @@ export function makeImportPipeline(ctx, h) {
       // TASKS.csv #3205 (Matt's decision 2026-11-13) — one numeric interval custom layer per mineral column, in % (visual), named after the
       // column; an interval with no value of a mineral is not in its layer (not a 'blank code'); its style column rides along as text
       const { layers: mLayers, made, outside } = perMineralLib.perMineralLayers(allRows, mapping, minPlan, fileName, (cols) => tr("total of {cols}", { cols: cols.join(" + ") }));
+      const showCustom = sampleLithOnly.shows("custom"); // #4039
       mLayers.forEach((l, k) => {
         const id = `custom_${Date.now()}_${k}`;
         const group = new THREE.Group(); group.name = id;
         layerGroupsRef.current[id] = group;
         sceneRef.current.getObjectByName("root").add(group);
         setCustomLayers((p) => [...p, { id, name: l.name, rows: l.rows, group, unit: perMineralLib.UNIT, notes: l.notes }]);
-        setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
+        setCustomVisible((p) => ({ ...p, [id]: k === 0 && showCustom })); // #4039
       });
       if (!made.length) setNotices((p) => [...p, errorNotice(tr("{fileName}: nothing was added: no interval has a per-cent value in the ticked columns.", { fileName }))]);
       else setNotices((p) => [...p, tr("{fileName}: {n} layer(s) of visual per cent (one per mineral column) imported: {list}. The first is shown; the others are in the Layers list.", { fileName, n: made.length, list: made.join(", ") })
@@ -869,7 +871,7 @@ export function makeImportPipeline(ctx, h) {
       setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, keepBatch(rows), keep, { identical: false }).rows })); // #2799 // TASKS.csv #336
       if (replaced.replacedHoles.length || replaced.appendedHoles.length) setNotices((p) => [...p, `${fileName}:${replaceNote(replaced, "structure picks")}`]); // #582
       { const holes = new Set(rows.map((r) => r.hole_id)), saved = (importStateRef.current.layers?.structure || []).filter((r) => isDerivedPick(r) && holes.has(r.hole_id)).length; if (saved) setNotices((p) => [...p, tr("{saved} pick(s) from the Core orientation calculator were kept in these holes.", { saved })]); } // #1234
-      setLayerVisible((p) => ({ ...p, structure: true }));
+      { const show = sampleLithOnly.shows("structure"); setLayerVisible((p) => ({ ...p, structure: show })); } // #4039 — asked now: the updater runs after the queue has ended
       setNotices((p) => [...p, appendNotice(notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName }), skippedRowsText(stDropped, allRows.length))]); // #1070
     } else if (minPlan?.mode === "layers" && !compLayersMade) { // #3307 — the one-layer mode is made in commitImportData
       makeMineralLayers();
@@ -881,6 +883,7 @@ export function makeImportPipeline(ctx, h) {
       const binM = data.logBinM !== undefined ? data.logBinM : defaultLogBin(readings, chans.length, needsBinning(readings, chans.length) ? logBinEstimate(src, mapping) : null); // #2885 — the bin that fits, as the dialog shows
       const base = String(fileName).replace(/\.(csv|txt|las|xlsx?)$/i, "");
       const made = [], noUnit = []; // noUnit: #3076
+      const showCustom = sampleLithOnly.shows("custom"); // #4039
       chans.forEach((col, k) => {
         const nd = data.logKeepNoData ? null : channelNoData(src, col, unitFromHeader(col)); // #2332 — no-data codes left out unless kept
         const rg = logRange(data.logRanges?.[col]); // #3041 — the range typed for the channel
@@ -904,7 +907,7 @@ export function makeImportPipeline(ctx, h) {
         // reader that has not moved still reads rows, and the mirror to the store carries the Table (lib/tableFields.js, #3424)
         if (tableBuild && rowsOut.length >= LOG_TABLE_MIN) { const table = tableBuild(rowsOut); if (isTable(table)) layerOut.rows = table; }
         setCustomLayers((p) => [...p, isTable(layerOut.rows) ? publishedLayers([layerOut])[0] : layerOut]);
-        setCustomVisible((p) => ({ ...p, [id]: k === 0 }));
+        setCustomVisible((p) => ({ ...p, [id]: k === 0 && showCustom })); // #4039
         made.push(`${col}${unit ? ` (${unit})` : ""}: ${out.rows.length.toLocaleString()}${out.skipped ? ` (${out.skipped} without a number)` : ""}${out.dropped ? ` (${out.dropped.toLocaleString()} no-data value(s) left out: ${noDataText(nd)})` : ""}${out.outside ? ` (${out.outside.toLocaleString()} ${rangeText(rg)} left out)` : ""}`); // dropped: #2332; outside: #3041
       });
       if (noUnit.length) setNotices((p) => [...p, tr("{fileName}: no unit for {cols}: the column name gives none and none was typed, so the values are as logged with no unit.", { fileName, cols: noUnit.join(", ") })]); // #3076
@@ -939,7 +942,7 @@ export function makeImportPipeline(ctx, h) {
       // TASKS.csv #2317 — depth picks by code (regolith events): the layer says what the known codes stand for, and the notice where they go
       const evNotes = mapping.depth && !mapping.from && !mapping.to ? eventNotes(rows) : null;
       setCustomLayers((p) => [...p, { id, name: layerName, rows, group, ...(evNotes ? { notes: evNotes } : {}) }]);
-      setCustomVisible((p) => ({ ...p, [id]: true }));
+      { const show = sampleLithOnly.shows("custom"); setCustomVisible((p) => ({ ...p, [id]: show })); } // #4039
       setNotices((p) => [...p, evNotes
         ? notice("Added \"{fileName}\" as a layer of depth picks ({rows} rows, {codes}): drawn on the traces, and offered as picks in the Explicit surface tool (one per hole) for a surface such as the base of oxidation.", { fileName, rows: rows.length, codes: [...new Set(rows.map((r) => String(r.value ?? "").trim()).filter(Boolean))].slice(0, 8).join(", ") })
         : appendNotice(notice("Added \"{name}\" as a custom layer ({rows} rows).", { name: layerName, rows: rows.length }), skippedRowsText(cDropped, allRows.length) + customOverlapText(rows))]); // #2338; overlaps: #3211
@@ -975,7 +978,7 @@ export function makeImportPipeline(ctx, h) {
       const keep = batchRowsRef.current;
       const replaced = replaceRowsByHole(importStateRef.current.layers?.[target], rows, keep); // #582: replaced / appended
       setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], keepBatch(rows), keep, { identical: false }).rows })); // #2799 — rows only
-      setLayerVisible((p) => ({ ...p, [target]: true }));
+      { const show = sampleLithOnly.shows(target); setLayerVisible((p) => ({ ...p, [target]: show })); } // #4039 — a lithology-led sample's other layers load hidden; asked now, the updater runs after the queue has ended
       // TASKS.csv #2493 — the rows the import left out, kept with the project for Data QC (lib/importLeftOut.js); this file's entry replaced
       recordImportLeftOut?.(target, fileName, dropped, allRows.length);
       const dictAdded = !numeric && fillCodeDictionary ? fillCodeDictionary(target, rows) : 0; // TASKS.csv #2163 — codes with no meaning yet take the description logged beside them
@@ -1161,6 +1164,7 @@ export function makeImportPipeline(ctx, h) {
   };
   const processImportQueue = () => { // #3159 split: a plain function here; the hook keeps the useCallback
     const file = importQueueRef.current.shift();
+    if (!file) sampleLithOnly.end(); // TASKS.csv #4039 — the sample's own tables are in: the user's imports show their layers as before
     if (!file) { importActiveRef.current = false; batchRowsRef.current = null; buildDefer?.release?.() /* #3544: the held build runs once */; busyUntilQuiet(setTaskProgress, tr("Drawing the imported data…")) /* #3539: until the builds the commits started are done (was cleared at once) */; importQueueTotalRef.current = 0; queueSummary(); /* #3071 */ handOverAssays(); reportDeferredAssumed(); return; } // #1350; #3535
     const total = importQueueTotalRef.current || importQueueRef.current.length + 1;
     // TASKS.csv #3544 — a drop of two or more files: the 3D View builds once, after the last (it was built after each commit: on the Macpass
@@ -1478,6 +1482,7 @@ export function makeImportPipeline(ctx, h) {
     try {
       const files = await loadSampleFiles(S.dir, S.files, { optional: S.optional || [] }); // optional: #3100
       for (const f of files) if (S.dipsStated?.includes(f.name)) STATED_DIPS.add(f); // #3496
+      if (hasLithology(files.map((f) => f.name))) sampleLithOnly.begin(); // TASKS.csv #4039 — a sample with a lithology log opens showing Lithology only; the other layers load hidden (ended with its queue)
       const downloaded = S.noticeDownloaded && (await sampleStatus())[which] === "downloaded"; // #3100
       // TASKS.csv #617 — the sample's CRS is known: set it when the project's CRS was never chosen, instead of
       // stopping on #615's "which CRS are these collars in?" dialog
@@ -1503,6 +1508,7 @@ export function makeImportPipeline(ctx, h) {
       processImportQueue();
       return true;
     } catch (err) {
+      sampleLithOnly.end(); // #4039
       setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: err.message }))]);
       return false;
     } finally {
