@@ -164,7 +164,7 @@ test("#4017 the wiring: the panel offers bodies or layers, asks finer blocks for
   assert.match(p, /interceptsInsideBodies\(body\.positions, body\.indices, check\.points, check\.spans\)/);
   assert.match(p, /clip\.ground = ground;/);
   const v = read("src/modules/ViewerModule.jsx");
-  assert.match(v, /params = \{\}, type = "geoml", closure = null/);
+  assert.match(v, /params = \{\}, type = "geoml"(?: \/\*[^*]*\*\/)?, closure = null/ /* #4013 notes the fault type there */);
   assert.match(v, /vertexCount: nVerts, faceCount: nTris, type, relationships: \[\], closure, params: \{ tool: "geoML \(predictive modelling add-on\)"/);
   // runs made before this change: their contact is a 'geoml' surface, which draws as it did (the default type is unchanged)
   assert.match(v, /type = "geoml"/);
