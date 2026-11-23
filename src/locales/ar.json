@@ -15128,5 +15128,9 @@
   "Per cent layers only; not in per cent: {units}.": "طبقات النسبة المئوية فقط؛ ليست بالنسبة المئوية: {units}.",
   "No mineral above zero.": "لا يوجد معدن أعلى من الصفر.",
   "Merge adds these minerals to the Mineralization layer; Replace swaps it for them.": "يضيف الدمج هذه المعادن إلى طبقة التمعدن، ويستبدلها الاستبدال بها.",
-  "Grouped {layers} layers: fields {fields}, intervals {intervals}, holes {holes}.": "تم تجميع {layers} طبقات: الحقول {fields}، الفواصل {intervals}، الثقوب {holes}."
+  "Grouped {layers} layers: fields {fields}, intervals {intervals}, holes {holes}.": "تم تجميع {layers} طبقات: الحقول {fields}، الفواصل {intervals}، الثقوب {holes}.",
+  "Remove all": "إزالة الكل",
+  "Remove the {n} units from the stack? Undo, under the buttons, puts them back.": "هل تريد إزالة الوحدات الـ {n} من العمود؟ زر التراجع، أسفل الأزرار، يعيدها.",
+  "Removed {n} units.": "أُزيلت {n} وحدات.",
+  "Put back {n} units.": "أُعيدت {n} وحدات."
 }

@@ -15128,5 +15128,9 @@
   "Per cent layers only; not in per cent: {units}.": "Somente camadas em por cento; não estão em por cento: {units}.",
   "No mineral above zero.": "Nenhum mineral acima de zero.",
   "Merge adds these minerals to the Mineralization layer; Replace swaps it for them.": "Mesclar acrescenta estes minerais à camada de Mineralização; Substituir a troca por eles.",
-  "Grouped {layers} layers: fields {fields}, intervals {intervals}, holes {holes}.": "{layers} camadas agrupadas: campos {fields}, intervalos {intervals}, furos {holes}."
+  "Grouped {layers} layers: fields {fields}, intervals {intervals}, holes {holes}.": "{layers} camadas agrupadas: campos {fields}, intervalos {intervals}, furos {holes}.",
+  "Remove all": "Remover todas",
+  "Remove the {n} units from the stack? Undo, under the buttons, puts them back.": "Remover as {n} unidades da coluna? Desfazer, abaixo dos botões, as coloca de volta.",
+  "Removed {n} units.": "{n} unidades removidas.",
+  "Put back {n} units.": "{n} unidades colocadas de volta."
 }

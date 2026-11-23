@@ -15128,5 +15128,9 @@
   "Per cent layers only; not in per cent: {units}.": "Couches en pour cent seulement ; pas en pour cent : {units}.",
   "No mineral above zero.": "Aucun minéral au-dessus de zéro.",
   "Merge adds these minerals to the Mineralization layer; Replace swaps it for them.": "Fusionner ajoute ces minéraux à la couche de Minéralisation ; Remplacer la remplace par eux.",
-  "Grouped {layers} layers: fields {fields}, intervals {intervals}, holes {holes}.": "{layers} couches regroupées : champs {fields}, intervalles {intervals}, sondages {holes}."
+  "Grouped {layers} layers: fields {fields}, intervals {intervals}, holes {holes}.": "{layers} couches regroupées : champs {fields}, intervalles {intervals}, sondages {holes}.",
+  "Remove all": "Tout retirer",
+  "Remove the {n} units from the stack? Undo, under the buttons, puts them back.": "Retirer les {n} unités de la colonne ? Annuler, sous les boutons, les remet.",
+  "Removed {n} units.": "{n} unités retirées.",
+  "Put back {n} units.": "{n} unités remises."
 }

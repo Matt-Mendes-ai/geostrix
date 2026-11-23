@@ -20,6 +20,7 @@ import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/mod
 import { pileFromRuns, absentTops, orderFromHoles } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles: #2926
 import { holesOrderPlan } from "../../lib/holesOrder.js"; import SortByHoles from "./SortByHoles.jsx"; // TASKS.csv #3994 — Sort by the holes
 import { addAllCandidates } from "../../lib/stackAddAll.js"; import AddAllUnits from "./AddAllUnits.jsx"; // TASKS.csv #3999 — Add all
+import { useRemoveAllUnits } from "./RemoveAllUnits.jsx"; // TASKS.csv #4022 — Remove all
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
@@ -496,6 +497,7 @@ export default function ModellingPanes(props) {
   }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
   // TASKS.csv #3999 — what 'Add all' could add: the codes the 'Add a unit…' list offers (not a cross-cutting, no-recovery, cover or left-out one), by the same rules
   const [addAllOpen, setAddAllOpen] = useState(false);
+  const removeAll = useRemoveAllUnits({ stackUnits, setStackUnits, stackBreaks, setStackBreaks, pBtn }); // TASKS.csv #4022
   const addAllC = useMemo(() => (toolPane !== "stack" ? null : addAllCandidates({ rows: layers.litho || [], litho_units, modellingCodeList, roleOf: rawRole, stackUnits, codesOf: stackCodesOf,
     groupOf: (u) => lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u)), twinInStack })), [toolPane, layers.litho, litho_units, modellingCodeList, stackUnits, lithoGroups, areaRuns]);
   // the 'Add a unit' list in the order the holes give (youngest first), not by interval count
@@ -994,8 +996,8 @@ export default function ModellingPanes(props) {
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
           <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
         </label>
-        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select aria-label={tr("Add a unit to the stack")} value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{/* #4022: wraps rather than squeeze the list to "Add a" */}
+          <select aria-label={tr("Add a unit to the stack")} value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: "1 1 120px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Add a unit…")}</option>
             {/* TASKS.csv #241 — cross-cutting units (fault/dyke/breccia) are hidden here, not just
                 warned about in the paragraph above: they break the tool's own non-crossing guarantee,
@@ -1024,7 +1026,9 @@ export default function ModellingPanes(props) {
             )}
           </select>
           <button type="button" aria-expanded={addAllOpen} onClick={() => setAddAllOpen((v) => !v)} style={{ ...pBtn, width: "auto", marginBottom: 0, flex: "0 0 auto" }} title={tr("Add every modelling code, every logged code or the codes with enough logged metres, already in the order the holes give. You see the order before anything changes.")}>{tr("Add all…")}</button>{/* #3999 */}
+          {removeAll.button}{/* #4022 */}
         </div>
+        {removeAll.line}{/* #4022 */}
         {stackUnits.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No units added yet.")}</div>
         )}
