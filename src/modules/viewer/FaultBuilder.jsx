@@ -81,7 +81,7 @@ export default function FaultBuilder(props) {
     if (shape === "planes") { buildPlanes(other, msgs); setSaid(msgs); return; }
     for (const f of faults) {
       if (!f.spec) continue;
-      if (!f.spec.ok) { msgs.push(f.spec.why === "no-orientation" ? tr("{name}: points on one line; give a dip and dip direction.", { name: f.name }) : tr("{name}: no evidence placed.", { name: f.name })); continue; }
+      if (!f.spec.ok) { msgs.push(f.spec.why === "no-orientation" ? tr("{name}: points on one line; give a dip.", { name: f.name }) : tr("{name}: no evidence placed.", { name: f.name })); continue; }
       if (extent === "until" && !other) continue;
       const plane = planeOf(f.spec);
       const keepInside = keepInsideWorld({ extent, points: f.spec.points, plane, marginM, other: other ? { positions: other.vertices, indices: other.indices } : null });
@@ -109,7 +109,7 @@ export default function FaultBuilder(props) {
     const box = faultBox({ traces: tracesRef?.current || [], points: ok.flatMap((f) => f.spec.points), extra });
     for (const f of faults) {
       if (!f.spec) continue;
-      if (!f.spec.ok) { msgs.push(f.spec.why === "no-orientation" ? tr("{name}: points on one line; give a dip and dip direction.", { name: f.name }) : tr("{name}: no evidence placed.", { name: f.name })); continue; }
+      if (!f.spec.ok) { msgs.push(f.spec.why === "no-orientation" ? tr("{name}: points on one line; give a dip.", { name: f.name }) : tr("{name}: no evidence placed.", { name: f.name })); continue; }
       const d = dips[f.i], given = f.spec.said.some((x) => x.key === "user-dip") && Number.isFinite(d?.dip) && Number.isFinite(d?.dipDir) ? normalOf(d.dip, d.dipDir) : null;
       const res = faultPlaneMeshes({ spec: f.spec, extent, marginM, other: other ? { positions: other.vertices, indices: other.indices } : null, box, ground, gapM, normal: given });
       if (!res.ok || !res.sheets.length) { msgs.push(tr("{name}: nothing inside its extent.", { name: f.name })); continue; }
@@ -124,7 +124,7 @@ export default function FaultBuilder(props) {
             faultEvidence: { kinds, items: f.items.map((it) => it.name).slice(0, 30), extent, ...(extent === "finite" ? { marginM } : {}), ...(other ? { endsAt: other.name } : {}), guess: f.spec.guess, shape: "planes", sheet: k + 1, sheets: n, dip: Math.round(s.dip), dipDir: Math.round(s.dipDir), ...(s.fold.folded ? { folded: true } : {}) },
           },
         });
-        if (s.fold.folded) msgs.push(tr("{name} reads as folded (the plane misses by {m} m): try One curved surface.", { name, m: Math.round(s.fold.rmsPlane) }));
+        if (s.fold.folded) msgs.push(tr("{name} reads as folded: try One curved surface.", { name }));
       });
       if (res.unassigned) msgs.push(res.unassigned === 1 ? tr("{name}: 1 point on no sheet, left out.", { name: f.name }) : tr("{name}: {n} points on no sheet, left out.", { name: f.name, n: res.unassigned }));
     }

@@ -1988,6 +1988,14 @@ export function createModellingRuns(ctx, mcRef) {
       const or = pts.filter((_, i) => at.has(i)).map((q) => ({ ...api(q.x, q.y, q.z), dip: f.dip, azimuth: f.dipDir }));
       return { label: `Fault: ${f.name}`, meshName: `Fault ${f.name}`, points: pts.map((q) => api(q.x, q.y, q.z)), orientations: or, color: colorForStructure("FLT"), type: "fault", fault: true };
     }).filter(Boolean);
+    // TASKS.csv #4021 — each fault offsets only the tops with contact points on both of its sides: a top with all its points on one side gave
+    // that fault's drift a zero column and made the solve singular (Mount Raymond, Erosional: a series per top). Sent as the fault's offsets (#1054);
+    // the solve's own "Faults as solved" notice then lists what each fault offsets
+    if (faultSpecs.length) {
+      const { faultOffsetsBySides } = await import("../../lib/faultSides.js");
+      const sides = faultOffsetsBySides(faultSpecs, specs);
+      for (const f of faultSpecs) f.offsets = sides[f.meshName].offsets;
+    }
     const left = (p.leftOut || []).filter(Boolean);
     setNotices((q) => [...q, appendNotice(notice("Model from the map: {v} surface(s) from {n} contact point(s) and {m} orientation(s){f}.{e}{l}", {
       v: specs.length, n: specs.reduce((s, x) => s + x.points.length, 0).toLocaleString(), m: orientations.length,
@@ -2549,7 +2557,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
         const midOf = (i) => ({ x: (i.hw.x + i.fw.x) / 2, y: (i.hw.y + i.fw.y) / 2, z: (i.hw.z + i.fw.z) / 2 });
         const setN = normalOf(model.plane.dip, model.plane.dipDir), fold = foldTest(used.map(midOf), setN);
         let runs = [{ model, label, used }];
-        if (fold.folded) jobNotices((q) => [...q, notice("\"{label}\" reads as folded ({m} m RMS off one plane): its walls follow the fold.", { label, m: fold.rmsPlane.toFixed(1) })]);
+        if (fold.folded) jobNotices((q) => [...q, notice("\"{label}\" reads as folded: its walls follow the fold.", { label })]);
         else {
           const flat = (u, plane) => { const m = buildVeinModel(u, { cellSize: model.grid.cellSize, searchRadius: model.grid.searchRadius, dip: model.plane.dip, dipDir: model.plane.dipDir, attitudeSource: model.plane.attitudeSource, planar: true }); Object.assign(m.plane, plane); return m; };
           const gapM = Math.max(15, 4 * (model.thickness.trueMean || 0)); // sheets closer than this along the pole are one
@@ -2557,7 +2565,7 @@ ${tr("OK runs it anyway; Cancel stops here.")}`))) { const stop = new Error(msg)
           const sheets = sh.ok ? sh.sets[0].sheets : [];
           if (sheets.length > 1) {
             runs = sheets.map((s, k) => { const u = s.ids.map((i) => used[i]); return { model: flat(u, { rmsOffPlane: s.rms, planarity: null }), label: `${label} · ${tr("sheet {n}", { n: k + 1 })}`, used: u }; });
-            jobNotices((q) => [...q, notice("\"{label}\": {n} parallel sheets, each a flat vein on {dip}° / {dipDir}°.", { label, n: sheets.length, dip: Math.round(model.plane.dip), dipDir: Math.round(model.plane.dipDir) })]);
+            jobNotices((q) => [...q, notice("\"{label}\": {n} flat sheets.", { label, n: sheets.length })]);
           } else runs = [{ model: flat(used, { rmsOffPlane: model.plane.rmsOffPlane, planarity: model.plane.planarity }), label, used }];
         }
         const landOne = async ({ model, label, used }) => { // one sheet: its own model, label and intercepts (the names shadow the whole run's)
