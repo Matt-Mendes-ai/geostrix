@@ -19,7 +19,7 @@ export function suggestRoute(f) {
   const pick = (route, why, reason) => ({ route, why, reason, routes });
   const drawnReason = () => tr("Contacts drawn: {n}. Carry on drawing.", { n: drawnAlready });
   if (!logged) {
-    if (map) return pick("map", "map-only", tr("No logged contacts; the map's {n} units build the model.", { n: f.map.units }));
+    if (map) return pick("map", "map-only", tr("No logs: build from the map's {n} units.", { n: f.map.units }));
     if (drawnAlready) return pick("drawn", "drawn-only", drawnReason());
     return pick(null, "nothing", f.contacts.holes ? (f.contacts.holes === 1 ? tr("Contacts in only one hole: too few.") : tr("Contacts in only {n} holes: too few.", { n: f.contacts.holes })) : tr("No contacts between logged rocks yet."));
   }
@@ -27,13 +27,13 @@ export function suggestRoute(f) {
   const steady = f.order.steady.length, cands = f.order.eligible, holes = f.contacts.steadyHoles;
   const failing = cands >= 2 && steady < cands / 2; // most units swap down the holes: folded or faulted ground
   if (steady >= 2 && holes >= BROAD_HOLES && !failing) {
-    return pick("computed", "layered", tr("{n} rocks in a steady order, in {h} holes: compute them.", { n: steady, h: holes }));
+    return pick("computed", "layered", tr("{n} rocks for the stack, in {h} holes: compute.", { n: f.order.takes >= 2 ? f.order.takes : steady, h: holes }) /* #4037: one count, the rocks the stack takes */);
   }
   // a rock that cuts the others by its role or name (an intrusion, a dyke, a breccia): its shape can be computed where the layers cannot
   if (f.body && CUTTING_ROLES.has(f.body.role) && f.body.holes >= BROAD_HOLES) {
     return pick("computed", "body", tr("{code} cuts the rocks in {h} holes: compute its shape.", { code: f.body.unit, h: f.body.holes }));
   }
-  if (failing) return pick("drawn", "no-order", tr("{n} of {m} rocks swap places: folded or faulted. Draw it.", { n: cands - steady, m: cands }));
-  if (steady < 2) return pick("drawn", "one-rock", tr("Under two rocks in a steady order: draw the surfaces."));
-  return pick("drawn", "few-holes", holes === 1 ? tr("Only one hole: computing would guess. Draw it.") : tr("Only {h} holes: computing would guess. Draw it.", { h: holes }));
+  if (failing) return pick("drawn", "no-order", tr("{n} of {m} rocks swap places: draw it.", { n: cands - steady, m: cands }));
+  if (steady < 2) return pick("drawn", "one-rock", tr("Under two steady rocks: draw."));
+  return pick("drawn", "few-holes", holes === 1 ? tr("One hole: draw it.") : tr("Only {h} holes: draw it.", { h: holes }));
 }

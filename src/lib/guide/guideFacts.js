@@ -5,7 +5,7 @@
 // project changes. The per-hole runs are built here and handed to autoUnits (stackOrder / suggestCover / suggestBody), which would each read the
 // log again otherwise.
 import { stackOrder, suggestCover, suggestBody, AGREE_MIN, INSIDE_MAX } from "../auto/autoUnits.js";
-import { siteSpacing } from "../auto/autoCommon.js";
+import { siteSpacing, depthSites } from "../auto/autoCommon.js";
 import { QUICK_RESOLUTION } from "../auto/autoSurface.js";
 import { axisResolution, blockCellsM } from "../modelResolution.js";
 import { holeClusters } from "../holeClusters.js";
@@ -26,7 +26,7 @@ const fin = (v) => typeof v === "number" && Number.isFinite(v);
 const arr = (v) => (Array.isArray(v) ? v : []);
 
 // the store's references the facts depend on (the memo's key)
-const KEYS = ["collars", "survey", "layers", "assays", "assayElements", "mapLayers", "terrain", "sections", "explicitSurfaces", "generatedSurfaces", "stratStack", "modellingCodes", "lithoGroups", "surfaceStructures", "voxelModels"];
+const KEYS = ["collars", "survey", "layers", "assays", "assayElements", "mapLayers", "terrain", "sections", "explicitSurfaces", "generatedSurfaces", "stratStack", "modellingCodes", "lithoGroups", "surfaceStructures", "voxelModels", "rasters"];
 let memo = null;
 
 export function guideFacts(store) {
@@ -51,14 +51,14 @@ function readFacts(s) {
   // ---- collars: positions, depths
   const collars = arr(s.collars);
   let holes = 0, positioned = 0;
-  const pts = []; // { hole_id, x, y }: siteSpacing and holeClusters take these, so the collars are read once
+  const pts = [], holeRows = []; // pts { hole_id, x, y }: holeClusters takes these; holeRows add the length and attitude, for the spacing at depth (#4037)
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, zTop = -Infinity, zBot = Infinity;
   for (const c of collars) {
     if (!c || c.hole_id == null || c.hole_id === "") continue;
     holes++;
     const x = Number(c.x), y = Number(c.y), z = Number(c.z), len = Number(c.length);
     if (!fin(x) || !fin(y)) continue;
-    positioned++; pts.push({ hole_id: c.hole_id, x, y });
+    positioned++; pts.push({ hole_id: c.hole_id, x, y }); holeRows.push({ hole_id: c.hole_id, x, y, length: len, azimuth: c.azimuth, dip: c.dip });
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
     if (fin(z)) { if (z > zTop) zTop = z; if (fin(len) && len > 0 && z - len < zBot) zBot = z - len; }
   }
@@ -127,6 +127,25 @@ function readFacts(s) {
   // what Add all ('at least 1 %' of the logged metres, #3999) would add to the stack: the codes it takes, by the same rules
   const inStack = new Set(stackUnits);
   const addable = [...metres].filter(([code, e]) => metresAll > 0 && e.metres >= (DEFAULT_MIN_PCT / 100) * metresAll && !inStack.has(code) && !out.has(code) && !leftOutWhy(roleOf(code))).length;
+  // TASKS.csv #4037 (walk-through, WA lode gold: 15 steady in step 4, Add all 10, Rock layers 7) — ONE count, the rocks the stack takes: its units, or what Add all would add
+  const takes = stackUnits.length >= 2 ? stackUnits.length : addable;
+  // and the rocks that return (the run's own check, #2532, said before the run): in a hole a rock comes back after another. Over the run's bar (three
+  // holes, half of those with two of the rocks) it asks twice before it solves, so the guide says so first
+  const takeSet = new Set(stackUnits.length >= 2 ? stackUnits.filter((u) => !/^(group|mcode):/.test(u)) : [...metres].filter(([code, e]) => metresAll > 0 && e.metres >= (DEFAULT_MIN_PCT / 100) * metresAll && !out.has(code) && !leftOutWhy(roleOf(code))).map(([code]) => code));
+  let retHoles = 0, retRepeating = 0;
+  const retBy = new Map();
+  if (takeSet.size >= 2) {
+    for (const list of runs.values()) {
+      const seen = new Map();
+      for (const q of list) if (q.to > q.from && takeSet.has(q.unit)) seen.set(q.unit, (seen.get(q.unit) || 0) + 1); // the run's own count skips an interval with no length
+      if (seen.size < 2) continue;
+      retHoles++;
+      let rep = false;
+      for (const [u, c] of seen) if (c > 1) { rep = true; retBy.set(u, (retBy.get(u) || 0) + 1); }
+      if (rep) retRepeating++;
+    }
+  }
+  const returns = { holes: retHoles, repeating: retRepeating, over: retHoles >= MIN_HOLES && retRepeating >= retHoles / 2, units: [...retBy].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([unit, n]) => ({ unit, n })) };
   const thinCodes = [...metres].filter(([code, e]) => metresAll > 0 && e.metres < (DEFAULT_MIN_PCT / 100) * metresAll && !out.has(code) && !leftOutWhy(roleOf(code))).map(([code]) => code);
 
   // ---- the stack against the holes (#3994's plan, from the first depths gathered in the pass)
@@ -189,6 +208,9 @@ function readFacts(s) {
     if (x.type === "stratigraphic_contact") strat.add(String(x.params?.surface ?? String(x.name || "").replace(/^(Top|Base) of /, "")));
     if (/^vein_/.test(x.type || "") && x.params?.target != null) veinBuilt.add(String(x.params.target));
   }
+  // TASKS.csv #4037 — Model from map's fit (#3989): the overall share of the mapped ground the model has right, kept on its "where the model differs" raster; the newest
+  let mapFit = null;
+  for (const r of arr(s.rasters)) { const p = r?.provenance; if (p && /^Model from map: where the model/.test(String(p.tool || "")) && fin(p.overall)) mapFit = p.overall; }
   const explicit = arr(s.explicitSurfaces);
   const explicitDone = explicit.filter((d) => d?.surfaceId && ids.has(d.surfaceId)), explicitBuilt = explicitDone.length;
   const explicitUnits = new Set(explicitDone.map((d) => String(d.unit || d.name || "").trim()).filter(Boolean)); // #868: the logged unit an explicit surface is the top of
@@ -196,9 +218,13 @@ function readFacts(s) {
   const unitName = (u) => (groupName.has(u) ? groupName.get(u) : String(u).startsWith("mcode:") ? String(u).slice(6) : String(u));
   const stackBuilt = stackUnits.filter((u) => strat.has(unitName(u)) || explicitUnits.has(unitName(u)));
 
-  // ---- the area: drill spacing and groups of holes from the collars, and the box's cells at the quick detail
-  const sp = positioned >= MIN_HOLES ? siteSpacing(pts) : { sites: positioned, spacing: null };
-  const cl = positioned >= MIN_HOLES ? holeClusters(pts) : null;
+  // ---- the area: the logged holes (the pane's own set: Model settings counts those) in clusters; the drill spacing at half the hole length (#4037:
+  // a fan from a pad reads 3 m at the collars), and the box's cells at the quick detail
+  const logged = byHole.size ? pts.filter((p) => byHole.has(p.hole_id)) : pts;
+  const deep = depthSites(byHole.size ? holeRows.filter((h) => byHole.has(h.hole_id)) : holeRows, s.survey);
+  for (const d of deep) { if (d.x < x0) x0 = d.x; if (d.x > x1) x1 = d.x; if (d.y < y0) y0 = d.y; if (d.y > y1) y1 = d.y; }
+  const sp = logged.length >= MIN_HOLES ? siteSpacing(deep) : { sites: logged.length, spacing: null };
+  const cl = logged.length >= MIN_HOLES ? holeClusters(logged) : null;
   let quickCellM = null, extent = null;
   if (sp.spacing > 0 && x1 >= x0 && zTop > -Infinity) {
     const pad = sp.spacing, bottom = zBot < Infinity ? zBot : zTop - pad;
@@ -217,7 +243,7 @@ function readFacts(s) {
     holes, positioned,
     logged: { rows: lithoRows, holes: byHole.size, codes: metres.size, metres: metresAll },
     contacts: { holes: contactHoles, steadyHoles: steadyContactHoles },
-    order: { layered: order.order, steady, bodies: order.bodies, candidates: cands, eligible, addable, agree: order.agree, unitInfo, agreeMin: AGREE_MIN, insideMax: INSIDE_MAX },
+    order: { layered: order.order, steady, bodies: order.bodies, candidates: cands, eligible, addable, takes, returns, agree: order.agree, unitInfo, agreeMin: AGREE_MIN, insideMax: INSIDE_MAX },
     cover: cover && !coverRole(cover.unit) ? { unit: cover.unit, starts: coverStarts, of: runs.size } : null,
     coverSet: cover ? coverRole(cover.unit) : false,
     body: body ? { unit: body.unit, holes: unitInfo.get(body.unit)?.holes || 0, inside: unitInfo.get(body.unit)?.inside || 0, role: roleOf(body.unit) } : null,
@@ -230,6 +256,7 @@ function readFacts(s) {
     terrain: !!s.terrain,
     drawn: { sectionContacts, explicit: explicit.length, explicitBuilt },
     stack: { units: stackUnits, built: stackBuilt, relation: stack.relation || "onlap", faults: arr(stack.faults).length, over: Math.max(0, stackUnits.length - GEMPY_MAX_SURFACES), plan: stackPlan },
+    fit: { map: mapFit },
     built: { strat: strat.size, faults: byType.fault || 0, veins: veinBuilt.size, explicit: byType.explicit_surface || 0, shells: byType.mineralization_envelope || 0, halos: byType.alteration_envelope || 0, bodies: (byType.unit_body || 0) + (byType.intrusion_body || 0), blocks: arr(s.voxelModels).length },
     area: { sites: sp.sites, spacing: sp.spacing, clusters: cl ? cl.clusters.map((c) => ({ n: c.n, ids: c.ids, spanM: c.spanM, cx: c.cx, cy: c.cy })) : [], gapM: cl?.gapM ?? null, quickCellM, extent },
   };

@@ -68,7 +68,8 @@ function storeOf(dir) {
     if (existsSync(p)) { const r = parseShapefileParts({ shp: new Uint8Array(readFileSync(p)), dbf: new Uint8Array(readFileSync(p.replace(/\.shp$/, ".dbf"))) }); mapLayers.push({ id: f, name: f, geomType: r.geomType, features: r.features }); }
   }
   setLithologyNoteRoles(lithologyNoteRoles(layers.litho)); // as the store does on every render (a code dictionary's meanings are not read here: WA bedded iron's ALU is cover by its meaning in the app, by its name here)
-  return { collars, layers, assays: assayRows, assayElements, mapLayers, terrain: readdirSync(dir).some((f) => /\.tif$/i.test(f) && /terrain|dem/i.test(f)) ? {} : null, sections: [], explicitSurfaces: [], generatedSurfaces: [], stratStack: { units: [] }, modellingCodes: null, lithoGroups: [], surfaceStructures: [], voxelModels: [] };
+  const survey = csv(path.join(dir, "survey.csv")).map((r) => ({ hole_id: r.hole_id, depth: num(r.depth), azimuth: num(r.azimuth), dip: num(r.dip) })); // #4037: the drill spacing at depth
+  return { collars, survey, layers, assays: assayRows, assayElements, mapLayers, terrain: readdirSync(dir).some((f) => /\.tif$/i.test(f) && /terrain|dem/i.test(f)) ? {} : null, sections: [], explicitSurfaces: [], generatedSurfaces: [], stratStack: { units: [] }, modellingCodes: null, lithoGroups: [], surfaceStructures: [], voxelModels: [] };
 }
 
 const want = process.argv.slice(2).length ? process.argv.slice(2) : SAMPLES;
@@ -80,6 +81,7 @@ for (const name of want) {
   const ag = (u) => Math.round(100 * (f.order.agree.get(u) ?? 0));
   console.log(`\n== ${name} (facts in ${Math.round(ms)} ms)`);
   console.log(`  holes ${f.holes} (${f.positioned} placed), sites ${f.area.sites}, spacing ${f.area.spacing ? Math.round(f.area.spacing) : "-"} m, groups ${f.area.clusters.length}${f.area.clusters.length > 1 ? ` (largest ${f.area.clusters[0].n}, gap ${Math.round(f.area.gapM)} m)` : ""}, quick cells ${f.area.quickCellM ? Math.round(f.area.quickCellM) : "-"} m`);
+  console.log(`  stack takes ${f.order.takes} (Add all ${f.order.addable}); rocks return in ${f.order.returns.repeating} of ${f.order.returns.holes} holes${f.order.returns.over ? " (over the run's bar)" : ""}; clusters ${f.area.clusters.length}`);
   console.log(`  logged: ${f.logged.rows} rows in ${f.logged.holes} holes, ${f.logged.codes} codes; contacts in ${f.contacts.holes} holes, steady tops in ${f.contacts.steadyHoles}`);
   console.log(`  order: ${f.order.steady.length} steady of ${f.order.eligible} eligible (the route's count; ${f.order.candidates} codes in 3+ holes) [${f.order.steady.slice().sort().join(" ")}], ${f.order.layered.length} layered${f.order.layered.length ? ` [${f.order.layered.map((u) => `${u} ${ag(u)}%`).join(", ")}]` : ""}; not layered ${f.order.bodies.length}${f.order.bodies.length ? ` [${f.order.bodies.slice(0, 6).map((u) => `${u} ${ag(u)}%`).join(", ")}${f.order.bodies.length > 6 ? ", ..." : ""}]` : ""}`);
   console.log(`  cover ${f.cover ? `${f.cover.unit} (${f.cover.starts} of ${f.cover.of})` : "-"}; body ${f.body ? `${f.body.unit} (${f.body.role}; inside in ${f.body.inside} of ${f.body.holes})` : "-"}; thin codes ${f.thinCodes.length}`);

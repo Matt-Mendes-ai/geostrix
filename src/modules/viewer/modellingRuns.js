@@ -981,7 +981,7 @@ export function createModellingRuns(ctx, mcRef) {
             const dc = document.createElement("canvas");
             dc.width = mapGrid.nx; dc.height = mapGrid.ny;
             dc.getContext("2d").putImageData(new ImageData(fit.px, mapGrid.nx, mapGrid.ny), 0, 0);
-            const rid = addRaster({ name: dName, bbox: mapGrid.bbox, dataUrl: dc.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.9, visible: false, provenance: { tool: DIFFER_TOOL, cellM, differ: fit.differ, compared: fit.compared } });
+            const rid = addRaster({ name: dName, bbox: mapGrid.bbox, dataUrl: dc.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.9, visible: false, provenance: { tool: DIFFER_TOOL, cellM, differ: fit.differ, compared: fit.compared, overall: fit.overall /* #4037: the guide's step 7 */ } });
             stackOpts.onFit({ overall: fit.overall, units: fit.units, unscored: fit.unscored, differ: fit.differ, compared: fit.compared, cellM, show: (on) => updateRaster?.(rid, { visible: !!on }) });
           }
         }
