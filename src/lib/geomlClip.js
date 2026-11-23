@@ -79,16 +79,16 @@ export function makeNearData(points, maxDist) {
 
 // keep[i] for block i ({x, y, z}); counts of what was dropped and why (above ground wins when both apply).
 export function clipBlocks(blocks, { ground, near }) {
-  const keep = new Array(blocks.length);
+  const keep = new Array(blocks.length), outOfRange = new Array(blocks.length).fill(false); // outOfRange: TASKS.csv #4017 — beyond the model's range of the samples (the body closes against these)
   let air = 0, far = 0;
   for (let i = 0; i < blocks.length; i++) {
     const c = blocks[i];
     const g = ground ? ground(c.x, c.y) : NaN;
     if (Number.isFinite(g) && c.z > g) { keep[i] = false; air++; continue; }
-    if (near && !near(c.x, c.y, c.z)) { keep[i] = false; far++; continue; }
+    if (near && !near(c.x, c.y, c.z)) { keep[i] = false; outOfRange[i] = true; far++; continue; }
     keep[i] = true;
   }
-  return { keep, air, far };
+  return { keep, air, far, outOfRange };
 }
 
 // TASKS.csv #741 — the add-on's block result -> GeoStrix voxel cells, in one place (it was built twice in

@@ -1,5 +1,6 @@
 import { tickedHoles } from "../lib/holeFilter.js"; // TASKS.csv #1315
 import { unitIntercepts, interceptCheckPoints, scoreIntercepts } from "../lib/geomlIntercepts.js"; // TASKS.csv #1318
+import { enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, BODY_LEVEL } from "../lib/geomlBodies.js"; // TASKS.csv #4017 — closed bodies from the probability blocks
 import GeomlMissedIntercepts from "./GeomlMissedIntercepts.jsx"; // TASKS.csv #1318
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
@@ -69,6 +70,23 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
   const [unitName, setUnitName] = useState("");
   const [deep, setDeep] = useState(false);
   const [quality, setQuality] = useState("standard");
+  // TASKS.csv #4017 — what the run draws for the unit: closed bodies (from the probability blocks, with a volume) or the add-on's open contact (layers). "" = the suggestion from the intercepts
+  const [shapePick, setShapePick] = useState("");
+  const [bodyPct, setBodyPct] = useState(Math.round(BODY_LEVEL * 100)); // the probability the body is drawn at, in per cent
+  const [suggestion, setSuggestion] = useState(null);
+  useEffect(() => setShapePick(""), [unit]); // a pick is for one unit: another goes back to the suggestion
+  useEffect(() => {
+    if (!unit.size) { setSuggestion(null); return undefined; }
+    let dead = false;
+    const timer = setTimeout(async () => {
+      const { desurveyHole, pointOnTrace } = await import("../lib/desurvey.js");
+      const iv = (litho || []).filter((r) => r.value != null && r.value !== "" && Number.isFinite(r.from) && Number.isFinite(r.to)).map((r) => ({ hole_id: String(r.hole_id), from: r.from, to: r.to, value: String(r.value) }));
+      const c = interceptCheckPoints(unitIntercepts(iv, new Set([...unit].map(String))), collars, survey || [], desurveyHole, pointOnTrace, desurveyMethod);
+      if (!dead) setSuggestion(suggestShape(c.spans, c.points, collars.length));
+    }, 300);
+    return () => { dead = true; clearTimeout(timer); };
+  }, [unit, litho, collars, survey, desurveyMethod]);
+  const shape = shapePick || suggestion?.shape || "bodies";
   // ---- grade ----
   const elements = (assayElements || []).map((e) => e.symbol);
   const [element, setElement] = useState("");
@@ -107,7 +125,9 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       import("../lib/estimation.js"), import("../lib/desurvey.js"), import("../lib/geomlClip.js")]);
     const { points } = samplePointsFromIntervals(intervals.map((r) => ({ ...r, avgGrade: 1 })), collars, survey || [], desurveyHole, desurveyMethod);
     const ground = makeGround({ terrain, collars }), near = points.length ? makeNearData(points.map((q) => [q.x, q.y, q.z]), range) : null;
-    return (blocks) => clipBlocks(blocks, { ground, near });
+    const clip = (blocks) => clipBlocks(blocks, { ground, near });
+    clip.ground = ground; // TASKS.csv #4017 — the body is cut at it
+    return clip;
   };
   // #673 — says whether the range is the one the model learnt or only training's starting value (add-on < 0.1.2)
   const clipNote = (r, range, learnt) => (r.air || r.far ? `; left out ${[r.air ? `${r.air.toLocaleString()} above the ground${terrain ? "" : " (a surface through the collars — load a terrain for the real one)"}` : "", r.far ? `${r.far.toLocaleString()} more than ${range} m (${learnt ? "the range the model learnt" : "the model's starting range"}) from any sample` : ""].filter(Boolean).join(" and ")}` : "");
@@ -141,6 +161,17 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
     } finally { endRun(record); setTaskProgress(null); refresh(); pj.end(); } // pj: TASKS.csv #3953
   };
 
+  // TASKS.csv #4017 — why the suggestion is what it is, from the intercepts only (lib/geomlBodies.js suggestShape)
+  const extraTime = (sec) => tr("{n} s", { n: Math.max(5, Math.round(sec / 5) * 5) }); // TASKS.csv #4017 - the finer blocks of a body: at most 100,000 of them, so about a minute at most
+  const shapeWhy = (s) => {
+    const a = { n: s.holesCut, total: s.holes, t: s.thicknessM, s: s.spreadM };
+    return s.reason === "horizon" ? tr("Suggested: layers. {n} of the {total} holes cut this unit once, as a band about {t} m thick at much the same level.", a)
+      : s.reason === "partial" ? tr("Suggested: enclosed bodies. Only {n} of the {total} holes cut this unit.", a)
+        : s.reason === "several" ? tr("Suggested: enclosed bodies. Most holes cut this unit more than once.")
+          : s.reason === "collar" ? tr("Suggested: enclosed bodies. This unit starts at the collar in most of the holes that cut it.")
+            : s.reason === "uneven" ? tr("Suggested: enclosed bodies. The unit's level changes from hole to hole by about {s} m, more than its thickness.", a)
+              : tr("Suggested: enclosed bodies. Too few holes cut this unit to call it a horizon.");
+  };
   const runUnit = async () => {
     const name = unitName.trim() || [...unit].join(" + ");
     const intervals = (litho || []).filter((r) => r.value != null && r.value !== "" && Number.isFinite(r.from) && Number.isFinite(r.to)).map((r) => ({ hole_id: String(r.hole_id), from: r.from, to: r.to, value: String(r.value) }));
@@ -148,6 +179,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
     const plan = unitPlan;
     const sent = plan?.holeIds ? intervals.filter((r) => plan.holeIds.has(r.hole_id)) : intervals;
     const params = { ...holes(plan?.holeIds), intervals: sent, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain, ...(plan ? { train_spacing: plan.trainSpacing, inducing_spacing: plan.inducingSpacing } : {}), max_inducing: INDUCING_CAP, ...(plan?.denseOn ? { focus_spacing: FOCUS_SPACING, focus_other: FOCUS_OTHER } : {}), ...(heldOut ? { held_out: true } : {}) }; // #1312: an older add-on ignores these
+    if (shape === "bodies") params.block_size = bodiesBlockSize(QUALITY[quality].domain.block_size); // TASKS.csv #4017 — a body is as fine as its blocks
     const { desurveyHole, pointOnTrace } = await import("../lib/desurvey.js");
     const check = interceptCheckPoints(unitIntercepts(sent, unit), collars, survey || [], desurveyHole, pointOnTrace, desurveyMethod); // #1318
     params.check_points = check.points;
@@ -159,7 +191,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       const range = Math.round(res.range?.trained || 400);
       const clip = await clipper(sent, range);
       await pj.landing(); // TASKS.csv #3953 — into the project it started in (its project gone: throws, and run says nothing more)
-      if (res.surface?.triangles?.length) {
+      if (shape === "layers" && res.surface?.triangles?.length) { // TASKS.csv #4017 — the add-on's open contact is the picture of layers; a body is built below from the blocks
         // #646 — triangles above the ground or beyond the range are left out (vertices kept; unused ones are harmless)
         const v = res.surface.vertices;
         const tri = res.surface.triangles.filter((t) => { const c = [0, 1, 2].map((k) => (v[t[0]][k] + v[t[1]][k] + v[t[2]][k]) / 3); return clip([{ x: c[0], y: c[1], z: c[2] }]).keep[0]; });
@@ -177,6 +209,18 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       const um = ucells.reduce((m, c) => Math.max(m, c.value), 0);
       addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
       parts.push(tr("{cells} blocks of {cell} m with the probability of {name} (showing ≥ 50%) and its uncertainty (hidden){v}", { cells: cells.length.toLocaleString(), cell: b.cell, name, v: clipNote(r, range, !!res.range?.trained) }));
+      if (shape === "bodies") { // TASKS.csv #4017 — closed round the unit, from the same probability blocks, cut at the ground like the other shells
+        const body = enclosedBodies(b, { level: bodyPct / 100, dropped: r.outOfRange, groundAt: clip.ground });
+        if (body.positions.length && body.closed) {
+          const chk = interceptsInsideBodies(body.positions, body.indices, check.points, check.spans);
+          const wall = body.closingShare > 0 ? "artificial" : "natural";
+          addSurface({ name: `geoML — ${name} body`, positions: body.positions, indices: body.indices, type: "unit_body", closure: wall, color: "#d98c3a", opacity: 0.55,
+            params: { tool: "geoML enclosed body", unit: [...unit], model: res.model, quality, seconds: res.seconds, levelPct: bodyPct, volumeM3: Math.round(body.volumeM3), bodies: body.bodies, voids: body.voids, blockM: b.cell, closingShare: +body.closingShare.toFixed(3), droppedSpecks: body.droppedSpecks, ...(chk ? { interceptsInside: { points: chk.inside, of: chk.points, intercepts: chk.reached, ofIntercepts: chk.spans } } : {}), cutAtGround: true } });
+          const bv = { k: body.bodies, name, v: Number(body.volumeM3.toPrecision(3)).toLocaleString(), p: bodyPct, c: b.cell, w: body.closingShare > 0 ? tr("; part of its boundary is the model's edge or its range of the samples, not a contact") : "" };
+          parts.push(body.bodies === 1 ? tr("a closed body of {name}, {v} m³, where the model puts the unit at {p}% or more (blocks of {c} m){w}", bv) : tr("{k} closed bodies of {name}, {v} m³, where the model puts the unit at {p}% or more (blocks of {c} m){w}", bv));
+          if (chk) parts.push(chk.pointShare >= 0.5 ? tr("{a} of the {n} logged intercepts have a point inside it", { a: chk.reached, n: chk.spans }) : tr("WARNING: only {a} of the {n} logged intercepts have a point inside the body: it does not enclose the unit as logged, so check the level and the fit below", { a: chk.reached, n: chk.spans }));
+        } else parts.push(tr("no closed body: the model puts the unit at {p}% or more nowhere in the range it can speak for", { p: bodyPct }));
+      }
       if (sizing) parts.push(sizing.focusM ? tr("only the {n} of {total} holes within {d} m of the unit were modelled", { n: sizing.holesSent, total: sizing.holesInProject, d: sizing.focusM.toLocaleString() }) : tr("spacing widened to {s} m to fit in memory", { s: sizing.trainSpacingM }));
       // #1158 — a finished run is not a good model: the fit to the logs, plainly (add-on 0.1.3+)
       // #1312 — that is on the points it trained on, which flatters it (PS_POR 66% there, 24% on unseen holes): said, and tested if asked
@@ -345,6 +389,22 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
                     </div>}
                     <div style={{ color: "var(--color-text-muted)" }}>{tr("This run: {p} points, {t} of training on a recent laptop{v}. A rough guide; predicting the blocks comes after.", { p: unitPlan.points.toLocaleString(), t: roughTime(unitPlan.seconds), v: deep ? tr(", longer with folds") : "" })}</div>
                     {unitPlan.capped && <div style={{ color: "var(--color-text-muted)" }}>{tr("{c} contacts need {n} inducing points; an up-to-date add-on keeps {cap} along the holes, so the model will be coarse. Check its fit to the logs.", { c: unitPlan.contacts.toLocaleString(), n: unitPlan.inducingBuilt.toLocaleString(), cap: INDUCING_CAP })}</div>}
+                  </div>
+                )}
+                {unit.size > 0 && (
+                  <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
+                    <div style={{ marginBottom: 2 }}>{tr("Draw the unit as")}</div>
+                    {[["bodies", tr("Enclosed bodies: closed solids with a volume, cut at the ground")], ["layers", tr("Layers: an open surface between units")]].map(([k, text]) => (
+                      <label key={k} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 2 }}>
+                        <input type="radio" name="geoml-shape" checked={shape === k} onChange={() => setShapePick(k)} />{" "}<span>{text}{suggestion?.shape === k && !shapePick ? ` (${tr("suggested")})` : ""}</span></label>
+                    ))}
+                    {suggestion && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{shapeWhy(suggestion)}</div>}
+                    {shape === "bodies" && (() => { const q = QUALITY[quality].domain.block_size, box = modelBox((collars || []).map((c) => ({ x: c.x, y: c.y, z: c.z, length: c.length }))); const a = box ? blockPlan(box, bodiesBlockSize(q)) : null, o = box ? blockPlan(box, q) : null; return (
+                      <>
+                        <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }} title={tr("The body is drawn where the model puts the unit at this probability or more. 50% is the contact itself.")}>
+                          <span>{tr("Body level (probability, %)")}</span><input type="number" min={5} max={95} step={5} value={bodyPct} onChange={(e) => setBodyPct(Math.max(5, Math.min(95, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} /></label>
+                        {a && o && a.blocks > o.blocks && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("A body is as fine as its blocks: the blocks are asked at {c} m, about {n}, not {c0} m, about {n0}, so the prediction after training takes about {t} longer on a recent laptop.", { c: a.cell, n: a.blocks.toLocaleString(), c0: o.cell, n0: o.blocks.toLocaleString(), t: extraTime(bodiesExtraSeconds(a.blocks, o.blocks)) })}</div>}
+                      </>); })()}
                   </div>
                 )}
                 <button type="button" style={{ ...btn(true, !ready || !unit.size), marginTop: 8, width: "100%" }} disabled={!ready || !unit.size} onClick={runUnit}>{tr("Model {v}", { v: unit.size ? (unitName.trim() || [...unit].join(" + ")) : tr("the unit") })}</button>

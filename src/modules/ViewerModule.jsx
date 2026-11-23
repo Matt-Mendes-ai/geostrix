@@ -3555,7 +3555,7 @@ ${describeTrend(t)}` };
   // solid (#148): show / hide, remove, query, export, persistence and section intersection come with it. Optional
   // per-vertex 0–1 values (geoML's uncertainty) colour it light (confident) → dark (uncertain) for this session; the
   // saved surface keeps its plain colour.
-  const addWorldMeshSurface = useCallback(({ name, positions, indices, values = null, color = "#c46f2a", opacity = 0.7, params = {} }) => {
+  const addWorldMeshSurface = useCallback(({ name, positions, indices, values = null, color = "#c46f2a", opacity = 0.7, params = {}, type = "geoml", closure = null /* TASKS.csv #4017 — a geoML body is a closed unit_body */ }) => {
     const o = originRef.current;
     const scene = new Float32Array(positions.length);
     for (let i = 0; i < positions.length; i += 3) { scene[i] = positions[i] - o.x; scene[i + 1] = positions[i + 2] - o.z; scene[i + 2] = o.y - positions[i + 1]; }
@@ -3579,7 +3579,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     implicitGroupRef.current?.add(mesh);
     const id = `impl_${Date.now()}_geoml_${Math.random().toString(36).slice(2, 6)}`;
     implicitMeshesRef.current[id] = mesh;
-    setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: nVerts, faceCount: nTris, type: "geoml", relationships: [], closure: null, params: { tool: "geoML (predictive modelling add-on)", vertices: nVerts, triangles: nTris, createdAt: new Date().toISOString(), ...params } }]);
+    setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: nVerts, faceCount: nTris, type, relationships: [], closure, params: { tool: "geoML (predictive modelling add-on)", vertices: nVerts, triangles: nTris, createdAt: new Date().toISOString(), ...params } }]);
     geo.computeBoundingBox(); mesh.updateWorldMatrix(true, false);
     lastActivityRef.current = Date.now();
     return id;
