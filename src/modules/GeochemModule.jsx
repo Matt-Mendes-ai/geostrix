@@ -228,6 +228,8 @@ export default function GeochemModule() {
   const [surfaceQcOpen, setSurfaceQcOpen] = useState(false); // TASKS.csv #842
   const [catchmentsOpen, setCatchmentsOpen] = useState(false); // TASKS.csv #845
   const [plannerOpen, setPlannerOpen] = useState(false); // TASKS.csv #844
+  const [plannerTab, setPlannerTab] = useState(null); // TASKS.csv #4042 — "streams" when opened from the terrain (Maps > Terrain, its row's menu, Catchments)
+  useModuleAction(["plan-stream-sites"], () => { setPlannerOpen(false); setPlannerTab("streams"); setTimeout(() => setPlannerOpen(true), 0); });
   const [publicOpen, setPublicOpen] = useState(false); // TASKS.csv #846
   const [domainsOpen, setDomainsOpen] = useState(false); // TASKS.csv #852
   const [levellingOpen, setLevellingOpen] = useState(false); // TASKS.csv #1001
@@ -1438,7 +1440,7 @@ export default function GeochemModule() {
             <RibbonButton advanced icon={GBarChart} label="Level surveys" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Bring one survey's values to another's level (tie samples first), as a new column" onClick={() => setLevellingOpen(true)} />{/* TASKS.csv #1001 */}
             <RibbonButton advanced icon={GBarChart} label="Domains" tone="analyse" disabled={surfaceElements.length < 2} disabledReason="Import surface samples with several elements first" title="Geochemical domains: log-ratio principal components and k-means on the surface samples, written back as a column for the Thresholds populations" onClick={() => setDomainsOpen(true)} />{/* TASKS.csv #852 */}
             <RibbonButton advanced /* #3907 (was Simple with surface data and a terrain: #2031) */ icon={GMapPin} label="Catchments" tone="analyse" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Stream-sediment catchments from the terrain: dilution correction (Hawkes), drainage ranking, follow-up reaches" onClick={() => setCatchmentsOpen(true)} />{/* TASKS.csv #845 */}
-            <RibbonButton advanced /* #3907 (#2199) */ icon={GMapPin} label="Plan survey" tone="data" title="Plan a soil grid or stream-sediment sites, numbered with your QC inserts: GPX, KML, CSV and a printable field sheet" onClick={() => setPlannerOpen(true)} />{/* TASKS.csv #844 */}
+            <RibbonButton /* Basic tools: TASKS.csv #4042 (was Advanced: #3907, #2199) */ icon={GMapPin} label="Plan survey" tone="data" title="Plan a soil grid or stream-sediment sites, numbered with your QC inserts: GPX, KML, CSV and a printable field sheet" onClick={() => setPlannerOpen(true)} />{/* TASKS.csv #844 */}
             <RibbonButton advanced icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
             <RibbonButton advanced icon={ShieldCheck} label="Surface QAQC" tone="analyse" disabled={!(surfaceSamples.length || surfaceQc?.records?.length)} disabledReason="Import surface samples first" title="QA/QC of soil and stream-sediment programs: lab certificates, your standards, blanks and duplicates, insertion rates per batch" onClick={() => setSurfaceQcOpen(true)} />{/* TASKS.csv #842 */}
             <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length && !surfaceSamples.length} disabledReason="Import assays or surface samples first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
@@ -1855,7 +1857,7 @@ export default function GeochemModule() {
       )}
 
       {plannerOpen && ( // TASKS.csv #844
-        <React.Suspense fallback={null}><SurveyPlannerPanel onClose={() => setPlannerOpen(false)} /></React.Suspense>
+        <React.Suspense fallback={null}><SurveyPlannerPanel initialMode={plannerTab} onClose={() => { setPlannerOpen(false); setPlannerTab(null); }} /></React.Suspense>
       )}
 
       {catchmentsOpen && ( // TASKS.csv #845

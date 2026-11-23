@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { X, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
+import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #4042
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { analyseCatchments, catchmentImage, streamNetwork, followUpGpx, catchmentBands, STREAM_MEDIA, DEFAULT_CATCHMENT_OPTS } from "../lib/catchments.js";
 import { pointTransform } from "../lib/reproject.js";
@@ -164,7 +165,10 @@ function Shell({ onClose, sub, children }) {
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>
-        <div style={{ display: "flex", padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}><span style={{ flex: 1 }} /><button type="button" style={btn(false)} onClick={onClose}>{tr("Close")}</button></div>
+        <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
+          {/* TASKS.csv #4042 — where new sites are planned */}
+          <button type="button" data-plan-stream-sites="" onClick={() => { onClose(); requestModuleAction("plan-stream-sites", { tab: "streams" }); }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-accent-dark)", fontSize: "var(--font-size-sm)", textDecoration: "underline" }}>{tr("Plan new sites: Plan survey › Stream sites")}</button>
+          <span style={{ flex: 1 }} /><button type="button" style={btn(false)} onClick={onClose}>{tr("Close")}</button></div>
       </div>
     </div>
   );

@@ -223,4 +223,24 @@ export default [
     },
     related: ["import-assays", "grade-statistics"],
   },
+  {
+    // TASKS.csv #4042 — a user asked for "automated identification of stream sampling locations based on a DEM": it is here
+    id: "survey-planner",
+    area: "Geochem",
+    title: "Survey planner",
+    line: "Sample sites for the field crew: a soil grid, or stream sites from the DEM.",
+    picture: { drop: ["terrain", "points"], alt: "A terrain, and sample sites on its streams." },
+    cautions: ["Check access before sending the crew."],
+    keys: ["Strahler orders", "Catchment from (km²)"],
+    summary: "Plans sample sites for the field crew: a soil grid, or stream sediment sample sites found on the terrain (DEM) from its drainage. Sites are numbered with your QC inserts.",
+    notFor: ["It plans sites only: Catchments judges the samples once they are back."],
+    fields: [
+      { name: "Stream sites", what: "Sample sites on the streams the DEM drains to, one per tributary above its confluence." },
+      { name: "Strahler orders", gist: "which stream sizes get a site", what: "Which stream sizes get a site." },
+      { name: "Catchment from (km²)", gist: "the catchment sizes a site may sample", what: "The smallest and largest catchment a site may sample." },
+    ],
+    warnings: [{ says: "Stream sites come from the terrain: load or fetch terrain over the area first, or build one offline from points or contours (Maps > Terrain).", do: "Load a DEM in Maps > Terrain." }],
+    howto: { sample: "any", steps: ["Open it from Geochem > Plan survey, or Maps > Terrain > Plan stream sites.", "On Stream sites, choose the orders and catchment sizes.", "Export GPX, KML, CSV or the field sheet."], folded: true },
+    related: ["terrain"],
+  },
 ];

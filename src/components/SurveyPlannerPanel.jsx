@@ -16,6 +16,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps, sel, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #4042
 import { t as tr } from "../lib/i18n.js";
 import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
@@ -26,12 +27,12 @@ const DEFAULT_QC = [{ kind: "standard", every: 20, label: "standard", on: true }
 const LS = "geostrix.surveyPlanner";
 const loadPrefs = () => { try { return JSON.parse(localStorage.getItem(LS) || "{}"); } catch { return {}; } };
 
-export default function SurveyPlannerPanel({ onClose }) {
+export default function SurveyPlannerPanel({ onClose, initialMode = null }) { // initialMode: TASKS.csv #4042 ("streams" from the terrain)
   useEscapeKey(onClose);
   useFocusTrap();
   const { boundaries = [], terrain, surfaceSamples = [], project, addBoundary } = useStore();
   const prefs = useMemo(loadPrefs, []);
-  const [mode, setMode] = useState(prefs.mode || "soil");
+  const [mode, setMode] = useState(initialMode || prefs.mode || "soil");
   const [areaId, setAreaId] = useState("");
   const [rect, setRect] = useState({ x0: "", y0: "", x1: "", y1: "" });
   const [grid, setGrid] = useState({ azimuth: 0, lineSpacing: 100, stationSpacing: 25, stagger: false, serpentine: true, ...(prefs.grid || {}) }); // serpentine: #1046
@@ -120,7 +121,8 @@ export default function SurveyPlannerPanel({ onClose }) {
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Survey planner")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("A soil grid or stream-sediment sites, numbered with your QC inserts, for the field crew")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("survey-planner")} aria-label={tr("Help: {name}", { name: tr("Survey planner") })} title={tr("Help for this tool (F1, works offline)")}>?</button>{/* TASKS.csv #4042 */}
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div role="tablist" style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--color-border)" }}>

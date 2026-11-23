@@ -16,5 +16,5 @@ test("QAQC, Correlation and Compositing join Simple once there are assays", () =
   assert.match(g, /<RibbonButton advanced icon=\{ShieldCheck\} label="QAQC"/);
   assert.match(g, /<RibbonButton advanced icon=\{GRows\} label="Compositing"/);
   assert.match(g, /<RibbonButton advanced \/\* #3907[^*]*\*\/ icon=\{Grid3x3\} label="Correlation"/);
-  assert.match(g, /<RibbonButton advanced \/\* #3907 \(#2199\) \*\/ icon=\{GMapPin\} label="Plan survey"/);
+  assert.match(g, /<RibbonButton \/\* Basic tools: TASKS\.csv #4042 \(was Advanced: #3907, #2199\) \*\/ icon=\{GMapPin\} label="Plan survey"/); // #4042: Basic tools
 });
