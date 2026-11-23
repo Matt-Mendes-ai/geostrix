@@ -51,6 +51,6 @@ test("#4004 wiring: the plan sends the box to the 3D View, which keeps, shares a
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const loc = JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
     for (const k of ["Fence box", "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.", "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).",
-      "Drag on the view, or on Maps › Fence box, to draw it.", "Margin (m)"]) assert.ok(loc[k], `${lang}: ${k}`);
+      "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel." /* #4040 */, "Margin (m)"]) assert.ok(loc[k], `${lang}: ${k}`);
   }
 });

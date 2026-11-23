@@ -14,8 +14,8 @@ import { fenceLinesInBox, areaBox, boxCorners, boxFromCorners, moveCorner } from
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #4004 — #3954's Margin (m) for a boundary or claim
 
 // the box on the view (an outline and its four corner handles, over everything), and the pointer: a corner dragged, or a new box drawn
-function useBoxOnView(view, box, azimuth, drawing, level, onBox) {
-  const st = useRef(); st.current = { view, box, azimuth, drawing, level, onBox };
+function useBoxOnView(view, box, azimuth, drawing, level, onBox, onCancel) {
+  const st = useRef(); st.current = { view, box, azimuth, drawing, level, onBox, onCancel };
   const scene = view?.scene?.current;
   useEffect(() => {
     const v = st.current.view;
@@ -45,30 +45,41 @@ function useBoxOnView(view, box, azimuth, drawing, level, onBox) {
       const q = new THREE.Vector3(p.x - o.x, s.level - o.z, -(p.y - o.y)).project(s.view.camera.current);
       return { x: rect.left + ((q.x + 1) / 2) * rect.width, y: rect.top + ((1 - q.y) / 2) * rect.height };
     };
-    const prev = v.dragHook.current;
-    const hook = (e, ...rest) => {
-      const s = st.current;
-      let corner = -1;
-      if (s.box) boxCorners(s.box, s.azimuth).forEach((c, i) => { const p = onScreen(c); if (Math.hypot(p.x - e.clientX, p.y - e.clientY) <= 9) corner = i; });
-      if (corner < 0 && !s.drawing) return prev ? prev(e, ...rest) : false; // not ours: the view orbits as usual
+    // TASKS.csv #4040 (Matt, 2026-11-23, WA lode gold from the top: with Area on 'Draw a box...' "it rotates the view instead") - while a box is being
+    // drawn the press is OURS whatever else listens: it is taken in the capture phase, before the view's own pointer handlers and the drag-hook chain,
+    // so the orbit cannot start; a press the plane under the pointer cannot answer (a ray that misses it) is swallowed, not handed to the orbit; and
+    // the moves of the drag are taken before the view's window handler too, so a drag state left over from an earlier gesture cannot turn it. Drawing
+    // ends with a box (one drag) or Esc; a plain click draws nothing and leaves it armed (it used to end it, the select snapping back to All).
+    let active = null; // the drag in progress, which Esc cancels
+    const down = (e, corner) => {
+      const s = st.current, from = s.box;
       const start = ground(e);
-      if (!start) return false;
-      const from = s.box;
+      if (!start) return corner < 0; // drawing: swallowed, nothing drawn
       const onMove = (ev) => {
+        ev.stopImmediatePropagation(); // the view's window pointermove would orbit on a stale drag state
         const p = ground(ev), t = st.current;
         if (!p) return;
         const b = corner >= 0 ? moveCorner(from, t.azimuth, corner, p) : boxFromCorners(start, p, t.azimuth);
-        if (b.len > 1 && b.wid > 1) t.onBox(b, false);
+        if (b.len > 1 && b.wid > 1) { moved = true; t.onBox(b, false); }
         t.view.activity.current = Date.now();
       };
-      const onUp = (ev) => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); onMove(ev); st.current.onBox(null, true); };
-      window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
+      let moved = false;
+      const end = (ev, cancelled) => { window.removeEventListener("pointermove", onMove, true); window.removeEventListener("pointerup", onUp, true); active = null; if (!cancelled) onMove(ev); return cancelled ? st.current.onBox(null, "cancel") : st.current.onBox(null, corner >= 0 || moved ? true : "click"); };
+      const onUp = (ev) => end(ev, false);
+      active = (ev) => end(ev, true);
+      window.addEventListener("pointermove", onMove, true); window.addEventListener("pointerup", onUp, true);
       return true;
     };
+    const cornerAt = (e) => { const s = st.current; let corner = -1; if (s.box) boxCorners(s.box, s.azimuth).forEach((c, i) => { const p = onScreen(c); if (Math.hypot(p.x - e.clientX, p.y - e.clientY) <= 9) corner = i; }); return corner; };
+    const prev = v.dragHook.current;
+    const hook = (e) => { const corner = cornerAt(e); return corner >= 0 ? down(e, corner) : prev ? prev(e) : false; }; // a corner of the box; anything else is not ours: the view orbits as usual
     v.dragHook.current = hook;
+    const onDown = (e) => { if (e.button !== 0 || !st.current.drawing) return; e.stopImmediatePropagation(); e.preventDefault(); down(e, -1); };
+    const onEsc = (e) => { if (e.key !== "Escape" || !(active || st.current.drawing)) return; e.stopImmediatePropagation(); if (active) active(e); else st.current.onCancel?.(); };
+    dom.addEventListener("pointerdown", onDown, true); window.addEventListener("keydown", onEsc, true);
     const cursor = dom.style.cursor;
     if (drawing) dom.style.cursor = "crosshair";
-    return () => { if (v.dragHook.current === hook) v.dragHook.current = prev || null; dom.style.cursor = cursor; };
+    return () => { if (v.dragHook.current === hook) v.dragHook.current = prev || null; dom.removeEventListener("pointerdown", onDown, true); window.removeEventListener("keydown", onEsc, true); dom.style.cursor = cursor; };
   }, [dom, drawing]);
 }
 
@@ -84,10 +95,14 @@ export default function FenceOptions({ voxelModels, tracesRef, tracesSeq, visibl
   const n = r.lines.length;
   const outlines = useMemo(() => fetchAreaChoices({ boundaries }, { marginM: 0 }).filter((c) => c.kind === "boundary" || c.kind === "claim"), [boundaries]);
   const level = useMemo(() => { let z = -Infinity; for (const t of traces || []) for (const v of t.wz || []) if (v > z) z = v; return Number.isFinite(z) ? z : view?.origin?.current?.z ?? 0; }, [traces, view]);
+  // done: true = a box was drawn (or a corner moved); "click" = a press with no drag, which leaves drawing armed; "cancel" = Esc in the middle of a drag (#4040)
+  const stopDrawing = () => { draftRef.current = null; setDraft(null); setDrawing(false); };
   useBoxOnView(view, box, azimuth, drawing, level, (b, done) => {
     if (b) { draftRef.current = b; setDraft(b); }
-    if (done) { if (draftRef.current) setArea?.({ kind: "box", box: draftRef.current }); draftRef.current = null; setDraft(null); setDrawing(false); }
-  });
+    if (done === "click") { draftRef.current = null; setDraft(null); return; }
+    if (done === "cancel") { stopDrawing(); return; }
+    if (done) { if (draftRef.current) setArea?.({ kind: "box", box: draftRef.current }); stopDrawing(); }
+  }, stopDrawing);
   const value = drawing ? "draw" : !area || area.kind === "all" ? "all" : area.kind === "box" ? "box" : `b:${area.id}`;
   const choose = (v) => {
     setDrawing(v === "draw");
@@ -105,7 +120,7 @@ export default function FenceOptions({ voxelModels, tracesRef, tracesSeq, visibl
           {outlines.map((c) => <option key={c.id} value={`b:${c.id.replace(/^boundary_/, "")}`}>{c.label}</option>)}
         </select>
       </label>
-      {(drawing || area?.kind === "box") && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{drawing ? tr("Drag on the view, or on Maps › Fence box, to draw it.") /* #4004 */ : tr("Drag a corner to change it.")}</div>}
+      {(drawing || area?.kind === "box") && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{drawing ? tr("Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.") /* #4004; #4040 */ : tr("Drag a corner to change it.")}</div>}
       {area?.kind === "boundary" && ( /* TASKS.csv #4004 — the box round a boundary or claim, widened by a margin on every side (0 allowed) */
         <label style={{ ...labelStyle, display: "flex", gap: 6, alignItems: "center" }}>{tr("Margin (m)")}
           <NumberInput value={area.margin || 0} min={0} step={50} onChange={(m) => setArea?.({ ...area, margin: Math.max(0, Number(m) || 0) })} aria-label={tr("Margin (m)")} style={{ width: 64, fontSize: "var(--font-size-sm)" }} />

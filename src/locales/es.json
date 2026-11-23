@@ -14934,7 +14934,6 @@
   "Fence box": "Rectángulo de serie",
   "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).": "Arrastre sobre el plano para dibujar el rectángulo de la serie, girado a su azimut ({a}°).",
   "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.": "Rectángulo de la serie, {l} × {w} m a {a}°: arrastre una esquina para cambiarlo.",
-  "Drag on the view, or on Maps › Fence box, to draw it.": "Arrastre sobre la vista, o en Mapas › Rectángulo de serie, para dibujarlo.",
   "Beyond the drilling: no prediction.": "Más allá de la perforación: sin predicción.",
   "At {c} {unit}: a {p} % chance of an intercept; a typical hit {len} m at {g} {unit}.": "A {c} {unit}: {p} % de probabilidad de un intercepto; un intercepto típico de {len} m a {g} {unit}.",
   "At {c} {unit}: a {p} % chance of an intercept.": "A {c} {unit}: {p} % de probabilidad de un intercepto.",
@@ -15255,5 +15254,6 @@
   "Nothing is added yet: use the Result block.": "Aún no se agregó nada: use el bloque de resultado.",
   "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "Bloques de {c} m (unos {n}, no {n0}): unos {t} más después del entrenamiento.",
   "The green Model button opens a guide: seven steps from your data to a checked model, one question at a time. A model is not a resource estimate.": "El botón verde Modelo abre una guía: siete pasos desde sus datos hasta un modelo revisado, una pregunta a la vez. Un modelo no es una estimación de recursos.",
-  "Guided modelling": "Modelado guiado"
+  "Guided modelling": "Modelado guiado",
+  "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dibujando: arrastre un rectángulo sobre la vista (o en Mapas › Rectángulo de serie); Esc cancela."
 }
