@@ -1,7 +1,7 @@
 // TASKS.csv #3999 (Matt, v0.2.6, WA zinc-copper) — Strat. stack, "Add all": every modelling code, every logged code, or the logged codes that reach a share of the logged metres, put in the stack
 // already in the order the holes give (lib/stackAddAll.js on lib/holesOrder.js), with a preview (TASKS.csv #4025: one Ctrl+Z step; the in-pane Undo went). What the stack does not take stays out and is said in one line; units already in it are
 // kept; over GemPy's limit the person chooses a cut-down (the units with the most logged metres) or all of them. The candidates and the stack are the pane's; this draws the choice.
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { t as tr } from "../../lib/i18n.js";
 import { chooseUnits, planAddAll, cutOrder, leftOutLine, DEFAULT_MIN_PCT } from "../../lib/stackAddAll.js";
 import { GEMPY_MAX_SURFACES } from "../../lib/gempyLimits.js";
@@ -10,11 +10,17 @@ const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)"
 const WHY = { "left out": "left out", "cover / casing": "cover / casing", "no recovery": "no recovery", "cross-cutting": "cross-cutting" };
 
 // candidates: lib/stackAddAll addAllCandidates(...); rows: Lithology; codesOf(unit): the logged values that are that unit; label(unit): the name shown
-export default function AddAllUnits({ open, setOpen, stackUnits, setStackUnits, rows, candidates, codesOf, label, pBtn }) {
+export default function AddAllUnits({ open, setOpen, stackUnits, setStackUnits, rows, candidates, codesOf, label, pBtn, start = null }) { // start: TASKS.csv #4033 — { mode, minPct, n }, the guide's door: the choice Add all opens on
   const hasModelling = !!candidates?.modelling.length;
   const [mode, setMode] = useState(null); // null: modelling codes when there are any, else the share
   const [minPct, setMinPct] = useState(DEFAULT_MIN_PCT);
   const [cut, setCut] = useState(true); // over the limit: cut down (true) or add all (false)
+  // TASKS.csv #4033 — opened on a choice by the guide (lib/guide/paneIntent.js): the radio and the share are set, nothing is added until the person presses Add
+  useEffect(() => {
+    if (!start) return;
+    setMode(start.mode === "modelling" && !hasModelling ? "share" : start.mode);
+    if (start.minPct != null) setMinPct(start.minPct);
+  }, [start]);
   const small = { ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 8px" };
   const m = mode || (hasModelling ? "modelling" : "share");
   const choice = candidates ? chooseUnits(candidates, m, minPct) : { add: [], rare: [] };
