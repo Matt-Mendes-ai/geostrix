@@ -16,6 +16,7 @@ const VIEW_ONLY = {
   geophysPtsStops: "legend styling of the point cloud (display preference)", geophysPtsColorMode: "display preference",
   geophysPtsMin: "display preference", geophysPtsMax: "display preference",
   activeLayoutPageId: "which layout page is showing (navigation, not an edit)",
+  modelGuide: "the guided modelling guide's place: route, skipped steps, the step it was on (TASKS.csv #4032)",
 };
 
 test("#448 every field has a known tracking mode; the view-only ones are the documented exceptions", () => {
@@ -61,6 +62,7 @@ function sampleLive() {
   live.structuralTrends = { trends: [{ id: "t1", name: "Main foliation", dip: 52, dipAzimuth: 202, pitch: 90, ratios: { max: 3, int: 2, min: 1 } }], use: { implicit: "t1", estimation: "t1" } }; // #650
   live.modellingCodes = { codes: [{ name: "AND1", role: "stratigraphic", order: 1 }], assign: { "H1|0.000|2.000": "AND1" }, ties: [{ a: "H1|0.000|2.000", b: "H2|5.000|9.000" }] }; // #599
   live.stratStack = { units: ["mcode:AND1", "group:g1", "TUF"], breaks: ["group:g1"], relation: "erode", faults: ["fault|F1", "surf|s9"], faultOffsets: { "fault|F1": { from: "group:g1", faults: ["surf|s9"] } } }; // #4025; #4030: relation, faults
+  live.modelGuide = { route: "drawn", skipped: ["faults"], at: "rocks" }; // #4032
   return live;
 }
 
@@ -167,6 +169,7 @@ test("#514 the file format is pinned to PROJECT_VERSION: change FIELDS -> bump t
     30: "project+load,collars,survey+save+load,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // #3423 — the survey as columns
     31: "project+load,collars,survey+save+load,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,stratStack+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // TASKS.csv #4025 — stratStack
     32: "project+load,collars,survey+save+load,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,stratStack+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // TASKS.csv #4030 — same keys; stratStack gained relation / faults / faultOffsets
+    33: "project+load,collars,survey+save+load,layers+save+load,assays+save+load,assayElements,customLayers+save+load,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,codeDictionary,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,stratStack+load,modelGuide+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+save+load,activeLayoutPageId,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates+save+load,plannedHoles,designLines,designStrings,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains,dbImports", // TASKS.csv #4032 — modelGuide
   };
   assert.ok(PINNED[PROJECT_VERSION], `PROJECT_VERSION ${PROJECT_VERSION} has no pinned fingerprint — add it`);
   assert.equal(formatFingerprint(), PINNED[PROJECT_VERSION], "the project format changed: bump PROJECT_VERSION and pin the new fingerprint");
@@ -220,6 +223,7 @@ test("#742 the saved and re-loaded bytes of a golden project are pinned to PROJE
     30: { saved: "d9dc30099bebf6b4", loaded: "f987cc28801775e6" }, // #3423 — "version", and 2,400 survey stations added to the golden project, saved as columns
     31: { saved: "3e4c2045ac27e1ab", loaded: "2204da40e18e25dc" }, // #4025 — "version", and a three-unit Strat. stack with one unconformity
     32: { saved: "5b8cf1912c464e2e", loaded: "64902c3289156a2f" }, // #4030 — "version", and the golden stack now Erode with two faults, one offsetting from a unit
+    33: { saved: "5831aef850cf9853", loaded: "40f67366df5e2348" }, // #4032 — "version", and the golden project's guide on the Drawn route at Rocks and order with Faults skipped
   };
   const p = JSON.parse(saved); // every encoder must actually have run, or the pin guards nothing
   assert.ok(p.assays?.__compactTable, "assays not compacted - make the golden project bigger");

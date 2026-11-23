@@ -19,6 +19,7 @@ import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYER
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
 import { emptyStack } from "./stratStack.js"; // TASKS.csv #4025
+import { emptyGuide, guideSetters } from "./modelGuide.js"; // TASKS.csv #4032
 import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisChange.js"; // TASKS.csv #2627
 import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
@@ -549,6 +550,8 @@ export function StoreProvider({ children }) {
   const [modellingCodes, setModellingCodes] = useState({ codes: [], assign: {}, ties: [] });
   // TASKS.csv #650 — named structural trends + which one each model uses (see lib/projectFields.js)
   const [structuralTrends, setStructuralTrends] = useState({ trends: [], use: {} });
+  const [modelGuide, setModelGuide] = useState(emptyGuide); // TASKS.csv #4032 — the guide's place (view: saved, no Undo step, no unsaved prompt)
+  const guideSet = useMemo(() => guideSetters(setModelGuide), []);
   const [stratStack, setStratStack] = useState(emptyStack); // TASKS.csv #4025 — the Strat. stack: { units, breaks } (lib/stratStack.js)
   const [explicitSurfaces, setExplicitSurfaces] = useState([]); // TASKS.csv #811
   const addLithoGroup = useCallback((group) => {
@@ -1038,7 +1041,7 @@ export function StoreProvider({ children }) {
     boundaries: [boundaries, setBoundaries], mapLayers: [mapLayers, setMapLayers], sectionImages: [sectionImages, setSectionImages], surfaceStructures: [surfaceStructures, setSurfaceStructures],
     fieldStructuralRefs: [fieldStructuralRefs, setFieldStructuralRefs], lithoGroups: [lithoGroups, setLithoGroups],
     geophysSurveys: [geophysSurveys, setGeophysSurveys], crmCertificates: [crmCertificates, setCrmCertificates],
-    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes], structuralTrends: [structuralTrends, setStructuralTrends], stratStack: [stratStack, setStratStack] /* #4025 */, explicitSurfaces: [explicitSurfaces, setExplicitSurfaces], alterationBoxes: [alterationBoxes, setAlterationBoxes],
+    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes], structuralTrends: [structuralTrends, setStructuralTrends], modelGuide: [modelGuide, setModelGuide] /* #4032 */, stratStack: [stratStack, setStratStack] /* #4025 */, explicitSurfaces: [explicitSurfaces, setExplicitSurfaces], alterationBoxes: [alterationBoxes, setAlterationBoxes],
     omfObjects: [omfObjects, setOmfObjects], terrain: [terrain, setTerrain],
     geophysPtsStops: [geophysPtsStops, setGeophysPtsStops], geophysPtsColorMode: [geophysPtsColorMode, setGeophysPtsColorMode],
     geophysPtsMin: [geophysPtsMin, setGeophysPtsMin], geophysPtsMax: [geophysPtsMax, setGeophysPtsMax],
@@ -2138,6 +2141,7 @@ export function StoreProvider({ children }) {
     modellingCodes, setModellingCodes, // TASKS.csv #599
     structuralTrends, setStructuralTrends, // TASKS.csv #650
     stratStack, setStratStack, // TASKS.csv #4025
+    modelGuide, setModelGuide, ...guideSet, // TASKS.csv #4032 — setGuideRoute, setGuideSkipped, setGuideAt
     explicitSurfaces, setExplicitSurfaces, // TASKS.csv #811
     alterationBoxes, setAlterationBoxes, // TASKS.csv #503
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
