@@ -10,7 +10,7 @@ import { wordsOf, countHelpPage } from "../scripts/word-count.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const { PAGES, pageById } = await import("../src/help/content.js");
-const MODELLING = ["model-settings", "lithology-groups", "modelling-codes", "implicit-surface", "stratigraphic-stack", "explicit-surface", "structural-modelling", "faults" /* #4006 */, "vein-dyke", "alteration-modelling", "grade-shell", "grade-estimation", "grade-thickness", "geoml", "section-correlation", "model-from-map"];
+const MODELLING = ["model-settings", "lithology-groups", "modelling-codes", "implicit-surface", "stratigraphic-stack", "explicit-surface", "structural-modelling", "faults" /* #4006 */, "vein-dyke", "alteration-modelling", "grade-shell", "grade-estimation", "grade-thickness", "geoml", "section-correlation", "model-from-map", "guided-model" /* #4036 */];
 const TONNAGE = ["grade-tonnage", "block-calculator", "unsampled-metres"];
 const cautions = (id) => pageById(id).cautions.join(" | ").toLowerCase();
 

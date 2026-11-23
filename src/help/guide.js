@@ -19,7 +19,7 @@ export const FIRST_STEPS = [
     text: "Drag to turn the view and use the wheel to zoom. A section cuts one line through the holes, a fence several lines; a strip log shows one hole from top to bottom.",
     button: { label: "Draw a section", act: "cross-section" } },
   { title: "Build a model", diagram: "buildModel", alt: "Your logs down the holes, one question, and the model built from them.",
-    text: "The green Model button asks one question at a time, such as where a unit lies or where the grades are, and answers it from your logs. A model is not a resource estimate.",
+    text: "The green Model button opens a guide: seven steps from your data to a checked model, one question at a time. A model is not a resource estimate.",
     button: { label: "Build a model", act: "guided" } },
   { title: "Green tabs and blue tabs", diagram: "basicAdvanced", alt: "The tabs in two groups: Basic holds StrixViewer, Maps and Layout; Advanced holds the specialist tools.",
     text: "The green tabs hold everyday work: StrixViewer, Maps and Layout. The blue tabs hold the specialist tools, such as geophysics and modelling. All tools shows them when you need them." },

@@ -3,6 +3,41 @@
 import { MINE_DESIGN_ENABLED } from "../../lib/features.js"; // TASKS.csv #3897 — no pointer to a switched-off tool
 export default [
   {
+    id: "guided-model",
+    area: "3D Modelling",
+    title: "Guided modelling",
+    // TASKS.csv #4036 — the card of the guide behind the green Model button (#4015): seven steps from the data to a checked model
+    line: "Seven steps from your data to a checked model, one question at a time.",
+    picture: { diagram: "buildModel", alt: "Your logs down the holes, one question at a time, and the model built from them." },
+    cautions: ["Nothing runs or is added until you click.", "A model is not a resource estimate."],
+    keys: ["Step strip", "Suggested", "Skip"],
+    summary: "The Model button's Start here is a guide: your data, the area, the rocks and their order, computing or drawing the surfaces, faults and veins, volumes and grade, then a check against the holes.",
+    more: "Each step reads your project, says in one line what it found, asks at most one question with the answer already suggested, and opens the tool for that step filled in. You press the tool's own button to run it, so every run can be cancelled and every addition undone. Which steps are done is read from the project each time, so an Undo or a delete shows at once. The seven tools stay in the Model menu and All tools.",
+    notFor: [
+      "It does not build the whole model for you: each build is one click, one tool.",
+      "A suggestion is a reading of your data, not a rule; the tools' own messages say when a build fails.",
+    ],
+    fields: [
+      { name: "Step strip", gist: "go to any step, back or forward", what: "Seven dots: your data, area, rocks, compute or draw, faults, volumes, check. Each is done, next, waiting or skipped.", more: "A step is done when the project holds what it makes. Going back deletes nothing, and the guide reopens on the first step neither done nor skipped." },
+      { name: "Suggested", gist: "a reason from your data, never a rule", what: "Where a step has a choice, such as computing or drawing the surfaces, one card is marked with the reason and the numbers behind it.", choose: "Take it unless you know the ground better; the other cards stay open.", more: "Computed suits rocks that keep their order in most holes with contacts in six or more; Drawn suits few holes or a folded order; From the map suits a map with no logged holes." },
+      { name: "Skip", gist: "hides a step; Undo brings it back", what: "A skipped step stays skipped in this project. Its tool is still in the Model menu.", more: "Only the route you chose and the steps you skipped are saved with the project." },
+    ],
+    warnings: [
+      { says: "Add logs, a map or assays first.", means: "The first step found nothing to model from.", do: "Add data; the later steps wait for it." },
+      { says: "Needs contacts in three logged holes.", means: "Rocks and order need three holes with logged contacts.", do: "Check the data, or draw the surfaces yourself." },
+    ],
+    howto: { folded: true,
+      sample: "WA lode gold",
+      steps: [
+        "File > Open Sample Project > WA lode gold, then press the green Model button.",
+        "Read each step's line; the dots at the top open any step.",
+        "At Compute or draw, take the suggested card and press its first button; then press the tool's own button to run it.",
+        "At Check it, draw a section to compare the model with the holes.",
+      ],
+    },
+    related: ["model-settings", "stratigraphic-stack", "implicit-surface", "explicit-surface", "model-from-map", "faults"],
+  },
+  {
     id: "model-settings",
     area: "3D Modelling",
     title: "Model settings",

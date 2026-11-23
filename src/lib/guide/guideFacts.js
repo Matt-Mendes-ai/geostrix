@@ -120,7 +120,9 @@ function readFacts(s) {
   let steadyContactHoles = 0;
   for (const list of runs.values()) if (list.some((q, k) => k > 0 && steadySet.has(q.unit))) steadyContactHoles++;
   const coverRole = (u) => roleOf(u) === "overburden";
-  const body = order.bodies.length ? suggestBody(rows, (u) => ["dyke", "vein", "breccia", "intrusion", "cross-cutting"].includes(roleOf(u)), order) : null;
+  // TASKS.csv #4036 (walk-through, WA lode gold): a code the stack leaves out by its role (core loss, casing, cover) lies inside other rocks by its nature and is no body to model
+  const bodyOrder = { ...order, bodies: order.bodies.filter((u) => !leftOutWhy(roleOf(u)) || ["dyke", "vein", "breccia", "intrusion", "cross-cutting"].includes(roleOf(u))) };
+  const body = bodyOrder.bodies.length ? suggestBody(rows, (u) => ["dyke", "vein", "breccia", "intrusion", "cross-cutting"].includes(roleOf(u)), bodyOrder) : null;
   const out = leftOutNames(mc);
   // what Add all ('at least 1 %' of the logged metres, #3999) would add to the stack: the codes it takes, by the same rules
   const inStack = new Set(stackUnits);

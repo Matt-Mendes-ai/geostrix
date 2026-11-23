@@ -13899,7 +13899,6 @@
   "In plan: a section is one line through the holes, a fence is several lines, a strip log is one hole.": "En planta: una sección es una línea por los sondajes, un cercado son varias líneas, un registro gráfico es un sondaje.",
   "Drag to turn the view and use the wheel to zoom. A section cuts one line through the holes, a fence several lines; a strip log shows one hole from top to bottom.": "Arrastre para girar la vista y use la rueda para acercar. Una sección corta una línea por los sondajes, un cercado varias; un registro gráfico muestra un sondaje de arriba abajo.",
   "Your logs down the holes, one question, and the model built from them.": "Sus registros en los sondajes, una pregunta y el modelo construido a partir de ellos.",
-  "The green Model button asks one question at a time, such as where a unit lies or where the grades are, and answers it from your logs. A model is not a resource estimate.": "El botón verde Modelo hace una pregunta a la vez, como dónde está una unidad o dónde están las leyes, y la responde con sus registros. Un modelo no es una estimación de recursos.",
   "Green tabs and blue tabs": "Pestañas verdes y azules",
   "The tabs in two groups: Basic holds StrixViewer, Maps and Layout; Advanced holds the specialist tools.": "Las pestañas en dos grupos: Básico tiene StrixViewer, Mapas y Lámina; Avanzado tiene las herramientas especializadas.",
   "The green tabs hold everyday work: StrixViewer, Maps and Layout. The blue tabs hold the specialist tools, such as geophysics and modelling. All tools shows them when you need them.": "Las pestañas verdes tienen el trabajo diario: StrixViewer, Mapas y Lámina. Las azules tienen las herramientas especializadas, como geofísica y modelado. Todas las herramientas las muestra cuando las necesite.",
@@ -15242,5 +15241,7 @@
   "Add the contact surface": "Agregar la superficie de contacto",
   "{n} blocks of {c} m": "{n} bloques de {c} m",
   "Nothing is added yet: use the Result block.": "Aún no se agregó nada: use el bloque de resultado.",
-  "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "Bloques de {c} m (unos {n}, no {n0}): unos {t} más después del entrenamiento."
+  "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "Bloques de {c} m (unos {n}, no {n0}): unos {t} más después del entrenamiento.",
+  "The green Model button opens a guide: seven steps from your data to a checked model, one question at a time. A model is not a resource estimate.": "El botón verde Modelo abre una guía: siete pasos desde sus datos hasta un modelo revisado, una pregunta a la vez. Un modelo no es una estimación de recursos.",
+  "Guided modelling": "Modelado guiado"
 }

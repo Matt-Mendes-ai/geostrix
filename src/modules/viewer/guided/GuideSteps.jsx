@@ -5,6 +5,7 @@
 // is read from the project each time (lib/guide/guideSteps.js); only the route, the skipped steps and the step it is on are kept (#4032).
 import React from "react";
 import { t as tr } from "../../../lib/i18n.js";
+import { openHelp } from "../../../lib/help.js"; // TASKS.csv #4036 - the guide's Help card
 import { guideFacts } from "../../../lib/guide/guideFacts.js";
 import { GUIDE_STEPS, guideStatus } from "../../../lib/guide/guideSteps.js";
 import { nextFor } from "../../../lib/guide/guideFailures.js";
@@ -56,7 +57,7 @@ export default function GuideSteps({ store, api, setTool, toBar, viewId, setView
   return (<>
     <div role="tablist" aria-label={tr("Start here")} style={{ display: "flex", gap: 4, margin: "2px 0 10px" }}>
       {status.steps.map((x, i) => (
-        <button key={x.id} type="button" role="tab" aria-selected={x.id === id} onClick={() => go(x.id)} title={tr(GUIDE_STEPS[i].title)}
+        <button key={x.id} type="button" role="tab" aria-selected={x.id === id} onClick={() => go(x.id)} title={`${tr(GUIDE_STEPS[i].title)}: ${tr(STATE_WORD[x.state])}`}
           aria-label={`${i + 1}. ${tr(GUIDE_STEPS[i].title)}: ${tr(STATE_WORD[x.state])}`}
           style={{ flex: 1, height: 22, borderRadius: 11, cursor: "pointer", fontSize: "var(--font-size-xs)", fontWeight: 600, border: `2px solid ${x.id === id ? "var(--color-text)" : DOT[x.state]}`, background: x.state === "done" || x.state === "next" ? DOT[x.state] : "var(--color-bg)", color: x.state === "done" || x.state === "next" ? "var(--color-bg)" : "var(--color-text-secondary)" }}>
           {x.state === "done" ? "✓" : i + 1}
@@ -82,11 +83,10 @@ export default function GuideSteps({ store, api, setTool, toBar, viewId, setView
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{next.map((n, i) => <button key={i} type="button" style={i ? small : main} onClick={() => runAct(n.act.id, n.act, env)}>{tr(n.label, n.vars)}</button>)}</div>
         </div>
       )}
-      {s.state !== "done" && (
-        <div style={{ marginTop: 12, textAlign: "end" }}>
-          <button type="button" style={small} onClick={() => store.setGuideSkipped?.(id, !userSkipped)}>{userSkipped ? tr("Undo") : tr("Skip")}</button>
-        </div>
-      )}
+      <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", gap: 6 }}>
+        <button type="button" style={small} onClick={() => openHelp("guided-model")}>{tr("Help")}</button>{/* TASKS.csv #4036 */}
+        {s.state !== "done" && <button type="button" style={small} onClick={() => store.setGuideSkipped?.(id, !userSkipped)}>{userSkipped ? tr("Undo") : tr("Skip")}</button>}
+      </div>
     </div>
   </>);
 }

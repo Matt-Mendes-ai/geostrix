@@ -13899,7 +13899,6 @@
   "In plan: a section is one line through the holes, a fence is several lines, a strip log is one hole.": "En plan : une coupe est une ligne à travers les sondages, une clôture plusieurs lignes, un log un seul sondage.",
   "Drag to turn the view and use the wheel to zoom. A section cuts one line through the holes, a fence several lines; a strip log shows one hole from top to bottom.": "Glissez pour tourner la vue et utilisez la molette pour zoomer. Une coupe tranche une ligne à travers les sondages, une clôture plusieurs ; un log montre un sondage de haut en bas.",
   "Your logs down the holes, one question, and the model built from them.": "Vos logs le long des sondages, une question, et le modèle construit à partir d'eux.",
-  "The green Model button asks one question at a time, such as where a unit lies or where the grades are, and answers it from your logs. A model is not a resource estimate.": "Le bouton vert Modèle pose une question à la fois, comme où se trouve une unité ou où sont les teneurs, et y répond avec vos logs. Un modèle n'est pas une estimation des ressources.",
   "Green tabs and blue tabs": "Onglets verts et bleus",
   "The tabs in two groups: Basic holds StrixViewer, Maps and Layout; Advanced holds the specialist tools.": "Les onglets en deux groupes : Basique contient StrixViewer, Cartes et Mise en page ; Avancé contient les outils spécialisés.",
   "The green tabs hold everyday work: StrixViewer, Maps and Layout. The blue tabs hold the specialist tools, such as geophysics and modelling. All tools shows them when you need them.": "Les onglets verts portent le travail courant : StrixViewer, Cartes et Mise en page. Les bleus portent les outils spécialisés, comme la géophysique et la modélisation. Tous les outils les affiche au besoin.",
@@ -15242,5 +15241,7 @@
   "Add the contact surface": "Ajouter la surface de contact",
   "{n} blocks of {c} m": "{n} blocs de {c} m",
   "Nothing is added yet: use the Result block.": "Rien n'est encore ajouté : utilisez le bloc de résultat.",
-  "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "Blocs de {c} m (environ {n}, non {n0}) : environ {t} de plus après l'entraînement."
+  "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "Blocs de {c} m (environ {n}, non {n0}) : environ {t} de plus après l'entraînement.",
+  "The green Model button opens a guide: seven steps from your data to a checked model, one question at a time. A model is not a resource estimate.": "Le bouton vert Modèle ouvre un guide : sept étapes de vos données à un modèle vérifié, une question à la fois. Un modèle n'est pas une estimation des ressources.",
+  "Guided modelling": "Modélisation guidée"
 }

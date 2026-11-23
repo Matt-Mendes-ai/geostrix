@@ -1067,6 +1067,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #356 — the last implicit run's lithology block (session only), offered as a block model and as
   // a "modelled unit" interval layer. { block, units: [{name,label,color}], origin, when, title }
   const [lastLithBlock, setLastLithBlockRaw] = useState(null);
+  useEffect(() => setLastLithBlockRaw(null), [viewerUiStateSeq]); // TASKS.csv #4036 - the last model belongs to its project: its Add buttons put it in the one shown, so a New / Open / tab switch drops it (found walking the guide: WA lode gold's model offered in the Mount Raymond tab)
   // TASKS.csv #2388 — the last model and the generated surfaces keep a stamp of the lithology log they read (lib/layerStamp.js): stale when it changes
   const setLastLithBlock = (lb) => setLastLithBlockRaw(lb && { ...lb, lithoStamp: layerStamp(layers.litho) }); // `layers` of the render the run started from
   const lithoNow = useMemo(() => layerStamp(layers.litho), [layers.litho]);

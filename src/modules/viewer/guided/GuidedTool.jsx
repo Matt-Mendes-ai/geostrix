@@ -86,7 +86,7 @@ function Header({ title, close }) {
 function Tool({ tool, ctx, api, close, back, preset = null }) {
   const sug = useMemo(() => (tool.feed(ctx) ? null : tool.suggest(ctx)), [tool, ctx]);
   const choices = useMemo(() => (tool.feed(ctx) ? [] : tool.choices(ctx)), [tool, ctx]);
-  const [picked, setPicked] = useState(() => { const p = tool.multi && preset ? preset.filter((u) => choices.includes(u)) : []; return p.length >= 2 ? p : sug?.value ?? (tool.multi ? [] : ""); }); // preset: #4035
+  const [picked, setPicked] = useState(() => { if (!tool.multi && typeof preset === "string" && choices.includes(preset)) return preset; /* #4036 - a one-choice card (Veins and dykes) starts on the row's choice */ const p = tool.multi && preset ? preset.filter((u) => choices.includes(u)) : []; return p.length >= 2 ? p : sug?.value ?? (tool.multi ? [] : ""); }); // preset: #4035
   const [phase, setPhase] = useState("ask"); // ask | waiting | running | done | cannot
   const [out, setOut] = useState(null); // { built, reasons, notes } | { verdict }
   const pending = useRef(null), running = useRef(null);

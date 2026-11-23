@@ -13899,7 +13899,6 @@
   "In plan: a section is one line through the holes, a fence is several lines, a strip log is one hole.": "في المسقط: المقطع خط واحد عبر الثقوب، والسياج عدة خطوط، والسجل الشريطي ثقب واحد.",
   "Drag to turn the view and use the wheel to zoom. A section cuts one line through the holes, a fence several lines; a strip log shows one hole from top to bottom.": "اسحب لتدوير العرض واستخدم العجلة للتكبير. يقطع المقطع خطاً واحداً عبر الثقوب، والسياج عدة خطوط؛ ويُظهر السجل الشريطي ثقباً واحداً من أعلاه إلى أسفله.",
   "Your logs down the holes, one question, and the model built from them.": "سجلاتك على امتداد الثقوب، وسؤال واحد، والنموذج المبني منها.",
-  "The green Model button asks one question at a time, such as where a unit lies or where the grades are, and answers it from your logs. A model is not a resource estimate.": "يطرح زر «النموذج» الأخضر سؤالاً واحداً في كل مرة، مثل أين تقع وحدة أو أين المحتويات، ويجيب عنه من سجلاتك. النموذج ليس تقديراً للموارد.",
   "Green tabs and blue tabs": "تبويبات خضراء وزرقاء",
   "The tabs in two groups: Basic holds StrixViewer, Maps and Layout; Advanced holds the specialist tools.": "التبويبات في مجموعتين: الأساسية تضم StrixViewer والخرائط والتخطيط؛ والمتقدمة تضم الأدوات المتخصصة.",
   "The green tabs hold everyday work: StrixViewer, Maps and Layout. The blue tabs hold the specialist tools, such as geophysics and modelling. All tools shows them when you need them.": "التبويبات الخضراء للعمل اليومي: StrixViewer والخرائط والتخطيط. والزرقاء للأدوات المتخصصة، كالجيوفيزياء والنمذجة. يُظهرها «كل الأدوات» عند الحاجة.",
@@ -15242,5 +15241,7 @@
   "Add the contact surface": "إضافة سطح الملامسة",
   "{n} blocks of {c} m": "{n} كتلة بحجم {c} م",
   "Nothing is added yet: use the Result block.": "لم تُضف أي نتيجة بعد: استخدم كتلة النتيجة.",
-  "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "كتل {c} م (نحو {n} بدلًا من {n0}): نحو {t} إضافية بعد التدريب."
+  "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "كتل {c} م (نحو {n} بدلًا من {n0}): نحو {t} إضافية بعد التدريب.",
+  "The green Model button opens a guide: seven steps from your data to a checked model, one question at a time. A model is not a resource estimate.": "يفتح زر «النموذج» الأخضر دليلاً: سبع خطوات من بياناتك إلى نموذج مُراجَع، سؤالاً واحداً في كل مرة. النموذج ليس تقديراً للموارد.",
+  "Guided modelling": "النمذجة الموجَّهة"
 }
