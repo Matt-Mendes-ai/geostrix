@@ -24,6 +24,6 @@ test("no guess when the name says nothing or matches nothing / several", () => {
 
 test("+ New uses it", () => {
   const s = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8");
-  assert.match(s, /const guess = guessUnitFromName\(n, \[\.\.\.defs\.map\(unitOf\), \.\.\.\(unitChoices \|\| \[\]\), \.\.\.loggedUnits\]\);/);
+  assert.match(s, /addSurface\(n, guessUnitFromName\(n, \[\.\.\.defs\.map\(unitOf\), \.\.\.\(unitChoices \|\| \[\]\), \.\.\.loggedUnits\]\), true\);/); // #4033: addSurface is the shared creation
   assert.match(s, /\.\.\.\(guess \? \{ unit: guess\.unit, contact: guess\.contact \} : \{\}\)/);
 });

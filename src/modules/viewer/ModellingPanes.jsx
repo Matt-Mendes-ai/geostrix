@@ -20,6 +20,7 @@ import { codedRuns, topsForCode, codeInfo, overburdenBases, leftOutLayers, leftO
 import { pileFromRuns, absentTops, orderFromHoles } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles: #2926
 import { holesOrderPlan } from "../../lib/holesOrder.js"; import SortByHoles from "./SortByHoles.jsx"; // TASKS.csv #3994 — Sort by the holes
 import { addAllCandidates } from "../../lib/stackAddAll.js"; import AddAllUnits from "./AddAllUnits.jsx"; // TASKS.csv #3999 — Add all
+import { usePaneIntent } from "../../lib/guide/usePaneIntent.js"; import { settingsIntent, stackIntent } from "../../lib/guide/paneIntent.js"; // TASKS.csv #4033
 import RemoveAllUnits from "./RemoveAllUnits.jsx"; // TASKS.csv #4022 — Remove all
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
@@ -504,6 +505,25 @@ export default function ModellingPanes(props) {
   }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
   // TASKS.csv #3999 — what 'Add all' could add: the codes the 'Add a unit…' list offers (not a cross-cutting, no-recovery, cover or left-out one), by the same rules
   const [addAllOpen, setAddAllOpen] = useState(false);
+  // TASKS.csv #4033 — the guide's doors (lib/guide/paneIntent.js): Model settings and Strat. stack open filled in. Nothing is run or added; the person presses the button.
+  const [addAllStart, setAddAllStart] = useState(null);
+  usePaneIntent(["settings", "stack"].includes(toolPane) ? toolPane : null, (it) => {
+    if (it.pane === "settings") {
+      const s = settingsIntent(it);
+      if (s.holes) { setVisibleHoles(onlyTheseHoles(collars, s.holes)); setHoleFilter?.(""); }
+      if (s.area) setModelArea(s.area);
+      if (s.resolution) setModelResolution(s.resolution);
+      return;
+    }
+    const s = stackIntent(it);
+    if (s.addAll) { setAddAllStart({ ...s.addAll }); setAddAllOpen(true); setTimeout(() => document.querySelector("[data-add-all]")?.scrollIntoView({ block: "nearest" }), 80); }
+    if (s.faults) {
+      const known = new Set((faultCandidates || []).map((c) => c.key));
+      const add = s.faults.filter((k) => known.has(k) && !stackFaults.includes(k)).slice(0, Math.max(0, 6 - stackFaults.length));
+      if (add.length) setStackFaults((p) => [...p, ...add.filter((k) => !p.includes(k))]);
+      setTimeout(() => { const el = document.querySelector("[data-stack-faults]"); el?.scrollIntoView({ block: "center" }); el?.nextElementSibling?.focus?.(); }, 80);
+    }
+  });
   const addAllC = useMemo(() => (toolPane !== "stack" ? null : addAllCandidates({ rows: layers.litho || [], litho_units, modellingCodeList, roleOf: rawRole, stackUnits, codesOf: stackCodesOf,
     groupOf: (u) => lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u)), twinInStack })), [toolPane, layers.litho, litho_units, modellingCodeList, stackUnits, lithoGroups, areaRuns]);
   // the 'Add a unit' list in the order the holes give (youngest first), not by interval count
@@ -1041,7 +1061,7 @@ export default function ModellingPanes(props) {
         {stackUnits.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No units added yet.")}</div>
         )}
-        {addAllC && <AddAllUnits open={addAllOpen} setOpen={setAddAllOpen} stackUnits={stackUnits} setStackUnits={setStackUnits} rows={layers.litho || []} candidates={addAllC} codesOf={stackCodesOf} label={(u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)} pBtn={pBtn} />}{/* #3999 */}
+        {addAllC && <AddAllUnits start={addAllStart} open={addAllOpen} setOpen={setAddAllOpen} stackUnits={stackUnits} setStackUnits={setStackUnits} rows={layers.litho || []} candidates={addAllC} codesOf={stackCodesOf} label={(u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)} pBtn={pBtn} />}{/* #3999 */}
         {holesPlan && <SortByHoles stackUnits={stackUnits} plan={holesPlan} label={(u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)} setStackUnits={setStackUnits} pBtn={pBtn} />}{/* #3994 */}
         {stackHoles && ( // TASKS.csv #2926 — checked as the units are added; the holes' order one click away
           <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
@@ -1083,7 +1103,7 @@ export default function ModellingPanes(props) {
           );
         })}
         {/* TASKS.csv #360 — faults solved WITH the stack: contacts either side become offset blocks */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Each fault is solved with the stack: contacts either side become offset blocks, not one surface ramped across it. Faults come from Structure planes, one per type and name.")}>{tr("Faults that offset the stack")}</div>
+        <div data-stack-faults="" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Each fault is solved with the stack: contacts either side become offset blocks, not one surface ramped across it. Faults come from Structure planes, one per type and name.")}>{tr("Faults that offset the stack")}</div>
         <select value="" onChange={(e) => { const k = e.target.value; if (k && !stackFaults.includes(k) && stackFaults.length < 6) setStackFaults((p) => [...p, k]); }} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label={tr("Add a fault that offsets the stack")}>
           <option value="">{faultCandidates.length ? tr("Add a fault…") : tr("No structure picks with dip / dip direction")}</option>
           {/* TASKS.csv #1225 — bedding and fractures are not faults: apart, for a geologist who knows a code the name does not show */}

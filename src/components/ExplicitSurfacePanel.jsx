@@ -33,6 +33,7 @@ import { eventPickOptions, defaultEventOption } from "../lib/downholeEvents.js";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1550
 import { toCsv, FORMULA_LEAD, crsCell } from "../lib/tabular.js"; // TASKS.csv #1082; crsCell: #1053
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import { usePaneIntent } from "../lib/guide/usePaneIntent.js"; import { explicitIntent } from "../lib/guide/paneIntent.js"; // TASKS.csv #4033
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 // TASKS.csv #902 — the Unit select's "New unit..." value: a private-use character, not the NUL it used to be (a NUL byte made
@@ -685,16 +686,27 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   };
   const startDigitizing = () => { if (!def || !digImage) return; setEditing(false); setDigDrawing(true); setDigPts([]); setPickFor(def.id); faceImage(); };
 
+  // one new surface, selected; arm: also start picking in 3D (the '+ New' button does, the guide's door does not)
+  const addSurface = (n, guess, arm) => {
+    const id = `expl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const palette = ["#e07b39", "#3b8ed0", "#5aa469", "#c94f7c", "#8e6bd3", "#c9a227"];
+    setDefs((p) => [...p, { id, name: n, color: palette[p.length % palette.length], picks: [], margin: null, resolution: 80, cutAtTerrain: true, shape: "auto", surfaceId: `impl_${Date.now()}_explicit_${Math.random().toString(36).slice(2, 6)}`, builtKey: null, ...(guess ? { unit: guess.unit, contact: guess.contact } : {}) }]); // shape: #824; surfaceId set now (#828): a build never writes to the def, so it is never an Undo step
+    setSelId(id);
+    setPickFor(arm ? id : null);
+  };
   const newSurface = () => askPrompt(tr("Name of the new explicit surface (e.g. Top of basalt):"), "", (name) => {
     const n = (name || "").trim();
     if (!n) return;
-    const id = `expl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    const palette = ["#e07b39", "#3b8ed0", "#5aa469", "#c94f7c", "#8e6bd3", "#c9a227"];
-    const guess = guessUnitFromName(n, [...defs.map(unitOf), ...(unitChoices || []), ...loggedUnits]); // #1376 — 'Top of X': X is the unit
-    setDefs((p) => [...p, { id, name: n, color: palette[p.length % palette.length], picks: [], margin: null, resolution: 80, cutAtTerrain: true, shape: "auto", surfaceId: `impl_${Date.now()}_explicit_${Math.random().toString(36).slice(2, 6)}`, builtKey: null, ...(guess ? { unit: guess.unit, contact: guess.contact } : {}) }]); // shape: #824; surfaceId set now (#828): a build never writes to the def, so it is never an Undo step
-    setSelId(id);
-    setPickFor(id);
+    addSurface(n, guessUnitFromName(n, [...defs.map(unitOf), ...(unitChoices || []), ...loggedUnits]), true); // #1376 — 'Top of X': X is the unit
   });
+  // TASKS.csv #4033 — the guide's door (lib/guide/paneIntent.js): a surface started for the unit (the one it already has, selected, when there is one); its logged tops are offered
+  // by the pane's own 'Seed from the logged tops' as for any surface with a unit. Nothing is picked or added until the person presses it.
+  const startForUnit = (unit) => {
+    const have = defs.find((d) => unitOf(d) === unit && contactOf(d) === "upper");
+    if (have) { setSelId(have.id); setPickFor(null); return; }
+    addSurface(`Top of ${unit}`, { unit, contact: "upper" }, false); // the surface's name is project data: English
+  };
+  usePaneIntent("explicit", (it) => { const e = explicitIntent(it); if (e.unit) startForUnit(e.unit); });
 
   // TASKS.csv #882 — colour is not a build input (inputKey leaves it out), so it never reached the mesh until the next
   // rebuild: the dots changed, the sheet did not, and toggling the surface off and on looked like the way to refresh it
