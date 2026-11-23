@@ -5,6 +5,7 @@ import { unitMix, runAdvice } from "../lib/geomlIntercepts.js"; // TASKS.csv #40
 import { enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL } from "../lib/geomlBodies.js"; // TASKS.csv #4017 — closed bodies from the probability blocks
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
+import { newResult, setResult } from "../lib/geomlResult.js"; // TASKS.csv #4028 - a run lands in a Result, and the Add buttons put it in the project
 import { planDomain, planGrade, roughTime, INDUCING_CAP, INDUCING_LIMIT_NO_CAP, FOCUS_SPACING, FOCUS_OTHER } from "../lib/geomlPlan.js"; // TASKS.csv #1146; #1312
 import { useSetTaskProgress, useStartProjectJob } from "../lib/store.jsx"; // useStartProjectJob: TASKS.csv #3953 (stable, like the progress setter)
 import { noJob, isProjectGone } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a geoML model lands only in the project it was run for
@@ -32,7 +33,7 @@ const QUALITY = {
 const fmtMB = (b) => (b ? `${Math.round(b / 1e6).toLocaleString()} MB` : "—");
 const PROB_STOPS = labStopsAt([{ value: 0, color: "#f4f1de" }, { value: 0.5, color: "#f2b134" }, { value: 0.8, color: "#d9601a" }, { value: 1, color: "#8f1f3d" }]); // #702 — Lab, like the other ramps
 
-export default function PredictivePanel({ lithoGroups = [], modellingCodes = null /* #4019 */, visibleHoles, collars: allCollars, survey: allSurvey, litho: allLitho, assays: allAssays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices, clipToTopo = true /* TASKS.csv #4017 - the Grade shell's "end the shell at the terrain" setting, read here */ }) {
+export default function PredictivePanel({ lithoGroups = [], modellingCodes = null /* #4019 */, visibleHoles, collars: allCollars, survey: allSurvey, litho: allLitho, assays: allAssays, assayElements, terrain, desurveyMethod, trend, setNotices, clipToTopo = true /* TASKS.csv #4017 - the Grade shell's "end the shell at the terrain" setting, read here */ }) {
   // TASKS.csv #1315 — Matt: "geoML is modelling unseen holes". Every hole in the project was sent, whatever the hole list said. Now only the ticked ones, unless asked.
   const [useHidden, setUseHidden] = useState(false);
   const hiddenCount = useMemo(() => allCollars.length - tickedHoles(allCollars, visibleHoles).length, [allCollars, visibleHoles]);
@@ -168,7 +169,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
       }
       if (trend) params = { ...params, trend: trendToGeoml(trend) };
       const res = await runJob(kind, params, (s) => { if (!getRun()?.cancelling) updateRun({ progress: s.progress, message: s.message, elapsed: s.elapsed }); toBar(s.progress); }, ctrl.signal);
-      const note = `${await onResult(res, pj)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""}`;
+      const note = `${await onResult(res, pj)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""} ${tr("Nothing is added yet: use the Result block.")}`;
       const secs = Math.round((Date.now() - t0) / 1000);
       record = { label, note, secs, at: new Date().toLocaleTimeString(), intercepts: res.intercepts || null, advice: res.advice || null, mix: res.mix || null, blockM: res.blocks?.cell ?? null }; // advice, mix, blockM: #4019
       setNotices((p) => [...p, notice("geoML — {label}: {note} ({secs} s).", { label, note, secs })]);
@@ -203,8 +204,9 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
     const check = interceptCheckPoints(unitIntercepts(sent, unit), collars, survey || [], desurveyHole, pointOnTrace, desurveyMethod); // #1318
     params.check_points = check.points;
     const sizing = plan && (plan.focused || plan.factor > 1) ? { holesSent: plan.nHoles, holesInProject: plan.totalHoles, focusM: plan.focused ? plan.focusM : null, trainSpacingM: plan.trainSpacing, inducingSpacingM: plan.inducingSpacing, pointsWithoutSizing: plan.wanted.points } : null;
-    run(`${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`, "domain", params, async (res, pj) => { // pj: TASKS.csv #3953
-      const parts = [];
+    const runLabel = `${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`;
+    run(runLabel, "domain", params, async (res, pj) => { // pj: TASKS.csv #3953
+      const parts = [], R = newResult(runLabel, "domain"); // TASKS.csv #4028 - what the run built waits in R; the Result block adds it
       const intercepts = res.intercepts = scoreIntercepts(check.spans, res.check_probability); // #1318
       // #4019 — the reasons: each missed intercept against the run's block, the fit's causes and the fixes (kept with the run in This session)
       if (intercepts) intercepts.blockM = res.blocks?.cell;
@@ -218,7 +220,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
         const v = res.surface.vertices;
         const tri = res.surface.triangles.filter((t) => { const c = [0, 1, 2].map((k) => (v[t[0]][k] + v[t[1]][k] + v[t[2]][k]) / 3); return clip([{ x: c[0], y: c[1], z: c[2] }]).keep[0]; });
         const pos = new Float32Array(v.flat()), idx = new Uint32Array(tri.flat());
-        addSurface({ name: `geoML — ${name} contact`, positions: pos, indices: idx, values: res.surface.uncertainty, params: { unit: [...unit], model: res.model, quality, seconds: res.seconds, contacts: res.contacts, area_m2: Math.round(res.surface.area) } });
+        R.surface("contact", { name: `geoML — ${name} contact`, positions: pos, indices: idx, values: res.surface.uncertainty, params: { unit: [...unit], model: res.model, quality, seconds: res.seconds, contacts: res.contacts, area_m2: Math.round(res.surface.area) } });
         parts.push(tr("contact surface {tri} triangles (darker = less certain)", { tri: tri.length.toLocaleString() }));
       }
       const b = res.blocks;
@@ -227,16 +229,16 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
       const cells = blockCells(b, r.keep, (i) => b.probability[i]), ucells = blockCells(b, r.keep, (i) => b.uncertainty[i]);
       // TASKS.csv #677 — what produced the model travels with it (panel, exports)
       const dparams = { tool: "geoML domain model", ...(follow ? { holesLeftOutByHoleList: hiddenCount } : {}) /* #1315 */, ...(sizing ? { sizing } : {}) /* #1146 */, ...(plan?.denseOn ? { denseNearUnit: { spacingM: FOCUS_SPACING, otherPoints: FOCUS_OTHER } } : {}), ...(res.held_out ? { heldOutCheck: res.held_out } : {}) /* #1312 */, ...(intercepts ? { interceptsLogged: intercepts.logged, interceptsReached: intercepts.reached, interceptsMissed: intercepts.missed.slice(0, 500).map((m) => `${m.hole_id} ${+m.from.toFixed(2)}-${+m.to.toFixed(2)} m`) } : {}) /* #1318 */, unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
-      addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6, params: { ...dparams, value: "probability of the unit (0-1)" } });
+      R.voxel("blocks", { name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6, params: { ...dparams, value: "probability of the unit (0-1)" } });
       const um = ucells.reduce((m, c) => Math.max(m, c.value), 0);
-      addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
+      R.voxel("blocks", { name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
       parts.push(tr("{cells} blocks of {cell} m with the probability of {name} (showing ≥ 50%) and its uncertainty (hidden){v}", { cells: cells.length.toLocaleString(), cell: b.cell, name, v: clipNote(r, range, !!res.range?.trained) }));
       if (shape === "bodies") { // TASKS.csv #4017 — closed round the unit, from the same probability blocks, cut at the ground like the other shells
         const body = enclosedBodies(b, { level: bodyPct / 100, dropped: r.outOfRange, groundAt: cutAtTopo ? clip.ground : null });
         if (body.positions.length && body.closed) {
           const chk = interceptsInsideBodies(body.positions, body.indices, check.points, check.spans);
           const wall = body.closingShare > 0 ? "artificial" : "natural";
-          addSurface({ name: `geoML — ${name} body`, positions: body.positions, indices: body.indices, type: "unit_body", closure: wall, color: "#d98c3a", opacity: 0.55,
+          R.surface("bodies", { name: `geoML — ${name} body`, positions: body.positions, indices: body.indices, type: "unit_body", closure: wall, color: "#d98c3a", opacity: 0.55,
             params: { tool: "geoML enclosed body", unit: [...unit], model: res.model, quality, seconds: res.seconds, levelPct: bodyPct, volumeM3: Math.round(body.volumeM3), bodies: body.bodies, voids: body.voids, blockM: b.cell, closingShare: +body.closingShare.toFixed(3), droppedSpecks: body.droppedSpecks, ...(chk ? { interceptsInside: { points: chk.inside, of: chk.points, intercepts: chk.reached, ofIntercepts: chk.spans } } : {}), cutAtGround: true } });
           const bv = { k: body.bodies, name, v: Number(body.volumeM3.toPrecision(3)).toLocaleString(), p: bodyPct, c: b.cell, w: (body.closingShare > 0 ? tr("; part of its boundary is the model's edge") : "") + (cutAtTopo ? "" : tr("; not cut at the ground")) };
           parts.push(body.bodies === 1 ? tr("closed body of {name}: {v} m³ at {p}% ({c} m blocks){w}", bv) : tr("{k} closed bodies of {name}: {v} m³ at {p}% ({c} m blocks){w}", bv));
@@ -249,6 +251,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
       const unseen = res.held_out ? ` ${tr("On {k} of {n} held-back holes: {a}% of the unit's points come out inside it, {b}% of the others outside. The better guide to new holes.", { k: res.held_out.holes_left_out, n: res.held_out.holes, a: Math.round(res.held_out.in_unit * 100), b: Math.round(res.held_out.other * 100) })}` : heldOut ? ` ${tr("The score on held-back holes did not run: it needs at least 4 holes with the unit and an up-to-date add-on.")}` : ` ${tr("Holes it has not trained on usually score lower: tick the score on held-back holes to measure it.")}`;
       const fit = res.fit ? ` ${tr("On the points it trained on: {a}% of those in the unit come out inside it, {b}% of the others outside.", { a: Math.round(res.fit.in_unit * 100), b: Math.round(res.fit.other * 100) })}${res.fit.in_unit < 0.3 ? ` ${tr("That is weak: the model does not reproduce the unit where it was logged. Try a higher quality, fewer holes or a merged code.")}` : ""}` : "";
       const reach = intercepts ? ` ${intercepts.missed.length ? tr("It reaches {a} of the {n} logged intercepts; the geoML panel lists the ones it misses, by hole and depth.", { a: intercepts.reached, n: intercepts.logged }) : tr("It reaches all {n} logged intercepts.", { n: intercepts.logged })}` : "";
+      parts.forEach((p) => R.line(p)); setResult(R.done()); // TASKS.csv #4028 — pending until a button of the Result block adds it
       return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts.${reach}${fit}${unseen}`;
     });
   };
@@ -275,7 +278,9 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
     if (!samples.length) { setNotices((q) => [...q, notice("geoML grade model: no {element} samples to model after QA/QC rows were left out.", { element })]); return; }
     const unitTxt = el?.unit ? ` ${el.unit}` : "";
     const gq = planGrade({ samples, composite: QUALITY[quality].grade.composite, inducing: QUALITY[quality].grade.inducing, iterations: QUALITY[quality].grade.iterations }); // #1146
-    run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade, composite: gq.composite }, async (res, pj) => { // pj: TASKS.csv #3953
+    const gradeLabel = `${element} grade (${QUALITY[quality].label.toLowerCase()})`;
+    run(gradeLabel, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade, composite: gq.composite }, async (res, pj) => { // pj: TASKS.csv #3953
+      const R = newResult(gradeLabel, "grade"); // TASKS.csv #4028
       const b = res.blocks;
       checkBlocks(b, ["prediction"]); // #741 (p10 / p90 are optional)
       const range = Math.round(res.range?.trained || 150); // #673 — the learnt range (0.1.2+), else training's start
@@ -292,10 +297,10 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
       // simulations behind P10 / P90 is stated (20 draws gave P10 a 47 % relative error at a grade CV of 131 %).
       const nsim = QUALITY[quality].grade.simulations;
       const gparams = { tool: "geoML grade model", element, unit: el?.unit || null, quality: QUALITY[quality].label, compositeLengthM: gq.composite, iterations: QUALITY[quality].grade.iterations, inducingPoints: QUALITY[quality].grade.inducing, blockSizeM: b.cell, simulations: nsim, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, sampleIntervals: samples.length, composites: res.composites, qaqcExcluded: all.length - regular.length, addonVersion: st?.version || null, generatedAt: new Date().toISOString() };
-      addVoxelModel({ name: `geoML — ${element}${unitTxt}`, source: "geoml", cells, min, max, colorMode: "continuous", stops: gradeStops(min, max) /* #702 — the same ramp an IDW estimate gets */, threshold: p75, opacity: 0.6, params: { ...gparams, value: "predicted grade (back-transformed mean)" } });
+      R.voxel("blocks", { name: `geoML — ${element}${unitTxt}`, source: "geoml", cells, min, max, colorMode: "continuous", stops: gradeStops(min, max) /* #702 — the same ramp an IDW estimate gets */, threshold: p75, opacity: 0.6, params: { ...gparams, value: "predicted grade (back-transformed mean)" } });
       if (spread.length) {
         const sv = spread.map((c) => c.value), smax = Math.max(...sv);
-        addVoxelModel({ name: `geoML — ${element} P90 − P10 from ${nsim} simulations`, source: "geoml", cells: spread, min: 0, max: smax, colorMode: "continuous", stops: sequentialStops(0, smax), visible: false, params: { ...gparams, value: `P90 - P10 of ${nsim} simulations` } });
+        R.voxel("blocks", { name: `geoML — ${element} P90 − P10 from ${nsim} simulations`, source: "geoml", cells: spread, min: 0, max: smax, colorMode: "continuous", stops: sequentialStops(0, smax), visible: false, params: { ...gparams, value: `P90 - P10 of ${nsim} simulations` } });
       }
       // TASKS.csv #4017 (b) — closed shells at the cut-offs, from the predicted grade (and the P10 / P90 of its simulations), cut at the ground like the Grade shell
       const shellParts = [];
@@ -306,7 +311,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
         for (const s of made) {
           const u = unitTxt, sv = { element, cutoff: s.cutoff, unit: u, v: Number(s.body.volumeM3.toPrecision(3)).toLocaleString(), a: s.inside?.inside ?? 0, n: s.inside?.of ?? 0 };
           if (!(s.body.positions.length && s.body.closed)) { shellParts.push(tr("no block reaches {cutoff}{unit}: no shell", sv) + tag(s.kind)); continue; }
-          addSurface({ name: `geoML — ${element} ≥ ${s.cutoff}${u} shell${tag(s.kind)}`, positions: s.body.positions, indices: s.body.indices, type: "mineralization_envelope", closure: s.body.closingShare > 0 ? "artificial" : "natural",
+          R.surface("shells", { name: `geoML — ${element} ≥ ${s.cutoff}${u} shell${tag(s.kind)}`, positions: s.body.positions, indices: s.body.indices, type: "mineralization_envelope", closure: s.body.closingShare > 0 ? "artificial" : "natural",
             color: s.kind === "mean" ? "#c9552a" : s.kind === "p10" ? "#2a7fc9" : "#c9a22a", opacity: 0.5,
             params: { ...gparams, tool: "geoML grade shell", cutoff: s.cutoff, shellOf: s.kind === "mean" ? "predicted grade" : `${s.kind.toUpperCase()} of ${nsim} simulations`, volumeM3: Math.round(s.body.volumeM3), bodies: s.body.bodies, voids: s.body.voids, closingShare: +s.body.closingShare.toFixed(3), droppedSpecks: s.body.droppedSpecks, cutAtGround: cutAtTopo, samplesAtOrAbove: { n: s.above, inside: s.inside?.inside ?? null, of: s.inside?.of ?? null } } });
           const wall = (s.body.closingShare > 0 ? tr("; part of its boundary is the model's edge") : "") + (cutAtTopo ? "" : tr("; not cut at the ground"));
@@ -314,6 +319,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
           if (s.kind === "mean" && s.inside) shellParts.push(s.inside.share >= 0.5 ? tr("{a} of {n} samples above {cutoff}{unit} inside", sv) : tr("WARNING: only {a} of {n} samples above {cutoff}{unit} are inside: check the cut-off", sv));
         }
       }
+      R.line(tr("{n} blocks of {c} m", { n: cells.length.toLocaleString(), c: b.cell }) + `, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt}`); shellParts.forEach((p) => R.line(p)); setResult(R.done()); // TASKS.csv #4028
       return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites of ${samples.length.toLocaleString()} sample intervals${cleaned ? ` (${cleaned})` : ""}${clipNote(r, range, !!res.range?.trained)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 from ${nsim} simulations added (hidden).${res.data_warnings?.length ? ` geoML reported: ${res.data_warnings.join("; ")}.` : ""}${shellParts.length ? ` ${shellParts.join("; ")}.` : ""} Not a Mineral Resource estimate.`;
     });
   };

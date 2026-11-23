@@ -80,8 +80,6 @@ export default function ModellingPanes(props) {
     activeInterceptSetId,
     addLithoGroup,
     addStackUnit,
-    addVoxelModel,
-    addWorldMeshSurface,
     alt_units,
     alterationBusy,
     alterationCellSize,
@@ -926,7 +924,7 @@ export default function ModellingPanes(props) {
         {paneHeader("geoML models", Sparkles, "model")}
         <Suspense fallback={null}>
           <PredictivePanel visibleHoles={visibleHoles} collars={collars} survey={survey} litho={layers.litho || []} lithoGroups={lithoGroups} modellingCodes={modellingCodes} /* #4019 */ assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
-            addVoxelModel={addVoxelModel} addSurface={addWorldMeshSurface} setNotices={setNotices} clipToTopo={clipToTopo} /* TASKS.csv #4017 — the Grade shell's setting */ />
+            setNotices={setNotices} clipToTopo={clipToTopo} /* TASKS.csv #4017 — the Grade shell's setting */ />
         </Suspense>
         {leftOutNote}
         </>)}

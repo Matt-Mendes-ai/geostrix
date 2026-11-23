@@ -15232,5 +15232,10 @@
   "WARNING: only {a} of {n} samples above {cutoff}{unit} are inside: check the cut-off": "تحذير: {a} فقط من أصل {n} عينة فوق {cutoff}{unit} في الداخل: راجع حد القطع",
   "Median {m}, Q3 {q}, P90 {p}": "الوسيط {m}، الربيع الثالث {q}، المئين 90 {p}",
   "; not cut at the ground": "؛ غير مقطوع عند سطح الأرض",
-  "Draw it instead": "ارسمه بدلاً من ذلك"
+  "Draw it instead": "ارسمه بدلاً من ذلك",
+  "Added": "تمت الإضافة",
+  "Add grade shells (closed)": "إضافة أغلفة العيار (مغلقة)",
+  "Add the contact surface": "إضافة سطح الملامسة",
+  "{n} blocks of {c} m": "{n} كتلة بحجم {c} م",
+  "Nothing is added yet: use the Result block.": "لم تُضف أي نتيجة بعد: استخدم كتلة النتيجة."
 }

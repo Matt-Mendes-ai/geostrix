@@ -15232,5 +15232,10 @@
   "WARNING: only {a} of {n} samples above {cutoff}{unit} are inside: check the cut-off": "AVERTISSEMENT : seuls {a} échantillons sur {n} au-dessus de {cutoff}{unit} sont à l'intérieur : vérifiez la teneur de coupure",
   "Median {m}, Q3 {q}, P90 {p}": "Médiane {m}, Q3 {q}, P90 {p}",
   "; not cut at the ground": " ; non coupé à la surface",
-  "Draw it instead": "Le dessiner plutôt"
+  "Draw it instead": "Le dessiner plutôt",
+  "Added": "Ajouté",
+  "Add grade shells (closed)": "Ajouter les coques de teneur (fermées)",
+  "Add the contact surface": "Ajouter la surface de contact",
+  "{n} blocks of {c} m": "{n} blocs de {c} m",
+  "Nothing is added yet: use the Result block.": "Rien n'est encore ajouté : utilisez le bloc de résultat."
 }
