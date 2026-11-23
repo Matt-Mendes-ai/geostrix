@@ -147,3 +147,42 @@ export function modelBox(collars, { padM = 100, padZM = 50 } = {}) {
 // on a recent laptop. So the finer blocks of a body cost this much more after training, and nothing in training (the contact surface stage does not depend on them).
 export const PREDICT_S_PER_BLOCK = 0.00056;
 export const bodiesExtraSeconds = (bodiesBlocks, layersBlocks) => Math.max(0, bodiesBlocks - layersBlocks) * PREDICT_S_PER_BLOCK;
+
+// ---- grade shells ---------------------------------------------------------------------------------------------------------------------------------------
+// TASKS.csv #4017 (b) — a geoML grade run's predicted-grade blocks as closed shells at one or more cut-offs, the way the Grade shell makes them: the same builder as the
+// unit's bodies, on the predicted grade (or, for the uncertainty, on the P10 / P90 of its simulations) instead of the probability.
+
+// the cut-offs the samples themselves suggest, when none is typed: their median, Q3 and 90th percentile (the positive values, two significant figures, never a number that
+// reads as a deposit's: lib/cutoffTable.js defaultCutoffs); `first` is the one a run starts with, the 90th percentile as the Grade shell pane proposes (#3272)
+export function gradeCutoffSuggestion(values) {
+  const v = (values || []).filter((x) => Number.isFinite(x) && x > 0).sort((a, b) => a - b);
+  if (!v.length) return { median: null, q3: null, p90: null, first: null, list: [] };
+  const at = (p) => v[Math.floor(p * (v.length - 1))];
+  const two = (x) => +x.toPrecision(2);
+  const median = two(at(0.5)), q3 = two(at(0.75)), p90 = two(at(0.9));
+  return { median, q3, p90, first: p90, list: [...new Set([median, q3, p90])].sort((a, b) => a - b) };
+}
+
+// "0.5, 1; 2" -> [0.5, 1, 2] (positive numbers only, once each, ascending)
+export const parseShellCutoffs = (text) => [...new Set(String(text || "").split(/[\s,;]+/).map((t) => (t === "" ? NaN : Number(t))).filter((v) => Number.isFinite(v) && v > 0))].sort((a, b) => a - b);
+
+// b: the run's blocks ({ cell, x, y, z, prediction, p10?, p90? }); cutoffs: [number]; bands: also the P10 and P90 shells (when the blocks carry them); dropped / groundAt: as enclosedBodies;
+// samples: [{ x, y, z, value }] to check each shell against (the samples at or above its cut-off that fall inside it)
+// -> [{ kind: "mean" | "p10" | "p90", cutoff, body (enclosedBodies' result, empty when no block reaches it), above, inside }] in cut-off order, the mean shell first
+export function gradeShells(b, { cutoffs, bands = false, dropped = null, groundAt = null, samples = null } = {}) {
+  const kinds = [["mean", "prediction"], ...(bands && b.p10 ? [["p10", "p10"]] : []), ...(bands && b.p90 ? [["p90", "p90"]] : [])];
+  const out = [];
+  for (const cutoff of cutoffs || []) {
+    const above = (samples || []).filter((s) => Number.isFinite(s.value) && s.value >= cutoff);
+    for (const [kind, field] of kinds) {
+      const body = enclosedBodies(b, { level: cutoff, dropped, groundAt, field });
+      let inside = null;
+      if (above.length && body.positions.length && body.closed) {
+        const chk = interceptsInsideBodies(body.positions, body.indices, above.map((s) => [s.x, s.y, s.z]), above.map((s, i) => ({ start: i, count: 1 })));
+        inside = chk ? { inside: chk.inside, of: chk.points, share: chk.pointShare } : null;
+      }
+      out.push({ kind, cutoff, body, above: above.length, inside });
+    }
+  }
+  return out;
+}

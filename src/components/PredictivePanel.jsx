@@ -2,7 +2,7 @@ import { tickedHoles } from "../lib/holeFilter.js"; // TASKS.csv #1315
 import { unitIntercepts, interceptCheckPoints, scoreIntercepts } from "../lib/geomlIntercepts.js"; // TASKS.csv #1318
 import GeomlMissedIntercepts, { GeomlRunAdvice, mixText } from "./GeomlMissedIntercepts.jsx"; // TASKS.csv #1318; advice: #4019
 import { unitMix, runAdvice } from "../lib/geomlIntercepts.js"; // TASKS.csv #4019 — why intercepts are missed, and what to change
-import { enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, BODY_LEVEL } from "../lib/geomlBodies.js"; // TASKS.csv #4017 — closed bodies from the probability blocks
+import { enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL } from "../lib/geomlBodies.js"; // TASKS.csv #4017 — closed bodies from the probability blocks
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
 import { planDomain, planGrade, roughTime, INDUCING_CAP, INDUCING_LIMIT_NO_CAP, FOCUS_SPACING, FOCUS_OTHER } from "../lib/geomlPlan.js"; // TASKS.csv #1146; #1312
@@ -32,7 +32,7 @@ const QUALITY = {
 const fmtMB = (b) => (b ? `${Math.round(b / 1e6).toLocaleString()} MB` : "—");
 const PROB_STOPS = labStopsAt([{ value: 0, color: "#f4f1de" }, { value: 0.5, color: "#f2b134" }, { value: 0.8, color: "#d9601a" }, { value: 1, color: "#8f1f3d" }]); // #702 — Lab, like the other ramps
 
-export default function PredictivePanel({ lithoGroups = [], modellingCodes = null /* #4019 */, visibleHoles, collars: allCollars, survey: allSurvey, litho: allLitho, assays: allAssays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices }) {
+export default function PredictivePanel({ lithoGroups = [], modellingCodes = null /* #4019 */, visibleHoles, collars: allCollars, survey: allSurvey, litho: allLitho, assays: allAssays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices, clipToTopo = true /* TASKS.csv #4017 - the Grade shell's "end the shell at the terrain" setting, read here */ }) {
   // TASKS.csv #1315 — Matt: "geoML is modelling unseen holes". Every hole in the project was sent, whatever the hole list said. Now only the ticked ones, unless asked.
   const [useHidden, setUseHidden] = useState(false);
   const hiddenCount = useMemo(() => allCollars.length - tickedHoles(allCollars, visibleHoles).length, [allCollars, visibleHoles]);
@@ -85,6 +85,11 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
   const [shapePick, setShapePick] = useState("");
   const [bodyPct, setBodyPct] = useState(Math.round(BODY_LEVEL * 100)); // the probability the body is drawn at, in per cent
   const [suggestion, setSuggestion] = useState(null);
+  // TASKS.csv #4017 (b) — a grade run's closed shells at cut-offs (typed, else the one the samples suggest), and the P10 / P90 shells beside them
+  const [shellsOn, setShellsOn] = useState(true);
+  const [cutoffText, setCutoffText] = useState("");
+  const [bandsOn, setBandsOn] = useState(false);
+  const cutAtTopo = clipToTopo && (!!terrain || (collars || []).length >= 3); // the Grade shell's setting: the shell ends at the terrain, else the collar surface
   useEffect(() => setShapePick(""), [unit]); // a pick is for one unit: another goes back to the suggestion
   useEffect(() => {
     if (!unit.size) { setSuggestion(null); return undefined; }
@@ -116,7 +121,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
     const { intervals } = rawSampleIntervals(excludeQAQC(assays || []), element, units[element] || "ppm", units);
     const samples = intervals.filter((iv) => Number.isFinite(iv.avgGrade));
     const q = QUALITY[quality].grade;
-    return samples.length ? planGrade({ samples, composite: q.composite, inducing: q.inducing, iterations: q.iterations }) : null;
+    return samples.length ? { ...planGrade({ samples, composite: q.composite, inducing: q.inducing, iterations: q.iterations }), cutSuggestion: gradeCutoffSuggestion(samples.map((s) => s.avgGrade)) } : null;
   }, [assays, assayElements, element, quality]);
 
   // TASKS.csv #644 — GeoStrix stores dips as degrees BELOW horizontal (positive down: importHelpers turns a
@@ -134,10 +139,11 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
   const clipper = async (intervals, range) => {
     const [{ samplePointsFromIntervals }, { desurveyHole }, { makeGround, makeNearData, clipBlocks }] = await Promise.all([
       import("../lib/estimation.js"), import("../lib/desurvey.js"), import("../lib/geomlClip.js")]);
-    const { points } = samplePointsFromIntervals(intervals.map((r) => ({ ...r, avgGrade: 1 })), collars, survey || [], desurveyHole, desurveyMethod);
+    const { points } = samplePointsFromIntervals(intervals.map((r) => ({ ...r, avgGrade: Number.isFinite(r.value) ? r.value : 1 })), collars, survey || [], desurveyHole, desurveyMethod);
     const ground = makeGround({ terrain, collars }), near = points.length ? makeNearData(points.map((q) => [q.x, q.y, q.z]), range) : null;
     const clip = (blocks) => clipBlocks(blocks, { ground, near });
     clip.ground = ground; // TASKS.csv #4017 — the body is cut at it
+    clip.points = points; // and a grade run's samples (with their values) are checked against its shells
     return clip;
   };
   // #673 — says whether the range is the one the model learnt or only training's starting value (add-on < 0.1.2)
@@ -174,14 +180,15 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
 
   // TASKS.csv #4017 — why the suggestion is what it is, from the intercepts only (lib/geomlBodies.js suggestShape)
   const extraTime = (sec) => tr("{n} s", { n: Math.max(5, Math.round(sec / 5) * 5) }); // TASKS.csv #4017 - the finer blocks of a body: at most 100,000 of them, so about a minute at most
+
   const shapeWhy = (s) => {
     const a = { n: s.holesCut, total: s.holes, t: s.thicknessM, s: s.spreadM };
-    return s.reason === "horizon" ? tr("Suggested: layers. {n} of the {total} holes cut this unit once, as a band about {t} m thick at much the same level.", a)
-      : s.reason === "partial" ? tr("Suggested: enclosed bodies. Only {n} of the {total} holes cut this unit.", a)
-        : s.reason === "several" ? tr("Suggested: enclosed bodies. Most holes cut this unit more than once.")
-          : s.reason === "collar" ? tr("Suggested: enclosed bodies. This unit starts at the collar in most of the holes that cut it.")
-            : s.reason === "uneven" ? tr("Suggested: enclosed bodies. The unit's level changes from hole to hole by about {s} m, more than its thickness.", a)
-              : tr("Suggested: enclosed bodies. Too few holes cut this unit to call it a horizon.");
+    return s.reason === "horizon" ? tr("{n} of {total} holes cut it once, as a band about {t} m thick.", a)
+      : s.reason === "partial" ? tr("Only {n} of {total} holes cut it.", a)
+        : s.reason === "several" ? tr("Most holes cut it more than once.")
+          : s.reason === "collar" ? tr("It starts at the collar in most holes.")
+            : s.reason === "uneven" ? tr("Its level changes by about {s} m between holes.", a)
+              : tr("Only {n} of {total} holes cut it.", a);
   };
   const runUnit = async () => {
     const runMix = mix; // #4019 — the codes' mix as this run was asked
@@ -225,16 +232,16 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
       addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
       parts.push(tr("{cells} blocks of {cell} m with the probability of {name} (showing ≥ 50%) and its uncertainty (hidden){v}", { cells: cells.length.toLocaleString(), cell: b.cell, name, v: clipNote(r, range, !!res.range?.trained) }));
       if (shape === "bodies") { // TASKS.csv #4017 — closed round the unit, from the same probability blocks, cut at the ground like the other shells
-        const body = enclosedBodies(b, { level: bodyPct / 100, dropped: r.outOfRange, groundAt: clip.ground });
+        const body = enclosedBodies(b, { level: bodyPct / 100, dropped: r.outOfRange, groundAt: cutAtTopo ? clip.ground : null });
         if (body.positions.length && body.closed) {
           const chk = interceptsInsideBodies(body.positions, body.indices, check.points, check.spans);
           const wall = body.closingShare > 0 ? "artificial" : "natural";
           addSurface({ name: `geoML — ${name} body`, positions: body.positions, indices: body.indices, type: "unit_body", closure: wall, color: "#d98c3a", opacity: 0.55,
             params: { tool: "geoML enclosed body", unit: [...unit], model: res.model, quality, seconds: res.seconds, levelPct: bodyPct, volumeM3: Math.round(body.volumeM3), bodies: body.bodies, voids: body.voids, blockM: b.cell, closingShare: +body.closingShare.toFixed(3), droppedSpecks: body.droppedSpecks, ...(chk ? { interceptsInside: { points: chk.inside, of: chk.points, intercepts: chk.reached, ofIntercepts: chk.spans } } : {}), cutAtGround: true } });
-          const bv = { k: body.bodies, name, v: Number(body.volumeM3.toPrecision(3)).toLocaleString(), p: bodyPct, c: b.cell, w: body.closingShare > 0 ? tr("; part of its boundary is the model's edge or its range of the samples, not a contact") : "" };
-          parts.push(body.bodies === 1 ? tr("a closed body of {name}, {v} m³, where the model puts the unit at {p}% or more (blocks of {c} m){w}", bv) : tr("{k} closed bodies of {name}, {v} m³, where the model puts the unit at {p}% or more (blocks of {c} m){w}", bv));
-          if (chk) parts.push(chk.pointShare >= 0.5 ? tr("{a} of the {n} logged intercepts have a point inside it", { a: chk.reached, n: chk.spans }) : tr("WARNING: only {a} of the {n} logged intercepts have a point inside the body: it does not enclose the unit as logged, so check the level and the fit below", { a: chk.reached, n: chk.spans }));
-        } else parts.push(tr("no closed body: the model puts the unit at {p}% or more nowhere in the range it can speak for", { p: bodyPct }));
+          const bv = { k: body.bodies, name, v: Number(body.volumeM3.toPrecision(3)).toLocaleString(), p: bodyPct, c: b.cell, w: (body.closingShare > 0 ? tr("; part of its boundary is the model's edge") : "") + (cutAtTopo ? "" : tr("; not cut at the ground")) };
+          parts.push(body.bodies === 1 ? tr("closed body of {name}: {v} m³ at {p}% ({c} m blocks){w}", bv) : tr("{k} closed bodies of {name}: {v} m³ at {p}% ({c} m blocks){w}", bv));
+          if (chk) parts.push(chk.pointShare >= 0.5 ? tr("{a} of {n} intercepts inside it", { a: chk.reached, n: chk.spans }) : tr("WARNING: only {a} of {n} intercepts are inside: it does not enclose the unit", { a: chk.reached, n: chk.spans }));
+        } else parts.push(tr("no closed body: nowhere at {p}%", { p: bodyPct }));
       }
       if (sizing) parts.push(sizing.focusM ? tr("only the {n} of {total} holes within {d} m of the unit were modelled", { n: sizing.holesSent, total: sizing.holesInProject, d: sizing.focusM.toLocaleString() }) : tr("spacing widened to {s} m to fit in memory", { s: sizing.trainSpacingM }));
       // #1158 — a finished run is not a good model: the fit to the logs, plainly (add-on 0.1.3+)
@@ -272,7 +279,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
       const b = res.blocks;
       checkBlocks(b, ["prediction"]); // #741 (p10 / p90 are optional)
       const range = Math.round(res.range?.trained || 150); // #673 — the learnt range (0.1.2+), else training's start
-      const r = (await clipper(samples, range))(blockPoints(b));
+      const gclip = await clipper(samples, range), r = gclip(blockPoints(b));
       await pj.landing(); // TASKS.csv #3953 — into the project it started in (its project gone: throws, and run says nothing more)
       const keep = r.keep.map((k, i) => k && Number.isFinite(b.prediction[i])); // a spread only where there is a grade
       const cells = blockCells(b, keep, (i) => b.prediction[i]);
@@ -290,7 +297,24 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
         const sv = spread.map((c) => c.value), smax = Math.max(...sv);
         addVoxelModel({ name: `geoML — ${element} P90 − P10 from ${nsim} simulations`, source: "geoml", cells: spread, min: 0, max: smax, colorMode: "continuous", stops: sequentialStops(0, smax), visible: false, params: { ...gparams, value: `P90 - P10 of ${nsim} simulations` } });
       }
-      return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites of ${samples.length.toLocaleString()} sample intervals${cleaned ? ` (${cleaned})` : ""}${clipNote(r, range, !!res.range?.trained)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 from ${nsim} simulations added (hidden).${res.data_warnings?.length ? ` geoML reported: ${res.data_warnings.join("; ")}.` : ""} Not a Mineral Resource estimate.`;
+      // TASKS.csv #4017 (b) — closed shells at the cut-offs, from the predicted grade (and the P10 / P90 of its simulations), cut at the ground like the Grade shell
+      const shellParts = [];
+      if (shellsOn) {
+        const typed = parseShellCutoffs(cutoffText), cuts = typed.length ? typed : gradePlan?.cutSuggestion?.first ? [gradePlan.cutSuggestion.first] : [];
+        const made = gradeShells(b, { cutoffs: cuts, bands: bandsOn, dropped: r.outOfRange, groundAt: cutAtTopo ? gclip.ground : null, samples: gclip.points });
+        const tag = (k) => (k === "p10" ? " (P10)" : k === "p90" ? " (P90)" : "");
+        for (const s of made) {
+          const u = unitTxt, sv = { element, cutoff: s.cutoff, unit: u, v: Number(s.body.volumeM3.toPrecision(3)).toLocaleString(), a: s.inside?.inside ?? 0, n: s.inside?.of ?? 0 };
+          if (!(s.body.positions.length && s.body.closed)) { shellParts.push(tr("no block reaches {cutoff}{unit}: no shell", sv) + tag(s.kind)); continue; }
+          addSurface({ name: `geoML — ${element} ≥ ${s.cutoff}${u} shell${tag(s.kind)}`, positions: s.body.positions, indices: s.body.indices, type: "mineralization_envelope", closure: s.body.closingShare > 0 ? "artificial" : "natural",
+            color: s.kind === "mean" ? "#c9552a" : s.kind === "p10" ? "#2a7fc9" : "#c9a22a", opacity: 0.5,
+            params: { ...gparams, tool: "geoML grade shell", cutoff: s.cutoff, shellOf: s.kind === "mean" ? "predicted grade" : `${s.kind.toUpperCase()} of ${nsim} simulations`, volumeM3: Math.round(s.body.volumeM3), bodies: s.body.bodies, voids: s.body.voids, closingShare: +s.body.closingShare.toFixed(3), droppedSpecks: s.body.droppedSpecks, cutAtGround: cutAtTopo, samplesAtOrAbove: { n: s.above, inside: s.inside?.inside ?? null, of: s.inside?.of ?? null } } });
+          const wall = (s.body.closingShare > 0 ? tr("; part of its boundary is the model's edge") : "") + (cutAtTopo ? "" : tr("; not cut at the ground"));
+          shellParts.push(`${tr("shell at {cutoff}{unit}: {v} m³", sv)}${tag(s.kind)}${wall}`);
+          if (s.kind === "mean" && s.inside) shellParts.push(s.inside.share >= 0.5 ? tr("{a} of {n} samples above {cutoff}{unit} inside", sv) : tr("WARNING: only {a} of {n} samples above {cutoff}{unit} are inside: check the cut-off", sv));
+        }
+      }
+      return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites of ${samples.length.toLocaleString()} sample intervals${cleaned ? ` (${cleaned})` : ""}${clipNote(r, range, !!res.range?.trained)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 from ${nsim} simulations added (hidden).${res.data_warnings?.length ? ` geoML reported: ${res.data_warnings.join("; ")}.` : ""}${shellParts.length ? ` ${shellParts.join("; ")}.` : ""} Not a Mineral Resource estimate.`;
     });
   };
 
@@ -415,16 +439,16 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                 {unit.size > 0 && (
                   <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
                     <div style={{ marginBottom: 2 }}>{tr("Draw the unit as")}</div>
-                    {[["bodies", tr("Enclosed bodies: closed solids with a volume, cut at the ground")], ["layers", tr("Layers: an open surface between units")]].map(([k, text]) => (
+                    {[["bodies", tr("Enclosed bodies (closed solids)")], ["layers", tr("Layers (open contact)")]].map(([k, text]) => (
                       <label key={k} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 2 }}>
                         <input type="radio" name="geoml-shape" checked={shape === k} onChange={() => setShapePick(k)} />{" "}<span>{text}{suggestion?.shape === k && !shapePick ? ` (${tr("suggested")})` : ""}</span></label>
                     ))}
                     {suggestion && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{shapeWhy(suggestion)}</div>}
                     {shape === "bodies" && (() => { const q = QUALITY[quality].domain.block_size, box = modelBox((collars || []).map((c) => ({ x: c.x, y: c.y, z: c.z, length: c.length }))); const a = box ? blockPlan(box, bodiesBlockSize(q)) : null, o = box ? blockPlan(box, q) : null; return (
                       <>
-                        <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }} title={tr("The body is drawn where the model puts the unit at this probability or more. 50% is the contact itself.")}>
+                        <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
                           <span>{tr("Body level (probability, %)")}</span><input type="number" min={5} max={95} step={5} value={bodyPct} onChange={(e) => setBodyPct(Math.max(5, Math.min(95, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} /></label>
-                        {a && o && a.blocks > o.blocks && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("A body is as fine as its blocks: the blocks are asked at {c} m, about {n}, not {c0} m, about {n0}, so the prediction after training takes about {t} longer on a recent laptop.", { c: a.cell, n: a.blocks.toLocaleString(), c0: o.cell, n0: o.blocks.toLocaleString(), t: extraTime(bodiesExtraSeconds(a.blocks, o.blocks)) })}</div>}
+                        {!blockOverride && a && o && a.blocks > o.blocks && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{c} m blocks for a body (about {n}, not {n0}): about {t} more after training.", { c: a.cell, n: a.blocks.toLocaleString(), c0: o.cell, n0: o.blocks.toLocaleString(), t: extraTime(bodiesExtraSeconds(a.blocks, o.blocks)) })}</div>}
                       </>); })()}
                   </div>
                 )}
@@ -449,6 +473,16 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                     <div style={{ color: "var(--color-text-muted)" }}>{tr("This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.", { n: gradePlan.composites.toLocaleString(), t: roughTime(gradePlan.seconds) })}</div>
                   </div>
                 )}
+                <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
+                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={shellsOn} onChange={(e) => setShellsOn(e.target.checked)} />{tr("Also draw grade shells")}</label>
+                  {shellsOn && (() => { const cs = gradePlan?.cutSuggestion, u = (assayElements || []).find((e) => e.symbol === element)?.unit || ""; return (
+                    <>
+                      <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+                        <span>{tr("Cut-offs ({unit})", { unit: u })}</span><input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} placeholder={cs?.first != null ? String(cs.first) : ""} style={{ ...smallSel, width: 110 }} /></label>
+                      {cs?.first != null && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Median {m}, Q3 {q}, P90 {p}", { m: cs.median, q: cs.q3, p: cs.p90 })}</div>}
+                      <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}><input type="checkbox" checked={bandsOn} onChange={(e) => setBandsOn(e.target.checked)} />{tr("Also the P10 and P90 shells")}</label>
+                    </>); })()}
+                </div>
                 <button type="button" style={{ ...btn(true, !ready || !element), marginTop: 8, width: "100%" }} disabled={!ready || !element} onClick={runGrade}>{tr("Model {v}", { v: element || tr("a grade") })}</button>
               </>
             )}
