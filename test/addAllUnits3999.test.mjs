@@ -48,7 +48,7 @@ test("#3999 over 16 units the panel says so and offers the cut-down (the most lo
   assert.match(html, /Left out by the cut: U\d\d \(\d+ m\)/); assert.match(html, />Add 16 units</);
 });
 
-test("#3999 the source: Add all beside the dropdown, the candidates from the pane's own roles, Undo drops itself when the list is edited, the existing units kept", () => {
+test("#3999 the source: Add all beside the dropdown, the candidates from the pane's own roles, one Ctrl+Z step since #4025 (no in-pane Undo), the existing units kept", () => {
   const pane = read("src/modules/viewer/ModellingPanes.jsx");
   assert.match(pane, /import \{ addAllCandidates \} from "\.\.\/\.\.\/lib\/stackAddAll\.js"; import AddAllUnits from "\.\/AddAllUnits\.jsx";/);
   assert.match(pane, /<button type="button" aria-expanded=\{addAllOpen\} onClick=\{\(\) => setAddAllOpen\(\(v\) => !v\)\}[^\n]*\{tr\("Add all…"\)\}<\/button>/);
@@ -56,8 +56,7 @@ test("#3999 the source: Add all beside the dropdown, the candidates from the pan
   assert.match(pane, /roleOf: rawRole, stackUnits, codesOf: stackCodesOf,/);
   assert.ok(pane.indexOf("<AddAllUnits ") < pane.indexOf("<SortByHoles "), "above the Sort by the holes button and the list");
   const src = read("src/modules/viewer/AddAllUnits.jsx");
-  assert.match(src, /if \(undo && !same\(undo\.after, stackUnits\)\) setUndo\(null\);/);
-  assert.match(src, /setStackUnits\(\[\.\.\.final\.order\]\)/); assert.match(src, /setStackUnits\(undo\.before\); setUndo\(null\);/);
+  assert.match(src, /const apply = \(\) => \{ setStackUnits\(\[\.\.\.final\.order\]\); setOpen\(false\); \};/); assert.doesNotMatch(src, /setUndo/, "#4025: Ctrl+Z takes it back");
   assert.match(read("src/lib/stackAddAll.js"), /const start = \[\.\.\.stackUnits, /, "the units already in the stack come first and stay");
   for (const lang of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(read(`src/locales/${lang}.json`)); for (const k of ["Add all…", "All modelling codes ({n})", "All logged codes ({n})", "Logged codes with at least", "Add {n} units", "Not added ({why}): {names}.", "cover / casing", "no recovery"]) assert.ok(d[k], `${lang}: ${k}`); }
 });

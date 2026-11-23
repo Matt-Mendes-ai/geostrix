@@ -18,6 +18,7 @@ import * as holeEditLib from "./holeEdit.js"; // TASKS.csv #3681
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, expandPayloadSliced /* #3423 */, payloadHasTables /* #3492 */, payloadFromFields, projectPartsSliced /* #3104 (projectParts before) */, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { datumPatch } from "./localGridDatum.js"; // TASKS.csv #2691 / #2661
 import { fillFromRows, setEntry } from "./codeDictionary.js"; // TASKS.csv #2163
+import { emptyStack } from "./stratStack.js"; // TASKS.csv #4025
 import { changeElementBasis, rebaseRows, rebaseThresholds } from "./oxideBasisChange.js"; // TASKS.csv #2627
 import { withImportLeftOut } from "./importLeftOut.js"; // TASKS.csv #2493
 import { cappedNotice, capRemovedMapLayers, vertexCount, BIG_VERTICES } from "./undoMapLayerCap.js"; // TASKS.csv #2806; vertexCount / BIG_VERTICES: #2814
@@ -548,6 +549,7 @@ export function StoreProvider({ children }) {
   const [modellingCodes, setModellingCodes] = useState({ codes: [], assign: {}, ties: [] });
   // TASKS.csv #650 — named structural trends + which one each model uses (see lib/projectFields.js)
   const [structuralTrends, setStructuralTrends] = useState({ trends: [], use: {} });
+  const [stratStack, setStratStack] = useState(emptyStack); // TASKS.csv #4025 — the Strat. stack: { units, breaks } (lib/stratStack.js)
   const [explicitSurfaces, setExplicitSurfaces] = useState([]); // TASKS.csv #811
   const addLithoGroup = useCallback((group) => {
     const id = `lgrp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -1036,7 +1038,7 @@ export function StoreProvider({ children }) {
     boundaries: [boundaries, setBoundaries], mapLayers: [mapLayers, setMapLayers], sectionImages: [sectionImages, setSectionImages], surfaceStructures: [surfaceStructures, setSurfaceStructures],
     fieldStructuralRefs: [fieldStructuralRefs, setFieldStructuralRefs], lithoGroups: [lithoGroups, setLithoGroups],
     geophysSurveys: [geophysSurveys, setGeophysSurveys], crmCertificates: [crmCertificates, setCrmCertificates],
-    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes], structuralTrends: [structuralTrends, setStructuralTrends], explicitSurfaces: [explicitSurfaces, setExplicitSurfaces], alterationBoxes: [alterationBoxes, setAlterationBoxes],
+    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes], structuralTrends: [structuralTrends, setStructuralTrends], stratStack: [stratStack, setStratStack] /* #4025 */, explicitSurfaces: [explicitSurfaces, setExplicitSurfaces], alterationBoxes: [alterationBoxes, setAlterationBoxes],
     omfObjects: [omfObjects, setOmfObjects], terrain: [terrain, setTerrain],
     geophysPtsStops: [geophysPtsStops, setGeophysPtsStops], geophysPtsColorMode: [geophysPtsColorMode, setGeophysPtsColorMode],
     geophysPtsMin: [geophysPtsMin, setGeophysPtsMin], geophysPtsMax: [geophysPtsMax, setGeophysPtsMax],
@@ -2135,6 +2137,7 @@ export function StoreProvider({ children }) {
     dcipLines, saveDcipLine, removeDcipLine, // TASKS.csv #322
     modellingCodes, setModellingCodes, // TASKS.csv #599
     structuralTrends, setStructuralTrends, // TASKS.csv #650
+    stratStack, setStratStack, // TASKS.csv #4025
     explicitSurfaces, setExplicitSurfaces, // TASKS.csv #811
     alterationBoxes, setAlterationBoxes, // TASKS.csv #503
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,

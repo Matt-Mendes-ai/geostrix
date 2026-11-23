@@ -20,7 +20,7 @@ import { codedRuns, topsForCode, codeInfo, overburdenBases, leftOutLayers, leftO
 import { pileFromRuns, absentTops, orderFromHoles } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles: #2926
 import { holesOrderPlan } from "../../lib/holesOrder.js"; import SortByHoles from "./SortByHoles.jsx"; // TASKS.csv #3994 — Sort by the holes
 import { addAllCandidates } from "../../lib/stackAddAll.js"; import AddAllUnits from "./AddAllUnits.jsx"; // TASKS.csv #3999 — Add all
-import { useRemoveAllUnits } from "./RemoveAllUnits.jsx"; // TASKS.csv #4022 — Remove all
+import RemoveAllUnits from "./RemoveAllUnits.jsx"; // TASKS.csv #4022 — Remove all
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
@@ -504,7 +504,6 @@ export default function ModellingPanes(props) {
   }, [toolPane, stackUnits, layers.litho, areaRuns, lithoGroups]); // resolveLithoTarget is rebuilt every render from lithoGroups
   // TASKS.csv #3999 — what 'Add all' could add: the codes the 'Add a unit…' list offers (not a cross-cutting, no-recovery, cover or left-out one), by the same rules
   const [addAllOpen, setAddAllOpen] = useState(false);
-  const removeAll = useRemoveAllUnits({ stackUnits, setStackUnits, stackBreaks, setStackBreaks, pBtn }); // TASKS.csv #4022
   const addAllC = useMemo(() => (toolPane !== "stack" ? null : addAllCandidates({ rows: layers.litho || [], litho_units, modellingCodeList, roleOf: rawRole, stackUnits, codesOf: stackCodesOf,
     groupOf: (u) => lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u)), twinInStack })), [toolPane, layers.litho, litho_units, modellingCodeList, stackUnits, lithoGroups, areaRuns]);
   // the 'Add a unit' list in the order the holes give (youngest first), not by interval count
@@ -1037,9 +1036,8 @@ export default function ModellingPanes(props) {
             )}
           </select>
           <button type="button" aria-expanded={addAllOpen} onClick={() => setAddAllOpen((v) => !v)} style={{ ...pBtn, width: "auto", marginBottom: 0, flex: "0 0 auto" }} title={tr("Add every modelling code, every logged code or the codes with enough logged metres, already in the order the holes give. You see the order before anything changes.")}>{tr("Add all…")}</button>{/* #3999 */}
-          {removeAll.button}{/* #4022 */}
+          <RemoveAllUnits stackUnits={stackUnits} setStackUnits={setStackUnits} setStackBreaks={setStackBreaks} pBtn={pBtn} />{/* #4022 */}
         </div>
-        {removeAll.line}{/* #4022 */}
         {stackUnits.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No units added yet.")}</div>
         )}

@@ -72,7 +72,7 @@ test("#3994 the pane: Sort by the holes above the list (any time), the plan from
   assert.ok(Buffer.byteLength(read("src/modules/ViewerModule.jsx")) <= 735000, "the ViewerModule cap");
 });
 
-test("#3994 the button: closed it shows Sort by the holes (and flags a contradiction); the preview lists the moves, what stays, what is not settled, Apply and Cancel; Undo after Apply", async () => {
+test("#3994 the button: closed it shows Sort by the holes (and flags a contradiction); the preview lists the moves, what stays, what is not settled, Apply and Cancel; Apply is one Ctrl+Z step (#4025)", async () => {
   const { default: SortByHoles } = await import(sortFile);
   const { holesOrderPlan } = await import("../src/lib/holesOrder.js");
   const logs = (holes) => holes.flatMap((h, i) => h.map((value, k) => ({ hole_id: `DH-23-${i}`, from: k * 10, to: k * 10 + 10, value })));
@@ -87,11 +87,10 @@ test("#3994 the button: closed it shows Sort by the holes (and flags a contradic
   const split = holesOrderPlan(logs([...many(4, ["A", "B"]), ...many(4, ["B", "A"])]), ["B", "A"]);
   const flagged = renderToStaticMarkup(React.createElement(SortByHoles, { stackUnits: ["B", "A"], plan: split, label: (u) => u, setStackUnits() {}, pBtn: {} }));
   assert.match(flagged, /role="note"[^>]*>Not settled by the holes \(kept as you set them\): B \/ A: 4 holes one way, 4 the other\./);
-  // the source: Apply sets the plan's order and remembers the one before; Undo puts it back; another edit of the list drops the Undo
+  // the source: Apply sets the plan's order; since #4025 the stack is in the project's history, so Ctrl+Z puts the order before back (no in-pane Undo)
   const src = read("src/modules/viewer/SortByHoles.jsx");
-  assert.match(src, /setUndo\(\{ before: \[\.\.\.stackUnits\], after: \[\.\.\.plan\.order\] \}\); setStackUnits\(\[\.\.\.plan\.order\]\);/);
-  assert.match(src, /setStackUnits\(undo\.before\); setUndo\(null\);/);
-  assert.match(src, /if \(undo && !same\(undo\.after, stackUnits\)\) setUndo\(null\);/);
+  assert.match(src, /const apply = \(\) => \{ setStackUnits\(\[\.\.\.plan\.order\]\); setPreview\(false\); \};/);
+  assert.doesNotMatch(src, /setUndo/);
   assert.match(src, /plan\.same\n\s+\? <div>\{tr\("The holes give no reason to move a unit/);
   assert.match(src, /\{!plan\.same && <div style=\{note\}>\{tr\("A marked unconformity goes with its unit\."\)\}<\/div>\}/);
 });
@@ -99,6 +98,6 @@ test("#3994 the button: closed it shows Sort by the holes (and flags a contradic
 test("#3994 every new sentence and the two answers are in every language", () => {
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(read(`src/locales/${lang}.json`));
-    for (const k of ["Sort by the holes", "Sorted by the holes.", "Run as it is", "Use the holes' order", "{unit} up {n}", "{unit} down {n}", "and {n} more", "Moves: {moves}.", "A marked unconformity goes with its unit."]) assert.ok(d[k], `${lang}: ${k}`);
+    for (const k of ["Sort by the holes", "Run as it is", "Use the holes' order", "{unit} up {n}", "{unit} down {n}", "and {n} more", "Moves: {moves}.", "A marked unconformity goes with its unit."]) assert.ok(d[k], `${lang}: ${k}`);
   }
 });
