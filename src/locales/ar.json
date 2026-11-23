@@ -15131,5 +15131,9 @@
   "with different roles in Modelling codes ({r})": "بأدوار مختلفة في رموز النمذجة ({r})",
   "whose intercepts differ in length ({a}: median {am} m; {b}: {bm} m)": "تختلف تقاطعاتها في الطول ({a}: الوسيط {am} م؛ {b}: {bm} م)",
   "These codes look like different units, {how}: one unit (or one package) per run models best.": "تبدو هذه الرموز وحدات مختلفة، {how}: وحدة واحدة (أو حزمة واحدة) لكل تشغيل تنمذج أفضل.",
-  "Blocks of {b} m for the next rock-unit run.": "كتل {b} م لتشغيل الوحدة التالي."
+  "Blocks of {b} m for the next rock-unit run.": "كتل {b} م لتشغيل الوحدة التالي.",
+  "Remove all": "إزالة الكل",
+  "Remove the {n} units from the stack? Undo, under the buttons, puts them back.": "هل تريد إزالة الوحدات الـ {n} من العمود؟ زر التراجع، أسفل الأزرار، يعيدها.",
+  "Removed {n} units.": "أُزيلت {n} وحدات.",
+  "Put back {n} units.": "أُعيدت {n} وحدات."
 }

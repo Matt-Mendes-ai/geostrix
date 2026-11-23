@@ -15131,5 +15131,9 @@
   "with different roles in Modelling codes ({r})": "avec des rôles différents dans Codes de modélisation ({r})",
   "whose intercepts differ in length ({a}: median {am} m; {b}: {bm} m)": "dont les intersections diffèrent en longueur ({a} : médiane {am} m ; {b} : {bm} m)",
   "These codes look like different units, {how}: one unit (or one package) per run models best.": "Ces codes ressemblent à des unités différentes, {how} : une unité (ou un ensemble) par calcul modélise mieux.",
-  "Blocks of {b} m for the next rock-unit run.": "Blocs de {b} m pour le prochain calcul d'unité."
+  "Blocks of {b} m for the next rock-unit run.": "Blocs de {b} m pour le prochain calcul d'unité.",
+  "Remove all": "Tout retirer",
+  "Remove the {n} units from the stack? Undo, under the buttons, puts them back.": "Retirer les {n} unités de la colonne ? Annuler, sous les boutons, les remet.",
+  "Removed {n} units.": "{n} unités retirées.",
+  "Put back {n} units.": "{n} unités remises."
 }
