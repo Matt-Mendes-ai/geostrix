@@ -15165,7 +15165,6 @@
   "Cut-offs ({unit})": "حدود القطع ({unit})",
   "Also the P10 and P90 shells": "وأغلفة P10 وP90 أيضًا",
   "shell at {cutoff}{unit}: {v} m³": "غلاف عند {cutoff}{unit}: {v} م³",
-  "{c} m blocks for a body (about {n}, not {n0}): about {t} more after training.": "كتل {c} م للجسم (نحو {n} بدلًا من {n0}): نحو {t} إضافية بعد التدريب.",
   "closed body of {name}: {v} m³ at {p}% ({c} m blocks){w}": "جسم مغلق من {name}: {v} م³ عند {p}% (كتل {c} م){w}",
   "{k} closed bodies of {name}: {v} m³ at {p}% ({c} m blocks){w}": "{k} أجسام مغلقة من {name}: {v} م³ عند {p}% (كتل {c} م){w}",
   "WARNING: only {a} of {n} intercepts are inside: it does not enclose the unit": "تحذير: {a} فقط من أصل {n} تقاطعًا في الداخل: فهو لا يحيط بالوحدة",
@@ -15178,5 +15177,6 @@
   "Add grade shells (closed)": "إضافة أغلفة العيار (مغلقة)",
   "Add the contact surface": "إضافة سطح الملامسة",
   "{n} blocks of {c} m": "{n} كتلة بحجم {c} م",
-  "Nothing is added yet: use the Result block.": "لم تُضف أي نتيجة بعد: استخدم كتلة النتيجة."
+  "Nothing is added yet: use the Result block.": "لم تُضف أي نتيجة بعد: استخدم كتلة النتيجة.",
+  "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "كتل {c} م (نحو {n} بدلًا من {n0}): نحو {t} إضافية بعد التدريب."
 }

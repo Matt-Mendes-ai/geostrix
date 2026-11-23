@@ -147,6 +147,9 @@ export function modelBox(collars, { padM = 100, padZM = 50 } = {}) {
 // on a recent laptop. So the finer blocks of a body cost this much more after training, and nothing in training (the contact surface stage does not depend on them).
 export const PREDICT_S_PER_BLOCK = 0.00056;
 export const bodiesExtraSeconds = (bodiesBlocks, layersBlocks) => Math.max(0, bodiesBlocks - layersBlocks) * PREDICT_S_PER_BLOCK;
+// TASKS.csv #4029 - what a grade run's finer blocks cost after training, measured on the add-on 0.1.5 with a made-up copper (stage times of the job): 3,240 blocks of 50 m predicted in about 3 s, 25,920 of 25 m in about 7 s, so about 0.2 ms a block (a unit's 0.56 ms is for probability and uncertainty both)
+export const GRADE_S_PER_BLOCK = 0.0002;
+export const gradeExtraSeconds = (shellBlocks, plainBlocks) => Math.max(0, shellBlocks - plainBlocks) * GRADE_S_PER_BLOCK;
 
 // ---- grade shells ---------------------------------------------------------------------------------------------------------------------------------------
 // TASKS.csv #4017 (b) — a geoML grade run's predicted-grade blocks as closed shells at one or more cut-offs, the way the Grade shell makes them: the same builder as the

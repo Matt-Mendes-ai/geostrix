@@ -2,7 +2,7 @@ import { tickedHoles } from "../lib/holeFilter.js"; // TASKS.csv #1315
 import { unitIntercepts, interceptCheckPoints, scoreIntercepts } from "../lib/geomlIntercepts.js"; // TASKS.csv #1318
 import GeomlMissedIntercepts, { GeomlRunAdvice, mixText } from "./GeomlMissedIntercepts.jsx"; // TASKS.csv #1318; advice: #4019
 import { unitMix, runAdvice } from "../lib/geomlIntercepts.js"; // TASKS.csv #4019 — why intercepts are missed, and what to change
-import { enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL } from "../lib/geomlBodies.js"; // TASKS.csv #4017 — closed bodies from the probability blocks
+import { enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, gradeExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL } from "../lib/geomlBodies.js"; // TASKS.csv #4017 — closed bodies from the probability blocks
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
 import { newResult, setResult } from "../lib/geomlResult.js"; // TASKS.csv #4028 - a run lands in a Result, and the Add buttons put it in the project
@@ -279,7 +279,9 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
     const unitTxt = el?.unit ? ` ${el.unit}` : "";
     const gq = planGrade({ samples, composite: QUALITY[quality].grade.composite, inducing: QUALITY[quality].grade.inducing, iterations: QUALITY[quality].grade.iterations }); // #1146
     const gradeLabel = `${element} grade (${QUALITY[quality].label.toLowerCase()})`;
-    run(gradeLabel, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade, composite: gq.composite }, async (res, pj) => { // pj: TASKS.csv #3953
+    const gradeParams = { ...holes(), samples, element, ...QUALITY[quality].grade, composite: gq.composite };
+    if (shellsOn) gradeParams.block_size = bodiesBlockSize(QUALITY[quality].grade.block_size); // TASKS.csv #4029 - a shell is as fine as its blocks, as a unit's body is (#4017)
+    run(gradeLabel, "grade", gradeParams, async (res, pj) => { // pj: TASKS.csv #3953
       const R = newResult(gradeLabel, "grade"); // TASKS.csv #4028
       const b = res.blocks;
       checkBlocks(b, ["prediction"]); // #741 (p10 / p90 are optional)
@@ -454,7 +456,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                       <>
                         <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
                           <span>{tr("Body level (probability, %)")}</span><input type="number" min={5} max={95} step={5} value={bodyPct} onChange={(e) => setBodyPct(Math.max(5, Math.min(95, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} /></label>
-                        {!blockOverride && a && o && a.blocks > o.blocks && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{c} m blocks for a body (about {n}, not {n0}): about {t} more after training.", { c: a.cell, n: a.blocks.toLocaleString(), c0: o.cell, n0: o.blocks.toLocaleString(), t: extraTime(bodiesExtraSeconds(a.blocks, o.blocks)) })}</div>}
+                        {!blockOverride && a && o && a.blocks > o.blocks && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{c} m blocks (about {n}, not {n0}): about {t} more after training.", { c: a.cell, n: a.blocks.toLocaleString(), c0: o.cell, n0: o.blocks.toLocaleString(), t: extraTime(bodiesExtraSeconds(a.blocks, o.blocks)) })}</div>}
                       </>); })()}
                   </div>
                 )}
@@ -487,6 +489,8 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                         <span>{tr("Cut-offs ({unit})", { unit: u })}</span><input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} placeholder={cs?.first != null ? String(cs.first) : ""} style={{ ...smallSel, width: 110 }} /></label>
                       {cs?.first != null && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Median {m}, Q3 {q}, P90 {p}", { m: cs.median, q: cs.q3, p: cs.p90 })}</div>}
                       <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}><input type="checkbox" checked={bandsOn} onChange={(e) => setBandsOn(e.target.checked)} />{tr("Also the P10 and P90 shells")}</label>
+                      {(() => { const q = QUALITY[quality].grade.block_size, box = modelBox((collars || []).map((c) => ({ x: c.x, y: c.y, z: c.z, length: c.length }))), a = box ? blockPlan(box, bodiesBlockSize(q)) : null, o = box ? blockPlan(box, q) : null;
+                        return a && o && a.blocks > o.blocks ? <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{c} m blocks (about {n}, not {n0}): about {t} more after training.", { c: a.cell, n: a.blocks.toLocaleString(), c0: o.cell, n0: o.blocks.toLocaleString(), t: extraTime(gradeExtraSeconds(a.blocks, o.blocks)) })}</div> : null; })()}
                     </>); })()}
                 </div>
                 <button type="button" style={{ ...btn(true, !ready || !element), marginTop: 8, width: "100%" }} disabled={!ready || !element} onClick={runGrade}>{tr("Model {v}", { v: element || tr("a grade") })}</button>
