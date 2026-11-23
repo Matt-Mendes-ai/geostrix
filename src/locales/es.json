@@ -15231,5 +15231,6 @@
   "{a} of {n} samples above {cutoff}{unit} inside": "{a} de {n} muestras sobre {cutoff}{unit} dentro",
   "WARNING: only {a} of {n} samples above {cutoff}{unit} are inside: check the cut-off": "ADVERTENCIA: solo {a} de {n} muestras sobre {cutoff}{unit} están dentro: revise la ley de corte",
   "Median {m}, Q3 {q}, P90 {p}": "Mediana {m}, Q3 {q}, P90 {p}",
-  "; not cut at the ground": "; sin cortar en la superficie"
+  "; not cut at the ground": "; sin cortar en la superficie",
+  "Draw it instead": "Dibujarlo en su lugar"
 }
