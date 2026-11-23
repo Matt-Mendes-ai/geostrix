@@ -44,7 +44,7 @@ export function runAct(act, arg, env) {
     case "draw-section": toBar(); return action("draw-section");
     case "layout": return store.goToModule("layout");
     case "role-overburden": case "cover": return setTool("cover");
-    case "vein": return setTool("veins");
+    case "vein": return setTool("veins", a.vein); // TASKS.csv #4036 - the row's own vein, not always the most cut
     case "layers": return setTool(act, a.units); // the card starts on the Strat. stack's units when it has two or more
     case "alteration": case "grade": case "bodies": return setTool(act);
     default: return undefined;

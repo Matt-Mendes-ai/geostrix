@@ -38,6 +38,7 @@ export const PANE_HELP = {
   "Design strings": "design-strings",
   // 3D Modelling
   "Model settings": "model-settings",
+  "Guided modelling": "guided-model", // TASKS.csv #4036 - the guide behind the Model button (a card, not a pane; the Help button on its step view opens it)
   "Lithology groups": "lithology-groups",
   "Modelling codes": "modelling-codes",
   "Implicit surface": "implicit-surface",

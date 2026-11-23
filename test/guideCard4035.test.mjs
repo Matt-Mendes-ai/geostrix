@@ -51,8 +51,8 @@ test("doors: a pane opens filled in and the guide shrinks to its bar; a card ope
   runAct("explicit", { unit: "LST" }, env); runAct("stack-faults", null, env);
   assert.deepEqual(calls.filter((c) => c[0] === "intent").map((c) => c[1]), [{ pane: "explicit", unit: "LST" }, { pane: "stack", faults: true }]);
   calls.length = 0;
-  runAct("role-overburden", null, env); runAct("vein", null, env); runAct("grade", null, env); runAct("layers", { units: ["SH", "LST"] }, env);
-  assert.deepEqual(calls.slice(0, 3).map((c) => c.join(":")), ["setTool:cover", "setTool:veins", "setTool:grade"]);
+  runAct("role-overburden", null, env); runAct("vein", { vein: "PO" }, env); runAct("grade", null, env); runAct("layers", { units: ["SH", "LST"] }, env);
+  assert.deepEqual(calls.slice(0, 3).map((c) => c.join(":")), ["setTool:cover", "setTool:veins:PO", "setTool:grade"]);
   assert.deepEqual(calls[3], ["setTool", "layers", ["SH", "LST"]], "Rock layers starts on the Strat. stack's units (design step 4)");
   calls.length = 0;
   runAct("leave-out", { codes: ["R1", "R2"] }, env);
