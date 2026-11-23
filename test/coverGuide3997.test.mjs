@@ -59,8 +59,8 @@ test("the guided tools: a body is refused with the cover route; Rock layers note
 
 test("the runs: the Implicit surface stops on the cover with fewer than three tops; the stack leaves such a youngest unit out", () => {
   const s = rd("src/modules/viewer/modellingRuns.js");
-  assert.match(s, /if \(cc\.cover\) \{ const few = points\.length < 3; setNotices\(\(p\) => \[\.\.\.p, \(few \? errorNotice : infoNotice\)\(coverAdvice\(unitName, cc\)\)\]\); if \(few\) return null; \}/);
+  assert.match(s, /if \(cc\.cover\) \{ const few = points\.length < 3; setNotices\(\(p\) => \[\.\.\.p, withCode\(\(few \? errorNotice : infoNotice\)\(coverAdvice\(unitName, cc\)\), "cover", \{ unit: unitName \}\)\]\); if \(few\) return null; \}/); // withCode: #4034
   assert.match(s, /if \(!silent && !isOverburdenUnit\) \{\n      const cc = collarCover\(/);
   assert.match(s, /if \(spec && i === coverAt && coverCC\?\.cover && spec\.points\.length < 3\) spec = null; \/\/ #3997/);
-  assert.match(s, /if \(coverCC\?\.cover && coverCC\.onto\.length > 1\) setNotices\(\(p\) => \[\.\.\.p, infoNotice\(coverAdvice\(youngestName, coverCC, \{ stack: true \}\)\)\]\);/);
+  assert.match(s, /if \(coverCC\?\.cover && coverCC\.onto\.length > 1\) setNotices\(\(p\) => \[\.\.\.p, withCode\(infoNotice\(coverAdvice\(youngestName, coverCC, \{ stack: true \}\)\), "cover", \{ unit: youngestName \}\)\]\);/); // withCode: #4034
 });

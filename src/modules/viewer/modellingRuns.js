@@ -38,7 +38,7 @@ import { MAX_BLOCKS, SUPPORT_COLORS, NUMERIC_CELL_DEFAULT, gradeShellBudgetNote,
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText, gradeUnitLabel, resolvedSegments } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571; resolvedSegments: #2634
 import { assayIndicatorInGaps } from "../../lib/assayInGaps.js"; // TASKS.csv #2634
 import { excludeQAQC } from "../../lib/qaqc.js";
-import { errorNotice, notice, appendNotice, infoNotice } from "../../lib/notices.js"; // infoNotice: #2047
+import { errorNotice, notice, appendNotice, infoNotice, withCode } from "../../lib/notices.js"; // infoNotice: #2047; withCode: #4034
 import { checkStackInputs, anyFix, isSingularError } from "../../lib/gempyInputCheck.js"; // TASKS.csv #3986
 import { inputCheckNotice, singularCause } from "../../lib/gempyInputWords.js"; // TASKS.csv #3986
 import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 — what is waiting for collars
@@ -259,6 +259,7 @@ export function createModellingRuns(ctx, mcRef) {
     // filters elsewhere in this function's callers.
     const isFiniteNum = (v) => typeof v === "number" ? Number.isFinite(v) : Number.isFinite(Number(v)) && String(v).trim() !== "";
     const specs = [];
+    const unitOfLabel = (l) => rawSpecs.find((s) => s.label === l)?.meshName ?? null; // TASKS.csv #4034 — the unit a surface's label ("Top of X") stands for, for the guide's Next
     const why = []; // TASKS.csv #4024 — why each unit was left out, said by the 'Nothing left to model' message (the notices above sit behind 'Show all')
     rawSpecs.forEach((spec) => {
       const badPoints = spec.points.length;
@@ -287,7 +288,7 @@ export function createModellingRuns(ctx, mcRef) {
         ? tr("Set the role of units you can spare to 'other (left out)', or build two models over parts of the order: GemPy takes at most {max} units, and this order has {n} stratigraphic ones.", { max: overLimit.maxSurfaces, n: overLimit.surfaces })
         : tr("Merge neighbouring units with Litho groups, take units out of the stack, or use the Layer-cake method (Stack method; it needs units logged in holes): GemPy takes at most {max} units, and this stack has {n}.", { max: overLimit.maxSurfaces, n: overLimit.surfaces }));
       if (overLimit.overFaults) parts.push(tr("GemPy takes at most {max} faults in one model, and this run has {n}: leave out the ones that offset the units least.", { max: overLimit.maxFaults, n: overLimit.faults }));
-      setNotices((p) => [...p, errorNotice(tr("Not run: {why}", { why: parts.join(" ") }))]);
+      setNotices((p) => [...p, withCode(errorNotice(tr("Not run: {why}", { why: parts.join(" ") })), "limit", { overSurfaces: !!overLimit.overSurfaces, surfaces: overLimit.surfaces, maxSurfaces: overLimit.maxSurfaces, overFaults: !!overLimit.overFaults, faults: overLimit.faults, maxFaults: overLimit.maxFaults, fromMap: !!stackOpts.fromMap })]); // code: #4034
       return;
     }
     // TASKS.csv #2918 (review #2876, WA iron) — two collars at elevation 0 on a 440 m plateau made the whole-field box 1,063 m tall (cells
@@ -314,7 +315,7 @@ export function createModellingRuns(ctx, mcRef) {
       held.push(notice("\"{label}\": no usable orientation was left after removing invalid ones, so its dip was estimated from its contact points (~{dip}°/~{azimuth}°).", { label: specs[k].label, dip: Math.round(e.dip), azimuth: Math.round(e.azimuth) }));
     }
     if (anyFix(inputCheck.fixes)) held.push(inputCheckNotice(inputCheck.fixes));
-    if (!specs.length) { setNotices((p) => [...p, ...held, errorNotice(nothingLeftText(why))]); return; } // ...held: #2918's, said before it
+    if (!specs.length) { setNotices((p) => [...p, ...held, withCode(errorNotice(nothingLeftText(why)), "nothing-left", { reasons: why.map((r) => ({ ...r, unit: unitOfLabel(r.label) })) })]); return; } // code: #4034 // ...held: #2918's, said before it
     // TASKS.csv #762 — the picks themselves, before the solve (GemPy's condition number was measured blind to most of this)
     // TASKS.csv #2539 (review #2486) — an orientation the run estimated itself (no structure pick) is not a pick to 'fix or exclude': worded apart
     const pickIssues = specs.map((sp) => { const r = pickReport(sp, { origin: originRef.current }); return r && { ...r, estimated: !!sp.orientationEstimated }; }).filter(Boolean);
@@ -485,7 +486,7 @@ export function createModellingRuns(ctx, mcRef) {
 
     // TASKS.csv #1189 — it still runs: the geologist may want the plane; it just must not pass for a modelled contact
     const thinSpecs = specs.filter((s) => !s.fault && tooFewContacts(s.points));
-    if (thinSpecs.length) held.push(notice("Too few contacts to shape a surface: {list}. Fewer than three, or all in a line, so its shape comes from the structure picks alone.", { list: thinSpecs.map((s) => tr("{label} ({n})", { label: s.label, n: s.points.length })).join(", ") }));
+    if (thinSpecs.length) held.push(withCode(notice("Too few contacts to shape a surface: {list}. Fewer than three, or all in a line, so its shape comes from the structure picks alone.", { list: thinSpecs.map((s) => tr("{label} ({n})", { label: s.label, n: s.points.length })).join(", ") }), "too-few-contacts", { units: thinSpecs.map((s) => s.meshName) })); // code: #4034
     // TASKS.csv #3986 — a stack's name is its count (the run's notices, the status bar, the finished banner), not every unit and fault in one line
     // across the window; the names are behind More when it fails
     const nFaults = specs.filter((s) => s.fault).length, stackNames = specs.map((s) => s.meshName).join(", ");
@@ -596,7 +597,7 @@ export function createModellingRuns(ctx, mcRef) {
     if (!res.ok) {
       setTaskProgress?.(null);
       // #3986 — a singular matrix: one short line with the likely cause; the stack's names and the engine's words behind More
-      if (!res.cancelled) setNotices((p) => [...p, isSingularError(res.error) ? errorNotice(tr("GemPy could not solve this model (singular matrix): {cause}", { cause: singularCause(inputCheck.risks) }), `${stackNames}: ${plainEngineError(res.error)}`)
+      if (!res.cancelled) setNotices((p) => [...p, isSingularError(res.error) ? withCode(errorNotice(tr("GemPy could not solve this model (singular matrix): {cause}", { cause: singularCause(inputCheck.risks) }), `${stackNames}: ${plainEngineError(res.error)}`), "singular", { kind: inputCheck.risks?.[0]?.kind || null, unit: unitOfLabel(inputCheck.risks?.[0]?.label), other: unitOfLabel(inputCheck.risks?.[0]?.other) }) // code: #4034
         : errorNotice(tr("{label} failed: {error}", { label, error: plainEngineError(res.error) }), specs.length > 1 ? stackNames : null)]); // plainEngineError: #3162
       return;
     }
@@ -1393,7 +1394,7 @@ export function createModellingRuns(ctx, mcRef) {
     // fewer than three tops left the run stops rather than draw a slab through them
     if (!silent && !isOverburdenUnit) {
       const cc = collarCover(codedRuns(layers.litho, isMcode ? modellingCodes : null, isMcode || isGroup ? mcodeGroupOf : null), unitName);
-      if (cc.cover) { const few = points.length < 3; setNotices((p) => [...p, (few ? errorNotice : infoNotice)(coverAdvice(unitName, cc))]); if (few) return null; }
+      if (cc.cover) { const few = points.length < 3; setNotices((p) => [...p, withCode((few ? errorNotice : infoNotice)(coverAdvice(unitName, cc)), "cover", { unit: unitName })]); if (few) return null; } // code: #4034
     }
     if (holeStartSkipped || gapSkipped) setNotices((p) => [...p, notice("{unitName}: {a} interval start(s) at a hole start and {b} below an unlogged gap were not used as contacts: a top needs a logged unit above it.", { unitName, a: holeStartSkipped, b: gapSkipped })]); // #2527
     if (splitsSkipped && !silent) setNotices((p) => [...p, notice("{unitName}: {splitsSkipped} interval start(s) inside the unit (the row above in the same hole is the same {v}) were not used as contacts.", { unitName, splitsSkipped, v: isGroup ? tr("group") : tr("unit") })]);
@@ -1753,7 +1754,7 @@ export function createModellingRuns(ctx, mcRef) {
     const youngestSkipped = youngestAt >= 0 && !specKey.has(unitNames[youngestAt]) && !!targets[youngestAt];
     const otherSkipped = youngestSkipped ? skipped.slice(1) : skipped; // overburden is never in skipped, so the youngest is first
     if (youngestSkipped) setNotices((p) => [...p, notice("{unit}: no top contacts it can use (the notes above say why). As the youngest unit of the stack it needs none: the stack is modelled from the top of the unit below it down.", { unit: youngestName })]);
-    if (coverCC?.cover && coverCC.onto.length > 1) setNotices((p) => [...p, infoNotice(coverAdvice(youngestName, coverCC, { stack: true }))]); // #3997: on several rocks (on one, it is a layer like the rest)
+    if (coverCC?.cover && coverCC.onto.length > 1) setNotices((p) => [...p, withCode(infoNotice(coverAdvice(youngestName, coverCC, { stack: true })), "cover", { unit: youngestName })]); // code: #4034 // #3997: on several rocks (on one, it is a layer like the rest)
     if (otherSkipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.", { skipped: otherSkipped.join(", ") }) /* #1370 */]);
     // one surface left because the youngest unit needs no top, or because overburden's base is folded into the unit under it (#1684):
     // that contact is still a model — a stack of one is the same solve (runSurfaceModel is runSurfaceStack([spec]))
@@ -1833,7 +1834,7 @@ export function createModellingRuns(ctx, mcRef) {
           return runStackModel(plan.order, { method, orderAsked: true }); // every package, break and order-dependent step is gathered again from the new order
         }
         if (answer !== "asis" && answer !== "holes") {
-          setNotices((p) => [...p, notice("Stack run cancelled before solving: the holes give the order {order} (youngest first). 'Use the order from the holes' over the stack's units puts them in it; then run again.", { order: holesOrder }) /* #2926 */]);
+          setNotices((p) => [...p, withCode(notice("Stack run cancelled before solving: the holes give the order {order} (youngest first). 'Use the order from the holes' over the stack's units puts them in it; then run again.", { order: holesOrder }), "order", { order: plan.order }) /* #2926; code: #4034 */]);
           return;
         }
         setNotices((p) => [...p, notice("Run in the order given, although the holes give {order} (youngest first): {list}.", { order: holesOrder, list })]);

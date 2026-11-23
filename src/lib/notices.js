@@ -23,6 +23,9 @@ export const notice = (text, vars) => {
 // TASKS.csv #821 — more (already translated) text after a notice: notice() returns an object, so `notice(...) + "..."`
 // would print "[object Object]..." (it did, in the #817 "Model from the map" summary)
 export const appendNotice = (n, extra) => (extra ? { ...n, text: n.text + extra } : n);
+// TASKS.csv #4034 (#4015 guided modelling) — a failure notice tagged with its cause, its text untouched: the guide reads `code` and `detail`
+// and offers the Next buttons for it (lib/guide/guideFailures.js nextFor). A string is turned into a notice object so it can carry them.
+export const withCode = (n, code, detail = null) => ({ ...(typeof n === "string" ? { text: n, level: noticeLevel(n) } : n), code, ...(detail ? { detail } : {}) });
 // TASKS.csv #3114 — a notice that stands for the latest result of one check: the list without the earlier notices of that tag, then the new
 // one(s), tagged. A topology check's 'found 3 violation(s)' stayed on screen after a later check passed. Generic: any handler whose result
 // replaces its last one can use a tag of its own. Strings and Errors are turned into notice objects so they can carry the tag.

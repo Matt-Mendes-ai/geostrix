@@ -25,7 +25,7 @@ test("wiring: the run uses the worker client; the held pre-solve notices are sai
   const s = fs.readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(s, /const r = await runLayerCake\(specs\.filter\(\(sp\) => !sp\.fault\), extent, resolution, \{ evalPts, faults: specs\.filter\(\(sp\) => sp\.fault\), onProgress: \(done, total\) => setTaskProgress/); // faults: #3086
   assert.match(s, /held\.push\(notice\(onlyEstimate \? "Pick check before solving/);
-  assert.match(s, /if \(thinSpecs\.length\) held\.push\(notice\("Too few contacts/);
+  assert.match(s, /if \(thinSpecs\.length\) held\.push\(withCode\(notice\("Too few contacts/); // withCode: #4034
   const offer = s.indexOf("return runSurfaceStack(rawSpecs, { ...stackOpts, engine: \"layercake\", offerCake: false });");
   const flush = s.indexOf("if (held.length) setNotices((p) => [...p, ...held]);"), box = s.indexOf("notice(anisotropy.enabled ? \"Model box");
   assert.ok(offer > 0 && flush > offer && box > flush, "question, then the held notices, then the box");
