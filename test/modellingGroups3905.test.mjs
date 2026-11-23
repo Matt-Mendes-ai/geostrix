@@ -10,7 +10,7 @@ test("#3905 the groups, in order, and the buttons in each", () => {
   const m = r.slice(r.indexOf('label="3D Modelling tools"'), r.indexOf('label="Mine design tools"'));
   const groups = [...m.matchAll(/<RibbonGroup [^>]*label="([^"]+)">([\s\S]*?)<\/RibbonGroup>/g)].map((g) => [g[1], [...g[2].matchAll(/<RibbonButton [^\n]*?label="([^"]+)"/g)].map((b) => b[1])]);
   assert.deepEqual(groups, [
-    ["Setup", ["Model settings", "Litho groups", "Modelling codes", "Correlation"]],
+    ["Setup", ["Guide", "Model settings", "Litho groups", "Modelling codes", "Correlation"]], // Guide: #4035
     ["Surfaces", ["Implicit surface", "Strat. stack", "Model from map", "Explicit surface"]],
     ["Volumes", ["Alteration", "geoML models"]],
     ["Veins and dykes", ["Veins / dykes"]],

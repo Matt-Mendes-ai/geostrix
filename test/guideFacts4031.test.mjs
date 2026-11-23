@@ -41,7 +41,7 @@ test("a layered pile in eight holes: computed; step 3 offers Add all; then the s
   assert.match(rocks.asks.rows[1].text, /^Add the 4 rocks/);
   assert.equal(step(f, "build").state, "waiting"); // the stack first
   // the stack, in the holes' order, and a surface for each unit (params.surface: the run's own record)
-  const built = { ...p, stratStack: { units: ["SST", "SH", "LST", "MDST"], faults: [] }, generatedSurfaces: ["SST", "SH", "LST", "MDST"].map((u, i) => ({ id: `s${i}`, name: `Top of ${u}`, type: "stratigraphic_contact", params: { surface: u } })) };
+  const built = { ...p, stratStack: { units: ["SST", "SH", "LST", "MDST"], faults: [] }, generatedSurfaces: ["SH", "LST", "MDST"].map((u, i) => ({ id: `s${i}`, name: `Top of ${u}`, type: "stratigraphic_contact", params: { surface: u } })) };
   const f2 = facts(built);
   assert.equal(step(f2, "rocks").state, "done");
   assert.equal(step(f2, "build").state, "done");

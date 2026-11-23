@@ -93,7 +93,8 @@ const BUILD = {
     const st = f.stack, asks = { question: BUILD.question, suggest: s, route, act: route === "map" ? "mapmodel" : route === "drawn" ? "explicit" : "stack" };
     if (route === "map") return { state: f.built.strat >= 1 ? "done" : "next", reason: s.route === "map" ? s.reason : null, asks };
     if (route === "computed" && s.why !== "body" && st.units.length < 2) return { state: "waiting", reason: tr("Stack two rocks first (step 3)."), asks };
-    const stackDone = st.units.length >= 2 && st.built.length === st.units.length;
+    // the first (youngest) unit has no surface of its own (its top is the ground or the cover): every unit under it has its top (#4035, live)
+    const under = st.units.slice(1), stackDone = under.length >= 1 && under.every((u) => st.built.includes(u));
     const done = route === "drawn" ? (st.units.length >= 2 ? stackDone : f.drawn.explicitBuilt >= 1) : s.why === "body" && st.units.length < 2 ? f.built.bodies >= 1 : stackDone;
     return { state: done ? "done" : "next", reason: done ? null : s.route === route ? s.reason : null, asks };
   },

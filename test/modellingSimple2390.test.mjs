@@ -31,7 +31,7 @@ test("wiring: the ribbon's flags, empty groups hidden in Simple (#1707), Stereon
   assert.match(v, /const simpleTools = useModellingSimple\(mode === "modelling"\);/);
   const r = fs.readFileSync(new URL("../src/modules/viewer/ModeRibbons.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // the ribbons: #3904
   // #3153 — the Setup group and Model settings show in Simple; Litho groups and Modelling codes follow the strat flag as the group did
-  assert.match(r, /<RibbonGroup label="Setup">\{\/\* #3153[^\n]*\n\s*<RibbonButton icon=\{Settings\} label="Model settings"/);
+  assert.match(r, /<RibbonGroup label="Setup">\{\/\* #3153[^\n]*\n\s*<RibbonButton icon=\{ModelIcon\} label="Guide"[^\n]*\n\s*<RibbonButton icon=\{Settings\} label="Model settings"/); // #4035: the Guide first, in Simple too
   assert.match(r, /<RibbonButton advanced=\{!simpleTools\.strat\} icon=\{Group\} label="Litho groups"/);
   assert.match(r, /<RibbonButton advanced=\{!simpleTools\.strat\} icon=\{Waypoints\} label="Modelling codes"/);
   assert.match(r, /<RibbonButton advanced icon=\{GitCompare\} label="Correlation"/);

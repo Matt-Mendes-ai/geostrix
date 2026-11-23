@@ -3,6 +3,8 @@
 // three, since one mode shows at a time; the Geological Mapping ribbon is SurfaceRibbon (ViewerParts.jsx). Mine Design stays hidden by lib/features.js.
 import React from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../../components/Ribbon.jsx"; // TASKS.csv #458
+import { ModelIcon } from "../../components/ribbonIcons.jsx"; // TASKS.csv #4035 — the Guide button, StrixViewer's Model icon
+import { requestModuleAction } from "../../lib/menuRequests.js";
 import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, Map as MapIcon, Mountain, Layers3, MapPin, Box, Compass, Activity, Ruler, Waypoints, GitCompare, Sparkles, SquareSplitVertical } from "../../components/icons.js";
 
 export default function ModeRibbons({ mode, show, paneProps, simpleTools, project, plannedHoles, pickHoleMode, setPickHoleMode, setToolPane, exportPlannedHoles, setTadpoleOpen, setCoreOrientOpen, setVariogramOpen, setFenceOpen, setSurfaceQueryOpen, setStereonetOpen }) {
@@ -12,6 +14,7 @@ export default function ModeRibbons({ mode, show, paneProps, simpleTools, projec
     {mode === "modelling" && (
       <Ribbon show={show} label="3D Modelling tools">
         <RibbonGroup label="Setup">{/* #3153 — Model settings in Simple too: every modelling tool reads it */}
+          <RibbonButton icon={ModelIcon} label="Guide" tone="model" title="Build a model from your logs, step by step: each tool asks one question and answers it from your data." onClick={() => requestModuleAction("guided-open", { tool: "start" })} />{/* TASKS.csv #4035 — the guide, here too: a user who starts on this tab meets it */}
           <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
           <RibbonButton advanced={!simpleTools.strat} icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
           <RibbonButton advanced={!simpleTools.strat} icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />

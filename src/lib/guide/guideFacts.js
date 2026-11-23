@@ -133,7 +133,7 @@ function readFacts(s) {
     const firstRows = [];
     for (const [h, m] of firstAt) for (const [key, d] of m) firstRows.push({ hole_id: h, from: d, value: key });
     const p = holesOrderPlan(firstRows, stackUnits, (u) => [u]);
-    stackPlan = { moves: p.moves.length, contradictions: p.contradictions, same: p.same };
+    stackPlan = { moves: p.moves.length, order: p.order, contradictions: p.contradictions, same: p.same }; // order: the guide's Sort by the holes (#4035)
   }
 
   // ---- the other tables, one pass each
