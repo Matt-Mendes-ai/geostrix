@@ -15166,5 +15166,9 @@
   "WARNING: only {a} of the {n} logged intercepts have a point inside the body: it does not enclose the unit as logged, so check the level and the fit below": "ADVERTENCIA: solo {a} de las {n} intersecciones registradas tienen un punto dentro del cuerpo: no encierra la unidad como se registró; revise el nivel y el ajuste que se indica abajo",
   "no closed body: the model puts the unit at {p}% or more nowhere in the range it can speak for": "sin cuerpo cerrado: el modelo no sitúa la unidad al {p} % o más en ningún lugar dentro del alcance que puede cubrir",
   "A body is as fine as its blocks: the blocks are asked at {c} m, about {n}, not {c0} m, about {n0}, so the prediction after training takes about {t} longer on a recent laptop.": "Un cuerpo es tan fino como sus bloques: se piden bloques de {c} m, unos {n}, y no de {c0} m, unos {n0}, así que la predicción después del entrenamiento tarda unos {t} más en una computadora reciente.",
-  "a closed body of {name}, {v} m³, where the model puts the unit at {p}% or more (blocks of {c} m){w}": "un cuerpo cerrado de {name}, {v} m³, donde el modelo sitúa la unidad al {p} % o más (bloques de {c} m){w}"
+  "a closed body of {name}, {v} m³, where the model puts the unit at {p}% or more (blocks of {c} m){w}": "un cuerpo cerrado de {name}, {v} m³, donde el modelo sitúa la unidad al {p} % o más (bloques de {c} m){w}",
+  "Put back": "Volver a incluir",
+  "Leave out of the model": "Dejar fuera del modelo",
+  "Put back in the model": "Volver a incluir en el modelo",
+  "Left out of the model: {codes}.": "Fuera del modelo: {codes}."
 }

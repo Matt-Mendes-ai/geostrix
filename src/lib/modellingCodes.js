@@ -58,7 +58,7 @@ export function inTargetUnit(row, codes, unitName, assign) {
 
 export function codeInfo(mc, name, defaultRole = () => "stratigraphic") {
   const c = (mc?.codes || []).find((x) => x.name === name);
-  return { name, role: c?.role || defaultRole(name), order: Number.isFinite(c?.order) ? c.order : null, color: c?.color || null };
+  return { name, role: c?.role || defaultRole(name), order: Number.isFinite(c?.order) ? c.order : null, color: c?.color || null, leftOut: !!c?.leftOut /* #4026 */ };
 }
 
 // Per hole, top-down runs of one code: touching rows with the same effective code merge (row splits are
@@ -261,3 +261,44 @@ export function deleteCodes(mc, names, { logged = null } = {}) {
   const ties = (base.ties || []).filter((t) => !dropped.has(t.a) && !dropped.has(t.b));
   return { mc: { ...base, assign, codes, ties }, intervals: dropped.size, codes: hit.size };
 }
+
+// TASKS.csv #4026 (Matt, 2026-11-22: 'sure') — 'Leave out of the model' per code, a logged code too (the log is never changed): the entry of the code list says
+// `leftOut: true`, saved with the modelling codes (an Undo field). Everything is in by default. A left-out code is read by the modelling tools as if its intervals
+// were not logged (a gap: no unit below it gets a top there); the logs, legend and data table keep every interval.
+export const leftOutNames = (mc) => new Set((mc?.codes || []).filter((c) => c.leftOut).map((c) => c.name));
+
+// the code list with `leftOut` set (on) or cleared (off) for these codes; an entry that held nothing else is removed again, so a code only ever left out and put back
+// does not become a 'modelling code' of its own
+export function setLeftOut(mc, names, on) {
+  const base = mc || EMPTY_MODELLING_CODES, list = [...(base.codes || [])];
+  for (const name of names || []) {
+    const at = list.findIndex((c) => c.name === name);
+    if (on) { if (at < 0) list.push({ name, leftOut: true }); else list[at] = { ...list[at], leftOut: true }; }
+    else if (at >= 0) { const { leftOut, ...rest } = list[at]; if (Object.keys(rest).length > 1) list[at] = rest; else list.splice(at, 1); }
+  }
+  return { ...base, codes: list };
+}
+
+// the rows the modelling tools read: those whose code (override, group or logged value) is not left out; the same array when nothing is left out
+export function withoutLeftOut(rows, mc, groupOf) {
+  const out = leftOutNames(mc);
+  if (!out.size || !rows?.length) return rows;
+  const codeOf = codeResolver(mc, groupOf);
+  return rows.filter((r) => !out.has(codeOf(r)));
+}
+// the layers with the Lithology rows as the modelling tools read them; the same object when nothing is left out
+export function leftOutLayers(layers, mc, groupOf) {
+  if (!layers?.litho) return layers;
+  const litho = withoutLeftOut(layers.litho, mc, groupOf);
+  return litho === layers.litho ? layers : { ...layers, litho };
+}
+// the left-out codes that are in these rows, in order (what a picker says it left out)
+export function leftOutIn(rows, mc, groupOf) {
+  const out = leftOutNames(mc);
+  if (!out.size) return [];
+  const codeOf = codeResolver(mc, groupOf), seen = new Set();
+  for (const r of rows || []) { const c = codeOf(r); if (out.has(c)) seen.add(c); }
+  return [...seen].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+// is this unit (a raw code or a group's name) left out
+export const isLeftOutUnit = (mc, groupOf, name) => { const out = leftOutNames(mc); return out.has(name) || (!!groupOf && out.has(groupOf(name))); };

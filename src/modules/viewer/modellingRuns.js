@@ -45,7 +45,7 @@ import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 —
 import { terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, bodyCellPastRuns, seamCells /* #2384 */, mergedRuns, splitIntervalForSampling, spatialClusters } from "../../lib/viewer/geomathModelling.js"; // TASKS.csv #3590
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthIndexAt } from "../../lib/viewer/intervals.js";
-import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases, collarCover } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684; #3997
+import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases, collarCover, isLeftOutUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684; #3997
 import { coverAdvice } from "../../lib/auto/autoUnits.js"; // TASKS.csv #3997
 import { samplesInsideShell } from "../../lib/shellSupport.js"; // TASKS.csv #1735
 import { clipMesh } from "../../lib/clipMesh.js";
@@ -1666,6 +1666,7 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #176 — a `group:<id>` pick resolves to its group object here; the raw-code path is untouched.
     const target = resolveLithoTarget(unitName);
     if (!target) { setNotices((p) => [...p, notice("That lithology group no longer exists — pick another unit.")]); return; }
+    if (isLeftOutUnit(modellingCodes, mcodeGroupOf, typeof target === "object" ? target.name : target)) { setNotices((p) => [...p, notice("Left out of the model: {codes}.", { codes: typeof target === "object" ? target.name : target })]); return; } // TASKS.csv #4026
     const spec = gatherLithoSurfaceSpec(target, traces, { mapConstraint });
     if (!spec) return;
     noteUnmatchedDrawnContacts([spec]);
@@ -1686,8 +1687,13 @@ export function createModellingRuns(ctx, mcRef) {
   // non-crossing assumption this tool exists to enforce, so they're excluded from this tool by scope
   // (model them with the Structural tool instead, which has no such constraint) rather than trying to
   // half-support fault-cuts-through-stack modelling as a first pass — noted as a real follow-up (#52).
-  const runStackModel = async (unitNames, { method = "gempy", orderAsked = false } = {}) => { // orderAsked: the order was settled (#3994), do not ask again
-    if (!unitNames || unitNames.length < 2) return;
+  const runStackModel = async (unitNamesAll, { method = "gempy", orderAsked = false } = {}) => { // orderAsked: the order was settled (#3994), do not ask again
+    if (!unitNamesAll || unitNamesAll.length < 2) return;
+    // TASKS.csv #4026 — a unit left out of the model (Modelling codes) is not in the stack, and the run says so where it would have been
+    const leftOutNames = unitNamesAll.map((u) => resolveLithoTarget(u)).filter((t) => t && isLeftOutUnit(modellingCodes, mcodeGroupOf, typeof t === "object" ? t.name : t)).map((t) => (typeof t === "object" ? t.name : t));
+    const unitNames = leftOutNames.length ? unitNamesAll.filter((u) => { const t = resolveLithoTarget(u); return !(t && leftOutNames.includes(typeof t === "object" ? t.name : t)); }) : unitNamesAll;
+    if (leftOutNames.length) setNotices((p) => [...p, notice("Left out of the model: {codes}.", { codes: leftOutNames.join(", ") })]);
+    if (unitNames.length < 2) return;
     const cake = method === "layercake"; // TASKS.csv #2905
     // TASKS.csv #3086 — the layer-cake takes the stack's faults (a cake per fault block, lib/layerCake.js); it refused them before
     const traces = tracesRef.current;
