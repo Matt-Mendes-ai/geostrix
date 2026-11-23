@@ -49,7 +49,7 @@ test("#3994 the run's question: Use the holes' order / Run as it is / Cancel; th
   assert.match(runs, /\[\{ label: "Cancel", value: "cancel" \}, \{ label: "Run as it is", value: "asis" \}, \{ label: "Use the holes' order", value: "holes", primary: true \}\]/);
   assert.match(runs, /if \(answer === "holes" && !plan\.same && typeof setStackUnits === "function"\) \{\n\s+setStackUnits\(plan\.order\);/);
   assert.match(runs, /return runStackModel\(plan\.order, \{ method, orderAsked: true \}\);/);
-  assert.match(runs, /const runStackModel = async \(unitNames, \{ method = "gempy", orderAsked = false \} = \{\}\) =>/);
+  assert.match(runs, /const runStackModel = async \(unitNamesAll, \{ method = "gempy", orderAsked = false \} = \{\}\) =>/);
   assert.match(runs, /if \(ord\.conflicts\.length && !orderAsked\) \{/, "not asked a second time on the re-run");
   assert.match(runs, /if \(answer !== "asis" && answer !== "holes"\) \{\n\s+setNotices\(\(p\) => \[\.\.\.p, notice\("Stack run cancelled before solving/, "Cancel, Escape and a click outside stop the run");
   assert.match(runs, /holesOrderPlan\(layers\.litho \|\| \[\], unitNames, \(u\) => \(specKey\.get\(u\) \? specKey\.get\(u\)\.codes \|\| \[specKey\.get\(u\)\.meshName\] : \[\]\)\)/, "units with no surface keep their place");

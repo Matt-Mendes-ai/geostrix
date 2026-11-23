@@ -45,7 +45,7 @@ test("'Thickness between top and base' measures a steep pair as the vein solid d
 test("one entry per unit: a group and its Modelling codes twin are listed once; the Alteration lithology list offers the groups", () => {
   const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
   assert.match(panes, /const mcodeNames = useMemo\(\(\) => new Set\(\(modellingCodeList \|\| \[\]\)\.map\(\(c\) => c\.name\)\), \[modellingCodeList\]\);/);
-  assert.match(panes, /\{lithoGroups\.filter\(\(g\) => !mcodeNames\.has\(g\.name\)\)\.map\(\(g\) => \{/); // Implicit
+  assert.match(panes, /\{lithoGroups\.filter\(\(g\) => !mcodeNames\.has\(g\.name\) && !leftOutCodes\.includes\(g\.name\)\)\.map\(\(g\) => \{/); // Implicit
   assert.match(panes, /lithoGroups\.filter\(\(g\) => !mcodeNames\.has\(g\.name\) \/\* #3876/); // Strat. stack
   assert.match(panes, /!twinInStack\(c\.name\) \/\* #3876 \(#3767\) \*\//);
   assert.match(panes, /altGroups\.map\(\(g\) => <option key=\{g\.name\} value=\{`mcode:\$\{g\.name\}`\}>/);

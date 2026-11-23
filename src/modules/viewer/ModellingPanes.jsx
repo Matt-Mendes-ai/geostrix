@@ -16,7 +16,7 @@ import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useState } f
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
-import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
+import { codedRuns, topsForCode, codeInfo, overburdenBases, leftOutLayers, leftOutIn, isLeftOutUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
 import { pileFromRuns, absentTops, orderFromHoles } from "../../lib/pileTops.js"; // TASKS.csv #2921; orderFromHoles: #2926
 import { holesOrderPlan } from "../../lib/holesOrder.js"; import SortByHoles from "./SortByHoles.jsx"; // TASKS.csv #3994 — Sort by the holes
 import { addAllCandidates } from "../../lib/stackAddAll.js"; import AddAllUnits from "./AddAllUnits.jsx"; // TASKS.csv #3999 — Add all
@@ -112,12 +112,12 @@ export default function ModellingPanes(props) {
     isLithoGroupKey,
     isMcodeKey,
     lastActivityRef,
-    layers,
+    layers: layersAll,
     lithoGroupCrossCuts,
     lithoGroupKey,
     lithoGroupRole,
     lithoGroups,
-    litho_units,
+    litho_units: lithoUnitsAll,
     mapConstraint,
     mapLayers,
     mcConnectFrom,
@@ -130,7 +130,7 @@ export default function ModellingPanes(props) {
     modelArea, setModelArea, // TASKS.csv #1546
     unitField, setUnitField, unitFields, // TASKS.csv #2378
     modelResolution,
-    modellingCodeList,
+    modellingCodeList: mcodeListAll,
     modellingCodes,
     moveStackUnit,
     numericBudgetHint,
@@ -275,6 +275,13 @@ export default function ModellingPanes(props) {
     vein_units,
     worldPointFromHits,
   } = props;
+  // TASKS.csv #4026 — 'Leave out of the model' (Modelling codes): the tools here read the Lithology without the left-out codes, as if they were not logged; the Modelling
+  // codes pane and the Litho groups pane still list every code (so one can be put back). The logs, legend and data table are not touched.
+  const layers = useMemo(() => leftOutLayers(layersAll, modellingCodes, mcGroupOf), [layersAll, modellingCodes, mcGroupOf]);
+  const litho_units = useMemo(() => lithoUnitsAll.filter((u) => !isLeftOutUnit(modellingCodes, mcGroupOf, u)), [lithoUnitsAll, modellingCodes, mcGroupOf]);
+  const modellingCodeList = useMemo(() => (mcodeListAll || []).filter((c) => !c.leftOut), [mcodeListAll]);
+  const leftOutCodes = useMemo(() => leftOutIn(layersAll.litho, modellingCodes, mcGroupOf), [layersAll.litho, modellingCodes, mcGroupOf]);
+  const leftOutNote = leftOutCodes.length > 0 ? <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 8 }}>{tr("Left out of the model: {codes}.", { codes: leftOutCodes.join(", ") })}</div> : null;
   // TASKS.csv #3025 (6) — the Grade shell's cutoff proposed on an element change (the 90th percentile of its assays) said as such: 57.3 % Fe
   // appeared with no word
   // TASKS.csv #3651 — the pane's memory of its own proposals outlives the pane (shellPaneMemory.js: one per 3D View)
@@ -520,7 +527,7 @@ export default function ModellingPanes(props) {
   // 'Py: idle', ready): its title now says first what is missing, or that a model is running
   const gempyTitle = (missing) => (implicitBusy ? tr("A model is already running.") : missing || tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"));
   // TASKS.csv #2054 — Modelling codes' pane, whole or (focus "correlate") its hole-to-hole tools only, for the Correlation pane; one state for both
-  const mcodesPane = (focus) => <ModellingCodesPane focus={focus} inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #2533 — Auto-number follows the Model area */ litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
+  const mcodesPane = (focus) => <ModellingCodesPane focus={focus} inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #2533 — Auto-number follows the Model area */ litho={layersAll.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
           pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
           view={mcodesView} unitBody={unitBody} setUnitBody={setUnitBody} onBuildBody={(code) => runAlterationModel(`mcode:${code}`, unitBody)} assayElements={assayElements} /* #2634 */ positionAt={sheetPositionAt} /* #2625 */
           askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />;
@@ -767,6 +774,7 @@ export default function ModellingPanes(props) {
         <Suspense fallback={null}>
           <MapModelPanel mapLayers={mapLayers} surfaceStructures={surfaceStructures} terrain={terrain} busy={implicitBusy} onRun={runMapModel} pBtn={pBtn} smallSel={smallSel} holeCount={collars.length} lithoRows={layers.litho} /* #1718 */
             onBuildBodies={(p) => import("./intrusionRun.js").then((m) => m.buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, originRef, setImplicitSurfaces, setNotices, terrain, collars, survey, desurveyMethod /* #2663 */ })).catch((e) => setNotices((q) => [...q, errorNotice(tr("Intrusion bodies could not be built: {v}", { v: e?.message || String(e) }))]))} /* #992 — a failed load or throw is said, not swallowed */ /* #821, loaded on use */ />
+        {leftOutNote}
         </Suspense>
         </>)}{/* TASKS.csv #817 */}
         {toolPane === "explicit" && (<>
@@ -850,8 +858,8 @@ export default function ModellingPanes(props) {
               )}
               {open && (
                 <div style={{ padding: "0 8px 8px", display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {litho_units.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("No lithology codes loaded yet — import a litho CSV first.")}</div>}
-                  {litho_units.map((u) => {
+                  {lithoUnitsAll.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("No lithology codes loaded yet — import a litho CSV first.")}</div>}
+                  {lithoUnitsAll.map((u) => {
                     const on = codesInGroup.includes(u);
                     const elsewhere = on ? null : groupOfCode(lithoGroups, u, g.id); // TASKS.csv #1685 — held by another group: a click moves it here
                     return (
@@ -901,6 +909,7 @@ export default function ModellingPanes(props) {
           <PredictivePanel visibleHoles={visibleHoles} collars={collars} survey={survey} litho={layers.litho || []} lithoGroups={lithoGroups} modellingCodes={modellingCodes} /* #4019 */ assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
             addVoxelModel={addVoxelModel} addSurface={addWorldMeshSurface} setNotices={setNotices} />
         </Suspense>
+        {leftOutNote}
         </>)}
         {toolPane === "implicit" && (<>
         {paneHeader("Implicit surface", Mountain, "model")}
@@ -923,7 +932,7 @@ export default function ModellingPanes(props) {
             {/* TASKS.csv #3876 (#3767) — a group with a Modelling codes twin (the same name: its role set there) is offered once, under Modelling codes */}
             {lithoGroups.some((g) => !mcodeNames.has(g.name)) && (
               <optgroup label={tr("Groups")}>
-                {lithoGroups.filter((g) => !mcodeNames.has(g.name)).map((g) => {
+                {lithoGroups.filter((g) => !mcodeNames.has(g.name) && !leftOutCodes.includes(g.name)).map((g) => {
                   const role = lithoGroupRole(g);
                   const xcut = lithoGroupCrossCuts(g);
                   const empty = !(g.codes || []).length;
@@ -945,6 +954,7 @@ export default function ModellingPanes(props) {
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
           >{implicitBusy ? tr("Running…") : <><Layers3 size={14} aria-hidden="true" />{" "}{tr("Run")}</>}</button>{/* #572 — was an unlabeled icon */}
         </div>
+        {leftOutNote}
         {/* TASKS.csv #52 (a) — sensitivity spread. Collapsed by default: it is N+1 GemPy runs, not a
             casual click. Copy says "spread", never "confidence" — see lib/surfaceSpread.js's header. */}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSensOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
@@ -996,6 +1006,7 @@ export default function ModellingPanes(props) {
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
           <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
         </label>
+        {leftOutNote}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{/* #4022: wraps rather than squeeze the list to "Add a" */}
           <select aria-label={tr("Add a unit to the stack")} value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: "1 1 120px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Add a unit…")}</option>

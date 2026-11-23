@@ -9,8 +9,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2634
 import { placeRuns, fitSheetAttitude, refineSheetAttitude, attitudeNormal, correlateSheets, sheetAssign } from "../lib/sheetCorrelation.js"; // TASKS.csv #2625 / #2635
-import { Crosshair, Waypoints, X, RotateCcw, Layers3, Square } from "./icons.js";
-import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode, rowKey, codedRuns, codeOverrides, deleteCodes } from "../lib/modellingCodes.js";
+import { Crosshair, Waypoints, X, RotateCcw, Layers3, Square, EyeOff } from "./icons.js";
+import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode, rowKey, codedRuns, codeOverrides, deleteCodes, setLeftOut } from "../lib/modellingCodes.js";
 import { pickClick } from "../lib/viewer/customLayerBulk.js"; // TASKS.csv #4023 — Ctrl / Shift + click picks rows, as the Custom layers do (#4007)
 import { confirmDestructive } from "../lib/confirmDestructive.js";
 import { orderFromHoles } from "../lib/pileTops.js"; // TASKS.csv #2926
@@ -260,6 +260,9 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
     setPickedCodes(new Set()); codeAnchor.current = null;
     if (todo.includes(bodyCode)) setBodyCode("");
   };
+  // TASKS.csv #4026 — 'Leave out of the model', a logged code too: the tools read the log as if the code were not there (the log, legend and data table keep it). One Undo step.
+  const leftOutList = codes.filter((c) => c.leftOut).map((c) => c.name);
+  const leaveOut = (names, on) => setModellingCodes((p) => setLeftOut(p || mc, names, on));
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
   // TASKS.csv #2722 — the matched sheets drawn in 3D before the codes are written; a change of codes or attitude drops the preview
   const [sheetPreview, setSheetPreview] = useState(null);
@@ -385,7 +388,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
           <select value={bodyCode} onChange={(e) => setBodyCode(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 0 }} aria-label={tr("Modelling code of the closed body")}>
             <option value="">{tr("Choose a code…")}</option>
-            {codes.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+            {codes.filter((c) => !c.leftOut).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
           <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("How much nearby-sample weight must be in the unit for a point to count as inside. 0.5 stops about halfway to the next interval; lower values join bodies and grow the volume past the logs.")}>{tr("Inside at")}
             <select value={unitBody.iso} onChange={(e) => setUnitBody((b) => ({ ...b, iso: Number(e.target.value) }))} style={inputStyle} aria-label={tr("Threshold of the closed body")}>
@@ -411,6 +414,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           </div>
         )}
         <div style={{ ...small, marginTop: 3 }}>{tr("Inside: the code's intervals. Outside: all other logged lithology (and, if ticked, unlogged metres). Follows the geology trend in Model settings. A lower Inside at joins bodies; a larger search rarely does.")}</div>
+        {leftOutList.length > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("Left out of the model: {codes}.", { codes: leftOutList.join(", ") })}</div>}
         <button onClick={() => onBuildBody(bodyCode)} disabled={!bodyCode} style={{ ...pBtn, marginTop: 5, marginBottom: 0, opacity: bodyCode ? 1 : 0.5 }}><Layers3 size={14} /> {bodyCode ? tr("Build a closed body from {code}", { code: bodyCode }) : tr("Build a closed body")}</button>
       </>)}
 
@@ -425,6 +429,8 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       {pickedNames.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginTop: 4, background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, fontSize: "var(--font-size-xs)" }}>
           <span style={{ flex: 1, color: "var(--color-text)" }}>{tr("{n} picked", { n: pickedNames.length })}</span>
+          {pickedNames.some((n) => !leftOutList.includes(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => leaveOut(pickedNames, true)} title={tr("Leave out of the model")} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Leave out")}</span>}
+          {pickedNames.some((n) => leftOutList.includes(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => leaveOut(pickedNames, false)} title={tr("Put back in the model")} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Put back")}</span>}
           {pickedNames.some((n) => overrideCount.has(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => deleteCodesNamed(pickedNames)} style={{ cursor: "pointer", color: "var(--color-danger-icon)" }}>{tr("Delete")}</span>}
           <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { setPickedCodes(new Set()); codeAnchor.current = null; }} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Clear")}</span>
         </div>
@@ -433,13 +439,14 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       {codes.map((c, i) => (
         <div key={c.name} onClick={(e) => clickCodeRow(e, c.name)} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, ...(pickedCodes.has(c.name) ? { background: "var(--color-selected-bg)", borderRadius: 4 } : {}) }}>
           <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}>{c.name} <span style={small}>({counts.get(c.name) || 0})</span></span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}><span style={c.leftOut ? { textDecoration: "line-through", color: "var(--color-text-muted)" } : undefined}>{c.name}</span> <span style={small}>({counts.get(c.name) || 0})</span></span>
           <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 4px" }}><Square size={11} /></button>
           <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={assumedRole(c.name) ? tr("Not recognized: assumed stratigraphic. Check it before modelling.") : coverWhy(c) || meaningWhy(c) || tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none", ...(assumedRole(c.name) ? { color: "var(--color-text-muted)", fontStyle: "italic" } : {}) }}>{/* #2537 — an assumed role looks assumed */}
             {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
           </select>
           <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>
           <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▼</button>
+          <button onClick={() => leaveOut([c.name], !c.leftOut)} aria-pressed={!!c.leftOut} title={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} aria-label={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", ...(c.leftOut ? { background: "var(--color-selected-bg)" } : {}) }}><EyeOff size={11} /></button>
           {overrideCount.has(c.name) && <button onClick={() => deleteCodesNamed([c.name])} title={tr("Delete the code {name}", { name: c.name })} aria-label={tr("Delete the code {name}", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", color: "var(--color-danger-icon)" }}><X size={11} /></button>}
         </div>
       ))}
