@@ -1097,7 +1097,7 @@ export default function ModellingPanes(props) {
           // stack: a cover laid down after the fault stays whole), and the faults listed after it that it also displaces
           const cfg = (stackFaultOffsets || {})[k] || {}, later = stackFaults.slice(fi + 1);
           const setCfg = (patch) => setStackFaultOffsets?.((p) => ({ ...p, [k]: { ...(p[k] || {}), ...patch } }));
-          const label = (x) => { const b = faultCandidates.find((c) => c.key === x && c.built); return b ? tr("{name} (from the Faults pane)", { name: b.label }) : x.startsWith("surf|") ? tr("Not in this project (left out)") : x.replace(/\|$/, " (all picks)").replace("|", " — "); }; // built: #4006 (the list outlives a project tab switch)
+          const label = (x) => { const b = faultCandidates.find((c) => c.key === x && c.built); return b ? tr("{name} (from the Faults pane)", { name: b.label }) : x.startsWith("surf|") ? tr("Not in this project (left out)") : x.replace(/\|$/, " (all picks)").replace("|", " — "); }; // built: #4006 (a fault left over from another project, e.g. after #4030 per-tab faults, reads as not in this project)
           return (
           <div key={k} style={{ padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
