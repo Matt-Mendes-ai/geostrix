@@ -28,6 +28,8 @@ import { defaultSectionVE, plotAspect, MAX_SECTION_VE } from "../lib/sectionVE.j
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 import { FIT, windowOf, normalize as normalizeZoom, zoomBy, panBy, plotFraction, zoomText, isFit, keepZoom, keptZoom, WHEEL_STEP, BUTTON_STEP } from "../lib/sectionZoom.js"; // TASKS.csv #4009 — the zoom
 import { lazyPart } from "../lib/lazyModal.jsx";
+import SectionMapBands from "./SectionMapBands.jsx"; // TASKS.csv #4041
+import { chosenMapIds, shownMapLayers, mapKeyRows, overviewWithMaps } from "../lib/sectionMaps.js"; // TASKS.csv #4041
 const SectionOverview = lazyPart(() => import("./SectionOverview.jsx")); // TASKS.csv #3977 — on use only
 import { LABEL_KINDS, labelShow, floatLabelKind, labelsPatch, labelsPatchAll, crowdedDefault } from "../lib/sectionLabelKinds.js"; // TASKS.csv #3968
 // TASKS.csv #2933 / #2387 — the VE of the section a step (‹ ›) was taken from, for the section that step opens in the next tab of this
@@ -253,7 +255,9 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // under the drawing (switchable, remembered) and drawn as a band in the exported copy only. models: block models are keyed by BlockModelKey.
   // TASKS.csv #3430 — the point surveys on the section: one ramp each (scatterCounts.legends, sectionScatter.js), drawn and exported as a model's
   const surveyKeys = (data?.scatterCounts?.legends || []).map((g) => ({ id: g.key, name: g.label, legend: g }));
-  const keyRows = (withModels) => (data ? groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...(data.barKeyRows || []) /* #4002 — the bars' scale */, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, withModels ? [...(data.voxelSlices || []), ...surveyKeys] : [], tr("Model surfaces"))], ribbonOrder(data.intervals)) : []);
+  const mapIds = useMemo(() => chosenMapIds(labels, data?.maps), [labels, data?.maps]); // TASKS.csv #4041 — the map layers this section shows
+  const ovModel = useMemo(() => overviewWithMaps(data?.overview, data?.maps, mapIds), [data?.overview, data?.maps, mapIds]);
+  const keyRows = (withModels) => (data ? groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...(data.barKeyRows || []) /* #4002 — the bars' scale */, ...mapKeyRows(data.maps, chosenMapIds(labels, data.maps)) /* #4041 */, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, withModels ? [...(data.voxelSlices || []), ...surveyKeys] : [], tr("Model surfaces"))], ribbonOrder(data.intervals)) : []);
   const [showKey, setShowKey] = useState(() => { try { return localStorage.getItem("geostrix.sectionKey") !== "0"; } catch { return true; } });
   const toggleKey = () => setShowKey((v) => { try { localStorage.setItem("geostrix.sectionKey", v ? "0" : "1"); } catch { /* private mode */ } return !v; });
   const exportOpts = () => (showKey ? { furniture: sectionKeyFurniture(keyRows(true)) } : {});
@@ -677,6 +681,10 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
                 <button type="button" onClick={() => changeLabels(labelsPatchAll(labels, false))} style={{ ...btnStyle(false), padding: "2px 8px" }}>{tr("None")}</button>
               </span>
               {LABEL_KINDS.map(([k, name]) => <label key={k} style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={!!labelsShown[k]} onChange={(e) => changeLabels(labelsPatch(labels, holeCount, k, e.target.checked))} />{tr(name)}</label>)}
+              {data?.maps?.layers?.length > 0 && <>{/* TASKS.csv #4041 — the map layers along the line and on the overview: as in Maps until changed here, then saved with the section */}
+                <span style={{ marginTop: 6, fontWeight: 600, color: "#55606e" }}>{tr("Map layers")}</span>
+                {data.maps.layers.map((l) => <label key={l.id} data-section-map-layer={l.id} style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={mapIds.includes(l.id)} onChange={(e) => changeLabels({ maps: e.target.checked ? [...mapIds, l.id] : mapIds.filter((x) => x !== l.id) })} />{l.name}</label>)}
+              </>}
             </div>
           </details>
           <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Hole labels")}
@@ -724,7 +732,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         <BlockModelKey slices={[...(data.voxelSlices || []), ...surveyKeys]} />{/* #3430: the surveys' ramps too */}
         <SectionKey rows={keyRows(false)} shown={showKey} onToggle={toggleKey} />{/* #2523 */}
       </div>
-      {data.overview && data.section && <SectionOverview model={data.overview} section={data.section} zoomWindow={zoomWin} exportRef={overviewRef} busy={stepping} onMove={(off) => stepTo({ id: data.id, step: Math.sign(off), offsetM: Math.abs(off) })} />}{/* #3977 */}
+      {data.overview && data.section && <SectionOverview model={ovModel} section={data.section} zoomWindow={zoomWin} exportRef={overviewRef} busy={stepping} onMove={(off) => stepTo({ id: data.id, step: Math.sign(off), offsetM: Math.abs(off) })} />}{/* #3977 */}
     </div>
   );
 }
@@ -1077,6 +1085,7 @@ function SectionSVG({ gradeLabels = { mode: "samples", cutoffs: {} } /* #3860 */
           {show.ground && <>{haloBox(groundLabel, W - PAD - 4, sz(elevationProfile[elevationProfile.length - 1].z) - 6, fs(9.5), "end")}<text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#55606e" fontSize={fs(9.5)} textAnchor="end">{groundLabel}</text></>}{/* #3968 */}
         </g>
       )}
+      {data.maps && <SectionMapBands layers={shownMapLayers(data.maps, chosenMapIds(labels, data.maps))} profile={elevationProfile} sx={sx} sz={sz} fs={fs} top={PAD} bottom={H - PAD} left={PAD} clipId={plotClipId} />}{/* TASKS.csv #4041 — the map layers along the line */}
 
       {holes.map((h, hi) => {
         const pts = h.trace.map((p) => [sx(along(p.x, p.y)), sz(p.z)]);
