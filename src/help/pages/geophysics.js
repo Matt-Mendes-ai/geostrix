@@ -371,6 +371,7 @@ export default [
       { name: "Terrain card (show / hide, Colour, Opacity, remove)", what: "The loaded terrain: grid size, colour and opacity.", more: "How to choose: Lower the opacity to see under the ground. Removing it makes rasters draped on it fall back to a flat elevation." },
       { name: "Export to GeoTIFF…", what: "Export the merged/processed terrain's elevation grid as a single-band GeoTIFF", more: "Nodes with no data are written as -9999. Use it to take a merged or fetched terrain to another program." },
       { name: "Hillshade, slope, aspect…", what: "Drapes a hillshade, slope, aspect or curvature made from the terrain.", more: "How to choose: Multidirectional hillshade for lineaments at every strike. A single sun hides structures parallel to its light. The products: Hillshade (one sun), Multidirectional hillshade, Slope (degrees), Aspect (direction the slope faces) and Curvature (ridges / hollows). Sun azimuth and Sun altitude set the hillshades' light." },
+      { name: "Plan stream sites…", what: "Stream sediment sample sites from this DEM's drainage: opens the Survey planner (Geochem)." }, // TASKS.csv #4042
       { name: "Generate contours…", what: "Contour lines at an Interval (m), added as one boundary.", more: "Each line sits at its own height, in one Colour; it stops at 200 levels. An interval giving a few tens of levels reads well." },
     ],
     warnings: [
@@ -393,7 +394,7 @@ export default [
         "Generate contours… at an interval that suits the relief.",
       ],
     },
-    related: ["point-survey", "mag-grav-inversion", "dcip", "boundaries", "map-layers"],
+    related: ["point-survey", "mag-grav-inversion", "dcip", "boundaries", "map-layers", "survey-planner"],
   },
   {
     id: "cell-budget",

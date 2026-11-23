@@ -81,6 +81,7 @@ export const PANE_HELP = {
   "Best-intercept report": "best-intercepts", "Best intercepts": "best-intercepts", // TASKS.csv #3687 — the dialog and its page are both Best intercepts
   "Grade statistics": "grade-statistics",
   "QAQC — lab quality control": "qaqc",
+  "Survey planner": "survey-planner", // TASKS.csv #4042 — Plan survey (soil grid, stream sites from the DEM)
   // TASKS.csv #3597 / #3603 / #3622 — the dialogs' own titles; their "?" opens them
   "Grade-tonnage": "grade-tonnage",
   "Block calculator": "block-calculator",

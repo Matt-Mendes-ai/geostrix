@@ -3,6 +3,7 @@
 import React from "react";
 import { Eye, EyeOff, Mountain, ArrowUpRight } from "../../components/icons.js";
 import { t as tr } from "../../lib/i18n.js";
+import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #4042
 import { iconAction, activateOnKey } from "../../lib/a11y.js";
 import DetailTilesToggle from "./DetailTilesToggle.jsx"; // TASKS.csv #3252
 import { tiledTerrain } from "./useLodTiles.js";
@@ -13,6 +14,7 @@ export default function TerrainCard({ terrain, updateTerrain, openRowMenu, zoomT
     <div onContextMenu={(e) => openRowMenu(e, terrain.name, [
         { label: terrain.visible === false ? "Show" : "Hide", onClick: () => updateTerrain?.({ visible: terrain.visible === false }) },
         { label: tr("Zoom to"), onClick: () => zoomTo() },
+        { label: tr("Plan stream sites…"), onClick: () => { goToModule("geochem"); requestModuleAction("plan-stream-sites", { tab: "streams" }); } }, // TASKS.csv #4042
         "-", { label: tr("Colour, drape and remove — Maps tab"), onClick: () => goToModule("maps") }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
       <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
         {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}

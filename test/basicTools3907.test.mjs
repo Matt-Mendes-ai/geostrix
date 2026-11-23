@@ -25,5 +25,6 @@ test("#3907 Maps (a Basic tab): nine Basic tools at most, exactly the approved f
 });
 
 test("#3907 Geochem: the short Basic tools list, whatever the data", () => {
-  assert.deepEqual(basicTools(read("../src/modules/GeochemModule.jsx"), "Geochem tools"), ["Assays", "Surface samples", "Grade stats", "Best intercepts", "Plot PNG"]);
+  // TASKS.csv #4042 (approved by Matt): Plan survey joins them, so the stream-site planner can be found (a user asked for it, not knowing it existed)
+  assert.deepEqual(basicTools(read("../src/modules/GeochemModule.jsx"), "Geochem tools"), ["Assays", "Surface samples", "Grade stats", "Plan survey", "Best intercepts", "Plot PNG"]);
 });

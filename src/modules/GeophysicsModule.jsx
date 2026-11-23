@@ -3001,6 +3001,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             )}
             <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title={tr("Export the merged/processed terrain's elevation grid as a single-band GeoTIFF")}>
               <Download size={14} />{" "}{tr("Export to GeoTIFF…")}</button>
+            {/* TASKS.csv #4042 — stream-sediment sites from this DEM: the Survey planner's Stream sites (in Geochem) */}
+            <button onClick={() => { goToModule?.("geochem"); requestModuleAction("plan-stream-sites", { tab: "streams" }); }} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}><MapPin size={14} />{" "}{tr("Plan stream sites…")}</button>
             {/* TASKS.csv #237 — raster derivative: hillshade from the terrain's own elevation grid,
                 standard Horn-method slope/aspect shading (same algorithm GDAL/QGIS's own hillshade tools
                 use). Lands as an ordinary raster drape, same pipeline as every other raster source. */}

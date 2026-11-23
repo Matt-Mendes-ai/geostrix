@@ -15258,5 +15258,7 @@
   "Dip pin": "Aiguille de pendage",
   "A pin down each disc's dip": "Une aiguille dans le sens du pendage de chaque disque",
   "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Un disque a le même aspect quel que soit son sens de pendage; l'aiguille montre vers où le plan plonge.",
-  "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dessin : faites glisser un rectangle sur la vue (ou dans Cartes › Rectangle de série); Échap annule."
+  "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dessin : faites glisser un rectangle sur la vue (ou dans Cartes › Rectangle de série); Échap annule.",
+  "Plan stream sites…": "Planifier des sites de cours d'eau…",
+  "Plan new sites: Plan survey › Stream sites": "Planifier de nouveaux sites : Planifier le levé › Sites de cours d'eau"
 }

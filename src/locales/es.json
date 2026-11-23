@@ -15258,5 +15258,7 @@
   "Dip pin": "Aguja de buzamiento",
   "A pin down each disc's dip": "Una aguja hacia el buzamiento de cada disco",
   "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Un disco se ve igual buzando hacia un lado u otro; la aguja muestra hacia dónde buza el plano.",
-  "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dibujando: arrastre un rectángulo sobre la vista (o en Mapas › Rectángulo de serie); Esc cancela."
+  "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dibujando: arrastre un rectángulo sobre la vista (o en Mapas › Rectángulo de serie); Esc cancela.",
+  "Plan stream sites…": "Planificar sitios de drenaje…",
+  "Plan new sites: Plan survey › Stream sites": "Planificar sitios nuevos: Planificar muestreo › Sitios de drenaje"
 }
