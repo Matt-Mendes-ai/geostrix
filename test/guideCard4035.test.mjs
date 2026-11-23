@@ -105,7 +105,8 @@ test("the card on a layered pile: seven dots, the step it opens on, its rows and
   const h4 = renderToStaticMarkup(React.createElement(GuideSteps, { store, api, setTool() {}, toBar() {}, viewId: "build", setViewId() {}, since: 0 }));
   assert.match(h4, /role="radiogroup"/);
   assert.match(h4, new RegExp(`${ROUTE_LABELS.computed}<span[^>]*>Suggested</span>`));
-  assert.match(h4, /3 rocks in a steady order, in 8 holes: compute them\./);
+  assert.match(h4, /4 rocks for the stack, in 8 holes: compute\./);
+  assert.match(h4, /4\. Compute or draw<span[^>]*> · Waiting<\/span>/, "the state in words beside the title, the dots' legend (#4037)");
   assert.match(h4, />Draw</);
   assert.ok(h4.indexOf(">Cover and weathering<") < h4.indexOf(">Rock layers<"), "the cover's card first, then the layers");
   // the saved place opens the guide when its step is not done; a pressed dot wins

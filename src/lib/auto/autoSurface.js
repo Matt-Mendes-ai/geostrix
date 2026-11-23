@@ -8,12 +8,12 @@
 // -> values: { extent: [xmin, xmax, ymin, ymax, zmin, zmax], resolution (the cube count n of the Resolution setting), axes: [nx, ny, nz],
 //              cellsM: [dx, dy, dz] }
 import { axisResolution, blockCellsM, RES_MIN, RES_MAX } from "../modelResolution.js";
-import { thin, fin, median, metres, siteSpacing, extentOf, holesOf, autoResult, because, say } from "./autoCommon.js";
+import { thin, fin, median, metres, siteSpacing, depthSites, extentOf, holesOf, autoResult, because, say } from "./autoCommon.js";
 
 // maxResolution (TASKS.csv #3908): a first, quick model. The guided tools pass QUICK_RESOLUTION so "Build it for me" stays within the engine's
 // few-minute run (on the WA lode gold sample, 96 was a 14-minute GemPy run); Change these opens the form to go finer.
 export const QUICK_RESOLUTION = 48;
-export function autoSurface({ collars = [], contacts = [], hasLogs = false, maxResolution = RES_MAX } = {}) {
+export function autoSurface({ collars = [], contacts = [], hasLogs = false, maxResolution = RES_MAX, survey = null } = {}) { // survey: #4037, the spacing at depth
   const top = Math.max(RES_MIN, Math.min(RES_MAX, maxResolution));
   const pts = thin(contacts.filter((c) => fin(c.x) && fin(c.y) && fin(c.z)));
   const holes = holesOf(pts), problems = [], notes = [];
@@ -21,7 +21,7 @@ export function autoSurface({ collars = [], contacts = [], hasLogs = false, maxR
     : say("The project has no logs: a surface is modelled from the contacts between logged units. Import a lithology log first."));
   else if (holes < 3) problems.push(holes === 1 ? say("Contacts in only one hole: a surface needs contacts in three or more holes.") : say("Contacts in only {n} holes: a surface needs contacts in three or more holes.", { n: holes }));
   // the spacing of the drill sites that cut the contacts (the collars when given, else the contacts' own positions)
-  const { spacing } = siteSpacing(collars.length ? collars : pts);
+  const { spacing } = siteSpacing(collars.length ? (survey?.length ? depthSites(collars, survey) : collars) : pts); // #4037: a fan from a pad is not 3 m between holes
   if (!problems.length && !spacing) problems.push(say("The holes are too few or too close together to measure their spacing, so the size of the model cannot be read from them."));
   if (problems.length) return autoResult(null, [], notes, problems);
 

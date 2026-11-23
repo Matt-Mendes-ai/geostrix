@@ -21,39 +21,42 @@ export function cellsAt(facts, n) {
   const c = blockCellsM(e, axisResolution(e, n));
   return Math.max(c[0], c[1]);
 }
-const groupsOf = (f) => f.area.clusters.filter((c) => c.n >= MIN_HOLES);
 const evidenceOf = (fl) => fl.picks + fl.logged + fl.outcrop + fl.mapped + fl.drawn + fl.sectionStrings;
 const veinsToBuild = (f) => f.veins.filter((v) => v.holes >= MIN_HOLES && v.perHole <= SET_PER_HOLE);
 const veinKey = (k) => (k.startsWith("litho:") ? k.slice(6) : k);
 const mapOnly = (f) => f.contacts.holes < MIN_HOLES && f.map.polygons > 0;
-
+// TASKS.csv #4037 — assays alone (Macpass): steps 3 and 4 wait for logs, and say that step 6 needs none
+const noLogs = (f) => f.logged.holes === 0 && f.assays.rows > 0;
+const NO_LOGS = () => tr("No logs: step 6 needs none.");
+// the rocks that return after another (the run asks about them twice): said in steps 3 and 4 before the run
+const returnsRow = (f) => (f.order.returns.over ? tr("Rocks return in {r} of {h} holes: surfaces cut through them.", { r: f.order.returns.repeating, h: f.order.returns.holes }) : null);
 const DATA = {
-  id: "data", title: "Your data", line: "What your data can build.",
+  id: "data", title: "Your data", line: "What you can build.",
   status(f) {
     const rows = [];
-    if (f.logged.holes) rows.push({ key: "logs", text: tr("Logged holes: {n}", { n: f.logged.holes }) });
-    if (f.picks.oriented) rows.push({ key: "picks", text: tr("Oriented picks: {n}", { n: f.picks.oriented }) });
-    if (f.assays.rows) rows.push({ key: "assays", text: tr("Assays: {n}", { n: f.assays.rows }) });
-    if (f.map.polygons) rows.push({ key: "map", text: tr("Map units: {n}", { n: f.map.units }) });
+    if (f.logged.holes) rows.push({ key: "logs", text: tr("Logged holes: {n} (layers, bodies)", { n: f.logged.holes }) });
+    if (f.picks.oriented) rows.push({ key: "picks", text: tr("Oriented picks: {n} (faults, veins)", { n: f.picks.oriented }) });
+    if (f.assays.rows) rows.push({ key: "assays", text: tr("Assays: {n} (grade)", { n: f.assays.rows }) });
+    if (f.map.polygons) rows.push({ key: "map", text: tr("Map units: {n} (model from map)", { n: f.map.units }) });
     if (f.drawn.sectionContacts) rows.push({ key: "drawn", text: tr("Drawn contacts: {n}", { n: f.drawn.sectionContacts }) });
     rows.push({ key: "terrain", text: f.terrain ? tr("Terrain: yes") : tr("No terrain yet."), act: f.terrain ? null : "terrain" });
     const base = f.contacts.holes >= MIN_HOLES || f.map.polygons > 0 || f.assays.rows > 0;
-    return { state: base ? "done" : "waiting", reason: base ? null : tr("Add logs, a map or assays first."), asks: { rows, act: base ? "qc" : "add-data" } };
+    return { state: base ? "done" : "waiting", reason: base ? null : tr("Add logs, a map or assays."), asks: { rows, act: base ? "qc" : "add-data" } };
   },
 };
 
 const AREA = {
-  id: "area", title: "Area and detail", line: "Where, and how fine.", question: "Whole property, or one group?",
+  id: "area", title: "Area and detail", line: "Where, and how fine.", question: "Whole property, or one cluster?",
   status(f, g) {
     if (mapOnly(f)) return { state: "skipped", reason: tr("Not needed for this data."), asks: null };
     if (f.contacts.holes < MIN_HOLES) return { state: "skipped", reason: tr("Not needed for this data."), asks: null }; // assays alone: the Grade model sizes itself
-    if (f.positioned < MIN_HOLES || !(f.area.spacing > 0)) return { state: "waiting", reason: tr("Needs three holes with positions."), asks: null };
-    const sp = f.area.spacing, groups = groupsOf(f), n = g?.ui?.modelResolution || QUICK_RESOLUTION;
+    if (f.positioned < MIN_HOLES || !(f.area.spacing > 0)) return { state: "waiting", reason: tr("Needs three placed holes."), asks: null };
+    const sp = f.area.spacing, groups = f.area.clusters, n = g?.ui?.modelResolution || QUICK_RESOLUTION; // every cluster of the logged holes: the Strat. stack's note counts them the same (#4037)
     const cell = cellsAt(f, n), coarse = cell > 1.5 * (sp / 2);
-    const multi = groups.length > 1 && groups[0].n < f.positioned;
+    const multi = groups.length > 1 && groups[0].n < groups.reduce((t, c) => t + c.n, 0);
     const suggest = multi || cellsAt(f, QUICK_RESOLUTION) > 1.5 * (sp / 2) ? "group" : "whole";
-    const reason = multi ? tr("{g} groups of holes, {d} apart: start with {n} holes.", { g: groups.length, d: km(f.area.gapM), n: groups[0].n })
-      : coarse ? tr("Cells of {x} m for holes {s} m apart: model less area.", { x: r0(cell), s: r0(sp) })
+    const reason = multi ? tr("{g} clusters of holes, {d} apart: start with {n} holes.", { g: groups.length, d: km(f.area.gapM), n: groups[0].n })
+      : coarse ? tr("Cells {x} m, holes {s} m apart: model less.", { x: r0(cell), s: r0(sp) })
       : tr("Cells of {x} m suit holes {s} m apart.", { x: r0(cell), s: r0(sp) });
     const group = groups[0] ? { ids: groups[0].ids, n: groups[0].n } : null;
     return { state: coarse ? "next" : "done", reason, asks: { question: AREA.question, suggest, group, resolution: QUICK_RESOLUTION, act: "settings", terrain: f.terrain ? null : "terrain" } };
@@ -64,7 +67,7 @@ const ROCKS = {
   id: "rocks", title: "Rocks and order", line: "Which rocks, in which order.",
   status(f) {
     if (mapOnly(f)) return { state: "skipped", reason: tr("Not needed for this data."), asks: null };
-    if (f.contacts.holes < MIN_HOLES) return { state: "waiting", reason: tr("Needs contacts in three logged holes."), asks: null };
+    if (f.contacts.holes < MIN_HOLES) return noLogs(f) ? { state: "waiting", reason: NO_LOGS(), to: "grade", asks: null } : { state: "waiting", reason: tr("Needs contacts in three holes."), asks: null };
     const rows = [], st = f.stack, plan = st.plan;
     if (f.cover && f.cover.of >= MIN_HOLES) rows.push({ key: "cover", unit: f.cover.unit, act: "role-overburden", text: tr("{code} starts {n} of {h} holes: the cover.", { code: f.cover.unit, n: f.cover.starts, h: f.cover.of }) });
     const b = f.body;
@@ -73,26 +76,28 @@ const ROCKS = {
     }
     if (f.thinCodes.length) rows.push({ key: "thin", codes: f.thinCodes, act: "leave-out", text: tr("Rare codes (under 1 %): {n}", { n: f.thinCodes.length }) });
     if (st.units.length < 2) {
-      if (f.order.addable >= 2) rows.push({ key: "add", act: "add-all", text: tr("Add the {n} rocks in the holes' order.", { n: f.order.addable }) });
+      if (f.order.addable >= 2) rows.push({ key: "add", act: "add-all", text: tr("Add {n} rocks in the holes' order.", { n: f.order.addable }) });
     } else if (plan && plan.moves) rows.push({ key: "sort", act: "sort", text: tr("Out of the holes' order: {n}", { n: plan.moves }) });
+    const back = returnsRow(f);
+    if (back) rows.push({ key: "returns", act: "section", text: back });
     for (const c of (plan?.contradictions || []).filter((x) => x.kind === "split").slice(0, 2)) {
       rows.push({ key: "split", units: c.units, act: "section", text: tr("{a} above {b} in {x} of {t} holes.", { a: c.units[0], b: c.units[1], x: c.aAbove, t: c.of }) /* of: three or more (holesOrderPlan) */ });
     }
     if (st.over) rows.push({ key: "over", act: "cut", text: tr("Rocks over the engine's {max}: {n}", { n: st.units.length - GEMPY_MAX_SURFACES, max: GEMPY_MAX_SURFACES }) });
-    if (f.order.steady.length < 2) return { state: "done", reason: tr("These rocks do not stack: build bodies (step 4)."), asks: { rows, act: "mcodes" } };
+    if (f.order.steady.length < 2) return { state: "done", reason: tr("No steady order: build bodies (step 4)."), asks: { rows, act: "mcodes" } };
     const done = st.units.length >= 2 && !(plan && plan.moves) && !st.over;
     return { state: done ? "done" : "next", reason: null, asks: { rows, act: "stack" } };
   },
 };
 
 const BUILD = {
-  id: "build", title: "Compute or draw", line: "Computed between the holes, or drawn.", question: "Compute or draw?",
+  id: "build", title: "Compute or draw", line: "Computed, or drawn.", question: "Compute or draw?",
   status(f, g) {
     const s = suggestRoute(f), route = g?.route || s.route;
-    if (!route) return { state: "waiting", reason: s.reason, asks: null };
-    const st = f.stack, asks = { question: BUILD.question, suggest: s, route, act: route === "map" ? "mapmodel" : route === "drawn" ? "explicit" : "stack" };
+    if (!route) return noLogs(f) ? { state: "waiting", reason: NO_LOGS(), to: "grade", asks: null } : { state: "waiting", reason: s.reason, asks: null };
+    const st = f.stack, asks = { question: BUILD.question, suggest: s, route, returns: route === "computed" ? returnsRow(f) : null, act: route === "map" ? "mapmodel" : route === "drawn" ? "explicit" : "stack" };
     if (route === "map") return { state: f.built.strat >= 1 ? "done" : "next", reason: s.route === "map" ? s.reason : null, asks };
-    if (route === "computed" && s.why !== "body" && st.units.length < 2) return { state: "waiting", reason: tr("Stack two rocks first (step 3)."), asks };
+    if (route === "computed" && s.why !== "body" && st.units.length < 2) return { state: "waiting", reason: tr("Stack rocks first (step 3)."), asks };
     // the first (youngest) unit has no surface of its own (its top is the ground or the cover): every unit under it has its top (#4035, live)
     const under = st.units.slice(1), stackDone = under.length >= 1 && under.every((u) => st.built.includes(u));
     const done = route === "drawn" ? (st.units.length >= 2 ? stackDone : f.drawn.explicitBuilt >= 1) : s.why === "body" && st.units.length < 2 ? f.built.bodies >= 1 : stackDone;
@@ -108,8 +113,8 @@ const FAULTS = {
     if (fl.picks + fl.outcrop) parts.push(tr("Fault picks: {n}", { n: fl.picks + fl.outcrop })); // in holes and at outcrop
     if (fl.logged) parts.push(tr("Logged fault zones: {n}", { n: fl.logged }));
     if (fl.mapped + fl.drawn + fl.sectionStrings) parts.push(tr("Fault lines: {n}", { n: fl.mapped + fl.drawn + fl.sectionStrings })); // mapped, drawn, on sections
-    const rows = veins.map((v) => ({ key: "vein", vein: v.key, act: "vein", done: f.veinBuilt.has(veinKey(v.key)), text: tr("{code}: in {n} holes.", { code: veinKey(v.key), n: v.holes }) }));
-    if (!ev && !veins.length) return { state: "done", reason: tr("No fault or vein evidence."), asks: { question: FAULTS.question, suggest: "no", act: "draw-fault", rows } };
+    const rows = veins.map((v) => ({ key: "vein", vein: v.key, code: veinKey(v.key), act: "vein", done: f.veinBuilt.has(veinKey(v.key)), text: tr("In {n} holes", { n: v.holes }) }));
+    if (!ev && !veins.length) return { state: "skipped", reason: tr("Not needed for this data."), asks: { question: FAULTS.question, suggest: "no", act: "draw-fault", rows } }; // #4037: not a tick for nothing done
     const done = (!ev || fl.surfaces >= 1) && rows.every((r) => r.done);
     return { state: done ? "done" : "next", reason: ev ? parts.join("; ") : tr("No fault evidence: skip faults."), asks: { question: FAULTS.question, suggest: ev ? "yes" : "no", act: ev ? "faults" : "draw-fault", rows, stack: fl.surfaces >= 1 && !fl.inStack ? "stack-faults" : null } };
   },
@@ -122,16 +127,20 @@ const GRADE = {
     if (b.strat + b.bodies + b.explicit >= 1) rows.push({ key: "blocks", act: "result-block", done: b.blocks >= 1 });
     if (f.alteration) rows.push({ key: "halo", act: "alteration", done: b.halos >= 1 });
     if (f.assays.rows) rows.push({ key: "grade", act: "grade", done: b.shells >= 1 });
-    if (!rows.length) return { state: "waiting", reason: tr("Needs a model, alteration logs or assays."), asks: null };
+    if (!rows.length) return { state: "waiting", reason: tr("Needs a model, alteration or assays."), asks: null };
     return { state: rows.every((r) => r.done) ? "done" : "next", reason: null, asks: { rows } };
   },
 };
 
 const CHECK = {
   id: "check", title: "Check it", line: "Compare, then share.",
-  status(f) {
+  status(f, g) {
     const b = f.built, any = b.strat + b.faults + b.veins + b.explicit + b.shells + b.halos + b.bodies + b.blocks;
-    return any ? { state: "next", reason: null, asks: { act: "section" } } : { state: "waiting", reason: tr("Build something first."), asks: null };
+    // TASKS.csv #4037 (Mount Raymond's map model matched 41 % and only the pane said so): the fit, here too; under half is flagged
+    const rows = [], pct = (v) => `${Math.round(v)} %`;
+    if (f.fit.map != null) rows.push({ key: "fit", low: f.fit.map < 0.5, text: tr("Map match: {pct}", { pct: pct(100 * f.fit.map) }) });
+    if (g?.ui?.fit != null) rows.push({ key: "fit", low: g.ui.fit < 50, text: tr("Log match: {pct}", { pct: pct(g.ui.fit) }) });
+    return any ? { state: "next", reason: null, asks: { act: "section", rows } } : { state: "waiting", reason: tr("Build something first."), asks: null };
   },
 };
 

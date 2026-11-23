@@ -31,22 +31,25 @@ export function nextAfterFailure(notices, since) {
   return n ? nextFor(n.code, n.detail) : [];
 }
 
-function Door({ act, arg, env, primary }) {
-  return <button type="button" style={primary ? main : small} onClick={() => runAct(act, arg, env)}>{tr(ACT_LABELS[act])}</button>;
+function Door({ act, arg, env, primary, label }) {
+  return <button type="button" style={primary ? main : small} onClick={() => runAct(act, arg, env)}>{label || tr(ACT_LABELS[act])}</button>;
 }
 function Rows({ rows, env }) {
   return (rows || []).map((r, i) => (
     <div key={`${r.key}${i}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "4px 0", borderTop: i ? "1px solid var(--color-border)" : "none" }}>
-      {r.text ? <span>{r.text}</span> : r.done || !r.act ? <span>{tr(ACT_LABELS[r.act])}</span> : null}{/* a row with no words of its own is its button (step 6) */}
-      {r.done ? <span aria-label={tr("Done")} style={{ color: DOT.done }}>✓</span> : r.act ? <Door act={r.act} arg={r} env={env} /> : null}
+      {r.text ? <span style={r.low ? { color: "var(--color-warn-text-strong)" } : undefined}>{r.text}</span> : r.done || !r.act ? <span>{tr(ACT_LABELS[r.act])}</span> : null}{/* a row with no words of its own is its button (step 6) */}
+      {r.done ? <span aria-label={tr("Done")} style={{ color: DOT.done }}>✓</span> : r.act ? <Door act={r.act} arg={r} env={env} label={r.code ? tr("Build {code}", { code: r.code }) : undefined} /> : null}{/* a vein's button names it (#4037) */}
     </div>
   ));
 }
 
+// the routes the data allows (step 4): the card of each; with one there is nothing to choose
+export const routesOf = (asks) => [...new Set([...(asks?.suggest?.routes || []), asks?.route].filter(Boolean))];
+
 // shown: a ref the card keeps the shown step in, { n, of, title } (the bar names it without loading this chunk or reading the project)
 export default function GuideSteps({ store, api, setTool, toBar, viewId, setViewId, since, shown }) {
   const facts = guideFacts(store), guide = store.modelGuide || {};
-  const status = guideStatus(facts, { ...guide, ui: { modelResolution: api.modelResolution } });
+  const status = guideStatus(facts, { ...guide, ui: { modelResolution: api.modelResolution, fit: api.lastFit } });
   const id = shownStep(status, viewId, guide.at);
   if (shown) shown.current = { n: GUIDE_STEPS.findIndex((x) => x.id === id) + 1, of: GUIDE_STEPS.length, title: GUIDE_STEPS.find((x) => x.id === id).title };
   const k = GUIDE_STEPS.findIndex((x) => x.id === id), step = GUIDE_STEPS[k], s = status.steps[k], asks = s.asks || {};
@@ -65,14 +68,15 @@ export default function GuideSteps({ store, api, setTool, toBar, viewId, setView
       ))}
     </div>
     <div data-guide-step={id}>
-      <div style={{ fontWeight: 600 }}>{`${k + 1}. ${tr(step.title)}`}</div>
+      <div style={{ fontWeight: 600 }}>{`${k + 1}. ${tr(step.title)}`}<span style={{ ...muted, fontWeight: 400 }}>{` · ${tr(STATE_WORD[s.state])}`}</span></div>{/* the dots' legend, in words (#4037) */}
       <div style={{ ...muted, marginBottom: 8 }}>{tr(step.line)}</div>
-      {s.reason && !(id === "build" && s.reason === asks.suggest?.reason) /* step 4 says it on the Suggested card */ && <div style={{ marginBottom: 8, color: s.state === "waiting" ? "var(--color-warn-text-strong)" : "inherit" }}>{s.reason}</div>}
-      {step.question && s.asks && <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr(step.question)}</div>}
+      {s.reason && !(id === "build" && routesOf(asks).length > 1 && s.reason === asks.suggest?.reason) /* step 4 says it on the Suggested card, when there are cards to choose between */ && <div style={{ marginBottom: 8, color: s.state === "waiting" ? "var(--color-warn-text-strong)" : "inherit" }}>{s.reason}</div>}
+      {step.question && s.asks && (id !== "build" || routesOf(asks).length > 1) && <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr(step.question)}{id === "faults" && <span style={{ ...muted, fontWeight: 400 }}>{` · ${tr("Suggested")}: ${tr(asks.suggest === "yes" ? "Yes" : "No")}`}</span>}</div>}
       {id === "build" && s.asks ? <Routes facts={facts} asks={asks} guide={guide} store={store} env={env} /> : <Rows rows={asks.rows} env={env} />}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
         {id === "area" && s.asks && <Door act="settings" arg={{ asks }} env={env} primary />}
         {id === "area" && asks.terrain && <Door act="terrain" env={env} />}
+        {s.to && <Door act={s.to} env={env} primary />}{/* a waiting step that step 6 does without (assays only, #4037) */}
         {["data", "rocks", "faults"].includes(id) && asks.act && <Door act={asks.act} arg={asks} env={env} primary />}
         {id === "faults" && asks.stack && <Door act="stack-faults" env={env} />}
         {id === "check" && s.asks && (<><Door act="draw-section" env={env} primary /><Door act="layout" env={env} /></>)}
@@ -85,7 +89,7 @@ export default function GuideSteps({ store, api, setTool, toBar, viewId, setView
       )}
       <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", gap: 6 }}>
         <button type="button" style={small} onClick={() => openHelp("guided-model")}>{tr("Help")}</button>{/* TASKS.csv #4036 */}
-        {s.state !== "done" && <button type="button" style={small} onClick={() => store.setGuideSkipped?.(id, !userSkipped)}>{userSkipped ? tr("Undo") : tr("Skip")}</button>}
+        {s.state !== "done" && (s.state !== "skipped" || userSkipped) && <button type="button" style={small} onClick={() => store.setGuideSkipped?.(id, !userSkipped)}>{userSkipped ? tr("Undo") : tr("Skip")}</button>}
       </div>
     </div>
   </>);
@@ -93,13 +97,12 @@ export default function GuideSteps({ store, api, setTool, toBar, viewId, setView
 
 // step 4: the routes the data allows, the suggested one marked with its reason; the chosen route's doors under the cards
 function Routes({ facts, asks, guide, store, env }) {
-  const sug = asks.suggest || {}, chosen = asks.route;
-  const routes = [...new Set([...(sug.routes || []), chosen].filter(Boolean))];
+  const sug = asks.suggest || {}, chosen = asks.route, routes = routesOf(asks);
   const doors = chosen === "map" ? [["mapmodel"]]
     : chosen === "drawn" ? [["explicit", { unit: explicitUnit(facts) }], ["draw-section"]]
     : [...(facts.cover ? [["cover"]] : []), ...(facts.stack.units.length >= 2 || facts.order.steady.length >= 2 ? [["layers", { units: facts.stack.units }]] : []), ...(facts.body ? [["bodies"]] : [])];
   return (<>
-    <div role="radiogroup" aria-label={tr("Compute or draw?")} style={{ display: "grid", gap: 6, marginBottom: 8 }}>
+    {routes.length > 1 && <div role="radiogroup" aria-label={tr("Compute or draw?")} style={{ display: "grid", gap: 6, marginBottom: 8 }}>
       {routes.map((r) => (
         <button key={r} type="button" role="radio" aria-checked={r === chosen} onClick={() => store.setGuideRoute?.(r)}
           style={{ textAlign: "start", padding: "8px 10px", borderRadius: 6, cursor: "pointer", background: "var(--color-bg)", color: "var(--color-text)", border: `${r === chosen ? 2 : 1}px solid ${r === chosen ? "var(--color-tier-basic)" : "var(--color-border)"}` }}>
@@ -107,7 +110,8 @@ function Routes({ facts, asks, guide, store, env }) {
           {r === sug.route && sug.reason && <div style={muted}>{sug.reason}</div>}
         </button>
       ))}
-    </div>
+    </div>}
+    {asks.returns && <div role="note" style={{ color: "var(--color-warn-text-strong)", fontSize: "var(--font-size-sm)", marginBottom: 8 }}>{asks.returns}</div>}
     {guide.route || sug.route ? <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{doors.map(([act, arg], i) => <Door key={act} act={act} arg={arg} env={env} primary={!i} />)}</div> : null}
   </>);
 }

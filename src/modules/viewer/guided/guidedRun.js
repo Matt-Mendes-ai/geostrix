@@ -35,7 +35,7 @@ export async function runGuided({ tool, value, mode, ctx, getApi, getNotices = (
   if (feed) return fail(feed);
   const why = tool.check(ctx, value);
   if (why) return fail(why);
-  const auto = tool.auto ? tool.auto(ctx, value, mode) : autoSurface({ collars: ctx.collars, contacts: tool.contacts(ctx, value), hasLogs: true, maxResolution: QUICK_RESOLUTION });
+  const auto = tool.auto ? tool.auto(ctx, value, mode) : autoSurface({ collars: ctx.collars, contacts: tool.contacts(ctx, value), hasLogs: true, maxResolution: QUICK_RESOLUTION, survey: ctx.survey });
   if (!auto.ok) return fail((auto.verdict || []).join(" ") || "The data cannot support this yet.");
   const api0 = getApi();
   if (!api0) return fail("StrixViewer is not ready.");

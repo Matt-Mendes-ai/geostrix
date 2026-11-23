@@ -33,12 +33,13 @@ test("a layered pile in eight holes: computed; step 3 offers Add all; then the s
   assert.deepEqual(f.order.steady, ["SH", "LST", "MDST"]);
   assert.equal(f.contacts.steadyHoles, 8);
   assert.equal(r.route, "computed"); assert.equal(r.why, "layered"); assert.deepEqual(r.routes, ["computed", "drawn"]);
-  assert.match(r.reason, /^3 rocks in a steady order, in 8 holes/);
+  assert.match(r.reason, /^4 rocks for the stack, in 8 holes/); // #4037: one count, the rocks the stack will take (Add all adds the same 4)
+  assert.equal(f.order.takes, 4); assert.equal(f.order.addable, 4); assert.equal(f.order.returns.over, false);
   const rocks = step(f, "rocks");
   assert.equal(rocks.state, "next");
   assert.deepEqual(rocks.asks.rows.map((x) => [x.key, x.act]), [["cover", "role-overburden"], ["add", "add-all"]]);
   assert.equal(rocks.asks.rows[0].text, "SST starts 8 of 8 holes: the cover.");
-  assert.match(rocks.asks.rows[1].text, /^Add the 4 rocks/);
+  assert.match(rocks.asks.rows[1].text, /^Add 4 rocks/);
   assert.equal(step(f, "build").state, "waiting"); // the stack first
   // the stack, in the holes' order, and a surface for each unit (params.surface: the run's own record)
   const built = { ...p, stratStack: { units: ["SST", "SH", "LST", "MDST"], faults: [] }, generatedSurfaces: ["SH", "LST", "MDST"].map((u, i) => ({ id: `s${i}`, name: `Top of ${u}`, type: "stratigraphic_contact", params: { surface: u } })) };
@@ -91,7 +92,9 @@ test("assays only (Macpass): no route; the guide opens on step 6", () => {
   assert.equal(step(f, "data").state, "done");
   const g = guideStatus(f, {});
   assert.equal(g.at, "grade");
-  assert.deepEqual(g.steps.map((s) => s.state), ["done", "skipped", "waiting", "waiting", "done", "next", "waiting"]);
+  assert.deepEqual(g.steps.map((s) => s.state), ["done", "skipped", "waiting", "waiting", "skipped", "next", "waiting"]); // 5: not needed, not a tick (#4037)
+  // steps 3 and 4 say step 6 needs no rocks, with its door
+  for (const id of ["rocks", "build"]) { const s = step(f, id); assert.equal(s.reason, "No logs: step 6 needs none."); assert.equal(s.to, "grade"); }
 });
 
 test("a cover rock that starts every hole is offered as the cover; a rock inside another as an intrusion", () => {
@@ -124,7 +127,8 @@ test("faults and a vein: step 5 counts the evidence, and closes when a fault and
   assert.equal(step(f2, "faults").state, "done");
   // no evidence at all: done, with the way to draw one
   const none = step(facts(project()), "faults");
-  assert.equal(none.state, "done"); assert.equal(none.asks.act, "draw-fault");
+  assert.equal(none.state, "skipped"); assert.equal(none.reason, "Not needed for this data."); assert.equal(none.asks.act, "draw-fault");
+  assert.deepEqual(s.asks.rows.map((r) => [r.code, r.text]), [["QV", "In 4 holes"]], "a vein row says its holes; its button names the vein");
 });
 
 test("an explicit surface drawn for a unit counts as that unit's surface (its surfaceId, type explicit_surface)", () => {

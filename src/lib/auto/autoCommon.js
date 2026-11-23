@@ -41,6 +41,29 @@ export function siteSpacing(collars) {
   return { sites: r?.sites ?? new Set(pts.map((p) => `${Math.round(p.x / 2)},${Math.round(p.y / 2)}`)).size, spacing: r?.spacing ?? null };
 }
 
+// TASKS.csv #4037 (the guide's walk-through, Silvertip: holes fanned from five pads read 3 m apart at the collars, so 19 m cells were 'too coarse') —
+// each hole at half its length, on a straight line from the collar along the survey station nearest that depth (else the collar's own azimuth and dip;
+// none: the collar). One pass over the survey, no desurvey: spacing measured here is the spacing where the contacts are, the same for parallel holes.
+// holes: [{ hole_id, x, y, length, azimuth?, dip? }] -> [{ hole_id, x, y }]
+export function depthSites(holes, survey) {
+  const want = new Map(), near = new Map();
+  for (const h of holes || []) if (fin(Number(h.length)) && Number(h.length) > 0) want.set(h.hole_id, Number(h.length) / 2);
+  for (const r of survey || []) {
+    const t = want.get(r?.hole_id);
+    if (t === undefined) continue;
+    const dep = Number(r.depth), az = Number(r.azimuth), dip = Number(r.dip);
+    if (!fin(dep) || !fin(az) || !fin(dip)) continue;
+    const d = Math.abs(dep - t), b = near.get(r.hole_id);
+    if (!b || d < b.d) near.set(r.hole_id, { d, az, dip });
+  }
+  return (holes || []).map((h) => {
+    const n = near.get(h.hole_id) || (fin(Number(h.azimuth)) && fin(Number(h.dip)) ? { az: Number(h.azimuth), dip: Number(h.dip) } : null), half = want.get(h.hole_id);
+    if (!n || half === undefined) return { hole_id: h.hole_id, x: h.x, y: h.y };
+    const reach = half * Math.cos((n.dip * Math.PI) / 180), a = (n.az * Math.PI) / 180;
+    return { hole_id: h.hole_id, x: h.x + reach * Math.sin(a), y: h.y + reach * Math.cos(a) };
+  });
+}
+
 // the median length of the sampled intervals (to - from), from intervals that have both
 export const sampleLength = (samples) => median((samples || []).map((s) => Number(s.to) - Number(s.from)).filter((l) => l > 0));
 

@@ -103,7 +103,7 @@ function Tool({ tool, ctx, api, close, back, preset = null }) {
   const build = () => {
     const why = tool.check(ctx, value);
     if (why) { setOut({ verdict: [why] }); setPhase("cannot"); return; }
-    const auto = tool.auto ? tool.auto(ctx, value, mode) : autoSurface({ collars: ctx.collars, contacts: tool.contacts(ctx, value), hasLogs: true, maxResolution: QUICK_RESOLUTION });
+    const auto = tool.auto ? tool.auto(ctx, value, mode) : autoSurface({ collars: ctx.collars, contacts: tool.contacts(ctx, value), hasLogs: true, maxResolution: QUICK_RESOLUTION, survey: ctx.survey });
     if (!auto.ok) { setOut({ verdict: auto.verdict }); setPhase("cannot"); return; }
     pending.current = { auto, before: new Set((surfacesRef.current || []).map((s) => s.id)) };
     setPhase("waiting");
@@ -119,7 +119,7 @@ function Tool({ tool, ctx, api, close, back, preset = null }) {
     const p = r.p, made = (surfacesRef.current || []).filter((s) => !p.before.has(s.id));
     setOut(made.length
       ? { built: made.map((s) => s.name), reasons: [keptSuggestion ? sug.reason : null, ...p.auto.reasons.map((x) => x.text)].filter(Boolean), notes: [...(tool.result ? tool.result(made, ctx, api) : []), ...p.auto.notes, ...tool.notes(ctx, value)] }
-      : { stopped: true, verdict: [tr("It was cancelled, or the run stopped with a message: the messages under the sidebar say why.")] });
+      : { stopped: true, verdict: [tr("Cancelled, or stopped with a message: see the messages under the sidebar.")] });
     setPhase(made.length ? "done" : "cannot");
   };
   // the run reads its settings from the render it is called in: it starts once they have rendered
@@ -141,7 +141,7 @@ function Tool({ tool, ctx, api, close, back, preset = null }) {
       <div style={{ marginBottom: 10 }}>{tr(tool.sentence)}</div>
       {feedWhy ? <div style={{ color: "var(--color-danger-fg)" }}>{feedWhy}</div> : (<>
         <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr(tool.question)}</div>
-        {sug?.reason && <div style={{ ...muted, marginBottom: 6 }}>{sug.reason}</div>}
+        {sug?.reason && (!tool.multi || keptSuggestion) && <div style={{ ...muted, marginBottom: 6 }}>{sug.reason}</div>}{/* #4037: the stack's rocks ticked, not the card's own 7 */}
         {tool.multi ? (
           <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 6, padding: "4px 8px", marginBottom: 10 }}>
             {choices.map((u) => <label key={u} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}><input type="checkbox" checked={picked.includes(u)} onChange={() => toggle(u)} disabled={phase === "running" || phase === "waiting"} />{u}</label>)}
@@ -168,7 +168,7 @@ function Tool({ tool, ctx, api, close, back, preset = null }) {
           <div style={{ fontWeight: 600, marginTop: 6 }}>{tr("What I chose and why")}</div>
           <ul style={{ margin: "4px 0 0", paddingInlineStart: 18 }}>{out.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
           {out.notes.map((n, i) => <div key={i} style={{ ...muted, marginTop: 6 }}>{n}</div>)}
-          <div style={{ ...muted, marginTop: 6 }}>{tr("How well the model agrees with the logs is in the messages under the sidebar.")}</div>
+          <div style={{ ...muted, marginTop: 6 }}>{tr("How well it agrees with the logs: see the messages under the sidebar.")}</div>
         </div>
       )}
       {phase === "cannot" && out?.verdict && (
