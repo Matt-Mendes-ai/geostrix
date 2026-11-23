@@ -12,8 +12,8 @@ export const AGREE_MIN = 0.8, INSIDE_MAX = 0.3;
 // words a logger uses for cover or weathering; a hint only, beside the code sitting at the top of the holes
 const COVER_WORDS = /\b(ov(?:e)?b|ob|overburden|till|cover|cas(?:ing)?|sapro\w*|later\w*|oxid\w*|regol\w*|alluv\w*|colluv\w*|soil|sand|gravel|clay|weather\w*|glacia\w*|duricrust|ferricrete|tertiary|quaternary|qal|qt)\b/i;
 
-// per hole: its runs of one unit, top down
-function runsByHole(rows) {
+// per hole: its runs of one unit, top down (exported, TASKS.csv #4031: the guide builds them in its one pass and hands them to the three below)
+export function runsByHole(rows) {
   const by = new Map();
   for (const r of thin(rows, 200000)) {
     const from = Number(r.from), to = Number(r.to);
@@ -32,8 +32,8 @@ function runsByHole(rows) {
 }
 
 // -> { units: [{ unit, holes, inside }] (most holes first), order: [unit] (layered, top first), bodies: [unit], agree: Map unit -> share }
-export function stackOrder(rows) {
-  const holes = runsByHole(rows), units = new Map(), above = new Map();
+export function stackOrder(rows, holes = runsByHole(rows)) {
+  const units = new Map(), above = new Map();
   const key = (a, b) => `${a}\u0001${b}`;
   for (const runs of holes.values()) {
     const first = new Map(), inside = new Set();
@@ -71,8 +71,7 @@ export function coverAdvice(unit, c, { stack = false } = {}) {
 }
 
 // the cover: the code that starts the most holes, and reads like cover. describe(code) -> the code's description, if the project has one
-export function suggestCover(rows, describe = () => "") {
-  const holes = runsByHole(rows);
+export function suggestCover(rows, describe = () => "", holes = runsByHole(rows)) {
   if (!holes.size) return null;
   const starts = new Map();
   for (const runs of holes.values()) { const u = runs[0].unit; starts.set(u, (starts.get(u) || 0) + 1); }
@@ -91,8 +90,8 @@ export function suggestCover(rows, describe = () => "") {
 
 // a rock that forms bodies: one the layers' order leaves out (it lies inside another rock, or sits in no steady order), cut by the most holes.
 // prefer(unit): the modelling engine reads it as cross-cutting (TASKS.csv #3908), so those come first
-export function suggestBody(rows, prefer = () => false) {
-  const s = stackOrder(rows), byUnit = new Map(s.units.map((u) => [u.unit, u]));
+export function suggestBody(rows, prefer = () => false, s = stackOrder(rows)) {
+  const byUnit = new Map(s.units.map((u) => [u.unit, u]));
   const unit = s.bodies.find(prefer) ?? s.bodies[0] ?? null;
   if (!unit) return null;
   const u = byUnit.get(unit);
