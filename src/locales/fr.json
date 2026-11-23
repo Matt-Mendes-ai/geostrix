@@ -15255,5 +15255,8 @@
   "Nothing is added yet: use the Result block.": "Rien n'est encore ajouté : utilisez le bloc de résultat.",
   "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "Blocs de {c} m (environ {n}, non {n0}) : environ {t} de plus après l'entraînement.",
   "The green Model button opens a guide: seven steps from your data to a checked model, one question at a time. A model is not a resource estimate.": "Le bouton vert Modèle ouvre un guide : sept étapes de vos données à un modèle vérifié, une question à la fois. Un modèle n'est pas une estimation des ressources.",
-  "Guided modelling": "Modélisation guidée"
+  "Guided modelling": "Modélisation guidée",
+  "Dip pin": "Aiguille de pendage",
+  "A pin down each disc's dip": "Une aiguille dans le sens du pendage de chaque disque",
+  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Un disque a le même aspect quel que soit son sens de pendage; l'aiguille montre vers où le plan plonge."
 }

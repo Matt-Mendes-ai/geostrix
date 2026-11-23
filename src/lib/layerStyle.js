@@ -42,7 +42,7 @@ export function resolveLayerStyle(style, kind, defaults = {}) {
   const size = Number.isFinite(s.size) && s.size > 0 ? clamp(s.size, SIZE_MIN, SIZE_MAX) : 1;
   const opacity = Number.isFinite(s.opacity) ? clamp(s.opacity, 0.1, 1) : (defaults.opacity ?? 1);
   const shape = shapes.some((x) => x.id === s.shape) ? s.shape : shapes[0].id;
-  return { size, opacity, shape, color: isHex(s.color) ? s.color.toLowerCase() : null };
+  return { size, opacity, shape, color: isHex(s.color) ? s.color.toLowerCase() : null, ...(kind === "plane" ? { dipPin: s.dipPin === true } : {}) }; // TASKS.csv #4038 - a structure plane's dip pin is off unless asked for
 }
 
 // Drops defaults so saved projects only carry what the user changed; null when nothing is left.
@@ -72,6 +72,7 @@ export function cleanLayerStyle(style, kind) {
   if (Array.isArray(s.bars) && s.bars.length) out.bars = s.bars.filter((x) => typeof x === "string" && x).slice(0, 6).map((x) => x.slice(0, 120));
   else if (s.bars === true) out.bars = true;
   if (s.bar === true) out.bar = true; // TASKS.csv #4008 — a numeric custom layer drawn as a bar beside the trace
+  if (s.dipPin === true && kind === "plane") out.dipPin = true; // TASKS.csv #4038 - the Structure planes' pin down each disc's dip (off by default: discs only)
   if (s.slices === true) out.slices = true; // TASKS.csv #3990 — a Mineralization layer's intervals cut into one wedge per mineral
   return Object.keys(out).length ? out : null;
 }

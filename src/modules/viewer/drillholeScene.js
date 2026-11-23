@@ -731,6 +731,9 @@ export async function buildDrillholeScene(ctx) { // async: #3648 (slices only wh
       groups.structure.add(disc);
       // TASKS.csv #1241 — a disc looks the same dipping 60/045 and 60/225: a pin from its centre down the dip, past the rim so it shows on an opaque disc.
       // A shared prototype, so the pins batch into one draw call and follow the category and hole filters and the colour overrides like the discs.
+      // TASKS.csv #4038 (Matt, 2026-11-23: "for the structural planes we want discs, not discs + lines. it get's too crowded") - the pin is an option now,
+      // off unless the layer's Style says "Dip pin"; the disc alone is the default (the section window keeps its own dip arrows, #1130).
+      if (!stStruct.dipPin) return;
       const pin = new THREE.Mesh(PROTO_PRISM_4, new THREE.MeshBasicMaterial({ color }));
       pin.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(Math.sin(toRad(az)) * Math.cos(toRad(dip)), -Math.sin(toRad(dip)), -Math.cos(toRad(az)) * Math.cos(toRad(dip))));
       pin.scale.set(0.35 * stStruct.size, 8 * stStruct.size, 0.35 * stStruct.size);
