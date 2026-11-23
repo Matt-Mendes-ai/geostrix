@@ -11,15 +11,15 @@ test("#4025 the field: undo-tracked, empty in a new project, read back from a fi
   const f = FIELDS.find((x) => x.key === "stratStack");
   assert.equal(f.track, "undo"); assert.ok(UNDO_KEYS.includes("stratStack"));
   assert.ok(PROJECT_VERSION >= 31);
-  assert.deepEqual(emptyFields().stratStack, { units: [], breaks: [] });
-  const live = { ...emptyFields(), stratStack: { units: ["mcode:AND1", "group:g1", "TUF"], breaks: ["group:g1"] } };
+  assert.deepEqual(emptyFields().stratStack, { units: [], breaks: [], relation: "onlap", faults: [], faultOffsets: {} }); // #4030: relation, faults
+  const live = { ...emptyFields(), stratStack: { ...emptyStack(), units: ["mcode:AND1", "group:g1", "TUF"], breaks: ["group:g1"] } };
   const file = JSON.parse(JSON.stringify(payloadFromFields(live)));
   assert.deepEqual(file.stratStack, live.stratStack);
   assert.deepEqual(fieldsFromPayload(file, "Demo").stratStack, live.stratStack);
   assert.ok(projectHasContent(live), "a stack alone is work worth an autosave");
   const older = { ...file, version: 30 }; delete older.stratStack;
   assert.deepEqual(fieldsFromPayload(older, "Old").stratStack, emptyStack(), "a v30 file: an empty stack, as before");
-  assert.deepEqual(stackFromFile({ units: ["TUF", 3, "", "TUF", "AND"], breaks: "TUF" }), { units: ["TUF", "AND"], breaks: [] }, "only unit keys, each once");
+  assert.deepEqual(stackFromFile({ units: ["TUF", 3, "", "TUF", "AND"], breaks: "TUF" }), { ...emptyStack(), units: ["TUF", "AND"], breaks: [] }, "only unit keys, each once");
   assert.deepEqual(stackFromFile(null), emptyStack());
 });
 
@@ -28,10 +28,10 @@ test("#4025 setStackUnits / setStackBreaks over the one field: a value or a func
   const setStratStack = (fn) => { s = fn(s); };
   const setUnits = stackPartSetter(setStratStack, "units", () => checks++), setBreaks = stackPartSetter(setStratStack, "breaks", () => checks++);
   setUnits((p) => [...p, "AND"]);
-  assert.deepEqual(s, { units: ["TUF", "AND"], breaks: ["TUF"] });
+  assert.deepEqual(s, { ...emptyStack(), units: ["TUF", "AND"], breaks: ["TUF"] });
   const before = s; setBreaks((p) => p); assert.equal(s, before, "no change: the same object, so no undo step");
   setUnits([]); setBreaks([]);
-  assert.deepEqual(s, { units: [], breaks: [] }); assert.equal(checks, 4, "each edit ends the step under way first");
+  assert.deepEqual(s, emptyStack()); assert.equal(checks, 4, "each edit ends the step under way first");
   stackPartSetter(setStratStack, "units", () => { throw new Error("no history"); })(["X"]);
   assert.deepEqual(s.units, ["X"], "a history that is not there does not stop the edit");
 });
