@@ -108,6 +108,7 @@ const SectionImageVerticalModal = lazyModal(() => import("../components/SectionI
 const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
 const SolidToolsModal = React.lazy(() => import("../components/SolidToolsModal.jsx")); // TASKS.csv #1950 / #1951 — clip a solid by a surface, combine two solids
 const TrendsPanel = React.lazy(() => import("../components/TrendsPanel.jsx")); // TASKS.csv #650
+import { stackPartSetter } from "../lib/stratStack.js"; // TASKS.csv #4025
 import { cleanTrend, trendBasis, trendScales, describeTrend, trendRatioText } from "../lib/trend.js"; // TASKS.csv #650; trendRatioText: #2423
 import { colors, viewBgOf } from "../lib/theme.js"; // TASKS.csv #700 — the trend preview's UI colours; viewBgOf: #3966
 import { mergeSurfaceStyle, applySurfaceStyle, surfaceBaseLook } from "../lib/surfaceStyle.js"; // TASKS.csv #636
@@ -552,6 +553,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
     modellingCodes, setModellingCodes, // TASKS.csv #599
     structuralTrends, setStructuralTrends, // TASKS.csv #650
+    stratStack, setStratStack, // TASKS.csv #4025
     explicitSurfaces, setExplicitSurfaces, // TASKS.csv #811
     omfObjects, updateOmfObject, removeOmfObject,
     terrain, updateTerrain,
@@ -1099,7 +1101,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [veinCellSize, setVeinCellSize] = useState(0);
   const [veinSearchRadius, setVeinSearchRadius] = useState(0);
   const [veinBusy, setVeinBusy] = useState(false);
-  const [stackUnits, setStackUnits] = useState([]); // ordered youngest -> oldest, for the stratigraphic stack tool
+  // ordered youngest -> oldest, for the stratigraphic stack tool; TASKS.csv #4025: the project's (saved, per tab, one Ctrl+Z step per edit; lib/stratStack.js)
+  const stackUnits = stratStack.units, stackBreaks = stratStack.breaks; // #1309: breaks
+  const setStackUnits = useMemo(() => stackPartSetter(setStratStack, "units", undoCheckpoint), [setStratStack, undoCheckpoint]);
+  const setStackBreaks = useMemo(() => stackPartSetter(setStratStack, "breaks", undoCheckpoint), [setStratStack, undoCheckpoint]);
   const [stackFaultOffsets, setStackFaultOffsets] = useState({}); // TASKS.csv #1054 — { faultKey: { from: unit key | "", faults: [fault keys] } }
   const [stackFaults, setStackFaults] = useState([]); // TASKS.csv #360 — "<structure type>|<structure_id>" keys of faults that offset the stack
   // TASKS.csv #271 — GemPy StackRelationType. Defaults to ONLAP (conformable) for two reasons: it's the
@@ -1109,7 +1114,6 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // erosional case genuinely available for the first time.
   const [stackRelation, setStackRelation] = useState("onlap");
   const surfaceLabels = useMemo(() => surfaceOptionLabels(implicitSurfaces), [implicitSurfaces]); // #1192
-  const [stackBreaks, setStackBreaks] = useState([]); // #1309
   const [stackAdd, setStackAdd] = useState("");
   const [expandedLithoGroupId, setExpandedLithoGroupId] = useState(null); // TASKS.csv #176 — which group's code checklist is open
   // TASKS.csv #155 — this used to be its own toggleable state (an internal "Home | Modelling" pill

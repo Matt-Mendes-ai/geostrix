@@ -15,6 +15,7 @@ function labelOf(key) {
     case "boundaries": return tr("boundaries");
     case "modellingCodes": return tr("modelling codes");
     case "structuralTrends": return tr("structural trends");
+    case "stratStack": return tr("the stratigraphic stack"); // TASKS.csv #4025
     case "explicitSurfaces": return tr("explicit surfaces");
     case "omfObjects": return tr("OMF objects");
     case "layerGroups": return tr("layer groups");
