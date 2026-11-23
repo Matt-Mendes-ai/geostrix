@@ -1,6 +1,6 @@
 // TASKS.csv #599 — the Modelling codes pane (3D Modelling tab). The code list (colour, role, pile order),
 import { roleIsAssumed, coverTopShare, roleMeaningText } from "../lib/layers.js"; // TASKS.csv #2537; coverTopShare: #3147; roleMeaningText: #3778
-import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
+import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #687
 // optional auto-numbering of alternating flows, and the interval picked in the 3D view: its code can be
 // changed, or it can be connected to an interval in another hole (both get the same code; a tie line is
 // drawn). The picking itself lives in ViewerModule (the 3D scene); this pane only edits `modellingCodes`.
@@ -10,7 +10,9 @@ import * as THREE from "three";
 import { gradeUnitLabel } from "../lib/geochem.js"; // TASKS.csv #2634
 import { placeRuns, fitSheetAttitude, refineSheetAttitude, attitudeNormal, correlateSheets, sheetAssign } from "../lib/sheetCorrelation.js"; // TASKS.csv #2625 / #2635
 import { Crosshair, Waypoints, X, RotateCcw, Layers3, Square } from "./icons.js";
-import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode, rowKey, codedRuns } from "../lib/modellingCodes.js";
+import { CODE_ROLES, codesInUse, autoNumber, inheritNumberedRoles, effectiveCode, rowKey, codedRuns, codeOverrides, deleteCodes } from "../lib/modellingCodes.js";
+import { pickClick } from "../lib/viewer/customLayerBulk.js"; // TASKS.csv #4023 — Ctrl / Shift + click picks rows, as the Custom layers do (#4007)
+import { confirmDestructive } from "../lib/confirmDestructive.js";
 import { orderFromHoles } from "../lib/pileTops.js"; // TASKS.csv #2926
 import { colorForLithology, LAYER_META } from "../lib/layers.js";
 import { findOnTrace } from "../lib/viewer/modelHelpers.js";
@@ -237,6 +239,27 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       return { ...(p || mc), assign, codes: code == null || list.some((c) => c.name === code) ? list : [...list, { name: code }] };
     });
   };
+  // TASKS.csv #4023 — delete codes: an x per row, Ctrl / Shift + click picks rows, 'Delete all'. Only the intervals re-coded to a code can go (the log's own codes stay,
+  // the imported data never change); they go back to their logged code or group. The codes are a saved field with Undo, so Ctrl+Z brings them back in one step.
+  const overrideCount = useMemo(() => codeOverrides(mc), [mc]);
+  const [pickedCodes, setPickedCodes] = useState(() => new Set());
+  const codeAnchor = useRef(null);
+  const pickedNames = codes.map((c) => c.name).filter((n) => pickedCodes.has(n));
+  const clickCodeRow = (e, name) => {
+    if (e.target.closest?.("input, select, button")) return;
+    const r = pickClick({ picked: pickedCodes, anchor: codeAnchor.current, order: codes.map((c) => c.name) }, name, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey });
+    if (r) { codeAnchor.current = r.anchor; setPickedCodes(r.picked); }
+  };
+  const deleteCodesNamed = async (names) => {
+    const todo = names.filter((n) => overrideCount.has(n));
+    if (!todo.length) return;
+    const n = todo.reduce((sum, c) => sum + overrideCount.get(c), 0);
+    const q = todo.length === 1 ? tr('Delete the code "{name}"? Its {n} interval(s) go back to their logged code.', { name: todo[0], n }) : tr("Delete the {codes} codes? Their {n} interval(s) go back to their logged codes.", { codes: todo.length, n });
+    if (!(await confirmDestructive(q, { undoable: true }))) return;
+    setModellingCodes((p) => deleteCodes(p || mc, todo, { logged: new Set(loggedCodes) }).mc);
+    setPickedCodes(new Set()); codeAnchor.current = null;
+    if (todo.includes(bodyCode)) setBodyCode("");
+  };
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
   // TASKS.csv #2722 — the matched sheets drawn in 3D before the codes are written; a change of codes or attitude drops the preview
   const [sheetPreview, setSheetPreview] = useState(null);
@@ -397,10 +420,18 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       {codes.length > 1 && <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>{/* #2926 */}
         <button type="button" onClick={applyHolesOrder} title={tr("In each hole the unit that starts higher is younger, counted pair by pair over the holes that log both (the Strat. stack's check).")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
         {holesNote && <span role="status" style={small}>{holesNote}</span>}
+        {overrideCount.size > 0 && <button type="button" onClick={() => deleteCodesNamed([...overrideCount.keys()])} title={tr("Delete every code made by re-coding intervals")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Delete all")}</button>}
       </div>}
+      {pickedNames.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginTop: 4, background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, fontSize: "var(--font-size-xs)" }}>
+          <span style={{ flex: 1, color: "var(--color-text)" }}>{tr("{n} picked", { n: pickedNames.length })}</span>
+          {pickedNames.some((n) => overrideCount.has(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => deleteCodesNamed(pickedNames)} style={{ cursor: "pointer", color: "var(--color-danger-icon)" }}>{tr("Delete")}</span>}
+          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { setPickedCodes(new Set()); codeAnchor.current = null; }} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Clear")}</span>
+        </div>
+      )}
       <div style={small}>{tr("Roles are suggested from code names and, when imported, the intervals' notes (dyke, lost core, monzonite ...). An unrecognized code is assumed stratigraphic: check the roles before modelling.")}{" "}{tr("A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.")}</div>{/* #2046; cover: #3147 */}
       {codes.map((c, i) => (
-        <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+        <div key={c.name} onClick={(e) => clickCodeRow(e, c.name)} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, ...(pickedCodes.has(c.name) ? { background: "var(--color-selected-bg)", borderRadius: 4 } : {}) }}>
           <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}>{c.name} <span style={small}>({counts.get(c.name) || 0})</span></span>
           <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 4px" }}><Square size={11} /></button>
@@ -409,6 +440,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           </select>
           <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>
           <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▼</button>
+          {overrideCount.has(c.name) && <button onClick={() => deleteCodesNamed([c.name])} title={tr("Delete the code {name}", { name: c.name })} aria-label={tr("Delete the code {name}", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", color: "var(--color-danger-icon)" }}><X size={11} /></button>}
         </div>
       ))}
       </>)}
