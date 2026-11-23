@@ -14934,7 +14934,6 @@
   "Fence box": "Rectangle de série",
   "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).": "Faites glisser sur le plan pour dessiner le rectangle de la série, tourné à son azimut ({a}°).",
   "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.": "Rectangle de la série, {l} × {w} m à {a}° : faites glisser un coin pour le modifier.",
-  "Drag on the view, or on Maps › Fence box, to draw it.": "Faites glisser sur la vue, ou dans Cartes › Rectangle de série, pour le dessiner.",
   "Beyond the drilling: no prediction.": "Au-delà des forages : pas de prédiction.",
   "At {c} {unit}: a {p} % chance of an intercept; a typical hit {len} m at {g} {unit}.": "À {c} {unit} : {p} % de chances d’une intersection ; une intersection typique de {len} m à {g} {unit}.",
   "At {c} {unit}: a {p} % chance of an intercept.": "À {c} {unit} : {p} % de chances d’une intersection.",
@@ -15258,5 +15257,6 @@
   "Guided modelling": "Modélisation guidée",
   "Dip pin": "Aiguille de pendage",
   "A pin down each disc's dip": "Une aiguille dans le sens du pendage de chaque disque",
-  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Un disque a le même aspect quel que soit son sens de pendage; l'aiguille montre vers où le plan plonge."
+  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Un disque a le même aspect quel que soit son sens de pendage; l'aiguille montre vers où le plan plonge.",
+  "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dessin : faites glisser un rectangle sur la vue (ou dans Cartes › Rectangle de série); Échap annule."
 }

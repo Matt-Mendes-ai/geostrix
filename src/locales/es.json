@@ -14934,7 +14934,6 @@
   "Fence box": "Rectángulo de serie",
   "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).": "Arrastre sobre el plano para dibujar el rectángulo de la serie, girado a su azimut ({a}°).",
   "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.": "Rectángulo de la serie, {l} × {w} m a {a}°: arrastre una esquina para cambiarlo.",
-  "Drag on the view, or on Maps › Fence box, to draw it.": "Arrastre sobre la vista, o en Mapas › Rectángulo de serie, para dibujarlo.",
   "Beyond the drilling: no prediction.": "Más allá de la perforación: sin predicción.",
   "At {c} {unit}: a {p} % chance of an intercept; a typical hit {len} m at {g} {unit}.": "A {c} {unit}: {p} % de probabilidad de un intercepto; un intercepto típico de {len} m a {g} {unit}.",
   "At {c} {unit}: a {p} % chance of an intercept.": "A {c} {unit}: {p} % de probabilidad de un intercepto.",
@@ -15258,5 +15257,6 @@
   "Guided modelling": "Modelado guiado",
   "Dip pin": "Aguja de buzamiento",
   "A pin down each disc's dip": "Una aguja hacia el buzamiento de cada disco",
-  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Un disco se ve igual buzando hacia un lado u otro; la aguja muestra hacia dónde buza el plano."
+  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Un disco se ve igual buzando hacia un lado u otro; la aguja muestra hacia dónde buza el plano.",
+  "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dibujando: arrastre un rectángulo sobre la vista (o en Mapas › Rectángulo de serie); Esc cancela."
 }

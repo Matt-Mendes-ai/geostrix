@@ -14934,7 +14934,6 @@
   "Fence box": "Retângulo da série",
   "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).": "Arraste no plano para desenhar o retângulo da série, girado para o seu azimute ({a}°).",
   "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.": "Retângulo da série, {l} × {w} m a {a}°: arraste um canto para alterá-lo.",
-  "Drag on the view, or on Maps › Fence box, to draw it.": "Arraste na vista, ou em Mapas › Retângulo da série, para desenhá-lo.",
   "Beyond the drilling: no prediction.": "Além da perfuração: sem previsão.",
   "At {c} {unit}: a {p} % chance of an intercept; a typical hit {len} m at {g} {unit}.": "A {c} {unit}: {p} % de chance de uma interseção; uma interseção típica de {len} m a {g} {unit}.",
   "At {c} {unit}: a {p} % chance of an intercept.": "A {c} {unit}: {p} % de chance de uma interseção.",
@@ -15258,5 +15257,6 @@
   "Guided modelling": "Modelagem guiada",
   "Dip pin": "Pino de mergulho",
   "A pin down each disc's dip": "Um pino no sentido do mergulho de cada disco",
-  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Um disco parece o mesmo mergulhando para um lado ou para o outro; o pino mostra para onde o plano mergulha."
+  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Um disco parece o mesmo mergulhando para um lado ou para o outro; o pino mostra para onde o plano mergulha.",
+  "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Desenhando: arraste um retângulo na vista (ou em Mapas › Retângulo da série); Esc cancela."
 }

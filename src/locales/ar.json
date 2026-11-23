@@ -14934,7 +14934,6 @@
   "Fence box": "مستطيل السلسلة",
   "Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).": "اسحب على المسقط لرسم مستطيل السلسلة، مُدارًا إلى سمتها ({a}°).",
   "Fence series box, {l} × {w} m at {a}°: drag a corner to change it.": "مستطيل السلسلة، {l} × {w} م عند {a}°: اسحب زاوية لتغييره.",
-  "Drag on the view, or on Maps › Fence box, to draw it.": "اسحب على العرض، أو في الخرائط › مستطيل السلسلة، لرسمه.",
   "Beyond the drilling: no prediction.": "خارج نطاق الحفر: لا تنبؤ.",
   "At {c} {unit}: a {p} % chance of an intercept; a typical hit {len} m at {g} {unit}.": "عند {c} {unit}: احتمال {p} % لتقاطع؛ تقاطع نموذجي {len} م بمحتوى {g} {unit}.",
   "At {c} {unit}: a {p} % chance of an intercept.": "عند {c} {unit}: احتمال {p} % لتقاطع.",
@@ -15258,5 +15257,6 @@
   "Guided modelling": "النمذجة الموجَّهة",
   "Dip pin": "دبوس الميل",
   "A pin down each disc's dip": "دبوس باتجاه ميل كل قرص",
-  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "يبدو القرص نفسه سواء مال في اتجاه أو آخر؛ ويُظهر الدبوس الاتجاه الذي يميل إليه المستوى."
+  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "يبدو القرص نفسه سواء مال في اتجاه أو آخر؛ ويُظهر الدبوس الاتجاه الذي يميل إليه المستوى.",
+  "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "الرسم: اسحب مستطيلًا على العرض (أو في الخرائط › مستطيل السلسلة)، وEsc للإلغاء."
 }
