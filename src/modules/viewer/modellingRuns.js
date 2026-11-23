@@ -9,6 +9,7 @@ import { isNotRecorded } from "../../lib/notRecorded.js"; // TASKS.csv #3267
 import { interbeds, planeDipDeg, planeMisfitM, looksLikeFlatPile, runsLieFlat } from "../../lib/pileTops.js"; // TASKS.csv #2927; #3262; #3263
 import { stackCellCheck, medianStackThickness } from "../../lib/stackResolution.js"; // TASKS.csv #2905; medianStackThickness: #2922
 import { suspectElevationIds } from "../../lib/collarElevationTrust.js"; // TASKS.csv #2918 (the #3004 rule)
+import { invalidCounts, columnsText, nothingLeftText } from "../../lib/modellingNothingLeft.js"; // TASKS.csv #4024
 import { estimateOrientationFromPoints } from "../../lib/viewer/contactOrientation.js"; // TASKS.csv #3766 — a least-spread plane, out of ViewerModule
 import { trendRatioText, trendBasis, trendScales } from "../../lib/trend.js"; // TASKS.csv #2423; basis / scales: #3062
 import { flatSearchTrend } from "../../lib/estimationShape.js"; // TASKS.csv #3062
@@ -258,8 +259,10 @@ export function createModellingRuns(ctx, mcRef) {
     // filters elsewhere in this function's callers.
     const isFiniteNum = (v) => typeof v === "number" ? Number.isFinite(v) : Number.isFinite(Number(v)) && String(v).trim() !== "";
     const specs = [];
+    const why = []; // TASKS.csv #4024 — why each unit was left out, said by the 'Nothing left to model' message (the notices above sit behind 'Show all')
     rawSpecs.forEach((spec) => {
       const badPoints = spec.points.length;
+      const colPts = invalidCounts(spec.points, ["x", "y", "z"], isFiniteNum), colOri = invalidCounts(spec.orientations, ["x", "y", "z", "dip", "azimuth"], isFiniteNum);
       const points = spec.points.filter((p) => isFiniteNum(p.x) && isFiniteNum(p.y) && isFiniteNum(p.z)).map((p) => ({ ...p, x: Number(p.x), y: Number(p.y), z: Number(p.z) }));
       const badOrientations = spec.orientations.length;
       const orientations = spec.orientations.filter((o) => isFiniteNum(o.x) && isFiniteNum(o.y) && isFiniteNum(o.z) && isFiniteNum(o.dip) && isFiniteNum(o.azimuth))
@@ -269,9 +272,9 @@ export function createModellingRuns(ctx, mcRef) {
         const parts = [];
         if (droppedPoints) parts.push(tr("{droppedPoints} point(s)", { droppedPoints }));
         if (droppedOrientations) parts.push(tr("{droppedOrientations} orientation(s)", { droppedOrientations }));
-        setNotices((p) => [...p, notice("\"{label}\": dropped {parts} with a missing/invalid x, y, z, dip, or azimuth value before sending to the sidecar — check the source CSV for blank or non-numeric cells in those columns.", { label: spec.label, parts: parts.join(" and ") })]);
+        setNotices((p) => [...p, notice("\"{label}\": dropped {parts} with a missing or non-numeric value in {columns} before sending to the sidecar — check the source CSV for blank or non-numeric cells in those columns.", { label: spec.label, parts: parts.join(" and "), columns: columnsText(colPts, colOri) })]);
       }
-      if (!points.length) { setNotices((p) => [...p, notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: spec.label })]); return; }
+      if (!points.length) { why.push(badPoints ? { kind: "invalid", label: spec.label, n: badPoints, columns: columnsText(colPts) } : { kind: "empty", label: spec.label }); setNotices((p) => [...p, notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: spec.label })]); return; }
       // #2905: a layer-cake needs none; #3986: a surface with none is kept for the input check below, which gives it the nearest measured one
       specs.push({ ...spec, points, orientations });
     });
@@ -294,17 +297,24 @@ export function createModellingRuns(ctx, mcRef) {
     const suspectZ = suspectElevationIds(collars || []);
     if (suspectZ.size) { // #2918's notices are held too (#3085), so a taken layer-cake offer says them once
       let dropped = 0;
-      specs.forEach((s) => { const n = s.points.length; s.points = s.points.filter((p) => !(p.hole_id != null && suspectZ.has(p.hole_id))); dropped += n - s.points.length; });
+      specs.forEach((s) => { const n = s.points.length; s.points = s.points.filter((p) => !(p.hole_id != null && suspectZ.has(p.hole_id))); dropped += n - s.points.length; s.nOnSuspect = n - s.points.length; });
       const zOf = new Map((collars || []).map((c) => [c.hole_id, c.z]));
       held.push(notice("Left out of this run: {n} hole(s) whose collar elevation looks like a missing value ({list}), with {k} contact(s) on them. Their contacts would sit at that elevation and stretch the model box; fix the collar RL and re-import the collars to use them.", { n: suspectZ.size, list: [...suspectZ].slice(0, 5).map((id) => `${id} (${Math.round(zOf.get(id))} m)`).join(", ") + (suspectZ.size > 5 ? " …" : ""), k: dropped }));
-      for (let k = specs.length - 1; k >= 0; k--) if (!specs[k].points.length) { held.push(notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: specs[k].label })); specs.splice(k, 1); }
+      for (let k = specs.length - 1; k >= 0; k--) if (!specs[k].points.length) { why.push({ kind: "suspect", label: specs[k].label, n: specs[k].nOnSuspect || 0, holes: suspectZ.size }); held.push(notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: specs[k].label })); specs.splice(k, 1); }
     }
     // TASKS.csv #3986 — the inputs checked for what makes GemPy's matrix singular, fixed where it can be, and said (lib/gempyInputCheck.js)
+    const ptsBefore = new Map(specs.map((sp) => [sp.label, sp.points.length]));
     const inputCheck = checkStackInputs(specs, { needOrientation: !cakeRun });
     specs.splice(0, specs.length, ...inputCheck.specs);
-    for (let k = specs.length - 1; k >= 0; k--) if (!cakeRun && !specs[k].orientations.length) { held.push(notice("\"{label}\": no usable orientations left after removing invalid ones — skipped.", { label: specs[k].label })); specs.splice(k, 1); }
+    inputCheck.fixes.dropped.forEach((d) => why.push({ kind: "tooFew", label: d.label, before: ptsBefore.get(d.label) ?? d.n, after: d.n }));
+    // TASKS.csv #4024 — a unit whose orientations were all invalid (and none to borrow) is not dropped: its dip is estimated from its own contacts, as a run with no structure picks does
+    for (let k = specs.length - 1; k >= 0; k--) if (!cakeRun && !specs[k].orientations.length) {
+      const e = estimateOrientationFromPoints(specs[k].points);
+      specs[k].orientations = [e]; specs[k].orientationEstimated = true;
+      held.push(notice("\"{label}\": no usable orientation was left after removing invalid ones, so its dip was estimated from its contact points (~{dip}°/~{azimuth}°).", { label: specs[k].label, dip: Math.round(e.dip), azimuth: Math.round(e.azimuth) }));
+    }
     if (anyFix(inputCheck.fixes)) held.push(inputCheckNotice(inputCheck.fixes));
-    if (!specs.length) { setNotices((p) => [...p, ...held, notice("Nothing left to model after removing invalid points/orientations — see notices above for which columns to check.")]); return; } // ...held: #2918's, said before it
+    if (!specs.length) { setNotices((p) => [...p, ...held, errorNotice(nothingLeftText(why))]); return; } // ...held: #2918's, said before it
     // TASKS.csv #762 — the picks themselves, before the solve (GemPy's condition number was measured blind to most of this)
     // TASKS.csv #2539 (review #2486) — an orientation the run estimated itself (no structure pick) is not a pick to 'fix or exclude': worded apart
     const pickIssues = specs.map((sp) => { const r = pickReport(sp, { origin: originRef.current }); return r && { ...r, estimated: !!sp.orientationEstimated }; }).filter(Boolean);

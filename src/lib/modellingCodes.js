@@ -240,3 +240,24 @@ export function codesInUse(lithoRows, mc, groupOf, defaultRole) {
   return [...names].map((n) => codeInfo(mc, n, defaultRole))
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || a.name.localeCompare(b.name, undefined, { numeric: true }));
 }
+
+// TASKS.csv #4023 (Matt, WA bedded iron, v0.2.8) — delete modelling codes. A code is made by re-coding intervals (auto-number DAC -> DAC1, connecting, the box,
+// the code list): the intervals' own overrides are all there is to delete. The imported data are never touched, so a deleted code's intervals go back to their
+// logged code (or its lithology group), exactly as 'Back to the logged code' does; a code that only the log has (no override) has nothing to delete.
+// -> Map(code -> the number of intervals re-coded to it)
+export function codeOverrides(mc) {
+  const m = new Map();
+  for (const c of Object.values(mc?.assign || {})) if (c) m.set(c, (m.get(c) || 0) + 1);
+  return m;
+}
+// names: the codes to delete; logged: the codes the log itself holds (their colour / role / order entry stays, they are still there afterwards).
+// -> { mc, intervals, codes }: the new value (overrides to these codes dropped, their code-list entries dropped unless logged, correlation ties to a dropped
+// interval dropped), how many intervals went back, how many of the names had any
+export function deleteCodes(mc, names, { logged = null } = {}) {
+  const base = mc || EMPTY_MODELLING_CODES, gone = new Set(names || []), keep = logged || new Set();
+  const assign = {}, dropped = new Set(), hit = new Set();
+  for (const [k, c] of Object.entries(base.assign || {})) { if (gone.has(c)) { dropped.add(k); hit.add(c); } else assign[k] = c; }
+  const codes = (base.codes || []).filter((c) => !gone.has(c.name) || keep.has(c.name));
+  const ties = (base.ties || []).filter((t) => !dropped.has(t.a) && !dropped.has(t.b));
+  return { mc: { ...base, assign, codes, ties }, intervals: dropped.size, codes: hit.size };
+}
