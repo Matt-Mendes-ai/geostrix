@@ -15173,5 +15173,10 @@
   "{a} of {n} samples above {cutoff}{unit} inside": "{a} de {n} amostras acima de {cutoff}{unit} dentro",
   "WARNING: only {a} of {n} samples above {cutoff}{unit} are inside: check the cut-off": "AVISO: apenas {a} de {n} amostras acima de {cutoff}{unit} estão dentro: verifique o teor de corte",
   "Median {m}, Q3 {q}, P90 {p}": "Mediana {m}, Q3 {q}, P90 {p}",
-  "; not cut at the ground": "; sem corte na superfície"
+  "; not cut at the ground": "; sem corte na superfície",
+  "Added": "Adicionado",
+  "Add grade shells (closed)": "Adicionar cascas de teor (fechadas)",
+  "Add the contact surface": "Adicionar a superfície de contato",
+  "{n} blocks of {c} m": "{n} blocos de {c} m",
+  "Nothing is added yet: use the Result block.": "Nada foi adicionado ainda: use o bloco de resultado."
 }

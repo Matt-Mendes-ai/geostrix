@@ -15173,5 +15173,10 @@
   "{a} of {n} samples above {cutoff}{unit} inside": "{a} de {n} muestras sobre {cutoff}{unit} dentro",
   "WARNING: only {a} of {n} samples above {cutoff}{unit} are inside: check the cut-off": "ADVERTENCIA: solo {a} de {n} muestras sobre {cutoff}{unit} están dentro: revise la ley de corte",
   "Median {m}, Q3 {q}, P90 {p}": "Mediana {m}, Q3 {q}, P90 {p}",
-  "; not cut at the ground": "; sin cortar en la superficie"
+  "; not cut at the ground": "; sin cortar en la superficie",
+  "Added": "Agregado",
+  "Add grade shells (closed)": "Agregar cascarones de ley (cerrados)",
+  "Add the contact surface": "Agregar la superficie de contacto",
+  "{n} blocks of {c} m": "{n} bloques de {c} m",
+  "Nothing is added yet: use the Result block.": "Aún no se agregó nada: use el bloque de resultado."
 }
