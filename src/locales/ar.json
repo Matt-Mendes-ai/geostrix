@@ -15255,5 +15255,8 @@
   "Nothing is added yet: use the Result block.": "لم تُضف أي نتيجة بعد: استخدم كتلة النتيجة.",
   "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "كتل {c} م (نحو {n} بدلًا من {n0}): نحو {t} إضافية بعد التدريب.",
   "The green Model button opens a guide: seven steps from your data to a checked model, one question at a time. A model is not a resource estimate.": "يفتح زر «النموذج» الأخضر دليلاً: سبع خطوات من بياناتك إلى نموذج مُراجَع، سؤالاً واحداً في كل مرة. النموذج ليس تقديراً للموارد.",
-  "Guided modelling": "النمذجة الموجَّهة"
+  "Guided modelling": "النمذجة الموجَّهة",
+  "Dip pin": "دبوس الميل",
+  "A pin down each disc's dip": "دبوس باتجاه ميل كل قرص",
+  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "يبدو القرص نفسه سواء مال في اتجاه أو آخر؛ ويُظهر الدبوس الاتجاه الذي يميل إليه المستوى."
 }

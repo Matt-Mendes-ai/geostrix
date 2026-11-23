@@ -15255,5 +15255,8 @@
   "Nothing is added yet: use the Result block.": "Aún no se agregó nada: use el bloque de resultado.",
   "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "Bloques de {c} m (unos {n}, no {n0}): unos {t} más después del entrenamiento.",
   "The green Model button opens a guide: seven steps from your data to a checked model, one question at a time. A model is not a resource estimate.": "El botón verde Modelo abre una guía: siete pasos desde sus datos hasta un modelo revisado, una pregunta a la vez. Un modelo no es una estimación de recursos.",
-  "Guided modelling": "Modelado guiado"
+  "Guided modelling": "Modelado guiado",
+  "Dip pin": "Aguja de buzamiento",
+  "A pin down each disc's dip": "Una aguja hacia el buzamiento de cada disco",
+  "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Un disco se ve igual buzando hacia un lado u otro; la aguja muestra hacia dónde buza el plano."
 }

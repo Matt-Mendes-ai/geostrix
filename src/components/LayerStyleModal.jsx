@@ -78,6 +78,17 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
         {target.key === "mnlgy" && <WidthByRow rows={layers?.mnlgy} style={style} onChange={onChange} row={row} lbl={lbl} select={{ flex: 1, padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }} /> /* TASKS.csv #3942 */}
         </>}
         {target.sizeNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-6px 0 10px 82px" }}>{target.sizeNote}</div>}
+        {target.key === "structure" && target.kind === "plane" && ( // TASKS.csv #4038 - the pin down each disc's dip: off, the discs alone are the default
+          <>
+            <div style={row}>
+              <span style={lbl}>{tr("Dip pin")}</span>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>
+                <input type="checkbox" checked={st.dipPin} onChange={(e) => onChange({ dipPin: e.target.checked ? true : null })} />{tr("A pin down each disc's dip")}
+              </label>
+            </div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-6px 0 10px 82px", lineHeight: 1.4 }}>{tr("A disc looks the same dipping either way; the pin shows which way the plane dips.")}</div>
+          </>
+        )}
         <div style={row}>
           <span style={lbl}>{tr("Opacity")}</span>
           <input type="range" min={0.1} max={1} step={0.05} value={opacity} onChange={slide("opacity")} aria-label={tr("Opacity")} style={{ flex: 1 }} />
