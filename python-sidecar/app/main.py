@@ -1146,7 +1146,9 @@ def _implicit_geomodel(req, res, frame, fault_group_names):
     rescale (#655); evaluation options are the caller's"""
     import gempy as gp
     from gempy.core.data.structural_group import FaultsRelationSpecialCase  # TASKS.csv #1054
+    from app.gempy_threads import install as threaded_evaluation  # TASKS.csv #4027 — the field evaluation on half the cores, max 4
 
+    threaded_evaluation()
     model = gp.create_geomodel(project_name="geostrix_implicit", extent=req.extent, resolution=res, structural_frame=frame)
     if fault_group_names:
         gp.set_is_fault(model, fault_group_names)  # #360
