@@ -47,7 +47,7 @@ const customLayersLoad = (list) => (TABLE_FIELDS.has("customLayers") && tableOps
   ? list.map((l) => (l?.rows?.__compactTable ? { ...l, rows: tableOps.tableFromCompact(l.rows) } : l)) : expandCustomLayers(list));
 import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js";
 import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // TASKS.csv #1631
-import { emptyStack, stackFromFile } from "./stratStack.js"; // TASKS.csv #4025
+import { emptyStack, stackFromFile, stackIsEmpty } from "./stratStack.js"; // TASKS.csv #4025
 
 // v6 adds terrain + layerGroups (TASKS.csv #77/#81 SRTM terrain, #76 named layer groups) — v5 and
 // older files still open fine, terrain falls back to null (no terrain surface) and layerGroups to [].
@@ -79,7 +79,8 @@ import { emptyStack, stackFromFile } from "./stratStack.js"; // TASKS.csv #4025
 // v30 (TASKS.csv #3423, #2206 Phase 1) stores the survey table as exact columns (compactTable.js) from 2,000 rows, as assays are: 3.05 -> 1.09 MB
 // for 52,720 stations (10,544 holes). Older files (rows) open unchanged: expandTable passes rows through.
 // v31 (TASKS.csv #4025) adds stratStack: the Strat. stack's units (youngest first) and its unconformity marks. An older file opens with an empty stack, as before.
-export const PROJECT_VERSION = 31; // #4025: stratStack (the Strat. stack's units and unconformity marks). Was 30; // #3423: the survey as columns. Was 29; // #3257: voxel models' optional cell keys as columns (has / nul bitsets, bool columns). Was 28; // #2493: project.importLeftOut (the rows each import left out of a built-in layer). Was 27; // #2163: codeDictionary. Was 26; // #2691 / #2661: project.localGrid.rlOffset / northDeg. Was 25; // #2334: custom layers of 2,000+ rows as exact columns. Was 24; // #1963: dbImports. Was 23; // #1876: designStrings. Was 22 // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+// v32 (TASKS.csv #4030) adds the stack's relation (Conformable / Erode), its faults and what each fault offsets to stratStack. A v31 file opens with Conformable and no faults.
+export const PROJECT_VERSION = 32; // #4030: stratStack.relation / faults / faultOffsets. Was 31; // #4025: stratStack (the Strat. stack's units and unconformity marks). Was 30; // #3423: the survey as columns. Was 29; // #3257: voxel models' optional cell keys as columns (has / nul bitsets, bool columns). Was 28; // #2493: project.importLeftOut (the rows each import left out of a built-in layer). Was 27; // #2163: codeDictionary. Was 26; // #2691 / #2661: project.localGrid.rlOffset / northDeg. Was 25; // #2334: custom layers of 2,000+ rows as exact columns. Was 24; // #1963: dbImports. Was 23; // #1876: designStrings. Was 22 // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -267,7 +268,7 @@ export const FIELDS = [
   // each model uses: use = { implicit, alteration, gradeShell, estimation, geoml } -> trend id | undefined (none)
   { key: "structuralTrends", track: "undo", empty: () => ({ trends: [], use: {} }),
     load: (data) => ({ trends: [], use: {}, ...(data.structuralTrends || {}) }) },
-  { key: "stratStack", track: "undo", empty: emptyStack, load: (data) => stackFromFile(data.stratStack) }, // TASKS.csv #4025 — the Strat. stack (lib/stratStack.js)
+  { key: "stratStack", track: "undo", empty: emptyStack, load: (data) => stackFromFile(data.stratStack), isEmpty: stackIsEmpty }, // TASKS.csv #4025 — the Strat. stack (lib/stratStack.js); #4030: its relation and faults
   // TASKS.csv #811 — explicit surfaces: [{ id, name, color, picks: [{ id, x, y, z, hole_id?, md?, src }], margin, resolution,
   // cutAtTerrain, surfaceId }] (world coordinates). The mesh itself is a generated surface (surfaceId), saved with those.
   { key: "explicitSurfaces", track: "undo", empty: list },
@@ -440,7 +441,7 @@ export const projectJson = (live, extra = {}) => joinParts(projectParts(live, ex
 const NOT_CONTENT = new Set(["layoutPages"]);
 const isEmptyValue = (v) => v == null || (isTable(v) ? v.length === 0 /* #3424 */ : Array.isArray(v) ? v.length === 0 : typeof v === "object" ? Object.values(v).every(isEmptyValue) : false);
 export function projectHasContent(live) {
-  return FIELDS.some((f) => f.track !== "view" && !NOT_CONTENT.has(f.key) && !isEmptyValue(live[f.key]));
+  return FIELDS.some((f) => f.track !== "view" && !NOT_CONTENT.has(f.key) && !(f.isEmpty ? f.isEmpty(live[f.key]) : isEmptyValue(live[f.key]))); // isEmpty: #4030
 }
 
 // TASKS.csv #514 — what an older GeoStrix needs to know about to read a file: the field keys in order and

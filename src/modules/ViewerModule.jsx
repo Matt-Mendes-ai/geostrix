@@ -1105,14 +1105,17 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const stackUnits = stratStack.units, stackBreaks = stratStack.breaks; // #1309: breaks
   const setStackUnits = useMemo(() => stackPartSetter(setStratStack, "units", undoCheckpoint), [setStratStack, undoCheckpoint]);
   const setStackBreaks = useMemo(() => stackPartSetter(setStratStack, "breaks", undoCheckpoint), [setStratStack, undoCheckpoint]);
-  const [stackFaultOffsets, setStackFaultOffsets] = useState({}); // TASKS.csv #1054 — { faultKey: { from: unit key | "", faults: [fault keys] } }
-  const [stackFaults, setStackFaults] = useState([]); // TASKS.csv #360 — "<structure type>|<structure_id>" keys of faults that offset the stack
+  // TASKS.csv #1054 — { faultKey: { from: unit key | "", faults: [fault keys] } }; #360 — "<structure type>|<structure_id>" keys of faults that offset the stack. #4030: saved in stratStack too
+  const stackFaultOffsets = stratStack.faultOffsets, stackFaults = stratStack.faults;
+  const setStackFaultOffsets = useMemo(() => stackPartSetter(setStratStack, "faultOffsets", undoCheckpoint), [setStratStack, undoCheckpoint]);
+  const setStackFaults = useMemo(() => stackPartSetter(setStratStack, "faults", undoCheckpoint), [setStratStack, undoCheckpoint]);
   // TASKS.csv #271 — GemPy StackRelationType. Defaults to ONLAP (conformable) for two reasons: it's the
   // right model for the volcanic-hosted stratigraphy this app targets, and it is also exactly the
   // geometry every stack run produced before #271 (a single shared-scalar-field group — see the
   // sidecar's own comment), so this default changes nothing about existing results while making the
-  // erosional case genuinely available for the first time.
-  const [stackRelation, setStackRelation] = useState("onlap");
+  // erosional case genuinely available for the first time. TASKS.csv #4030: saved in stratStack (a file before v32: "onlap")
+  const stackRelation = stratStack.relation;
+  const setStackRelation = useMemo(() => stackPartSetter(setStratStack, "relation", undoCheckpoint), [setStratStack, undoCheckpoint]);
   const surfaceLabels = useMemo(() => surfaceOptionLabels(implicitSurfaces), [implicitSurfaces]); // #1192
   const [stackAdd, setStackAdd] = useState("");
   const [expandedLithoGroupId, setExpandedLithoGroupId] = useState(null); // TASKS.csv #176 — which group's code checklist is open
