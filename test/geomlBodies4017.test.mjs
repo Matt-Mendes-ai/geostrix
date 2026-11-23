@@ -155,7 +155,7 @@ test("#4017 the wiring: the panel offers bodies or layers, asks finer blocks for
   const fs = await import("node:fs");
   const read = (p) => fs.readFileSync(new URL("../" + p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const p = read("src/components/PredictivePanel.jsx");
-  assert.match(p, /import \{ enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL \} from "\.\.\/lib\/geomlBodies\.js";/);
+  assert.match(p, /import \{ enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, gradeExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL \} from "\.\.\/lib\/geomlBodies\.js";/);
   assert.match(p, /const shape = shapePick \|\| suggestion\?\.shape \|\| "bodies";/);
   assert.match(p, /if \(shape === "bodies" && !blockOverride\) params\.block_size = bodiesBlockSize\(QUALITY\[quality\]\.domain\.block_size\);/ /* a #4019 fix block size wins */);
   assert.match(p, /if \(shape === "layers" && res\.surface\?\.triangles\?\.length\) \{/, "the open contact: layers only, as before");

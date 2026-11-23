@@ -15223,7 +15223,6 @@
   "Cut-offs ({unit})": "Teneurs de coupure ({unit})",
   "Also the P10 and P90 shells": "Aussi les coques P10 et P90",
   "shell at {cutoff}{unit}: {v} m³": "coque à {cutoff}{unit} : {v} m³",
-  "{c} m blocks for a body (about {n}, not {n0}): about {t} more after training.": "Blocs de {c} m pour un corps (environ {n}, non {n0}) : environ {t} de plus après l'entraînement.",
   "closed body of {name}: {v} m³ at {p}% ({c} m blocks){w}": "corps fermé de {name} : {v} m³ à {p} % (blocs de {c} m){w}",
   "{k} closed bodies of {name}: {v} m³ at {p}% ({c} m blocks){w}": "{k} corps fermés de {name} : {v} m³ à {p} % (blocs de {c} m){w}",
   "WARNING: only {a} of {n} intercepts are inside: it does not enclose the unit": "AVERTISSEMENT : seules {a} intersections sur {n} sont à l'intérieur : il n'enferme pas l'unité",
@@ -15237,5 +15236,6 @@
   "Add grade shells (closed)": "Ajouter les coques de teneur (fermées)",
   "Add the contact surface": "Ajouter la surface de contact",
   "{n} blocks of {c} m": "{n} blocs de {c} m",
-  "Nothing is added yet: use the Result block.": "Rien n'est encore ajouté : utilisez le bloc de résultat."
+  "Nothing is added yet: use the Result block.": "Rien n'est encore ajouté : utilisez le bloc de résultat.",
+  "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "Blocs de {c} m (environ {n}, non {n0}) : environ {t} de plus après l'entraînement."
 }

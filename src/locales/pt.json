@@ -15223,7 +15223,6 @@
   "Cut-offs ({unit})": "Teores de corte ({unit})",
   "Also the P10 and P90 shells": "Também as cascas P10 e P90",
   "shell at {cutoff}{unit}: {v} m³": "casca a {cutoff}{unit}: {v} m³",
-  "{c} m blocks for a body (about {n}, not {n0}): about {t} more after training.": "Blocos de {c} m para um corpo (cerca de {n}, não {n0}): cerca de {t} a mais depois do treinamento.",
   "closed body of {name}: {v} m³ at {p}% ({c} m blocks){w}": "corpo fechado de {name}: {v} m³ em {p} % (blocos de {c} m){w}",
   "{k} closed bodies of {name}: {v} m³ at {p}% ({c} m blocks){w}": "{k} corpos fechados de {name}: {v} m³ em {p} % (blocos de {c} m){w}",
   "WARNING: only {a} of {n} intercepts are inside: it does not enclose the unit": "AVISO: apenas {a} de {n} interseções estão dentro: não envolve a unidade",
@@ -15237,5 +15236,6 @@
   "Add grade shells (closed)": "Adicionar cascas de teor (fechadas)",
   "Add the contact surface": "Adicionar a superfície de contato",
   "{n} blocks of {c} m": "{n} blocos de {c} m",
-  "Nothing is added yet: use the Result block.": "Nada foi adicionado ainda: use o bloco de resultado."
+  "Nothing is added yet: use the Result block.": "Nada foi adicionado ainda: use o bloco de resultado.",
+  "{c} m blocks (about {n}, not {n0}): about {t} more after training.": "Blocos de {c} m (cerca de {n}, não {n0}): cerca de {t} a mais depois do treinamento."
 }
