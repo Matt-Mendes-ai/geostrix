@@ -177,6 +177,8 @@ export function overviewSvg(model, section, w, h, { offset = null, font = "sans-
   const { X, Y, k } = overviewView(model, w, h), s = sectionInModel(model, section), fs = Math.max(8, Math.min(12, w / 22));
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" font-family="${esc(font)}">`, `<rect width="${w}" height="${h}" fill="#ffffff"/>`];
   if (model.shade) out.push(`<image href="${model.shade}" x="${X(0).toFixed(1)}" y="${Y(model.size[1]).toFixed(1)}" width="${(model.size[0] * k).toFixed(1)}" height="${(model.size[1] * k).toFixed(1)}" preserveAspectRatio="none"/>`);
+  // TASKS.csv #4041 — the section's map layers (lib/sectionMaps.js overviewWithMaps), each a picture of the same extent, in Maps' order and opacity
+  for (const m of model.maps || []) out.push(`<image href="${m.href}" x="${X(0).toFixed(1)}" y="${Y(model.size[1]).toFixed(1)}" width="${(model.size[0] * k).toFixed(1)}" height="${(model.size[1] * k).toFixed(1)}" opacity="${Math.max(0.1, Math.min(1, Number(m.opacity) || 0.8))}" preserveAspectRatio="none"/>`);
   const bd = model.boundaries.map((pl) => pathOf(pl, X, Y)).join("");
   if (bd) out.push(`<path d="${bd}" fill="none" stroke="#b0522d" stroke-width="1" stroke-dasharray="4 2"/>`);
   const sr = model.series.map((q) => pathOf(q.line, X, Y)).join("");
@@ -202,6 +204,7 @@ export function overviewSvg(model, section, w, h, { offset = null, font = "sans-
   out.push(`<path d="M${nx} ${ny}l${fs * 0.4} ${fs * 1.1}l${-fs * 0.4} ${-fs * 0.3}l${-fs * 0.4} ${fs * 0.3}z" fill="#1a2028"/><text x="${nx}" y="${ny + fs * 2.1}" font-size="${fs * 0.85}" text-anchor="middle" fill="#1a2028">N</text>`);
   const m = niceMetres((w * 0.3) / k), L = m * k, by = h - fs * 0.7;
   out.push(`<rect x="${fs * 0.6}" y="${by - 3}" width="${L.toFixed(1)}" height="3" fill="#1a2028"/><text x="${fs * 0.6}" y="${by - 5}" font-size="${fs * 0.85}" fill="#1a2028" stroke="#ffffff" stroke-width="2" paint-order="stroke">${fmtM(m)}</text>`);
+  if (model.credit) out.push(`<text x="${w - 4}" y="${h - 3}" font-size="${(fs * 0.62).toFixed(1)}" text-anchor="end" fill="#55606e" stroke="#ffffff" stroke-width="2" paint-order="stroke">${esc(model.credit)}</text>`); // #4041 — Macrostrat's CC BY, wherever it shows
   out.push(`<rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" fill="none" stroke="#9aa3ad"/>`, "</svg>");
   return out.join("");
 }
