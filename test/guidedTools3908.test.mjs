@@ -41,7 +41,9 @@ test("the shell: lazy, behind one Basic Model button; ViewerModule has one-line 
   const vm = rd("src/modules/ViewerModule.jsx");
   assert.match(vm, /const GuidedTool = React\.lazy\(\(\) => import\("\.\/viewer\/guided\/GuidedTool\.jsx"\)\);/);
   assert.match(vm, /const \[guided, setGuided\] = useState\(null\); useModuleAction\(\["guided-open"\], \(a, p\) => setGuided\(p\?\.tool \|\| "start"\)\);/);
-  assert.match(vm, /\{guided && mode === "view" && <Suspense fallback=\{null\}><GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{guidedApi\} \/><\/Suspense>\}/);
+  // #4035 — drawn in 3D Modelling too (the guide; a card opened from it); openPane keeps the guide (its bar) and opens a pane in 3D Modelling itself
+  assert.match(vm, /\{guided && \(mode === "view" \|\| mode === "modelling"\) && <Suspense fallback=\{null\}><GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{guidedApi\} \/><\/Suspense>\}/);
+  assert.match(vm, /openPane: \(p, keep\) => \{ if \(!keep\) setGuided\(null\); if \(mode === "modelling"\) setToolPane\(p\); else \{ pendingPaneRef\.current = p; goToModule\("modelling"\); \} \}, notices, openQc: \(\) => setQcModalOpen\(true\), showResult: \(\) => setSurfaceSolidsOpen\(true\) \};/);
   assert.match(vm, /const guidedApi = \{ runStackModel, runImplicitModel, runVeinModel, runStructuralModel, runNumericModel, runAlterationModel \/\* #3932 batch 3 \*\/, meshOf: \(id\) => implicitMeshesRef\.current\[id\], numeric: \{ now: \[numericSymbol, numericCutoff, numericCellSize, numericCellHeight, numericSearchRadius, numericMinHoles\],/);
   assert.match(vm, /computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy \|\| veinBusy \|\| numericBusy \|\| alterationBusy,/);
   assert.doesNotMatch(vm, /^import .*guided/m); // nothing of it in the startup chunk

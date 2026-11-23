@@ -7,7 +7,10 @@
 //   4. the result card: what was built and "what I chose and why"; "Change these" opens today's full form, filled in;
 //   5. when the data cannot support it, nothing is built and the card says why.
 // Lazy: ViewerModule.jsx loads this file the first time the Model menu is used (nothing in the startup chunk).
-import React, { useEffect, useMemo, useRef, useState } from "react";
+// TASKS.csv #4035 (guided modelling row 5) — "Start here" is now the guide (GuideSteps.jsx: seven steps, a strip of dots, the route cards); a press
+// outside it, Escape or a pane it opens shrinks it to one bar (GuideBar.jsx) instead of closing it, in StrixViewer and in 3D Modelling. The single
+// cards (Model menu, a step's door) close as #3969 set.
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useDismiss } from "../../../lib/useDismiss.js"; // TASKS.csv #3969
 import { X } from "../../../components/icons.js";
 import { useStore } from "../../../lib/store.jsx";
@@ -15,7 +18,11 @@ import { openHelp } from "../../../lib/help.js";
 import { t as tr } from "../../../lib/i18n.js";
 import { autoSurface, QUICK_RESOLUTION } from "../../../lib/auto/autoSurface.js";
 import { roleForLithology } from "../../../lib/layers.js";
-import { GUIDED_TOOLS, toolById } from "./guidedTools.js";
+import { toolById } from "./guidedTools.js";
+import { useModuleAction } from "../../../lib/menuRequests.js";
+import GuideBar from "./GuideBar.jsx"; // TASKS.csv #4035
+// the guide and its facts load when Start here first opens (about 29 KB minified): the single cards do not pay for it
+const GuideSteps = React.lazy(() => import("./GuideSteps.jsx"));
 
 const card = { position: "absolute", top: 12, left: 12, width: 360, maxHeight: "calc(100% - 24px)", overflowY: "auto", zIndex: 30, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.14)", padding: 14, color: "var(--color-text)", fontSize: "var(--font-size-base)", lineHeight: 1.45 };
 const head = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6, fontSize: "var(--font-size-lg)", fontWeight: "var(--font-weight-title)" };
@@ -36,15 +43,38 @@ export default function GuidedTool({ tool: toolId, setTool, api }) {
     const mcodes = store.modellingCodes?.codes || [];
     return { rows, veins: store.layers?.vein || [], structures: store.layers?.structure || [], alt: store.layers?.alt || [] /* #3932 batch 3 */, assays: store.assays || [], survey: store.survey || [] /* #3922: the Grade model's sample positions */, assayElements: store.assayElements || [], hasDensity: (store.layers?.sg || []).length > 0, gradeTrend: !!store.structuralTrends?.use?.gradeShell, collars: store.collars || [], hasTerrain: !!store.terrain, describe: () => "", target: (v) => (mcodes.some((c) => c.name === v) ? `mcode:${v}` : v), roleOf: (v) => mcodes.find((c) => c.name === v)?.role || roleForLithology(v), isCover: (v) => (mcodes.find((c) => c.name === v)?.role || roleForLithology(v)) === "overburden", intercepts: () => (cache ||= (api.computeIntercepts?.() || []).filter((c) => c.layerKey === "litho")) };
   }, [rows, store.layers, store.collars, store.terrain, store.modellingCodes, store.assays, store.survey, store.assayElements, store.structuralTrends]); // api.computeIntercepts follows the same logs
-  const close = () => setTool(null);
+  const tool = toolById(toolId);
+  // #4035 — the guide: its bar, the step pressed in it, the step it shows (named by the bar), and the notices from before it opened (a failure
+  // after that adds its Next buttons)
+  const [bar, setBar] = useState(false), [viewId, setViewId] = useState(null), shown = useRef(null), since = useRef(api.notices?.length || 0);
+  // back to the card from the bar (its button, Model > Start here, the Guide button): on the step it was on (the saved place, #4032) while that
+  // step is still open, else the next open one: a pane opened from step 3 that finished step 3 returns the person to step 4
+  const reopen = () => { setViewId(null); setBar(false); };
+  const fromGuide = useRef(false); // the card on show was opened by the guide (not the Model menu)
+  useModuleAction(["guided-open"], (a, p) => { fromGuide.current = false; reopen(); });
+  const quit = () => setTool(null);
+  // a card the guide opens may start on the guide's choice (Rock layers on the Strat. stack's units, design step 4) instead of its own suggestion
+  const [preset, setPreset] = useState(null);
+  const openCard = (id, value) => { fromGuide.current = true; setBar(false); setPreset(value?.length ? { id, value } : null); setTool(id); }; // its Start here returns to the card; a dismissal, to the bar (live: an effect that reset the bar undid that)
+  // a card the guide opened goes back to the guide's bar when dismissed: found live on WA lode gold, Rock layers' own run asked "a unit returns
+  // after another… Run the stack anyway?" and that dialog closed the card, and the guide with it (#3969 closes a card when a dialog opens)
+  const close = !tool ? () => setBar(true) : fromGuide.current ? () => { setTool("start"); setBar(true); } : quit;
   // TASKS.csv #3969 — it stayed drawn over a dialog opened after it (Best intercepts): it closes when a modal dialog opens, on a press
   // outside it (another ribbon button, the view) and on Escape. A build under way goes on (its progress and Cancel are in the status bar).
   const box = useRef(null);
   useDismiss(true, (n) => !!box.current?.contains(n), close);
-  const tool = toolById(toolId);
+  if (!tool && bar) {
+    const at = shown.current || { n: 1, of: 7, title: "Your data" }; // the step the guide showed (GuideSteps fills it)
+    return <div ref={box} data-guided-card=""><GuideBar n={at.n} of={at.of} title={at.title} open={reopen} close={quit} /></div>;
+  }
   return (
     <div ref={box} data-guided-card="">
-      {!tool ? <StartHere ctx={ctx} setTool={setTool} close={close} /> : <Tool key={tool.id} tool={tool} ctx={ctx} api={api} close={close} back={() => setTool("start")} />}
+      {!tool ? (
+        <div style={card} role="dialog" aria-label={tr("Start here")}>
+          <Header title="Start here" close={quit} />
+          <Suspense fallback={null}><GuideSteps store={store} api={api} setTool={openCard} toBar={() => setBar(true)} viewId={viewId} setViewId={setViewId} since={since.current} shown={shown} /></Suspense>
+        </div>
+      ) : <Tool key={tool.id} tool={tool} ctx={ctx} api={api} close={close} back={() => setTool("start")} preset={preset?.id === tool.id ? preset.value : null} />}
     </div>
   );
 }
@@ -53,29 +83,10 @@ function Header({ title, close }) {
   return <div style={head}><span>{tr(title)}</span><button type="button" onClick={close} aria-label={tr("Close")} title={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={14} /></button></div>;
 }
 
-function StartHere({ ctx, setTool, close }) {
-  return (
-    <div style={card} role="dialog" aria-label={tr("Start here")}>
-      <Header title="Start here" close={close} />
-      <div style={{ ...muted, marginBottom: 10 }}>{tr("Build a model from your logs, step by step: each tool asks one question and answers it from your data.")}</div>
-      {GUIDED_TOOLS.map((t, i) => {
-        const why = t.feed(ctx);
-        return (
-          <button key={t.id} type="button" onClick={why ? undefined : () => setTool(t.id)} aria-disabled={!!why || undefined} title={why || undefined}
-            style={{ display: "block", width: "100%", textAlign: "start", margin: "0 0 6px", padding: "8px 10px", border: "1px solid var(--color-border)", borderInlineStart: "4px solid var(--color-tier-basic)", borderRadius: 6, background: "var(--color-bg)", cursor: why ? "default" : "pointer", opacity: why ? 0.55 : 1 }}>
-            <div style={{ fontWeight: 600 }}>{`${i + 1}. ${tr(t.title)}`}</div>
-            <div style={muted}>{why || tr(t.line)}</div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Tool({ tool, ctx, api, close, back }) {
+function Tool({ tool, ctx, api, close, back, preset = null }) {
   const sug = useMemo(() => (tool.feed(ctx) ? null : tool.suggest(ctx)), [tool, ctx]);
   const choices = useMemo(() => (tool.feed(ctx) ? [] : tool.choices(ctx)), [tool, ctx]);
-  const [picked, setPicked] = useState(() => sug?.value ?? (tool.multi ? [] : ""));
+  const [picked, setPicked] = useState(() => { const p = tool.multi && preset ? preset.filter((u) => choices.includes(u)) : []; return p.length >= 2 ? p : sug?.value ?? (tool.multi ? [] : ""); }); // preset: #4035
   const [phase, setPhase] = useState("ask"); // ask | waiting | running | done | cannot
   const [out, setOut] = useState(null); // { built, reasons, notes } | { verdict }
   const pending = useRef(null), running = useRef(null);
