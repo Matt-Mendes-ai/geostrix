@@ -15,6 +15,7 @@ import { SENSORS, INDEX_PRESETS, compileExpression, evaluateIndex, VEG_NDVI_MAX,
 import { buildRasterImport } from "../lib/raster.js";
 import { IMAGERY_SOURCES, searchScenes, fetchSceneStack, fetchSceneTrueColour } from "../lib/imageryFetch.js";
 import { NDSI_SNOW_MIN, ndsiMinOf } from "../lib/snowTest.js"; // TASKS.csv #4051 — the second snow test
+import { searchAdvice, monthName } from "../lib/asterScenes.js"; import { indexTrust } from "../lib/tirDestripe.js"; // TASKS.csv #4052 — ASTER: which scene first, and whether the index can be trusted
 import BasemapView from "./BasemapView.jsx";
 import HyperspectralTab from "./HyperspectralTab.jsx"; // TASKS.csv #807
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -61,6 +62,8 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
   const [snowMin, setSnowMin] = useState(String(NDSI_SNOW_MIN));
   const snowMinN = ndsiMinOf(snowMin);
   const [colourNote, setColourNote] = useState(null);
+  const [smoothTir, setSmoothTir] = useState(true); // TASKS.csv #4052 — a 3 x 3 mean of the thermal bands (their speckle is as wide as an index of a few per cent)
+  const [advice, setAdvice] = useState(null);
 
   const fetchMode = mode === "fetch";
   const activeSensor = fetchMode ? IMAGERY_SOURCES[source].sensor : sensor;
@@ -105,18 +108,18 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
 
   const search = async () => {
     if (!area) return;
-    setBusy(true); setError(null); setScenes(null); setSceneId("");
+    setBusy(true); setError(null); setScenes(null); setSceneId(""); setAdvice(null);
     try {
       const list = await searchScenes(source, area.bboxLonLat, { ...dates, maxCloud: Number(maxCloud) || 20 });
-      setScenes(list);
+      setScenes(list); setAdvice(source === "aster_tir" ? searchAdvice(list) : null); // #4052
       if (list.length) setSceneId(list[0].id);
       else setError(tr("No {v} scene{v2} under {maxCloud}% cloud covers this area. Widen the dates or allow more cloud.", { v: IMAGERY_SOURCES[source].label.split(" (")[0], v2: source === "sentinel2" ? tr(" in those dates") : "", maxCloud }));
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
 
   // the index on a multiband File with `map` (role -> 1-based band), then into the project
-  const makeIndex = async (theFile, map, sensorKey, sourceNote, vegOn, job = null, snowStats = null) => { // job: TASKS.csv #3953; snowStats: #4051
-    let blank = 0, total = 0, dark = 0, vegetated = 0, encUsed = null, encGuessed = false;
+  const makeIndex = async (theFile, map, sensorKey, sourceNote, vegOn, job = null, snowStats = null, tirStats = null) => { // job: TASKS.csv #3953; snowStats: #4051; tirStats: #4052
+    let blank = 0, total = 0, dark = 0, vegetated = 0, encUsed = null, encGuessed = false, trust = null;
     const bits = fetchMode ? null : file?.bits ?? null;
     // #2124 — an 8-bit file is not the sensor's surface reflectance: the raster is named after the index and the file only
     const byteFile = !fetchMode && reflective && (dnEnc === "byte" || (dnEnc === "auto" && bits === 8));
@@ -126,17 +129,20 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
       bandFn: (bands, isNoData) => {
         // #928 — a reflective file is converted to reflectance first (fetched scenes already are)
         if (!fetchMode && reflective) { encGuessed = dnEnc === "auto"; encUsed = encGuessed ? detectEncoding(Object.values(map).map((b) => bands[Number(b) - 1]).filter(Boolean), sensorKey, { bits }) : dnEnc; }
-        const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red, max: vegMaxN } : null, dnScale: sens.dnScale || 10000, encoding: encUsed }); ({ blank, dark, vegetated } = r); total = r.values.length; return r.values;
+        const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red, max: vegMaxN } : null, dnScale: sens.dnScale || 10000, encoding: encUsed }); ({ blank, dark, vegetated } = r); total = r.values.length;
+        if (tirStats && tirStats.width * tirStats.height === r.values.length) trust = indexTrust(r.values, tirStats.width, tirStats.height, tirStats.angleDeg); // #4052 — is the index wider than this scene's noise and stripes
+        return r.values;
       },
     });
     const masks = (dark ? (encUsed === "byte" ? tr(" Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() }) : tr(" Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() })) : "") // #2124
       + (vegetated ? tr(vegetated === 1 ? " {vegetated} vegetated pixel (NDVI above {max}) was left out." : " {vegetated} vegetated pixels (NDVI above {max}) were left out.", { vegetated: vegetated.toLocaleString(), max: vegMaxN }) : "")
       + (reflective && maskVeg && !vegOn ? tr(" Vegetation was not masked: {v} not mapped to a file band.", { v: vegRoles.join(" / ") }) : "");
     const note = tr(" Index {expr}{v}.{v2}{v3}{v4} A ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it; only exposed rock or soil counts.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) + masks : masks, v4: isCustom ? "" : encUsed === "byte" ? " " + tr(preset.what) : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) }); // #2124: not the sensor's pixel
+    const trustNote = trust && !trust.ok ? " " + tr("Can't trust this index: its spread ({spread}%) is within the noise and stripe level of this scene ({floor}%). Try a daytime scene from the clear months, or ASTER AST_05 emissivity files (an Earthdata login), which are corrected for temperature and the atmosphere.", { spread: (100 * trust.spread / (trust.level || 1)).toFixed(2), floor: (100 * Math.max(trust.noise, trust.stripes) / (trust.level || 1)).toFixed(2) }) : ""; // #4052
     const encNote = encUsed ? " " + tr("Pixel values read as: {v}{d}.", { v: tr(DN_ENCODINGS[encUsed].label), d: encGuessed ? tr(encUsed === "byte" ? " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)" : " (guessed from the values; choose it under \"Pixel values\" if that is wrong)") : "" }) : ""; // #928
     const byteNote = encUsed === "byte" ? " " + tr("8-bit values are picture or raw sensor values, not reflectance: the result ranks pixels within this file only, not comparable with a reflectance product's index.") : ""; // #2124
     if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in
-    onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(encUsed ? { encoding: encUsed } : {}), ...(fetchMode ? { scene: scene.id, date: scene.date, areaLonLat: area.bboxLonLat, ...(snowStats ? { snow: { scl: snowStats.scl, ndsi: snowStats.ndsi, min: snowStats.min } } : {}) /* #4051 */ } : {}) } }, msg + note + encNote + byteNote);
+    onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(encUsed ? { encoding: encUsed } : {}), ...(fetchMode ? { scene: scene.id, date: scene.date, areaLonLat: area.bboxLonLat, ...(snowStats ? { snow: { scl: snowStats.scl, ndsi: snowStats.ndsi, min: snowStats.min } } : {}) /* #4051 */ } : {}) } }, msg + note + trustNote + encNote + byteNote);
   };
 
   const run = async () => {
@@ -149,8 +155,8 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
     try {
       if (fetchMode) {
         if (!scene) return;
-        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => { setProgress({ d, n }); bar?.step("read", d, n, tr("Reading the scene's bands {d} of {n}", { d, n })); }, targetEpsg: tie ? Number(tie.epsg) : epsg, snow: snowOn && source === "sentinel2" ? { min: snowMinN } : false /* #4051 */, signal: job.signal }); // tie: #2648; signal: #3963 — closing its project stops the download
-        await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0, job, stack.snow);
+        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => { setProgress({ d, n }); bar?.step("read", d, n, tr("Reading the scene's bands {d} of {n}", { d, n })); }, targetEpsg: tie ? Number(tie.epsg) : epsg, snow: snowOn && source === "sentinel2" ? { min: snowMinN } : false /* #4051 */, tir: smoothTir ? {} : { smooth: false } /* #4052 */, signal: job.signal }); // tie: #2648; signal: #3963 — closing its project stops the download
+        await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0, job, stack.snow, stack.tir);
       } else {
         if (!file || unmapped.length) return;
         const vegOn = vegRoles.length > 0 && !vegUnmapped.length;
@@ -209,8 +215,21 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
               <button onClick={search} disabled={!area || busy} style={{ ...btn(false), padding: "7px 12px", marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, opacity: !area || busy ? 0.5 : 1 }}><Search size={14} />{" "}{tr("Find scenes")}</button>
               {scenes && scenes.length > 0 && (
                 <select value={sceneId} onChange={(e) => setSceneId(e.target.value)} style={{ ...sel, width: "100%", marginTop: 8 }} aria-label={tr("Scene")} size={Math.min(6, scenes.length)}>
-                  {scenes.map((s) => <option key={s.id} value={s.id}>{tr("{date} — {v}% cloud, covers {v2}% of the area", { date: s.date, v: Number(s.cloud).toFixed(s.cloud < 10 ? 1 : 0), v2: Math.round(100 * s.coverage) })}</option>)}
+                  {scenes.map((s) => <option key={s.id} value={s.id}>{tr("{date} — {v}% cloud, covers {v2}% of the area", { date: s.date, v: Number(s.cloud).toFixed(s.cloud < 10 ? 1 : 0), v2: Math.round(100 * s.coverage) })}{s.source === "aster_tir" ? ` · ${monthName(s.month)}, ${s.day === false ? tr("night") : tr("day")}${s.inSeason ? "" : ", " + tr("outside the clear months")}` /* #4052 */ : ""}</option>)}
                 </select>
+              )}
+              {source === "aster_tir" && advice && ( /* TASKS.csv #4052 — what the first scene does not give */
+                <div role="note" style={{ ...small, marginTop: 6, color: "var(--color-warn-text)" }}>
+                  {advice.coverage != null && <div>{tr("No scene covers the whole area: the best covers {v}% of it.", { v: advice.coverage })}</div>}
+                  {advice.offSeasonMonth != null && <div>{tr("The first scene is from {month}, outside the clear months: snow and cold ground leave a thermal index only noise. Check the dates of the others.", { month: monthName(advice.offSeasonMonth) })}</div>}
+                  {advice.night && <div>{tr("The first scene is a night pass: its thermal index is not comparable with a daytime one.")}</div>}
+                </div>
+              )}
+              {source === "aster_tir" && (
+                <label style={{ ...small, display: "flex", alignItems: "flex-start", gap: 6, marginTop: 8 }}>
+                  <input type="checkbox" checked={smoothTir} onChange={(e) => setSmoothTir(e.target.checked)} style={{ marginTop: 2 }} />
+                  <span>{tr("Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.")}</span>
+                </label>
               )}
               <div style={{ ...small, marginTop: 6 }}>{source === "sentinel2"
                 ? tr("Copernicus Sentinel-2 reflectance (Element 84 Earth Search), free, no account. Choose dates with the least cloud and snow; cloud, shadow, snow and water are masked.")

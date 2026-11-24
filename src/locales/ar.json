@@ -15273,5 +15273,15 @@
   "The red, green and blue bands of this scene over the area, as a layer named with its date: shows what the index saw (snow, cloud, shadow).": "النطاقات الحمراء والخضراء والزرقاء لهذا المشهد فوق المنطقة، كطبقة يحمل اسمها تاريخه: تُظهر ما رآه المؤشر (ثلج، غيوم، ظل).",
   "Show the scene of \"{name}\" in true colour": "عرض مشهد «{name}» بالألوان الحقيقية",
   "Sentinel-2 scene of {date}": "مشهد Sentinel-2 بتاريخ {date}",
-  "Scene of {date}": "مشهد بتاريخ {date}"
+  "Scene of {date}": "مشهد بتاريخ {date}",
+  " Thermal bands: scan-line stripes at {angle}° taken out (their level {before}% to {after}% of the signal){smooth}; {cold} of {valid} pixels colder than 0 °C at 10.7 µm left out as probably snow, ice, cloud or cold water. The thermal bands have no snow mask: thin or warm snow is not caught.": " النطاقات الحرارية: أُزيلت خطوط المسح عند {angle}° (انخفض مستواها من {before}% إلى {after}% من الإشارة){smooth}؛ واستُبعد {cold} من {valid} بكسل أبرد من 0 °م عند 10.7 µm لأنها غالباً ثلج أو جليد أو غيوم أو ماء بارد. ليس للنطاقات الحرارية قناع للثلج: لا يُكتشف الثلج الرقيق أو الدافئ.",
+  ", then a 3 × 3 mean (about {m} m)": "، ثم متوسط 3 × 3 (نحو {m} م)",
+  "Can't trust this index: its spread ({spread}%) is within the noise and stripe level of this scene ({floor}%). Try a daytime scene from the clear months, or ASTER AST_05 emissivity files (an Earthdata login), which are corrected for temperature and the atmosphere.": "لا تثق بهذا المؤشر: تباينه ({spread}%) ضمن مستوى الضوضاء والخطوط في هذا المشهد ({floor}%). جرّب مشهداً نهارياً من الأشهر الصافية، أو ملفات انبعاثية ASTER AST_05 (بحساب Earthdata)، وهي مصححة للحرارة والغلاف الجوي.",
+  "night": "ليل",
+  "day": "نهار",
+  "outside the clear months": "خارج الأشهر الصافية",
+  "No scene covers the whole area: the best covers {v}% of it.": "لا يغطي أي مشهد المنطقة كلها: أفضلها يغطي {v}% منها.",
+  "The first scene is from {month}, outside the clear months: snow and cold ground leave a thermal index only noise. Check the dates of the others.": "المشهد الأول من شهر {month}، خارج الأشهر الصافية: الثلج والأرض الباردة لا يتركان للمؤشر الحراري سوى الضوضاء. راجع تواريخ المشاهد الأخرى.",
+  "The first scene is a night pass: its thermal index is not comparable with a daytime one.": "المشهد الأول التقاط ليلي: مؤشره الحراري لا يُقارن بمؤشر نهاري.",
+  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "حساب متوسط النطاقات الحرارية 3 × 3 (نحو 270 م): تنقيطها بعرض مؤشر من بضعة بالمئة. تُزال دائماً خطوط المسح والبكسلات الأبرد من 0 °م."
 }
