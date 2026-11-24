@@ -9,6 +9,7 @@ import { parseTableText } from "../src/lib/tabular.js";
 import { qcColumns, qcFields } from "../src/lib/assayQcColumns.js";
 import { sampleTypeClass } from "../src/lib/qaqc.js";
 import { guessDcipColumns, parseDcipRows } from "../src/lib/dcip.js";
+import { guessMapping } from "../src/lib/layersImport.js";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 // a row padded with trailing tabs to the table's width
@@ -122,6 +123,12 @@ test("an IP submission in SL3: the names are on H1002, not on the H1000 / H1001 
   const m = guessDcipColumns(t.headers), p = parseDcipRows(t.rows, m);
   assert.deepEqual([m.a, m.b, m.m, m.n, m.rho, m.ip], ["C1X", "C2X", "P1X", "P2X", "Res", "Phz"]);
   assert.equal(p.readings.length, 4); assert.equal(p.ipKind, "phase");
+});
+
+test("the importer's column guess finds an SL3 collar table's own names (SiteID, Collar_mE / mN, CollarRL)", () => {
+  const t = parseTableText(collars);
+  const m = guessMapping("collars", t.headers);
+  assert.equal(m.hole_id, "SiteID"); assert.equal(m.x, "Collar_mE"); assert.equal(m.y, "Collar_mN"); assert.equal(m.z, "CollarRL");
 });
 
 test("wired: the table reader converts first and adds the notes; keys in every language", () => {
