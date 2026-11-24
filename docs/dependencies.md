@@ -32,7 +32,7 @@ Stored results that show whether an update moved the numbers. Synthetic data onl
 |---|---|---|---|
 | GemPy surface positions: a 2-unit plunging anticline, Conformable (onlap) and Erosional, heights at 25 probes | `python-sidecar/tests/reference/gempy_two_units.json` | 0.1 m per probe; GemPy's default range within 1e-6 relative; input scale 1 : 1 : 1. Noise measured ≤ 0.001 m; GemPy's range doubled moves the surfaces 0.54 m | `tests/test_reference_gempy.py` (CI) |
 | Potential-field inversion: a recovered block, gravity sign, closed-form spheres | in the test (`test_potential.py`) | per assertion | CI |
-| geoML grade and rock models | **not stored yet** | — | geoML could not be run on the dev machine (no add-on environment from source; the frozen add-on is the user's install). Store one grade and one rock run on synthetic data the first time a source environment of the add-on exists. |
+| geoML: one grade run (a smooth Cu field) and one rock run (SED over VOLC), 12 synthetic holes, the app's "Fast" settings, a fixed 6 x 4 x 3 block grid | `python-sidecar/tests/reference/geoml_grade_rock.json` | grade within 1 % of the mean grade, P10 / P90 within 2 %, the unit's probability within 0.005. A repeat run moves 0; iterations 150 to 120 moves the grade 9 % and the probability 0.027, the rock's train spacing 10 to 8 m moves the probability 0.017 | `addons/geoml/tests/test_reference_geoml.py`, by hand with the add-on's own Python (`GEOSTRIX_GEOML_PYTHON`; ~75 s). **Not in CI: CI does not install geoML** (the add-on workflow only builds and publishes it); without geoML the test says SKIPPED |
 
 ## Science tools (python-sidecar, Python 3.11)
 
@@ -63,10 +63,17 @@ Pinned exactly in `python-sidecar/requirements.txt` (17 tools). The whole tree (
 
 | Tool | Pinned | Latest (2026-11-23) | GeoStrix relies on it for | Assumptions the code makes | Guarded by | Checked |
 |---|---|---|---|---|---|---|
-| geoML | commit 4eb7121c (0.9.3) | v0.10.15 (142 commits ahead) | Gaussian-process domain (rock) and grade models with uncertainty | the add-on reads the fields geoML writes by name (`UNIT/Target/probability`, `indicator_predicted` contoured at 0, `prediction`, `dispersion`, `simulations`) and sets GPOptions (jitter 1e-6, training batch 500); later releases change what `CategoricalGaussianIndicator.predict` reports (0.10.0), turn XLA on by default (0.9.11) and move numbers (0.9.4, 0.9.13, 0.10.6, 0.10.8) | addons/geoml/tests/test_api.py; no stored reference yet | 2026-11-23 |
+| geoML | commit 4eb7121c (0.9.3) | v0.10.15 (142 commits ahead) | Gaussian-process domain (rock) and grade models with uncertainty | the add-on reads the fields geoML writes by name (`UNIT/Target/probability`, `indicator_predicted` contoured at 0, `prediction`, `dispersion`, `simulations`) and sets GPOptions (jitter 1e-6, training batch 500); later releases change what `CategoricalGaussianIndicator.predict` reports (0.10.0), turn XLA on by default (0.9.11) and move numbers (0.9.4, 0.9.13, 0.10.6, 0.10.8) | addons/geoml/tests/test_api.py; test_reference_geoml (by hand) | 2026-11-23 |
 | tensorflow, tensorflow-probability, tf-keras | 2.21.0, 0.25.0, 2.21.0 | 2.21.0, 0.25.0, 2.21.0 | geoML's engine | — | as geoML | 2026-11-23 |
 
 An update of the add-on is a new add-on release: about a 550 MB download for each user.
+
+The add-on has no constraints file: `addons/geoml/requirements.txt` pins its six direct requirements and the rest of the tree resolves
+at install time. A source environment for the reference test is built with
+`python -m venv <folder>` and `<folder>\Scripts\python -m pip install -r addons/geoml/requirements.txt` (Python 3.11; about
+2.6 GB installed, outside OneDrive). The grade model is not reproducible from run to run as the add-on calls it: `run_grade`
+calls geoML's `from_kmeans` without a seed (geoML keeps that seed apart from `set_seed`), so the inducing points change. The
+reference test passes the add-on's seed to it.
 
 ## Desktop packages (package.json at the package-lock.json version)
 
