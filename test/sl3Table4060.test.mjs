@@ -139,3 +139,18 @@ test("wired: the table reader converts first and adds the notes; keys in every l
     "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples."])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
 });
+
+test("a Grid / SurveyGrid column of north words presets the azimuth reference (magnetic for 'Mag'), the dialog says why; a grid NAME there does not", async () => {
+  const { detectAzimuthRef } = await import("../src/lib/azimuthRef.js");
+  const t = parseTableText(collars);
+  const d = detectAzimuthRef(t.headers, t.rows);
+  assert.equal(d.ref, "magnetic"); assert.equal(d.col, "SurveyGrid");
+  assert.equal(detectAzimuthRef(["Hole_ID", "Dip", "Azimuth", "Grid"], [{ Grid: "Mag" }, { Grid: "mag" }]).ref, "magnetic");
+  assert.equal(detectAzimuthRef(["Hole_ID", "Azimuth", "Grid"], [{ Grid: "Grid" }]).ref, "grid");
+  assert.equal(detectAzimuthRef(["Hole_ID", "Azimuth", "Grid"], [{ Grid: "MGA94_54" }, { Grid: "MGA94_54" }]), null, "a grid name is no north word");
+  assert.equal(detectAzimuthRef(["Hole_ID", "Azimuth", "Grid"], [{ Grid: "Mag" }, { Grid: "True" }]).mixed, true);
+  const m = read("../src/components/ImportMappingModal.jsx");
+  assert.match(m, /The file says its azimuths are magnetic \(its \{col\} column\): change this if that is wrong\./);
+  assert.match(m, /magnetic azimuths need it to work out the declination/, "the survey date stays required (#2895)");
+  for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))["The file says its azimuths are magnetic (its {col} column): change this if that is wrong."], lang);
+});
