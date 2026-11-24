@@ -15283,5 +15283,15 @@
   "No scene covers the whole area: the best covers {v}% of it.": "Ninguna escena cubre toda el área: la mejor cubre el {v}%.",
   "The first scene is from {month}, outside the clear months: snow and cold ground leave a thermal index only noise. Check the dates of the others.": "La primera escena es de {month}, fuera de los meses despejados: la nieve y el suelo frío dejan a un índice térmico solo ruido. Revise las fechas de las demás.",
   "The first scene is a night pass: its thermal index is not comparable with a daytime one.": "La primera escena es un pase nocturno: su índice térmico no es comparable con uno diurno.",
-  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "Promediar las bandas térmicas 3 × 3 (unos 270 m): su moteado es tan ancho como un índice de pocos por ciento. Las rayas de barrido y los píxeles más fríos que 0 °C siempre se quitan."
+  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "Promediar las bandas térmicas 3 × 3 (unos 270 m): su moteado es tan ancho como un índice de pocos por ciento. Las rayas de barrido y los píxeles más fríos que 0 °C siempre se quitan.",
+  "a downhole configuration (CONFIG:{v})": "una configuración de pozo (CONFIG:{v})",
+  "readings at several elevations under one position ({col})": "lecturas a varias cotas bajo una misma posición ({col})",
+  "Components {c}: {first} is read first (its decay, tau and the 1D inversion); the others are kept as their own channel sets.": "Componentes {c}: se lee primero {first} (su decaimiento, tau y la inversión 1D); los demás se guardan como sus propios conjuntos de canales.",
+  "Placed on the project's local grid as the file gives it.": "Colocado en la cuadrícula local del proyecto tal como lo da el archivo.",
+  "Tied to the map with {n} control points: scale {scale}, rotation {rot}°, fit {rms} m.": "Ligado al mapa con {n} puntos de control: escala {scale}, rotación {rot}°, ajuste {rms} m.",
+  "This file's coordinates are on a local grid (eastings {x0} to {x1}, northings {y0} to {y1}), not on a map coordinate system. Tie the grid to the map before mapping or inverting it: enter two or more control points, one per line, as grid east, grid north, map east, map north (the map coordinates in the project's coordinate system).": "Las coordenadas de este archivo están en una cuadrícula local (este {x0} a {x1}, norte {y0} a {y1}), no en un sistema de coordenadas de mapa. Ligue la cuadrícula al mapa antes de mapearlo o invertirlo: ingrese dos o más puntos de control, uno por línea, como este local, norte local, este del mapa, norte del mapa (las coordenadas del mapa en el sistema de coordenadas del proyecto).",
+  "Control points of the file's local grid": "Puntos de control de la cuadrícula local del archivo",
+  "Tie again with these points": "Ligar de nuevo con estos puntos",
+  "Tie the file to the map": "Ligar el archivo al mapa",
+  "Tie the file's local grid to the map first.": "Primero ligue la cuadrícula local del archivo al mapa."
 }

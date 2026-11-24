@@ -15283,5 +15283,15 @@
   "No scene covers the whole area: the best covers {v}% of it.": "لا يغطي أي مشهد المنطقة كلها: أفضلها يغطي {v}% منها.",
   "The first scene is from {month}, outside the clear months: snow and cold ground leave a thermal index only noise. Check the dates of the others.": "المشهد الأول من شهر {month}، خارج الأشهر الصافية: الثلج والأرض الباردة لا يتركان للمؤشر الحراري سوى الضوضاء. راجع تواريخ المشاهد الأخرى.",
   "The first scene is a night pass: its thermal index is not comparable with a daytime one.": "المشهد الأول التقاط ليلي: مؤشره الحراري لا يُقارن بمؤشر نهاري.",
-  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "حساب متوسط النطاقات الحرارية 3 × 3 (نحو 270 م): تنقيطها بعرض مؤشر من بضعة بالمئة. تُزال دائماً خطوط المسح والبكسلات الأبرد من 0 °م."
+  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "حساب متوسط النطاقات الحرارية 3 × 3 (نحو 270 م): تنقيطها بعرض مؤشر من بضعة بالمئة. تُزال دائماً خطوط المسح والبكسلات الأبرد من 0 °م.",
+  "a downhole configuration (CONFIG:{v})": "إعداد داخل الحفرة (CONFIG:{v})",
+  "readings at several elevations under one position ({col})": "قراءات على عدة مناسيب تحت موضع واحد ({col})",
+  "Components {c}: {first} is read first (its decay, tau and the 1D inversion); the others are kept as their own channel sets.": "المركّبات {c}: تُقرأ {first} أولاً (تضاؤلها وtau والعكس أحادي البعد)؛ وتُحفظ الأخرى كمجموعات قنوات خاصة بها.",
+  "Placed on the project's local grid as the file gives it.": "وُضع على الشبكة المحلية للمشروع كما يعطيه الملف.",
+  "Tied to the map with {n} control points: scale {scale}, rotation {rot}°, fit {rms} m.": "رُبط بالخريطة بـ {n} من نقاط التحكم: المقياس {scale}، الدوران {rot}°، الانحراف {rms} م.",
+  "This file's coordinates are on a local grid (eastings {x0} to {x1}, northings {y0} to {y1}), not on a map coordinate system. Tie the grid to the map before mapping or inverting it: enter two or more control points, one per line, as grid east, grid north, map east, map north (the map coordinates in the project's coordinate system).": "إحداثيات هذا الملف على شبكة محلية (الشرق {x0} إلى {x1}، الشمال {y0} إلى {y1})، لا على نظام إحداثيات خريطة. اربط الشبكة بالخريطة قبل رسمها أو عكسها: أدخل نقطتي تحكم أو أكثر، واحدة في كل سطر، بصيغة الشرق المحلي، الشمال المحلي، شرق الخريطة، شمال الخريطة (إحداثيات الخريطة في نظام إحداثيات المشروع).",
+  "Control points of the file's local grid": "نقاط التحكم للشبكة المحلية للملف",
+  "Tie again with these points": "الربط مجدداً بهذه النقاط",
+  "Tie the file to the map": "ربط الملف بالخريطة",
+  "Tie the file's local grid to the map first.": "اربط الشبكة المحلية للملف بالخريطة أولاً."
 }

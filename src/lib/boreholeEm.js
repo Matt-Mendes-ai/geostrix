@@ -19,25 +19,43 @@ const HOLE_COL = /^(hole|bh|bhid|borehole)(_?(id|name|no|number))?$/i;
 const DEPTH_COL = /^(depth|downhole(_?depth)?|dh_?depth|md|dep)$/i;
 const HEADER_WORDS = /\b(borehole|bore[- ]hole|down[- ]?hole|dhem|bhem|bh[- ]?tem|drill ?hole)\b/i;
 
+// TASKS.csv #4058 — the CONFIG: word of a Maxwell-style header: a downhole one is borehole; in-loop, slingram, moving-loop (and a LOOP: block) are ground
+const DOWNHOLE_CONFIG = /\bCONFIG\s*[:=]\s*(\S*(?:down|bore|bh|dh)\S*)/i;
+export const groundEmConfig = (headText) => { const m = String(headText || "").slice(0, 4000).match(/\bCONFIG\s*[:=]\s*(\S+)/i); return m && !DOWNHOLE_CONFIG.test(`CONFIG:${m[1]}`) ? m[1] : null; };
+
 // why this file looks like borehole EM (the sentence's clue words), or [] when it does not. columns / rows as parsed (row objects keyed by column);
-// headText: the first lines of the file (its comments), for a header that says 'borehole'
+// headText: the first lines of the file (its comments), for a header that says 'borehole'.
+// TASKS.csv #4058 — only BOREHOLE evidence counts: a hole or depth column, a header or CONFIG that says borehole / downhole, readings that go down a
+// fixed X Y (the elevation changing by metres while the position stands still). A component column, or a station read for several components, is
+// how an ordinary three-component GROUND survey (Maxwell .tem: in-loop, slingram, moving loop) is written too: they are named only beside evidence.
 export function boreholeEmClues(columns, rows, headText = "") {
-  const clues = [];
+  const evidence = [], support = [];
   const cols = (columns || []).map((c) => String(c).trim());
   const comp = cols.find((c) => COMPONENT_COL.test(c));
-  if (comp) clues.push(tr("a component column ({col})", { col: comp }));
+  if (comp) support.push(tr("a component column ({col})", { col: comp }));
   const hole = cols.find((c) => HOLE_COL.test(c)), depth = cols.find((c) => DEPTH_COL.test(c));
-  if (hole) clues.push(tr("a hole column ({col})", { col: hole }));
-  else if (depth) clues.push(tr("a depth column ({col})", { col: depth }));
-  if (HEADER_WORDS.test(String(headText || "").split(/\r?\n/, 80).filter((l) => /^\s*[/#]/.test(l)).join("\n"))) clues.push(tr("a header that says borehole"));
+  if (hole) evidence.push(tr("a hole column ({col})", { col: hole }));
+  else if (depth) evidence.push(tr("a depth column ({col})", { col: depth }));
+  const head = String(headText || "");
+  if (HEADER_WORDS.test(head.split(/\r?\n/, 80).filter((l) => /^\s*[/#]/.test(l)).join("\n"))) evidence.push(tr("a header that says borehole"));
+  const dc = head.slice(0, 4000).match(DOWNHOLE_CONFIG);
+  if (dc) evidence.push(tr("a downhole configuration (CONFIG:{v})", { v: dc[1] }));
   // a station read for several components: the same X Y (Z) on consecutive rows
   const x = cols.find((c) => /^(x|east|easting|e|utmx)$/i.test(c)), y = cols.find((c) => /^(y|north|northing|n|utmy)$/i.test(c));
   if (x && y && (rows || []).length >= 6) {
     let same = 0, seen = 0;
     for (let i = 1; i < rows.length; i++) { const a = rows[i - 1], b = rows[i]; if (a[x] == null || b[x] == null) continue; seen++; if (a[x] === b[x] && a[y] === b[y]) same++; }
-    if (seen >= 6 && same / seen >= 0.6) clues.push(tr("each station repeated for several components")); // three components: two repeats in three rows; a two-moment airborne file repeats half its rows, which is not this
+    if (seen >= 6 && same / seen >= 0.6) support.push(tr("each station repeated for several components")); // three components: two repeats in three rows; a two-moment airborne file repeats half its rows, which is not this
+    // the readings go down a hole: nearly all at one X Y, the elevation changing by metres
+    const z = cols.find((c) => /^(rl|z|elev|elevation|dh_?rl)$/i.test(c));
+    if (z) {
+      const at = new Map();
+      for (const r of rows) { if (r[x] == null || r[y] == null || r[z] == null) continue; const k = `${r[x]}|${r[y]}`; (at.get(k) || at.set(k, new Set()).get(k)).add(r[z]); }
+      const top = [...at.values()].sort((p, q) => q.size - p.size)[0];
+      if (top && top.size >= 3 && Math.max(...top) - Math.min(...top) > 5) evidence.push(tr("readings at several elevations under one position ({col})", { col: z }));
+    }
   }
-  return clues;
+  return evidence.length ? [...support, ...evidence] : [];
 }
 
 // the sentence for 'Import survey .xyz' / 'Import CSV' (a table of points): a multi-channel EM file is not one; null when it has no decay channels
