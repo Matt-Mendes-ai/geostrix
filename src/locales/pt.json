@@ -5918,7 +5918,7 @@
   "Add the deep component": "Adicionar a componente profunda",
   "Add the shallow component": "Adicionar a componente rasa",
   "No tilt zero-crossings with a usable depth in \"{name}\".": "Nenhum cruzamento por zero da derivada tilt com profundidade utilizável em «{name}».",
-  "Added \"{name}\".": "«{name}» adicionado.",
+  "Added \"{name}\".": "«{name}» foi adicionado.",
   "Tilt-depth (contact depths)": "Tilt-depth (profundidade de contatos)",
   "Power spectrum depths + matched filter": "Profundidades do espectro de potência + filtro casado",
   "Compute the spectrum": "Calcular o espectro",
@@ -15261,5 +15261,17 @@
   "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Desenhando: arraste um retângulo na vista (ou em Mapas › Retângulo da série); Esc cancela.",
   "Plan stream sites…": "Planejar pontos de drenagem…",
   "Plan new sites: Plan survey › Stream sites": "Planejar novos pontos: Planejar levantamento › Pontos de drenagem",
-  "Put a scanned or drawn section on its line in 3D: pick the line, click points on the image and type what the figure says.": "Coloque uma seção escaneada ou desenhada sobre a sua linha em 3D: escolha a linha, clique em pontos da imagem e digite o que a figura diz neles."
+  "Put a scanned or drawn section on its line in 3D: pick the line, click points on the image and type what the figure says.": "Coloque uma seção escaneada ou desenhada sobre a sua linha em 3D: escolha a linha, clique em pontos da imagem e digite o que a figura diz neles.",
+  "The scene {id} is no longer in the catalogue.": "A cena {id} não está mais no catálogo.",
+  " Snow: {scl} pixels by the scene classification, {ndsi} more by the NDSI test (NDSI above {min}, green reflectance at least {green}).": " Neve: {scl} pixels pela classificação da cena, {ndsi} a mais pelo teste NDSI (NDSI acima de {min}, refletância do verde de pelo menos {green}).",
+  " Scene {id}, {date}: the red / green / blue surface reflectance of the scene the index was made from, stretched together; snow, cloud and water are shown as they are.": " Cena {id}, {date}: a refletância de superfície vermelha / verde / azul da cena com que o índice foi feito, esticada em conjunto; neve, nuvens e água aparecem como são.",
+  "Also leave out snow the scene classification missed (NDSI, from green and SWIR 1). Downloads up to two more bands.": "Excluir também a neve que a classificação da cena não detectou (NDSI, do verde e do SWIR 1). Baixa até duas bandas a mais.",
+  "Snow above NDSI": "Neve acima de NDSI",
+  "NDSI above which a pixel is snow": "NDSI acima do qual um pixel é neve",
+  "(0.4 is usual; thin or dirty snow reads lower. Dark water and shadow are not called snow.)": "(0,4 é o usual; neve fina ou suja dá valores menores. Água escura e sombra não são tomadas por neve.)",
+  "Show the scene in true colour": "Mostrar a cena em cor real",
+  "The red, green and blue bands of this scene over the area, as a layer named with its date: shows what the index saw (snow, cloud, shadow).": "As bandas vermelha, verde e azul desta cena sobre a área, como camada com a data no nome: mostra o que o índice viu (neve, nuvens, sombra).",
+  "Show the scene of \"{name}\" in true colour": "Mostrar a cena de «{name}» em cor real",
+  "Sentinel-2 scene of {date}": "Cena Sentinel-2 de {date}",
+  "Scene of {date}": "Cena de {date}"
 }

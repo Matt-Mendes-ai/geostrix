@@ -17,6 +17,7 @@ import { remoteSensingFetch, cancelledError, isCancelledError } from "./desktop.
 import { reprojectXY, getProj4DefSync } from "./reproject.js";
 import { reprojectGrid } from "./reprojectMore.js"; // TASKS.csv #3590
 import { pointInRings } from "./mapLayers.js";
+import { snowByNdsi, NDSI_SNOW_MIN, SNOW_MIN_GREEN } from "./snowTest.js"; // TASKS.csv #4051 — the second snow test
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const EARTH_SEARCH = "https://earth-search.aws.element84.com/v1/search";
@@ -145,17 +146,28 @@ export function areaCoverage(geometry, bbox) {
   return inside / 144;
 }
 
+// a Sentinel-2 L2A item of Earth Search -> the scene the fetches read
+const s2SceneOf = (f, bbox) => ({
+  source: "sentinel2", id: f.id, date: String(f.properties.datetime).slice(0, 10), cloud: f.properties["eo:cloud_cover"], epsg: f.properties["proj:epsg"], coverage: areaCoverage(f.geometry, bbox),
+  bands: Object.fromEntries(Object.entries(S2_ASSETS).filter(([, k]) => f.assets[k]).map(([role, k]) => [role, { href: f.assets[k].href, scale: band0(f.assets[k]).scale ?? 0.0001, offset: s2Offset(f.properties, band0(f.assets[k]).offset) }])),
+  baseline: f.properties["s2:processing_baseline"] || null,
+  scl: f.assets.scl?.href || null,
+});
+
+// TASKS.csv #4051 — one scene again by its id (an index layer keeps the id of the scene it was made from): the same Earth Search catalogue, no new source
+export async function sceneById(id, bbox, signal) {
+  const d = await stacSearch(EARTH_SEARCH, { collections: ["sentinel-2-l2a"], ids: [id], limit: 1 }, signal);
+  const f = (d.features || []).find((x) => x.id === id);
+  if (!f) throw new Error(tr("The scene {id} is no longer in the catalogue.", { id }));
+  return s2SceneOf(f, bbox);
+}
+
 // Scenes over bbox [lonMin, latMin, lonMax, latMax], the best covered first, then the fewest clouds. Sentinel-2: between `from` and `to`
 // (ISO dates; summer avoids snow); ASTER: its whole 2000-2006 archive.
 export async function searchScenes(source, bbox, { from, to, maxCloud = 20, limit = 12, newest = false, signal } = {}) { // newest: #816; signal: #3963
   if (source === "sentinel2") {
     const d = await stacSearch(EARTH_SEARCH, { collections: ["sentinel-2-l2a"], bbox, datetime: `${from}T00:00:00Z/${to}T23:59:59Z`, query: { "eo:cloud_cover": { lt: maxCloud } }, limit: 50, sortby: [newest ? { field: "properties.datetime", direction: "desc" } : { field: "properties.eo:cloud_cover", direction: "asc" }] }, signal);
-    return (d.features || []).map((f) => ({
-      source, id: f.id, date: String(f.properties.datetime).slice(0, 10), cloud: f.properties["eo:cloud_cover"], epsg: f.properties["proj:epsg"], coverage: areaCoverage(f.geometry, bbox),
-      bands: Object.fromEntries(Object.entries(S2_ASSETS).filter(([, k]) => f.assets[k]).map(([role, k]) => [role, { href: f.assets[k].href, scale: band0(f.assets[k]).scale ?? 0.0001, offset: s2Offset(f.properties, band0(f.assets[k]).offset) }])),
-      baseline: f.properties["s2:processing_baseline"] || null,
-      scl: f.assets.scl?.href || null,
-    })).sort((a, b) => b.coverage - a.coverage || a.cloud - b.cloud).slice(0, limit);
+    return (d.features || []).map((f) => s2SceneOf(f, bbox)).sort((a, b) => b.coverage - a.coverage || a.cloud - b.cloud).slice(0, limit);
   }
   if (source === "aster_tir") {
     const d = await stacSearch(PC_SEARCH, { collections: ["aster-l1t"], bbox, query: { "eo:cloud_cover": { lt: maxCloud } }, limit: 50 }, signal);
@@ -181,7 +193,8 @@ export function windowGrid(bbox, epsg, cellM, maxPx = 2000) {
 // TASKS.csv #816 — `mask: false` reads the scene classification only to COUNT cloud / shadow over the area (returned as
 // `cover`), not to blank pixels (a picture keeps its lakes and snow); `bandsOnly: true` returns the resampled bands
 // (`out`) instead of building a GeoTIFF.
-export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, maxPx = 2000, targetEpsg = null, mask = true, bandsOnly = false, signal } = {}) { // signal: #3963
+// TASKS.csv #4051 — `snow`: the second snow test (lib/snowTest.js) that runs with the classification mask, on unless `snow: false`; { min, minGreen } change its thresholds
+export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, maxPx = 2000, targetEpsg = null, mask = true, bandsOnly = false, snow = undefined, signal } = {}) { // signal: #3963
   const src = IMAGERY_SOURCES[scene.source];
   const g = windowGrid(bboxLonLat, scene.epsg, src.nativeM, maxPx);
   const n = g.width * g.height;
@@ -192,13 +205,16 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
     return tiff.readRasters({ bbox: g.box, width: g.width, height: g.height, resampleMethod: "nearest", ...(samples ? { samples } : {}), fillValue: 0, signal });
   };
   const bands = [], mapping = {};
-  let note = "", masked = null;
+  let note = "", masked = null, snowStats = null;
   if (scene.source === "sentinel2") {
     const want = roles.filter((r) => scene.bands[r]);
     const missing = roles.filter((r) => !scene.bands[r]);
     if (missing.length) throw new Error(tr("This scene has no {missing} band.", { missing: missing.join(", ") }));
     let done = 0;
-    const total = want.length + (scene.scl ? 1 : 0);
+    // #4051 — green and SWIR 1 for the NDSI test, read apart when the index does not use them
+    const snowOn = snow !== false && mask && !!scene.scl && !!scene.bands.B3 && !!scene.bands.B11;
+    const snowExtra = snowOn ? ["B3", "B11"].filter((r) => !want.includes(r)) : [];
+    const total = want.length + snowExtra.length + (scene.scl ? 1 : 0);
     for (const r of want) {
       const { href, scale, offset } = scene.bands[r];
       const [dn] = await read(href);
@@ -216,15 +232,34 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
     } else if (scene.scl) {
       const [scl] = await read(scene.scl);
       masked = {};
+      const skip = snowOn ? new Uint8Array(n) : null;
       for (let i = 0; i < n; i++) {
         const why = SCL_MASK[scl[i]];
         if (!why) continue;
         masked[why] = (masked[why] || 0) + 1;
+        if (skip) skip[i] = 1;
         for (const b of bands) b[i] = NaN;
       }
       onProgress?.(total, total);
       const parts = Object.entries(masked).filter(([, c]) => c).map(([k, c]) => `${k} ${((100 * c) / n).toFixed(1)}%`);
       note = parts.length ? tr(" Masked with the scene classification: {parts}.", { parts: parts.join(", ") }) : tr(" The scene classification found no cloud, shadow, snow or water over the area.");
+      if (snowOn) { // TASKS.csv #4051 — the NDSI test on the pixels the classification left: its snow is blanked from every band, and counted apart
+        const min = Number.isFinite(snow?.min) ? snow.min : NDSI_SNOW_MIN, minGreen = Number.isFinite(snow?.minGreen) ? snow.minGreen : SNOW_MIN_GREEN;
+        const bandNamed = async (r) => {
+          if (mapping[r]) return bands[mapping[r] - 1];
+          const { href, scale, offset } = scene.bands[r];
+          const [dn] = await read(href);
+          const v = new Float32Array(n);
+          for (let i = 0; i < n; i++) v[i] = dn[i] === 0 ? NaN : dn[i] * scale + offset;
+          onProgress?.(++done, total);
+          return v;
+        };
+        const green = await bandNamed("B3"), swir = await bandNamed("B11");
+        const t = snowByNdsi(green, swir, { min, minGreen, skip });
+        for (let i = 0; i < n; i++) if (t.flags[i]) for (const b of bands) b[i] = NaN;
+        snowStats = { scl: masked.snow || 0, ndsi: t.count, min, minGreen, pixels: n };
+        note += tr(" Snow: {scl} pixels by the scene classification, {ndsi} more by the NDSI test (NDSI above {min}, green reflectance at least {green}).", { scl: snowStats.scl.toLocaleString(), ndsi: t.count.toLocaleString(), min, green: minGreen });
+      }
     }
     note = tr(" Sentinel-2 L2A {id} ({date}, {v}% cloud over the whole tile), surface reflectance{v2}, read at {v3} m.{note}", { id: scene.id, date: scene.date, v: scene.cloud?.toFixed(1), v2: scene.baseline ? tr(" (processing baseline {baseline}{v})", { baseline: scene.baseline, v: Object.values(scene.bands)[0]?.offset ? tr(", baseline offset removed") : tr(", values already harmonised") }) : "", v3: Math.round(g.cell), note });
   } else if (scene.source === "aster_tir") {
@@ -250,7 +285,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
     out = { width: rp.gridW, height: rp.gridH, bands: rp.bandsOut, epsg: dst, scaleX: sx, scaleY: sy, x0: rp.bbox[0] - sx / 2, y1: rp.bbox[3] + sy / 2 };
     note += tr(" Resampled (nearest pixel) from EPSG:{epsg} into the project's EPSG:{dst} so the values are kept.", { epsg: scene.epsg, dst });
   }
-  if (bandsOnly) { stats.ms = Date.now() - t0; return { out, mapping, note, grid: g, masked, stats }; } // #816
+  if (bandsOnly) { stats.ms = Date.now() - t0; return { out, mapping, note, grid: g, masked, snow: snowStats, stats }; } // #816
   // interleave into one Float32 multiband GeoTIFF (NaN = no data)
   const S = out.bands.length, m = out.width * out.height, data = new Float32Array(m * S);
   for (let i = 0; i < m; i++) for (let b = 0; b < S; b++) data[i * S + b] = out.bands[b][i];
@@ -260,7 +295,49 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
   });
   const file = new File([buf], `${scene.id}.tif`, { type: "image/tiff" });
   stats.ms = Date.now() - t0;
-  return { file, mapping, note, grid: g, masked, stats };
+  return { file, mapping, note, grid: g, masked, snow: snowStats, stats };
+}
+
+// TASKS.csv #4051 — the picture of a stack's red / green / blue (one 2nd-98th percentile stretch for the three, a gentle gamma): shared by the latest-scene fetch and the
+// same-scene fetch. -> { dataUrl, bbox (in the stack's CRS), pixelM }
+export function renderTrueColour(out, mapping) {
+  const [R, G, B] = [out.bands[mapping.B4 - 1], out.bands[mapping.B3 - 1], out.bands[mapping.B2 - 1]];
+  const m = out.width * out.height;
+  // one stretch for the three bands, from a sample of finite values
+  const sample = [];
+  const step = Math.max(1, Math.floor(m / 60000));
+  for (let i = 0; i < m; i += step) for (const band of [R, G, B]) if (Number.isFinite(band[i])) sample.push(band[i]);
+  sample.sort((a, b) => a - b);
+  const lo = sample.length ? sample[Math.floor(0.02 * sample.length)] : 0, hi = sample.length ? sample[Math.floor(0.98 * sample.length)] : 0.3;
+  const span = Math.max(1e-6, hi - lo);
+  const canvas = document.createElement("canvas");
+  canvas.width = out.width; canvas.height = out.height;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(out.width, out.height);
+  const to8 = (v) => Math.round(255 * Math.pow(Math.min(1, Math.max(0, (v - lo) / span)), 1 / 1.4));
+  for (let i = 0; i < m; i++) {
+    const ok = Number.isFinite(R[i]) && Number.isFinite(G[i]) && Number.isFinite(B[i]);
+    img.data[4 * i] = ok ? to8(R[i]) : 0; img.data[4 * i + 1] = ok ? to8(G[i]) : 0; img.data[4 * i + 2] = ok ? to8(B[i]) : 0; img.data[4 * i + 3] = ok ? 255 : 0;
+  }
+  ctx.putImageData(img, 0, 0);
+  const dataUrl = (() => { const w = canvas.toDataURL("image/webp", 0.9); return w.startsWith("data:image/webp") ? w : canvas.toDataURL("image/png"); })();
+  const bbox = [out.x0, out.y1 - out.height * out.scaleY, out.x0 + out.width * out.scaleX, out.y1];
+  const pixelM = Math.round(Math.max(out.scaleX, out.scaleY));
+  return { dataUrl, bbox, pixelM };
+}
+
+// TASKS.csv #4051 — the SAME scene an index was made from, in true colour (B4 / B3 / B2, the same window and CRS), so the person sees what the index saw. Named with the
+// scene's date. -> a raster-import-shaped { name, bbox, dataUrl, gridW, gridH, epsg, scene, pixelM, note }
+export async function fetchSceneTrueColour(scene, bboxLonLat, { targetEpsg = null, maxPx = 2048, onProgress, signal } = {}) {
+  const r = await fetchSceneStack(scene, bboxLonLat, ["B4", "B3", "B2"], { targetEpsg, maxPx, mask: false, bandsOnly: true, onProgress, signal });
+  const { out } = r;
+  const { dataUrl, bbox, pixelM } = renderTrueColour(out, r.mapping);
+  const cov = r.masked?.cover || { cloud: 0, shadow: 0 };
+  return {
+    name: `Sentinel-2 ${scene.date} true colour (${scene.id}, ~${pixelM} m pixels)`,
+    bbox, dataUrl, gridW: out.width, gridH: out.height, epsg: out.epsg, scene, pixelM: Math.max(out.scaleX, out.scaleY), areaCloud: cov.cloud + cov.shadow,
+    note: tr(" Scene {id}, {date}: the red / green / blue surface reflectance of the scene the index was made from, stretched together; snow, cloud and water are shown as they are.", { id: scene.id, date: scene.date }),
+  };
 }
 
 // TASKS.csv #816 — a natural-colour image from the most recent clear Sentinel-2 L2A scene over the area. Matt: "can we
@@ -290,28 +367,7 @@ export async function fetchLatestTrueColour(bboxLonLat, { targetEpsg = null, max
   }
   const { scene, r, bad } = best;
   const { out } = r;
-  const [R, G, B] = [out.bands[r.mapping.B4 - 1], out.bands[r.mapping.B3 - 1], out.bands[r.mapping.B2 - 1]];
-  const m = out.width * out.height;
-  // one stretch for the three bands, from a sample of finite values
-  const sample = [];
-  const step = Math.max(1, Math.floor(m / 60000));
-  for (let i = 0; i < m; i += step) for (const band of [R, G, B]) if (Number.isFinite(band[i])) sample.push(band[i]);
-  sample.sort((a, b) => a - b);
-  const lo = sample.length ? sample[Math.floor(0.02 * sample.length)] : 0, hi = sample.length ? sample[Math.floor(0.98 * sample.length)] : 0.3;
-  const span = Math.max(1e-6, hi - lo);
-  const canvas = document.createElement("canvas");
-  canvas.width = out.width; canvas.height = out.height;
-  const ctx = canvas.getContext("2d");
-  const img = ctx.createImageData(out.width, out.height);
-  const to8 = (v) => Math.round(255 * Math.pow(Math.min(1, Math.max(0, (v - lo) / span)), 1 / 1.4));
-  for (let i = 0; i < m; i++) {
-    const ok = Number.isFinite(R[i]) && Number.isFinite(G[i]) && Number.isFinite(B[i]);
-    img.data[4 * i] = ok ? to8(R[i]) : 0; img.data[4 * i + 1] = ok ? to8(G[i]) : 0; img.data[4 * i + 2] = ok ? to8(B[i]) : 0; img.data[4 * i + 3] = ok ? 255 : 0;
-  }
-  ctx.putImageData(img, 0, 0);
-  const dataUrl = (() => { const w = canvas.toDataURL("image/webp", 0.9); return w.startsWith("data:image/webp") ? w : canvas.toDataURL("image/png"); })();
-  const bbox = [out.x0, out.y1 - out.height * out.scaleY, out.x0 + out.width * out.scaleX, out.y1];
-  const pixelM = Math.round(Math.max(out.scaleX, out.scaleY));
+  const { dataUrl, bbox, pixelM } = renderTrueColour(out, r.mapping);
   return {
     name: `Sentinel-2 ${scene.date} natural colour (~${pixelM} m pixels)`,
     bbox, dataUrl, gridW: out.width, gridH: out.height, epsg: out.epsg, scene, pixelM: Math.max(out.scaleX, out.scaleY), // pixelM: #3251, said on the raster's card
