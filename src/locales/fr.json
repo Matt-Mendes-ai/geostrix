@@ -15322,5 +15322,14 @@
   "The azimuths are magnetic (column {c}): choose the declination when you map the survey.": "Les azimuts sont magnétiques (colonne {c}) : choisissez la déclinaison en associant le levé.",
   "The azimuths are on the grid or true north (column {c}), not magnetic.": "Les azimuts sont au nord de la grille ou vrai (colonne {c}), pas magnétique.",
   "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} étalon(s) de référence certifié(s) en ligne ({names}) sont marqués comme étalons, pas comme échantillons.",
-  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "couleurs de 0 à {v} mrad (le 98e centile des cellules vues par les données ; le modèle va jusqu'à {b})"
+  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "couleurs de 0 à {v} mrad (le 98e centile des cellules vues par les données ; le modèle va jusqu'à {b})",
+  "a hole in the header ({v})": "un sondage dans l'en-tête ({v})",
+  "The file has no coordinates: each station is placed on its line, the line number taken as its northing and the station as its easting (decided by {how}).": "Le fichier n'a pas de coordonnées : chaque station est placée sur sa ligne, le numéro de ligne étant pris comme son nord et la station comme son est (décidé par {how}).",
+  "The file has no coordinates: each station is placed on its line, the line number taken as its easting and the station as its northing (decided by {how}).": "Le fichier n'a pas de coordonnées : chaque station est placée sur sa ligne, le numéro de ligne étant pris comme son est et la station comme son nord (décidé par {how}).",
+  "the loop's corners": "les coins de la boucle",
+  "the letter after the line number": "la lettre après le numéro de ligne",
+  "the size of the line number": "la taille du numéro de ligne",
+  "The file does not name a component: Z is assumed.": "Le fichier ne nomme pas de composante : Z est supposée.",
+  "{n} reading(s) of a second ADC (the same component at another gain) are left out.": "{n} mesure(s) d'un second CAN (la même composante à un autre gain) sont écartées.",
+  "\"{name}\" is borehole EM ({clues}). TEM line data reads airborne and ground line surveys, not a hole: GeoStrix has no reader for borehole EM yet.": "« {name} » est de l'EM de sondage ({clues}). Les données de ligne TEM lisent des levés de lignes aéroportés et au sol, pas un sondage : GeoStrix n'a pas encore de lecteur pour l'EM de sondage."
 }

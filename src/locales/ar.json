@@ -15322,5 +15322,14 @@
   "The azimuths are magnetic (column {c}): choose the declination when you map the survey.": "السموت مغناطيسية (العمود {c}): اختر الانحراف المغناطيسي عند ربط المسح.",
   "The azimuths are on the grid or true north (column {c}), not magnetic.": "السموت على شمال الشبكة أو الشمال الحقيقي (العمود {c})، لا المغناطيسي.",
   "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} من المعايير المرجعية المعتمدة المضمّنة ({names}) تُعلَّم كمعايير لا كعينات.",
-  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "الألوان من 0 إلى {v} ميلي راديان (المئين 98 للخلايا التي تراها البيانات؛ يصل النموذج إلى {b})"
+  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "الألوان من 0 إلى {v} ميلي راديان (المئين 98 للخلايا التي تراها البيانات؛ يصل النموذج إلى {b})",
+  "a hole in the header ({v})": "حفرة في الترويسة ({v})",
+  "The file has no coordinates: each station is placed on its line, the line number taken as its northing and the station as its easting (decided by {how}).": "لا يحتوي الملف على إحداثيات: توضع كل محطة على خطها، مع اعتبار رقم الخط شمالها والمحطة شرقها (بحسب {how}).",
+  "The file has no coordinates: each station is placed on its line, the line number taken as its easting and the station as its northing (decided by {how}).": "لا يحتوي الملف على إحداثيات: توضع كل محطة على خطها، مع اعتبار رقم الخط شرقها والمحطة شمالها (بحسب {how}).",
+  "the loop's corners": "زوايا الحلقة",
+  "the letter after the line number": "الحرف بعد رقم الخط",
+  "the size of the line number": "حجم رقم الخط",
+  "The file does not name a component: Z is assumed.": "لا يسمّي الملف مركّبة: يُفترض Z.",
+  "{n} reading(s) of a second ADC (the same component at another gain) are left out.": "استُبعدت {n} من قراءات محوّل ثانٍ (المركّبة نفسها بكسب آخر).",
+  "\"{name}\" is borehole EM ({clues}). TEM line data reads airborne and ground line surveys, not a hole: GeoStrix has no reader for borehole EM yet.": "\"{name}\" هو EM حفرة ({clues}). تقرأ بيانات خط TEM مسوحات الخطوط الجوية والأرضية لا الحفرة: ليس لدى GeoStrix قارئ لـ EM الحفرة بعد."
 }

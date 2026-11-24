@@ -7,8 +7,9 @@ import { parseXYZ } from "./geosoft.js";
 import { guessGeophysColumns } from "./geophysColumns.js";
 import Papa from "papaparse";
 import { arrMax } from "./arrayStats.js";
-import { boreholeEmRefusal } from "./boreholeEm.js"; // TASKS.csv #3804
-import { isMaxwellTem, parseMaxwellTem } from "./maxwellTem.js"; // TASKS.csv #4058 — Maxwell ground TEM, one row per component
+import { boreholeEmRefusal, boreholeHeaderRefusal } from "./boreholeEm.js"; // TASKS.csv #3804
+import { isReceiverTem, parseTemReceiver } from "./maxwellTem.js"; // TASKS.csv #4058 — Maxwell ground TEM, one row per component; #4063 — the other receiver layouts (Crone, SMARTem V / export, EMBASE)
+import { t as tr } from "./i18n.js";
 import { smallGridCoordinates } from "./crsFromColumns.js"; // #4058 — a file on a local grid asks for its tie to the map
 
 // A column that ends in a number (dBdt_Z[12], DBDT_CH1GT12, Z_HM_ch05, CH12, Gate_12): its prefix and index. Groups of at least four
@@ -81,13 +82,19 @@ export function gateTimesFromText(text, n, header = null, channel = null) {
 
 // Read a file's text -> { name, source, n, columns, get(col) -> Float64Array, line: string[], groups, epsg, header, gateTimes(group) }
 export function readTemText(text, name = "TEM") {
+  try { return readTemTextCore(text, name); } catch (e) { // TASKS.csv #4063 — a hole's file the reader cannot read says why it is not read
+    const bh = /is borehole EM/.test(e?.message || "") ? null : boreholeHeaderRefusal(name, String(text || "").slice(0, 6000)); // the reader's own borehole refusal says more (its decay channels)
+    throw bh ? new Error(bh, { cause: e }) : e;
+  }
+}
+function readTemTextCore(text, name) {
   let source, columns, get, line, epsg = null, header = null, maxwell = null;
-  if (isMaxwellTem(text)) { // TASKS.csv #4058 — a station's Z, X and Y rows become the channel sets Z_CH, X_CH, Y_CH of one station row (Z first: the decay and the 1D inversion read it)
-    maxwell = parseMaxwellTem(text);
+  if (isReceiverTem(text)) { // TASKS.csv #4058 — a station's Z, X and Y rows become the channel sets Z_CH, X_CH, Y_CH of one station row (Z first: the decay and the 1D inversion read it)
+    maxwell = parseTemReceiver(text);
     const st = maxwell.stations, fns = new Map([["EAST", (s) => s.x], ["NORTH", (s) => s.y], ["ELEV", (s) => s.elev], ["STATION", (s) => s.station]]);
     columns = ["EAST", "NORTH", "ELEV", "STATION"];
     for (const c of maxwell.components) maxwell.gates.forEach((g, k) => { const col = `${c}_${g}`; columns.push(col); fns.set(col, (s) => (s.comps[c] ? s.comps[c][k] : NaN)); });
-    source = `Maxwell .tem${maxwell.config ? ` (${maxwell.config.toLowerCase()})` : ""}`; header = maxwell.header;
+    source = `${maxwell.family === "Maxwell" ? "Maxwell .tem" : maxwell.family === "TEM" ? "TEM text" : `${maxwell.family} TEM text`}${maxwell.config ? ` (${maxwell.config.toLowerCase()})` : ""}`; header = maxwell.header;
     const cache = new Map();
     get = (c) => cache.get(c) || cache.set(c, Float64Array.from(st, fns.get(c) || (() => NaN))).get(c);
     line = st.map((s) => s.line);
@@ -139,10 +146,24 @@ export function readTemText(text, name = "TEM") {
   return {
     name, source, n, columns, groups, epsg, header, line,
     x, y, z, xCol, yCol, zCol: z ? zCol : null, localGrid,
-    components: maxwell ? maxwell.components : null, units: maxwell?.units || null,
+    components: maxwell ? maxwell.components : null, units: maxwell?.units || null, notes: maxwell ? receiverNotes(maxwell) : [],
     get,
     gateTimes: (g) => (maxwell && g.component && maxwell.times) || gateTimesFromText(text, g.cols.length, header, channelNumber(g.prefix)) || gateTimesFromColumns(groups, g, get),
   };
+}
+
+// TASKS.csv #4063 — what a receiver-text file did not give, said: no coordinates (placed on the line), no named component, a second ADC left out, no gate times
+function receiverNotes(m) {
+  const out = [];
+  if (m.positions === "line" && m.positionNote) {
+    const how = m.positionNote.how[0] === "loop" ? tr("the loop's corners") : m.positionNote.how[0] === "suffix" ? tr("the letter after the line number") : tr("the size of the line number");
+    out.push(m.positionNote.axes[0] === "y"
+      ? tr("The file has no coordinates: each station is placed on its line, the line number taken as its easting and the station as its northing (decided by {how}).", { how })
+      : tr("The file has no coordinates: each station is placed on its line, the line number taken as its northing and the station as its easting (decided by {how}).", { how }));
+  }
+  if (m.assumedComponent) out.push(tr("The file does not name a component: Z is assumed."));
+  if (m.adcLeftOut) out.push(tr("{n} reading(s) of a second ADC (the same component at another gain) are left out.", { n: m.adcLeftOut.toLocaleString() }));
+  return out;
 }
 
 // One group's values as a station x gate matrix (row-major Float64Array), and each line's stations in order with the distance along it.

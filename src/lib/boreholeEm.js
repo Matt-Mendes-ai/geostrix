@@ -22,6 +22,13 @@ const HEADER_WORDS = /\b(borehole|bore[- ]hole|down[- ]?hole|dhem|bhem|bh[- ]?te
 
 // TASKS.csv #4058 — the CONFIG: word of a Maxwell-style header: a downhole one is borehole; in-loop, slingram, moving-loop (and a LOOP: block) are ground
 const DOWNHOLE_CONFIG = /\bCONFIG\s*[:=]\s*(\S*(?:down|bore|bh|dh)\S*)/i;
+const HOLE_HEADER = /\b(BOREHOLE|[XYZ]COLLAR)\s*[:=]\s*\S/i;
+// TASKS.csv #4063 — a file the line reader could not make sense of that says in its header that it is a hole's (BOREHOLE:, XCOLLAR:, CONFIG:DOWNHOLE, a title
+// that says downhole): the reason, in words, instead of the reader's own error. -> string | null
+export function boreholeHeaderRefusal(name, headText) {
+  const clues = boreholeEmClues([], [], headText);
+  return clues.length ? tr("\"{name}\" is borehole EM ({clues}). TEM line data reads airborne and ground line surveys, not a hole: GeoStrix has no reader for borehole EM yet.", { name, clues: clues.join(", ") }) : null;
+}
 export const groundEmConfig = (headText) => { const m = String(headText || "").slice(0, 4000).match(/\bCONFIG\s*[:=]\s*(\S+)/i); return m && !DOWNHOLE_CONFIG.test(`CONFIG:${m[1]}`) ? m[1] : null; };
 
 // why this file looks like borehole EM (the sentence's clue words), or [] when it does not. columns / rows as parsed (row objects keyed by column);
@@ -38,9 +45,12 @@ export function boreholeEmClues(columns, rows, headText = "") {
   if (hole) evidence.push(tr("a hole column ({col})", { col: hole }));
   else if (depth) evidence.push(tr("a depth column ({col})", { col: depth }));
   const head = String(headText || "");
-  if (HEADER_WORDS.test(head.split(/\r?\n/, 80).filter((l) => /^\s*[/#]/.test(l)).join("\n"))) evidence.push(tr("a header that says borehole"));
+  const lines80 = head.split(/\r?\n/, 80), titleLine = lines80.find((l) => l.trim()) || ""; // #4063 — a receiver file's first line names the survey ('DOWNHOLE PEM SURVEY')
+  if (HEADER_WORDS.test(lines80.filter((l) => /^\s*[/#]/.test(l)).concat(titleLine).join("\n"))) evidence.push(tr("a header that says borehole"));
   const dc = head.slice(0, 4000).match(DOWNHOLE_CONFIG);
   if (dc) evidence.push(tr("a downhole configuration (CONFIG:{v})", { v: dc[1] }));
+  const bh = head.slice(0, 4000).match(HOLE_HEADER); // #4063 — a hole named in the header, or its collar
+  if (bh) evidence.push(tr("a hole in the header ({v})", { v: bh[1] }));
   // a station read for several components: the same X Y (Z) on consecutive rows
   const x = cols.find((c) => /^(x|east|easting|e|utmx)$/i.test(c)), y = cols.find((c) => /^(y|north|northing|n|utmy)$/i.test(c));
   if (x && y && (rows || []).length >= 6) {
