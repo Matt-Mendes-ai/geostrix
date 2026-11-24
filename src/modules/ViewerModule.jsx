@@ -5769,6 +5769,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%", order: bare ? 1 : 0 }}>
       {mode === "view" && (
         <ViewToolbar
+          onSectionImage={() => setSectionGeorefOpen(true)} /* TASKS.csv #4048 */
           onLevelPlan={() => { if (!levelPlanZRange(tracesRef.current, voxelModels)) { setNotices((p) => [...p, notice("Nothing to cut yet: a level plan cuts drillholes and block models at an elevation.")]); return; } setLevelPlanOpen(true); }} /* #1782 */
           openPopover={openPopover} setOpenPopover={setOpenPopover}
           gridConfig={gridConfig} setGridConfig={setGridConfig}

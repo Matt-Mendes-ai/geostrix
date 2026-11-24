@@ -57,6 +57,8 @@ const ICONS = {
     ["g", "rotate(40 16 6)", [["r", "13.5 0.5 4 10 1", "f|s:bg:0.9"], ["p", "M13.5 10.5 L15.5 14 L17.5 10.5 Z", "f.5|s:cur:0.8"]]]],
   Fence: [...[0, 1, 2].flatMap((k) => { const x = 2.5 + k * 6.6, y = 4 + k * 1.2; return [["p", `M${x} ${y + 2} L${x + 5.4} ${y} L${x + 5.4} ${y + 14} L${x} ${y + 16} Z`, `f${0.5 + k * 0.2}|s:bg:0.9`], ["p", `M${x} ${y + 9} Q${x + 2.7} ${y + 6.5} ${x + 5.4} ${y + 7.5}`, "s:bg:1:0.85"]]; }),
     ["p", "M2 22 L22 18.6", "s:cur:1.2:0.6"]],
+  // TASKS.csv #4048 — a scanned or drawn section (a framed picture of the ground) standing on its line (the base line, its two ends marked)
+  SectionImage: [["r", "3 2.5 18 15 2.2", "f.2|s:cur:1.3"], ["p", "M3 14.6 Q7 8.8 10 11.8 T15 9.8 T21 8.4 V17.5 H3 Z", "f.85"], ["c", "7.5 6.6 1.5", "w"], ["p", "M2.5 21.3 H21.5", "s:cur:1.4:0.7|r"], ["c", "4 21.3 1.7", "f|s:bg:0.9"], ["c", "20 21.3 1.7", "f|s:bg:0.9"]],
   Identify: [["c", "12 12 9.5", "f|s:bg:1:0.5"], ["r", "10.6 10.4 2.8 7.4 1.2", "w"], ["c", "12 7.2 1.75", "w"]],
   Measure: [["g", "rotate(-38 12 12)", [["r", "1.5 8 21 8 2", "f"], ...[4.5, 7.5, 10.5, 13.5, 16.5, 19.5].map((x, k) => ["r", `${x - 0.6} 8 1.2 ${k % 2 ? 2.6 : 4} 0.5`, "w"])]]],
   BestIntercepts: [["r", "8 2 5 20 2.5", "k:text-muted:.22"], ["r", "8.6 3 3.8 5 1", "k:accent:.95"], ["r", "8.6 8 3.8 4 1", "k:danger-solid:.95"], ["r", "8.6 12 3.8 6 1", "k:tier-basic:.95"], ["r", "8.6 18 3.8 3 1", "k:accent-dark:.95"],
@@ -82,7 +84,7 @@ function icon(shapes, block) {
   return C;
 }
 export const AddDataIcon = icon(ICONS.AddData), GridIcon = icon(ICONS.Grid), FigureIcon = icon(ICONS.Figure), ThemesIcon = icon(ICONS.Themes), DrawSectionIcon = icon(ICONS.DrawSection),
-  FenceIcon = icon(ICONS.Fence), IdentifyIcon = icon(ICONS.Identify), MeasureIcon = icon(ICONS.Measure), BestInterceptsIcon = icon(ICONS.BestIntercepts), SatelliteIcon = icon(ICONS.Satellite),
+  FenceIcon = icon(ICONS.Fence), SectionImageIcon = icon(ICONS.SectionImage), IdentifyIcon = icon(ICONS.Identify), MeasureIcon = icon(ICONS.Measure), BestInterceptsIcon = icon(ICONS.BestIntercepts), SatelliteIcon = icon(ICONS.Satellite),
   SnapshotIcon = icon(ICONS.Snapshot), ModelIcon = icon(null, BLOCKS.Model), Slice3dIcon = icon(null, BLOCKS.Slice3d), LevelPlanIcon = icon(null, BLOCKS.LevelPlan),
   TerrainIcon = icon(null, BLOCKS.Terrain), GeologyIcon = icon(null, BLOCKS.Geology);
 

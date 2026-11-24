@@ -23,7 +23,7 @@ test("#3958 every other ribbon icon is drawn two-tone; the drawn ones are not wa
   assert.match(r, /aria-hidden="true" \{\.\.\.twoTone\(Icon\)\} \/>/);
   assert.match(icons, /export const twoTone = \(Icon\) => \(Icon && !Icon\.drawn \? \{ fill: "currentColor", fillOpacity: 0\.16 \} : \{\}\);/);
   const drawn = [...icons.matchAll(/(\w+Icon) = icon\(/g)].map((m) => m[1]);
-  assert.equal(drawn.length, 16, drawn.join(", "));
+  assert.equal(drawn.length, 17, drawn.join(", "));
   assert.match(icons, /C\.drawn = true;/, "every drawn icon is flagged");
   // the 3D View's own ribbon buttons that keep a line icon are two-tone too
   const vp = read("../src/modules/viewer/ViewerParts.jsx");
