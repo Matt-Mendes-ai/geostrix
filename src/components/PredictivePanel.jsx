@@ -2,7 +2,10 @@ import { tickedHoles } from "../lib/holeFilter.js"; // TASKS.csv #1315
 import { unitIntercepts, interceptCheckPoints, scoreIntercepts } from "../lib/geomlIntercepts.js"; // TASKS.csv #1318
 import GeomlMissedIntercepts, { GeomlRunAdvice, mixText } from "./GeomlMissedIntercepts.jsx"; // TASKS.csv #1318; advice: #4019
 import { unitMix, runAdvice } from "../lib/geomlIntercepts.js"; // TASKS.csv #4019 — why intercepts are missed, and what to change
-import { enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, gradeExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL } from "../lib/geomlBodies.js"; // TASKS.csv #4017 — closed bodies from the probability blocks
+import { enclosedBodies, interceptsInsideBodies, suggestShape, modelBox, bodiesExtraSeconds, gradeExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL } from "../lib/geomlBodies.js"; // TASKS.csv #4017 — closed bodies from the probability blocks
+import GeomlBlockSize from "./GeomlBlockSize.jsx"; // TASKS.csv #4054 — the Block size boxes
+import { resolveBlockM, blockSizePlan } from "../lib/geomlBlockSize.js";
+import { useGeomlBlockSize } from "../lib/useGeomlBlockSize.js";
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
 import { newResult, setResult } from "../lib/geomlResult.js"; // TASKS.csv #4028 - a run lands in a Result, and the Add buttons put it in the project
@@ -72,13 +75,14 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
   const [unitName, setUnitName] = useState("");
   const [deep, setDeep] = useState(false);
   const [quality, setQuality] = useState("standard");
-  // TASKS.csv #4019 — a block size set by a fix after a run (smaller than the quality's own: thin intercepts), null = the quality's
-  const [blockOverride, setBlockOverride] = useState(null);
+  // TASKS.csv #4054 — the block sizes the person typed (rock units, grade), kept on this computer; null = the quality's (halved for closed solids). #4019's
+  // 'smaller blocks' fix after a run fills the rock-unit one
+  const blockSizes = useGeomlBlockSize();
   // #4019 — the codes ticked for one run that differ (litho groups, Modelling-codes roles, intercept lengths): said before the run
   const mix = useMemo(() => (unit.size > 1 ? unitMix({ codes: [...unit], intervals: (litho || []).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).map((r) => ({ hole_id: String(r.hole_id), from: r.from, to: r.to, value: r.value })), lithoGroups, modellingCodes }) : null), [unit, litho, lithoGroups, modellingCodes]);
   const applyFix = (f) => { // #4019 — a fix changes the settings; Model runs it
     if (f.key === "oneUnit" && f.unit) setUnit(new Set([f.unit]));
-    else if (f.key === "smaller") setBlockOverride(f.blockM);
+    else if (f.key === "smaller") blockSizes.setUnit(f.blockM);
     else if (f.key === "standard") setQuality("standard");
     else if (f.key === "heldOut") setHeldOut(true);
   };
@@ -104,6 +108,11 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
     return () => { dead = true; clearTimeout(timer); };
   }, [unit, litho, collars, survey, desurveyMethod]);
   const shape = shapePick || suggestion?.shape || "bodies";
+  // TASKS.csv #4054 — the block size each run asks for: what was typed, else the quality's, halved for closed solids (bodies, grade shells); and what it makes of the model box
+  const blockBox = useMemo(() => modelBox((collars || []).map((c) => ({ x: c.x, y: c.y, z: c.z, length: c.length }))), [collars]);
+  const unitSize = resolveBlockM({ qualityM: QUALITY[quality].domain.block_size, halved: shape === "bodies", user: blockSizes.unit });
+  const gradeSize = resolveBlockM({ qualityM: QUALITY[quality].grade.block_size, halved: shellsOn, user: blockSizes.grade });
+  const unitBlocks = blockSizePlan(blockBox, unitSize), gradeBlocks = blockSizePlan(blockBox, gradeSize);
   // ---- grade ----
   const elements = (assayElements || []).map((e) => e.symbol);
   const [element, setElement] = useState("");
@@ -198,8 +207,8 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
     // #1146 — sized before it is sent: holes near the unit only, then a coarser spacing, when the whole project will not fit
     const plan = unitPlan;
     const sent = plan?.holeIds ? intervals.filter((r) => plan.holeIds.has(r.hole_id)) : intervals;
-    const params = { ...holes(plan?.holeIds), intervals: sent, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain, ...(plan ? { train_spacing: plan.trainSpacing, inducing_spacing: plan.inducingSpacing } : {}), max_inducing: INDUCING_CAP, ...(plan?.denseOn ? { focus_spacing: FOCUS_SPACING, focus_other: FOCUS_OTHER } : {}), ...(heldOut ? { held_out: true } : {}), ...(blockOverride ? { block_size: blockOverride } : {}) /* #4019 */ }; // #1312: an older add-on ignores these
-    if (shape === "bodies" && !blockOverride) params.block_size = bodiesBlockSize(QUALITY[quality].domain.block_size); // TASKS.csv #4017 — a body is as fine as its blocks (a #4019 fix's block size wins)
+    const params = { ...holes(plan?.holeIds), intervals: sent, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain, ...(plan ? { train_spacing: plan.trainSpacing, inducing_spacing: plan.inducingSpacing } : {}), max_inducing: INDUCING_CAP, ...(plan?.denseOn ? { focus_spacing: FOCUS_SPACING, focus_other: FOCUS_OTHER } : {}), ...(heldOut ? { held_out: true } : {}) }; // #1312: an older add-on ignores these
+    params.block_size = unitSize.m; // TASKS.csv #4054 — what was typed (a #4019 fix fills it), else the quality's, halved for a body (#4017)
     const { desurveyHole, pointOnTrace } = await import("../lib/desurvey.js");
     const check = interceptCheckPoints(unitIntercepts(sent, unit), collars, survey || [], desurveyHole, pointOnTrace, desurveyMethod); // #1318
     params.check_points = check.points;
@@ -280,7 +289,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
     const gq = planGrade({ samples, composite: QUALITY[quality].grade.composite, inducing: QUALITY[quality].grade.inducing, iterations: QUALITY[quality].grade.iterations }); // #1146
     const gradeLabel = `${element} grade (${QUALITY[quality].label.toLowerCase()})`;
     const gradeParams = { ...holes(), samples, element, ...QUALITY[quality].grade, composite: gq.composite };
-    if (shellsOn) gradeParams.block_size = bodiesBlockSize(QUALITY[quality].grade.block_size); // TASKS.csv #4029 - a shell is as fine as its blocks, as a unit's body is (#4017)
+    gradeParams.block_size = gradeSize.m; // TASKS.csv #4054 — what was typed, else the quality's, halved when shells are drawn (#4029: a shell is as fine as its blocks, as a unit's body is, #4017)
     run(gradeLabel, "grade", gradeParams, async (res, pj) => { // pj: TASKS.csv #3953
       const R = newResult(gradeLabel, "grade"); // TASKS.csv #4028
       const b = res.blocks;
@@ -377,7 +386,6 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                 {Object.entries(QUALITY).map(([k, q]) => <option key={k} value={k}>{tr(q.label)}</option>)}
               </select>
             </div>{tr("On 20 to 40 holes, Fast and Standard take a few minutes; time grows with holes and quality, so start with Fast. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
-            {blockOverride && <div style={{ marginTop: 4 }}>{tr("Blocks of {b} m for the next rock-unit run.", { b: blockOverride })}{" "}<button type="button" style={{ fontSize: "var(--font-size-xs)" }} onClick={() => setBlockOverride(null)}>{tr("Reset")}</button></div>}{/* TASKS.csv #4019 */}
           </div>
 
           <div style={box}>
@@ -452,12 +460,11 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                         <input type="radio" name="geoml-shape" checked={shape === k} onChange={() => setShapePick(k)} />{" "}<span>{text}{suggestion?.shape === k && !shapePick ? ` (${tr("suggested")})` : ""}</span></label>
                     ))}
                     {suggestion && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{shapeWhy(suggestion)}</div>}
-                    {shape === "bodies" && (() => { const q = QUALITY[quality].domain.block_size, box = modelBox((collars || []).map((c) => ({ x: c.x, y: c.y, z: c.z, length: c.length }))); const a = box ? blockPlan(box, bodiesBlockSize(q)) : null, o = box ? blockPlan(box, q) : null; return (
-                      <>
-                        <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
-                          <span>{tr("Body level (probability, %)")}</span><input type="number" min={5} max={95} step={5} value={bodyPct} onChange={(e) => setBodyPct(Math.max(5, Math.min(95, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} /></label>
-                        {!blockOverride && a && o && a.blocks > o.blocks && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{c} m blocks (about {n}, not {n0}): about {t} more after training.", { c: a.cell, n: a.blocks.toLocaleString(), c0: o.cell, n0: o.blocks.toLocaleString(), t: extraTime(bodiesExtraSeconds(a.blocks, o.blocks)) })}</div>}
-                      </>); })()}
+                    {shape === "bodies" && (
+                      <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+                        <span>{tr("Body level (probability, %)")}</span><input type="number" min={5} max={95} step={5} value={bodyPct} onChange={(e) => setBodyPct(Math.max(5, Math.min(95, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} /></label>
+                    )}
+                    <GeomlBlockSize size={unitSize} plan={unitBlocks} typed={blockSizes.unit} onChange={blockSizes.setUnit} extra={unitBlocks ? extraTime(bodiesExtraSeconds(unitBlocks.blocks, unitBlocks.baseBlocks)) : ""} smallSel={smallSel} />{/* TASKS.csv #4054 */}
                   </div>
                 )}
                 <button type="button" style={{ ...btn(true, !ready || !unit.size), marginTop: 8, width: "100%" }} disabled={!ready || !unit.size} onClick={runUnit}>{tr("Model {v}", { v: unit.size ? (unitName.trim() || [...unit].join(" + ")) : tr("the unit") })}</button>
@@ -489,10 +496,9 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                         <span>{tr("Cut-offs ({unit})", { unit: u })}</span><input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} placeholder={cs?.first != null ? String(cs.first) : ""} style={{ ...smallSel, width: 110 }} /></label>
                       {cs?.first != null && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Median {m}, Q3 {q}, P90 {p}", { m: cs.median, q: cs.q3, p: cs.p90 })}</div>}
                       <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}><input type="checkbox" checked={bandsOn} onChange={(e) => setBandsOn(e.target.checked)} />{tr("Also the P10 and P90 shells")}</label>
-                      {(() => { const q = QUALITY[quality].grade.block_size, box = modelBox((collars || []).map((c) => ({ x: c.x, y: c.y, z: c.z, length: c.length }))), a = box ? blockPlan(box, bodiesBlockSize(q)) : null, o = box ? blockPlan(box, q) : null;
-                        return a && o && a.blocks > o.blocks ? <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{c} m blocks (about {n}, not {n0}): about {t} more after training.", { c: a.cell, n: a.blocks.toLocaleString(), c0: o.cell, n0: o.blocks.toLocaleString(), t: extraTime(gradeExtraSeconds(a.blocks, o.blocks)) })}</div> : null; })()}
                     </>); })()}
                 </div>
+                <GeomlBlockSize size={gradeSize} plan={gradeBlocks} typed={blockSizes.grade} onChange={blockSizes.setGrade} extra={gradeBlocks ? extraTime(gradeExtraSeconds(gradeBlocks.blocks, gradeBlocks.baseBlocks)) : ""} smallSel={smallSel} />{/* TASKS.csv #4054 */}
                 <button type="button" style={{ ...btn(true, !ready || !element), marginTop: 8, width: "100%" }} disabled={!ready || !element} onClick={runGrade}>{tr("Model {v}", { v: element || tr("a grade") })}</button>
               </>
             )}

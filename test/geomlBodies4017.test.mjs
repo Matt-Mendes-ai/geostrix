@@ -155,9 +155,10 @@ test("#4017 the wiring: the panel offers bodies or layers, asks finer blocks for
   const fs = await import("node:fs");
   const read = (p) => fs.readFileSync(new URL("../" + p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const p = read("src/components/PredictivePanel.jsx");
-  assert.match(p, /import \{ enclosedBodies, interceptsInsideBodies, suggestShape, bodiesBlockSize, blockPlan, modelBox, bodiesExtraSeconds, gradeExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL \} from "\.\.\/lib\/geomlBodies\.js";/);
+  assert.match(p, /import \{ enclosedBodies, interceptsInsideBodies, suggestShape, modelBox, bodiesExtraSeconds, gradeExtraSeconds, gradeShells, gradeCutoffSuggestion, parseShellCutoffs, BODY_LEVEL \} from "\.\.\/lib\/geomlBodies\.js";/);
   assert.match(p, /const shape = shapePick \|\| suggestion\?\.shape \|\| "bodies";/);
-  assert.match(p, /if \(shape === "bodies" && !blockOverride\) params\.block_size = bodiesBlockSize\(QUALITY\[quality\]\.domain\.block_size\);/ /* a #4019 fix block size wins */);
+  assert.match(p, /params\.block_size = unitSize\.m;/ /* #4054: what was typed (a #4019 fix fills it) wins; else the quality's, halved for bodies (resolveBlockM) */);
+  assert.match(p, /halved: shape === "bodies"/);
   assert.match(p, /if \(shape === "layers" && res\.surface\?\.triangles\?\.length\) \{/, "the open contact: layers only, as before");
   assert.match(p, /enclosedBodies\(b, \{ level: bodyPct \/ 100, dropped: r\.outOfRange, groundAt: cutAtTopo \? clip\.ground : null \}\)/);
   assert.match(p, /type: "unit_body", closure: wall/);
@@ -241,7 +242,7 @@ test("#4017 (b) the wiring: the grade run draws its shells from the blocks, with
   assert.match(p, /gradeShells\(b, \{ cutoffs: cuts, bands: bandsOn, dropped: r\.outOfRange, groundAt: cutAtTopo \? gclip\.ground : null, samples: gclip\.points \}\)/);
   assert.match(p, /type: "mineralization_envelope", closure: s\.body\.closingShare > 0 \? "artificial" : "natural"/);
   assert.match(p, /params: \{ \.\.\.gparams, tool: "geoML grade shell", cutoff: s\.cutoff/);
-  assert.match(p, /\{!blockOverride && a && o && a\.blocks > o\.blocks && /, "a fix's block size wins: no 'finer blocks' line");
+  assert.match(p, /<GeomlBlockSize size=\{unitSize\} plan=\{unitBlocks\}/, "the finer blocks' count and time are in the Block size box (#4054), which says 'Yours' when a fix or the person set it");
   assert.match(p, /Number\.isFinite\(r\.value\) \? r\.value : 1/, "the samples carry their values");
   assert.match(read("src/modules/viewer/ModellingPanes.jsx"), /clipToTopo=\{clipToTopo\} \/\* TASKS\.csv #4017/);
   // a grade shell is not the Grade shell tool's: the estimation default does not pick it (it looks for tool === "numeric grade shell")
