@@ -178,20 +178,61 @@ def _electrodes(req):
     return a, b, m, n
 
 
+def _refine_ground(mesh, xyz, octree_levels):
+    """TASKS.csv #4050 — the ground's refinement exactly as discretize 0.12's refine_tree_xyz(method="surface") made it (no
+    horizontal padding), with TreeMesh.insert_cells: the ground sampled on a grid one cell apart at each level and the cells under
+    it inserted, level by level from the coarsest. With octree_levels (0, 1, 2): 2 x core cells along the ground, 4 x core cells to
+    4 core below. NOT TreeMesh.refine_surface: it refines every cell the ground's triangles touch (3-5 % more cells along the
+    ground), and on a synthetic hill the inversion then fitted worse (1.6-2.0 x the target after 15 iterations, against 1.0-1.1)."""
+    from scipy.interpolate import LinearNDInterpolator
+    from scipy.spatial import Delaunay
+    levels = np.asarray(octree_levels)
+    hx, hy, hz = (h.min() for h in mesh.h)
+    depth = np.cumsum(hz * levels * 2 ** np.arange(len(levels)))[-1]
+    centroid = np.mean(xyz, axis=0)
+    loc = (xyz - centroid) * 1.0 + centroid  # as discretize did (its expansion factor is 1 without padding): same rounding
+    tri = Delaunay(loc[:, :2])
+    height = LinearNDInterpolator(tri, loc[:, 2])
+    for ii in range(len(levels) - 1, -1, -1):
+        dx, dy, dz = hx * 2 ** ii, hy * 2 ** ii, hz * 2 ** ii
+        nx = int(np.ceil((loc[:, 0].max() - loc[:, 0].min()) / dx))
+        ny = int(np.ceil((loc[:, 1].max() - loc[:, 1].min()) / dy))
+        gx, gy = np.meshgrid(np.linspace(loc[:, 0].min(), loc[:, 0].max(), nx), np.linspace(loc[:, 1].min(), loc[:, 1].max(), ny))
+        xy = np.c_[gx.reshape(-1), gy.reshape(-1)]
+        xy = xy[tri.find_simplex(xy) != -1]
+        pts = np.c_[xy, height(xy)]
+        off = 0
+        while off < depth:
+            if len(pts):
+                mesh.insert_cells(np.c_[pts[:, :2], pts[:, -1] - off], np.ones(len(pts)) * mesh.max_level - ii, finalize=False)
+            off += dz
+        depth -= dz * levels[ii]
+
+
 def build_mesh(req):
     """The octree mesh and its active cells (numpy + discretize only: also used by the plan, in the sidecar process)."""
     import discretize  # noqa: F401
-    from discretize.utils import mesh_builder_xyz, refine_tree_xyz, active_from_xyz
+    from discretize.utils import mesh_builder_xyz, active_from_xyz
     a, b, m, n = _electrodes(req)
     core, depth = float(req["mesh"]["core"]), float(req["mesh"]["depth"])
     elec = np.unique(np.round(np.vstack([a, b, m, n]), 1), axis=0)
     topo = np.asarray(req.get("topo") or [], dtype=float).reshape(-1, 3)
     topo = np.vstack([topo, elec]) if len(topo) else elec
-    mesh = mesh_builder_xyz(elec, [core, core, core / 2], depth_core=depth + 200, padding_distance=[[PAD_M, PAD_M], [PAD_M, PAD_M], [PAD_M, 0]], mesh_type="tree")
-    mesh = refine_tree_xyz(mesh, topo, octree_levels=[0, 1, 2], method="surface", finalize=False)
+    # TASKS.csv #4050 — discretize's refine_tree_xyz (deprecated since 0.9, to be removed) is replaced by the TreeMesh methods it
+    # called, giving the SAME mesh, and diagonal balancing is set explicitly: off, as the mesh has always been built (discretize 1.0
+    # turns it on by default, which would change the mesh and the numbers)
+    mesh = mesh_builder_xyz(elec, [core, core, core / 2], depth_core=depth + 200, padding_distance=[[PAD_M, PAD_M], [PAD_M, PAD_M], [PAD_M, 0]], mesh_type="tree",
+                            tree_diagonal_balance=False)
+    top = mesh.max_level
+    _refine_ground(mesh, topo, (0, 1, 2))
+    # under every line: 2 x core cells within 4 core of the electrodes' column to `depth`, 4 x core cells within 12 core
     deep = np.vstack([elec + [0, 0, -dz] for dz in np.arange(0, depth + 1, core)])
-    mesh = refine_tree_xyz(mesh, deep, octree_levels=[0, 2, 2], method="radial", finalize=False)
-    mesh = refine_tree_xyz(mesh, elec, octree_levels=[2, 2], method="radial", finalize=True)
+    for radius, level in ((4 * core, top - 1), (12 * core, top - 2)):
+        mesh.refine_ball(deep, np.full(len(deep), radius), np.full(len(deep), level), finalize=False)
+    # the electrodes: core cells within 2 core, 2 x core cells within 6 core
+    for radius, level in ((2 * core, top), (6 * core, top - 1)):
+        mesh.refine_ball(elec, np.full(len(elec), radius), np.full(len(elec), level), finalize=False)
+    mesh.finalize()
     active = active_from_xyz(mesh, topo)
     return mesh, active, elec, topo
 
