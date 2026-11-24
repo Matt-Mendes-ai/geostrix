@@ -10,7 +10,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { windowRange } from "../../lib/listWindow.js"; // TASKS.csv #3893
 import { Bookmark, BookmarkPlus, ChevronDown, ChevronUp, Database, Download, RefreshCw, Eye, EyeOff, FileBarChart2, ListFilter, Maximize2, Milestone, PenTool, Pencil, Scissors, ShieldAlert, TerminalSquare, Trash2, Upload, X, Rows3, Crosshair, Compass, Target, Mountain, Shapes, Palette } from "../../components/icons.js";
 import { Ribbon, RibbonGroup, RibbonButton, RIBBON_TONES } from "../../components/Ribbon.jsx";
-import { AddDataIcon, ModelIcon, GridIcon, FigureIcon, ThemesIcon, Slice3dIcon, DrawSectionIcon, FenceIcon, LevelPlanIcon, IdentifyIcon, MeasureIcon, BestInterceptsIcon, GeologyIcon, SnapshotIcon } from "../../components/ribbonIcons.jsx"; // TASKS.csv #3958
+import { AddDataIcon, ModelIcon, GridIcon, FigureIcon, ThemesIcon, Slice3dIcon, DrawSectionIcon, FenceIcon, SectionImageIcon, LevelPlanIcon, IdentifyIcon, MeasureIcon, BestInterceptsIcon, GeologyIcon, SnapshotIcon } from "../../components/ribbonIcons.jsx"; // TASKS.csv #3958
 import HoverToolInfo from "../../components/HoverToolInfo.jsx";
 import RibbonMenu from "../../components/RibbonMenu.jsx"; // TASKS.csv #3928
 import VoxelRangeNumber from "../../components/VoxelRangeNumber.jsx"; // TASKS.csv #1208
@@ -58,6 +58,7 @@ export function ViewToolbar({
   interpretOpen, onInterpret, // TASKS.csv #1152
   show, paneProps, // TASKS.csv #458
   onLevelPlan, // TASKS.csv #525
+  onSectionImage, // TASKS.csv #4048 — Sections > Section image: the Georeference a section image dialog (the sidebar's Section images row opens the same one)
 }) {
   const toggle = (name) => setOpenPopover((p) => (p === name ? null : name));
   // TASKS.csv #2517 — the section Buffer opens at half the drill-site spacing (±12.5 m on a 25 m grid, not ±100 m), until the user types one;
@@ -236,6 +237,7 @@ export function ViewToolbar({
         )}
         <RibbonButton advanced icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
         <RibbonButton advanced icon={FenceIcon} label="Fence series" tone="section" title="Parallel sections at a set azimuth and spacing, on round grid lines" {...paneProps("fence")} />
+        <RibbonButton advanced icon={SectionImageIcon} label="Section image" tone="section" title="Put a scanned or drawn section on its line in 3D: pick the line, click points on the image and type what the figure says." onClick={onSectionImage} />{/* TASKS.csv #4048 */}
         <RibbonButton advanced={!noHoles} icon={LevelPlanIcon} label="Level plan" tone="section" title="Horizontal section (level plan) at an RL: pierce points, logs and assays in a slab, block-model cells and surfaces cut at that elevation" onClick={onLevelPlan} />
       </RibbonGroup>
       <RibbonGroup label="Measure & check">
