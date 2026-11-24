@@ -80,7 +80,7 @@ so it stays valid against an older add-on.
 
 | Package | Locked | Latest (2026-11-23) | GeoStrix relies on it for | Guarded by | Checked |
 |---|---|---|---|---|---|
-| electron | 44.9.3 | 45.4.1 | the desktop app and its browser engine: **review at every release** | npm test; launch the built app before a release | 2026-11-23 |
+| electron | 44.11.5 | 45.4.1 | the desktop app and its browser engine: **review at every release** | npm test; launch the built app before a release | 2026-11-24 |
 | electron-builder | 26.15.3 | 26.18.0 | the installer | the release workflow | 2026-11-23 |
 | electron-updater | 6.8.9 | 6.8.11 | update checks and downloads | the release smoke test's update path (docs/release-smoke-test.md) | 2026-11-23 |
 | three | 0.160.1 | 0.187.0 | every 3D view | npm test (many tests read three's output) | 2026-11-23 |

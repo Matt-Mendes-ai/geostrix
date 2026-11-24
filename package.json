@@ -30,7 +30,7 @@
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "d3-delaunay": "^6.0.4",
-    "electron": "^44.9.3",
+    "electron": "^44.11.5",
     "electron-builder": "^26.15.3",
     "eslint": "9.39.5",
     "eslint-plugin-react": "7.37.5",
@@ -149,7 +149,7 @@
     }
   },
   "allowScripts": {
-    "electron@44.9.3": true,
+    "electron@44.11.5": true,
     "esbuild@0.21.5": true
   }
 }
