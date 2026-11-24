@@ -10,6 +10,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react"; // useEffec
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download, Crosshair, ChevronUp, ChevronDown } from "../components/icons.js"; // Chevron*: #2853 // Crosshair: #2657
 import { requestPlanZoom } from "../lib/planZoom.js"; // TASKS.csv #2657
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
+import RasterScene from "../components/RasterScene.jsx"; import { sceneOfRaster } from "../lib/sceneInfo.js"; // TASKS.csv #4051 — the scene an index was made from
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #3976
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a long job delivers only into the project it started in
 import { buildRasterImport, gridToSurveyRows, ternaryRaster, parseWorldFile, tieFetchedImage, dataUrlPixels } from "../lib/raster.js"; // dataUrlPixels: #1860; // parseWorldFile: TASKS.csv #1855; tieFetchedImage: #2648
@@ -443,6 +444,39 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #1856 — with no collars, the top of the block models, else the surface samples (was 0 m: 1,500 m under Kodiak's ground)
   const defaultElevation = useMemo(() => defaultDrapeElevation({ collars, voxelModels, surfaceSamples }).z, [collars, voxelModels, surfaceSamples]);
 
+  // TASKS.csv #4051 — the true-colour picture of an index's scene (the SAME scene and window, B4 / B3 / B2), placed as a drape named with the scene's date, through the tie when the
+  // project has one. -> the message
+  const placeSceneColour = async (r) => {
+    const tie = tieOf(project);
+    let p = r;
+    if (tie) {
+      const local = await tieFetchedImage(r, tie, Number(tie.epsg), 2048);
+      if (!local) throw new Error(tr("The fetched imagery could not be brought into the local grid through its tie to EPSG:{epsg}.", { epsg: tie.epsg }));
+      p = { ...local, pixelM: r.pixelM && r.gridW ? r.pixelM * Math.max(r.gridW / local.gridW, r.gridH / local.gridH) : null };
+    }
+    addRaster({ name: p.name, bbox: p.bbox, dataUrl: p.dataUrl, elevation: defaultElevation, ...(p.pixelM ? { pixelM: p.pixelM, gridW: p.gridW, gridH: p.gridH } : {}), spectralIndex: { sensor: "sentinel2", scene: r.scene.id, date: r.scene.date, trueColour: true } });
+    return tr("Added \"{name}\".", { name: p.name }) + r.note;
+  };
+  const [sceneColourBusy, setSceneColourBusy] = useState(null);
+  const showSceneColour = async (r) => { // the index layer's own button: the scene is found again by its id, over the area the index was fetched for
+    const sc = sceneOfRaster(r);
+    if (!sc?.areaLonLat || sceneColourBusy) return;
+    setSceneColourBusy(r.id);
+    const job = beginJob(tr("Imagery"));
+    const bar = (await import("../lib/fetchProgress.js")).startFetchProgress(setTaskProgress, { label: tr("Imagery"), stages: [["read", 0.9], ["place", 0.1]], onCancel: () => job.abort() });
+    bar.step("read", 0, 1, tr("Connecting to {source}…", { source: "Sentinel-2" }));
+    try {
+      const { sceneById, fetchSceneTrueColour } = await import("../lib/imageryFetch.js");
+      const tie = tieOf(project);
+      const scene = await sceneById(sc.id, sc.areaLonLat, job.signal);
+      const pic = await fetchSceneTrueColour(scene, sc.areaLonLat, { targetEpsg: tie ? Number(tie.epsg) : project.epsg, signal: job.signal, onProgress: (d, n) => bar.step("read", d, n, tr("Reading the scene's bands {d} of {n}", { d, n })) });
+      if (!(await landed(job))) return;
+      setError({ info: true, text: await placeSceneColour(pic) });
+    } catch (err) {
+      if (!job.gone) setError(isCancelledError(err) ? { info: true, text: tr("Imagery fetch cancelled.") } : { info: false, text: err.message });
+    } finally { setSceneColourBusy(null); bar.end(); job.end(); }
+  };
+
   // TASKS.csv #287 — "Source CRS (EPSG, optional)", the field the vector/collar importers have had
   // since #120/#205 and the raster side never got. Blank = fall back to the file's own CRS tag (a
   // GeoTIFF GeoKey), which is still the common case; typed in = an explicit override, which is the
@@ -626,7 +660,7 @@ export default function RasterModule({ embedded = false } = {}) {
         )}
         {spectralOpen && ( // TASKS.csv #783
           <SpectralIndexModal defaultPreset={defaultSpectralIndex(assays, assayElements)} epsg={tieOf(project) ? null : project?.epsg} tie={tieOf(project) /* #2648 */} defaultElevation={defaultElevation} sourceEpsg={isMineSource(sourceEpsg) ? "" : sourceEpsg /* #2684 — a satellite scene is never on a mine grid */} areaOptions={spectralAreas}
-            onClose={() => setSpectralOpen(false)}
+            onClose={() => setSpectralOpen(false)} onDrape={placeSceneColour /* #4051 */}
             onImport={(raster, msg) => { // TASKS.csv #2294 — placed as a GeoTIFF of the same footprint is (#1505), and said
               const list = [].concat(raster), drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: list[0]?.bbox, rasters, fileName: list[0]?.name, stations: layers?.geophys_pts /* #2868 */ });
               list.forEach((r, k) => addRaster({ ...r, elevation: drape.z + k * 5 })); /* an array: the #807 depth + wavelength maps, stacked 5 m apart */ setSpectralOpen(false); setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` }); }} />
@@ -696,6 +730,7 @@ export default function RasterModule({ embedded = false } = {}) {
               {!r.grid && r.dataUrl && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} onClick={() => exportPicture(r)} />}{/* TASKS.csv #1860 — an RGB plan map, a scan, imagery */}
               {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Use the values of \"{name}\" as survey points", { name: r.name })} title={tr("Use as survey points ({nx}×{ny} grid values, {v}) — for the Geophysics inversion", { nx: r.grid.nx, ny: r.grid.ny, v: gridCellText(r.grid) })} onClick={() => gridAsSurvey(r)} />}
               {r.bbox && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: r.name })} title={tr("Zoom the plan to \"{name}\"", { name: r.name })} onClick={() => requestPlanZoom(r.bbox)} />}{/* TASKS.csv #2657 */}
+              {sceneOfRaster(r)?.sentinel && sceneOfRaster(r).areaLonLat && !sceneOfRaster(r).trueColour && <Image role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: sceneColourBusy ? "default" : "pointer", color: "var(--color-text-secondary)", flexShrink: 0, opacity: sceneColourBusy ? 0.4 : 1 }} aria-label={tr("Show the scene of \"{name}\" in true colour", { name: r.name })} title={tr("Show the scene in true colour")} onClick={() => showSceneColour(r)} />}{/* TASKS.csv #4051 */}
               {rasters.length > 1 && <ChevronUp role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} title={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, -1)} />}{/* #2853 */}
               {rasters.length > 1 && <ChevronDown role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} title={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, 1)} />}
               <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
@@ -826,6 +861,7 @@ export default function RasterModule({ embedded = false } = {}) {
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>
               <input type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85} onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
+            <RasterScene raster={r} />{/* TASKS.csv #4051 — the scene's date */}
             <RasterLegend raster={r} updateRaster={updateRaster} />{/* TASKS.csv #2011 */}
             {!r.grid && !r.ternary && !r.legend && r.dataUrl && <RasterPictureLegend raster={r} updateRaster={updateRaster} />}{/* TASKS.csv #1858 */}
           </div>

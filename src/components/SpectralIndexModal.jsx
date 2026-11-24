@@ -13,7 +13,8 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #963
 import { overlay, panel, header, label, sel, btn } from "../lib/modalStyles.js";
 import { SENSORS, INDEX_PRESETS, compileExpression, evaluateIndex, VEG_NDVI_MAX, DN_ENCODINGS, detectEncoding } from "../lib/spectralIndices.js";
 import { buildRasterImport } from "../lib/raster.js";
-import { IMAGERY_SOURCES, searchScenes, fetchSceneStack } from "../lib/imageryFetch.js";
+import { IMAGERY_SOURCES, searchScenes, fetchSceneStack, fetchSceneTrueColour } from "../lib/imageryFetch.js";
+import { NDSI_SNOW_MIN, ndsiMinOf } from "../lib/snowTest.js"; // TASKS.csv #4051 — the second snow test
 import BasemapView from "./BasemapView.jsx";
 import HyperspectralTab from "./HyperspectralTab.jsx"; // TASKS.csv #807
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -26,7 +27,7 @@ const CUSTOM = "custom";
 
 // tie (TASKS.csv #2648): a tied local grid (lib/localGridTie.js tieOf), epsg null: scenes are fetched in the tie's CRS and the index comes
 // into the grid through it (buildRasterImport's tie path, #2587)
-export default function SpectralIndexModal({ epsg, tie = null, defaultElevation, sourceEpsg, areaOptions = [], defaultPreset = "s2_clay", onImport, onClose }) { // defaultPreset: TASKS.csv #3479 — from the loaded assays
+export default function SpectralIndexModal({ epsg, tie = null, defaultElevation, sourceEpsg, areaOptions = [], defaultPreset = "s2_clay", onImport, onDrape = null, onClose }) { // defaultPreset: TASKS.csv #3479 — from the loaded assays; onDrape: #4051 — the scene in true colour, placed by the Maps tab
   useEscapeKey(onClose);
   useFocusTrap();
   const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
@@ -55,6 +56,11 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
   // TASKS.csv #2010 — the NDVI above which a pixel counts as vegetated, entered by the user (0.4 was fixed; it starts there, said in the label)
   const [vegMax, setVegMax] = useState(String(VEG_NDVI_MAX));
   const vegMaxN = Number.isFinite(Number(vegMax)) && Number(vegMax) > -1 && Number(vegMax) < 1 ? Number(vegMax) : VEG_NDVI_MAX;
+  // TASKS.csv #4051 — a second snow test beside the scene classification (NDSI from green and SWIR 1): on for a Sentinel-2 fetch, the threshold the user's
+  const [snowOn, setSnowOn] = useState(true);
+  const [snowMin, setSnowMin] = useState(String(NDSI_SNOW_MIN));
+  const snowMinN = ndsiMinOf(snowMin);
+  const [colourNote, setColourNote] = useState(null);
 
   const fetchMode = mode === "fetch";
   const activeSensor = fetchMode ? IMAGERY_SOURCES[source].sensor : sensor;
@@ -109,7 +115,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
   };
 
   // the index on a multiband File with `map` (role -> 1-based band), then into the project
-  const makeIndex = async (theFile, map, sensorKey, sourceNote, vegOn, job = null) => { // job: TASKS.csv #3953
+  const makeIndex = async (theFile, map, sensorKey, sourceNote, vegOn, job = null, snowStats = null) => { // job: TASKS.csv #3953; snowStats: #4051
     let blank = 0, total = 0, dark = 0, vegetated = 0, encUsed = null, encGuessed = false;
     const bits = fetchMode ? null : file?.bits ?? null;
     // #2124 — an 8-bit file is not the sensor's surface reflectance: the raster is named after the index and the file only
@@ -130,7 +136,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
     const encNote = encUsed ? " " + tr("Pixel values read as: {v}{d}.", { v: tr(DN_ENCODINGS[encUsed].label), d: encGuessed ? tr(encUsed === "byte" ? " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)" : " (guessed from the values; choose it under \"Pixel values\" if that is wrong)") : "" }) : ""; // #928
     const byteNote = encUsed === "byte" ? " " + tr("8-bit values are picture or raw sensor values, not reflectance: the result ranks pixels within this file only, not comparable with a reflectance product's index.") : ""; // #2124
     if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in
-    onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(encUsed ? { encoding: encUsed } : {}), ...(fetchMode ? { scene: scene.id, date: scene.date } : {}) } }, msg + note + encNote + byteNote);
+    onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(encUsed ? { encoding: encUsed } : {}), ...(fetchMode ? { scene: scene.id, date: scene.date, areaLonLat: area.bboxLonLat, ...(snowStats ? { snow: { scl: snowStats.scl, ndsi: snowStats.ndsi, min: snowStats.min } } : {}) /* #4051 */ } : {}) } }, msg + note + encNote + byteNote);
   };
 
   const run = async () => {
@@ -143,8 +149,8 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
     try {
       if (fetchMode) {
         if (!scene) return;
-        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => { setProgress({ d, n }); bar?.step("read", d, n, tr("Reading the scene's bands {d} of {n}", { d, n })); }, targetEpsg: tie ? Number(tie.epsg) : epsg, signal: job.signal }); // tie: #2648; signal: #3963 — closing its project stops the download
-        await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0, job);
+        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => { setProgress({ d, n }); bar?.step("read", d, n, tr("Reading the scene's bands {d} of {n}", { d, n })); }, targetEpsg: tie ? Number(tie.epsg) : epsg, snow: snowOn && source === "sentinel2" ? { min: snowMinN } : false /* #4051 */, signal: job.signal }); // tie: #2648; signal: #3963 — closing its project stops the download
+        await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0, job, stack.snow);
       } else {
         if (!file || unmapped.length) return;
         const vegOn = vegRoles.length > 0 && !vegUnmapped.length;
@@ -153,6 +159,20 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
     } catch (e) {
       if (!job.gone) setError(isCancelledError(e) ? tr("Spectral index cancelled.") /* #3976 */ : e.message); // #3963 — a project closed mid-download: the banner says it
     } finally { setBusy(false); setProgress(null); bar?.end(); job.end(); } // job: TASKS.csv #3953; bar: #3976
+  };
+
+  // TASKS.csv #4051 — the selected scene in true colour (B4 / B3 / B2, the same window and CRS), as a drape named with its date: what the index saw
+  const showColour = async () => {
+    if (!scene || !area || !onDrape) return;
+    setBusy(true); setError(null); setColourNote(null);
+    const job = startProjectJob ? startProjectJob({ label: tr("Imagery") }) : noJob(tr("Imagery"));
+    try {
+      const r = await fetchSceneTrueColour(scene, area.bboxLonLat, { onProgress: (d, n) => setProgress({ d, n }), targetEpsg: tie ? Number(tie.epsg) : epsg, signal: job.signal });
+      if (!(await landed(job))) return;
+      setColourNote(await onDrape(r));
+    } catch (e) {
+      if (!job.gone) setError(isCancelledError(e) ? tr("Imagery fetch cancelled.") : e.message);
+    } finally { setBusy(false); setProgress(null); job.end(); }
   };
 
   const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
@@ -238,6 +258,19 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
                 <span>{tr("Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios mean something only on exposed rock and soil.{v}", { max: vegMaxN, nir: sens.nir, red: sens.red, v: fetchMode ? tr(" Downloads one more band.") : "" })}{/* #1472 — nothing is downloaded from a file */}</span>
               </label>
             )}
+            {fetchMode && source === "sentinel2" && ( /* TASKS.csv #4051 — the second snow test, on by default */
+              <label style={{ ...small, display: "flex", alignItems: "flex-start", gap: 6, marginTop: 8 }}>
+                <input type="checkbox" checked={snowOn} onChange={(e) => setSnowOn(e.target.checked)} style={{ marginTop: 2 }} />
+                <span>{tr("Also leave out snow the scene classification missed (NDSI, from green and SWIR 1). Downloads up to two more bands.")}</span>
+              </label>
+            )}
+            {fetchMode && source === "sentinel2" && snowOn && (
+              <label style={{ ...small, display: "flex", alignItems: "center", gap: 6, marginTop: 4, marginLeft: 22, flexWrap: "wrap" }}>
+                {tr("Snow above NDSI")}
+                <NumberInput step="0.05" min="-1" max="1" allowEmpty value={snowMin === "" || snowMin == null ? null : snowMin} onChange={(n) => setSnowMin(n == null ? "" : String(n))} aria-label={tr("NDSI above which a pixel is snow")} style={{ width: 64, fontSize: "var(--font-size-sm)" }} />
+                <span>{tr("(0.4 is usual; thin or dirty snow reads lower. Dark water and shadow are not called snow.)")}</span>
+              </label>
+            )}
             {reflective && sens.nir && maskVeg && ( /* TASKS.csv #2010 — the threshold is the user's */
               <label style={{ ...small, display: "flex", alignItems: "center", gap: 6, marginTop: 4, marginLeft: 22 }}>
                 {tr("Vegetated above NDVI")}
@@ -264,8 +297,10 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
             </div>
           )}
           {error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{error}</div>}
+          {colourNote && <div role="status" style={small}>{colourNote}</div>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
             {progress && <span style={small}>{tr("Reading band {v} of {n}…", { v: Math.min(progress.d + 1, progress.n), n: progress.n })}</span>}
+            {fetchMode && source === "sentinel2" && onDrape && <button onClick={showColour} disabled={!scene || busy} title={tr("The red, green and blue bands of this scene over the area, as a layer named with its date: shows what the index saw (snow, cloud, shadow).")} style={{ ...btn(false), padding: "7px 14px", opacity: scene && !busy ? 1 : 0.5 }}>{tr("Show the scene in true colour")}</button>}
             <button onClick={onClose} style={{ ...btn(false), padding: "7px 14px" }}>{tr("Cancel")}</button>
             <button onClick={run} disabled={!canRun} style={{ ...btn(true), padding: "7px 14px", opacity: canRun ? 1 : 0.5 }}>{busy ? (fetchMode ? tr("Fetching…") : tr("Computing…")) : fetchMode ? tr("Fetch and make the index") : tr("Make the index raster")}</button>
           </div>

@@ -10,6 +10,7 @@ import { iconAction, activateOnKey } from "../../lib/a11y.js";
 import { confirmDestructive } from "../../lib/confirmDestructive.js";
 import { lazyPart } from "../../lib/lazyModal.jsx";
 import TerrainCard from "./TerrainCard.jsx";
+import RasterScene from "../../components/RasterScene.jsx"; // TASKS.csv #4051
 import DetailTilesToggle from "./DetailTilesToggle.jsx"; // #3252
 import MiddleName from "../../components/MiddleName.jsx"; // #2852
 const RasterLegend = lazyPart(() => import("../../components/RasterLegend.jsx")); // TASKS.csv #2011; startup size: only where a raster is listed
@@ -44,6 +45,7 @@ export default function RastersTerrainSection({ rasters, terrain, updateTerrain,
           <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit drape mode / elevation for this raster in the Raster tab"))} />
           <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(async () => { if (await confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); }, tr("Remove raster \"{name}\"", { name: r.name }))} />{/* #1088 — confirmed like its menu's Remove… (rasters are not undoable) */}
         </div>
+        <RasterScene raster={r} compact />{/* TASKS.csv #4051 — the scene's date */}
         <RasterLegend raster={r} updateRaster={updateRaster} compact />
         {r.lod && r.drapeMode === "terrain" && <DetailTilesToggle kind="imagery" on={lodTiles.prefs.imagery} chosen onChange={(v) => lodTiles.setPref("imagery", v)} />}{/* #3252 */}
       </React.Fragment>))}

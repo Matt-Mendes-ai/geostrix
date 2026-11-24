@@ -22,7 +22,7 @@ const DONE = {
   "modules/viewer/DomainUpdateSection.jsx": 3,
   "components/SculptPanel.jsx": 2,
   "components/SpatialAnalysis.jsx": 2,
-  "components/SpectralIndexModal.jsx": 2,
+  "components/SpectralIndexModal.jsx": 3,
   "modules/viewer/TrendHelper.jsx": 2,
   "components/HyperspectralTab.jsx": 1,
   "components/TableColumnsModal.jsx": 1,

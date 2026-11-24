@@ -15260,5 +15260,17 @@
   "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Un disque a le même aspect quel que soit son sens de pendage; l'aiguille montre vers où le plan plonge.",
   "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dessin : faites glisser un rectangle sur la vue (ou dans Cartes › Rectangle de série); Échap annule.",
   "Plan stream sites…": "Planifier des sites de cours d'eau…",
-  "Plan new sites: Plan survey › Stream sites": "Planifier de nouveaux sites : Planifier le levé › Sites de cours d'eau"
+  "Plan new sites: Plan survey › Stream sites": "Planifier de nouveaux sites : Planifier le levé › Sites de cours d'eau",
+  "The scene {id} is no longer in the catalogue.": "La scène {id} n'est plus dans le catalogue.",
+  " Snow: {scl} pixels by the scene classification, {ndsi} more by the NDSI test (NDSI above {min}, green reflectance at least {green}).": " Neige : {scl} pixels par la classification de la scène, {ndsi} de plus par le test NDSI (NDSI au-dessus de {min}, réflectance du vert d'au moins {green}).",
+  " Scene {id}, {date}: the red / green / blue surface reflectance of the scene the index was made from, stretched together; snow, cloud and water are shown as they are.": " Scène {id}, {date} : la réflectance de surface rouge / verte / bleue de la scène dont l'indice est tiré, étirée ensemble ; la neige, les nuages et l'eau sont montrés tels quels.",
+  "Also leave out snow the scene classification missed (NDSI, from green and SWIR 1). Downloads up to two more bands.": "Écarter aussi la neige que la classification de la scène n'a pas vue (NDSI, du vert et du SWIR 1). Télécharge jusqu'à deux bandes de plus.",
+  "Snow above NDSI": "Neige au-dessus de NDSI",
+  "NDSI above which a pixel is snow": "NDSI au-dessus duquel un pixel est de la neige",
+  "(0.4 is usual; thin or dirty snow reads lower. Dark water and shadow are not called snow.)": "(0,4 est courant ; la neige mince ou sale donne des valeurs plus basses. L'eau sombre et l'ombre ne sont pas prises pour de la neige.)",
+  "Show the scene in true colour": "Afficher la scène en couleurs naturelles",
+  "The red, green and blue bands of this scene over the area, as a layer named with its date: shows what the index saw (snow, cloud, shadow).": "Les bandes rouge, verte et bleue de cette scène sur la zone, en couche nommée d'après sa date : montre ce que l'indice a vu (neige, nuages, ombre).",
+  "Show the scene of \"{name}\" in true colour": "Afficher la scène de « {name} » en couleurs naturelles",
+  "Sentinel-2 scene of {date}": "Scène Sentinel-2 du {date}",
+  "Scene of {date}": "Scène du {date}"
 }
