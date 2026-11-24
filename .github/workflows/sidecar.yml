@@ -54,6 +54,10 @@ jobs:
       - name: GemPy reference model (#3975)
         working-directory: python-sidecar
         run: python tests/test_reference_gempy.py
+      # TASKS.csv #3975 — app/gempy_threads.py (#4027) replaces gempy_engine's private evaluation step at run time; one thread and four must give the same model
+      - name: GemPy threaded evaluation (#4027)
+        working-directory: python-sidecar
+        run: python tests/test_gempy_threads.py
       # TASKS.csv #557 — the live API checks (token / host guards, 409, cancel, result shape) ran nowhere, and
       # nothing ran one job of each kind through the HTTP + job-process path. A server from source here; the
       # release workflow runs the same two scripts against the frozen exe.
