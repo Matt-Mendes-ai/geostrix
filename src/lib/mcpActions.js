@@ -187,6 +187,21 @@ export const ACTIONS = {
     const { ok, revert, ...rest } = r;
     return { ok: true, tracked: false, data: rest, say: tr("added the grade shell's cells as the block model '{name}'", { name: r.name }), revert };
   },
+  // TASKS.csv #4053 (batch 4) — the Faults pane's own build (sheeted planes, modules/viewer/mcpFaultRun.js): from the logged fault picks / intervals, with the pane's verdicts; instant (no solver)
+  async build_fault(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "fault", name: a.name, evidence: a.evidence, extent: a.extent, margin_m: a.margin_m, sheet_gap_m: a.sheet_gap_m, dip: a.dip, dip_direction: a.dip_direction }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    const n = (r.built || []).length;
+    return { ok: true, tracked: false, data: rest, say: n > 1 ? tr("built the fault '{name}' as {n} sheets", { name: r.name, n }) : tr("built the fault '{name}'", { name: r.name }), revert };
+  },
+  // Model from map (the pane's own run, components/useMcpMapModel.js): the map's age order by default, the relation, the faults the pane's Pick for me keeps; long ('started' + job_status), with the fit card's numbers
+  async model_from_map(a, s) {
+    const r = await viaModule(s, "viewer", "mcp-model", { op: "map_model", map: a.map, order_from: a.order_from, relation: a.relation, faults: a.faults }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, revert, ...rest } = r;
+    return { ok: true, tracked: false, data: rest, say: tr("built the model from the map '{name}'", { name: r.map || a.map || "" }), revert };
+  },
   // the guided Veins and dykes card, and the Alteration halo (guided/guidedTools.js VEINS, ALTERATION), with their verdicts
   async build_vein(a, s) {
     const r = await viaModule(s, "viewer", "mcp-model", { op: "vein", code: a.code }, MODEL_WAIT_MS);

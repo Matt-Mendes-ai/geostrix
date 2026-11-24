@@ -15260,5 +15260,8 @@
   "A disc looks the same dipping either way; the pin shows which way the plane dips.": "يبدو القرص نفسه سواء مال في اتجاه أو آخر؛ ويُظهر الدبوس الاتجاه الذي يميل إليه المستوى.",
   "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "الرسم: اسحب مستطيلًا على العرض (أو في الخرائط › مستطيل السلسلة)، وEsc للإلغاء.",
   "Plan stream sites…": "تخطيط مواقع المجاري…",
-  "Plan new sites: Plan survey › Stream sites": "تخطيط مواقع جديدة: تخطيط المسح › مواقع المجاري"
+  "Plan new sites: Plan survey › Stream sites": "تخطيط مواقع جديدة: تخطيط المسح › مواقع المجاري",
+  "built the fault '{name}'": "بنى الصدع '{name}'",
+  "built the fault '{name}' as {n} sheets": "بنى الصدع '{name}' في {n} ألواح",
+  "built the model from the map '{name}'": "بنى النموذج من الخريطة '{name}'"
 }

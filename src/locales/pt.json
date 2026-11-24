@@ -15260,5 +15260,8 @@
   "A disc looks the same dipping either way; the pin shows which way the plane dips.": "Um disco parece o mesmo mergulhando para um lado ou para o outro; o pino mostra para onde o plano mergulha.",
   "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Desenhando: arraste um retângulo na vista (ou em Mapas › Retângulo da série); Esc cancela.",
   "Plan stream sites…": "Planejar pontos de drenagem…",
-  "Plan new sites: Plan survey › Stream sites": "Planejar novos pontos: Planejar levantamento › Pontos de drenagem"
+  "Plan new sites: Plan survey › Stream sites": "Planejar novos pontos: Planejar levantamento › Pontos de drenagem",
+  "built the fault '{name}'": "construiu a falha '{name}'",
+  "built the fault '{name}' as {n} sheets": "construiu a falha '{name}' em {n} lâminas",
+  "built the model from the map '{name}'": "construiu o modelo a partir do mapa '{name}'"
 }
