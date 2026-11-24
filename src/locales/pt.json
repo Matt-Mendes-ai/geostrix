@@ -15288,5 +15288,8 @@
   "No scene covers the whole area: the best covers {v}% of it.": "Nenhuma cena cobre toda a área: a melhor cobre {v}%.",
   "The first scene is from {month}, outside the clear months: snow and cold ground leave a thermal index only noise. Check the dates of the others.": "A primeira cena é de {month}, fora dos meses claros: a neve e o solo frio deixam um índice térmico apenas com ruído. Confira as datas das outras.",
   "The first scene is a night pass: its thermal index is not comparable with a daytime one.": "A primeira cena é uma passagem noturna: seu índice térmico não é comparável com um diurno.",
-  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "Calcular a média das bandas térmicas 3 × 3 (cerca de 270 m): o seu pontilhado é tão largo quanto um índice de poucos por cento. As listras de varredura e os pixels mais frios que 0 °C são sempre retirados."
+  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "Calcular a média das bandas térmicas 3 × 3 (cerca de 270 m): o seu pontilhado é tão largo quanto um índice de poucos por cento. As listras de varredura e os pixels mais frios que 0 °C são sempre retirados.",
+  "built the fault '{name}'": "construiu a falha '{name}'",
+  "built the fault '{name}' as {n} sheets": "construiu a falha '{name}' em {n} lâminas",
+  "built the model from the map '{name}'": "construiu o modelo a partir do mapa '{name}'"
 }

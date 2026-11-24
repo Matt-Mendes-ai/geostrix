@@ -15288,5 +15288,8 @@
   "No scene covers the whole area: the best covers {v}% of it.": "لا يغطي أي مشهد المنطقة كلها: أفضلها يغطي {v}% منها.",
   "The first scene is from {month}, outside the clear months: snow and cold ground leave a thermal index only noise. Check the dates of the others.": "المشهد الأول من شهر {month}، خارج الأشهر الصافية: الثلج والأرض الباردة لا يتركان للمؤشر الحراري سوى الضوضاء. راجع تواريخ المشاهد الأخرى.",
   "The first scene is a night pass: its thermal index is not comparable with a daytime one.": "المشهد الأول التقاط ليلي: مؤشره الحراري لا يُقارن بمؤشر نهاري.",
-  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "حساب متوسط النطاقات الحرارية 3 × 3 (نحو 270 م): تنقيطها بعرض مؤشر من بضعة بالمئة. تُزال دائماً خطوط المسح والبكسلات الأبرد من 0 °م."
+  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "حساب متوسط النطاقات الحرارية 3 × 3 (نحو 270 م): تنقيطها بعرض مؤشر من بضعة بالمئة. تُزال دائماً خطوط المسح والبكسلات الأبرد من 0 °م.",
+  "built the fault '{name}'": "بنى الصدع '{name}'",
+  "built the fault '{name}' as {n} sheets": "بنى الصدع '{name}' في {n} ألواح",
+  "built the model from the map '{name}'": "بنى النموذج من الخريطة '{name}'"
 }

@@ -4,7 +4,7 @@
 // which takes out exactly the surfaces the run added (generated surfaces are not in GeoStrix's undo history: the toast's Undo is what takes them back). The engine's own progress and Cancel
 // are in the status bar while it runs. guidedRun is loaded on first use (nothing here is in the startup chunk).
 import { useRef } from "react";
-import { useModuleAction } from "../../lib/menuRequests.js";
+import { useModuleAction, requestModuleAction } from "../../lib/menuRequests.js";
 
 const lower = (v) => String(v ?? "").trim().toLowerCase();
 const fail = (error) => ({ ok: false, error });
@@ -13,9 +13,23 @@ const lines = (xs, n) => (xs || []).map(line).filter(Boolean).slice(0, n);
 
 // c(): { store: { layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain }, api (GuidedTool's), removeSurfaces(ids), lastLithBlock,
 // addLithBlockModel, addVoxelModel, removeVoxelModel, isSameProject }
-// p: { op: 'surface', rock } | { op: 'grade_shell', element } | { op: 'block_model' } | #3932 batch 3: { op: 'shell_blocks' } | { op: 'vein', code } | { op: 'alteration', code }
+// p: { op: 'fault', name?, evidence?, extent?, ... } (#4053, batch 4) | { op: 'surface', rock } | { op: 'grade_shell', element } | { op: 'block_model' } | #3932 batch 3: { op: 'shell_blocks' } | { op: 'vein', code } | { op: 'alteration', code }
+// TASKS.csv #4053 — model_from_map: the pane is opened and its own hook (components/useMcpMapModel.js) does the rest; the request waits for the pane's lazy chunk, and one the pane never
+// answered in time is cancelled (expired) so it cannot start a run after the call was refused
+function viaMapPane(now, p) {
+  return new Promise((resolve) => {
+    let started = false, expired = false;
+    const timer = setTimeout(() => { if (!started) { expired = true; resolve(fail("Model from map did not open in GeoStrix. Try again.")); } }, 30000);
+    const env = { getSurfaces: () => now().api?.surfaces || [], getRasters: () => now().store?.rasters || [], getNotices: () => now().notices || [], started: () => { started = true; clearTimeout(timer); }, expired: () => expired, removeSurfaces: () => now().removeSurfaces };
+    try { now().api?.openPane?.("mapmodel", true); } catch { /* no viewer */ }
+    requestModuleAction("mcp-map-model", { map: p.map, order_from: p.order_from, relation: p.relation, faults: p.faults, env, reply: (r) => resolve(r) });
+  });
+}
+
 export async function modelAction(c, p, load = () => import("./guided/guidedRun.js")) {
   if (!p || typeof p !== "object") return fail("Nothing asked.");
+  if (p.op === "map_model") return viaMapPane(c, p); // TASKS.csv #4053 — the Model from map pane, driven as a person would
+  if (p.op === "fault") return (await import("./mcpFaultRun.js")).faultAction(c(), p); // TASKS.csv #4053 — the Faults pane's own build, no guided card
   const G = await load();
   const now = () => c();
   const ctx = p.op === "block_model" || p.op === "shell_blocks" ? null : G.guidedCtx(now().store, () => now().api?.computeIntercepts?.()); // the blocks are the last model's: no tool's ctx

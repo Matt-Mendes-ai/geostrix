@@ -483,6 +483,129 @@
     "_meta": { "geostrix/long": true }
   },
   {
+    "name": "guide_status",
+    "description": "Read-only. Where the open project is in StrixViewer's guided modelling (Model > Start here): each of its seven steps (your data, area and detail, rocks and order, compute or draw, faults and veins, volumes and grade, check it) as done, next, waiting or not needed with its reason and what it offers; the step to do next; the route it suggests for building the surfaces (compute from the logs, draw, or from the geological map) and why; and the one question the guide would ask there, with its suggested answer. Read from the project's tables with the guide card's own readers, so it matches the card; nothing is built. Works without 'Allow AI apps to make changes'. Use it before a build tool to choose one.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "build_fault",
+    "description": "Makes a change in GeoStrix: builds one fault as flat sheeted planes through the fault evidence the holes hold, with the Faults pane's own build (StrixViewer, 3D Modelling > Faults): oriented fault picks and logged fault intervals on the holes, and outcrop fault measurements, placed as the pane places them; the planes are grouped into parallel sheets, each clipped to the ground and to the model box (or, with extent 'finite', to the evidence plus a margin). A mapped, drawn or section fault line is named in 'evidence' and must be the only one of its kind (each line is its own fault in the pane: build several there). Refused with the pane's own verdict when there is too little: no evidence, points on one line (give a dip and dip_direction), nothing inside the extent. The answer gives each sheet's dip and how far its points miss it, what was left out, and says in a warning when the fault is a guess (few points or one hole), reads as folded, or has a sheet that does not fit its points well (a typical miss over 10 m, the pane's own Check distance): do not call such a fault good. Through the box a fault runs past its evidence: there it is extrapolated, not observed. It needs no solver, so it answers at once. It adds surfaces and replaces nothing; the toast's Undo in GeoStrix removes exactly them.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "The fault's name (surfaces are named 'Fault: <name>'). Leave out for 'Fault 1'."
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pick",
+              "logged",
+              "outcrop",
+              "mapped",
+              "drawn",
+              "string"
+            ]
+          },
+          "maxItems": 6,
+          "description": "The kinds of evidence to use: pick (oriented fault picks in core), logged (logged fault intervals), outcrop (outcrop fault measurements), mapped, drawn, string (one line each). Leave out for pick, logged and outcrop."
+        },
+        "extent": {
+          "type": "string",
+          "enum": [
+            "box",
+            "finite"
+          ],
+          "description": "'box': through the model box (the pane's default). 'finite': an ellipse around the evidence plus margin_m."
+        },
+        "margin_m": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5000,
+          "description": "With extent 'finite': the margin round the evidence, in metres (default 200)."
+        },
+        "sheet_gap_m": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Sheets closer than this along their normal are one sheet (default 25 m)."
+        },
+        "dip": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90,
+          "description": "A dip for evidence with no orientation (points on one line). Needs dip_direction."
+        },
+        "dip_direction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 360,
+          "description": "The dip's direction, degrees clockwise from north. Needs dip."
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "model_from_map",
+    "description": "Makes a change in GeoStrix: builds a 3D stratigraphic model from the geological map and the outcrop measurements alone, by running StrixViewer's Model from map pane as a person would (3D Modelling > Model from map): the map's own age order when most units carry an age (else bedding younging), the contact relation you choose (Conformable, the default, or Erosional), and the faults the pane's own 'Pick for me' keeps when the map has more than GemPy takes; then Build the model (GemPy). It is refused with the pane's own reason when there is no geological map with units, no terrain, fewer than two units in the order, no orientation to build from, or more units than GemPy takes (the pane offers a cut: take it in GeoStrix). The answer gives the order used and why, the relation, the faults, and the fit card's numbers: how much of the mapped ground the model matches, unit by unit, and the units that were not scored. A low fit is a finding, not an error: say so. One model at a time; it takes minutes (the status bar shows its progress and Cancel): after about 20 seconds the answer is 'started' with a job_id (check it with job_status; GeoStrix shows when it is done). It adds the model's surfaces and two map pictures and replaces nothing; the toast's Undo in GeoStrix removes exactly them.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "The geological map (polygons) by name. Leave out for the pane's own choice: a mapped layer that is shown."
+        },
+        "order_from": {
+          "type": "string",
+          "enum": [
+            "age",
+            "bedding"
+          ],
+          "description": "'age': the map's own ages (the default when most units carry one). 'bedding': bedding younging."
+        },
+        "relation": {
+          "type": "string",
+          "enum": [
+            "Conformable",
+            "Erosional"
+          ],
+          "description": "Conformable: one shared field, units cannot pinch out (the default). Erosional: each unit truncates those below; same-age neighbours go in one package."
+        },
+        "faults": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "'auto' (the default): the line layer with the most fault lines. 'none': no faults. Or a line layer's name. More faults than GemPy takes: the pane's Pick for me keeps the ones that matter and says why."
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "geostrix/long": true
+    }
+  },
+  {
     "name": "run_drill_planner",
     "description": "Makes a change in GeoStrix: suggests a drill program from the drilled pads, as the Drill program section does, and saves it in the project as a suggestion. It adds no hole: add_program_holes does, after you ask the user. Each candidate hole is scored by the rule per dollar (per metre with no drilling rate): balanced (the default: middle grade x metres plus kappa x its spread), hit (the chance of an intercept), metal (expected grade x metres) or learn (where the model knows least, for step-outs); holes are chosen one by one as if the ones before were drilled. Anywhere the model reaches: a target solid is chosen in GeoStrix itself. It can take a minute: after about 20 seconds the answer is 'started' with a job_id (check it with job_status). The answer has each hole's reason and prediction and the cautions to pass on: exploration targeting, not a resource estimate; a suggestion, not an optimum. One Undo in GeoStrix takes it back.",
     "inputSchema": {
