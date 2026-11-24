@@ -117,7 +117,9 @@ class Jobs:
         with self.lock:
             self._ensure_worker()
             jid = uuid.uuid4().hex[:12]
-            job = {"id": jid, "kind": kind, "state": "running", "progress": 0.0, "message": "Queued", "started": time.time(), "result": None, "error": None}
+            # TASKS.csv #4057 — "worker": the process this job runs in (never sent: _public lists what is)
+            job = {"id": jid, "kind": kind, "state": "running", "progress": 0.0, "message": "Queued", "started": time.time(), "result": None, "error": None,
+                   "worker": self.proc}
             self.jobs[jid] = job
             self.inbox.put((jid, kind, params))
         return job
@@ -128,8 +130,10 @@ class Jobs:
                 msg = outbox.get(timeout=1)
             except queue.Empty:
                 if not proc.is_alive():
+                    # TASKS.csv #4057 — only this worker's jobs: after a cancel kills a worker, the next job may already be running on a
+                    # fresh one, and this pump used to fail it ("stopped unexpectedly", exit code -15) a second later
                     for j in self.jobs.values():
-                        if j["state"] == "running":
+                        if j["state"] == "running" and j.get("worker") is proc:
                             # #689 — say what is known: the exit code, and the two usual causes (on a budget laptop a CPU
                             # without AVX kills TensorFlow at import, which "out of memory?" used to misdiagnose)
                             j.update(state="error", error=f"The modelling process stopped unexpectedly (exit code {proc.exitcode}). Usual causes: not enough free memory, or a processor without AVX, which TensorFlow needs (some budget Celeron / Pentium chips). The add-on's log has the details.")

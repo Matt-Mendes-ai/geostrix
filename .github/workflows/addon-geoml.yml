@@ -46,6 +46,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt -c constraints.txt
+      # TASKS.csv #4057 — cancel, then start at once: the new job finishes (a stand-in worker, no TensorFlow, a few seconds)
+      - name: Cancel race test
+        working-directory: addons/geoml
+        run: python tests/test_cancel_race.py
       - name: PyInstaller with a bootloader compiled here (as the main engine, #456)
         env:
           PYINSTALLER_COMPILE_BOOTLOADER: "1"
