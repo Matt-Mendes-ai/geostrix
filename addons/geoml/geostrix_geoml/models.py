@@ -17,6 +17,12 @@ import numpy as np
 import pandas as pd
 
 MAX_BLOCKS_OUT = 100_000  # GeoStrix's 3D-view cell budget
+# TASKS.csv #4046 — geoML 0.9.4's full_variance (on by default for a new model) draws every realization with the variance the inducing
+# points leave out, by random features, and the prediction integrates it. Measured on a Fast run (about 90,000 blocks): the rock model's
+# job 146 s instead of 63 (its blocks 72 s instead of 16) with the same probabilities, the grade model's 75 s instead of 38, its
+# P10 / P90 15 % of the mean grade wider on #4043's reference. Off, 0.10.15 gives 0.9.3's grade model (within 0.1 %) at 0.9.3's speed; whether the wider
+# spread is worth twice the time is a separate decision (TASKS.csv #4055).
+FULL_VARIANCE = False
 
 
 def _holes(geoml, p):
@@ -178,8 +184,11 @@ def _domain_train(geoml, p, holes, progress):
         field = geoml.latent.BasicGP(walked, size=1, isotropic=True)
     else:
         field = geoml.latent.BasicGP(inp, size=1)
-    model = geoml.models.VGPNetwork(dense, "UNIT", geoml.likelihood.CategoricalGaussianIndicator(2), geoml.latent.Linear(field, size=2),
-                                    options=geoml.models.GPOptions(jitter=1e-6, training_batch_size=500, verbose=False))
+    # TASKS.csv #4046 — geoML 0.9.4 dropped the GP nodes' trained constant (bias=False): away from the holes the field returns to zero,
+    # where both categories sit on the contour, so far blocks drift to a probability of 0.5 — the level the app closes bodies at. The
+    # class prior moves to the likelihood, as geoML's own manual builds categorical models since then.
+    model = geoml.models.VGPNetwork(dense, "UNIT", geoml.likelihood.CategoricalGaussianIndicator(2, bias=True), geoml.latent.Linear(field, size=2),
+                                    options=geoml.models.GPOptions(jitter=1e-6, training_batch_size=500, verbose=False, full_variance=FULL_VARIANCE))
     iterations = int(p.get("iterations", 300))
     progress(0.08, f"Training ({dense.n_data} points, {n_contacts} contacts)")
     if deep:
@@ -326,7 +335,7 @@ def run_grade(p, progress):
     positive = vals[vals > 0]
     shift = float(np.nanmin(positive)) / 2 if positive.size else 1.0  # Box-Cox needs > 0; half the smallest grade
     lik = geoml.likelihood.Gaussian(geoml.warping.ChainedWarping(geoml.warping.BoxCox(1, shift=shift), geoml.warping.ZScore(1)))
-    model = geoml.models.VGPNetwork(pts, name, lik, gp, options=geoml.models.GPOptions(verbose=False))
+    model = geoml.models.VGPNetwork(pts, name, lik, gp, options=geoml.models.GPOptions(verbose=False, full_variance=FULL_VARIANCE))
     progress(0.08, f"Training ({pts.n_data} composites)")
     _train(model, int(p.get("iterations", 300)), progress, 0.08, 0.75, "Training")
 

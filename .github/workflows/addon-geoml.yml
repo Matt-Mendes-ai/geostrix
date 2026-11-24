@@ -40,11 +40,12 @@ jobs:
           $code = (Select-String -Path geostrix_geoml/server.py -Pattern '^ADDON_VERSION\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
           if ($rel -ne $code) { Write-Error "release.json says $rel but server.py ADDON_VERSION is $code - bump release.json first"; exit 1 }
           Write-Host "Building add-on $code"
+      # TASKS.csv #4046 — the whole tree pinned (constraints.txt), not whatever PyPI had on the day of the build
       - name: Install the add-on's dependencies
         working-directory: addons/geoml
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          python -m pip install -r requirements.txt -c constraints.txt
       - name: PyInstaller with a bootloader compiled here (as the main engine, #456)
         env:
           PYINSTALLER_COMPILE_BOOTLOADER: "1"

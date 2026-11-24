@@ -20,7 +20,7 @@ Stationary or "deep" (fold-following, geoML's `GPWalk`) models for `domain`; Box
 
 ```
 python -m venv venv
-venv\Scripts\pip install -r requirements.txt
+venv\Scripts\pip install -r requirements.txt -c constraints.txt
 set GEOSTRIX_ADDON_TOKEN=some-secret
 venv\Scripts\python run_addon.py      # http://127.0.0.1:8766
 ```
