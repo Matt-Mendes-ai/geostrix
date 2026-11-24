@@ -27,6 +27,13 @@ async function pickPort(preferred) {
   return null;
 }
 
+// TASKS.csv #4046 — numeric dotted versions ("0.1.10" after "0.1.9")
+function versionCompare(a, b) {
+  const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; }
+  return 0;
+}
+
 function createAddonManager({ app, net, send }) {
   const running = {}; // id -> { proc, token, port }
   const installs = {}; // id -> { request, cancelled }
@@ -47,14 +54,34 @@ function createAddonManager({ app, net, send }) {
   const installedDir = (id, info) => path.join(root(id), info.version);
   const exePath = (id, info) => path.join(installedDir(id, info), info.exe);
   const devOverride = (id) => (app.isPackaged ? null : process.env[`GEOSTRIX_ADDON_${id.toUpperCase()}_EXE`] || null); // #744
+  // TASKS.csv #4046 — the add-on installed may be older than the one this build's release.json names (GeoStrix updated, the add-on
+  // not yet): it lives in userData/addons/<id>/<its version>/ and still runs, so a user who does not update keeps modelling. Before,
+  // only the folder of release.json's version counted and an installed 0.1.5 looked missing, a 550 MB download away.
+  function installedVersion(id, info) {
+    if (fs.existsSync(exePath(id, info))) return info.version;
+    let best = null;
+    try {
+      for (const v of fs.readdirSync(root(id))) {
+        if (!/^\d+(\.\d+)*$/.test(v) || !fs.existsSync(path.join(root(id), v, info.exe))) continue;
+        if (!best || versionCompare(v, best) > 0) best = v;
+      }
+    } catch { /* no add-on folder */ }
+    return best;
+  }
+  const runExe = (id, info) => { const v = installedVersion(id, info); return v ? path.join(root(id), v, info.exe) : exePath(id, info); };
 
   function status(id) {
     const info = releaseInfo(id);
     if (!info) return { id, available: false, reason: "This GeoStrix build doesn't know this add-on." };
     const dev = devOverride(id);
-    const installed = !!dev || fs.existsSync(exePath(id, info));
+    const have = dev ? null : installedVersion(id, info);
+    const installed = !!dev || !!have;
     let sizeOnDisk = null;
-    return { id, available: true, name: info.name, version: info.version, licence: info.licence, downloadBytes: info.bytes, installedBytes: info.installedBytes,
+    // #4046 — version: the add-on installed (release.json's when none is); latestVersion: release.json's; update: an older one runs and
+    // release.json's download is that version's (between steps 1 and 3 of the add-on workflow it still names the previous zip)
+    const published = !!info.url && !!info.sha256 && info.url.includes(`-${info.version}-`);
+    return { id, available: true, name: info.name, version: have || info.version, latestVersion: info.version, update: !!have && have !== info.version && published,
+      licence: info.licence, downloadBytes: info.bytes, installedBytes: info.installedBytes,
       installed, dev: !!dev, running: !!running[id], installing: !!installs[id], url: info.url, sizeOnDisk };
   }
 
@@ -145,8 +172,13 @@ function createAddonManager({ app, net, send }) {
       if (process.platform === "win32" && !fs.existsSync(tar)) throw new Error("This version of Windows has no built-in zip extractor (tar.exe, Windows 10 1803 or later).");
       await new Promise((resolve, reject) => execFile(tar, ["-xf", zip, "-C", dir], { windowsHide: true, maxBuffer: 16 * 1024 * 1024 }, (err) => (err ? reject(new Error(`Unpacking failed: ${err.message}`)) : resolve())));
       if (!fs.existsSync(exePath(id, info))) throw new Error("The add-on was unpacked but its program is missing.");
-      // older versions of this add-on are removed once the new one is in place
-      for (const v of fs.readdirSync(root(id))) if (v !== info.version && !v.endsWith(".log")) fs.rmSync(path.join(root(id), v), { recursive: true, force: true });
+      // older versions of this add-on are removed once the new one is in place; #4046 — an older one may be the one running (an
+      // update): stopped first, since Windows will not delete a running program's files, and a folder that still will not go is
+      // left for the next install rather than failing one that has succeeded
+      stop(id);
+      for (const v of fs.readdirSync(root(id))) {
+        if (v !== info.version && !v.endsWith(".log")) { try { fs.rmSync(path.join(root(id), v), { recursive: true, force: true }); } catch { /* left for next time */ } }
+      }
       delete installs[id];
       send({ id, phase: "done" });
       return status(id);
@@ -162,8 +194,8 @@ function createAddonManager({ app, net, send }) {
     const info = releaseInfo(id);
     if (!info) return { id, available: false };
     const dev = devOverride(id);
-    const exe = dev || exePath(id, info);
-    const base = { id, available: true, name: info.name, version: info.version, licence: info.licence, installed: fs.existsSync(exe) };
+    const exe = dev || runExe(id, info); // #4046 — the add-on installed, which may be older than release.json's
+    const base = { id, available: true, name: info.name, version: dev ? info.version : installedVersion(id, info) || info.version, licence: info.licence, installed: fs.existsSync(exe) };
     if (!base.installed) return base;
     const dir = path.dirname(exe);
     const read = (f, cap) => {
@@ -234,7 +266,7 @@ function createAddonManager({ app, net, send }) {
     const dev = devOverride(id);
     let cmd, args = [];
     if (dev && dev.includes("|")) { [cmd, ...args] = dev.split("|"); }
-    else { cmd = dev || exePath(id, info); }
+    else { cmd = dev || runExe(id, info); } // #4046
     if (!fs.existsSync(cmd)) throw new Error("The add-on isn't installed.");
     // TASKS.csv #698 — the add-on takes ~590 MB once TensorFlow is loaded and up to ~1.9 GB while a model runs; on an
     // 8 GB laptop beside GeoStrix and the Python engine it used to fail minutes in with "stopped unexpectedly (out of
@@ -267,4 +299,4 @@ function createAddonManager({ app, net, send }) {
   return { status, notices, cpuCheck, install, cancelInstall, uninstall, ensure, stop, connection, stopAll };
 }
 
-module.exports = { createAddonManager, ADDON_PORTS, pickPort }; // pickPort: exported for test/addons694 (#694)
+module.exports = { createAddonManager, ADDON_PORTS, pickPort, versionCompare }; // pickPort: exported for test/addons694 (#694); versionCompare for #4046

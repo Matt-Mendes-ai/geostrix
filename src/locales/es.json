@@ -5299,7 +5299,6 @@
   "Imports {toImport} QC sample(s){v}; {unclassified} left out.": "Importa {toImport} muestra(s) de control{v}; {unclassified} quedan fuera.",
   "Starting the add-on": "Iniciando el complemento",
   "Starting the add-on ({s} s — the first start is slower)": "Iniciando el complemento ({s} s — el primer inicio es más lento)",
-  " — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)": " — la tendencia \"{name}\" NO se aplicó: esta versión del complemento ({v}) es anterior a las tendencias; actualícelo (Quitar el complemento y luego instalar de nuevo)",
   "; following the trend \"{name}\"": "; siguiendo la tendencia \"{name}\"",
   "contact surface {tri} triangles (darker = less certain)": "superficie de contacto {tri} triángulos (más oscuro = menos seguro)",
   "{cells} blocks of {cell} m with the probability of {name} (showing ≥ 50%) and its uncertainty (hidden){v}": "{cells} bloques de {cell} m con la probabilidad de {name} (se muestra ≥ 50%) y su incertidumbre (oculta){v}",
@@ -5310,7 +5309,6 @@
   "gate times": "tiempos de ventana",
   "model": "modelo",
   "from Gaussian processes (": "a partir de procesos gaussianos (",
-  ", Ítalo Gonçalves). Results appear in the 3D view beside your other models, named \"geoML — …\", so you can compare them. Everything runs on this computer.": ", Ítalo Gonçalves). Los resultados aparecen en la vista 3D junto a sus otros modelos, con el nombre \"geoML — …\", para poder compararlos. Todo corre en este equipo.",
   "Checking the add-on…": "Revisando el complemento…",
   "Install the add-on": "Instalar el complemento",
   "What you get:": "Qué obtiene:",
@@ -14292,7 +14290,6 @@
   "Struck through: {rules} land above every sample (or over 100 %) and find no anomaly here, often a sign of two populations. Separate them with the Populations selector; these rules cannot be saved.": "Tachadas: {rules} quedan por encima de todas las muestras (o por encima de 100 %) y no encuentran ninguna anomalía aquí, a menudo señal de dos poblaciones. Sepárelas con el selector de Poblaciones; estas reglas no se pueden guardar.",
   "{zero} {symbol} result(s) in \"{pop}\" are 0 in the source (below detection or not analyzed: the layer does not say) and are left out of n and every threshold. If below detection, the thresholds read high.": "{zero} resultado(s) de {symbol} en \"{pop}\" son 0 en la fuente (bajo detección o no analizados: la capa no lo indica) y quedan fuera de n y de todos los umbrales. Si están bajo detección, los umbrales resultan altos.",
   "a download{v} from GitHub, {v2} (with TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most since 2012).": "una descarga{v} desde GitHub, {v2} (con TensorFlow), unos 2 GB de memoria libre mientras corre un modelo, y un procesador con AVX (la mayoría desde 2012).",
-  "On 20 to 40 holes, Fast and Standard take a few minutes; time grows with holes and quality, so start with Fast. {v}": "Con 20 a 40 sondajes, Rápido y Estándar tardan unos minutos; el tiempo crece con los sondajes y la calidad, así que comience con Rápido. {v}",
   "Added \"{name}\" to the map on the ground interpolated between the collars (the project has no terrain). Its values export as GeoTIFF from the Raster module.": "Se añadió \"{name}\" al mapa sobre el terreno interpolado entre los collares (el proyecto no tiene terreno). Sus valores se exportan como GeoTIFF desde el módulo Ráster.",
   "Blank = automatic: the longest side / 500, coarsened at the cell limit. A soil grid at 25-50 m wants a cell about half its spacing.": "Vacío = automático: el lado más largo / 500, engrosado en el límite de celdas. Una malla de suelos a 25-50 m pide una celda de cerca de la mitad de su espaciado.",
   "The {c} m cell would exceed the grid's cell limit over this area, so it was coarsened to {d} m. A smaller area keeps it.": "La celda de {c} m superaría el límite de celdas de la grilla en esta área, así que se engrosó a {d} m. Un área menor la conserva.",
@@ -15288,5 +15285,10 @@
   "No scene covers the whole area: the best covers {v}% of it.": "Ninguna escena cubre toda el área: la mejor cubre el {v}%.",
   "The first scene is from {month}, outside the clear months: snow and cold ground leave a thermal index only noise. Check the dates of the others.": "La primera escena es de {month}, fuera de los meses despejados: la nieve y el suelo frío dejan a un índice térmico solo ruido. Revise las fechas de las demás.",
   "The first scene is a night pass: its thermal index is not comparable with a daytime one.": "La primera escena es un pase nocturno: su índice térmico no es comparable con uno diurno.",
-  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "Promediar las bandas térmicas 3 × 3 (unos 270 m): su moteado es tan ancho como un índice de pocos por ciento. Las rayas de barrido y los píxeles más fríos que 0 °C siempre se quitan."
+  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "Promediar las bandas térmicas 3 × 3 (unos 270 m): su moteado es tan ancho como un índice de pocos por ciento. Las rayas de barrido y los píxeles más fríos que 0 °C siempre se quitan.",
+  " — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it": " — la tendencia \"{name}\" NO se aplicó: esta versión del complemento ({v}) es anterior a las tendencias; actualícelo",
+  ", Ítalo Gonçalves). Results appear in the 3D view as \"geoML — …\" beside your other models. Everything runs on this computer.": ", Ítalo Gonçalves). Los resultados aparecen en la vista 3D como \"geoML — …\" junto a sus otros modelos. Todo corre en este equipo.",
+  "Time grows with holes and quality: start with Fast. {v}": "El tiempo crece con los sondajes y la calidad: comience con Rápido. {v}",
+  "Add-on {v} still works; {v2} is available.": "El complemento {v} sigue funcionando; está disponible la {v2}.",
+  "Update to {v}…": "Actualizar a {v}…"
 }
