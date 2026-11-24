@@ -39,7 +39,7 @@ test("the frame maps stations and pseudo-depths inside the margins", () => {
 test("the panel draws the toggle, both axes, the colour bar and the convention", () => {
   const src = readFileSync(new URL("../src/components/DcipPanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const body = src.slice(src.indexOf("function Pseudosection("), src.indexOf("function SectionResult("));
-  for (const s of ['tr("Chargeability")', 'tr("Distance along the line (m)")', 'tr("Pseudo-depth (m)")', "sc.bar.map", "Each reading sits midway between the current electrode(s)", "pseudoColourScale(vals, field)"]) {
+  for (const s of ['tr("Chargeability")', 'tr("Distance along the line (m)")', 'tr("Pseudo-depth (m)")', "sc.bar.map", "Each reading sits midway between the current electrode(s)", "pseudoColourScale(vals, field, 24, parsed.ipKind === \"phase\" ? \"mrad\" : \"mV/V\")"]) {
     assert.ok(body.includes(s), s);
   }
 });

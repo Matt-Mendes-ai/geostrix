@@ -19,7 +19,7 @@ export const INTERVAL_FROM_ALIASES = ["from", "from_m", "depth_from", "from_dept
 export const INTERVAL_TO_ALIASES = ["to", "to_m", "depth_to", "to_depth", "todepth", "depthto", "mto", "m_to", "dto", "geolto", "sampto", "geol_to", "samp_to", "interval_to", "end_depth", "enddepth", "depth_end"];
 function intervalFields(valueAliases, extraAliases, numeric, descriptionAliases) {
   const fields = [
-    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
+    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "siteid", "site_id"] },
     { key: "from", label: "From", required: true, aliases: INTERVAL_FROM_ALIASES },
     { key: "to", label: "To", required: true, aliases: INTERVAL_TO_ALIASES },
     // TASKS.csv #320 — "value"/"val" as LAST-resort aliases: a hand-built hole_id,from,to,value file left
@@ -41,16 +41,16 @@ export const EPSG_COL_ALIASES = ["epsg_srid", "source_epsg", "epsg", "srid", "cr
 
 export const TARGET_SCHEMAS = {
   collars: { label: "Collars", fields: [
-    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "hole_name"] },
-    { key: "x", label: "Easting (X)", required: true, aliases: ["x", "easting", "east", "utm_e", "utme"] },
-    { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north", "utm_n", "utmn"] },
+    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "hole_name", "siteid", "site_id"] },
+    { key: "x", label: "Easting (X)", required: true, aliases: ["x", "easting", "east", "utm_e", "utme", "collar_me", "collar_e", "collar_x"] },
+    { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north", "utm_n", "utmn", "collar_mn", "collar_n", "collar_y"] },
     { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z"] },
     { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azim_grid", "azi", "az", "brg", "bearing", "collar_az", "hole_az"] }, // collar_az / hole_az: #1655 (acQuire's Collar_Az_D; 'az' alone matches a whole header only) // az / brg / bearing: #546; azim_grid: GeoStrix's own collar export (#577) — exact, so it beats azim_true
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip", "inclination", "incl"] }, // #605: inclination (MX-style collar sheets)
     { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "td", "depth"] }, // td: #2151 (WAMEX); #600: "Actual depth" before a planned "Target depth"
   ], dipConvention: true },
   survey: { label: "Survey", fields: [
-    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
+    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "siteid", "site_id"] },
     { key: "depth", label: "Depth", required: true, aliases: ["depth", "at", "md", "station", "dist", "distance"] }, // dist: #1105 (Micromine HOLEID, DIST, AZIMUTH, DIP)
     { key: "azimuth", label: "Azimuth", required: true, aliases: ["azimuth", "azi", "az", "azim", "brg", "bearing"] }, // brg / bearing: Datamine (#546)
     { key: "dip", label: "Dip", required: true, aliases: ["dip", "inclination", "incl"] },
@@ -90,7 +90,7 @@ export const TARGET_SCHEMAS = {
     { key: "depth", label: "Depth (point readings, instead of From / To)", required: false, aliases: ["depth", "depth_m", "md", "at"] },
   ] },
   structure: { label: "Structure planes", fields: [
-    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
+    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "siteid", "site_id"] },
     { key: "depth", label: "Depth", required: true, aliases: ["depth_m", "depth", "at", "md", "geolfrom", "from"] }, // geolfrom / from: #1345 (acQuire point table, GEOLFROM = GEOLTO)
     { key: "value", label: "Structure type", required: true, aliases: ["structure_type", "stpt_feature", "type", "struct", "structure"] },
     { key: "dip", label: "Dip (optional)", required: false, aliases: ["inferred_dip_deg", "dip"] },
@@ -110,7 +110,7 @@ export const TARGET_SCHEMAS = {
     { key: "overturned", label: "Overturned / younging (optional — Y, overturned, -1 or down = overturned)", required: false, aliases: ["overturned", "younging", "facing", "polarity", "way_up"] },
   ] },
   custom: { label: "Custom layer", fields: [
-    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
+    { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "siteid", "site_id"] },
     { key: "from", label: "From (leave unset if point data)", required: false, aliases: INTERVAL_FROM_ALIASES },
     { key: "to", label: "To (leave unset if point data)", required: false, aliases: INTERVAL_TO_ALIASES },
     { key: "depth", label: "Depth (for point data)", required: false, aliases: ["depth", "at", "md", "event_depth", "depth_m"] }, // event_depth: #2317

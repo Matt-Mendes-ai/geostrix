@@ -12,6 +12,7 @@ import { normalizeCommaDecimals } from "./numberLocale.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #3031
 import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
+import { sl3ToTable } from "./sl3Table.js"; // TASKS.csv #4060 — Queensland's SL3 'H / D' tables
 
 // Bytes -> text. UTF-8 first (BOM stripped); if that produced replacement characters, the file was not
 // UTF-8 — almost always an Excel export on Windows (Windows-1252: degree signs, accented names).
@@ -218,12 +219,14 @@ export function fastLogScan(text, logRead, dynamicTyping) {
 // TASKS.csv #3544 — the text's preparation (comments, a space-separated table, a preamble) and the per-header typing rule, shared by
 // parseTableText and parseTableTextSliced so the two read every file the same way
 function tablePrologue(text, comments) {
+  const sl3 = sl3ToTable(text); // TASKS.csv #4060 — a Queensland SL3 'H / D' table becomes an ordinary table first
+  if (sl3) text = sl3.text;
   ({ text } = stripLeadingComments(text, comments)); // #720
   const spaced = spaceTableToTabs(text); // #2017
   if (spaced != null) text = spaced;
   let preamble = 0, banner = false;
   ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
-  return { text, spaced, preamble, banner };
+  return { text, spaced, preamble, banner, sl3: sl3?.note || "" };
 }
 function typingRule(text) {
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
@@ -232,7 +235,7 @@ function typingRule(text) {
   return (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
 }
 // the rows from Papa's result: comma decimals, the notes; shared by both readers (#3544)
-function tableEpilogue(res, text, { spaced, preamble, banner }, extra) {
+function tableEpilogue(res, text, { spaced, preamble, banner, sl3 }, extra) {
   // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
   // ("1,5"), so when the raw text has no quoted comma number the column-by-column scan (every row x column:
   // 1.4 s of a 4.4 s parse on an 83,670 x 109 assay export) is skipped. Semicolon / tab files are scanned as before.
@@ -240,7 +243,7 @@ function tableEpilogue(res, text, { spaced, preamble, banner }, extra) {
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
   const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
   const sp = spaced != null ? tr("Read as a space-separated table ({n} columns).", { n: (res.meta.fields || []).length }) : ""; // #2017
-  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...extra };
+  return { rows, headers: res.meta.fields || [], note: [note, sl3, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...extra };
 }
 
 export function parseTableText(text, { comments = "#", columnar = false, keep = null, holes = null, composite = null, logRead = null } = {}) {

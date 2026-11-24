@@ -9,7 +9,7 @@ import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
 import { Upload, Play, Download, Trash2 } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes, toExportCsv } from "../lib/tabular.js";
-import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineTagOf, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine, ipRequest } from "../lib/dcip.js"; // ipRequest: TASKS.csv #2704
+import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineTagOf, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine, ipRequest, ipKindOfColumn } from "../lib/dcip.js"; // ipKindOfColumn: TASKS.csv #4059 — an IP phase column is not a chargeability // ipRequest: TASKS.csv #2704
 import { renderDcipSectionPng, sig3, rampRange } from "../lib/dcipSectionImage.js"; // sig3: #322; rampRange: #2073
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
@@ -176,8 +176,8 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       // same rule now (kept unplaced, as the multi-file import keeps a line it cannot place); a line already in the project is left as it is
       const keptName = f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
       const newlyKept = !!(p?.readings.length && !(dcipLines || []).some((l) => l.name === keptName));
-      if (newlyKept) { const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : ""; saveDcipLine({ name: keptName, readings: p.readings, rho: p.rho, ip: p.ip, ...(p.err ? { err: p.err } : {}), line: { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() }); }
-      setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? tr(", with chargeability") : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: "" /* #2704 — a missing chargeability no longer skips a row */ }) : "" }) + (p.noIp ? " " + tr("{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.", { n: p.noIp }) /* #2704 */ : "") /* #2076 */ + (t.note ? " " + t.note : "") + (newlyKept ? " " + tr("Kept in the project as \"{name}\" (place it on the map before inverting).", { name: keptName }) : "") } // #1974; kept: #2026
+      if (newlyKept) { const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : ""; saveDcipLine({ name: keptName, readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, ...(p.err ? { err: p.err } : {}), line: { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() }); }
+      setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? (p.ipKind === "phase" ? tr(", with IP phase (mrad)") : tr(", with chargeability")) : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: "" /* #2704 — a missing chargeability no longer skips a row */ }) : "" }) + (p.noIp ? " " + (p.ipKind === "phase" ? tr("{n} reading(s) have a resistivity but no IP phase: the resistivity model uses them, the IP phase model leaves them out.", { n: p.noIp }) : tr("{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.", { n: p.noIp })) /* #2704 */ : "") + (p.ipKind === "phase" ? " " + tr("The IP column {col} is read as frequency-domain IP phase (mrad), not as chargeability (mV/V). The inversion takes it as an IP proxy: its model is of phase, comparable only with other phase data.", { col: m.ip }) /* #4059 */ : "") /* #2076 */ + (t.note ? " " + t.note : "") + (newlyKept ? " " + tr("Kept in the project as \"{name}\" (place it on the map before inverting).", { name: keptName }) : "") } // #1974; kept: #2026
         : { ok: false, text: tr("Choose the columns for A, M and the apparent resistivity in the lists above.") });
     } catch (e) { setMsg({ ok: false, text: tr("Could not read {name}: {message}", { name: f.name, message: e.message }) }); }
   };
@@ -223,7 +223,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         const placed = linePlacement(name, files, to) || (p.lineTag ? linePlacement(p.lineTag, files, to) : null); // #2020 — the header's LINE: tag
         if (!placed) unplaced.push(name);
         const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
-        saveDcipLine({ name, readings: p.readings, rho: p.rho, ip: p.ip, ...(p.err ? { err: p.err } : {}), line: placed || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() });
+        saveDcipLine({ name, readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, ...(p.err ? { err: p.err } : {}), line: placed || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() });
         kept++; readings += p.readings.length;
       } catch (e) { problems.push(`${f.name}: ${e.message}`); }
     }
@@ -236,7 +236,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
   };
   // TASKS.csv #322 — keep the line (normalised readings + placement + settings) in the project file
   const lineName = file ? file.name.replace(/\.(csv|txt|dat|ipg)$/i, "") : "";
-  const keepLine = (extra = {}) => saveDcipLine({ name: lineName, readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, ...(parsed.err ? { err: parsed.err } : {}), line: { ...line }, opts: { ...opts }, savedAt: new Date().toISOString(), ...extra });
+  const keepLine = (extra = {}) => saveDcipLine({ name: lineName, readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, ipKind: parsed.ipKind, ...(parsed.err ? { err: parsed.err } : {}), line: { ...line }, opts: { ...opts }, savedAt: new Date().toISOString(), ...extra });
   const loadSaved = (id) => {
     const e = dcipLines.find((l) => l.id === id);
     if (!e) return;
@@ -293,9 +293,9 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     if (!geom) problems.push(tr("Place the line: load its GPS / station file, or type two points on it (position and x / y)."));
     if (!(num(opts.cell) > 0) || !(num(opts.depth) > num(opts.cell))) problems.push(tr("Enter the cell size and model depth."));
     if (!(num(opts.pct) > 0) && !(num(opts.floor) > 0)) problems.push(tr("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading."));
-    if (parsed?.ip && !(num(opts.ipPct) > 0) && !(num(opts.ipFloor) > 0)) problems.push(tr("Enter the chargeability uncertainty (% and / or a floor in mV/V)."));
+    if (parsed?.ip && !(num(opts.ipPct) > 0) && !(num(opts.ipFloor) > 0)) problems.push(parsed.ipKind === "phase" ? tr("Enter the IP phase uncertainty (% and / or a floor in mrad).") : tr("Enter the chargeability uncertainty (% and / or a floor in mV/V)."));
     // TASKS.csv #564 — a percent of 0 mV/V is 0: that reading would get zero uncertainty (infinite weight)
-    else if (parsed?.ip && !(num(opts.ipFloor) > 0) && parsed.ip.some((v) => v != null && !(Math.abs(v) > 0))) problems.push(tr("{n} chargeability reading(s) are 0 mV/V: a percent alone gives them no uncertainty. Enter a floor in mV/V as well.", { n: parsed.ip.filter((v) => v != null && !(Math.abs(v) > 0)).length })); // v != null: a missing one is not used (#2704)
+    else if (parsed?.ip && !(num(opts.ipFloor) > 0) && parsed.ip.some((v) => v != null && !(Math.abs(v) > 0))) { const nz = parsed.ip.filter((v) => v != null && !(Math.abs(v) > 0)).length; problems.push(parsed.ipKind === "phase" ? tr("{n} IP phase reading(s) are 0 mrad: a percent alone gives them no uncertainty. Enter a floor in mrad as well.", { n: nz }) : tr("{n} chargeability reading(s) are 0 mV/V: a percent alone gives them no uncertainty. Enter a floor in mV/V as well.", { n: nz })); } // v != null: a missing one is not used (#2704)
     let topo = null, groundNote = "", readingsH = parsed?.readings, posNote = "", lineGeom = geom;
     if (parsed && geom) {
       const st = line.stations?.list || [];
@@ -356,14 +356,15 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       ...(lineGeom.scale !== 1 ? { chainingScale: lineGeom.scale } : {}), ...(line.stations ? { stations: `${line.stations.list.length} from ${line.stations.file} (line ${line.stations.line})` } : {}),
       mesh: { cellM: num(opts.cell), depthM: num(opts.depth), verticalCellM: num(opts.cell) / 2 },
       geometricFactor: (opts.geomFactor || "flat") === "flat" ? "flat ground (the file's apparent resistivities use nominal electrode spacings)" : "electrodes on the topography (the file's apparent resistivities are already topography-corrected)", // #580
-      uncertainty: { resistivityPercent: num(opts.pct) || 0, resistivityFloor: num(opts.floor) || 0, ...(parsed.ip ? { chargeabilityPercent: num(opts.ipPct) || 0, chargeabilityFloorMvV: num(opts.ipFloor) || 0 } : {}), source: parsed.err && (opts.errKind === "rhoPct" || (opts.errKind === "ipMvV" && parsed.ip)) ? `entered by user; per-reading floor from the file's column ${mapping.err} (${opts.errKind === "rhoPct" ? "resistivity error, %" : "chargeability error, mV/V"})` : "entered by user" },
+      uncertainty: { resistivityPercent: num(opts.pct) || 0, resistivityFloor: num(opts.floor) || 0, ...(parsed.ip ? { chargeabilityPercent: num(opts.ipPct) || 0, chargeabilityFloorMvV: num(opts.ipFloor) || 0, ipKind: parsed.ipKind /* #4059 — the two fields above hold mrad for a phase */ } : {}), source: parsed.err && (opts.errKind === "rhoPct" || (opts.errKind === "ipMvV" && parsed.ip)) ? `entered by user; per-reading floor from the file's column ${mapping.err} (${opts.errKind === "rhoPct" ? "resistivity error, %" : "chargeability error, mV/V"})` : "entered by user" },
       crs: project?.crsSet === false ? "not set" : `EPSG:${project?.epsg}`, // #2242 interpretation: "One smooth model that fits the data to the stated uncertainty (2.5D: the ground is assumed not to change along strike, across the line). Deep and edge cells are poorly constrained — see the support.",
     };
     const token = getProjectToken();
     const res = await startInversionJob(request, meta, {
       kind: "dcip2d", setTaskProgress, startJob: startProjectJob, // #3953 — its line, its result and its sections go to its own project only
       onDone: (result) => {
-        setLast({ result, geom: lineGeom, name, thick: num(opts.cell), obs: { readings: parsed.readings, rho: parsed.rho, ip: parsed.ip } }); // obs: #683 — for the data-fit view
+        if (parsed.ip) result.ipKind = parsed.ipKind; // #4059 — what its IP model is of
+        setLast({ result, geom: lineGeom, name, thick: num(opts.cell), obs: { readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, ipKind: parsed.ipKind } }); // obs: #683 — for the data-fit view
         saveDcipLine({ name, section: { result: slimDcipResult(result), line: lineAtRun, opts: ranOpts, ranAt: new Date().toISOString() } });
         const runParams = { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.history?.length }, versions: result.versions, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) };
         // #683 follow-up — the observed and / or the extrapolated voxel, as chosen under "3D voxels"
@@ -415,7 +416,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       )}
       {file && (
         <div style={{ marginTop: 8 }}>
-          {FIELDS.map(([k, label]) => (
+          {FIELDS.map(([k, label0]) => { const label = k === "ip" && ipKindOfColumn(mapping.ip) === "phase" ? "IP phase (mrad, optional)" : label0; return ( // #4059
             <div key={k} style={row}>
               <span style={lbl}>{tr(label)}</span>
               <select value={mapping[k] || ""} onChange={(e) => setMapping((m) => ({ ...m, [k]: e.target.value || undefined }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr(label)}>
@@ -423,7 +424,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
                 {file.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
-          ))}
+          ); })}
           {parsed?.err && (
             // TASKS.csv #683 — what a receiver writes in its error column differs (IRIS-style SD: the deviation of the
             // chargeability or of the voltage between stacks), so GeoStrix does not guess: it is used only once chosen
@@ -432,7 +433,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
               <select value={opts.errKind || ""} onChange={(e) => setOpts((o) => ({ ...o, errKind: e.target.value || undefined }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("What the error column measures")}>
                 <option value="">{tr("(choose — not used until you do)")}</option>
                 <option value="rhoPct">{tr("the resistivity error, in % of the reading")}</option>
-                {parsed.ip && <option value="ipMvV">{tr("the chargeability error, in mV/V")}</option>}
+                {parsed.ip && <option value="ipMvV">{parsed.ipKind === "phase" ? tr("the IP phase error, in mrad") : tr("the chargeability error, in mV/V")}</option>}
               </select>
             </div>
           )}
@@ -487,8 +488,8 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
           <div style={row} title={tr("Horizontal cell size: start at half the smallest electrode spacing. Model depth starts at 0.3 × the widest array, at most a quarter of the line.")}><span style={lbl}>{tr("Cell / depth (m)")}</span><NumberInput allowEmpty value={opts.cell} onChange={(v) => setOpts((o) => ({ ...o, cell: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Cell size")} /><NumberInput allowEmpty value={opts.depth} onChange={(v) => setOpts((o) => ({ ...o, depth: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Model depth")} /></div>
           <div style={row} title={tr("How far you trust each reading. No default: too small and the model invents detail, too large and it smooths real bodies away.")}><span style={lbl}>{tr("Resistivity ± %, floor")}</span><NumberInput allowEmpty value={opts.pct} onChange={(v) => setOpts((o) => ({ ...o, pct: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Resistivity uncertainty percent")} /><NumberInput allowEmpty value={opts.floor} onChange={(v) => setOpts((o) => ({ ...o, floor: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Resistivity uncertainty floor")} /></div>
           {/* TASKS.csv #775 — what SimPEG's own tutorials use, as hints only (nothing is filled in) */}
-          <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("For reference: SimPEG's DC tutorials use 2–10% plus a small floor{v}. The survey's repeat readings or reciprocal errors are the better guide.", { v: parsed?.ip ? tr("; for chargeability, a floor of about 5 mV/V (0.005 V/V)") : "" })}</div>
-          {parsed?.ip && <div style={row}><span style={lbl}>{tr("Chargeability ± %, floor mV/V")}</span><NumberInput allowEmpty value={opts.ipPct} onChange={(v) => setOpts((o) => ({ ...o, ipPct: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Chargeability uncertainty percent")} /><NumberInput allowEmpty value={opts.ipFloor} onChange={(v) => setOpts((o) => ({ ...o, ipFloor: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Chargeability uncertainty floor")} /></div>}
+          <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("For reference: SimPEG's DC tutorials use 2–10% plus a small floor{v}. The survey's repeat readings or reciprocal errors are the better guide.", { v: parsed?.ip && parsed.ipKind !== "phase" ? tr("; for chargeability, a floor of about 5 mV/V (0.005 V/V)") : "" })}</div>
+          {parsed?.ip && <div style={row}><span style={lbl}>{parsed.ipKind === "phase" ? tr("IP phase ± %, floor mrad") : tr("Chargeability ± %, floor mV/V")}</span><NumberInput allowEmpty value={opts.ipPct} onChange={(v) => setOpts((o) => ({ ...o, ipPct: (v == null ? "" : String(v)) }))} style={inp} aria-label={parsed.ipKind === "phase" ? tr("IP phase uncertainty percent") : tr("Chargeability uncertainty percent")} /><NumberInput allowEmpty value={opts.ipFloor} onChange={(v) => setOpts((o) => ({ ...o, ipFloor: (v == null ? "" : String(v)) }))} style={inp} aria-label={parsed.ipKind === "phase" ? tr("IP phase uncertainty floor") : tr("Chargeability uncertainty floor")} /></div>}
           {/* TASKS.csv #580 — which geometric factor the file's apparent resistivities were computed with */}
           <div style={row} title={tr("Files usually give apparent resistivity for flat ground, and GeoStrix converts its draped model the same way. Choose the second only for a topography-corrected file.")}>
             <span style={lbl}>{tr("Apparent resistivity computed for")}</span>
@@ -549,9 +550,9 @@ function Pseudosection({ parsed, large = false }) {
   const FS = large ? 10 : 13;
   const f = useMemo(() => pseudoFrame(pts, large ? { W: 640, H: 270, left: 44, bottom: 30 } : { H: 166, left: 48, bottom: 36 }), [pts, large]); // large: drawn bigger, not scaled up
   const vals = field === "resistivity" ? parsed.rho : parsed.ip;
-  const sc = useMemo(() => pseudoColourScale(vals, field), [vals, field]);
+  const sc = useMemo(() => pseudoColourScale(vals, field, 24, parsed.ipKind === "phase" ? "mrad" : "mV/V"), [vals, field, parsed.ipKind]);
   const { W, H } = f;
-  const label = field === "resistivity" ? tr("Apparent resistivity pseudosection") : tr("Apparent chargeability pseudosection");
+  const label = field === "resistivity" ? tr("Apparent resistivity pseudosection") : parsed.ipKind === "phase" ? tr("Apparent IP phase pseudosection") : tr("Apparent chargeability pseudosection");
   const tick = { fontSize: FS, fill: "var(--color-text-muted)" };
   const BW = Math.round(W / 2);
   return (
@@ -559,8 +560,9 @@ function Pseudosection({ parsed, large = false }) {
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{field === "resistivity"
           ? tr("Data (pseudosection): apparent resistivity {v}–{v2} ohm·m", { v: sig3(arrMin(parsed.rho)), v2: sig3(arrMax(parsed.rho)) })
+          : parsed.ipKind === "phase" ? tr("Data (pseudosection): apparent IP phase {v}–{v2} mrad", { v: sig3(arrMin(parsed.ip.filter(Number.isFinite))), v2: sig3(arrMax(parsed.ip.filter(Number.isFinite))) })
           : tr("Data (pseudosection): apparent chargeability {v}–{v2} mV/V", { v: sig3(arrMin(parsed.ip.filter(Number.isFinite))), v2: sig3(arrMax(parsed.ip.filter(Number.isFinite))) })}</span>
-        {hasIp && [["resistivity", tr("Resistivity")], ["chargeability", tr("Chargeability")]].map(([v, l]) => (
+        {hasIp && [["resistivity", tr("Resistivity")], ["chargeability", parsed.ipKind === "phase" ? tr("IP phase") : tr("Chargeability")]].map(([v, l]) => (
           <button key={v} onClick={() => setKind(v)} aria-pressed={v === field} style={{ fontSize: "var(--font-size-xs)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: v === field ? "var(--color-selected-bg)" : "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}>{l}</button>
         ))}
       </div>
@@ -591,6 +593,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
   const { addLayoutImage, goToModule, addVoxelModel } = useStore();
   const [note, setNote] = useState(null);
   const c = result.cells;
+  const ipPhase = result.ipKind === "phase"; // TASKS.csv #4059 — the IP model is of a frequency-domain phase (mrad)
   const [field, setField] = useState("resistivity");
   const hatchId = `dcipHatch${useId().replace(/:/g, "")}`; // #535 — one pattern per section on the page
   const vals = c[field];
@@ -621,10 +624,10 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
       : <div role="status" style={{ fontSize: "var(--font-size-sm)", color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Resistivity: {text}", { text: verdict.shown })}</div>}
       {!imported && outside > 0 && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{k} of {n} resistivity cells the data see lie below 1/{f} or above {f}× the apparent range ({a}–{b} ohm·m; model {lo}–{hi}): artefacts, not resolved bodies.", { k: outside.toLocaleString(), n: rangeCheck.n.toLocaleString(), f: rangeCheck.factor, a: sig3(rangeCheck.dataMin), b: sig3(rangeCheck.dataMax), lo: sig3(rangeCheck.lo), hi: sig3(rangeCheck.hi) })}</div>}{/* #2072 */}
       {/* TASKS.csv #581 — chargeability judged on its own, in its own colour (a good DC fit used to paint a failed IP fit as fine) */}
-      {result.ip && !imported && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Chargeability: {verdict}", { verdict: iv.shown })}</div>; })()}
+      {result.ip && !imported && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{ipPhase ? tr("IP phase: {verdict}", { verdict: iv.shown }) : tr("Chargeability: {verdict}", { verdict: iv.shown })}</div>; })()}
       {c.chargeability && (
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          {["resistivity", "chargeability"].map((f) => <button key={f} onClick={() => setField(f)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: f === field ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{f === "resistivity" ? tr("Resistivity") : tr("Chargeability")}</button>)}
+          {["resistivity", "chargeability"].map((f) => <button key={f} onClick={() => setField(f)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: f === field ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{f === "resistivity" ? tr("Resistivity") : ipPhase ? tr("IP phase") : tr("Chargeability")}</button>)}
         </div>
       )}
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Inverted {field} section", { field })} style={{ display: "block", marginTop: 4, width: "100%", maxWidth: large ? "none" : W, height: "auto" }}>
@@ -640,7 +643,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
       {reach && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Dashed line = DOI index {doiT} (Oldenburg & Li): below it the resistivity follows the reference, not the data. Median reach {median} m by DOI, {median2} m by support ({cutoff}).{v}", { doiT, median: reach.doi.median.toFixed(0), median2: reach.sup.median.toFixed(0), cutoff, v: doiFits ? tr(" The two reference runs fit {v} the target{v2}.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and "), v2: doiFits.some((v) => v < 0.5) ? tr(" — unequal fits inflate the index, so read the line as approximate") : "" }) : "" })}</div>}
       {doiFailed && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-fg)" }}>{tr("No depth-of-investigation check: a reference run missed the target fit ({v}), so the index would measure that failure, not the data's reach.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and ") })}</div>}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})", { v: sig3(ramp.lo), v2: sig3(ramp.hi), a: sig3(arrMin(vals)), b: sig3(arrMax(vals)) }) : tr("colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})", { v: sig3(ramp.hi), b: sig3(arrMax(vals)) }), v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: imported ? tr("Imported from the contractor's files (kept in the project).") : last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
+        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})", { v: sig3(ramp.lo), v2: sig3(ramp.hi), a: sig3(arrMin(vals)), b: sig3(arrMax(vals)) }) : (ipPhase ? tr("colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})", { v: sig3(ramp.hi), b: sig3(arrMax(vals)) }) : tr("colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})", { v: sig3(ramp.hi), b: sig3(arrMax(vals)) })), v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: imported ? tr("Imported from the contractor's files (kept in the project).") : last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title={tr("Every section cell: distance, x / y (project CRS), elevation, size, values, support")}><Download size={14} />{" "}{tr("CSV")}</button>
@@ -685,7 +688,7 @@ function DataFit({ obs, result }) {
   const W = 300, H = 80;
   const smin = arrMin(rows.map((x) => x.s)), smax = arrMax(rows.map((x) => x.s)), dmax = arrMax(rows.map((x) => x.depth)) || 1;
   const X = (s) => 6 + ((s - smin) / (smax - smin || 1)) * (W - 12), Y = (d) => 6 + (d / dmax) * (H - 12);
-  const unit = k === "dc" ? "ohm·m" : "mV/V";
+  const unit = k === "dc" ? "ohm·m" : result.ipKind === "phase" ? "mrad" : "mV/V"; // #4059
   const fmt = (v) => (Number.isFinite(v) ? Number(v.toPrecision(3)).toString() : "—");
   const plot = (label, colorOf) => (
     <div style={{ marginTop: 4 }}>
@@ -701,7 +704,7 @@ function DataFit({ obs, result }) {
       <div className="ge-section-label">{tr("Data fit")}</div>
       {hasIp && (
         <div style={{ display: "flex", gap: 4, marginBottom: 2 }}>
-          {[["dc", tr("Resistivity")], ["ip", tr("Chargeability")]].map(([v, l]) => <button key={v} onClick={() => setKind(v)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: v === k ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{l}</button>)}
+          {[["dc", tr("Resistivity")], ["ip", result.ipKind === "phase" ? tr("IP phase") : tr("Chargeability")]].map(([v, l]) => <button key={v} onClick={() => setKind(v)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: v === k ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{l}</button>)}
         </div>
       )}
       {plot(tr("Observed ({v}–{v2} {unit})", { v: fmt(lo), v2: fmt(hi), unit }), (x) => (Number.isFinite(x.obs) ? colorForVoxelValue(valModel, x.obs) : null))}
@@ -727,7 +730,7 @@ function lineVoxelModels(result, geom, { name, thick, cut, params, kinds, dataRh
   const own = cut > 0 && result.cells.support ? result.cells.support.map((v) => v >= cut) : null;
   const rangeCheck = outsideDataRange(result.cells.resistivity, dataRho, seen);
   const props = [["resistivity", "dc", "Resistivity (ohm·m)", `DC line ${name}`]];
-  if (result.cells.chargeability) props.push(["chargeability", "ip", "Chargeability (mV/V)", `IP line ${name}`]);
+  if (result.cells.chargeability) props.push(["chargeability", "ip", result.ipKind === "phase" ? "IP phase (mrad)" : "Chargeability (mV/V)", `IP line ${name}`]);
   for (const [field, method, property, lineLabel] of props) {
     const cells = sectionCells(result, geom, field, thick);
     for (const kind of kinds) {
@@ -765,10 +768,10 @@ function exportCsv(last, epsg, cutoff) {
   const r = last.result;
   const stamp = stampLines({ tool: "2D DC resistivity / IP inversion (SimPEG) — section cells", version: APP_VERSION, epsg, params: [
     `Line: ${last.name}; azimuth ${last.geom.azimuth.toFixed(2)} deg (grid); distance 0 at the line start`,
-    `Fit: resistivity misfit ${(r.phi_d / r.target).toFixed(2)}x the target${r.ip ? `, chargeability ${(r.ip.phi_d / (r.ip.target ?? r.target)).toFixed(2)}x` : ""}`,
+    `Fit: resistivity misfit ${(r.phi_d / r.target).toFixed(2)}x the target${r.ip ? `, ${r.ipKind === "phase" ? "IP phase" : "chargeability"} ${(r.ip.phi_d / (r.ip.target ?? r.target)).toFixed(2)}x` : ""}`,
     "support = normalized sensitivity (how much the data see the cell); low-support cells are poorly constrained",
     `envelope_support = the largest support at or below the cell in its column; shown = envelope_support >= the cutoff (${cutoff}): cells below the deepest well-seen cell of their column are hidden`,
     ...(r.cells.doi ? [`doi_index = Oldenburg & Li (1999) depth-of-investigation index from resistivity inversions with reference models ${(r.doiMethod?.referenceFactors || [0.1, 10]).join(" and ")}x the median: ~0 = data-controlled, ~1 = reference-controlled (threshold ${r.doiMethod?.threshold ?? 0.2}); single-cell values depend on how closely the two runs fit (${(r.doiMethod?.misfitOfEachRun || []).map((v) => `${v}x`).join(" / ")}) - read the depth per column, not one cell`] : []), // #772
   ] });
-  saveFile({ suggestedName: `dcip_${safeFileName(last.name, "line")}_section.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(sectionTableRows(r, last.geom, cutoff)), stamp) });
+  saveFile({ suggestedName: `dcip_${safeFileName(last.name, "line")}_section.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(sectionTableRows(r, last.geom, cutoff, r.ipKind)), stamp) });
 }

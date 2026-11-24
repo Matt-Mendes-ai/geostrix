@@ -27,5 +27,5 @@ test("resistivity-only readings are counted apart from bad rows", () => {
 
 test("the read notice says so", () => {
   const src = readFileSync(new URL("../src/components/DcipPanel.jsx", import.meta.url), "utf8");
-  assert.match(src, /p\.noIp \? " " \+ tr\("\{n\} reading\(s\) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out\."/); // #2704
+  assert.match(src, /p\.noIp \? " " \+ \(p\.ipKind === "phase" \? tr\("\{n\} reading\(s\) have a resistivity but no IP phase: [^"]*"[^)]*\) : tr\("\{n\} reading\(s\) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out\."/); // #2704; the phase wording: #4059
 });

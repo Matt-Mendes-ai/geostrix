@@ -11,7 +11,7 @@ import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
-const KINDS = { ip: { label: "Chargeability", unit: "mV/V", property: "Chargeability (mV/V)", line: "IP" }, dc: { label: "Resistivity", unit: "ohm·m", property: "Resistivity (ohm·m)", line: "DC" } };
+const KINDS = { ip: { label: "Chargeability", unit: "mV/V", property: "Chargeability (mV/V)", line: "IP" }, ipp: { label: "IP phase", unit: "mrad", property: "IP phase (mrad)", line: "IP phase" } /* TASKS.csv #4059 */, dc: { label: "Resistivity", unit: "ohm·m", property: "Resistivity (ohm·m)", line: "DC" } };
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function DcipMergePanel({ pBtn, numInput }) {

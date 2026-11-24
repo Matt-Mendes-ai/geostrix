@@ -13,6 +13,7 @@ import { askAdoptCrs } from "../lib/adoptCrs.js";
 import { smallSel, pBtn } from "../lib/sidebarStyles.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // no Math.min / max spread (#371)
 import TemInvertPanel from "./TemInvertPanel.jsx"; // TASKS.csv #3440 step 3 — the 1D inversion
+import TemGridTie from "./TemGridTie.jsx"; // TASKS.csv #4058 — a file on a local grid asks for its tie to the map
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
@@ -86,10 +87,11 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
   const fileRef = useRef(null);
   const save = (next) => { LAST = next; setSt(next); };
   const data = st?.data;
+  const needsTie = !!data?.localGrid && !data.placed; // TASKS.csv #4058 — a local-grid file stays off the map until it is tied
   // TASKS.csv #3441 — a two-moment file whose header states both moments' gate times can be read as ONE decay (the gates of both, by time)
   const joinable = useMemo(() => {
     if (!data) return null;
-    const na = data.groups.filter((g) => (g.role ? g.role === "data" : !g.aux)); // #3440: the decays only, not their gate times or a model
+    const na = data.groups.filter((g) => !g.component && (g.role ? g.role === "data" : !g.aux)); // #3440: the decays only, not their gate times or a model; #4058: and not one station's X / Y / Z components
     if (na.length !== 2) return null;
     const ta = data.gateTimes(na[0]), tb = data.gateTimes(na[1]);
     return ta && tb ? { ga: na[0], gb: na[1], ta, tb } : null;
@@ -126,6 +128,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
     await new Promise((r) => setTimeout(r, 0));
     try {
       const d = readTemText(await file.text(), file.name);
+      if (d.localGrid && project?.crsSet === false && project?.localGrid) d.placed = "project"; // #4058 — a local-grid project takes a local-grid file as it is
       // positions into the project CRS: a Workbench file's own EPSG; a Geosoft .xyz or CSV's X / Y are taken as the project's
       let target = project?.epsg;
       if (d.epsg) { const adopted = await askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: target, declaredEpsg: d.epsg, fileName: file.name }); if (adopted) { setEpsg(adopted); target = adopted; } }
@@ -138,7 +141,8 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
       setMsg({ info: true, text: [
         tr("{name} ({src}): {n} stations on {l} line(s); channels {ch} ({m} gates).", { name: file.name, src: d.source, n: d.n.toLocaleString(), l: L.length, ch: d.groups[g].prefix, m: d.groups[g].cols.length }),
         t ? tr("Gate times read from the file: {a} to {b} ms.", { a: fmt(t[0]), b: fmt(t[t.length - 1]) }) : tr("The file does not state its gate times: type them below (ms, one per gate) to fit the decay constant."),
-      ].join(" ") });
+        d.components ? tr("Components {c}: {first} is read first (its decay, tau and the 1D inversion); the others are kept as their own channel sets.", { c: d.components.join(", "), first: d.components[0] }) : "", // #4058
+      ].filter(Boolean).join(" ") });
     } catch (err) { setMsg({ text: tr("Could not read the file: {v}", { v: err?.message || String(err) }) }); }
     setBusy(false);
   };
@@ -178,10 +182,11 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
       <TaskPaneHeader title={tr("TEM line data (multi-channel)")} helpId="tem-lines" icon={Radio} tone="data" onClose={onClose} />
       <div style={{ ...note, marginBottom: 8 }}>{tr("Time-domain EM lines (SkyTEM or Aarhus .xyz, Geosoft .xyz, CSV): channels stacked, a station's decay, late-time tau mapped. A long tau: a good conductor.")}</div>
       <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} style={{ ...pBtn, justifyContent: "center" }}><Upload size={14} />{" "}{tr("Open TEM line data…")}</button>
-      <input ref={fileRef} type="file" accept=".xyz,.csv,.txt,.dat" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; open(f); }} aria-label={tr("TEM line data file")} />
+      <input ref={fileRef} type="file" accept=".xyz,.csv,.txt,.dat,.tem" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; open(f); }} aria-label={tr("TEM line data file")} />
       {msg && <div role={msg.info ? "status" : "alert"} style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", margin: "4px 0 8px" }}>{msg.text}</div>}
       {data && (<>
         {st.posNote && <div style={{ ...note, marginBottom: 6 }}>{st.posNote}</div>}
+        <TemGridTie data={data} onTied={() => save({ ...st, data: { ...data } })} />{/* #4058 */}
         <div style={rowS}><span>{tr("Channels")}</span>
           <select value={st.g} onChange={(e) => { if (e.target.value === "join") { save({ ...st, g: "join" }); return; } const g = Number(e.target.value), t = data.gateTimes(data.groups[g]); save({ ...st, g, timesText: t ? t.join(" ") : st.timesText }); }} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("TEM channel group")}>
             {data.groups.map((g, i) => <option key={g.prefix} value={i}>{tr("{name} ({m} gates)", { name: g.prefix, m: g.cols.length })}{g.aux ? ` — ${tr("uncertainty")}` : g.role === "time" ? ` — ${tr("gate times")}` : g.role === "model" ? ` — ${tr("model")}` : ""}</option>)}
@@ -216,16 +221,16 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
           {times ? <Decay times={times} vals={vals} fit={fit} /> : <div style={note}>{tr("Type the gate times to draw the decay.")}</div>}
           {times && <div style={{ ...note, marginTop: 3 }}>{fit ? tr("Decay constant tau = {tau} ms, from gates {a} to {b} ({t0} to {t1} ms, r² {r2}).", { tau: fmt(fit.tau), a: fit.from + 1, b: fit.to + 1, t0: fmt(times[fit.from]), t1: fmt(times[fit.to]), r2: fit.r2.toFixed(3) }) : tr("No decay constant here: fewer than three positive late readings, or they do not fall.")}{masked?.dropped ? " " + tr("{n} reading(s) in the noise were left out.", { n: masked.dropped }) : ""}</div>}
         </>)}
-        <button type="button" disabled={!times} onClick={mapTau} title={times ? undefined : tr("Type the gate times first")} style={{ ...pBtn, justifyContent: "center", marginTop: 8 }}>{tr("Map the decay constant (tau)")}</button>
+        <button type="button" disabled={!times || needsTie} onClick={mapTau} title={needsTie ? tr("Tie the file's local grid to the map first.") : times ? undefined : tr("Type the gate times first")} style={{ ...pBtn, justifyContent: "center", marginTop: 8 }}>{tr("Map the decay constant (tau)")}</button>
         <div style={rowS}>
           <select value={st.gate ?? ""} onChange={(e) => save({ ...st, gate: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Gate to add as a point survey")}>
             <option value="">{tr("Add one gate as a point survey…")}</option>
             {group.cols.map((c, k) => <option key={c} value={k}>{times ? tr("Gate {k} ({t} ms)", { k: k + 1, t: fmt(times[k]) }) : tr("Gate {k}", { k: k + 1 })}</option>)}
           </select>
-          <button type="button" disabled={st.gate == null} onClick={() => addGate(st.gate)} style={{ ...smallSel, cursor: "pointer" }}>{tr("Add")}</button>
+          <button type="button" disabled={st.gate == null || needsTie} onClick={() => addGate(st.gate)} style={{ ...smallSel, cursor: "pointer" }}>{tr("Add")}</button>
         </div>
         {/* TASKS.csv #3440 step 3 — the 1D inversion, for a set of decays (one, or both moments joined) */}
-        {(isJoin || group.role === "data" || (!group.role && !group.aux)) && (
+        {!needsTie && (isJoin || group.role === "data" || (!group.role && !group.aux)) && (
           <TemInvertPanel /* TASKS.csv #3501 — keyed by the file and its channel set: switching from one moment to both joined remounts the
               panel (its state holds a waveform per moment; reused for two moments it read the second's as undefined and closed the tab) */ key={`${data.name}|${isJoin ? `${joinable.ga.prefix}+${joinable.gb.prefix}` : group.prefix}`} data={data} groups={isJoin ? [joinable.ga, joinable.gb] : [group]} timesOf={(g) => (isJoin ? (g === joinable.ga ? joinable.ta : joinable.tb) : times)} line={line} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} />
         )}

@@ -8,6 +8,8 @@ import { guessGeophysColumns } from "./geophysColumns.js";
 import Papa from "papaparse";
 import { arrMax } from "./arrayStats.js";
 import { boreholeEmRefusal } from "./boreholeEm.js"; // TASKS.csv #3804
+import { isMaxwellTem, parseMaxwellTem } from "./maxwellTem.js"; // TASKS.csv #4058 — Maxwell ground TEM, one row per component
+import { smallGridCoordinates } from "./crsFromColumns.js"; // #4058 — a file on a local grid asks for its tie to the map
 
 // A column that ends in a number (dBdt_Z[12], DBDT_CH1GT12, Z_HM_ch05, CH12, Gate_12): its prefix and index. Groups of at least four
 // with one prefix are the channels of one decay; the uncertainty / in-use companions (DBDT_STD_CH1GT…, *_INUSE_*) are named so and
@@ -79,8 +81,17 @@ export function gateTimesFromText(text, n, header = null, channel = null) {
 
 // Read a file's text -> { name, source, n, columns, get(col) -> Float64Array, line: string[], groups, epsg, header, gateTimes(group) }
 export function readTemText(text, name = "TEM") {
-  let source, columns, get, line, epsg = null, header = null;
-  if (isWorkbenchXyz(text)) {
+  let source, columns, get, line, epsg = null, header = null, maxwell = null;
+  if (isMaxwellTem(text)) { // TASKS.csv #4058 — a station's Z, X and Y rows become the channel sets Z_CH, X_CH, Y_CH of one station row (Z first: the decay and the 1D inversion read it)
+    maxwell = parseMaxwellTem(text);
+    const st = maxwell.stations, fns = new Map([["EAST", (s) => s.x], ["NORTH", (s) => s.y], ["ELEV", (s) => s.elev], ["STATION", (s) => s.station]]);
+    columns = ["EAST", "NORTH", "ELEV", "STATION"];
+    for (const c of maxwell.components) maxwell.gates.forEach((g, k) => { const col = `${c}_${g}`; columns.push(col); fns.set(col, (s) => (s.comps[c] ? s.comps[c][k] : NaN)); });
+    source = `Maxwell .tem${maxwell.config ? ` (${maxwell.config.toLowerCase()})` : ""}`; header = maxwell.header;
+    const cache = new Map();
+    get = (c) => cache.get(c) || cache.set(c, Float64Array.from(st, fns.get(c) || (() => NaN))).get(c);
+    line = st.map((s) => s.line);
+  } else if (isWorkbenchXyz(text)) {
     const w = parseWorkbenchXyz(text);
     source = "Aarhus Workbench / SkyTEM .xyz"; columns = w.cols; header = w.header; epsg = w.epsg;
     get = (c) => w.col[c];
@@ -103,6 +114,7 @@ export function readTemText(text, name = "TEM") {
   }
   const n = line.length;
   const groups = temChannelGroups(columns);
+  if (maxwell) for (const g of groups) { const m = /^([XYZ])_CH$/.exec(g.prefix); if (m) g.component = m[1]; } // #4058
   if (!groups.length) throw new Error(`No TEM channels in ${name}: expected four or more columns that share a name and end in a gate number (dBdt_Z[0] …, DBDT_CH1GT1 …, CH01 …).`);
   const cg = guessGeophysColumns(columns);
   const pickCol = (re) => columns.find((c) => re.test(c));
@@ -113,15 +125,23 @@ export function readTemText(text, name = "TEM") {
   const zCol = pickCol(/^(topo|topography|elevation|elev|dem|ground|z)$/i) || pickCol(/^y?top(o|bath)|^dem[_\d]|elevation|^ground_?el/i) || null; // #3440: the USGS file's Ytopbathv2
   if (!xCol || !yCol) throw new Error(`No X / Y columns in ${name}.`);
   { // TASKS.csv #3804 — borehole EM (components per station, a hole column, a header that says borehole) is not a line survey: refused, as the other imports refuse it
-    const xs = get(xCol), ys = get(yCol), m = Math.min(n, 4000), rows = Array.from({ length: m }, (_, i) => ({ [xCol]: xs[i], [yCol]: ys[i] }));
-    const bh = boreholeEmRefusal(name, columns, rows, String(text || "").slice(0, 6000));
+    // #4058 — only borehole evidence refuses it (a hole / depth column, a borehole header or CONFIG, readings down one X Y): the elevation goes in too
+    const xs = get(xCol), ys = get(yCol), zs = zCol ? get(zCol) : null, m = Math.min(n, 4000), rows = Array.from({ length: m }, (_, i) => ({ [xCol]: xs[i], [yCol]: ys[i], ...(zs ? { [zCol]: zs[i] } : {}) }));
+    const bh = boreholeEmRefusal(name, maxwell ? maxwell.columns : columns, rows, String(text || "").slice(0, 6000));
     if (bh) throw new Error(bh);
   }
+  const x = get(xCol), y = get(yCol);
+  let z = zCol ? get(zCol) : null;
+  if (maxwell && z && !z.some((v) => Number.isFinite(v) && v !== 0)) z = null; // Maxwell writes ELEV 0.000 when the surveyor gave none
+  // #4058 — eastings no UTM / MGA zone has: a local grid. The pane asks for its tie to the map instead of plotting it at the wrong place.
+  const pts = []; for (let i = 0; i < n && pts.length < 5000; i++) if (Number.isFinite(x[i]) && Number.isFinite(y[i])) pts.push({ x: x[i], y: y[i] });
+  const localGrid = epsg ? null : smallGridCoordinates(pts);
   return {
     name, source, n, columns, groups, epsg, header, line,
-    x: get(xCol), y: get(yCol), z: zCol ? get(zCol) : null, xCol, yCol, zCol,
+    x, y, z, xCol, yCol, zCol: z ? zCol : null, localGrid,
+    components: maxwell ? maxwell.components : null, units: maxwell?.units || null,
     get,
-    gateTimes: (g) => gateTimesFromText(text, g.cols.length, header, channelNumber(g.prefix)) || gateTimesFromColumns(groups, g, get),
+    gateTimes: (g) => (maxwell && g.component && maxwell.times) || gateTimesFromText(text, g.cols.length, header, channelNumber(g.prefix)) || gateTimesFromColumns(groups, g, get),
   };
 }
 

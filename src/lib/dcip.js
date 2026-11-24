@@ -15,13 +15,17 @@ const norm = (h) => String(h).trim().toLowerCase().replace(/[\s()\[\]./-]+/g, "_
 // TASKS.csv #600 — contractor TDIP files (IRIS / Geosoft-style .dat / .ipg, e.g. a BC ARIS pole-dipole survey):
 // T1X / T2X current, R1X / R2X potential, RHO, and MX = the chargeability (mV/V). "mx" used to be an alias of
 // the M electrode, which would have read the chargeability column as an electrode position.
+// TASKS.csv #4059 — Zonge TQIPdb .dat (C1X C2X P1X P2X C1Z … C1Y … RxDipole PltPt Nlevel SP I Vp Res Phz SD Nstack): the X columns are the electrodes' chainage along the
+// line (c1x ... p2x below); its Y columns hold the line's name and its Z columns the elevations (0 in a plain line file), neither a position along the line
 const ALIASES = {
-  a: ["a", "c1", "t1x", "a_x", "ax", "a_pos", "tx1", "c1_x"],
-  b: ["b", "c2", "t2x", "b_x", "bx", "b_pos", "tx2", "c2_x"],
-  m: ["m", "p1", "r1x", "m_x", "m_pos", "rx1", "p1_x"],
-  n: ["n", "p2", "r2x", "n_x", "nx", "n_pos", "rx2", "p2_x"],
+  a: ["a", "c1", "t1x", "a_x", "ax", "a_pos", "tx1", "c1_x", "c1x"],
+  b: ["b", "c2", "t2x", "b_x", "bx", "b_pos", "tx2", "c2_x", "c2x"],
+  m: ["m", "p1", "r1x", "m_x", "m_pos", "rx1", "p1_x", "p1x"],
+  n: ["n", "p2", "r2x", "n_x", "nx", "n_pos", "rx2", "p2_x", "p2x"],
   rho: ["rho", "rho_a", "rhoa", "app_res", "apparent_resistivity", "resistivity", "res", "rhoa_ohm_m", "rho_ohm_m", "ra", "ra_ohm_m", "app_rho"], // ra: #1660 (SJ Geophysics)
   ip: ["ip", "m_mv_v", "chargeability", "charg", "chg", "mv_v", "ma", "mx", "eta", "ip_mv_v"],
+  // TASKS.csv #4059 — FREQUENCY-domain IP: a phase in mrad (Zonge's Phz), not a chargeability. Read into the IP column with ipKind "phase" (below), never as mV/V.
+  phase: ["phz", "phase", "phz_mrad", "phase_mrad", "ip_phase", "ip_phase_mrad", "fd_phase", "phs"],
   // TASKS.csv #683 — a per-reading error column (what it measures differs between receivers, so the panel asks)
   err: ["sd", "dev", "std", "stdev", "std_dev", "error", "err", "rho_err", "rho_sd", "mx_sd", "m_sd", "ip_err"],
 };
@@ -100,6 +104,9 @@ function addRhoFromVpI(headers, rows, saysMa = false) {
 }
 // Two passes: the full header (units included: "M (mV/V)" -> m_mv_v, a chargeability) first, then the header
 // without a bracketed unit ("Rho_a (ohm.m)" -> rho_a). A header is used for one field only.
+// TASKS.csv #4059 — what the IP column holds: a time-domain chargeability (mV/V) or a frequency-domain phase (mrad)
+export const IP_KINDS = { chargeability: { name: "Chargeability", unit: "mV/V" }, phase: { name: "IP phase", unit: "mrad" } };
+export const ipKindOfColumn = (col) => (col != null && ALIASES.phase.includes(norm(String(col).replace(/\(.*?\)|\[.*?\]/g, "")).replace(/_+$/, "")) ? "phase" : "chargeability");
 export function guessDcipColumns(headers) {
   const out = {};
   const used = new Set();
@@ -111,6 +118,7 @@ export function guessDcipColumns(headers) {
       if (hit) { out[key] = hit; used.add(hit); }
     }
   }
+  if (out.phase) { if (!out.ip) out.ip = out.phase; delete out.phase; } // #4059 — a phase column is the IP column when there is no chargeability one
   return out;
 }
 
@@ -145,7 +153,7 @@ export function parseDcipRows(rows, mapping) {
   for (let i = 1; i < pos.length; i++) { const d = pos[i] - pos[i - 1]; if (d > 1e-6 && d < spacing) spacing = d; }
   const poleB = readings.some((r) => r[1] == null), poleN = readings.some((r) => r[3] == null);
   const array = poleB && poleN ? "pole-pole" : poleB ? "pole-dipole" : poleN ? "dipole-pole" : "dipole-dipole (or any 4-electrode array)";
-  return { readings, rho, ip: useIp ? ip : null, err: useErr ? err : null, skipped, noIp, spacing: Number.isFinite(spacing) ? spacing : null, span: pos.length ? [pos[0], pos[pos.length - 1]] : null, array };
+  return { readings, rho, ip: useIp ? ip : null, ipKind: useIp ? ipKindOfColumn(mapping.ip) : null /* #4059 */, err: useErr ? err : null, skipped, noIp, spacing: Number.isFinite(spacing) ? spacing : null, span: pos.length ? [pos[0], pos[pos.length - 1]] : null, array };
 }
 
 // TASKS.csv #602 — `scale` = ground metres per file metre (the chaining scale fitted from the stations, e.g.
@@ -243,7 +251,7 @@ export function slimDcipResult(result) {
   const cells = { s: mm(c.s), z: mm(c.z), ds: mm(c.ds), dz: mm(c.dz), resistivity: sig5(c.resistivity), support: sig5(c.support), ...(c.chargeability ? { chargeability: sig5(c.chargeability) } : {}), ...(c.doi ? { doi: sig5(c.doi) } : {}) }; // doi: #772
   return { kind: "dcip2d", cells, electrodes: result.electrodes, phi_d: result.phi_d, target: result.target, reachedTarget: result.reachedTarget,
     iterations: result.iterations, ip: result.ip ? Object.fromEntries(Object.entries({ phi_d: result.ip.phi_d, target: result.ip.target /* #2704 — the readings the IP model used */, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations, fitChoice: result.ip.fitChoice, predicted: sig5(result.ip.predicted), standardDeviation: sig5(result.ip.standardDeviation) }).filter(([, v]) => v !== undefined)) : null,
-    ...(Array.isArray(result.predicted) ? { predicted: sig5(result.predicted), standardDeviation: sig5(result.standardDeviation) } : {}), mesh: result.mesh, versions: result.versions, ...(result.geometricFactor ? { geometricFactor: result.geometricFactor } : {}), ...(result.doiMethod ? { doiMethod: result.doiMethod } : {}) }; // ip fields: #581; geometricFactor: #580; doiMethod: #772
+    ...(Array.isArray(result.predicted) ? { predicted: sig5(result.predicted), standardDeviation: sig5(result.standardDeviation) } : {}), mesh: result.mesh, versions: result.versions, ...(result.geometricFactor ? { geometricFactor: result.geometricFactor } : {}), ...(result.doiMethod ? { doiMethod: result.doiMethod } : {}), ...(result.ipKind ? { ipKind: result.ipKind } : {}) }; // ip fields: #581; ipKind: #4059; geometricFactor: #580; doiMethod: #772
 }
 
 // A saved line back into the panel's import shape: one row per reading under fixed headers, so the normal
@@ -251,22 +259,23 @@ export function slimDcipResult(result) {
 export const SAVED_LINE_HEADERS = ["A", "B", "M", "N", "Apparent resistivity", "Chargeability"];
 export function savedLineToFile(entry) {
   const ip = entry.ip && entry.ip.length === entry.readings.length;
-  const headers = ip ? [...SAVED_LINE_HEADERS] : SAVED_LINE_HEADERS.slice(0, 5); // a copy: an Error header may be added (#683)
+  const ipHead = entry.ipKind === "phase" ? "IP phase (mrad)" : "Chargeability"; // #4059
+  const headers = ip ? [...SAVED_LINE_HEADERS.slice(0, 5), ipHead] : SAVED_LINE_HEADERS.slice(0, 5); // a copy: an Error header may be added (#683)
   const err = entry.err && entry.err.length === entry.readings.length; // #683
   if (err) headers.push("Error");
   const rows = entry.readings.map((r, i) => {
     const o = { A: r[0], B: r[1] ?? "", M: r[2], N: r[3] ?? "", "Apparent resistivity": entry.rho[i] };
-    if (ip) o.Chargeability = entry.ip[i];
+    if (ip) o[ipHead] = entry.ip[i];
     if (err) o.Error = entry.err[i] ?? "";
     return o;
   });
-  const mapping = { a: "A", b: "B", m: "M", n: "N", rho: "Apparent resistivity", ...(ip ? { ip: "Chargeability" } : {}), ...(err ? { err: "Error" } : {}) };
+  const mapping = { a: "A", b: "B", m: "M", n: "N", rho: "Apparent resistivity", ...(ip ? { ip: ipHead } : {}), ...(err ? { err: "Error" } : {}) };
   return { file: { name: entry.name, headers, rows }, mapping };
 }
 
 // The inverted section as table rows: distance along the line, its x / y in the project CRS, elevation,
 // cell size, values and support (normalised sensitivity).
-export function sectionTableRows(result, geom, cutoff = null) {
+export function sectionTableRows(result, geom, cutoff = null, ipKind = "chargeability") {
   const c = result.cells;
   const out = [];
   // #681 — the CSV says which rule decided each cell, so the figure can be reproduced from the export
@@ -274,7 +283,7 @@ export function sectionTableRows(result, geom, cutoff = null) {
   for (let i = 0; i < c.s.length; i++) {
     const [x, y] = geom.at(c.s[i]);
     const row = { distance_m: c.s[i], x: +x.toFixed(3), y: +y.toFixed(3), z: c.z[i], ds_m: c.ds[i], dz_m: c.dz[i], resistivity_ohmm: c.resistivity[i] };
-    if (c.chargeability) row.chargeability_mVV = c.chargeability[i];
+    if (c.chargeability) row[ipKind === "phase" ? "ip_phase_mrad" : "chargeability_mVV"] = c.chargeability[i]; // #4059 — the cells hold the IP column's values, named for what they are
     row.support = c.support[i];
     row.envelope_support = +env[i].toFixed(4);
     if (Number.isFinite(cutoff)) row.shown = env[i] >= cutoff ? "yes" : "no";
