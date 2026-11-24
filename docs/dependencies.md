@@ -93,6 +93,14 @@ the first run of a session; on a 4-core budget (4 logical processors, 2 threads)
 Built here with PyInstaller, add-on 0.1.6 is a 553.2 MB zip and 1,759.0 MB installed, against 0.1.5's 553.8 MB and 1,760.4 MB
 (geoML's own package grew from 7.3 to 8.1 MB; the rest of the tree is the same), and its API test passes.
 
+**Speed (#4055).** TensorFlow Probability's import is most of the 15-30 s a session's first model used to wait (geoML's own import
+24 s here, 13 s of it TensorFlow Probability with TensorFlow and tf_keras): the add-on cannot shorten it, so the panel has the add-on
+load it when it opens on a project it can model (`POST /v1/warm`; 27 s here, while the codes are picked). The worker keeps the last
+trained model of each kind: a run whose training inputs are unchanged (a new block size, model box, simulations or cut-off) re-predicts
+without training, the same blocks to the bit (a real Fast run: rock 72 s, then 16-18 s; grade 35 s, then 5-8 s). geoML's early stop
+(`training_tolerance`) stays off: at its suggested 0.01 the reference models stopped 11 % of the mean grade and 0.058 in probability
+away from where their full count ends.
+
 A user who does not update keeps the add-on they have: GeoStrix runs an older installed add-on when release.json names a newer one,
 and offers the update once release.json's download is that version's (#4046).
 

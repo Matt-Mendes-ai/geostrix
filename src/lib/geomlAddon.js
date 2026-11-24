@@ -85,6 +85,23 @@ export async function addonReady(onWait, maxMs = 120000) {
 }
 // #692 — what the running add-on can do (0.1.2 lists it; older ones are known by version)
 export const addonHas = (health, feature) => (Array.isArray(health?.features) ? health.features.includes(feature) : feature === "trend" && versionAtLeast(health?.version, "0.1.1"));
+
+// TASKS.csv #4055 — the panel opened on a project it can model: start the add-on and have it load TensorFlow and geoML now (15-30 s), so
+// the first model of the session does not wait for them. Its identity is checked first (addonReady), and no project data is sent. An
+// add-on without "warm" (0.1.5 and older) is only started. Quietly does nothing when it cannot (not installed, too little free memory).
+let warming = null;
+export function addonWarm() {
+  if (!d?.addonEnsure) return Promise.resolve(false);
+  if (!warming) {
+    warming = (async () => {
+      const health = await addonReady(null, 60000);
+      if (!addonHas(health, "warm")) return false;
+      await call("/v1/warm", { method: "POST", body: {} });
+      return true;
+    })().catch(() => false).finally(() => { setTimeout(() => { warming = null; }, 60000); });
+  }
+  return warming;
+}
 const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 
 export const startJob = (kind, params) => call("/v1/jobs", { method: "POST", body: { kind, params }, timeoutMs: 60000 });

@@ -81,6 +81,18 @@ def main():
     st, b = call("POST", "/v1/jobs/doesnotexist/cancel", {})
     print("cancel unknown ->", st, b); assert st == 200 and b == {"cancelled": False}
 
+    # TASKS.csv #4055 — the warm-up: needs the token, starts the worker with no job; health says when TensorFlow and geoML are loaded
+    if "warm" in (h.get("features") or []):
+        if TOKEN:
+            st, _ = call("POST", "/v1/warm", {}, token="")
+            print("warm without token ->", st); assert st == 401
+        st, w = call("POST", "/v1/warm", {})
+        print("warm:", st, w); assert st == 200 and w.get("warm") is True
+        t0 = time.time()
+        while not call("GET", "/health", token="")[1].get("ready") and time.time() - t0 < 180:
+            time.sleep(1)
+        print(f"ready after {time.time() - t0:.0f} s"); assert call("GET", "/health", token="")[1].get("ready")
+
     # one job at a time: a second start while the first runs is 409 and names the running job; cancel ends it
     st, j = call("POST", "/v1/jobs", {"kind": "grade", "params": {}})
     print("start:", st, j.get("id"), j.get("state")); assert st == 200 and j["state"] == "running"

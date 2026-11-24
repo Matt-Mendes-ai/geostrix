@@ -5176,7 +5176,6 @@
   "Showing the first 1,500 of {shown} — filter by type to see the rest.": "عرض أول 1,500 من {shown} — صفِّ حسب النوع لرؤية الباقي.",
   "Imports {toImport} QC sample(s){v}; {unclassified} left out.": "يستورد {toImport} عينة ضبط جودة{v}؛ استُبعد {unclassified}.",
   "Starting the add-on": "جارٍ تشغيل الإضافة",
-  "Starting the add-on ({s} s — the first start is slower)": "جارٍ تشغيل الإضافة ({s} ث — البدء الأول أبطأ)",
   "; following the trend \"{name}\"": "؛ باتباع الاتجاه «{name}»",
   "contact surface {tri} triangles (darker = less certain)": "سطح التماس {tri} مثلث (الأغمق = أقل يقينًا)",
   "{cells} blocks of {cell} m with the probability of {name} (showing ≥ 50%) and its uncertainty (hidden){v}": "{cells} كتلة بحجم {cell} م باحتمال {name} (عرض ≥ 50%) وعدم يقينه (مخفي){v}",
@@ -14340,7 +14339,6 @@
   "Soils over basalt and granite, or in B and C horizons, have different backgrounds: judge each on its own. Group by medium, any sample-file column, or map unit.": "التربة فوق البازلت والغرانيت، أو في الأفقين B وC، لها خلفيات مختلفة: احكم على كل منها على حدة. جمّع حسب الوسط، أو حسب أي عمود في ملف العينات، أو حسب وحدة الخريطة.",
   "{symbol} reads as a major element: the plots and rules use the values themselves, and the log rules are behind the tick. A major is often read by its cut-offs too (Grade stats, Above cut-off).": "يُقرأ {symbol} عنصراً رئيسياً: الرسوم والقواعد تستخدم القيم نفسها، والقواعد اللوغاريتمية خلف خانة الاختيار. ويُقرأ العنصر الرئيسي غالباً بحدود القطع أيضاً (إحصاءات المحتوى، فوق حد القطع).",
   "Geologists disagree on the right rule. The threshold you save is a decision, stored with its date and rule for review.": "يختلف الجيولوجيون حول القاعدة الصحيحة. العتبة التي تحفظها قرار، يُخزَّن مع تاريخه وقاعدته لتمكن مراجعته.",
-  "Merge thin codes into the unit, choose fewer holes or update the add-on: {c} contacts need {n} inducing points, more than version {v} can hold.": "ادمج الرموز الرقيقة في الوحدة، أو اختر ثقوبًا أقل، أو حدّث الإضافة: يتطلب {c} تماسًا {n} نقطة استقراء، أكثر مما يمكن للإصدار {v} الاحتفاظ به.",
   "On {k} of {n} held-back holes: {a}% of the unit's points come out inside it, {b}% of the others outside. The better guide to new holes.": "في {k} من {n} ثقبًا محتجزًا: {a}% من نقاط الوحدة داخلها و{b}% من غيرها خارجها. هذا أفضل دليل للثقوب الجديدة.",
   "That is weak: the model does not reproduce the unit where it was logged. Try a higher quality, fewer holes or a merged code.": "هذا ضعيف: لا يعيد النموذج إنتاج الوحدة حيث سُجلت. جرّب جودة أعلى أو ثقوبًا أقل أو رمزًا مدمجًا.",
   "Load drillholes first: geoML needs a hole with a collar and a lithology log or assays; this project has none. You can install the add-on any time.": "حمّل الثقوب أولًا: يحتاج geoML إلى ثقب له فوهة وسجل صخري أو تحاليل؛ وهذا المشروع لا يضم أيًا منها. يمكنك تثبيت الإضافة في أي وقت.",
@@ -15225,7 +15223,6 @@
   "IP phase uncertainty (%)": "عدم يقين طور IP (٪)",
   "{names} (IP phase, mrad)": "{names} (طور IP، ميلي راديان)",
   "zone {z}": "النطاق {z}",
-  " — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it": " — لم يُطبق الاتجاه «{name}»: إصدار الإضافة هذا ({v}) أقدم من الاتجاهات؛ حدّثه",
   ", Ítalo Gonçalves). Results appear in the 3D view as \"geoML — …\" beside your other models. Everything runs on this computer.": "، Ítalo Gonçalves). تظهر النتائج في العرض ثلاثي الأبعاد باسم «geoML — …» بجانب نماذجك الأخرى. كل شيء يعمل على هذا الحاسوب.",
   "Time grows with holes and quality: start with Fast. {v}": "يزداد الوقت مع الثقوب والجودة: ابدأ بالسريع. {v}",
   "Add-on {v} still works; {v2} is available.": "الإضافة {v} ما زالت تعمل؛ الإصدار {v2} متاح.",
@@ -15934,5 +15931,9 @@
   "Mount Raymond (Geological Survey of Canada, Canadian Geoscience Map 71, northern Yukon): 1:50 000 bedrock mapping only — map units, faults, folds and 119 planar measurements on a terrain — nothing synthesized.": "Mount Raymond (هيئة المسح الجيولوجي الكندية، Canadian Geoscience Map 71، شمال يوكون): خريطة صخور الأساس بمقياس 1:50 000 فقط (وحدات الخريطة والصدوع والطيات و119 قياساً مستوياً على تضاريس)؛ لا شيء مُصطنع.",
   "WA zinc-copper (WAMEX report A77713): 32 holes from 2007 on sulphide prospects in felsic volcanic rocks, with logs and assays, and 157 soil and 46 stream-sediment samples — nothing synthesized.": "زنك-نحاس من أستراليا الغربية (تقرير WAMEX رقم A77713): 32 ثقباً من عام 2007 في مواقع كبريتيدات ضمن صخور بركانية فلسية، مع السجلات والتحاليل، و157 عيّنة تربة و46 عيّنة رواسب مجارٍ؛ لا شيء مُصطنع.",
   "WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit, with lithology, weathering, assays and specific gravity — nothing synthesized.": "رصاص-فضة-زنك من أستراليا الغربية (تقرير WAMEX رقم A91581): 99 ثقباً ضحلاً من عام 2010 في راسب تستضيفه صخور كربوناتية، مع الليثولوجيا والتجوية والتحاليل والثقل النوعي؛ لا شيء مُصطنع.",
-  "{assays} intervals loaded": "{assays} فترة محمّلة"
+  "{assays} intervals loaded": "{assays} فترة محمّلة",
+  "Starting the add-on ({s} s; slower the first time)": "جارٍ تشغيل الإضافة ({s} ث؛ أبطأ في المرة الأولى)",
+  " — the trend \"{name}\" was NOT applied: add-on {v} predates trends": " — لم يُطبق الاتجاه «{name}»: الإضافة {v} أقدم من الاتجاهات",
+  "{c} contacts need {n} inducing points, more than add-on {v} holds: update it, merge thin codes or choose fewer holes.": "يتطلب {c} تماسًا {n} نقطة استقراء، أكثر مما تحتفظ به الإضافة {v}: حدّثها أو ادمج الرموز الرقيقة أو اختر ثقوبًا أقل.",
+  "Training skipped: same as the last run.": "تُخطّي التدريب: مطابق للتشغيل السابق."
 }
