@@ -67,12 +67,15 @@ export function placeLine(lineValue, stns, loop = null) {
 export const placeAlongLine = (lineValue, stn, loop = null) => { const r = placeLine(lineValue, [stn], loop); return r ? { ...r.points[0], axis: r.axis, how: r.how } : null; };
 
 // -> { header, title, family, columns, config, times (ms, one per gate) | null, gates ['CH1', …], components ['Z', 'X', 'Y'] (Z first), assumedComponent, stations: [{ line, x, y, elev, station, comps }],
-//      units, rows, positions: 'file' | 'line', positionNote (what was assumed) | null }
+//      units, rows, positions: 'file' | 'line' | 'none', positionNote (what was assumed) | null, widths (ms, one per gate, when the file gives them) | null, hasStation,
+//      timesListed (how many gate times the file lists, whether or not they fit the gates), skipped (rows of the wrong length) } — each station also has reads: { comp: how many readings were stacked }
 export function parseMaxwellTem(text) { return parseTemReceiver(text); }
-export function parseTemReceiver(text) {
+// opts (TASKS.csv #4064: the downhole reader, lib/downholeEm.js, is built on this same parser): placeLines false leaves the stations' x / y as the file has
+// them (a hole's readings are placed by their depth, not on a line); lineDefault(header) names the line (the hole) of the rows before any 'LINE:' row.
+export function parseTemReceiver(text, opts = {}) {
   const lines = String(text || "").split(/\r\n|\r|\n/);
   const header = {};
-  let title = null, times = null, tStart = null, tEnd = null, cols = null, line = null, rows = 0, loops = null;
+  let title = null, times = null, tStart = null, tEnd = null, tWidth = null, cols = null, line = null, rows = 0, loops = null, skipped = 0, defLine = null;
   const by = new Map(), stations = [], compOrder = [];
   let ci = {};
   const adcOf = {}; let adcLeftOut = 0; // a component read on two ADCs (SMARTem V: gain 1 and gain 40) keeps the first one
@@ -84,6 +87,7 @@ export function parseTemReceiver(text) {
       if ((m = l.match(/^[/\\]\s*TIMES\s*(?:\(ms\))?\s*=\s*(.*)$/i)) && !times) { const t = numbers(m[1]); if (t.length) times = t; }
       else if ((m = l.match(/^[/\\]\s*TIMESSTART\s*(?:\(ms\))?\s*=\s*(.*)$/i)) && !tStart) tStart = numbers(m[1]);
       else if ((m = l.match(/^[/\\]\s*TIMESEND\s*(?:\(ms\))?\s*=\s*(.*)$/i)) && !tEnd) tEnd = numbers(m[1]);
+      else if ((m = l.match(/^[/\\]\s*TIMESWIDTH\s*(?:\(ms\))?\s*=\s*(.*)$/i)) && !tWidth) tWidth = numbers(m[1]);
       else if ((m = l.match(/^[/\\]\s*Loops? coordinates\s*,(.*)$/i)) && !loops) loops = m[1].split(",").map((p) => p.trim().split(/\s+/).map(Number)).filter((p) => p.length >= 2 && p.every(Number.isFinite)).map((p) => [p[0], p[1]]);
       continue;
     }
@@ -93,6 +97,7 @@ export function parseTemReceiver(text) {
         cols = toks.map((t) => t.toUpperCase());
         const at = (names) => cols.findIndex((c) => names.includes(c));
         ci = { stn: at(STN_NAMES), comp: at(COMP_NAMES), east: cols.indexOf("EAST"), north: cols.indexOf("NORTH"), elev: at(["ELEV", "RL"]), units: cols.indexOf("UNITS"), line: cols.indexOf("LINE"), adc: cols.indexOf("ADC") };
+        defLine = opts.lineDefault ? opts.lineDefault(header) : header.LINE;
         continue;
       }
       if (title == null) title = l;
@@ -102,21 +107,22 @@ export function parseTemReceiver(text) {
     const sep = l.match(/^LINE\s*[:=]\s*(\S+)/i);
     if (sep) { line = sep[1]; continue; }
     const t = l.split(/\s+/);
-    if (t.length !== cols.length) continue;
+    if (t.length !== cols.length) { skipped++; continue; }
     const comp = ci.comp >= 0 ? String(t[ci.comp] || "").toUpperCase() : "Z";
     if (!comp) continue;
     if (ci.adc >= 0) { const adc = t[ci.adc]; if (adcOf[comp] === undefined) adcOf[comp] = adc; else if (adcOf[comp] !== adc) { adcLeftOut++; continue; } }
     const stn = ci.stn >= 0 ? t[ci.stn] : t[0];
     const east = ci.east >= 0 ? t[ci.east] : "", north = ci.north >= 0 ? t[ci.north] : "";
-    const lineKey = String(line ?? header.LINE ?? "1");
-    const key = `${lineKey}|${east}|${north}|${stn}`;
+    const lineKey = String(line ?? defLine ?? "1");
+    const key = `${lineKey}|${east}|${north}|${stn}${ci.stn < 0 && ci.elev >= 0 ? `|${t[ci.elev]}` : ""}`; // no station column (a hole's receiver moves in elevation): the elevation tells the stations apart
     let s = by.get(key);
     if (!s) {
-      s = { line: lineKey, x: ci.east >= 0 ? num(east) : NaN, y: ci.north >= 0 ? num(north) : NaN, elev: ci.elev >= 0 ? num(t[ci.elev]) : NaN, station: num(stn), acc: {} };
+      s = { line: lineKey, x: ci.east >= 0 ? num(east) : NaN, y: ci.north >= 0 ? num(north) : NaN, elev: ci.elev >= 0 ? num(t[ci.elev]) : NaN, station: num(stn), acc: {}, reads: {} };
       by.set(key, s); stations.push(s);
     }
     if (!compOrder.includes(comp)) compOrder.push(comp);
     const a = s.acc[comp] || (s.acc[comp] = { sum: null, n: null });
+    s.reads[comp] = (s.reads[comp] || 0) + 1;
     let g = 0;
     for (let i = 0; i < cols.length; i++) {
       if (!GATE.test(cols[i])) continue;
@@ -142,7 +148,8 @@ export function parseTemReceiver(text) {
   if (!gt && tStart && tEnd && tStart.length === gates.length && tEnd.length === gates.length) gt = tStart.map((v, i) => +((v + tEnd[i]) / 2).toPrecision(6));
   // coordinates: in the file, or from the line
   let positions = "file", positionNote = null;
-  if (ci.east < 0 || ci.north < 0) {
+  if (opts.placeLines === false) positions = ci.east < 0 || ci.north < 0 ? "none" : "file";
+  else if (ci.east < 0 || ci.north < 0) {
     positions = "line";
     const loop = loopCorners(header) || (loops && loops.length >= 3 && loops.every(([x, y]) => Math.abs(x) > 1e4 || Math.abs(y) > 1e4) ? loops : null);
     const hows = new Set(), axes = new Set(), byLine = new Map();
@@ -156,5 +163,8 @@ export function parseTemReceiver(text) {
   }
   const title2 = title || "";
   const family = /MAXWELL/i.test(title2) ? "Maxwell" : /EMBASE/i.test(title2) ? "EMBASE" : /SMARTem|Atlantis/i.test(title2 + " " + (header.RECEIVER || "") + " " + (header.INSTRUMENT || "")) ? "SMARTem" : /PEM SURVEY|CRONE/i.test(title2 + " " + (header.INSTRUMENT || "")) ? "Crone" : "TEM";
-  return { header, title: title2, family, columns: cols, config: header.CONFIG || header.ARRAY || null, times: gt, gates, components, assumedComponent: ci.comp < 0, adcLeftOut, stations, units, rows, positions, positionNote, hasTimes: !!gt };
+  let widths = null;
+  if (gt && tWidth && tWidth.length === gates.length) widths = tWidth;
+  else if (gt && tStart && tEnd && tStart.length === gates.length && tEnd.length === gates.length) widths = tStart.map((v, i) => +(tEnd[i] - v).toPrecision(6));
+  return { header, title: title2, family, columns: cols, config: header.CONFIG || header.ARRAY || null, times: gt, gates, components, assumedComponent: ci.comp < 0, adcLeftOut, stations, units, rows, positions, positionNote, hasTimes: !!gt, widths, timesListed: (times || tStart || []).length, hasStation: ci.stn >= 0, skipped };
 }

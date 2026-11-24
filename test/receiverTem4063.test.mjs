@@ -125,6 +125,6 @@ test("wired: the pane shows the notes; keys in every language", () => {
   for (const k of ["a hole in the header ({v})", "The file has no coordinates: each station is placed on its line, the line number taken as its northing and the station as its easting (decided by {how}).",
     "The file has no coordinates: each station is placed on its line, the line number taken as its easting and the station as its northing (decided by {how}).", "the loop's corners", "the letter after the line number", "the size of the line number",
     "The file does not name a component: Z is assumed.", "{n} reading(s) of a second ADC (the same component at another gain) are left out.",
-    "\"{name}\" is borehole EM ({clues}). TEM line data reads airborne and ground line surveys, not a hole: GeoStrix has no reader for borehole EM yet."])
+    "\"{name}\" is borehole EM ({clues}). TEM line data reads airborne and ground line surveys, not a hole. Read it with EM › Borehole EM."])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
 });

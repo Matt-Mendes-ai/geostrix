@@ -88,7 +88,7 @@ test("#1986 the EM chooser opens TEM line data, a lazy pane with its help page",
   assert.match(g, /const TemPane = React\.lazy\(\(\) => import\("\.\.\/components\/TemPane\.jsx"\)\);/);
   assert.match(g, /go: \(\) => setGeoPane\("tem"\), help: "tem-lines" \}/);
   assert.match(g, /\{geoPane === "tem" && \(<Suspense fallback=\{null\}><TemPane /);
-  assert.match(g, /active=\{geoPane === "em" \|\| geoPane === "fdem" \|\| geoPane === "tem"\}/);
+  assert.match(g, /active=\{geoPane === "em" \|\| geoPane === "fdem" \|\| geoPane === "tem" \|\| geoPane === "bhem"\}/);
   const h = readFileSync(new URL("../src/lib/help.js", import.meta.url), "utf8");
   assert.match(h, /"TEM line data \(multi-channel\)": "tem-lines"/);
   const p = readFileSync(new URL("../src/help/pages/geophysics.js", import.meta.url), "utf8");

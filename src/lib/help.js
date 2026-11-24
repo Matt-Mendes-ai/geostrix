@@ -23,6 +23,7 @@ export const PANE_HELP = {
   "Radiometric survey (CSV / XYZ)": "radiometrics",
   "Electromagnetic surveys (EM)": "em-surveys",
   "TEM line data (multi-channel)": "tem-lines", // TASKS.csv #1986 step 1
+  "Borehole EM (downhole)": "borehole-em", // TASKS.csv #4064
   // Maps
   "Boundaries": "boundaries",
   "Map layers & outcrop structures": "map-layers",
