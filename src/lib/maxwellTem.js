@@ -35,7 +35,7 @@ const numbers = (s) => String(s).split(/[,\s]+/).map(Number).filter(Number.isFin
 // the loop's corners, from LV1X / LV1Y ... words of the header (a moving loop gives them relative to the station: small numbers, not map coordinates)
 function loopCorners(header) {
   const pts = [];
-  for (let k = 1; k <= 8; k++) { const x = num(header[`LV${k}X`]), y = num(header[`LV${k}Y`]); if (Number.isFinite(x) && Number.isFinite(y)) pts.push([x, y]); }
+  for (let k = 1; k <= 40; k++) { const x = num(header[`LV${k}X`]), y = num(header[`LV${k}Y`]); if (Number.isFinite(x) && Number.isFinite(y)) pts.push([x, y]); }
   return pts.length >= 3 && pts.every(([x, y]) => Math.abs(x) > 1e4 || Math.abs(y) > 1e4) ? pts : null;
 }
 
