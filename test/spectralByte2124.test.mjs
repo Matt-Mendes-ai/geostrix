@@ -30,5 +30,5 @@ test("the modal reads the bit depth, names the raster after the index and file, 
   assert.match(m, /const byteFile = !fetchMode && reflective && \(dnEnc === "byte" \|\| \(dnEnc === "auto" && bits === 8\)\);/);
   assert.match(m, /byteFile \? `\$\{preset\.label\}, 8-bit values`/);
   assert.match(m, /sensorKey, \{ bits \}\)/);
-  assert.match(m, /msg \+ note \+ encNote \+ byteNote\);/);
+  assert.match(m, /msg \+ note \+ trustNote \+ encNote \+ byteNote\);/); // trustNote: #4052
 });

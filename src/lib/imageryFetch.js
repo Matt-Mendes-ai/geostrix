@@ -18,6 +18,8 @@ import { reprojectXY, getProj4DefSync } from "./reproject.js";
 import { reprojectGrid } from "./reprojectMore.js"; // TASKS.csv #3590
 import { pointInRings } from "./mapLayers.js";
 import { snowByNdsi, NDSI_SNOW_MIN, SNOW_MIN_GREEN } from "./snowTest.js"; // TASKS.csv #4051 — the second snow test
+import { describeScene, rankAsterScenes, crossTrackAngle } from "./asterScenes.js"; // TASKS.csv #4052 — which ASTER scene first
+import { treatTirBands } from "./tirDestripe.js"; // TASKS.csv #4052 — the thermal bands' stripes, speckle and cold pixels
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const EARTH_SEARCH = "https://earth-search.aws.element84.com/v1/search";
@@ -170,9 +172,15 @@ export async function searchScenes(source, bbox, { from, to, maxCloud = 20, limi
     return (d.features || []).map((f) => s2SceneOf(f, bbox)).sort((a, b) => b.coverage - a.coverage || a.cloud - b.cloud).slice(0, limit);
   }
   if (source === "aster_tir") {
-    const d = await stacSearch(PC_SEARCH, { collections: ["aster-l1t"], bbox, query: { "eo:cloud_cover": { lt: maxCloud } }, limit: 50 }, signal);
-    return (d.features || []).filter((f) => f.assets.TIR).map((f) => ({ source, id: f.id, date: String(f.properties.datetime).slice(0, 10), cloud: f.properties["eo:cloud_cover"], epsg: f.properties["proj:epsg"], coverage: areaCoverage(f.geometry, bbox), tir: f.assets.TIR.href }))
-      .sort((a, b) => b.coverage - a.coverage || a.cloud - b.cloud).slice(0, limit);
+    // TASKS.csv #4052 (Macpass: "quartz from aster doesn't look right") — the archive is thin (35 scenes over Macpass in 2000-2006, only April / May ones under 20 % cloud: snow and cold
+    // ground, where a thermal index shows stripes and noise), so no scene is cut by its cloud: they are ranked (lib/asterScenes.js) by coverage of the area, then a daytime scene of the
+    // project's clear months, then the cloud limit, and each says its month and day / night
+    const d = await stacSearch(PC_SEARCH, { collections: ["aster-l1t"], bbox, limit: 200 }, signal);
+    const lat = (bbox[1] + bbox[3]) / 2, lon = (bbox[0] + bbox[2]) / 2;
+    return rankAsterScenes((d.features || []).filter((f) => f.assets.TIR).map((f) => describeScene({
+      source, id: f.id, date: String(f.properties.datetime).slice(0, 10), datetime: f.properties.datetime, sunElevation: f.properties["view:sun_elevation"], cloud: f.properties["eo:cloud_cover"], epsg: f.properties["proj:epsg"],
+      coverage: areaCoverage(f.geometry, bbox), tir: f.assets.TIR.href, footprint: f.geometry,
+    }, lat, lon)), { maxCloud }).slice(0, limit);
   }
   throw new Error(tr("Unknown imagery source {source}", { source }));
 }
@@ -194,7 +202,8 @@ export function windowGrid(bbox, epsg, cellM, maxPx = 2000) {
 // `cover`), not to blank pixels (a picture keeps its lakes and snow); `bandsOnly: true` returns the resampled bands
 // (`out`) instead of building a GeoTIFF.
 // TASKS.csv #4051 — `snow`: the second snow test (lib/snowTest.js) that runs with the classification mask, on unless `snow: false`; { min, minGreen } change its thresholds
-export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, maxPx = 2000, targetEpsg = null, mask = true, bandsOnly = false, snow = undefined, signal } = {}) { // signal: #3963
+// TASKS.csv #4052 — `tir`: the ASTER thermal bands' treatment (lib/tirDestripe.js treatTirBands), on unless `tir: false`; { smooth: false } keeps the pixels as they are
+export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, maxPx = 2000, targetEpsg = null, mask = true, bandsOnly = false, snow = undefined, tir = undefined, signal } = {}) { // signal: #3963
   const src = IMAGERY_SOURCES[scene.source];
   const g = windowGrid(bboxLonLat, scene.epsg, src.nativeM, maxPx);
   const n = g.width * g.height;
@@ -205,7 +214,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
     return tiff.readRasters({ bbox: g.box, width: g.width, height: g.height, resampleMethod: "nearest", ...(samples ? { samples } : {}), fillValue: 0, signal });
   };
   const bands = [], mapping = {};
-  let note = "", masked = null, snowStats = null;
+  let note = "", masked = null, snowStats = null, tirStats = null;
   if (scene.source === "sentinel2") {
     const want = roles.filter((r) => scene.bands[r]);
     const missing = roles.filter((r) => !scene.bands[r]);
@@ -272,6 +281,15 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
     });
     onProgress?.(1, 1);
     note = tr(" ASTER L1T {v} ({date}, {cloud}% cloud over the scene), thermal bands 10-14 as at-sensor radiance, with no atmospheric or temperature correction (compare values within this scene only), {v2} m.", { v: scene.id.split("_").slice(0, 3).join("_"), date: scene.date, cloud: scene.cloud, v2: Math.round(g.cell) });
+    if (tir !== false) { // TASKS.csv #4052 — the scan-line stripes, the speckle and the cold pixels
+      let around = null;
+      try { around = scene.footprint?.coordinates?.[0] ? crossTrackAngle(scene.footprint.coordinates[0].map(([lo, la]) => reprojectXY(lo, la, 4326, scene.epsg))) : null; } catch { around = null; }
+      const t = treatTirBands(bands, g.width, g.height, { smooth: tir?.smooth !== false, around });
+      bands.splice(0, bands.length, ...t.bands);
+      tirStats = { angleDeg: t.angleDeg, stripesBefore: t.stripesBefore, stripesAfter: t.stripesAfter, cold: t.cold, valid: t.valid, smoothed: t.smoothed, width: g.width, height: g.height, cellM: g.cell };
+      note += tr(" Thermal bands: scan-line stripes at {angle}° taken out (their level {before}% to {after}% of the signal){smooth}; {cold} of {valid} pixels colder than 0 °C at 10.7 µm left out as probably snow, ice, cloud or cold water. The thermal bands have no snow mask: thin or warm snow is not caught.",
+        { angle: t.angleDeg, before: (100 * t.stripesBefore).toFixed(2), after: (100 * t.stripesAfter).toFixed(2), smooth: t.smoothed ? tr(", then a 3 × 3 mean (about {m} m)", { m: Math.round(3 * g.cell) }) : "", cold: t.cold.toLocaleString(), valid: t.valid.toLocaleString() });
+    }
   }
   // The importer keeps an index's VALUES only when it needs no reprojection (#326: a picture resample is not a value
   // re-grid), and the scenes come in WGS 84 / UTM while projects are often NAD83(CSRS) / UTM: so the stack is resampled
@@ -285,7 +303,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
     out = { width: rp.gridW, height: rp.gridH, bands: rp.bandsOut, epsg: dst, scaleX: sx, scaleY: sy, x0: rp.bbox[0] - sx / 2, y1: rp.bbox[3] + sy / 2 };
     note += tr(" Resampled (nearest pixel) from EPSG:{epsg} into the project's EPSG:{dst} so the values are kept.", { epsg: scene.epsg, dst });
   }
-  if (bandsOnly) { stats.ms = Date.now() - t0; return { out, mapping, note, grid: g, masked, snow: snowStats, stats }; } // #816
+  if (bandsOnly) { stats.ms = Date.now() - t0; return { out, mapping, note, grid: g, masked, snow: snowStats, tir: tirStats, stats }; } // #816
   // interleave into one Float32 multiband GeoTIFF (NaN = no data)
   const S = out.bands.length, m = out.width * out.height, data = new Float32Array(m * S);
   for (let i = 0; i < m; i++) for (let b = 0; b < S; b++) data[i * S + b] = out.bands[b][i];
@@ -295,7 +313,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
   });
   const file = new File([buf], `${scene.id}.tif`, { type: "image/tiff" });
   stats.ms = Date.now() - t0;
-  return { file, mapping, note, grid: g, masked, snow: snowStats, stats };
+  return { file, mapping, note, grid: g, masked, snow: snowStats, tir: tirStats, stats };
 }
 
 // TASKS.csv #4051 — the picture of a stack's red / green / blue (one 2nd-98th percentile stretch for the three, a gentle gamma): shared by the latest-scene fetch and the

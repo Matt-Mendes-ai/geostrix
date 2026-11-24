@@ -15272,5 +15272,15 @@
   "The red, green and blue bands of this scene over the area, as a layer named with its date: shows what the index saw (snow, cloud, shadow).": "Les bandes rouge, verte et bleue de cette scène sur la zone, en couche nommée d'après sa date : montre ce que l'indice a vu (neige, nuages, ombre).",
   "Show the scene of \"{name}\" in true colour": "Afficher la scène de « {name} » en couleurs naturelles",
   "Sentinel-2 scene of {date}": "Scène Sentinel-2 du {date}",
-  "Scene of {date}": "Scène du {date}"
+  "Scene of {date}": "Scène du {date}",
+  " Thermal bands: scan-line stripes at {angle}° taken out (their level {before}% to {after}% of the signal){smooth}; {cold} of {valid} pixels colder than 0 °C at 10.7 µm left out as probably snow, ice, cloud or cold water. The thermal bands have no snow mask: thin or warm snow is not caught.": " Bandes thermiques : les rayures des lignes de balayage à {angle}° ont été retirées (leur niveau est passé de {before}% à {after}% du signal){smooth} ; {cold} pixels sur {valid} plus froids que 0 °C à 10,7 µm ont été écartés comme probablement de la neige, de la glace, des nuages ou de l'eau froide. Les bandes thermiques n'ont pas de masque de neige : la neige mince ou chaude n'est pas détectée.",
+  ", then a 3 × 3 mean (about {m} m)": ", puis une moyenne 3 × 3 (environ {m} m)",
+  "Can't trust this index: its spread ({spread}%) is within the noise and stripe level of this scene ({floor}%). Try a daytime scene from the clear months, or ASTER AST_05 emissivity files (an Earthdata login), which are corrected for temperature and the atmosphere.": "Ne vous fiez pas à cet indice : sa dispersion ({spread}%) est dans le niveau de bruit et de rayures de cette scène ({floor}%). Essayez une scène de jour des mois dégagés, ou les fichiers d'émissivité ASTER AST_05 (avec un compte Earthdata), corrigés de la température et de l'atmosphère.",
+  "night": "nuit",
+  "day": "jour",
+  "outside the clear months": "hors des mois dégagés",
+  "No scene covers the whole area: the best covers {v}% of it.": "Aucune scène ne couvre toute la zone : la meilleure en couvre {v}%.",
+  "The first scene is from {month}, outside the clear months: snow and cold ground leave a thermal index only noise. Check the dates of the others.": "La première scène date de {month}, hors des mois dégagés : la neige et le sol froid ne laissent à un indice thermique que du bruit. Vérifiez les dates des autres.",
+  "The first scene is a night pass: its thermal index is not comparable with a daytime one.": "La première scène est un passage de nuit : son indice thermique n'est pas comparable à un indice de jour.",
+  "Average the thermal bands 3 × 3 (about 270 m): their speckle is as wide as an index of a few per cent. Scan-line stripes and pixels colder than 0 °C are always taken out.": "Moyenner les bandes thermiques 3 × 3 (environ 270 m) : leur moucheture est aussi large qu'un indice de quelques pour cent. Les rayures de balayage et les pixels plus froids que 0 °C sont toujours retirés."
 }
