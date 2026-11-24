@@ -265,6 +265,44 @@ def test_unused_ip_placeholders_need_no_uncertainty():
         print("  refused:", e)
 
 
+def test_mesh_uses_no_deprecated_discretize():
+    """TASKS.csv #4050 — the octree is built with TreeMesh's own methods (refine_tree_xyz is deprecated, to be removed) and
+    diagonal balancing set explicitly, so discretize warns about neither; the electrodes and the ground keep their small cells."""
+    import warnings
+    rows, chain = _readings(False)
+    req = _req(rows, chain)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        warnings.simplefilter("error", FutureWarning)
+        mesh, active, elec, topo = D.build_mesh(req)
+    core = req["mesh"]["core"]
+    assert mesh.h_gridded[mesh.get_containing_cells(elec - [0, 0, 1e-3]), 0].max() == core
+    assert mesh.h_gridded[mesh.get_containing_cells(topo - [0, 0, 1e-3]), 0].max() <= 2 * core
+    print(f"  {mesh.n_cells} cells, {int(active.sum())} active")
+    # the same mesh as the deprecated calls made, while discretize still has them, flat and on a hill with 10 m cells
+    import discretize.utils as du
+    if not hasattr(du, "refine_tree_xyz"):
+        print("  discretize has no refine_tree_xyz any more: the same-mesh check is skipped"); return
+    hill = lambda x, y: GROUND + 60 * np.sin(x / 180.0) * np.cos(y / 240.0) + 0.05 * x
+    r2 = [[v if (v is None or k % 3 != 2) else float(hill(row[k - 2], row[k - 1])) for k, v in enumerate(row)] for row in rows]
+    req2 = _req(r2, chain, mesh={"core": 10.0, "depth": 80.0}); req2["topo"] = [[x, y, float(hill(x, y))] for x in np.arange(-300, 801, 50) for y in np.arange(-300, 501, 50)]
+    for q in (req, req2):
+        a, b, m, n = D._electrodes(q)
+        c, dep = q["mesh"]["core"], q["mesh"]["depth"]
+        el = np.unique(np.round(np.vstack([a, b, m, n]), 1), axis=0)
+        tp = np.vstack([np.asarray(q["topo"], dtype=float), el])
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            old = du.mesh_builder_xyz(el, [c, c, c / 2], depth_core=dep + 200, padding_distance=[[D.PAD_M] * 2, [D.PAD_M] * 2, [D.PAD_M, 0]], mesh_type="tree")
+            old = du.refine_tree_xyz(old, tp, octree_levels=[0, 1, 2], method="surface", finalize=False)
+            old = du.refine_tree_xyz(old, np.vstack([el + [0, 0, -dz] for dz in np.arange(0, dep + 1, c)]), octree_levels=[0, 2, 2], method="radial", finalize=False)
+            old = du.refine_tree_xyz(old, el, octree_levels=[2, 2], method="radial", finalize=True)
+        new, new_active, _, _ = D.build_mesh(q)
+        assert old.n_cells == new.n_cells and np.array_equal(old.cell_centers, new.cell_centers) and np.array_equal(old.h_gridded, new.h_gridded), (old.n_cells, new.n_cells)
+        assert np.array_equal(du.active_from_xyz(old, tp), new_active)
+        print(f"  same mesh as refine_tree_xyz: {new.n_cells} cells")
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):
