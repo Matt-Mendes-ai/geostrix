@@ -5,6 +5,7 @@
 // what the file is. Pure.
 import { temChannelGroups } from "./temLines.js";
 import { t as tr } from "./i18n.js";
+import { arrMin, arrMax } from "./arrayStats.js"; // no Math.min / max spread (#371)
 
 export const MIN_DECAY_GATES = 6; // a decay of six gates or more is a time-domain EM file, not a table of points
 
@@ -52,7 +53,7 @@ export function boreholeEmClues(columns, rows, headText = "") {
       const at = new Map();
       for (const r of rows) { if (r[x] == null || r[y] == null || r[z] == null) continue; const k = `${r[x]}|${r[y]}`; (at.get(k) || at.set(k, new Set()).get(k)).add(r[z]); }
       const top = [...at.values()].sort((p, q) => q.size - p.size)[0];
-      if (top && top.size >= 3 && Math.max(...top) - Math.min(...top) > 5) evidence.push(tr("readings at several elevations under one position ({col})", { col: z }));
+      if (top && top.size >= 3 && arrMax([...top]) - arrMin([...top]) > 5) evidence.push(tr("readings at several elevations under one position ({col})", { col: z }));
     }
   }
   return evidence.length ? [...support, ...evidence] : [];
