@@ -550,7 +550,7 @@ function Pseudosection({ parsed, large = false }) {
   const FS = large ? 10 : 13;
   const f = useMemo(() => pseudoFrame(pts, large ? { W: 640, H: 270, left: 44, bottom: 30 } : { H: 166, left: 48, bottom: 36 }), [pts, large]); // large: drawn bigger, not scaled up
   const vals = field === "resistivity" ? parsed.rho : parsed.ip;
-  const sc = useMemo(() => pseudoColourScale(vals, field), [vals, field]);
+  const sc = useMemo(() => pseudoColourScale(vals, field, 24, parsed.ipKind === "phase" ? "mrad" : "mV/V"), [vals, field, parsed.ipKind]);
   const { W, H } = f;
   const label = field === "resistivity" ? tr("Apparent resistivity pseudosection") : parsed.ipKind === "phase" ? tr("Apparent IP phase pseudosection") : tr("Apparent chargeability pseudosection");
   const tick = { fontSize: FS, fill: "var(--color-text-muted)" };
@@ -643,7 +643,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
       {reach && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Dashed line = DOI index {doiT} (Oldenburg & Li): below it the resistivity follows the reference, not the data. Median reach {median} m by DOI, {median2} m by support ({cutoff}).{v}", { doiT, median: reach.doi.median.toFixed(0), median2: reach.sup.median.toFixed(0), cutoff, v: doiFits ? tr(" The two reference runs fit {v} the target{v2}.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and "), v2: doiFits.some((v) => v < 0.5) ? tr(" — unequal fits inflate the index, so read the line as approximate") : "" }) : "" })}</div>}
       {doiFailed && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-fg)" }}>{tr("No depth-of-investigation check: a reference run missed the target fit ({v}), so the index would measure that failure, not the data's reach.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and ") })}</div>}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})", { v: sig3(ramp.lo), v2: sig3(ramp.hi), a: sig3(arrMin(vals)), b: sig3(arrMax(vals)) }) : tr("colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})", { v: sig3(ramp.hi), b: sig3(arrMax(vals)) }), v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: imported ? tr("Imported from the contractor's files (kept in the project).") : last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
+        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})", { v: sig3(ramp.lo), v2: sig3(ramp.hi), a: sig3(arrMin(vals)), b: sig3(arrMax(vals)) }) : (ipPhase ? tr("colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})", { v: sig3(ramp.hi), b: sig3(arrMax(vals)) }) : tr("colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})", { v: sig3(ramp.hi), b: sig3(arrMax(vals)) })), v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: imported ? tr("Imported from the contractor's files (kept in the project).") : last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title={tr("Every section cell: distance, x / y (project CRS), elevation, size, values, support")}><Download size={14} />{" "}{tr("CSV")}</button>
@@ -688,7 +688,7 @@ function DataFit({ obs, result }) {
   const W = 300, H = 80;
   const smin = arrMin(rows.map((x) => x.s)), smax = arrMax(rows.map((x) => x.s)), dmax = arrMax(rows.map((x) => x.depth)) || 1;
   const X = (s) => 6 + ((s - smin) / (smax - smin || 1)) * (W - 12), Y = (d) => 6 + (d / dmax) * (H - 12);
-  const unit = k === "dc" ? "ohm·m" : "mV/V";
+  const unit = k === "dc" ? "ohm·m" : result.ipKind === "phase" ? "mrad" : "mV/V"; // #4059
   const fmt = (v) => (Number.isFinite(v) ? Number(v.toPrecision(3)).toString() : "—");
   const plot = (label, colorOf) => (
     <div style={{ marginTop: 4 }}>

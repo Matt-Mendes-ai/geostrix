@@ -15321,5 +15321,6 @@
   "zone {z}": "zone {z}",
   "The azimuths are magnetic (column {c}): choose the declination when you map the survey.": "Les azimuts sont magnétiques (colonne {c}) : choisissez la déclinaison en associant le levé.",
   "The azimuths are on the grid or true north (column {c}), not magnetic.": "Les azimuts sont au nord de la grille ou vrai (colonne {c}), pas magnétique.",
-  "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} étalon(s) de référence certifié(s) en ligne ({names}) sont marqués comme étalons, pas comme échantillons."
+  "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} étalon(s) de référence certifié(s) en ligne ({names}) sont marqués comme étalons, pas comme échantillons.",
+  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "couleurs de 0 à {v} mrad (le 98e centile des cellules vues par les données ; le modèle va jusqu'à {b})"
 }

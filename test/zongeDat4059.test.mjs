@@ -93,6 +93,13 @@ test("merging lines: a phase model and a chargeability model are never one group
   assert.match(read("../src/components/DcipMergePanel.jsx"), /ipp: \{ label: "IP phase", unit: "mrad"/);
 });
 
+test("the colour scale of a phase pseudosection carries mrad, a chargeability one mV/V", async () => {
+  const { pseudoColourScale } = await import("../src/lib/pseudosectionPlot.js");
+  assert.equal(pseudoColourScale([1, 2, 3], "chargeability", 24, "mrad").unit, "mrad");
+  assert.equal(pseudoColourScale([1, 2, 3], "chargeability").unit, "mV/V");
+  assert.equal(pseudoColourScale([1, 2, 3], "resistivity", 24, "mrad").unit, "ohm·m");
+});
+
 test("wired: the panel names the IP column for what it is, says so in its notice, keeps the kind with the line; keys in every language", () => {
   const p = read("../src/components/DcipPanel.jsx");
   assert.match(p, /ipKind/);

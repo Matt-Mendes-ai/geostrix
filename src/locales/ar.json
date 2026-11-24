@@ -15321,5 +15321,6 @@
   "zone {z}": "النطاق {z}",
   "The azimuths are magnetic (column {c}): choose the declination when you map the survey.": "السموت مغناطيسية (العمود {c}): اختر الانحراف المغناطيسي عند ربط المسح.",
   "The azimuths are on the grid or true north (column {c}), not magnetic.": "السموت على شمال الشبكة أو الشمال الحقيقي (العمود {c})، لا المغناطيسي.",
-  "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} من المعايير المرجعية المعتمدة المضمّنة ({names}) تُعلَّم كمعايير لا كعينات."
+  "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} من المعايير المرجعية المعتمدة المضمّنة ({names}) تُعلَّم كمعايير لا كعينات.",
+  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "الألوان من 0 إلى {v} ميلي راديان (المئين 98 للخلايا التي تراها البيانات؛ يصل النموذج إلى {b})"
 }

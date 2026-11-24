@@ -17,7 +17,7 @@ export function axisTicks(lo, hi, n = 5) {
 // the colour model, the bar's values and its labels for one field: resistivity on a log ramp (it spans decades), chargeability
 // on a linear one from min(0, lo) (as the Data-fit plot draws it); readings that are not finite (or not > 0 on a log ramp) are
 // left out of the range and drawn grey
-export function pseudoColourScale(values, field, steps = 24) {
+export function pseudoColourScale(values, field, steps = 24, ipUnit = "mV/V") { // ipUnit: TASKS.csv #4059 — 'mrad' for a frequency-domain IP phase
   const log = field === "resistivity";
   const ok = (values || []).filter((v) => Number.isFinite(v) && (!log || v > 0));
   if (!ok.length) return null;
@@ -27,7 +27,7 @@ export function pseudoColourScale(values, field, steps = 24) {
   const model = { stops: log ? logStops(lo, hi) : sequentialStops(lo, hi), colorMode: "continuous" };
   const at = (f) => (log ? 10 ** (Math.log10(lo) + (Math.log10(hi) - Math.log10(lo)) * f) : lo + (hi - lo) * f);
   const bar = Array.from({ length: steps }, (_, i) => at((i + 0.5) / steps));
-  return { log, lo, hi, model, bar, labels: [lo, at(0.5), hi], unit: log ? "ohm·m" : "mV/V", usable: ok.length };
+  return { log, lo, hi, model, bar, labels: [lo, at(0.5), hi], unit: log ? "ohm·m" : ipUnit, usable: ok.length };
 }
 
 // the plot frame: margins for the depth labels (left) and the station labels (bottom), the scale functions and the ticks
