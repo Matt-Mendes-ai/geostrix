@@ -315,7 +315,9 @@ def run_grade(p, progress):
     if pts.n_data < 20:
         raise ValueError(f"Only {pts.n_data} composites with a {name} value — too few to model.")
     n_ind = int(min(p.get("inducing", 300), max(20, pts.n_data // 3)))
-    inducing = geoml.data.inducing.from_kmeans(pts, n_ind)
+    # TASKS.csv #4044 — geoML keeps the k-means seed apart from set_seed: unseeded, the inducing points (and so the grade model) changed
+    # from run to run, up to 25 % of the mean grade between two identical runs (#4043's reference measured it)
+    inducing = geoml.data.inducing.from_kmeans(pts, n_ind, seed=int(p.get("seed", 1234)))
     rng = float(p.get("range", 150.0))
     tr = _anisotropy(geoml, p, rng)  # #673
     root = geoml.latent.BasicInput(inducing, center=True, transform=tr)

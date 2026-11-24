@@ -71,9 +71,10 @@ An update of the add-on is a new add-on release: about a 550 MB download for eac
 The add-on has no constraints file: `addons/geoml/requirements.txt` pins its six direct requirements and the rest of the tree resolves
 at install time. A source environment for the reference test is built with
 `python -m venv <folder>` and `<folder>\Scripts\python -m pip install -r addons/geoml/requirements.txt` (Python 3.11; about
-2.6 GB installed, outside OneDrive). The grade model is not reproducible from run to run as the add-on calls it: `run_grade`
-calls geoML's `from_kmeans` without a seed (geoML keeps that seed apart from `set_seed`), so the inducing points change. The
-reference test passes the add-on's seed to it.
+2.6 GB installed, outside OneDrive). The grade model was not reproducible from run to run in add-on 0.1.5 and earlier: `run_grade`
+called geoML's `from_kmeans` without a seed (geoML keeps that seed apart from `set_seed`), so the inducing points changed. The
+add-on passes the run's seed since TASKS.csv #4044 (it reaches users with the next add-on build); the reference test also passes it,
+so it stays valid against an older add-on.
 
 ## Desktop packages (package.json at the package-lock.json version)
 
