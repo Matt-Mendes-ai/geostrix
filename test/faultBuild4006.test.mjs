@@ -76,7 +76,9 @@ test("#4006 wiring: the run, the cut to the extent, the provenance, the stack", 
   // sheeted planes: no solver; each sheet registered as a fault surface through the world-mesh route, with its inputs for the stack
   assert.match(b, /const \[shape, setShape\] = useState\("planes"\);/);
   assert.match(b, /if \(shape === "planes"\) \{ buildPlanes\(other, msgs\); setSaid\(msgs\); return; \}/);
-  assert.match(b, /addWorldMeshSurface\?\.\(\{\n\s*name, positions: s\.positions, indices: s\.indices, color: colorForStructure\("FLT"\), opacity: 0\.7, type: "fault",/);
+  // TASKS.csv #4053 — the build is faultRun.js's buildFaultPlanes (the pane and an AI app's build_fault run the same function)
+  assert.match(b, /buildFaultPlanes\(\{ faults, extent, marginM, gapM, other, dips, terrain, traces: tracesRef\?\.current \|\| \[\], addSurface: addWorldMeshSurface, msgs \}\)/);
+  assert.match(read("../src/modules/viewer/faultRun.js"), /const id = addSurface\?\.\(\{\n\s*name, positions: s\.positions, indices: s\.indices, color: colorForStructure\("FLT"\), opacity: 0\.7, type: "fault",/);
   assert.match(read("../src/modules/ViewerModule.jsx"), /params = \{\}, type = "geoml" \/\* #4013[^\n]*\n[\s\S]{0,2400}faceCount: nTris, type, relationships/);
 });
 

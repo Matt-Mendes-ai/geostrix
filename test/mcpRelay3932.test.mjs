@@ -59,7 +59,7 @@ function standInPanes(s) {
     else if (action === "mcp-fetch-satellite") p.reply({ ok: true, name: "Sentinel-2 test scene", ids: ["r1"], pictures: 1, over: "holes", area_cloud_percent: 0 });
     else if (action === "mcp-fetch-terrain") p.reply({ ok: true, name: "Copernicus DEM GLO-30", id: "t1", grid: "10 x 10" });
     else if (action === "mcp-estimate-open") p.reply({ ok: true, changed: "block model", name: "Au estimate (idw2, 10m)", id: "v1", element: "Au", blocks: 120, lines: ["120 block(s) estimated"], not_a_resource_estimate: "Not a resource estimate.", revert() {} }); // #3932 batch 3
-    else if (action === "mcp-model") p.reply({ ok: true, changed: p.op === "surface" ? "body surface" : p.op === "block_model" || p.op === "shell_blocks" ? "block model" : p.op === "vein" ? "vein surface" : p.op === "alteration" ? "alteration halo" : "grade shell", built: ["Top of DYK"], ids: ["m1"], why: ["Cells 20 m"], notes: [], revert() {} }); // #3932 batch 2: the guided build, stood in for
+    else if (action === "mcp-model") p.reply({ ok: true, changed: p.op === "surface" ? "body surface" : p.op === "block_model" || p.op === "shell_blocks" ? "block model" : p.op === "vein" ? "vein surface" : p.op === "alteration" ? "alteration halo" : p.op === "fault" ? "fault surface" : p.op === "map_model" ? "model from map" : "grade shell", built: [p.op === "fault" ? "Fault: Fault 1" : "Top of DYK"], map: "Geology", ids: ["m1"], why: ["Cells 20 m"], notes: [], revert() {} }); // #3932 batch 2: the guided build, stood in for
   };
   window.addEventListener("geostrix-module-action", on);
   return () => window.removeEventListener("geostrix-module-action", on);
@@ -84,6 +84,8 @@ const CALLS = [ // each change tool with arguments its schema accepts
   ["add_grade_shell_blocks", {}],
   ["build_vein", { code: "QV" }],
   ["build_alteration", { code: "SER" }],
+  ["build_fault", { name: "Shear", evidence: ["pick", "logged"], extent: "finite", margin_m: 150 }], // #4053 batch 4
+  ["model_from_map", { relation: "Conformable", faults: "auto" }],
 ];
 
 test("#3932 through the PowerShell relay, as Claude Desktop starts it: every change tool refused with the switch off (the window never sees one), then each done with it on", { skip: !win32 && "PowerShell bridge: Windows only" }, async () => {
@@ -114,10 +116,12 @@ test("#3932 through the PowerShell relay, as Claude Desktop starts it: every cha
     // the switch off: each refused with what to do; a read still works
     for (const [name, args] of CALLS) send("tools/call", { name, arguments: args });
     send("tools/call", { name: "project_summary", arguments: {} });
-    const offAnswers = (await waitFor(n)).slice(-CALLS.length - 1);
-    offAnswers.slice(0, -1).forEach((a, i) => { assert.equal(a.result.isError, true, CALLS[i][0]); assert.equal(a.result.content[0].text, proto.CHANGES_OFF, CALLS[i][0]); });
-    assert.equal(offAnswers.at(-1).result.isError, false);
-    assert.deepEqual(seen, [["project_summary", false]], "no change reached the window while off");
+    send("tools/call", { name: "guide_status", arguments: {} }); // #4053: a read, so it works with the switch off
+    const offAnswers = (await waitFor(n)).slice(-CALLS.length - 2);
+    offAnswers.slice(0, -2).forEach((a, i) => { assert.equal(a.result.isError, true, CALLS[i][0]); assert.equal(a.result.content[0].text, proto.CHANGES_OFF, CALLS[i][0]); });
+    assert.equal(offAnswers.at(-2).result.isError, false); assert.equal(offAnswers.at(-1).result.isError, false);
+    assert.match(JSON.parse(offAnswers.at(-1).result.content[0].text).steps[0].id, /^data$/, "guide_status answers its seven steps");
+    assert.deepEqual(seen, [["project_summary", false], ["guide_status", false]], "no change reached the window while off");
     assert.deepEqual(asked, [["allow", "read"]]);
     // on: the app is asked once about changes, each download is asked for, each tool done with a short answer
     assert.ok(host.setChanges(true).ok);
@@ -131,7 +135,7 @@ test("#3932 through the PowerShell relay, as Claude Desktop starts it: every cha
       assert.ok(a.result.content[0].text.length < 400, `${CALLS[i][0]}: a short answer`);
     });
     assert.deepEqual(asked, [["allow", "read"], ["allow", "changes"], ["download", "fetch_satellite_image"], ["download", "fetch_terrain"]]);
-    assert.deepEqual(seen.slice(1), CALLS.map(([name]) => [name, true]));
+    assert.deepEqual(seen.slice(2), CALLS.map(([name]) => [name, true]));
     assert.equal(s.sections.at(-1).name, "B-B"); assert.equal(s.layoutPages.at(-1).name, "Best intercepts");
     assert.equal(await exited, 0);
     assert.equal(host.status().activity.filter((a) => a.change && a.ok).length, CALLS.length);

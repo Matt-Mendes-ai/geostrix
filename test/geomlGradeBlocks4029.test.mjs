@@ -31,11 +31,12 @@ test("#4029 the rate is the measured one: about 0.2 ms a block; at the 100,000-b
 
 test("#4029 the wiring: the grade run asks the finer blocks only with the shells tick on, the cost line is in the grade box, and the unit's line is the same sentence", () => {
   const p = read("src/components/PredictivePanel.jsx");
-  assert.match(p, /if \(shellsOn\) gradeParams\.block_size = bodiesBlockSize\(QUALITY\[quality\]\.grade\.block_size\);/);
+  assert.match(p, /gradeParams\.block_size = gradeSize\.m;/); // #4054: halved with the shells tick (resolveBlockM), a typed value wins
+  assert.match(p, /halved: shellsOn/);
   assert.match(p, /run\(gradeLabel, "grade", gradeParams, async/);
   assert.match(p, /const gradeParams = \{ \.\.\.holes\(\), samples, element, \.\.\.QUALITY\[quality\]\.grade, composite: gq\.composite \};/, "the quality's own settings are the base: the tick off sends exactly what was sent before");
-  assert.match(p, /t: extraTime\(gradeExtraSeconds\(a\.blocks, o\.blocks\)\)/);
-  assert.equal((p.match(/tr\("\{c\} m blocks \(about \{n\}, not \{n0\}\): about \{t\} more after training\."/g) || []).length, 2, "one sentence for the unit's body and the grade's shells");
+  assert.match(p, /extra=\{gradeBlocks \? extraTime\(gradeExtraSeconds\(gradeBlocks\.blocks, gradeBlocks\.baseBlocks\)\) : ""\}/);
+  assert.equal((read("src/components/GeomlBlockSize.jsx").match(/tr\("\{c\} m blocks \(about \{n\}, not \{n0\}\): about \{t\} more after training\."/g) || []).length, 1, "one sentence for the unit's body and the grade's shells, in the Block size box (#4054)");
   assert.doesNotMatch(p, /blocks for a body \(about/);
   for (const lang of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(read(`src/locales/${lang}.json`)); assert.ok(d["{c} m blocks (about {n}, not {n0}): about {t} more after training."], lang); assert.equal(d["{c} m blocks for a body (about {n}, not {n0}): about {t} more after training."], undefined, lang); }
 });

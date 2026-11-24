@@ -11,9 +11,8 @@ import { smallSel } from "../../lib/sidebarStyles.js";
 import NumberInput from "../../components/NumberInput.jsx";
 import MoreFold from "../../components/MoreFold.jsx"; // the explanations, behind More (Matt: less text first)
 import { faultSpec } from "../../lib/faultEvidence.js";
-import { gatherFaultEvidence, keepInsideWorld, downDipReach, faultBox, faultPlaneMeshes } from "./faultGather.js";
-import { normalOf } from "../../lib/sheetedPlanes.js";
-import { terrainGroundAt } from "../../lib/viewer/geomath.js";
+import { gatherFaultEvidence, keepInsideWorld, downDipReach } from "./faultGather.js";
+import { planeOf, buildFaultPlanes, FAULT_CHECK_M } from "./faultRun.js"; // TASKS.csv #4053 — the sheeted-planes build, shared with an AI app's build_fault
 import { buildMeshQuery, closestPointOnMesh } from "../../lib/meshQuery.js";
 import { colorForStructure } from "../../lib/layers.js";
 
@@ -23,25 +22,12 @@ const KINDS = ["pick", "logged", "outcrop", "mapped", "drawn", "string"];
 const kindName = (k) => ({ pick: tr("Oriented fault picks"), logged: tr("Logged fault intervals"), outcrop: tr("Outcrop fault measurements"), mapped: tr("Mapped fault lines"), drawn: tr("Drawn fault lines"), string: tr("Section fault strings") })[k];
 const MAX_FAULTS = 6;
 const LINE_KINDS = new Set(["mapped", "drawn", "string"]);
-const rad = (d) => (d * Math.PI) / 180;
 // "{n} point" / "{n} points" etc.: each form its own key
 const count = (n, what) => ({
   point: n === 1 ? tr("{n} point", { n }) : tr("{n} points", { n }),
   orientation: n === 1 ? tr("{n} orientation", { n }) : tr("{n} orientations", { n }),
   item: n === 1 ? tr("{n} item", { n }) : tr("{n} items", { n }),
 })[what];
-
-// the plane of a fault for its extent, through the points' centre: the mean of its measured orientations when it has any (points from a
-// map trace lie along the ground, and a plane fitted through them follows the topography, not the fault), else the plane fitted through them
-function planeOf(spec) {
-  const os = spec.orientations || [];
-  if (!os.length && spec.plane && !spec.plane.flat) return spec.plane;
-  const pts = spec.points, n = pts.length || 1;
-  const c = pts.reduce((a, p) => ({ x: a.x + p.x / n, y: a.y + p.y / n, z: a.z + p.z / n }), { x: 0, y: 0, z: 0 });
-  const m = os.reduce((a, q) => [a[0] + Math.sin(rad(q.dip)) * Math.sin(rad(q.azimuth)), a[1] + Math.sin(rad(q.dip)) * Math.cos(rad(q.azimuth)), a[2] + Math.cos(rad(q.dip))], [0, 0, 0]);
-  const l = Math.hypot(m[0], m[1], m[2]) || 1; // upward normals, so they add without cancelling
-  return { centroid: c, normal: [m[0] / l, m[1] / l, m[2] / l] };
-}
 
 export default function FaultBuilder(props) {
   const { pBtn, tracesRef, tracesSeq, mapLayers, sections, terrain, surfaceStructures, originRef, implicitSurfaces, runStructuralModel, implicitBusy, setStackFaults, stackFaults, addWorldMeshSurface } = props;
@@ -58,7 +44,7 @@ export default function FaultBuilder(props) {
   const [marginM, setMarginM] = useState(200);
   const [until, setUntil] = useState("");
   const [said, setSaid] = useState([]);
-  const [checkN, setCheckN] = useState(10);
+  const [checkN, setCheckN] = useState(FAULT_CHECK_M);
   const [checks, setChecks] = useState({}); // surface id -> { n, over }
   useEffect(() => { if (names.length > MAX_FAULTS) setNames((p) => p.slice(0, MAX_FAULTS)); }, [names.length]);
 
@@ -101,34 +87,9 @@ export default function FaultBuilder(props) {
   };
 
   // #4013 — each fault as flat, parallel sheets (lib/sheetedPlanes.js via faultPlaneMeshes): no solver, so no sidecar and no wait. Each
-  // sheet is a surface of its own, registered like an imported one, with what it was built from, its fit and its inputs (Use in the stack)
-  const buildPlanes = (other, msgs) => {
-    if (extent === "until" && !other) return;
-    const ok = faults.filter((f) => f.spec?.ok), ground = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null;
-    const extra = ok.filter((f) => !f.items.some((it) => it.holes)).map((f) => downDipReach(f.spec.points, planeOf(f.spec), extent === "finite" ? marginM : 0)).filter(Boolean);
-    const box = faultBox({ traces: tracesRef?.current || [], points: ok.flatMap((f) => f.spec.points), extra });
-    for (const f of faults) {
-      if (!f.spec) continue;
-      if (!f.spec.ok) { msgs.push(f.spec.why === "no-orientation" ? tr("{name}: points on one line; give a dip.", { name: f.name }) : tr("{name}: no evidence placed.", { name: f.name })); continue; }
-      const d = dips[f.i], given = f.spec.said.some((x) => x.key === "user-dip") && Number.isFinite(d?.dip) && Number.isFinite(d?.dipDir) ? normalOf(d.dip, d.dipDir) : null;
-      const res = faultPlaneMeshes({ spec: f.spec, extent, marginM, other: other ? { positions: other.vertices, indices: other.indices } : null, box, ground, gapM, normal: given });
-      if (!res.ok || !res.sheets.length) { msgs.push(tr("{name}: nothing inside its extent.", { name: f.name })); continue; }
-      const kinds = {}; for (const it of f.items) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
-      const n = res.sheets.length;
-      res.sheets.forEach((s, k) => {
-        const name = n > 1 ? `Fault: ${f.name} · sheet ${k + 1}` : `Fault: ${f.name}`; // project data: English
-        addWorldMeshSurface?.({
-          name, positions: s.positions, indices: s.indices, color: colorForStructure("FLT"), opacity: 0.7, type: "fault",
-          params: {
-            tool: "Faults pane: sheeted planes", contactFit: s.fit, inputs: s.inputs,
-            faultEvidence: { kinds, items: f.items.map((it) => it.name).slice(0, 30), extent, ...(extent === "finite" ? { marginM } : {}), ...(other ? { endsAt: other.name } : {}), guess: f.spec.guess, shape: "planes", sheet: k + 1, sheets: n, dip: Math.round(s.dip), dipDir: Math.round(s.dipDir), ...(s.fold.folded ? { folded: true } : {}) },
-          },
-        });
-        if (s.fold.folded) msgs.push(tr("{name} reads as folded: try One curved surface.", { name }));
-      });
-      if (res.unassigned) msgs.push(res.unassigned === 1 ? tr("{name}: 1 point on no sheet, left out.", { name: f.name }) : tr("{name}: {n} points on no sheet, left out.", { name: f.name, n: res.unassigned }));
-    }
-  };
+  // sheet is a surface of its own, registered like an imported one, with what it was built from, its fit and its inputs (Use in the stack).
+  // TASKS.csv #4053 — the build itself is faultRun.js's buildFaultPlanes (an AI app's build_fault runs the same function)
+  const buildPlanes = (other, msgs) => { buildFaultPlanes({ faults, extent, marginM, gapM, other, dips, terrain, traces: tracesRef?.current || [], addSurface: addWorldMeshSurface, msgs }); };
 
   // the model check: how many of a built fault's points it misses by more than N m (world positions and the inputs kept on it)
   const check = (s) => {

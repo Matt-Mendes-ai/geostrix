@@ -168,7 +168,7 @@ test("#3932b make_sheet and add_best_intercepts are tracked: a Layout page is an
 test("#3932b StrixViewer: the hook answers from any tab, the guided card and the AI tools share one api, nothing of it is in the startup chunk", () => {
   const vm = read("../src/modules/ViewerModule.jsx");
   assert.match(vm, /const guidedApi = \{ runStackModel, runImplicitModel,/);
-  assert.match(vm, /useMcpModelActions\(\(\) => \(\{ store: \{ layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain \}, api: guidedApi, removeSurfaces, notices, lastLithBlock, addLithBlockModel, removeVoxelModel, addVoxelModel, isSameProject \/\* #3932 batch 3 \*\/ \}\)\);/);
+  assert.match(vm, /useMcpModelActions\(\(\) => \(\{ store: \{ layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain, sections, rasters \/\* #4053 \*\/ \}, api: guidedApi, removeSurfaces, notices, lastLithBlock, addLithBlockModel, removeVoxelModel, addVoxelModel, isSameProject \/\* #3932 batch 3 \*\/,\n\s*faults: \{ traces: \(\) => tracesRef\.current, surfaceStructures, mapLayers, addSurface: addWorldMeshSurface \} \/\* #4053 batch 4[^\n]*\}\)\);/);
   assert.match(vm, /<GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{guidedApi\} \/>/);
   const hook = read("../src/modules/viewer/useMcpModelActions.js");
   assert.match(hook, /load = \(\) => import\("\.\/guided\/guidedRun\.js"\)/, "loaded on first use");
@@ -202,7 +202,7 @@ test("#3932c add_block_model: needs the last model's blocks (said when there are
   assert.match(vm, /const addLithBlockModel = async \(\) => \{ \/\/ returns what it did, for an AI app's add_block_model/);
   assert.match(vm, /const vid = addVoxelModel\(\{ name: `Model units: \$\{lb\.title\} \(\$\{lb\.when\}\)`/);
   assert.match(vm, /return \{ ok: true, id: vid, name: `Model units: \$\{lb\.title\} \(\$\{lb\.when\}\)`, cells: cells\.length, units: stops\.map\(\(st\) => st\.label\), notes: \[done\.text, xn\?\.text\]\.filter\(Boolean\) \};/);
-  assert.match(vm, /useMcpModelActions\(\(\) => \(\{.*notices, lastLithBlock, addLithBlockModel, removeVoxelModel, addVoxelModel, isSameProject \/\* #3932 batch 3 \*\/ \}\)\);/);
+  assert.match(vm, /useMcpModelActions\(\(\) => \(\{.*notices, lastLithBlock, addLithBlockModel, removeVoxelModel, addVoxelModel, isSameProject \/\* #3932 batch 3 \*\/,\n/);
   // the tool, in the protocol and the actions
   const d = proto.TOOLS.find((t) => t.name === "add_block_model");
   assert.ok(d); assert.equal(proto.isChangeTool(d), true); assert.equal(proto.isLongTool(d), true); assert.match(d.description, /^Makes a change in GeoStrix:/);

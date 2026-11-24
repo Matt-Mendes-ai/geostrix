@@ -63,7 +63,7 @@ test("#4019 wiring: the reason column, the advice under each run, the warning be
   assert.match(p, /res\.advice = runAdvice\(\{ fit: res\.fit, intercepts, blockM: res\.blocks\?\.cell, secs: res\.seconds, quality, heldOut, mix: runMix \}\);/);
   assert.match(p, /<GeomlRunAdvice advice=\{r\.advice\} mix=\{r\.mix\} blockM=\{r\.blockM\} onFix=\{applyFix\}/);
   assert.match(p, /\{mix\?\.mixed && \(/);
-  assert.match(p, /\.\.\.\(blockOverride \? \{ block_size: blockOverride \} : \{\}\)/, "a smaller block reaches the add-on");
+  assert.match(p, /params\.block_size = unitSize\.m;/, "a smaller block reaches the add-on: the fix fills the Block size box (#4054), which the run sends");
   assert.match(p, /if \(f\.key === "oneUnit" && f\.unit\) setUnit\(new Set\(\[f\.unit\]\)\);/);
   assert.match(p, /else if \(f\.key === "heldOut"\) setHeldOut\(true\);/);
   for (const l of ["es", "pt", "fr", "ar"]) { const j = JSON.parse(read(`../src/locales/${l}.json`)); for (const k of ["thinner than a block", "near the 50 % line", "far from the model", "A weak fit to the logs."]) assert.ok(j[k], `${l}: ${k}`); }
