@@ -15314,5 +15314,12 @@
   "IP phase uncertainty (%)": "Incerteza da fase IP (%)",
   "IP phase uncertainty floor (mrad)": "Piso de incerteza da fase IP (mrad)",
   "{names} (IP phase, mrad)": "{names} (fase IP, mrad)",
-  "IP is left out of this run: the chosen lines mix IP phase (mrad) and chargeability (mV/V). Leave one kind out to invert IP in 3D.": "O IP fica de fora desta execução: as linhas escolhidas misturam fase IP (mrad) e cargabilidade (mV/V). Deixe um tipo de fora para inverter IP em 3D."
+  "IP is left out of this run: the chosen lines mix IP phase (mrad) and chargeability (mV/V). Leave one kind out to invert IP in 3D.": "O IP fica de fora desta execução: as linhas escolhidas misturam fase IP (mrad) e cargabilidade (mV/V). Deixe um tipo de fora para inverter IP em 3D.",
+  "Read as a Queensland SL3 table ({n} rows, {m} columns; the column names are on record H{h}{u}).": "Lido como uma tabela SL3 de Queensland ({n} linhas, {m} colunas; os nomes das colunas estão no registro H{h}{u}).",
+  ", the units too": ", e as unidades também",
+  "Coordinates: {v} (from the header block).": "Coordenadas: {v} (do bloco de cabeçalho).",
+  "zone {z}": "zona {z}",
+  "The azimuths are magnetic (column {c}): choose the declination when you map the survey.": "Os azimutes são magnéticos (coluna {c}): escolha a declinação ao mapear o levantamento.",
+  "The azimuths are on the grid or true north (column {c}), not magnetic.": "Os azimutes estão no norte da grade ou verdadeiro (coluna {c}), não magnético.",
+  "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} padrão(ões) de referência certificado(s) na linha ({names}) são marcados como padrões, não como amostras."
 }

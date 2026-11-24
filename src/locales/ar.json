@@ -15314,5 +15314,12 @@
   "IP phase uncertainty (%)": "عدم يقين طور IP (٪)",
   "IP phase uncertainty floor (mrad)": "الحد الأدنى لعدم يقين طور IP (ميلي راديان)",
   "{names} (IP phase, mrad)": "{names} (طور IP، ميلي راديان)",
-  "IP is left out of this run: the chosen lines mix IP phase (mrad) and chargeability (mV/V). Leave one kind out to invert IP in 3D.": "يُستبعد IP من هذا التشغيل: الخطوط المختارة تخلط بين طور IP (ميلي راديان) والشحنية (مللي فولت/فولت). استبعد نوعاً واحداً لعكس IP ثلاثي الأبعاد."
+  "IP is left out of this run: the chosen lines mix IP phase (mrad) and chargeability (mV/V). Leave one kind out to invert IP in 3D.": "يُستبعد IP من هذا التشغيل: الخطوط المختارة تخلط بين طور IP (ميلي راديان) والشحنية (مللي فولت/فولت). استبعد نوعاً واحداً لعكس IP ثلاثي الأبعاد.",
+  "Read as a Queensland SL3 table ({n} rows, {m} columns; the column names are on record H{h}{u}).": "قُرئ كجدول SL3 من كوينزلاند ({n} صفاً، {m} عموداً؛ أسماء الأعمدة في السجل H{h}{u}).",
+  ", the units too": "، والوحدات أيضاً",
+  "Coordinates: {v} (from the header block).": "الإحداثيات: {v} (من كتلة الترويسة).",
+  "zone {z}": "النطاق {z}",
+  "The azimuths are magnetic (column {c}): choose the declination when you map the survey.": "السموت مغناطيسية (العمود {c}): اختر الانحراف المغناطيسي عند ربط المسح.",
+  "The azimuths are on the grid or true north (column {c}), not magnetic.": "السموت على شمال الشبكة أو الشمال الحقيقي (العمود {c})، لا المغناطيسي.",
+  "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} من المعايير المرجعية المعتمدة المضمّنة ({names}) تُعلَّم كمعايير لا كعينات."
 }
