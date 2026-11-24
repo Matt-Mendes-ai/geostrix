@@ -9,6 +9,7 @@ import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
 import { Upload, Play, Download, Trash2 } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes, toExportCsv } from "../lib/tabular.js";
+import { electrodeFile } from "../lib/dcipElectrodes.js"; // TASKS.csv #4065 — electrodes given as map coordinates (MIMDAS, SMARTem TIP), a UBC-2D observation file
 import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineTagOf, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine, ipRequest, ipKindOfColumn } from "../lib/dcip.js"; // ipKindOfColumn: TASKS.csv #4059 — an IP phase column is not a chargeability // ipRequest: TASKS.csv #2704
 import { renderDcipSectionPng, sig3, rampRange } from "../lib/dcipSectionImage.js"; // sig3: #322; rampRange: #2073
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
@@ -143,12 +144,22 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     const r = (x) => String(+x.toFixed(2));
     setLine((l) => ({ ...l, pts, ...(L ? { x0: r(L.x0), y0: r(L.y0), x1: r(L.x1), y1: r(L.y1), scale: Math.abs(L.scale - 1) > 0.002 ? String(+L.scale.toFixed(4)) : "" } : {}) }));
   };
+  // TASKS.csv #4065 — the placement a file's own electrode coordinates give: two points (distance along the line, x, y) -> the line's fields
+  const placementOf = (pts) => {
+    const L = pts ? lineFromTwoPoints(pts) : null;
+    if (!L) return null;
+    const r = (x) => String(+x.toFixed(2));
+    return { x0: r(L.x0), y0: r(L.y0), x1: r(L.x1), y1: r(L.y1), ground: "", scale: Math.abs(L.scale - 1) > 0.002 ? String(+L.scale.toFixed(4)) : "", stations: null, pts };
+  };
   const ptScaleOff = line.pts && geom && Math.abs(geom.scale - 1) > 0.05 ? geom.scale : null;
   const running = job?.status?.state === "running";
 
   const onFile = async (f) => {
     if (!f) return;
     try {
+      const textAll = decodeTableBytes(await f.arrayBuffer()).text;
+      // TASKS.csv #4065 — a Queensland SL3 file with a header block and no data rows lists the survey's files; the readings are in the files it names
+      if (/^H\d{3,4}\t/m.test(textAll.slice(0, 20000)) && !/^D\t/m.test(textAll)) { setMsg({ ok: false, text: tr("\"{name}\" is a Queensland SL3 file with a header block only: it lists the survey's files and holds no readings. Open the data files it names.", { name: f.name }) }); return; }
       let t = await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
       // TASKS.csv #600 — contractor TDIP files (.dat / .ipg): metadata lines, then a whitespace-separated table;
       // #826 — a Res2DInv .dat (positional header, electrodes from the array type) is tried first
@@ -160,6 +171,15 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         if (r?.error) throw new Error(r.error); // #1660 — a 3D survey, said
         if (r) t = { headers: r.headers, rows: r.rows, note: r.note };
       }
+      // TASKS.csv #4065 — electrodes written as map coordinates (a MIMDAS Geosoft file, a SMARTem TIP export) or a UBC-2D observation file: read into this reader's
+      // distances along a line, the line placed by its two ends; a file with several lines keeps each of them
+      let placedPts = null;
+      { const el = electrodeFile(textAll, f.name, t, { lineTag: lineTagOf(textAll) });
+        if (el?.error) throw new Error(el.error);
+        if (el?.lines) {
+          if (el.lines.length > 1) { keepElectrodeLines(f, el.lines); return; }
+          t = { headers: el.lines[0].headers, rows: el.lines[0].rows, note: el.lines[0].note }; placedPts = el.lines[0].pts;
+        } }
       // TASKS.csv #3320 — still one column after every reader tried: not a table this button can read, said (a picker of seven lists each
       // holding the file's first line was opened)
       // and a 3D reading file (Tx1East / Rx1North ...) that no line reader placed, whose columns are map coordinates
@@ -170,6 +190,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       if (f.name !== file?.name) setLine((l) => ({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null, pts: null, positions: l.positions }));
       setFile({ name: f.name, headers: t.headers, rows: t.rows });
       setMapping(m);
+      { const pl = placedPts ? placementOf(placedPts) : null; if (pl) setLine((l) => ({ ...l, ...pl })); } // #4065
       const p = m.a && m.m && m.rho ? parseDcipRows(t.rows, m) : null;
       if (p?.spacing) setOpts((o) => ({ ...o, cell: o.cell || String(+(p.spacing / 2).toFixed(2)), depth: o.depth || String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) })); // #680
       // TASKS.csv #2026 (review #2013, Woodjam) — one line file was read into the pane but not kept, while several files at once were: the
@@ -182,15 +203,30 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     } catch (e) { setMsg({ ok: false, text: tr("Could not read {name}: {message}", { name: f.name, message: e.message }) }); }
   };
 
+  // TASKS.csv #4065 — the lines of one file (a SMARTem TIP export holds several), each kept in the project, placed by its own electrodes
+  const keepElectrodeLines = (f, lines) => {
+    let kept = 0, readings = 0;
+    for (const L of lines) {
+      const p = parseDcipRows(L.rows, guessDcipColumns(L.headers));
+      if (!p.readings.length) continue;
+      const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
+      saveDcipLine({ name: L.name, readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, line: placementOf(L.pts) || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() });
+      kept++; readings += p.readings.length;
+    }
+    setMsg({ ok: kept > 0, text: tr("{name}: {kept} lines placed by their own electrode coordinates and kept in the project ({readings} readings). Choose one from the list above to invert it.", { name: f.name, kept, readings: readings.toLocaleString() }) });
+  };
   // TASKS.csv #1328 — several lines at once: each read, placed from any GPS file selected with them (a line finds its stations by name), and kept in the project, ready to load or invert
   const readLineFile = async (f) => {
     const text = decodeTableBytes(await f.arrayBuffer()).text;
     if (/^\s*\$\$DATA\$\$/.test(text)) throw new Error(tr("this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead."));
     let t = await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
     if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) { const r = parseRes2dinv(text) || parseDcipWhitespaceText(text); if (r?.error) throw new Error(r.error); if (r) t = r; } // #1660
+    const el = electrodeFile(text, f.name, t, { lineTag: lineTagOf(text) }); // TASKS.csv #4065 — returns the file's lines
+    if (el?.error) throw new Error(el.error);
+    if (el?.lines) return el.lines.map((L) => ({ ...parseDcipRows(L.rows, guessDcipColumns(L.headers)), lineTag: null, name: L.name, pts: L.pts }));
     const m = guessDcipColumns(t.headers);
     if (!m.a || !m.m || !m.rho) throw new Error(tr("no electrode and apparent-resistivity columns found."));
-    return { ...parseDcipRows(t.rows, m), lineTag: lineTagOf(text) }; // lineTag: #2020
+    return [{ ...parseDcipRows(t.rows, m), lineTag: lineTagOf(text) }]; // lineTag: #2020
   };
   const onFiles = async (fileList) => {
     const all = Array.from(fileList || []);
@@ -217,14 +253,15 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       setMsg({ ok: true, text: tr("Importing {name} ({i} of {n})…", { name: f.name, i: i + 1, n: lineFiles.length }) });
       await new Promise((r) => setTimeout(r, 0));
       try {
-        const p = await readLineFile(f);
+        for (const p of await readLineFile(f)) { // #4065 — a file can hold several lines
         if (!p.readings.length) throw new Error(tr("no usable readings."));
-        const name = f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
-        const placed = linePlacement(name, files, to) || (p.lineTag ? linePlacement(p.lineTag, files, to) : null); // #2020 — the header's LINE: tag
+        const name = p.name || f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
+        const placed = (p.pts ? placementOf(p.pts) : null) || linePlacement(name, files, to) || (p.lineTag ? linePlacement(p.lineTag, files, to) : null); // #2020 — the header's LINE: tag; #4065 — the file's own electrode coordinates
         if (!placed) unplaced.push(name);
         const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
         saveDcipLine({ name, readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, ...(p.err ? { err: p.err } : {}), line: placed || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() });
         kept++; readings += p.readings.length;
+        }
       } catch (e) { problems.push(`${f.name}: ${e.message}`); }
     }
     setMsg({ ok: !problems.length, text: [

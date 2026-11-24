@@ -11,18 +11,19 @@ import { median } from "./arrayStats.js"; // TASKS.csv #1114
 import { supportEnvelope } from "./supportEnvelope.js"; // TASKS.csv #681 — the shown / hidden rule in the CSV
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
-const norm = (h) => String(h).trim().toLowerCase().replace(/[\s()\[\]./-]+/g, "_").replace(/_+$/, "");
+const norm = (h) => String(h).trim().replace(/^["']+|["']+$/g, "").toLowerCase().replace(/[\s()\[\]./-]+/g, "_").replace(/_+$/, ""); // #4065: a quoted header ("F1x")
 // TASKS.csv #600 — contractor TDIP files (IRIS / Geosoft-style .dat / .ipg, e.g. a BC ARIS pole-dipole survey):
 // T1X / T2X current, R1X / R2X potential, RHO, and MX = the chargeability (mV/V). "mx" used to be an alias of
 // the M electrode, which would have read the chargeability column as an electrode position.
 // TASKS.csv #4059 — Zonge TQIPdb .dat (C1X C2X P1X P2X C1Z … C1Y … RxDipole PltPt Nlevel SP I Vp Res Phz SD Nstack): the X columns are the electrodes' chainage along the
 // line (c1x ... p2x below); its Y columns hold the line's name and its Z columns the elevations (0 in a plain line file), neither a position along the line
 const ALIASES = {
-  a: ["a", "c1", "t1x", "a_x", "ax", "a_pos", "tx1", "c1_x", "c1x"],
-  b: ["b", "c2", "t2x", "b_x", "bx", "b_pos", "tx2", "c2_x", "c2x"],
-  m: ["m", "p1", "r1x", "m_x", "m_pos", "rx1", "p1_x", "p1x"],
-  n: ["n", "p2", "r2x", "n_x", "nx", "n_pos", "rx2", "p2_x", "p2x"],
-  rho: ["rho", "rho_a", "rhoa", "app_res", "apparent_resistivity", "resistivity", "res", "rhoa_ohm_m", "rho_ohm_m", "ra", "ra_ohm_m", "app_rho"], // ra: #1660 (SJ Geophysics)
+  // TASKS.csv #4065 — f1x f2x m1x m2x (MIMDAS, and the Zonge files that name the dipoles that way), f1 f2 m1 m2 (the older IPBASE files), 'ResMeas' (the measured resistivity of a Zonge table that also holds a calculated one), t1y t2y r1y r2y (the same IRIS file along y)
+  a: ["a", "c1", "t1x", "a_x", "ax", "a_pos", "tx1", "c1_x", "c1x", "f1x", "t1y", "f1"],
+  b: ["b", "c2", "t2x", "b_x", "bx", "b_pos", "tx2", "c2_x", "c2x", "f2x", "t2y", "f2"],
+  m: ["m", "p1", "r1x", "m_x", "m_pos", "rx1", "p1_x", "p1x", "m1x", "r1y", "m1"],
+  n: ["n", "p2", "r2x", "n_x", "nx", "n_pos", "rx2", "p2_x", "p2x", "m2x", "r2y", "m2"],
+  rho: ["rho", "rho_a", "rhoa", "app_res", "apparent_resistivity", "resistivity", "res", "rhoa_ohm_m", "rho_ohm_m", "ra", "ra_ohm_m", "app_rho", "2drho", "appres", "apprho", "resmeas"], // ra: #1660 (SJ Geophysics)
   ip: ["ip", "m_mv_v", "chargeability", "charg", "chg", "mv_v", "ma", "mx", "eta", "ip_mv_v"],
   // TASKS.csv #4059 — FREQUENCY-domain IP: a phase in mrad (Zonge's Phz), not a chargeability. Read into the IP column with ipKind "phase" (below), never as mV/V.
   phase: ["phz", "phase", "phz_mrad", "phase_mrad", "ip_phase", "ip_phase_mrad", "fd_phase", "phs"],
@@ -35,13 +36,15 @@ const ALIASES = {
 // infinity. Finds the header line (the first one naming an A and an M electrode column), splits the rest on
 // whitespace, keeps rows with the header's column count. Returns { headers, rows, note } or null when the text
 // has no such header (then it is read as an ordinary CSV).
-const threeDError = (n, offline) => tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. Read it with \"3D survey from electrode coordinates\" at the end of this pane, or load the contractor's 3D model under Block models.", { n, offline }); // #1660 / #1784
+export const threeDError = (n, offline) => tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. Read it with \"3D survey from electrode coordinates\" at the end of this pane, or load the contractor's 3D model under Block models.", { n, offline }); // #1660 / #1784
 export function parseDcipWhitespaceText(text) {
   const lines = String(text).split(/\r?\n/);
   const isA = (t) => ALIASES.a.includes(norm(t)), isM = (t) => ALIASES.m.includes(norm(t));
   const hi = lines.findIndex((l) => { const t = l.trim().split(/\s+/); return t.length >= 4 && t.some(isA) && t.some(isM); });
   if (hi < 0) return null;
-  const headers = lines[hi].trim().split(/\s+/);
+  // TASKS.csv #4065 — a TAB-delimited table with empty cells (an IP[0] .. IP[13] block of which the first are blank) lost every row to the whitespace split
+  const tabbed = lines[hi].includes("\t"), cut = (l) => (tabbed ? l.replace(/\r$/, "").split("\t").map((x) => x.trim()) : l.trim().split(/\s+/));
+  const headers = cut(lines[hi]);
   // TASKS.csv #1784 — the 3D check (#1660, below) first, from the two line columns alone: Kodiak's 19 MB 3D export built 19,000
   // row objects (about 270 ms) only to be refused
   const ci = headers.findIndex((h) => norm(h) === "c1_line"), pi = headers.findIndex((h) => norm(h) === "p1_line");
@@ -50,7 +53,7 @@ export function parseDcipWhitespaceText(text) {
     for (let k = hi + 1; k < lines.length; k++) {
       const l = lines[k].trim();
       if (!l || l.startsWith("/")) continue;
-      const t = l.split(/\s+/);
+      const t = tabbed ? cut(l) : l.split(/\s+/);
       if (t.length !== headers.length) continue;
       seen.add(t[ci]); seen.add(t[pi]); if (t[ci] !== t[pi]) offline++;
     }
@@ -60,7 +63,7 @@ export function parseDcipWhitespaceText(text) {
   let skipped = 0;
   for (const l of lines.slice(hi + 1)) {
     if (!l.trim() || l.trim().startsWith("/")) continue;
-    const t = l.trim().split(/\s+/);
+    const t = cut(l);
     if (t.length !== headers.length) { skipped++; continue; }
     rows.push(Object.fromEntries(headers.map((h, i) => [h, t[i]])));
   }
