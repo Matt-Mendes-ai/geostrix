@@ -20,9 +20,9 @@ const REASONS = { "not placed": "not placed", "slope distances need stations or 
 
 // TASKS.csv #1978 — the 2D lines' "3D voxels" choice, for the 3D runs too (here and Dcip3dArrayPanel)
 export const voxKinds = (o) => [o.voxObserved !== false && "observed", o.voxExtrapolated && "extrapolated"].filter(Boolean);
-export function addedText(made, cut) {
+export function addedText(made, cut, phase = false) { // phase: TASKS.csv #4059 — the IP model is of a frequency-domain phase
   return made.map((m) => {
-    const n = m.model.cells.length.toLocaleString(), what = m.field === "resistivity" ? tr("resistivity") : tr("chargeability");
+    const n = m.model.cells.length.toLocaleString(), what = m.field === "resistivity" ? tr("resistivity") : phase ? tr("IP phase") : tr("chargeability");
     return m.kind === "observed" ? tr("{n} {what} blocks (support ≥ {cut})", { n, what, cut }) : tr("{n} {what} blocks extrapolated to the model depth", { n, what });
   }).join(" + ");
 }
@@ -54,9 +54,12 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
   const [o, setO] = useState({ core: "", depth: "", step: 1, pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 12, cutoff: 0.02, voxObserved: true, voxExtrapolated: false }); // cutoff: #926 — the 2D default; vox*: #1978
   const set = (k, v) => { setO((p) => ({ ...p, [k]: v })); setPlan(null); };
   const val = (k, fallback) => (o[k] !== "" && o[k] != null ? o[k] : fallback);
-  const withIp = linesHaveIp(chosen.map((p) => p.l)); // #929 — the request's own rule
+  // TASKS.csv #4059 — lines whose IP column is a phase (mrad) and lines with a chargeability (mV/V) are not inverted together
+  const ipKindsIn = new Set(chosen.filter((p) => Array.isArray(p.l.ip) && p.l.ip.length === p.l.rho.length).map((p) => (p.e.ipKind === "phase" ? "phase" : "chargeability")));
+  const mixedIp = ipKindsIn.size > 1, phaseIp = ipKindsIn.size === 1 && ipKindsIn.has("phase");
+  const withIp = linesHaveIp(chosen.map((p) => p.l)) && !mixedIp; // #929 — the request's own rule
   const noIp = withIp ? [] : chosen.filter((p) => !(Array.isArray(p.l.ip) && p.l.ip.length === p.l.rho.length)).map((p) => p.e.name);
-  const ipLeftOut = !withIp && noIp.length < chosen.length; // some lines have chargeability, not all
+  const ipLeftOut = !withIp && !mixedIp && noIp.length < chosen.length; // some lines have chargeability, not all
   const [plan, setPlan] = useState(null);
   const [msg, setMsg] = useState(null);
   const [job, setJob] = useState(null);
@@ -80,7 +83,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
   const problems = () => {
     const p = [];
     if (!(num(val("pct", first.pct)) > 0) && !(num(val("floor", first.floor)) > 0)) p.push(tr("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading."));
-    if (withIp && !(num(val("ipPct", first.ipPct)) > 0) && !(num(val("ipFloor", first.ipFloor)) > 0)) p.push(tr("Enter the chargeability uncertainty (% and / or a floor in mV/V)."));
+    if (withIp && !(num(val("ipPct", first.ipPct)) > 0) && !(num(val("ipFloor", first.ipFloor)) > 0)) p.push(phaseIp ? tr("Enter the IP phase uncertainty (% and / or a floor in mrad).") : tr("Enter the chargeability uncertainty (% and / or a floor in mV/V)."));
     if (!(num(val("core", sug.core)) >= 5)) p.push(tr("The cell size must be at least 5 m."));
     if (!voxKinds(o).length) p.push(tr("Tick Observed and / or Extrapolated under 3D voxels: with neither, the run would add no block model.")); // #1978
     if (gfModes.length > 1) p.push(tr("The chosen lines compute apparent resistivity differently (flat-ground or draped geometric factor, in each line's options). Make them match, or leave one out.")); // #929
@@ -104,7 +107,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
     const params = {
       tool: "3D DC resistivity / IP inversion of several lines (SimPEG, octree mesh, reciprocity)", lines: names.join(", "), lineCount: names.length, readings: req.rho.length,
       currentPositions: Number(o.step) > 1 ? `every ${o.step}nd current position of each line` : "all", mesh: { coreM: req.mesh.core, verticalCoreM: req.mesh.core / 2, coreDepthM: req.mesh.depth },
-      uncertainty: { resistivityPercent: req.uncertainty.percent, resistivityFloor: req.uncertainty.floor, ...(req.ipUncertainty ? { chargeabilityPercent: req.ipUncertainty.percent, chargeabilityFloorMvV: req.ipUncertainty.floor } : {}), source: errLines("rhoPct").length || (req.ipUncertainty && errLines("ipMvV").length) ? `entered by user; per-reading floors from the error columns of ${[errLines("rhoPct").length ? `${errLines("rhoPct").join(", ")} (resistivity error, %)` : "", req.ipUncertainty && errLines("ipMvV").length ? `${errLines("ipMvV").join(", ")} (chargeability error, mV/V)` : ""].filter(Boolean).join("; ")}` : "entered by user" }, // #929
+      uncertainty: { resistivityPercent: req.uncertainty.percent, resistivityFloor: req.uncertainty.floor, ...(req.ipUncertainty ? { chargeabilityPercent: req.ipUncertainty.percent, chargeabilityFloorMvV: req.ipUncertainty.floor, ipKind: phaseIp ? "phase" : "chargeability" /* #4059 */ } : {}), source: errLines("rhoPct").length || (req.ipUncertainty && errLines("ipMvV").length) ? `entered by user; per-reading floors from the error columns of ${[errLines("rhoPct").length ? `${errLines("rhoPct").join(", ")} (resistivity error, %)` : "", req.ipUncertainty && errLines("ipMvV").length ? `${errLines("ipMvV").join(", ")} (chargeability error, mV/V)` : ""].filter(Boolean).join("; ")}` : "entered by user" }, // #929
       ...(req.topoSkipped ? { terrainSamplesSkipped: `${req.topoSkipped} (off the terrain or over its filled nodes; the station elevations define the ground there)` } : {}), // TASKS.csv #927
       geometricFactor: req.geometricFactor, interpretation: "One smooth 3D model fitting every line's readings to the stated uncertainty. In each column, cells below the deepest one the data see (support at or above the cutoff) are left out of the block model: below that the values are the regularization's extrapolation, not data. No depth-of-investigation (DOI) index is computed in 3D.",
     };
@@ -116,10 +119,10 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
           solver: result.solver, versions: result.versions, runSeconds: Math.round(result.seconds), supportCutoff: cut, generatedAt: new Date().toISOString(), app: APP_VERSION };
         // TASKS.csv #1978 — Observed and / or Extrapolated, as the 2D lines' "3D voxels"
         const made = voxel3dModels(result, { cut, maxCell, kinds: voxKinds(o), params: runParams,
-          fields: [["resistivity", "dc", "Resistivity (ohm·m)", `Resistivity (ohm·m) — 3D inversion (${names.length} lines)`], ["chargeability", "ip", "Chargeability (mV/V)", `Chargeability (mV/V) — 3D inversion (${names.length} lines)`]] });
+          fields: [["resistivity", "dc", "Resistivity (ohm·m)", `Resistivity (ohm·m) — 3D inversion (${names.length} lines)`], ["chargeability", "ip", phaseIp ? "IP phase (mrad)" : "Chargeability (mV/V)", `${phaseIp ? "IP phase (mrad)" : "Chargeability (mV/V)"} — 3D inversion (${names.length} lines)`]] });
         made.forEach((m) => addVoxelModelToTab(token, m.model));
         const fit = result.phi_d / result.target;
-        setMsg({ ok: true, text: tr("3D inversion done in {t}: resistivity misfit {fit}x the target{ip}; added {cells}.", { t: minutes(result.seconds), fit: fit.toFixed(2), ip: result.ip ? (ipFitOf(result).dcUnfitted ? tr(", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too", { v: (result.ip.phi_d / result.target).toFixed(2) }) : tr(", chargeability {v}x", { v: (result.ip.phi_d / result.target).toFixed(2) })) : "", cells: addedText(made, cut) }) });
+        setMsg({ ok: true, text: tr("3D inversion done in {t}: resistivity misfit {fit}x the target{ip}; added {cells}.", { t: minutes(result.seconds), fit: fit.toFixed(2), ip: result.ip ? (ipFitOf(result).dcUnfitted ? (phaseIp ? tr(", IP phase {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too", { v: (result.ip.phi_d / result.target).toFixed(2) }) : tr(", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too", { v: (result.ip.phi_d / result.target).toFixed(2) })) : (phaseIp ? tr(", IP phase {v}x", { v: (result.ip.phi_d / result.target).toFixed(2) }) : tr(", chargeability {v}x", { v: (result.ip.phi_d / result.target).toFixed(2) }))) : "", cells: addedText(made, cut, phaseIp) }) });
       },
     });
     if (!res.ok) setMsg({ ok: false, text: res.error });
@@ -149,8 +152,9 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
         <select value={o.step} onChange={(e) => set("step", Number(e.target.value))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Current positions")}><option value={1}>{tr("All")}</option><option value={2}>{tr("Every 2nd (faster)")}</option></select>
       </div>
       <div style={row}><span style={lbl}>{tr("Uncertainty")}</span><NumberInput allowEmpty min={0} value={o.pct} placeholder={first.pct ? String(first.pct) : "%"} onChange={(v) => set("pct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty (%)")} /><span style={small}>%</span><NumberInput allowEmpty min={0} value={o.floor} placeholder={first.floor ? String(first.floor) : tr("floor")} onChange={(v) => set("floor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty floor (ohm·m)")} /></div>
-      {withIp && <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><NumberInput allowEmpty min={0} value={o.ipPct} placeholder={first.ipPct ? String(first.ipPct) : "%"} onChange={(v) => set("ipPct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Chargeability uncertainty (%)")} /><span style={small}>%</span><NumberInput allowEmpty min={0} value={o.ipFloor} placeholder={first.ipFloor ? String(first.ipFloor) : "mV/V"} onChange={(v) => set("ipFloor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Chargeability uncertainty floor (mV/V)")} /></div>}
-      {(errLines("rhoPct").length > 0 || (withIp && errLines("ipMvV").length > 0)) && <div style={{ ...small, marginTop: 4 }}>{tr("Each reading's floor is also at least its own error, from the error column of: {lines}.", { lines: [errLines("rhoPct").length ? tr("{names} (resistivity, %)", { names: errLines("rhoPct").join(", ") }) : "", withIp && errLines("ipMvV").length ? tr("{names} (chargeability, mV/V)", { names: errLines("ipMvV").join(", ") }) : ""].filter(Boolean).join("; ") })}</div>}
+      {withIp && <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><NumberInput allowEmpty min={0} value={o.ipPct} placeholder={first.ipPct ? String(first.ipPct) : "%"} onChange={(v) => set("ipPct", (v == null ? "" : String(v)))} style={inp} aria-label={phaseIp ? tr("IP phase uncertainty (%)") : tr("Chargeability uncertainty (%)")} /><span style={small}>%</span><NumberInput allowEmpty min={0} value={o.ipFloor} placeholder={first.ipFloor ? String(first.ipFloor) : phaseIp ? "mrad" : "mV/V"} onChange={(v) => set("ipFloor", (v == null ? "" : String(v)))} style={inp} aria-label={phaseIp ? tr("IP phase uncertainty floor (mrad)") : tr("Chargeability uncertainty floor (mV/V)")} /></div>}
+      {(errLines("rhoPct").length > 0 || (withIp && errLines("ipMvV").length > 0)) && <div style={{ ...small, marginTop: 4 }}>{tr("Each reading's floor is also at least its own error, from the error column of: {lines}.", { lines: [errLines("rhoPct").length ? tr("{names} (resistivity, %)", { names: errLines("rhoPct").join(", ") }) : "", withIp && errLines("ipMvV").length ? (phaseIp ? tr("{names} (IP phase, mrad)", { names: errLines("ipMvV").join(", ") }) : tr("{names} (chargeability, mV/V)", { names: errLines("ipMvV").join(", ") })) : ""].filter(Boolean).join("; ") })}</div>}
+      {mixedIp && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("IP is left out of this run: the chosen lines mix IP phase (mrad) and chargeability (mV/V). Leave one kind out to invert IP in 3D.")}</div>}{/* #4059 */}
       {ipLeftOut && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.", { names: noIp.join(", ") })}</div>}
       <div style={row} title={tr("Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.001} value={o.cutoff} onChange={(v) => setO((p) => ({ ...p, cutoff: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Support cutoff")} /></div>
       <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}

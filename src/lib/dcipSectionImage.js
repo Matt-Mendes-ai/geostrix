@@ -97,7 +97,7 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   g.save(); g.translate(fpx(printPt.small) * 0.9, T + plotH / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillText("Elevation (m)", 0, 0); g.restore();
   // title + fit
   g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillStyle = colors.text; g.font = font(fpx(printPt.label), 600);
-  g.fillText(`${isRho ? "Resistivity" : "Chargeability"} — DC/IP line ${name}`, L, fpx(printPt.label) * 1.15);
+  g.fillText(`${isRho ? "Resistivity" : result.ipKind === "phase" ? "IP phase" : "Chargeability"} — DC/IP line ${name}`, L, fpx(printPt.label) * 1.15);
   // #1096 — which way the section runs: the compass direction at each end, over the plot corners
   if (Number.isFinite(azimuth)) {
     g.save(); g.font = font(fpx(printPt.small), 700); g.fillStyle = colors.text; g.textBaseline = "bottom";
@@ -120,7 +120,7 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   g.textAlign = "left"; g.fillText(`≤ ${sig3(lo)}`, L, by + bh + 5); // ≤ / ≥: values past the range take the end colours (#1096)
   g.textAlign = "right"; g.fillText(`≥ ${sig3(hi)}`, L + bw, by + bh + 5);
   // #585 — the caption on its own line under the end values (at print size the three no longer fit on one)
-  g.textAlign = "center"; g.fillText(isRho ? "Resistivity (ohm·m, log scale) — dark = conductive" : "Chargeability (mV/V)", L + bw / 2, by + bh + 5 + fpx(printPt.caption) * 1.3);
+  g.textAlign = "center"; g.fillText(isRho ? "Resistivity (ohm·m, log scale) — dark = conductive" : result.ipKind === "phase" ? "IP phase (mrad)" : "Chargeability (mV/V)", L + bw / 2, by + bh + 5 + fpx(printPt.caption) * 1.3);
   // #535 — the hatch in the legend, next to the colour bar
   if (cutoff > 0 && L + bw + 40 + 200 < width) {
     const hx = L + bw + 40;

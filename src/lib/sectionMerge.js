@@ -26,9 +26,11 @@ export { percentile };
 export const isSectionModel = (m) => m && (m.method === "ip" || m.method === "dc") && Array.isArray(m.cells) && m.cells.length > 0;
 
 // The line models in a project, by property: { ip: [...], dc: [...] }
+// TASKS.csv #4059 — a line whose IP model is of a frequency-domain PHASE (mrad) is its own group ('ipp'): merged with chargeability lines it would be one model of two quantities
+const groupOf = (m) => (m.method === "ip" && /phase/i.test(m.property || "") ? "ipp" : m.method);
 export function sectionModelsByMethod(voxelModels) {
-  const out = { ip: [], dc: [] };
-  (voxelModels || []).forEach((m) => { if (isSectionModel(m) && !m.merged) out[m.method].push(m); });
+  const out = { ip: [], dc: [], ipp: [] };
+  (voxelModels || []).forEach((m) => { if (isSectionModel(m) && !m.merged) out[groupOf(m)].push(m); });
   return out;
 }
 

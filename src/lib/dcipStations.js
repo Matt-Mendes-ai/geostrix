@@ -1,4 +1,5 @@
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { smallGridCoordinates } from "./crsFromColumns.js"; // TASKS.csv #4059 — a headerless station file on a local grid is not a map position
 // TASKS.csv #602 — DC/IP line stations: place the line and take the ground profile from the contractor's station /
 // GPS file instead of only a terrain grid or one flat elevation.
 //
@@ -74,11 +75,31 @@ function parseTable(lines) {
   return null;
 }
 
+// TASKS.csv #4059 — a station file with NO header, read by its shape (Zonge's <line>.utm.stn: station, map east, map north, elevation, tab-separated, one line per file).
+// The line's name is the file's name without its extension and a 'Line_' prefix. -> { stations, other, epsg, crsNote } | { local: true } (its coordinates are a local grid) | null
+function parseHeaderless(lines, name) {
+  const rows = [];
+  for (const l of lines) {
+    const t = l.trim();
+    if (!t) continue;
+    const f = t.split(/[\t,;]+|\s+/).filter((x) => x !== "");
+    if (f.length < 3 || f.length > 5 || !f.every(isNum)) return null;
+    rows.push(f.map(Number));
+  }
+  if (rows.length < 2) return null;
+  if (smallGridCoordinates(rows.map((r) => ({ x: r[1], y: r[2] })))) return { local: true };
+  const line = String(name || "").replace(/^.*[\\/]/, "").replace(/\.(utm\.)?stn$/i, "").replace(/\.[a-z0-9]+$/i, "").replace(/^line[_ -]?/i, "");
+  const hasZ = rows.some((r) => r.length >= 4 && r[3] !== 0);
+  return { stations: rows.map((r) => ({ line, s: r[0], x: r[1], y: r[2], z: hasZ && r.length >= 4 ? r[3] : null })), other: [], epsg: null, crsNote: "" };
+}
+
 // -> { lines: { [line]: stations sorted by s }, other, epsg, crsNote } ; throws when nothing is readable.
 export function parseStationFile(text, name = "This file") {
   const lines = String(text).split(/\r\n|\r|\n/);
   let res = lines.some((l) => /^W\s/.test(l.trim())) ? parseGpsUtility(lines) : null;
   if (!res || !res.stations.length) res = parseTable(lines) || res;
+  if (!res || !res.stations.length) res = parseHeaderless(lines, name) || res; // #4059
+  if (res?.local) throw new Error(tr("{name} gives the stations on a local grid, not in map coordinates: use the station file that is in map coordinates (Zonge's .utm.stn).", { name }));
   if (!res || !res.stations.length) throw new Error(tr("{name} has no line stations GeoStrix can read (expected GPS waypoints named \"<line> <station>\", or a table with station, X and Y columns).", { name }));
   const byLine = {};
   for (const st of res.stations) (byLine[st.line] ||= []).push(st);
