@@ -706,7 +706,7 @@ export default function RasterModule({ embedded = false } = {}) {
                     </select>
                   </div>
                 ))}
-                <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} type="button" onClick={makeTernary}>{tr("Build — adds a new raster")}</button>
+                <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} type="button" onClick={makeTernary}>{tr("Build the ternary image")}</button>
               </div>
             )}
           </div>
@@ -819,7 +819,7 @@ export default function RasterModule({ embedded = false } = {}) {
                   </div>
                 )}
                 <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginTop: 6, marginBottom: 0, justifyContent: "center" }} onClick={() => runFilter(r)} disabled={filtering || !!filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys)) || unknownNeedsTick(r) /* #2835 */}>
-                  {filtering ? tr("Filtering…") : filt.kind === "spectrum" ? tr("Compute the spectrum") : tr("Apply — adds a new raster")}
+                  {filtering ? tr("Filtering…") : filt.kind === "spectrum" ? tr("Compute the spectrum") : tr("Compute the filtered grid")}
                 </button>
                 {/* TASKS.csv #808 — the spectrum, its fitted depths and the matched-filter split */}
                 {filt.kind === "spectrum" && spectrum?.rasterId === r.id && <SpectrumPanel spectrum={spectrum} onSplit={(which) => splitByDepth(r, which)} />}
