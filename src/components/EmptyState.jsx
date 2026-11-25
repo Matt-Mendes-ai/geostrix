@@ -46,7 +46,7 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
         {(actionLabel || secondary) && (
           <div className="ge-empty-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>{/* TASKS.csv #3541 — the buttons share one grid (the css below drops a caller's own left margin) */}
             {actionLabel && (
-              <button data-btn-own="" onClick={onAction} disabled={actionDisabled} title={trText(actionTitle)} style={{ ...primaryBtn, cursor: actionDisabled ? "default" : "pointer", opacity: actionDisabled ? 0.6 : 1 }}>
+              <button className="gs-btn gs-btn--primary" onClick={onAction} disabled={actionDisabled} title={trText(actionTitle)} style={{ ...primaryBtn, cursor: actionDisabled ? "default" : "pointer", opacity: actionDisabled ? 0.6 : 1 }}>{/* #4070 part 5 — the gold primary */}
                 {trText(actionLabel)}
               </button>
             )}
@@ -71,8 +71,7 @@ const card = {
   maxHeight: "100%", overflowY: "auto", boxSizing: "border-box",
 };
 const primaryBtn = {
-  background: "#2f6f9f", border: "1px solid #2a6291", color: "#fff", borderRadius: 6,
-  padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "inherit",
+  padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "inherit", // the colours are the primary role's (#4070 part 5)
 };
 // Exported so a tab offering a second, equally-valid entry point (Geochem's "Import pXRF" next to
 // "Import assays") gets a button that is visibly SECONDARY to the primary one rather than a second

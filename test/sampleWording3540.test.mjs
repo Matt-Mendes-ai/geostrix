@@ -33,7 +33,7 @@ test("the changed sentences are in every language", () => {
 test("#3541 each sample's description is its button's second line (SampleButtons), the full text its tooltip", () => {
   const b = read("../src/modules/viewer/SampleButtons.jsx");
   assert.match(b, /const descriptionOf = \(title\) => \{ const s = String\(title \|\| ""\), i = s\.indexOf\(" — "\);/);
-  assert.match(b, /title=\{c\.title\}/); assert.match(b, /<span style=\{firstFilled && i === 0 \? \{ \.\.\.second, color: "rgba\(255,255,255,0\.88\)" \} : second\}>\{descriptionOf\(c\.title\)\}<\/span>/); // #3948: the first one filled
+  assert.match(b, /title=\{c\.title\}/); assert.match(b, /<span style=\{firstFilled && i === 0 \? \{ \.\.\.second, color: "inherit", opacity: 0\.85 [^}]*\} : second\}>\{descriptionOf\(c\.title\)\}<\/span>/); // #3948: the first one filled
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /secondary=\{<SampleButtons \{\.\.\.emptyCardSamples\(sampleCards\)\} onLoad=\{loadSample\} loading=\{sampleLoading\} \/>\}/); // #3948: every sample on the card is a SampleButtons button
   assert.match(v, /import SampleButtons from "\.\/viewer\/SampleButtons\.jsx";/);

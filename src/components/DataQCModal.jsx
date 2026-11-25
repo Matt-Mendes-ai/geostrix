@@ -26,7 +26,7 @@ import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // fits the category/holeId line plus a 2-line message; the message itself is clamped to 2 lines
 // (-webkit-line-clamp) so an unusually long one truncates with an ellipsis instead of overflowing its
 // fixed-height row and overlapping its neighbor.
-const ISSUE_ROW_H = 52;
+const ISSUE_ROW_H = 64; // TASKS.csv #4070 part 5 — a two-line message and its category line fit (at 52 the category ran over the second line)
 
 // TASKS.csv #82 — drillhole data QA/QC (layer 1 of the geological-modelling architecture the user
 // laid out — see #82's TASKS.csv note for the full plan). Runs on demand (not live on every
@@ -173,11 +173,9 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 1 }}>{issue.category}{issue.holeId ? ` — ${issue.holeId}` : ""}{checked.has(qcKey(issue)) ? ` · ${tr("checked")}` : ""}</div>
                   </div>
                   {/* TASKS.csv #3569 — a row can be acted on: its interval in the table, its hole in 3D, marked as checked (undone by the same button) */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0, justifyContent: "center" }}>
-                    <div style={{ display: "flex", gap: 4 }}>
+                  <div style={{ display: "flex", gap: 4, flexShrink: 0, alignItems: "center" }}>{/* #4070 part 5: the three buttons in one line, so the row fits */}
                       {qcTableRequest(issue) && <button className="gs-btn gs-btn--sm" type="button" onClick={() => openDataTable(qcTableRequest(issue))} title={tr("Open the table at this row")}>{tr("Table")}</button>}
                       {onZoomHole && issue.holeId && <button className="gs-btn gs-btn--sm" type="button" onClick={() => onZoomHole(issue.holeId)} title={tr("Find the hole in the 3D view")}>{tr("Find")}</button>}
-                    </div>
                     <button className="gs-btn gs-btn--sm" type="button" onClick={() => toggleChecked(issue)} aria-pressed={checked.has(qcKey(issue))} title={tr("Mark as checked and kept (kept with the project; click again to undo)")}>{checked.has(qcKey(issue)) ? tr("Unmark") : tr("Checked")}</button>
                   </div>
                 </div>

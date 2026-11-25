@@ -15722,5 +15722,9 @@
   "inside": "داخل",
   "Next: setup": "التالي: الإعداد",
   "Bodies": "الأجسام",
-  "Location": "الموقع"
+  "Location": "الموقع",
+  "More settings…": "إعدادات أخرى…",
+  "Thresholds…": "الحدود…",
+  "Where is the section?": "أين المقطع؟",
+  "Which sections?": "أي مقاطع؟"
 }

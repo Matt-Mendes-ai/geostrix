@@ -45,6 +45,7 @@ import { densityLookup } from "../lib/densityWeight.js"; // TASKS.csv #3562 — 
 import { weightedPercentile } from "../lib/probPlot.js"; // TASKS.csv #3752 — the length-weighted percentile, as Grade stats reads it
 import { toFixedHalfUp } from "../lib/numberFormat.js"; // TASKS.csv #3754 (9)
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4070 part 5
 const PENALTY_ELEMENTS = new Set(["As", "Sb", "Bi", "Hg"]); // TASKS.csv #3754 (7) — elements a smelter penalizes, so a price box makes no sense for them
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
@@ -420,10 +421,6 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          {qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("Include the QC samples (standards, blanks, duplicates, found by hole_id). Left out by default so they can't show as a false best intercept.")}>
-              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
-          )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => { changeSymbol(e.target.value); setExtraSymbols((p) => p.filter((s) => s !== e.target.value)); }} style={inp}>
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
@@ -456,6 +453,16 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             </label>
             <label style={fieldLabel}>{tr("Min length (m)")}<NumberInput min="0" value={minLength} onChange={(v) => setMinLength(Math.max(0, v ?? 0))} style={inp} />
             </label>
+            {maxInternalDilution === 2 && minLength === 0 && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", alignSelf: "center" }}>{tr("Max internal dilution 2 m and min length 0 are the tool's starting values: set the ones your report uses.")}</span>}{/* #3579 */}
+          </div>
+          {/* TASKS.csv #4070 part 5 — the rarer settings (the higher cut-off, the top cut, the weighting, the metal equivalent, the extra elements, the true width, the host unit, the QC samples) behind one closed fold: the dialog opens on the element, the cut-off, the dilution and the length */}
+          <MoreFold summary={tr("More settings…")} data-fine-tune="best-intercepts">
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {qaqcExcludedCount > 0 && (
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("Include the QC samples (standards, blanks, duplicates, found by hole_id). Left out by default so they can't show as a false best intercept.")}>
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
+          )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel} title={tr("'Including' sub-intercepts at this higher cutoff, same rules, reported inside their intercept (e.g. 42 m @ 1.2, including 6 m @ 5.1). Empty: none.")}>{tr("Including at ≥")}<NumberInput allowEmpty min="0" value={includeCutoff === "" ? null : shownBox(Number(includeCutoff))} placeholder={tr("off")} onChange={(v) => setIncludeCutoff(v == null ? "" : String(toStored(v)))} style={inp} aria-label={tr("Including cutoff")} />
             </label>
             <label style={fieldLabel} title={tr("A top cut: inside an intercept each sample's grade is capped at this value, and the cut grade shows beside the uncut one. Empty: uncut (the default).")}>{tr("Top cut ≤")}<NumberInput allowEmpty min="0" value={topCutKept === "" ? null : shownBox(Number(topCutKept))} placeholder={tr("uncut")} onChange={(v) => setTopCut(v == null ? "" : String(toStored(v)))} style={inp} aria-label={tr("Top cut")} />{/* #3747 */}
@@ -468,9 +475,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                 <option value="density">{tr("Length × density")}</option>
               </select>
             </label>}
-            {maxInternalDilution === 2 && minLength === 0 && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", alignSelf: "center" }}>{tr("Max internal dilution 2 m and min length 0 are the tool's starting values: set the ones your report uses.")}</span>}{/* #3579 */}
           </div>
-
           {/* TASKS.csv #402 — metal equivalent from the element + the 'Also show' elements below. */}
           {alsoSymbols.length > 1 && bulkLead && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("No metal equivalent for {symbol}: it is sold per tonne at a reference-grade price with penalties, not as a sum of payable metals.", { symbol })}</div>}{/* #2923 */}
           {alsoSymbols.length > 1 && !bulkLead && (
@@ -496,7 +501,6 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
               )}
             </div>
           )}
-
           {alsoSymbols.length > 1 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title={tr("Extra elements' length-weighted average over each already-composited interval — the intercept itself is still only built/cut off against the primary Element above.")}>
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Also show:")}</span>
@@ -516,11 +520,6 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
               )}
             </div>
           )}
-
-          {/* TASKS.csv #230 — true (structure-corrected) width. Requires the user to state the
-              mineralized structure's orientation: it can't be inferred from assay data, and guessing
-              would put confidently-wrong widths in a report. Disabled with an explanation when there's
-              no collar geometry loaded, rather than silently doing nothing. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: "7px 9px", background: twEnabled ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", border: `1px solid ${twEnabled ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 6 }}>
             <label style={{ fontSize: "var(--font-size-sm)", color: collars?.length ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 5, cursor: collars?.length ? "pointer" : "default" }}
               title={collars?.length ? tr("Correct each intercept's downhole length to a true (perpendicular) thickness across the structure.") : tr("Needs collar (and ideally survey) data loaded to know each hole's orientation.")}>
@@ -539,7 +538,6 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             {twEnabled && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Width × |cos θ| to the structure's pole — a factor near 1 means a well-oriented hole.")}</span>}
             {twOn && !twReady && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon-strong)" }}>{tr("Enter the mineralized structure's dip direction and dip (0-90°): no true width is shown until both are set.")}</span>}
           </div>
-
           {/* TASKS.csv #230 — host domain/lithology per intercept. */}
           {(domainLayerOptions.length > 0 || extraDomains.length > 0) && (
             <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 6 }}
@@ -550,6 +548,8 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
               </select>
             </label>
           )}
+            </div>
+          </MoreFold>
 
           {ranked.length > 0 && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>{tr("Hole contains")}<input type="search" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ ...inp, width: 150 }} aria-label={tr("Show only the holes whose name contains")} placeholder={tr("hole name")} />{holeFilter.trim() && <span>{tr("{n} of {total} intercepts", { n: results.length.toLocaleString(), total: ranked.length.toLocaleString() })}</span>}<span style={{ color: "var(--color-text-muted)" }}>{tr("Click a column heading to sort; the CSV and the Layout table follow this order.")}</span></label>}{/* #3565 */}
           {results.length > 0 && (() => { const c = interceptCount(results); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{/* TASKS.csv #2200 — how many, with the filters above */}{c.n === 1 ? tr("1 intercept, in 1 hole") : c.holes === 1 ? tr("{n} intercepts, in 1 hole", { n: c.n.toLocaleString() }) : tr("{n} intercepts, in {holes} holes", { n: c.n.toLocaleString(), holes: c.holes.toLocaleString() })}</div>; })()}
