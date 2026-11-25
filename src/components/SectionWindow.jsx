@@ -29,6 +29,7 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '
 import { FIT, windowOf, normalize as normalizeZoom, zoomBy, panBy, plotFraction, zoomText, isFit, keepZoom, keptZoom, WHEEL_STEP, BUTTON_STEP } from "../lib/sectionZoom.js"; // TASKS.csv #4009 — the zoom
 import { lazyPart } from "../lib/lazyModal.jsx";
 import SectionMapBands from "./SectionMapBands.jsx"; // TASKS.csv #4041
+import SectionToolbarGroup from "./SectionToolbarGroup.jsx"; // TASKS.csv #4070 — the toolbar's folded Draw / View / Export groups
 import { chosenMapIds, shownMapLayers, mapKeyRows, overviewWithMaps } from "../lib/sectionMaps.js"; // TASKS.csv #4041
 const SectionOverview = lazyPart(() => import("./SectionOverview.jsx")); // TASKS.csv #3977 — on use only
 import { LABEL_KINDS, labelShow, floatLabelKind, labelsPatch, labelsPatchAll, crowdedDefault } from "../lib/sectionLabelKinds.js"; // TASKS.csv #3968
@@ -526,13 +527,28 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           {stepping && <span role="status" style={{ color: "#8a6a1f", fontSize: "var(--font-size-sm)" }}>{tr("Building the section…")}</span>}{/* #2210 */}
           {!(data.holes?.length > 0) && data.hiddenHoleCount > 0 && <span role="status" style={{ color: "#8a6a1f", fontSize: "var(--font-size-sm)" }}>{tr(data.hiddenHoleCount === 1 ? "No hole is drawn: {n} hole is unchecked in the Holes list (show it, or move the line)" : "No hole is drawn: {n} holes are unchecked in the Holes list (show them, or move the line)", { n: data.hiddenHoleCount })}</span>}{/* #3680 */}
           {labelsLeftOut > 0 && <span style={{ color: "#8a6a1f", fontSize: "var(--font-size-sm)" }} title={tr("To show more labels, narrow the buffer, raise the VE, shrink the text or drag labels: ones with no free room are left out. Hover a hole for its name.")}>{labelsLeftOut === 1 ? tr("1 label left out: no room") : tr("{n} labels left out: no room", { n: labelsLeftOut })}</span>}{/* #1536 */}
+          {fitWhole && fitTextPx != null && fitTextPx < 7 && <span role="note" style={{ fontSize: "var(--font-size-sm)", color: "#8a6a1f" }} title={tr("Lower the VE or untick Fit to window to read the labels: fitted whole, they are under 7 px tall.")}>{tr("Text under 7 px: lower the VE, or untick to scroll")}</span>}{/* #3304 */}
+          <span data-section-group-row="output" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <button onClick={() => snapshotToLayout()} className="gs-btn gs-btn--sm gs-btn--primary">
+            <Camera size={14} /> {snapped ? tr("Sent ✓") : tr("Snapshot to Layout")}
+          </button>
+            <SectionToolbarGroup id="output" summary={tr("Export")} align="right">
+          {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} className="gs-btn gs-btn--sm" title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
+          <button onClick={exportPNG} className="gs-btn gs-btn--sm" title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
+          <button onClick={exportSVG} className="gs-btn gs-btn--sm" title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
+          <button onClick={exportPDF} className="gs-btn gs-btn--sm" title={tr("Export section → PDF")}><FileText size={14} />{" "}{tr("PDF")}</button>
+            </SectionToolbarGroup>
+          </span>
+        </span>
+        <div data-section-controls="" style={{ flex: "1 1 100%", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>{/* TASKS.csv #4070 — Draw / View / Output: one compact row, the rest folded per group */}
+          <span data-section-group-row="draw" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
           {!drawing ? (
             <>
               {/* Unit picked BEFORE drawing starts — a contact is always a specific unit's upper
                   contact, not a freeform name (see finishContact's comment). Falls back to a text box
                   if this property has no litho data loaded yet (data.lithoUnits empty) rather than
                   blocking the tool entirely. */}
-              <select value={kindPick} onChange={(e) => { setKindPick(e.target.value); setUnitPick(""); }} style={selectStyle} aria-label={tr("What to draw")}>
+              <select value={kindPick} onChange={(e) => { setKindPick(e.target.value); setUnitPick(""); }} style={{ ...selectStyle, maxWidth: 150 }} aria-label={tr("What to draw")}>
                 <option value="contact">{tr("Upper contact")}</option>
                 <option value="fault">{tr("Fault")}</option>
                 <option value="string">{tr("String")}</option>
@@ -563,22 +579,41 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
               <button onClick={cancelDrawing} className="gs-btn gs-btn--sm"><X size={14} />{" "}{tr("Cancel")}</button>
             </>
           )}
+          <button onClick={saveContacts} disabled={!contacts.length && !drawing} className="gs-btn gs-btn--sm" style={{ opacity: contacts.length || drawing ? 1 : 0.5 }}>
+            <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
+          </button>
+            <SectionToolbarGroup id="draw" summary={tr("Draw options")}>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("A click within ~12 px of a hole snaps to the unit's logged top (any boundary for faults / strings), else to the trace, at the hole's exact position (square marker)")}>
             <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} />{" "}{tr("Snap to holes")}</label>
           {snapOn && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("On: points snapped to a hole stay on this section's plane, so the cut follows what you draw. Off: they keep the hole's real position, off the section.")}>
             <input type="checkbox" checked={projectSnaps || outlineOnPlane} disabled={outlineOnPlane} onChange={(e) => setProjectSnaps(e.target.checked)} />{" "}{tr("Keep snaps on the section")}</label>}
           {/* TASKS.csv #876 — step to the parallel section beside this one, and refresh what the main window draws on it */}
+              <span style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
           <button onClick={() => stepTo({ id: data.id, step: -1 })} title={tr("Save your contacts, then open the parallel section to the right (looking from its start); one is made at the section spacing if none exists.")} className="gs-btn gs-btn--sm">‹</button>
           <button onClick={() => stepTo({ id: data.id, step: 1 })} title={tr("Save your contacts, then open the parallel section to the left (looking from its start); one is made at the section spacing if none exists.")} className="gs-btn gs-btn--sm">›</button>
           {/* TASKS.csv #1131 — move the section by exactly ± its buffer (a new parallel section, or the saved one there) */}
           <button onClick={() => stepTo({ id: data.id, step: -1, by: "buffer" })} title={tr("Move the section {v} m to the right (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} className="gs-btn gs-btn--sm">−{data.section?.corridor} m</button>
           <button onClick={() => stepTo({ id: data.id, step: 1, by: "buffer" })} title={tr("Move the section {v} m to the left (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} className="gs-btn gs-btn--sm">+{data.section?.corridor} m</button>
+              </span>
+            </SectionToolbarGroup>
+          </span>
+          <span data-section-group-row="view" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("How far either side of the line holes and data are included; press Enter to redraw. Saved with the section.")}>
             {tr("Buffer ±")}
             <NumberInput min={1} step={5} value={data.section?.corridor ?? null}
               onChange={(v) => { if (v > 0 && v !== data.section?.corridor) sendSectionContacts({ id: data.id, corridor: v }); }}
               style={{ width: 52, fontSize: "var(--font-size-sm)" }} aria-label={tr("Buffer ±")} />{" m"}
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<NumberInput min={0.1} max={MAX_SECTION_VE} step={0.5} value={vExag ?? null} onChange={(v) => setVExag(v)} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
+            ×
+          </label>
+          <span data-zoom-controls="" style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>{/* TASKS.csv #4009 */}
+            <button onClick={() => setZoom(zoomBy(zoom, 1 / BUTTON_STEP))} disabled={isFit(zoom)} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} aria-label={tr("Zoom out")} title={tr("Zoom out")}>−</button>
+            <button onClick={() => setZoom(zoomBy(zoom, BUTTON_STEP))} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px" }} aria-label={tr("Zoom in")} title={tr("Zoom in (or the wheel); pan with the middle button or Space + drag")}>+</button>
+            <button onClick={() => setZoom(FIT)} disabled={isFit(zoom)} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} title={tr("Fit the whole section (or double-click empty ground)")}>{tr("Fit")}</button>
+            <span data-zoom-readout="" role="status" style={{ minWidth: 34, textAlign: "center", fontSize: "var(--font-size-sm)", color: "#55606e", fontVariantNumeric: "tabular-nums" }}>{zoomText(zoom)}</span>
+          </span>
+            <SectionToolbarGroup id="view" summary={tr("View options")} align="right">
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Font and size of the text on the section (and in its exports)")}>
             {tr("Text")}
             <select value={textFont} onChange={(e) => setTextFont(e.target.value)} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Section font")}>
@@ -616,12 +651,6 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             <input type="checkbox" checked={patternsOn} onChange={(e) => setPatternsOn(e.target.checked)} />{tr("Patterns")}
           </label>}
           <button onClick={() => stepTo({ id: data.id, refresh: true })} title={tr("Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).")} className="gs-btn gs-btn--sm">{tr("Refresh")}</button>
-          <button onClick={saveContacts} disabled={!contacts.length && !drawing} className="gs-btn gs-btn--sm" style={{ opacity: contacts.length || drawing ? 1 : 0.5 }}>
-            <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
-          </button>
-          <button onClick={() => snapshotToLayout()} className="gs-btn gs-btn--sm">
-            <Camera size={14} /> {snapped ? tr("Sent ✓") : tr("Snapshot to Layout")}
-          </button>
           {data.modelBackdrop && ( // TASKS.csv #759
             <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("{name}: the modelled units on this section, behind the logged holes, {source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).", { name: data.modelBackdrop.name, source: data.modelBackdrop.source })}>
               <input type="checkbox" checked={showModel} onChange={(e) => setShowModel(e.target.checked)} />{" "}{tr("Modelled units")}</label>
@@ -630,22 +659,10 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}", { v: data.sectionImages.map((i) => i.name).join(", ") })}>
               <input type="checkbox" checked={showSectionImages} onChange={(e) => setShowSectionImages(e.target.checked)} />{" "}{tr("Section image")}</label>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<NumberInput min={0.1} max={MAX_SECTION_VE} step={0.5} value={vExag ?? null} onChange={(v) => setVExag(v)} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
-            ×
-          </label>
-          <span data-zoom-controls="" style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>{/* TASKS.csv #4009 */}
-            <button onClick={() => setZoom(zoomBy(zoom, 1 / BUTTON_STEP))} disabled={isFit(zoom)} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} aria-label={tr("Zoom out")} title={tr("Zoom out")}>−</button>
-            <button onClick={() => setZoom(zoomBy(zoom, BUTTON_STEP))} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px" }} aria-label={tr("Zoom in")} title={tr("Zoom in (or the wheel); pan with the middle button or Space + drag")}>+</button>
-            <button onClick={() => setZoom(FIT)} disabled={isFit(zoom)} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} title={tr("Fit the whole section (or double-click empty ground)")}>{tr("Fit")}</button>
-            <span data-zoom-readout="" role="status" style={{ minWidth: 34, textAlign: "center", fontSize: "var(--font-size-sm)", color: "#55606e", fontVariantNumeric: "tabular-nums" }}>{zoomText(zoom)}</span>
-          </span>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
-          {fitWhole && fitTextPx != null && fitTextPx < 7 && <span role="note" style={{ fontSize: "var(--font-size-sm)", color: "#8a6a1f" }} title={tr("Lower the VE or untick Fit to window to read the labels: fitted whole, they are under 7 px tall.")}>{tr("Text under 7 px: lower the VE, or untick to scroll")}</span>}{/* #3304 */}
-          {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} className="gs-btn gs-btn--sm" title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
-          <button onClick={exportPNG} className="gs-btn gs-btn--sm" title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
-          <button onClick={exportSVG} className="gs-btn gs-btn--sm" title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
-          <button onClick={exportPDF} className="gs-btn gs-btn--sm" title={tr("Export section → PDF")}><FileText size={14} />{" "}{tr("PDF")}</button>
-        </span>
+            </SectionToolbarGroup>
+          </span>
+        </div>
       </div>
 
       {/* TASKS.csv #395 — planned-hole design bar */}

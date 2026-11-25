@@ -15778,5 +15778,7 @@
   "Next: your drilling": "Suivant : vos forages",
   "Problem": "Problème",
   "Which role does each code play?": "Quel rôle joue chaque code ?",
-  "Fetch layers first.": "Récupérez d'abord les couches."
+  "Fetch layers first.": "Récupérez d'abord les couches.",
+  "Draw options": "Options de dessin",
+  "View options": "Options d'affichage"
 }
