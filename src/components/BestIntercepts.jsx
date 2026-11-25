@@ -456,7 +456,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             {maxInternalDilution === 2 && minLength === 0 && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", alignSelf: "center" }}>{tr("Max internal dilution 2 m and min length 0 are the tool's starting values: set the ones your report uses.")}</span>}{/* #3579 */}
           </div>
           {/* TASKS.csv #4070 part 5 — the rarer settings (the higher cut-off, the top cut, the weighting, the metal equivalent, the extra elements, the true width, the host unit, the QC samples) behind one closed fold: the dialog opens on the element, the cut-off, the dilution and the length */}
-          <MoreFold summary={tr("More settings…")} data-fine-tune="best-intercepts">
+          <MoreFold summary={tr("Fine-tune…")} data-fine-tune="best-intercepts">
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {qaqcExcludedCount > 0 && (
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("Include the QC samples (standards, blanks, duplicates, found by hole_id). Left out by default so they can't show as a false best intercept.")}>
