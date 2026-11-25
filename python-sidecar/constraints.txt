@@ -1,7 +1,8 @@
 # TASKS.csv #363 — exact versions of the whole dependency tree, frozen from the dev venv that the sidecar's
 # numbers were verified against (GemPy default range 1.7, vertex coordinates, ERODE/ONLAP behaviour; SimPEG
 # tests). Every install uses it: pip install -r requirements.txt -c constraints.txt
-# Regenerate deliberately (pip freeze) after re-verifying, never implicitly. Python 3.11.9.
+# Regenerate deliberately (pip freeze) after re-verifying, never implicitly. Python 3.14.7 (TASKS.csv #4049: the same pins, moved
+# from 3.11.9 with every sidecar test equal; importlib-metadata and zipp dropped, as nothing installs them on 3.14).
 # TASKS.csv #1985 — Harmonica / Verde / Boule and their tree added 2026-11-07 from a verified scratch venv (same base pins).
 altgraph==0.17.5
 annotated-doc==0.0.5
@@ -61,6 +62,7 @@ requests==2.34.2
 scikit-learn==1.9.1
 scipy==1.17.1
 scooby==0.12.1
+setuptools==84.2.1  # TASKS.csv #4049: a Python 3.12+ venv has none (3.11's came with 65.5.0); PyInstaller needs it
 simpeg==0.25.2
 six==1.17.0
 starlette==1.6.0
@@ -76,4 +78,3 @@ watchfiles==1.2.0
 websockets==17.0.1
 xarray==2026.9.0
 xrft==1.0.1
-zipp==4.1.2

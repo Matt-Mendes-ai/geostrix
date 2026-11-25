@@ -22,7 +22,9 @@ const buildRoot = process.env.GEOSTRIX_BUILD_DIR ? path.resolve(process.env.GEOS
 const distDir = buildRoot ? path.join(buildRoot, "dist") : path.join(sidecarDir, "dist");
 const workDir = buildRoot ? path.join(buildRoot, "build") : path.join(sidecarDir, "build");
 const isWin = process.platform === "win32";
-const venvPython = path.join(sidecarDir, "venv", isWin ? "Scripts" : "bin", isWin ? "python.exe" : "python");
+// TASKS.csv #4049 — GEOSTRIX_SIDECAR_PYTHON freezes with another environment's Python (a scratch venv while a Python or tool
+// update is checked, docs/dependencies.md's review rule), leaving python-sidecar/venv as it is
+const venvPython = process.env.GEOSTRIX_SIDECAR_PYTHON ? path.resolve(process.env.GEOSTRIX_SIDECAR_PYTHON) : path.join(sidecarDir, "venv", isWin ? "Scripts" : "bin", isWin ? "python.exe" : "python");
 
 if (!fs.existsSync(venvPython)) {
   console.error(`[build:sidecar] No venv found at ${venvPython}.`);

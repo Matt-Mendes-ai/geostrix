@@ -34,9 +34,18 @@ Stored results that show whether an update moved the numbers. Synthetic data onl
 | Potential-field inversion: a recovered block, gravity sign, closed-form spheres | in the test (`test_potential.py`) | per assertion | CI |
 | geoML: one grade run (a smooth Cu field) and one rock run (SED over VOLC), 12 synthetic holes, the app's "Fast" settings, a fixed 6 x 4 x 3 block grid | `python-sidecar/tests/reference/geoml_grade_rock.json` | grade within 1 % of the mean grade, P10 / P90 within 2 %, the unit's probability within 0.005. A repeat run moves 0; iterations 150 to 120 moves the grade 9 % and the probability 0.027, the rock's train spacing 10 to 8 m moves the probability 0.017 | `addons/geoml/tests/test_reference_geoml.py`, by hand with the add-on's own Python (`GEOSTRIX_GEOML_PYTHON`; ~75 s). **Not in CI: CI does not install geoML** (the add-on workflow only builds and publishes it); without geoML the test says SKIPPED |
 
-## Science tools (python-sidecar, Python 3.11)
+## Science tools (python-sidecar, Python 3.14)
 
-Pinned exactly in `python-sidecar/requirements.txt` (17 tools). The whole tree (74 packages) is in `constraints.txt` (#363).
+Pinned exactly in `python-sidecar/requirements.txt` (17 tools). The whole tree (73 packages: setuptools added, importlib-metadata and zipp
+dropped) is in `constraints.txt` (#363).
+
+**Python itself (TASKS.csv #4049).** The sidecar moved from 3.11.9 to 3.14.7 with every pin unchanged. 3.11 and 3.12 now get
+security fixes as source only (python.org's last Windows installers are 3.11.9 and 3.12.10), so a frozen sidecar on them never
+gets another interpreter fix; 3.14 still gets Windows builds. Every sidecar test gave the same numbers on both (the GemPy reference
+and threads models bit for bit), the frozen engine passed the job smoke test, and it is 1 % larger with the same start time. The
+newer tool versions (numpy 2.5, scipy 1.18, SimPEG 0.26, discretize 0.13) all need 3.12 or later; each is a separate review.
+`build_sidecar.js` takes `GEOSTRIX_SIDECAR_PYTHON` to freeze from a scratch venv when the next one is checked. The geoML add-on keeps
+its own Python 3.11 (TensorFlow).
 "CI" = `.github/workflows/sidecar.yml` runs it on every push that touches the sidecar; "by hand" = run it with the venv's Python.
 
 | Tool | Pinned | Latest (2026-11-23) | GeoStrix relies on it for | Assumptions the code makes | Guarded by | Checked |
