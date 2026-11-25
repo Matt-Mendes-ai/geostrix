@@ -200,10 +200,10 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <span>{tr("{n} intervals match", { n: matchIds.length.toLocaleString() })}</span>
-              <button disabled={!matchIds.length} onClick={() => addMatches(setPrecursorIds)} style={{ ...sel, cursor: "pointer" }}>{tr("Add to precursor")}</button>
-              <button disabled={!matchIds.length} onClick={() => addMatches(setAlteredIds)} style={{ ...sel, cursor: "pointer" }}>{tr("Add to altered")}</button>
-              <button disabled={!precursorIds.size} onClick={() => setPrecursorIds(new Set())} style={{ ...sel, cursor: "pointer" }}>{tr("Clear precursor")}</button>
-              <button disabled={!alteredIds.size} onClick={() => setAlteredIds(new Set())} style={{ ...sel, cursor: "pointer" }}>{tr("Clear altered")}</button>
+              <button disabled={!matchIds.length} onClick={() => addMatches(setPrecursorIds)} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Add to precursor")}</button>
+              <button disabled={!matchIds.length} onClick={() => addMatches(setAlteredIds)} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Add to altered")}</button>
+              <button disabled={!precursorIds.size} onClick={() => setPrecursorIds(new Set())} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Clear precursor")}</button>
+              <button disabled={!alteredIds.size} onClick={() => setAlteredIds(new Set())} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Clear altered")}</button>
             </div>
           </div>
 
@@ -266,14 +266,14 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
               {loiSymbols.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Left out of the mass balance: {list} (loss on ignition is a property of the sample, not an element).", { list: loiSymbols.join(", ") })}</div>}{/* #2924 */}
               {calcSymbols.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}", { list: calcSymbols.join(", ") })}</div>}{/* #1521 */}
 
-              <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
+              <button onClick={exportCSV} className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
                 <Download size={14} />{" "}{tr("Export mass-balance table (CSV)")}</button>
             </>
           )}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
+          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -306,6 +306,5 @@ const panel = { width: "min(760px, 94vw)", maxHeight: "88vh", background: "var(-
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
 const th = { padding: "4px 8px", fontWeight: 500 };
 const td = { padding: "4px 8px" };

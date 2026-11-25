@@ -21,6 +21,7 @@ import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { lonLatColumns } from "../lib/projectCrs.js"; // TASKS.csv #1149
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { BestInterceptsIcon } from "../components/ribbonIcons.jsx"; // TASKS.csv #3958
+import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database, Radar } from "../components/icons.js"; // Radar: #1999
 const McdAnomalyPanel = React.lazy(() => import("../components/McdAnomalyPanel.jsx")); // TASKS.csv #1999 — a lazy chunk: opened rarely
@@ -86,7 +87,6 @@ import QAQCPanel from "../components/QAQCPanel.jsx";
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
-import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
 import DropDiagram from "../components/DropDiagram.jsx"; // TASKS.csv #3939
 import MoreFold from "../components/MoreFold.jsx"; // TASKS.csv #3939
 import { symbolPresent } from "../lib/calcUndo.js"; // TASKS.csv #3110
@@ -1465,12 +1465,12 @@ export default function GeochemModule() {
         <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", margin: "10px 0 4px" }}>
           {assays.length ? (headCounts.qc || headCounts.calc ? headerCounts(headCounts) : tr(assayElements.length === 1 ? "{assays} intervals · 1 element" : "{assays} intervals · {assayElements} elements", { assays: assays.length, assayElements: assayElements.length })) : tr("No assays loaded")}{/* #2201 — a singular / plural pair; QC / calculated apart: #2035 */}
         </div>
-        {assays.length > 0 && <div style={{ margin: "0 0 6px" }}><button type="button" onClick={() => openDataTable({ source: "assays" })} style={{ background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", font: "inherit", fontSize: "var(--font-size-sm)", textDecoration: "underline" }} title={tr("Every assay row as a table: the units in the headings, sort, filter, find")}>{tr("Assay table")}</button></div> /* TASKS.csv #3563 */}
+        {assays.length > 0 && <div style={{ margin: "0 0 6px" }}><button data-btn-own="" type="button" onClick={() => openDataTable({ source: "assays" })} style={{ background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", font: "inherit", fontSize: "var(--font-size-sm)", textDecoration: "underline" }} title={tr("Every assay row as a table: the units in the headings, sort, filter, find")}>{tr("Assay table")}</button></div> /* TASKS.csv #3563 */}
         {/* TASKS.csv #624 — remove what was imported: a whole file, one element, or everything (all undoable) */}
         {staleCalcs.length > 0 && ( /* TASKS.csv #3923 */
           <div role="status" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "6px 0", lineHeight: 1.4 }}>
             <span style={{ flex: 1 }}>{tr(staleCalcs.length === 1 ? "The assays changed since {list} was calculated." : "The assays changed since {list} were calculated.", { list: staleCalcs.map((e) => e.symbol).join(", ") })}</span>
-            <button type="button" onClick={recalcStale} style={{ ...panelBtn, width: "auto", marginBottom: 0, padding: "4px 10px" }}>{tr("Recalculate")}</button>
+            <button type="button" onClick={recalcStale} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "4px 10px" }}>{tr("Recalculate")}</button>
           </div>
         )}
         {assays.length > 0 && <AssayRemovePanel assays={assays} assayElements={assayElements} setAssays={setAssays} setAssayElements={setAssayElements} setNotices={setNotices} colorElement={colorElement} setColorElement={setColorElement} />}
@@ -1516,7 +1516,7 @@ export default function GeochemModule() {
                   ? <div style={{ color: "var(--color-warn-text)" }}>{tr("The formula was edited, so it is no longer the {label} preset: the elements are read in their stored units ({v}), with no conversion.", { label: tr(calc.preset.label), v: calcEls.filter((e) => new RegExp(`(^|[^A-Za-z0-9_])${e.symbol}(?![A-Za-z0-9_])`).test(calc.expr)).map((e) => `${e.symbol} ${gradeUnitLabel(e.symbol, e.unit)}`).join(", ") /* the formula's own elements */ })}</div>
                   : <div style={{ color: calc.msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-icon-strong)" }}>{calc.msg.text}</div>)}
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button style={{ ...genBtn, flex: 1 }} onClick={() => {
+                  <button className="gs-btn gs-btn--block" style={{ flex: 1 }} onClick={() => {
                     try {
                       if (onSurface) { // #1799 — stored on the surface samples like an imported element: plan map, thresholds, grade stats take it
                         const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) || (calc.readPpm ? mixedUnitReads(calc.expr, surfaceElements) : null) /* #3219 */ }); // #2500; presetUnitsFor: #2619
@@ -1539,7 +1539,7 @@ export default function GeochemModule() {
                       setCalc(null);
                     } catch (err) { setCalc((c) => ({ ...c, msg: { ok: false, text: err.message } })); }
                   }}>{tr("Add")}</button>
-                  <button style={{ ...panelBtn, flex: 1 }} onClick={() => setCalc(null)}>{tr("Cancel")}</button>
+                  <button className="gs-btn gs-btn--block" style={{ flex: 1 }} onClick={() => setCalc(null)}>{tr("Cancel")}</button>
                 </div>
               </div>
           </>
@@ -1676,7 +1676,7 @@ export default function GeochemModule() {
           {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
           <div data-lith-menu="" style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
               title={hasLithLog ? tr("Plot only samples from the chosen logged lithologies") : tr("Load a lithology log in StrixViewer to filter by it")}
-              style={{ ...selectStyle, padding: "5px 8px", cursor: hasLithLog ? "pointer" : "not-allowed", opacity: hasLithLog ? 1 : 0.55 }}>
+              className="gs-btn gs-btn--sm" style={{ padding: "5px 8px", cursor: hasLithLog ? "pointer" : "not-allowed", opacity: hasLithLog ? 1 : 0.55 }}>
               {!hasLithLog ? tr("no log loaded") : !lithFilter ? tr("all ({lithCounts})", { lithCounts: lithCounts.length }) : tr("{size} of {lithCounts} selected", { size: lithFilter.size, lithCounts: lithCounts.length })} ▾
             </button>
             {lithMenuOpen && hasLithLog && (
@@ -1684,8 +1684,8 @@ export default function GeochemModule() {
                 <div style={{ position: "fixed", inset: 0, zIndex: 20 }} onClick={() => setLithMenuOpen(false)} />
                 <div role="menu" onKeyDown={(e) => { if (e.key === "Escape") setLithMenuOpen(false); }} style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 21, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.15)", padding: 8, minWidth: 220, maxHeight: 360, overflowY: "auto" }}>
                   <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                    <button type="button" onClick={() => setLithFilter(null)} style={{ ...selectStyle, padding: "3px 8px" }}>{tr("All")}</button>
-                    <button type="button" onClick={() => setLithFilter(new Set())} style={{ ...selectStyle, padding: "3px 8px" }}>{tr("None")}</button>
+                    <button type="button" onClick={() => setLithFilter(null)} className="gs-btn gs-btn--sm" style={{ padding: "3px 8px" }}>{tr("All")}</button>
+                    <button type="button" onClick={() => setLithFilter(new Set())} className="gs-btn gs-btn--sm" style={{ padding: "3px 8px" }}>{tr("None")}</button>
                   </div>
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, maxWidth: 260, lineHeight: 1.4 }}>{tr("Counts every sample of the chosen source, with or without the plotted elements; a sample takes the code it overlaps most.")}</div>{/* TASKS.csv #2752 */}
                   {lithCounts.map(([code, n]) => {
@@ -1729,9 +1729,9 @@ export default function GeochemModule() {
               actionTitle={tr("Pick an assay CSV — a hole ID, from/to depths, and one column per element")}
               secondary={
                 <>
-                  <button onClick={() => pxrfRef.current.click()} style={emptyStateSecondaryBtn} title={tr("Import a pXRF export instead")}>{tr("Import pXRF…")}</button>
+                  <button onClick={() => pxrfRef.current.click()} className="gs-btn" title={tr("Import a pXRF export instead")}>{tr("Import pXRF…")}</button>
                   {/* TASKS.csv #391 — the empty Geochem tab offered imports only; the sample assays ship with the app */}
-                  <button onClick={loadSampleAssays} disabled={sampleLoading} style={emptyStateSecondaryBtn} title={tr("The Harry property sample: assays of 37 real drillholes from BC's public ARIS database (report #37584)")}>
+                  <button onClick={loadSampleAssays} disabled={sampleLoading} className="gs-btn" title={tr("The Harry property sample: assays of 37 real drillholes from BC's public ARIS database (report #37584)")}>
                     {sampleLoading ? tr("Loading sample…") : tr("Load sample assays")}
                   </button>
                 </>
@@ -1917,8 +1917,6 @@ export default function GeochemModule() {
   );
 }
 
-const panelBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: "var(--font-size-base)", cursor: "pointer" };
-const genBtn = { ...panelBtn, background: "#1e3629", border: "1px solid #3d6b52", color: "#8fd9ab" };
 const selectStyle = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 10px", color: "#1a2028", fontSize: "var(--font-size-base)" };
 
 // TASKS.csv #624 — "currently there is no way to deleted imported assays". The imported files (each interval
@@ -1963,7 +1961,7 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
             <div key={f.file ?? "(untracked)"} style={row}>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.file ?? tr("Imported before GeoStrix recorded file names")}>{f.file ?? tr("(imported earlier — file not recorded)")}</span>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={f.shared ? tr("{shared} of these intervals also came from another file: they are counted under each file, and removing one file keeps them.", { shared: f.shared.toLocaleString() }) : undefined}>{f.shared ? tr("{n} ({shared} shared)", { n: f.intervals.toLocaleString(), shared: f.shared.toLocaleString() }) : f.intervals.toLocaleString()}</span>{/* #2202 — a re-imported interval counted under both files said so */}
-              <button type="button" style={xBtn} onClick={() => removeFile(f)} aria-label={tr("Remove assays from {v}", { v: f.file ?? tr("files imported earlier") })} title={tr("Remove this file's assay intervals")}><X size={14} /></button>
+              <button data-btn-own="" type="button" style={xBtn} onClick={() => removeFile(f)} aria-label={tr("Remove assays from {v}", { v: f.file ?? tr("files imported earlier") })} title={tr("Remove this file's assay intervals")}><X size={14} /></button>
             </div>
           ))}
           <div style={{ color: "var(--color-text-muted)", margin: "6px 0 2px" }}>{tr("Elements")}</div>
@@ -1972,11 +1970,11 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
               <span key={e.symbol} style={{ display: "inline-flex", alignItems: "center", gap: 2, border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 2px 1px 6px" }}>
                 {e.symbol}
                 <ElementBasisSelect element={e} onNotice={(n) => setNotices((p) => [...p, n])} />{/* TASKS.csv #2627 */}
-                <button type="button" style={xBtn} onClick={() => removeElement(e.symbol)} aria-label={tr("Remove element {symbol}", { symbol: e.symbol })} title={tr("Remove {symbol} from every interval", { symbol: e.symbol })}><X size={12} /></button>
+                <button data-btn-own="" type="button" style={xBtn} onClick={() => removeElement(e.symbol)} aria-label={tr("Remove element {symbol}", { symbol: e.symbol })} title={tr("Remove {symbol} from every interval", { symbol: e.symbol })}><X size={12} /></button>
               </span>
             ))}
           </div>
-          <button type="button" onClick={removeAll} style={{ marginTop: 8, width: "100%", padding: "5px 8px", border: "1px solid var(--color-danger-fg)", color: "var(--color-danger-fg)", background: "var(--color-bg)", borderRadius: 5, cursor: "pointer" }}>{tr("Remove all assays")}</button>
+          <button type="button" onClick={removeAll} className="gs-btn gs-btn--danger gs-btn--sm" style={{ marginTop: 8, width: "100%" }}>{tr("Remove all assays")}</button>
         </div>
       )}
     </details>

@@ -16,7 +16,7 @@ import { f32ToB64 } from "../lib/inversion.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps, sel, th, td, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
+import { overlay, backdropProps, sel, th, td, panel, header } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped; crsCell: #1064
@@ -120,12 +120,12 @@ export default function CatchmentsPanel({ onClose }) {
           </div>
           {a.notes.map((n) => <div key={n.text} style={{ ...note, color: "var(--color-warn-text)" }}>{tr(n.text, n.params)}</div>)}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" style={btn(true)} onClick={showCatchments}>{tr("Show catchments on the map")}</button>
-            <button type="button" style={btn(false)} onClick={showStreams}>{tr("Add the stream network")}</button>
-            <button type="button" style={btn(false)} onClick={showReaches} disabled={!a.results.some((r) => r.reach?.length > 1)}>{tr("Add follow-up reaches")}</button>
-            <button type="button" style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }} onClick={exportGpx} disabled={!a.results.some((r) => r.anomalous)}><Download size={14} />GPX</button>
-            <button type="button" style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }} onClick={exportCsv}><Download size={14} />CSV</button>
-            <button type="button" style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }} onClick={exportTif} title={tr("The catchment grid as a GeoTIFF for QGIS")}><Download size={14} />GeoTIFF</button>
+            <button type="button" className="gs-btn gs-btn--primary" onClick={showCatchments}>{tr("Show catchments on the map")}</button>
+            <button type="button" className="gs-btn" onClick={showStreams}>{tr("Add the stream network")}</button>
+            <button type="button" className="gs-btn" onClick={showReaches} disabled={!a.results.some((r) => r.reach?.length > 1)}>{tr("Add follow-up reaches")}</button>
+            <button type="button" className="gs-btn" style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={exportGpx} disabled={!a.results.some((r) => r.anomalous)}><Download size={14} />GPX</button>
+            <button type="button" className="gs-btn" style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={exportCsv}><Download size={14} />CSV</button>
+            <button type="button" className="gs-btn" style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={exportTif} title={tr("The catchment grid as a GeoTIFF for QGIS")}><Download size={14} />GeoTIFF</button>
           </div>
           {msg && <div style={{ ...note, color: "var(--color-text)" }}>{msg}</div>}
           <div style={{ overflow: "auto", maxHeight: 380 }}>
@@ -167,8 +167,8 @@ function Shell({ onClose, sub, children }) {
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>
         <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           {/* TASKS.csv #4042 — where new sites are planned */}
-          <button type="button" data-plan-stream-sites="" onClick={() => { onClose(); requestModuleAction("plan-stream-sites", { tab: "streams" }); }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-accent-dark)", fontSize: "var(--font-size-sm)", textDecoration: "underline" }}>{tr("Plan new sites: Plan survey › Stream sites")}</button>
-          <span style={{ flex: 1 }} /><button type="button" style={btn(false)} onClick={onClose}>{tr("Close")}</button></div>
+          <button data-btn-own="" type="button" data-plan-stream-sites="" onClick={() => { onClose(); requestModuleAction("plan-stream-sites", { tab: "streams" }); }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-accent-dark)", fontSize: "var(--font-size-sm)", textDecoration: "underline" }}>{tr("Plan new sites: Plan survey › Stream sites")}</button>
+          <span style={{ flex: 1 }} /><button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button></div>
       </div>
     </div>
   );

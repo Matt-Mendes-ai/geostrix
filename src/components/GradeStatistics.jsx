@@ -369,7 +369,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-statistics")} aria-label={tr("Help: {name}", { name: tr("Grade statistics") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-statistics")} aria-label={tr("Help: {name}", { name: tr("Grade statistics") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -452,7 +452,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
               <div>
                 <div style={label}>{tr("By domain — {groups} {v}", { groups: groups.length, v: tr(groups.length === 1 ? "group" : "groups") })}</div>
                 <BoxPlots groups={shownGroups} domainLabel={domainLabel} logScale={logScale} unit={dispLabel} />
-                {groups.length > shownMax && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.", { shown: shownMax, n: fmtNum(groups.length), more: fmtNum((groups.length - shownMax)) })}{!drawAll && groups.length > SHOWN_FIRST && <> <button type="button" onClick={() => setDrawAll(true)} style={{ cursor: "pointer", background: "none", border: "none", padding: 0, color: "var(--color-accent)", textDecoration: "underline", fontSize: "inherit" }}>{tr("Draw {m} groups", { m: fmtNum(Math.min(groups.length, SHOWN_MAX)) })}</button></>}</div>}{/* #2508 */}
+                {groups.length > shownMax && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.", { shown: shownMax, n: fmtNum(groups.length), more: fmtNum((groups.length - shownMax)) })}{!drawAll && groups.length > SHOWN_FIRST && <> <button type="button" onClick={() => setDrawAll(true)} data-btn-own="">{tr("Draw {m} groups", { m: fmtNum(Math.min(groups.length, SHOWN_MAX)) })}</button></>}</div>}{/* #2508 */}
               </div>
 
               {/* TASKS.csv #1388 */}
@@ -461,7 +461,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={dispLabel} />
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
                   <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: capText(prob.p975), b: capText(prob.p99), unit: dispLabel })}</span>
-                  {brkAsCap && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} style={{ ...sel, cursor: "pointer" }} title={tr("Where the two-line fit finds a second population in the high tail (Sinclair 1976). Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: dispLabel })}</button>}{/* #2675 */}
+                  {brkAsCap && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }} title={tr("Where the two-line fit finds a second population in the high tail (Sinclair 1976). Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: dispLabel })}</button>}{/* #2675 */}
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<NumberInput allowEmpty min="0" value={capTest} onChange={(v) => setCapTest(v == null ? "" : String(v))} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
                 </div>
@@ -504,7 +504,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
               {(() => { const over = groups.filter((g) => g.stats.n && g.ltN / g.stats.n > 0.5); if (!over.length) return null; const g = over[0]; return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round((100 * g.ltN) / g.stats.n), symbol, pop: domainLabel(g.key) })}{over.length > 1 ? " " + tr("{n} more group(s) are over half below detection.", { n: over.length - 1 }) : ""}{" "}{tr("Its percentiles and caps sit on the limit, not on measured grades.")}</div>; })()}{/* #2505 */}
               {ceil && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4, display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>{/* #3729 */}
                 <span>{tr("{n} results of {symbol} sit on a round maximum, {max} {unit}: probably an upper reporting limit whose '>' was lost. The mean, upper percentiles and caps here are too low.", { n: fmtNum(ceil.n), symbol: symLabel, max: fmtNum(toShown(ceil.ceiling)), unit: dispLabel })}</span>
-                <button type="button" onClick={markOverLimit} style={{ padding: "2px 8px", borderRadius: 4, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}>{tr("Mark them as over the limit ('>')")}</button>
+                <button type="button" onClick={markOverLimit} className="gs-btn gs-btn--sm">{tr("Mark them as over the limit ('>')")}</button>
               </div>}
               {ceilDone && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>{tr("{n} result(s) of {symbol} marked over the limit ('>'), kept at {max}: shown as '>', counted as over range in Data QC. Undo puts them back.", { n: fmtNum(ceilDone.n), symbol: ceilDone.symbol, max: `${fmtNum(ceilDone.max)} ${dispLabel}` })}</div>}
 
@@ -517,8 +517,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                       <option value="">{tr("add an element…")}</option>
                       {activeElements.filter((e) => e.symbol !== symbol && !alsoShown.includes(e.symbol)).map((e) => <option key={e.symbol} value={e.symbol}>{elementOptionLabel(e.symbol, e.unit)}</option>)}
                     </select></label>
-                  {cutOffers.length > 0 && <span style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Add:")}{cutOffers.map((o) => <button key={o.key} type="button" onClick={() => addCutoff(o.value)} disabled={cutoffs.includes(o.value)} title={o.title} style={{ ...sel, cursor: "pointer", padding: "1px 6px" }}>{o.label}</button>)}</span>}{/* #3069 */}
-                  {alsoShown.map((x) => <button key={x} type="button" onClick={() => setAlsoSyms((a) => a.filter((y) => y !== x))} style={{ ...sel, cursor: "pointer", padding: "2px 8px" }} title={tr("Remove {symbol} from the table", { symbol: x })}>{x} ×</button>)}
+                  {cutOffers.length > 0 && <span style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Add:")}{cutOffers.map((o) => <button key={o.key} type="button" onClick={() => addCutoff(o.value)} disabled={cutoffs.includes(o.value)} title={o.title} className="gs-btn gs-btn--sm" style={{ cursor: "pointer", padding: "1px 6px" }}>{o.label}</button>)}</span>}{/* #3069 */}
+                  {alsoShown.map((x) => <button key={x} type="button" onClick={() => setAlsoSyms((a) => a.filter((y) => y !== x))} className="gs-btn gs-btn--sm" style={{ cursor: "pointer", padding: "2px 8px" }} title={tr("Remove {symbol} from the table", { symbol: x })}>{x} ×</button>)}
                 </div>
                 {cutRows.length > 0 && (
                   <div style={{ overflowX: "auto" }}>
@@ -547,14 +547,14 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr(source === "surface" ? "All domains together; means {v}. Until you type cut-offs, they are the median, Q3 and P90 of these samples; an 'Also show' element averages over the same samples." : "All domains together; means {v}. Until you type cut-offs, they are the median, Q3 and P90 of these samples; an 'Also show' element averages over the same core.", { v: weightingActive ? tr("length-weighted") : tr("unweighted") }) /* #3754 (6) — surface samples have no core */}</div>
               </div>
 
-              <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
+              <button onClick={exportCSV} className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
                 <Download size={14} />{" "}{tr("Export statistics (CSV)")}</button>
             </>
           )}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
+          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -638,7 +638,6 @@ const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "var(-
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
 const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "right", fontFamily: "'Exo 2', system-ui, sans-serif" };
 

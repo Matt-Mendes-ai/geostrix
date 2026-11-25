@@ -69,7 +69,7 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 18px", borderBottom: "1px solid var(--color-border)" }}>
           <Bug size={18} aria-hidden="true" />
           <div id="rp-title" style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, flex: 1 }}>{tr("Report a problem")}</div>
-          <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
+          <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
         </div>
         {done ? (
           <div style={{ padding: 18, fontSize: "var(--font-size-base)", lineHeight: 1.5 }}>
@@ -77,9 +77,9 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
             <p><strong>{tr("Attach the file to that email before you send it")}</strong>{" "}{tr("— GeoStrix can't attach it for you.{v}", { v: done.size > EMAIL_LIMIT ? tr(" It is too big for most email services: upload it to a cloud drive and paste the link into the email instead.") : "" })}</p>
             <p style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("No email app? Write to {SUPPORT_EMAIL} from your webmail and attach the file.", { SUPPORT_EMAIL })}</p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {done.path && <button type="button" style={btn(false)} onClick={() => showReportFile(done.path)}><FolderOpen size={14} />{" "}{tr("Show the file")}</button>}
-              <button type="button" style={btn(false)} onClick={() => emailSupport(`GeoStrix ${version} — problem report`, `${what.trim()}\n\n---\nPlease attach ${done.name} (in your Downloads folder).`)}><Mail size={14} />{" "}{tr("Open the email again")}</button>
-              <button type="button" style={btn(true)} onClick={onClose}>{tr("Done")}</button>
+              {done.path && <button type="button" className="gs-btn" onClick={() => showReportFile(done.path)}><FolderOpen size={14} />{" "}{tr("Show the file")}</button>}
+              <button type="button" className="gs-btn" onClick={() => emailSupport(`GeoStrix ${version} — problem report`, `${what.trim()}\n\n---\nPlease attach ${done.name} (in your Downloads folder).`)}><Mail size={14} />{" "}{tr("Open the email again")}</button>
+              <button type="button" className="gs-btn gs-btn--primary" /* gs-primary-alt: the done view replaces the form */ onClick={onClose}>{tr("Done")}</button>
             </div>
           </div>
         ) : (
@@ -107,7 +107,7 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
               </div>
               {files.length > 0 && (
                 <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: "var(--font-size-sm)" }}>
-                  {files.map((f, i) => <li key={`${f.name}-${i}`}>{f.name} ({fmtMB(f.size)}) <button type="button" onClick={() => setFiles((p) => p.filter((_, k) => k !== i))} aria-label={tr("Remove {name}", { name: f.name })} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-danger-icon)" }}>{tr("remove")}</button></li>)}
+                  {files.map((f, i) => <li key={`${f.name}-${i}`}>{f.name} ({fmtMB(f.size)}) <button data-btn-own="" type="button" onClick={() => setFiles((p) => p.filter((_, k) => k !== i))} aria-label={tr("Remove {name}", { name: f.name })} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-danger-icon)" }}>{tr("remove")}</button></li>)}
                 </ul>
               )}
               {attachBytes > EMAIL_LIMIT && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 6 }}>{tr("Attachments add up to {v}, over most email limits (~20 MB): the report is still made, but you may need to share it by a cloud link.", { v: fmtMB(attachBytes) })}</div>}
@@ -118,8 +118,8 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
             </div>
             {error && <div role="alert" style={{ marginTop: 10, color: "var(--color-danger-fg)", fontSize: "var(--font-size-sm)" }}>{error}</div>}
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
-              <button type="button" style={btn(true)} onClick={build} disabled={busy}>{busy ? tr("Making the report…") : <><Mail size={14} />{" "}{tr("Create report & open email")}</>}</button>
-              <button type="button" style={btn(false)} onClick={onClose}>{tr("Cancel")}</button>
+              <button type="button" className="gs-btn gs-btn--primary" onClick={build} disabled={busy}>{busy ? tr("Making the report…") : <><Mail size={14} />{" "}{tr("Create report & open email")}</>}</button>
+              <button type="button" className="gs-btn" onClick={onClose}>{tr("Cancel")}</button>
               <a href={`https://github.com/Matt-Mendes-ai/geostrix/issues/new?title=${encodeURIComponent(what.trim().slice(0, 80))}&body=${encodeURIComponent(`${what.trim()}\n\n**What I was doing**\n${steps.trim()}\n\nGeoStrix ${version}`)}`} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: "var(--font-size-sm)" }}>{tr("Or report it on GitHub (public)")}</a>
             </div>
           </div>

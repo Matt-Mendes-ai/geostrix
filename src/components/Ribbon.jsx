@@ -83,7 +83,7 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
       {hidden > 0 && (
         <div className="ge-ribbon-group ge-ribbon-more">
           <div className="ge-ribbon-items">
-            <button type="button" className="ge-ribbon-btn" onClick={() => setMode("advanced")} title={t("Show every tool on this tab (Advanced mode — switch back any time from the top bar)")}>
+            <button data-btn-own="" type="button" className="ge-ribbon-btn" onClick={() => setMode("advanced")} title={t("Show every tool on this tab (Advanced mode — switch back any time from the top bar)")}>
               <span className="ge-ribbon-more-count">+{hidden}</span>
               <span className="ge-ribbon-label">{t("Show all")}</span>{/* #1221 — it switches the mode; "more tools" read as a menu */}
             </button>
@@ -135,7 +135,7 @@ export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick
   const info = useToolInfo({ anchorRef, title: label, text: body || undefined, suppress: expanded === true });
   return (
     <div className={`ge-ribbon-cell${advanced ? " ge-adv" : ""}`}>
-      <button
+      <button data-btn-own=""
         ref={setRef}
         type="button"
         className={`ge-ribbon-btn${active ? " active" : ""}${soft ? " is-disabled" : ""}`}
@@ -182,7 +182,7 @@ export function PaneNotice({ notices }) {
         {!all && n?.more && <details style={{ marginTop: 3 }}><summary style={{ cursor: "pointer" }}>{t("More")}</summary><div style={{ maxHeight: 200, overflowY: "auto" }}>{n.more}</div></details>}{/* TASKS.csv #3986 — a notice's details */}
         {count > 1 && <span role="button" tabIndex={0} onClick={() => setAll((a) => !a)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAll((a) => !a); } }} style={{ display: "block", marginTop: 3, color: "var(--color-accent)", cursor: "pointer" }}>{all ? t("Show the last one") : t("Show all {n} messages since this pane opened", { n: count })}</span>}
       </span>
-      <button type="button" className="ge-pane-close" onClick={() => setFrom(notices.length)} aria-label={t("Dismiss message")} title={t("Dismiss")}><X size={12} /></button>
+      <button data-btn-own="" type="button" className="ge-pane-close" onClick={() => setFrom(notices.length)} aria-label={t("Dismiss message")} title={t("Dismiss")}><X size={12} /></button>
     </div>
   );
 }
@@ -202,8 +202,8 @@ export function TaskPaneHeader({ title, onClose, icon: Icon, tone = "neutral", h
     <div className="ge-pane-header">
       {Icon && <Icon size={16} strokeWidth={1.8} color={RIBBON_TONES[tone] || tone} aria-hidden="true" />}
       <span ref={titleRef} tabIndex={-1} className="ge-pane-title">{t(title)}</span>
-      {help && <button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(help)} aria-label={t("Help: {name}", { name: t(title) })} title={t("Help for this tool (F1, works offline)")}>?</button>}
-      {onClose && <button type="button" className="ge-pane-close" onClick={onClose} aria-label={t("Close {name}", { name: t(title) })} title={t("Close — back to the data")}><X size={14} /></button>}
+      {help && <button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(help)} aria-label={t("Help: {name}", { name: t(title) })} title={t("Help for this tool (F1, works offline)")}>?</button>}
+      {onClose && <button data-btn-own="" type="button" className="ge-pane-close" onClick={onClose} aria-label={t("Close {name}", { name: t(title) })} title={t("Close — back to the data")}><X size={14} /></button>}
     </div>
   );
 }

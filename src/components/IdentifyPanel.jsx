@@ -8,7 +8,6 @@ import { t as tr } from "../lib/i18n.js";
 import { plainLith } from "../lib/lithText.js"; // TASKS.csv #3936: a Macrostrat lithology block ("Major: {shale},Minor: {chert}") in words
 
 const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" };
-const act = { padding: "4px 8px", borderRadius: 5, border: "1px solid var(--color-border)", background: "var(--color-bg)", cursor: "pointer", font: "inherit", fontSize: "var(--font-size-sm)", color: "var(--color-text)" };
 
 export default function IdentifyPanel({ result, onShow, onClose, onZoom, onStripLog }) {
   const items = result?.items || [], it = items[result?.shown ?? 0];
@@ -16,7 +15,7 @@ export default function IdentifyPanel({ result, onShow, onClose, onZoom, onStrip
     <div role="region" aria-label={tr("Identify")} style={{ position: "absolute", ...IDENTIFY_PANEL, maxHeight: "calc(100% - 24px)", display: "flex", flexDirection: "column", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 4px 18px rgba(0,0,0,0.18)", color: "var(--color-text)", fontSize: "var(--font-size-base)", zIndex: 5 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderBottom: "1px solid var(--color-border)" }}>
         <span style={{ fontWeight: 600 }}>{tr("Identify")}</span>
-        <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close (Esc)")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", padding: 0, display: "flex" }}><X size={15} /></button>
+        <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close (Esc)")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", padding: 0, display: "flex" }}><X size={15} /></button>
       </div>
       <div style={{ overflow: "auto", padding: "8px 10px" }} aria-live="polite">
         {!result && <div style={small}>{tr("Click anything in the 3D view to see which layer it belongs to and its details. Dragging still moves the view.")}</div>}
@@ -38,9 +37,9 @@ export default function IdentifyPanel({ result, onShow, onClose, onZoom, onStrip
               ? tr("At this point: {e} E, {n} N, elevation {z} m, grid RL {rl} m", { e: Math.round(it.world.e).toLocaleString(), n: Math.round(it.world.n).toLocaleString(), z: (Math.round(it.world.z) || 0).toLocaleString(), rl: (Math.round(it.world.rl) || 0).toLocaleString() })
               : tr("At this point: {e} E, {n} N, elevation {z} m", { e: Math.round(it.world.e).toLocaleString(), n: Math.round(it.world.n).toLocaleString(), z: (Math.round(it.world.z) || 0).toLocaleString() /* #2871 — never '-0 m' */ })}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-              <button type="button" style={act} onClick={() => onZoom(it.point)}>{tr("Zoom here")}</button>
-              {it.hole && <button type="button" style={act} onClick={() => onStripLog(it.hole)}>{tr("Strip log")}</button>}
-              <button type="button" style={act} onClick={() => copyText(identifyText(it))}>{tr("Copy")}</button>
+              <button type="button" className="gs-btn gs-btn--sm" onClick={() => onZoom(it.point)}>{tr("Zoom here")}</button>
+              {it.hole && <button type="button" className="gs-btn gs-btn--sm" onClick={() => onStripLog(it.hole)}>{tr("Strip log")}</button>}
+              <button type="button" className="gs-btn gs-btn--sm" onClick={() => copyText(identifyText(it))}>{tr("Copy")}</button>
             </div>
           </>
         )}
@@ -48,7 +47,7 @@ export default function IdentifyPanel({ result, onShow, onClose, onZoom, onStrip
           <div style={{ marginTop: 10, borderTop: "1px solid var(--color-border)", paddingTop: 6 }}>
             <div style={small}>{tr("Under this click ({n})", { n: items.length })}</div>
             {items.map((x, i) => (
-              <button key={i} type="button" onClick={() => onShow(i)} aria-current={i === result.shown} style={{ display: "block", width: "100%", textAlign: "left", border: "none", borderRadius: 4, padding: "3px 6px", marginTop: 2, cursor: "pointer", font: "inherit", fontSize: "var(--font-size-sm)", color: "var(--color-text)", background: i === result.shown ? "var(--color-selected-bg)" : "transparent", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${x.layer}: ${x.title}`}>
+              <button data-btn-own="" key={i} type="button" onClick={() => onShow(i)} aria-current={i === result.shown} style={{ display: "block", width: "100%", textAlign: "left", border: "none", borderRadius: 4, padding: "3px 6px", marginTop: 2, cursor: "pointer", font: "inherit", fontSize: "var(--font-size-sm)", color: "var(--color-text)", background: i === result.shown ? "var(--color-selected-bg)" : "transparent", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${x.layer}: ${x.title}`}>
                 <span style={{ color: "var(--color-text-muted)" }}>{x.layer}:</span> {x.title}{x.at ? <span style={{ color: "var(--color-text-muted)" }}> · {x.at}</span> : null}{/* #2520 */}
               </button>
             ))}

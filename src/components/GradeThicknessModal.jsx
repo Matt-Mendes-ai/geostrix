@@ -167,7 +167,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
       <div role="dialog" aria-modal="true" aria-label={gtView === "long" ? tr("Grade × thickness on a long section") : tr("Grade × thickness in plan")} onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, width: 900, maxWidth: "95vw", maxHeight: "94vh", overflow: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{gtView === "long" ? tr("Grade × thickness on a long section") : tr("Grade × thickness in plan")}</div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3452 — the help page of the tool */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-thickness")} aria-label={tr("Help: {name}", { name: tr("Grade × thickness") })} title={tr("Help for this tool (F1, works offline)")}>?</button>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3452 — the help page of the tool */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-thickness")} aria-label={tr("Help: {name}", { name: tr("Grade × thickness") })} title={tr("Help for this tool (F1, works offline)")}>?</button>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
         {/* TASKS.csv #3089 — Plan (a thin, flat body) or Long section (a steep vein or lode) */}
@@ -208,14 +208,14 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
               )}
             </div>
             {grid && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{/* #2880 */}
-              <button type="button" onClick={exportGridCsv} style={{ ...inp, width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Download size={14} />{tr("Export the plan grid (CSV)")}</button>
-              <button type="button" onClick={exportGridTiff} style={{ ...inp, width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("GT, thickness and, with kriging, their standard deviations, one band each, in the project's CRS")}><Download size={14} />{tr("Export the plan grid (GeoTIFF)")}</button>
+              <button type="button" onClick={exportGridCsv} className="gs-btn gs-btn--sm" style={{ width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Download size={14} />{tr("Export the plan grid (CSV)")}</button>
+              <button type="button" onClick={exportGridTiff} className="gs-btn gs-btn--sm" style={{ width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("GT, thickness and, with kriging, their standard deviations, one band each, in the project's CRS")}><Download size={14} />{tr("Export the plan grid (GeoTIFF)")}</button>
             </div>}
-            <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={exportCsv} style={{ ...inp, width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Download size={14} />{tr("Export per-hole totals (CSV)")}</button>
+            <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={exportCsv} className="gs-btn gs-btn--sm" style={{ width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Download size={14} />{tr("Export per-hole totals (CSV)")}</button>
               <button type="button" disabled={!totals?.holes?.length} /* TASKS.csv #2755 */ onClick={() => { showGtOnPlan({ symbol: ox ? ox.oxide : symbol, label: gtLabel, title: `GT (${gtLabel}), intercepts at ${cut} ${shownGrade}`, holes: [...totals.holes.filter((h) => Number.isFinite(h.x)), ...totals.zeros].map((h) => ({ hole_id: h.hole_id, x: h.x, y: h.y, gt: h.gt, thicknessM: h.thicknessM })) }); setPlanMsg(tr("The holes' GT is on the Maps tab's plan, as circles sized by GT (until the app is closed or you clear it there).")); }}
-                style={{ ...inp, width: "auto", cursor: totals?.holes?.length ? "pointer" : "default" }} title={tr("Size the collars on the Maps plan by GT (circle area); a hole assayed with no intercept is a hollow ring.")}>{tr("Show on the Maps plan")}</button>
+                className="gs-btn gs-btn--sm" style={{ width: "auto", cursor: totals?.holes?.length ? "pointer" : "default" }} title={tr("Size the collars on the Maps plan by GT (circle area); a hole assayed with no intercept is a hollow ring.")}>{tr("Show on the Maps plan")}</button>
               <button type="button" disabled={!contour.length} /* TASKS.csv #2755 */ onClick={() => { const l = gtContourLayer(contour, { level: gtc, label: gtLabel, symbol: ox ? ox.oxide : symbol, cellM: grid?.cell }); if (l) { addMapLayer(l); setPlanMsg(tr("Added \"{name}\" as a map layer: on the Maps plan and in StrixViewer, and exported like any other.", { name: l.name })); } }}
-                style={{ ...inp, width: "auto", cursor: contour.length ? "pointer" : "default" }} title={tr("The contour at the GT cut-off, as lines in a map layer of the project.")}>{tr("Add the GT contour as a map layer")}</button></div>
+                className="gs-btn gs-btn--sm" style={{ width: "auto", cursor: contour.length ? "pointer" : "default" }} title={tr("The contour at the GT cut-off, as lines in a map layer of the project.")}>{tr("Add the GT contour as a map layer")}</button></div>
             {planMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{planMsg}</div>}
             <div className="ge-section-label" style={{ marginTop: 4 }}>{tr("Estimate in plan")}</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -228,7 +228,7 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
                 <option value="idw">{tr("Inverse distance (squared)")}</option>
                 <option value="ok">{tr("Ordinary kriging (a 2D variogram of each)")}</option>
               </select></label>{/* #2756 */}
-              <button type="button" disabled={pts.length < 2 || !cellM || !radiusM} onClick={() => { setRunMethod(method); setRun((n) => n + 1); }} style={{ ...inp, width: "auto", cursor: "pointer" }}>{tr("Estimate GT and thickness")}</button>
+              <button type="button" disabled={pts.length < 2 || !cellM || !radiusM} onClick={() => { setRunMethod(method); setRun((n) => n + 1); }} className="gs-btn gs-btn--primary" style={{ width: "auto", cursor: "pointer" }}>{tr("Estimate GT and thickness")}</button>
             </div>
             {runMethod === "ok" && ok?.busy && <div style={note}>{tr("Kriging the plan grid…")}</div>}{/* #2756 */}
             {spacing && <div style={note}>{tr("Holes typically {s} m apart in plan: blank cell = a quarter of that, blank search = 2.5 times it.", { s: Math.round(spacing) })}</div>}
