@@ -71,7 +71,7 @@ test("the registry: nothing before a .vo is read; then only its side files; boun
 test("main.js: .vo / .pl readable, side files only through the registry, every other check after it", () => {
   const m = fs.readFileSync(new URL("../electron/main.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(m, /"\.vo", "\.pl"\]\);/);
-  assert.match(m, /if \(!READABLE_EXT\.has\(ext\) && !voxetSides\.has\(filePath\)\) return/);
+  assert.match(m, /if \(!READABLE_EXT\.has\(ext\) && !voxetSides\.has\(filePath\) && !ersSides\.has\(filePath\)\) return/); // ersSides: #4066
   assert.match(m, /if \(ext === "\.vo"\) await voxetSides\.note\(filePath, buf\.toString\("latin1"\)\);/);
   const h = m.slice(m.indexOf('ipcMain.handle("fs-read-file"'));
   const order = ["voxetSides.has(filePath)", "listedDirs.has(path.dirname(full))", "inProtectedFolder(filePath)", "st.size > READ_MAX_BYTES)", "voxetSides.note("].map((t) => h.indexOf(t));

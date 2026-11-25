@@ -29,7 +29,7 @@ test("#2848 wiring: the bare viewport forwards drops, the tab imports them, the 
 
 test("#2855 a .grd dropped on the Geophysics tab goes to the raster import, and the 3D View's sentence names it", () => {
   const g = read("../src/modules/GeophysicsModule.jsx");
-  assert.match(g, /const gxfs = files\.filter\(\(f\) => \/\\\.\(gxf\|grd\)\$\/i\.test\(f\.name\)\);/);
+  assert.match(g, /const gxfs = files\.filter\(\(f\) => \/\\\.\(gxf\|grd\|ers\)\$\/i\.test\(f\.name\)\);/);
   assert.match(g, /This tab reads CSV, GeoTIFF, GXF, \.grd, XYZ/);
   assert.match(read("../src/modules/viewer/importPipelineImpl.js"), /GeoTIFF \/ \.gxf \/ \.grd grids/);
 });

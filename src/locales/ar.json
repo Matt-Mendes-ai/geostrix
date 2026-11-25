@@ -15376,5 +15376,16 @@
   "\"{name}\" is borehole EM ({clues}; decay channels {first} … {last}, {n} gates). TEM line data reads airborne and ground line surveys, not a hole. Read it with EM › Borehole EM.": "\"{name}\" بيانات EM للثقب ({clues}؛ قنوات الاضمحلال {first} … {last}، {n} بوابات). تقرأ بيانات خطوط TEM مسوحات خطوط جوية وأرضية، وليس ثقبًا. اقرأه عبر EM › EM الثقب.",
   "\"{name}\" is borehole EM ({clues}): read it with EM › Borehole EM.": "\"{name}\" بيانات EM للثقب ({clues}): اقرأه عبر EM › EM الثقب.",
   "{v}Read as UTF-16 text (the file starts with a UTF-16 byte-order mark).": "{v}تمت القراءة كنص UTF-16 (يبدأ الملف بعلامة ترتيب البايتات UTF-16).",
-  "This table has no header row (its first row is data): its {n} columns are named Column 1, Column 2 and so on. Say what each one is when you map the columns.": "لا يحتوي هذا الجدول على صف ترويسة (صفه الأول بيانات): تُسمّى أعمدته الـ {n} Column 1 وColumn 2 وهكذا. حدّد ما يمثله كل عمود عند ربط الأعمدة."
+  "This table has no header row (its first row is data): its {n} columns are named Column 1, Column 2 and so on. Say what each one is when you map the columns.": "لا يحتوي هذا الجدول على صف ترويسة (صفه الأول بيانات): تُسمّى أعمدته الـ {n} Column 1 وColumn 2 وهكذا. حدّد ما يمثله كل عمود عند ربط الأعمدة.",
+  "\"{name}\" is not an ER Mapper header.": "\"{name}\" ليس ترويسة ER Mapper.",
+  "The header has no {what}.": "لا تحتوي الترويسة على {what}.",
+  "This grid is too small.": "هذه الشبكة صغيرة جدًا.",
+  "Cell type {type} isn't supported.": "نوع الخلية {type} غير مدعوم.",
+  "\"{name}\" has no map coordinates: export it as a GeoTIFF.": "\"{name}\" بلا إحداثيات خريطة: صدّره بصيغة GeoTIFF.",
+  "This grid is rotated: export it unrotated.": "هذه الشبكة مدوّرة: صدّرها دون تدوير.",
+  "The data file is too short: is it the right one?": "ملف البيانات قصير جدًا: هل هو الملف الصحيح؟",
+  "\"{name}\" needs its data file \"{data}\": select both.": "يحتاج \"{name}\" إلى ملف بياناته \"{data}\": حدّد الاثنين.",
+  "ER Mapper grid, {nx} × {ny} cells, EPSG:{epsg}.": "شبكة ER Mapper، {nx} × {ny} خلية، EPSG:{epsg}.",
+  "ER Mapper grid, {nx} × {ny} cells: set the Source CRS.": "شبكة ER Mapper، {nx} × {ny} خلية: حدّد نظام الإحداثيات المصدر.",
+  "Band 1 of {n} read.": "تمت قراءة النطاق 1 من {n}."
 }

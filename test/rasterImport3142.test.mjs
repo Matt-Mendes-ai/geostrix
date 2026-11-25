@@ -101,7 +101,7 @@ test("off the UI thread: the worker's answer becomes the same raster; a worker t
 
 test("the import routes .gxf / .grd through the worker; the worker runs the shared readers and an OffscreenCanvas", () => {
   const r = readFileSync(new URL("../src/lib/raster.js", import.meta.url), "utf8");
-  assert.match(r, /const parsed = isGxf \|\| isGrd \? await parseGridFileOffThread\(file, isGxf \? "gxf" : "grd"\)/);
+  assert.match(r, /const parsed = isGxf \|\| isGrd \|\| isErs \? await parseGridFileOffThread\(file, isGxf \? "gxf" : isErs \? "ers" : "grd"\)/);
   const w = readFileSync(new URL("../src/lib/rasterImport.worker.js", import.meta.url), "utf8");
   assert.match(w, /import \{ gxfRows, grdRows, rowsPicture \} from "\.\/rasterRows\.js";/);
   assert.match(w, /new OffscreenCanvas\(outW, outH\)/);

@@ -15376,5 +15376,16 @@
   "\"{name}\" is borehole EM ({clues}; decay channels {first} … {last}, {n} gates). TEM line data reads airborne and ground line surveys, not a hole. Read it with EM › Borehole EM.": "«{name}» es EM de sondaje ({clues}; canales de decaimiento {first} … {last}, {n} ventanas). Datos de líneas TEM lee levantamientos de líneas aéreos y terrestres, no un sondaje. Léalo con EM › EM de sondaje.",
   "\"{name}\" is borehole EM ({clues}): read it with EM › Borehole EM.": "\"{name}\" es EM de sondaje ({clues}): léalo con EM › EM de sondaje.",
   "{v}Read as UTF-16 text (the file starts with a UTF-16 byte-order mark).": "{v}Leído como texto UTF-16 (el archivo empieza con una marca de orden de bytes UTF-16).",
-  "This table has no header row (its first row is data): its {n} columns are named Column 1, Column 2 and so on. Say what each one is when you map the columns.": "Esta tabla no tiene fila de encabezado (su primera fila son datos): sus {n} columnas se llaman Column 1, Column 2, etc. Indique qué es cada una al asignar las columnas."
+  "This table has no header row (its first row is data): its {n} columns are named Column 1, Column 2 and so on. Say what each one is when you map the columns.": "Esta tabla no tiene fila de encabezado (su primera fila son datos): sus {n} columnas se llaman Column 1, Column 2, etc. Indique qué es cada una al asignar las columnas.",
+  "\"{name}\" is not an ER Mapper header.": "\"{name}\" no es un encabezado de ER Mapper.",
+  "The header has no {what}.": "El encabezado no tiene {what}.",
+  "This grid is too small.": "Esta malla es demasiado pequeña.",
+  "Cell type {type} isn't supported.": "El tipo de celda {type} no es compatible.",
+  "\"{name}\" has no map coordinates: export it as a GeoTIFF.": "\"{name}\" no tiene coordenadas de mapa: expórtela como GeoTIFF.",
+  "This grid is rotated: export it unrotated.": "Esta malla está rotada: expórtela sin rotar.",
+  "The data file is too short: is it the right one?": "El archivo de datos es demasiado corto: ¿es el correcto?",
+  "\"{name}\" needs its data file \"{data}\": select both.": "\"{name}\" necesita su archivo de datos \"{data}\": seleccione ambos.",
+  "ER Mapper grid, {nx} × {ny} cells, EPSG:{epsg}.": "Malla ER Mapper, {nx} × {ny} celdas, EPSG:{epsg}.",
+  "ER Mapper grid, {nx} × {ny} cells: set the Source CRS.": "Malla ER Mapper, {nx} × {ny} celdas: indique el CRS de origen.",
+  "Band 1 of {n} read.": "Se leyó la banda 1 de {n}."
 }

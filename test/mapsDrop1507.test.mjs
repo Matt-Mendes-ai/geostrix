@@ -14,5 +14,5 @@ test("the Maps map takes dropped files and hands the rasters to the raster impor
   assert.match(r, /useModuleAction\(\["import-raster-files"\], \(_a, p\) => \{\s*importRasterFiles\(p\?\.files \|\| \[\]/); // #2857 — with their side files
   // the same pairing as the sidebar's own drop (#2857: lib/rasterSideFiles.js holds the extensions)
   assert.match(r, /importRasterFiles\(Array\.from\(e\.dataTransfer\.files \|\| \[\]\)\)/);
-  assert.match(fs.readFileSync("src/lib/rasterSideFiles.js", "utf8"), /\/\\.\(tiff\?\|gxf\|grd\)\$\/i\.test\(f\.name\)/);
+  assert.match(fs.readFileSync("src/lib/rasterSideFiles.js", "utf8"), /\/\\.\(tiff\?\|gxf\|grd\|ers\)\$\/i\.test\(f\.name\)/);
 });

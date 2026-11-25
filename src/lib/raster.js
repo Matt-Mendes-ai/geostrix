@@ -17,6 +17,8 @@
 // the scene, so that path DOES reproject automatically when it can.
 import { unreadableFormatAdvice } from "./unreadableFormats.js"; // TASKS.csv #2847
 import { GRID_MAX, makeValueGrid, gxfRows, grdRows, rowsPicture } from "./rasterRows.js"; // TASKS.csv #3142 — the .gxf / .grd readers, shared with the import worker
+import { ersRows, ersDataName } from "./erMapper.js"; // TASKS.csv #4066 — an ER Mapper .ers header and its data file
+import { ersDataOf } from "./rasterSideFiles.js";
 import GeoTIFF, { fromArrayBuffer } from "geotiff"; // GeoTIFF.fromSource: #1351
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
@@ -758,19 +760,31 @@ export async function parseGRD(file) {
   return rasterFromRows(await grdRows(new Uint8Array(await file.arrayBuffer()), file.name)); // TASKS.csv #3142 — rasterRows.js grdRows (unchanged)
 }
 
+// TASKS.csv #4066 — an ER Mapper grid: the .ers header (the file given) and its data file (the one of the same name with no extension, which
+// rasterFileSet paired with it: rasterSideFiles.js ersDataOf). A header with no data file says what to select with it.
+async function ersParts(file) {
+  const header = await file.text(), data = ersDataOf(file);
+  if (!data) throw new Error(tr("\"{name}\" needs its data file \"{data}\": select both.", { name: file.name, data: ersDataName(header, file.name) }));
+  return { header, data };
+}
+export async function parseERS(file) {
+  const { header, data } = await ersParts(file);
+  return rasterFromRows(ersRows(header, new Uint8Array(await data.arrayBuffer()), file.name));
+}
+
 // TASKS.csv #3142 (the import half of #3033) — parseGXF / parseGRD with the reading, the colours and the PNG in rasterImport.worker.js, so a big
 // grid does not freeze the window (a 2000 x 2000 .grd: 2.1 s). The same result. If the worker cannot run or fails (no worker, no
 // OffscreenCanvas, a file the reader refuses), the file is read here as before, which also gives the user the reader's own message.
 // kind: "gxf" | "grd"; makeWorker: tests
 let gridImportSeq = 0;
 export async function parseGridFileOffThread(file, kind, { makeWorker = null } = {}) {
-  const inline = () => (kind === "gxf" ? parseGXF(file) : parseGRD(file));
+  const inline = () => (kind === "gxf" ? parseGXF(file) : kind === "ers" ? parseERS(file) : parseGRD(file));
   let w;
   try {
     w = makeWorker ? makeWorker() : new Worker(new URL("./rasterImport.worker.js", import.meta.url), { type: "module" });
   } catch { return inline(); }
-  let buf;
-  try { buf = await file.arrayBuffer(); } catch { w.terminate(); return inline(); }
+  let buf, header = null;
+  try { if (kind === "ers") { const p = await ersParts(file); header = p.header; buf = await p.data.arrayBuffer(); } else buf = await file.arrayBuffer(); } catch { w.terminate(); return inline(); } // an ER Mapper header with no data file: the inline read says so
   return new Promise((resolve) => {
     const id = ++gridImportSeq;
     w.onmessage = (e) => {
@@ -781,7 +795,7 @@ export async function parseGridFileOffThread(file, kind, { makeWorker = null } =
       resolve({ ...record, dataUrl, pixels: { width: outW, height: outH, data: rgba } }); // rasterFromRows' shape
     };
     w.onerror = (e) => { e?.preventDefault?.(); w.terminate(); resolve(inline()); };
-    w.postMessage({ id, kind, name: file.name, buf, lang: { code: currentLanguage(), dict: currentDictionary() } }, [buf]);
+    w.postMessage({ id, kind, name: file.name, buf, header, lang: { code: currentLanguage(), dict: currentDictionary() } }, [buf]);
   });
 }
 
@@ -892,9 +906,9 @@ export const notDegrees = (epsg, bbox) => isGeographicCrs(epsg) && Array.isArray
 // project the picture and its values are read on the mine grid and resampled into the project CRS through the grid's tie (the inverse of
 // #2587's tie resample, lib/rasterTie.js mineImageToProject); on a project with no CRS the file's numbers are the project's own.
 export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null, tie = null, collarZ = null, mineSource = null, sideCrs = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855; tie: #2587; collarZ: #2129; sideCrs: #2830
-  const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
+  const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name), isErs = /\.ers$/i.test(file.name); // isGrd: #1347; isErs: #4066
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
-  const parsed = isGxf || isGrd ? await parseGridFileOffThread(file, isGxf ? "gxf" : "grd") : bandFn ? await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }) : await parseGeoTiffOffThread(file, { samples, maxSide, worldFile }); // bandFn: #783; samples: #807; off the UI thread: #3142 (.gxf / .grd), #3188 (GeoTIFF)
+  const parsed = isGxf || isGrd || isErs ? await parseGridFileOffThread(file, isGxf ? "gxf" : isErs ? "ers" : "grd") : bandFn ? await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }) : await parseGeoTiffOffThread(file, { samples, maxSide, worldFile }); // bandFn: #783; samples: #807; off the UI thread: #3142 (.gxf / .grd), #3188 (GeoTIFF)
   if (name) parsed.name = name;
   let bbox = parsed.bbox;
   let dataUrl = parsed.dataUrl;

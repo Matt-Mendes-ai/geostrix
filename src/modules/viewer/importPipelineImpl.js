@@ -40,7 +40,8 @@ import { sampleLithOnly, hasLithology } from "../../lib/sampleLithOnly.js"; // T
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
-import { rasterFileSet } from "../../lib/rasterSideFiles.js"; // TASKS.csv #2901 — a world file / .prj / Geosoft .xml dropped with its raster
+import { rasterFileSet, ersDataOf, setErsData } from "../../lib/rasterSideFiles.js"; // TASKS.csv #2901 — a world file / .prj / Geosoft .xml dropped with its raster; #4066 — an ER Mapper header's data file
+import { ersDataName } from "../../lib/erMapper.js";
 import { geosoftXmlCrs } from "../../lib/geosoftXml.js"; // TASKS.csv #2901
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { collarAlwaysKept, firstPerHole } from "../../lib/collarAttrs.js"; // TASKS.csv #2492 / #2190; firstPerHole: #2172
@@ -234,12 +235,14 @@ export function makeImportPipeline(ctx, h) {
     // earlier raster, or at the depth the file name says). The per-raster elevation control on the Maps tab moves it after.
     // TASKS.csv #2294 — DXF lines without their own z: the #2269 rule (the highest collar on a project drilled from underground)
     const liveNow = importStateRef.current, defaultElevation = planElevation({ collars: liveNow.collars || collars, survey: liveNow.survey || [], voxelModels: liveNow.voxelModels || [], surfaceSamples: liveNow.surfaceSamples || [] }).z;
-    if (/\.(tiff?|gxf|grd)$/.test(name)) { // grd: #1347
+    if (/\.(tiff?|gxf|grd|ers)$/.test(name)) { // grd: #1347; ers: #4066
       try {
         const live = importStateRef.current;
         const chooseProjectEpsg = async (src, cur) => (await adoptCrsIfEmpty(src, file.name)) || cur; // #607
         // TASKS.csv #2901 — the side files dropped with it, read as the raster pane, the Maps plan drop and the Geophysics tab read them
         const rasterLib = await loadRaster();
+        // TASKS.csv #4066 — an ER Mapper header picked in the Browser panel: its data file (same name, no extension) is read from the same folder
+        if (/\.ers$/.test(name) && filePath && !ersDataOf(file)) { const [dat] = await readSiblingFiles(filePath, [ersDataName(await file.text(), file.name)]); setErsData(file, dat); }
         const worldFile = side.world ? rasterLib.parseWorldFile(await side.world.text(), side.world.name) : null;
         const xc = side.xml ? geosoftXmlCrs(await side.xml.text()) : null;
         const pe = !xc && side.prj ? guessEpsgFromPrjWkt(await side.prj.text()) : null;
@@ -1289,10 +1292,10 @@ export function makeImportPipeline(ctx, h) {
     // TASKS.csv #600 (40958Z) — grids (.tif/.gxf), CAD lines / solids (.dxf) and .obj solids dropped here used to
     // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modelling buttons
     // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
-    const direct = grouped.files.filter((f) => /\.(tiff?|gxf|grd|dxf|obj|ts|gp|pl)$/i.test(f.name)); // grd: #1347; ts / gp / pl: GOCAD, #1992
+    const direct = grouped.files.filter((f) => /\.(tiff?|gxf|grd|ers|dxf|obj|ts|gp|pl)$/i.test(f.name)); // grd: #1347; ers: #4066 (its data file is paired by rasterFileSet); ts / gp / pl: GOCAD, #1992
     // TASKS.csv #2901 — a world file / .prj / Geosoft .xml with the raster of the same name goes with it (a .prj or .xml with no .shp is among `unmatched`)
     const rasterSides = rasterFileSet([...grouped.files, ...grouped.unmatched]);
-    const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj].filter(Boolean)));
+    const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj, i.data].filter(Boolean))); // data: an ER Mapper data file, #4066
     const sideOf = (f) => rasterSides.images.find((i) => i.file === f) || {};
     grouped.unmatched = grouped.unmatched.filter((f) => !sideUsed.has(f));
     const sideInFiles = grouped.files.filter((f) => sideUsed.has(f)).length;

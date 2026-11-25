@@ -82,6 +82,6 @@ test("#1347 not a grid is refused; .grd is no longer 'a closed format'; the rast
   await assert.rejects(decodeGrd(new Uint8Array(600), inflate), /Not a Geosoft or Surfer binary grid/);
   assert.equal(unreadableFormatAdvice("mag.grd"), null);
   const r = readFileSync(new URL("../src/lib/raster.js", import.meta.url), "utf8");
-  assert.ok(r.includes('isGxf || isGrd ? await parseGridFileOffThread(file, isGxf ? "gxf" : "grd")')); // #3142 — through the import worker, parseGRD as its fallback
-  assert.ok(r.includes('kind === "gxf" ? parseGXF(file) : parseGRD(file)'));
+  assert.ok(r.includes('isGxf || isGrd || isErs ? await parseGridFileOffThread(file, isGxf ? "gxf" : isErs ? "ers" : "grd")')); // #3142 — through the import worker, parseGRD as its fallback
+  assert.ok(r.includes('kind === "gxf" ? parseGXF(file) : kind === "ers" ? parseERS(file) : parseGRD(file)'));
 });
