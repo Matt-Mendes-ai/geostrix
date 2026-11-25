@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { explicitInterfacePoints } from "../src/lib/explicitUnits.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("explicit interface points keep a seeded pick's hole, so a run can leave the area's others out", () => {
   const defs = [{ name: "Top P", unit: "P", picks: [{ x: 1, y: 2, z: 3, hole_id: "IN1" }, { x: 4, y: 5, z: 6, hole_id: "OUT1" }, { x: 7, y: 8, z: 9 }] }];
@@ -23,7 +24,7 @@ test("the runs follow the Model area and record it", () => {
 });
 
 test("the Explicit surface seeds from the area; the setting is saved with the project's view state", () => {
-  const p = src("modules/viewer/ModellingPanes.jsx");
+  const p = modellingPanesSource();
   assert.match(p, /codedRuns\(modelArea === "checked" \? \(layers\.litho \|\| \[\]\)\.filter\(\(r\) => visibleHoles\?\.\[r\.hole_id\] !== false\)/);
   const v = src("modules/ViewerModule.jsx");
   assert.match(v, /setModelArea\(s\.modelArea === "checked" \? "checked" : "all"\); \/\/ #2535/);

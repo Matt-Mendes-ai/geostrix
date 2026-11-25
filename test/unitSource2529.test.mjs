@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { unitSourceLayers, applyUnitSource } from "../src/lib/unitSource.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const layers = {
   litho: [{ hole_id: "A", from: 0, to: 10, value: "P" }],
@@ -28,7 +29,7 @@ test("that layer's intervals become the units; the top of fresh rock is FR's top
 });
 
 test("the halo offers Weathering and the run reads it", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /<option value="weath">\{tr\("Weathering \(a code set as an envelope\)"\)\}/);
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(m, /if \(!isCode && source\?\.layer === "weath"\) sourceKey = "weath";/);

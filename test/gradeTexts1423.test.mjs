@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { estimateBlockModel as estimateBlocks } from "../src/lib/estimation.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const src = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 
@@ -15,7 +16,7 @@ test("the texts say what the tools do now", () => {
   assert.match(g, /no declustering, no variogram \(the method chosen uses none; ordinary kriging does\), and no resource classification\./);
   assert.match(g, /Kriged with the \{model\} variogram/); // #2429: 'the fitted ... fitted to' said it twice
   assert.ok(!/Kriged with a \{model\}/.test(g));
-  const m = src("../src/modules/viewer/ModellingPanes.jsx");
+  const m = modellingPanesSource();
   assert.match(m, /[Ii]nterpolation onto a grid \(by the method chosen below\)/); // #3939: it now opens the sentence behind More
   assert.match(m, /its progress and Cancel are in the status bar/);
   assert.ok(!/window will be unresponsive/.test(m) && !/window will be unresponsive/.test(src("../src/help/pages/modelling.js")));

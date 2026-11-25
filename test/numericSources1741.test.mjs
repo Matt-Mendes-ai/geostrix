@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { numericSourceChoices, findNumericSource, sourceAssays, logPoints, unlogGrid, CUSTOM_UNIT } from "../src/lib/numericSources.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const layers = {
   magsusc: [{ hole_id: "H1", depth: 10, value: 0.5 }, { hole_id: "H1", depth: 11, value: "0.9" }, { hole_id: "H1", depth: 12, value: 0 }, { hole_id: "H2", depth: 5, value: "" }],
@@ -52,7 +53,7 @@ test("the dialogs: a Source select in Estimation, the logs in the Grade shell el
   assert.match(m, /if \(logValues\) logInfo = logPoints\(points\);/);
   assert.equal((m.match(/runEstimation\("block", estPts, (\{|nnOpts, \{)/g) || []).length, 2); // the raw points stay for the checks; nnOpts: #3271
   assert.match(m, /c\.value = unlogValue\(c\.value\)/);
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /<optgroup label=\{tr\("Downhole logs and numeric layers"\)\}>/);
   assert.match(p, /const numSrc = findNumericSource\(numericSymbol, \{ layers, customLayers: customLayersAll \}\);/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");

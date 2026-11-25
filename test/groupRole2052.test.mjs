@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { groupMemberRole, groupMcodeRole, groupNameHint } from "../src/lib/layers.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const rd = (f) => readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 const intrusive = { name: "Intrusive", codes: ["IMMOQ", "IMD", "IPAN"] };
@@ -29,5 +30,5 @@ test("the name's own suggestion is shown only when it differs", () => {
 test("wired: ViewerModule and the modelling runs use it; the pane says the role", () => {
   assert.match(rd("../src/modules/ViewerModule.jsx"), /const mcodeDefaultRole = \(name\) => groupMcodeRole\(name, lithoGroups\);/);
   assert.match(rd("../src/modules/viewer/modellingRuns.js"), /const mcodeDefaultRole = \(name\) => groupMcodeRole\(name, lithoGroups\);/);
-  assert.match(rd("../src/modules/viewer/ModellingPanes.jsx"), /tr\("Role: \{role\}, from its codes/);
+  assert.match(modellingPanesSource(), /tr\("Role: \{role\}, from its codes/);
 });

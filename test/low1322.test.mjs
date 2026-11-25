@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DEFAULT_ANOMALY } from "../src/lib/anomalyMap.js";
 import { linePlacement } from "../src/lib/dcipStations.js";
+import { paneFiles } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the 3D Modelling panes in their own files
 
 test("#1322 no deposit type is assumed: the index starts unchosen, and user-facing text names none where it means any", () => {
   assert.equal(DEFAULT_ANOMALY.preset, null);
-  for (const f of ["src/components/InversionPanel.jsx", "src/components/IsoconTool.jsx", "src/modules/viewer/ModellingPanes.jsx"]) assert.doesNotMatch(readFileSync(f, "utf8"), /Golden Triangle rocks|defaults for VMS|in an epithermal system/, f);
+  for (const f of ["src/components/InversionPanel.jsx", "src/components/IsoconTool.jsx", "src/modules/viewer/ModellingPanes.jsx", ...paneFiles().map((p) => `src/modules/viewer/panes/${p}`)]) assert.doesNotMatch(readFileSync(f, "utf8"), /Golden Triangle rocks|defaults for VMS|in an epithermal system/, f);
 });
 const files = [{ name: "BoundaryGPS.txt", epsg: 26910, lines: { "9000N": [{ s: 4650, x: 343181, y: 6204481, z: 1710 }, { s: 4700, x: 343224, y: 6204514, z: 1672 }], "90": [{ s: 1, x: 1, y: 1 }, { s: 2, x: 2, y: 2 }] } }, { name: "MistyGPS.txt", epsg: 32610, lines: { "4100N": [{ s: 4900, x: 341000, y: 6198400, z: 900 }, { s: 5000, x: 341100, y: 6198400, z: 910 }] } }];
 test("#1328 a line finds its stations by name, across several GPS files, reprojected", () => {

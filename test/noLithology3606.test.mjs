@@ -3,9 +3,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the three panes lead with the no-lithology line; the cluster note says 'holes' with nothing logged", () => {
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const m = modellingPanesSource().replace(/\r\n/g, "\n");
   const LINE = '{!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606';
   for (const title of ["Modelling codes", "Lithology groups", "Section correlation"]) {
     const i = m.indexOf(`{paneHeader("${title}",`);

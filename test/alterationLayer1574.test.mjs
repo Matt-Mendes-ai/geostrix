@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { numericLayerFields } from "../src/lib/evidenceSources.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the numeric fields a custom log offers as an intensity floor", () => {
   const rows = [
@@ -24,7 +25,7 @@ test("the run takes a source layer and an intensity floor; the pane offers the l
   assert.match(r, /String\(r\.value\) === String\(altValue\) && \(!minField \|\| \(minField\.vocab \? \(intensityRank\(r\[minField\.field\]\) \?\? -1\) : Number\(r\[minField\.field\]\)\) >= minField\.min\)/); // letters ranked since #2230
   assert.match(r, /const altRows = \(\(customSrc \? \(modelArea === \"checked\" \? restrictRowsToHoles\(customSrc\.rows \|\| \[\], visibleHoles\) .*: customSrc\.rows\) : layers\[sourceKey\]\) \|\| \[\]\)/ /* #2535: the Model area */);
   assert.match(r, /const label = `\$\{head\}: \$\{altValue\}\$\{minField \? ` \(\$\{minField\.field\} ≥ \$\{minField\.vocab \? \(minField\.label \|\| minField\.min\) : minField\.min\}\)` : ""\}/); // vein: #2050; the letter: #2230
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /<select aria-label=\{tr\("Code"\)\} value=\{alterationTarget\}/);
   assert.doesNotMatch(p, /aria-label=\{tr\("Assemblage"\)\}/);
   assert.match(p, /aria-label=\{tr\("Alteration layer"\)\}/);

@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { rememberCompositing, lastCompositing, sameCompositing, forgetCompositing } from "../src/lib/lastCompositing.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const tokA = { tabId: "t1", seq: 3 }, tokB = { tabId: "t1", seq: 4 };
 const sameAs = (tok) => (t) => !!t && t.tabId === tok.tabId && t.seq === tok.seq; // the store's isSameProject
@@ -35,7 +36,7 @@ test("Compositing remembers; Estimation and the grade shell show the note and ta
   const ge = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
   assert.match(ge, /\{useComposites && <GeochemCompositingNote symbol=\{symbol\} length=\{compositeLength\} minCoverage=\{minCoverage\} cap=\{capValue\}/);
   assert.match(ge, /setCompositeLength\(g\.length\); setMinCoverage\(g\.minCoverage\); setCapValue\(g\.cap \?\? NaN\); setCapAuto\(false\);/);
-  const mp = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const mp = modellingPanesSource();
   assert.match(mp, /\{numericUseComposites && !numSrc && <GeochemCompositingNote symbol=\{sym\} length=\{numericCompositeLength\} minCoverage=\{numericMinCoverage\} cap=\{numericCapValue\}/);
   assert.match(mp, /setNumericCompositeLength\(g\.length\); setNumericMinCoverage\(g\.minCoverage\); setNumericCapValue\(g\.cap \?\? NaN\);/);
   for (const l of ["es", "pt", "fr", "ar"]) {

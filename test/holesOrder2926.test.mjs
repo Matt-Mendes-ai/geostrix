@@ -6,6 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { orderFromHoles, movesToOrder } from "../src/lib/pileTops.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // the review's six strands, logged HNAM, TNAM, ONAM, SONAM, SNAM, BNAM down every hole; typed in the order of mean depth over the field
 const U = ["HNAM", "TNAM", "ONAM", "SONAM", "SNAM", "BNAM"];
@@ -38,7 +39,7 @@ test("the moves that turn the list into that order, one neighbour at a time (the
 });
 
 test("wiring: the stack pane checks as units are added and offers the order; the picker follows the holes; Modelling codes offers it too", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /if \(toolPane !== "stack" \|\| stackUnits\.length < 2\) return null;/, "only while the pane is open");
   assert.match(p, /setStackUnits\(\[\.\.\.\(holesPlan\?\.order \|\| stackHoles\.order\)\]\)/); // #3994 — the same plan as Sort by the holes: units the holes never show together keep their place
   assert.match(p, /unitRank \? \[\.\.\.litho_units\]\.sort\(/);

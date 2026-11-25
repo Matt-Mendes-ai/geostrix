@@ -7,6 +7,7 @@ import { meshInsideMask, meshInsideTester, squaredDistanceTo, signedDistance, pr
 import { shellPost } from "../src/lib/viewer/shellPost.js";
 import { estimateDenseGrid } from "../src/lib/estimation.js";
 import { indicatorPoints } from "../src/lib/viewer/shellEnvelope.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // a closed box mesh, x 0..200, y 0..200, z 0..100 (outward triangles)
 function box(x0, x1, y0, y1, z0, z1) {
@@ -80,7 +81,7 @@ test("a hole's year: the collar's year field, else the id's YY", () => {
 test("the wiring: the worker's update step, the pane's section, the run", () => {
   const s = readFileSync(new URL("../src/lib/viewer/shellPost.js", import.meta.url), "utf8");
   assert.match(s, /const b = blendWithPrior\(priorField\(upSd, up\.widthM\), grid\.values, up\.newPoints, grid, up\.influenceM\);/);
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /<DomainUpdateSection ctx=\{\{ implicitSurfaces,/);
   const d = readFileSync(new URL("../src/modules/viewer/DomainUpdateSection.jsx", import.meta.url), "utf8");
   assert.match(d, /const \{ runDomainUpdate \} = await import\("\.\/domainUpdateRun\.js"\)/);

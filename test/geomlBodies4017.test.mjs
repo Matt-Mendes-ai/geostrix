@@ -182,6 +182,7 @@ test("#4017 the cost of the finer blocks is stated from what was measured: about
 
 // ---- (b) a grade run's shells ------------------------------------------------------------------------------------------------------------------------------
 import { gradeShells, gradeCutoffSuggestion, parseShellCutoffs } from "../src/lib/geomlBodies.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const gradeBlocks = (fn) => { // predicted grade on the same block grid, with a P10 and a P90 of its simulations
   const b = blocks("minority"); b.prediction = b.x.map((x, i) => fn(x, b.y[i], b.z[i])); b.p10 = b.prediction.map((v) => v * 0.6); b.p90 = b.prediction.map((v) => v * 1.5); return b;
 };
@@ -244,7 +245,7 @@ test("#4017 (b) the wiring: the grade run draws its shells from the blocks, with
   assert.match(p, /params: \{ \.\.\.gparams, tool: "geoML grade shell", cutoff: s\.cutoff/);
   assert.match(p, /<GeomlBlockSize size=\{unitSize\} plan=\{unitBlocks\}/, "the finer blocks' count and time are in the Block size box (#4054), which says 'Yours' when a fix or the person set it");
   assert.match(p, /Number\.isFinite\(r\.value\) \? r\.value : 1/, "the samples carry their values");
-  assert.match(read("src/modules/viewer/ModellingPanes.jsx"), /clipToTopo=\{clipToTopo\} \/\* TASKS\.csv #4017/);
+  assert.match(modellingPanesSource(), /clipToTopo=\{clipToTopo\} \/\* TASKS\.csv #4017/);
   // a grade shell is not the Grade shell tool's: the estimation default does not pick it (it looks for tool === "numeric grade shell")
   assert.doesNotMatch(p, /tool: "numeric grade shell"/);
   for (const lang of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(read(`src/locales/${lang}.json`)); for (const k of ["Also draw grade shells", "Also the P10 and P90 shells", "shell at {cutoff}{unit}: {v} m³", "Enclosed bodies (closed solids)", "Layers (open contact)"]) assert.ok(d[k], `${lang}: ${k}`); }

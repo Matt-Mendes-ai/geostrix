@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { intensityRank, intensityVocabFields } from "../src/lib/intensityVocab.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("letters and words to an order", () => {
   assert.deepEqual(["W", "M", "S", "I"].map(intensityRank), [2, 3, 4, 5]);
@@ -23,7 +24,7 @@ test("the WA alteration log's intensity field is offered, with its letters in or
 });
 
 test("the pane offers the field and a letter floor; the run compares ranks and records the floor", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /const altVocabFields = useMemo\(\(\) => intensityVocabFields\(altSourceRows, \{ min: 3 \}\), \[altSourceRows\]\);/);
   assert.match(p, /vocab: !!\(altSource\.field && altSource\.vocab\), minLabel: altSource\.minLabel \|\| null/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");

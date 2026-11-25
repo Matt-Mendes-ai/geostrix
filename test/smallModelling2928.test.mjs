@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { subdivisionGroups } from "../src/lib/lithoGroups.js";
 import { exportSurfaceTS } from "../src/lib/meshExport.js";
 import { parseGocad } from "../src/lib/gocad.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("(2) sub-divided codes of one unit are proposed together, with the base when it is logged", () => {
   const V = (v, n) => Array.from({ length: n }, () => ({ value: v }));
@@ -42,7 +43,7 @@ test("(7) a surface written as GOCAD TSurf reads back with the same vertices and
 });
 
 test("(3) cluster buttons name the place; (6) the no-structures notice; the keys", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /"Around E \{e\}, N \{nn\}: \{n\} holes over \{s\} km"/);
   assert.match(p, /subdivisionGroups\(layers\.litho \|\| \[\], lithoGroups\)/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");

@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { attitudeNormal, placeRuns, fitSheetAttitude, refineSheetAttitude, correlateSheets, sheetAssign, positionFromTraces } from "../src/lib/sheetCorrelation.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 // three parallel sheets 34° toward 256° (WA lithium's fitted attitude, #2539), 15 m apart along the normal, 4 m thick; vertical holes on a
@@ -63,7 +64,7 @@ test("#2625: positions come from the 3D view's traces (scene y up, z = -north)",
 
 test("#2625: the Modelling codes pane offers it next to Auto-number, from the 3D traces", () => {
   const pane = fs.readFileSync(path.join(root, "src", "components", "ModellingCodesPane.jsx"), "utf8");
-  const panes = fs.readFileSync(path.join(root, "src", "modules", "viewer", "ModellingPanes.jsx"), "utf8");
+  const panes = modellingPanesSource();
   assert.ok(pane.includes('tr("Correlate {v} into sheets"'));
   assert.match(pane, /const gap = Number\(sheetAtt\.gap\) > 0 \? Number\(sheetAtt\.gap\) : med;/, "blank gap = the median run");
   assert.match(panes, /positionAt=\{sheetPositionAt\}/);

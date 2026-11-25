@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { veinSourceUnits } from "../src/lib/layers.js";
 import { rowKey } from "../src/lib/modellingCodes.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const litho = [
   { hole_id: "H1", from: 0, to: 2, value: "P" }, { hole_id: "H1", from: 10, to: 12, value: "P" },
@@ -27,7 +28,7 @@ test("wired: the vein run reads an mcode source by effective code; the refusal n
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /isMcodeVein \? effectiveCode\(r, modellingCodes, mcodeGroupOf\) === veinValue : r\.value === veinValue/);
   assert.match(r, /route: veinLayer === "litho" \? tr\("Alteration > Layer: Lithology, or Modelling codes > Build a closed body"\)/);
-  const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const panes = modellingPanesSource();
   assert.match(panes, /u\.startsWith\("mcode:"\) \? tr\("\{code\} \(Modelling code\)"/);
   assert.match(panes, /inArea=\{modelArea === "checked" \? \(id\) => visibleHoles\?\.\[id\] !== false : null\}/);
   const p = readFileSync(new URL("../src/components/ModellingCodesPane.jsx", import.meta.url), "utf8");

@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { holesMatching, visibilityPatch, tickedHoles } from "../src/lib/holeFilter.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const ids = ["PS-26-30", "PS-21-05", "GS-21-117", "CB-18-34"];
 
@@ -29,5 +30,5 @@ test("#1315 a hole is left out only when unchecked, in every table", () => {
   assert.equal(tickedHoles([{ hole_id: "A" }], undefined).length, 1);
   const p = fs.readFileSync(new URL("../src/components/PredictivePanel.jsx", import.meta.url), "utf8");
   for (const t of ["allCollars", "allSurvey", "allLitho", "allAssays"]) assert.match(p, new RegExp(`tickedHoles\\(${t}`));
-  assert.match(fs.readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8"), /<PredictivePanel visibleHoles=\{visibleHoles\}/);
+  assert.match(modellingPanesSource(), /<PredictivePanel visibleHoles=\{visibleHoles\}/);
 });

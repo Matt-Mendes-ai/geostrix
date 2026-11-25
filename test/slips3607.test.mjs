@@ -4,6 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8");
 
 test("the slips: a prompt, a typed search kept, no backlog number, the calculator's unit", () => {
@@ -11,7 +12,7 @@ test("the slips: a prompt, a typed search kept, no backlog number, the calculato
   assert.match(r, /if \(!u\.ready\) throw Object\.assign\(new Error\(tr\("Choose how the unsampled metres inside the sampled holes are read \(and, for barren, type their value\) before running\."\)\), \{ prompt: true \}\);/);
   assert.match(r, /e\?\.prompt \? \{ text: e\.message, level: "info" \}/);
   assert.doesNotMatch(r, /capped \(#803\)/, "(4) no backlog number in the stored record");
-  const p = read("modules/viewer/ModellingPanes.jsx");
+  const p = modellingPanesSource();
   assert.match(p, /onChange=\{\(v\) => \{ shellSearchTyped\.current = true;/); // #3926: NumberInput hands back the number
   assert.match(p, /if \(shellSearchAuto && !shellSearchTyped\.current && /);
   const c = read("components/BlockCalculatorModal.jsx");

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { defaultShellCap, shellCapAction } from "../src/lib/viewer/shellCapRule.js";
 import { lengthWeightedPercentile, compositeDownhole, valueIn } from "../src/lib/geochem.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // 2,000 one-metre samples: 98.5 % background (0.01-1 g/t), 0.5 % at 3-90 g/t: the P99 falls under a 3 g/t cut-off
 let s = 9; const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
@@ -44,7 +45,7 @@ test("wiring: the note takes the cut-off and says a lifted or too-low cap; the r
   assert.match(n, /const d = defaultShellCap\(p99, above \? lengthWeightedPercentile\(above, symbol, unit, units, 99\) : null, cutoff\);/);
   assert.match(n, /\}, \[symbol, cv, src, cutoff\]\);/);
   assert.match(n, /tr\("The cap \(\{cap\}\) is not above the \{cutoff\} cut-off: every sample is capped under it/);
-  assert.match(readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8"), /cutoff=\{numericCutoff \/\* #3781 \*\/\}/);
+  assert.match(modellingPanesSource(), /cutoff=\{numericCutoff \/\* #3781 \*\/\}/);
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(m, /cutoff once capped at \{cap\} \{unit\}: \{n\} reach it uncapped\. Raise or clear the cap/);
 });

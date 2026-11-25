@@ -6,13 +6,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { preferredElement } from "../src/lib/preferredElement.js";
 import { surfaceQueryRows } from "../src/lib/tableExports.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (p) => fs.readFileSync(p, "utf8");
 
 test("#2552: a lithium project's tools open on Li (the lead commodity), not on As, the first column", () => {
   assert.equal(preferredElement(["As", "Ba", "Cs", "Li", "Nb"], null, "Li"), "Li");
   assert.equal(preferredElement(["As", "Ba", "U"], null, null), "U", "the first commodity present");
-  const est = read("src/components/GradeEstimationModal.jsx"), vg = read("src/components/VariogramModal.jsx"), mp = read("src/modules/viewer/ModellingPanes.jsx");
+  const est = read("src/components/GradeEstimationModal.jsx"), vg = read("src/components/VariogramModal.jsx"), mp = modellingPanesSource();
   assert.match(est, /keep\("symbol", preferredElement\(symbols, "estimate", lead\)/);
   assert.match(vg, /useState\(\(\) => preferredElement\(symbols, "variogram", lead\)/);
   assert.match(mp, /setNumericSymbol\(preferredElement\(shellSymbols, "gradeShell", shellLead\)\)/);
@@ -20,7 +21,7 @@ test("#2552: a lithium project's tools open on Li (the lead commodity), not on A
 });
 
 test("#1744: only elements with a lab value are offered", () => {
-  const est = read("src/components/GradeEstimationModal.jsx"), vg = read("src/components/VariogramModal.jsx"), mp = read("src/modules/viewer/ModellingPanes.jsx");
+  const est = read("src/components/GradeEstimationModal.jsx"), vg = read("src/components/VariogramModal.jsx"), mp = modellingPanesSource();
   assert.match(est, /for \(const a of assays\) for \(const k in a\.values \|\| \{\}\) if \(Number\.isFinite\(a\.values\[k\]\)\) has\.add\(k\)/);
   assert.match(vg, /excludeQAQC\(labAssays\(assays \|\| \[\]\)\)/);
   assert.match(mp, /const symbols = shellSymbols; \/\/ #1744/);

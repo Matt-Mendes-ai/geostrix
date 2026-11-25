@@ -4,9 +4,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const pane = readFileSync(new URL("../src/components/ModellingCodesPane.jsx", import.meta.url), "utf8");
-const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+const panes = modellingPanesSource();
 
 test("the Correlation pane shows the correlation tools beside the fence launcher", () => {
   const i = panes.indexOf('{toolPane === "correlation" && (<>'), j = panes.indexOf("{toolPane === ", i + 10);

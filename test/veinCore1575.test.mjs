@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { poleAngleDeg, coreAttitudeWins, CORE_WINS_ANGLE, CORE_WINS_ALPHA95 } from "../src/lib/veinOrientations.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the angle between two attitudes' poles", () => {
   assert.ok(Math.abs(poleAngleDeg(1.7, 255.5, 81, 228) - 80) < 2);
@@ -33,7 +34,7 @@ test("the vein run rebuilds on the core attitude and says so; the pane no longer
   assert.match(r, /built on the oriented-core attitude \{dip\}° \/ \{dipDir\}°/);
   assert.match(r, /restrict the tool under Model settings › Domain\./);
   assert.match(r, /if \(logged\?\.n && !coreWins\) \{/);
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.doesNotMatch(p, /Adds three surfaces/);
   assert.match(p, /Adds a hangingwall and a footwall, and a closed solid for volume when the two do not cross\./);
 });

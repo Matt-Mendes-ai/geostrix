@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { paramRows, extentText } from "../src/lib/paramRows.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const params = { tool: "implicit surface (GemPy)", gempyCO: 10, engineDtype: "float32", extent: [-846, 1098, -738, 916, -1560, 189], extentOrigin: [424918.44, 6641913.81, 1500], generatedAt: "2026-11-03T10:00:00Z", domain: null };
 
@@ -26,7 +27,7 @@ test("an older surface (no origin) or a trend-warped run says which frame its ex
 test("the panel, the stack tooltips, the run and the export header use them", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /\{paramRows\(s\.params\)\.map\(\(\{ key: k, label, text \}\) =>/);
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.match(m, /tr\("Move \\"\{u\}\\" up in the stratigraphic stack", \{ u: display \}\)/);
   assert.ok(!/stratigraphic stack", \{ u \}\)/.test(m));
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");

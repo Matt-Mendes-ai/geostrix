@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { rowKey, inTargetUnit } from "../src/lib/modellingCodes.js";
 import { intervalEndIndex, upperContactOf } from "../src/lib/viewer/intervals.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const r = (hole_id, from, to, value) => ({ hole_id, from, to, value });
 const rows = [r("H1", 0, 10, "AND"), r("H1", 10, 20, "SIL"), r("H1", 20, 30, "SILBX"), r("H1", 30, 40, "AND")];
@@ -37,7 +38,7 @@ test("#810 the top uses the same rule: re-coded SIL above SILBX makes one unit w
 test("#810 wiring: drawn contacts default on, in the stack pane, and the section picker offers codes and groups", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /useState\(true\); \/\/ #810/);
-  const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8"); // #693: the panes moved here
+  const panes = modellingPanesSource(); // #693: the panes moved here
   assert.equal((panes.match(/checked=\{includeSectionContacts\}/g) || []).length, 2);
   const s = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(s, /tagCodes\.map/);

@@ -3,6 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("(1) and (9) in the Estimation dialog", () => {
   const e = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
@@ -11,7 +12,7 @@ test("(1) and (9) in the Estimation dialog", () => {
 });
 
 test("(6) the Grade shell's proposed cutoff", () => {
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.match(m, /setShellCutoffAuto\(\{ symbol: next, value: p90, n: v\.length, onOpen, \.\.\.\(floor \? \{ floor \} : \{\}\) \}\)/); // #3788 adds the floor // onOpen: #3272
   // TASKS.csv #4070 — said as the Cut-off step's hint (its question's tooltip) while the proposed value is the one in the box
   assert.match(m, /hint: shellCutoffAuto && shellCutoffAuto\.symbol === sym && numericCutoff === shellCutoffAuto\.value \? \(/);

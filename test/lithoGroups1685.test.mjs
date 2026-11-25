@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { groupOverlaps, groupOfCode, withGroupCodes } from "../src/lib/lithoGroups.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const groups = [
   { id: "a", name: "Volcanic host", codes: ["VOLC", "RHYL", "TFF", "ANDS"] },
@@ -30,6 +31,6 @@ test("#1685 a saved project's overlap is reported per code with the groups that 
 test("#1685 the store strips a group's new codes from the other groups, and the chips say where a code already is", () => {
   const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
   assert.ok(s.includes("withGroupCodes(p, id, patch.codes)"));
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.ok(m.includes("groupOverlaps(lithoGroups)") && m.includes('tr("In \\"{group}\\" — click to move it here", { group: elsewhere.name })'));
 });

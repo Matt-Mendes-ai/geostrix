@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { BLOCK_BUDGETS, MAX_BLOCK_BUDGET, gradeShellBudgetMB, shellBudgetsFor, gradeShellBudgetNote } from "../src/lib/estimationMeta.js";
 import { fetchFits, fetchBudgetMB } from "../src/lib/fetchMemory.js";
 import { REACH_MAX_GRID } from "../src/lib/blockReach.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the budgets: up to 50 million, under the reach mask's limit; each with its memory, the large ones by this computer's memory", () => {
   assert.deepEqual(BLOCK_BUDGETS, [200000, 1000000, 2000000, 5000000, 10000000, 20000000, 50000000]);
@@ -26,7 +27,7 @@ test("the budgets: up to 50 million, under the reach mask's limit; each with its
 });
 
 test("wiring: the pane lists every budget and disables those over this computer's share; the run stops at the largest that fits here", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /const shellBudgetOk = useMemo\(\(\) => new Set\(shellBudgetsFor\(\(mb\) => fetchFits\(mb, ramGB\)\)\), \[ramGB\]\);/);
   assert.match(p, /<option key=\{b\} value=\{b\} disabled=\{!ok\}>\{ok \? tr\("\{b\} blocks \(\{v\}\)"[^\n]*tr\("\{b\} blocks: needs about \{mb\} MB, more than this computer can spare \(\{max\} MB\)"/);
   assert.match(p, /setNumericMaxBlocks\(numericBudgetHint\.maxBudget \|\| BLOCK_BUDGETS\[BLOCK_BUDGETS\.length - 1\]\)/);

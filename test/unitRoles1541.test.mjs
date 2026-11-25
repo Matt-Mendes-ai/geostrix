@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { roleForLithology, mcodeRoleOf } from "../src/lib/layers.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the review's Lawyers codes", () => {
   const want = { "Felsic Dyke": "cross-cutting", "Mafic Dyke": "cross-cutting", "Intermediate Dyke": "cross-cutting", "I-Mafic": "cross-cutting", "I-Felsic": "cross-cutting", "I-Intermed": "cross-cutting", "No Recovery": "ignore", Sand: "overburden" };
@@ -17,7 +18,7 @@ test("whole words only: units that merely contain the letters stay stratigraphic
 
 test("the Strat. stack picker leaves out a group with a member in the stack, and a code whose group is in it", async () => {
   const { readFileSync } = await import("node:fs");
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.equal((m.match(/!\(g\.codes \|\| \[\]\)\.some\(\(c\) => stackUnits\.includes\(c\)\)/g) || []).length, 2);
   assert.match(m, /!lithoGroups\.some\(\(g\) => stackUnits\.includes\(lithoGroupKey\(g\)\) && \(g\.codes \|\| \[\]\)\.includes\(u\)\)/);
 });

@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
 
@@ -13,7 +14,7 @@ test("the shell's name: trend and checked holes", () => {
 });
 
 test("the pane still prints the ellipsoid under a trend (#2676)", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /const gt = trendFor\("gradeShell"\); if \(!gt\) return null;/);
   assert.match(p, /tr\("Along trend \\"\{name\}\\": an ellipsoid of \{searchRadius\} × \{v\} × \{v2\} m \(\{v3\}\)"/);
 });

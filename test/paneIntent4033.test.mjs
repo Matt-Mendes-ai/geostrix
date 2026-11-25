@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { setPaneIntent, takePaneIntent, subscribePaneIntent, settingsIntent, stackIntent, explicitIntent, INTENT_TTL_MS } from "../src/lib/guide/paneIntent.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const src = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 
@@ -77,7 +78,7 @@ test("Explicit surface: the unit's name", () => {
 });
 
 test("source pins: each pane reads its intent", () => {
-  const panes = src("../src/modules/viewer/ModellingPanes.jsx");
+  const panes = modellingPanesSource();
   assert.match(panes, /usePaneIntent\(\["settings", "stack"\]\.includes\(toolPane\) \? toolPane : null/, "Model settings and Strat. stack, not the explicit pane (its panel takes its own)");
   assert.match(panes, /settingsIntent\(it\)/);
   assert.match(panes, /setModelResolution\(s\.resolution\)/);

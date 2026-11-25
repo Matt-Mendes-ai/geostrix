@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { intrusionBody } from "../src/lib/intrusionBody.js";
 import { sheetLogCheck } from "../src/lib/sheetLogCheck.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // a north-striking 20 m dyke dipping 60 east, 200 m deep, on flat ground at 1,000 m (dip 90 = straight down here)
 const b = intrusionBody([[0, 0], [20, 0], [20, 600], [0, 600], [0, 0]], () => 1000, { depthM: 200, sheet: { dip: 60, dipDir: 90 } });
@@ -28,6 +29,6 @@ test("no logged interval of the unit: null; logged but no collar: counted, not p
 
 test("the pane passes the logs with a sheet; the run receives collars and survey and says the result", () => {
   assert.match(readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8"), /logs: lithoRows\?\.length \? \{ codeUnit, litho: lithoRows \} : null/); // every shape since #2819 (plugs and stocks checked too)
-  assert.match(readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8"), /setNotices, terrain, collars, survey, desurveyMethod/);
+  assert.match(modellingPanesSource(), /setNotices, terrain, collars, survey, desurveyMethod/);
   assert.match(readFileSync(new URL("../src/modules/viewer/intrusionRun.js", import.meta.url), "utf8"), /notice\("Against the logs: \{lines\}/);
 });

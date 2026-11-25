@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { restrictRowsToHoles } from "../src/lib/modelArea.js";
 import { cutoffPct } from "../src/lib/gradeTonnage.js";
 import { searchFromSpacingM } from "../src/lib/holeSpacing.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const src = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -19,7 +20,7 @@ test("the helpers the pane uses: the Model area's rows, a base metal's ppm in %,
 });
 
 test("wiring: the opening cutoff, the cap and the search from the holes the run uses; the % hint; the notes", () => {
-  const m = src("modules/viewer/ModellingPanes.jsx");
+  const m = modellingPanesSource();
   assert.match(m, /const shellAreaAssays = useMemo\(\(\) => \(modelArea === "checked" \? restrictRowsToHoles\(assays \|\| \[\], visibleHoles\) : assays \|\| \[\]\)/);
   assert.match(m, /if \(numericCutoff === 1 && shellCutoffAuto\?\.value !== 1\) proposeShellCutoff\(numericSymbol, true\);/); // #3651: the memory outlives a project load
   // #3580 — or a search it set from the collars that nobody changed, once the samples' spacing is known; from the samples first

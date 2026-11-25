@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { restrictLayersToHoles, checkedHoleCount, missOverHalfCell } from "../src/lib/modelArea.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the drillhole layers keep only the checked holes; rows with no hole id and non-array entries pass through", () => {
   const layers = {
@@ -35,7 +36,7 @@ test("the viewer feeds the modelling tools the checked holes when Model area say
   assert.match(v, /const modelLayers = useMemo\(\(\) => \(modelArea === "checked" \? restrictLayersToHoles\(unitLayersP, visibleHoles\) : unitLayersP\), \[unitLayersP, modelArea, visibleHoles\]\);/); // unitLayersP: #3266
   assert.match(v, /    layers: modelLayersM, \/\/ TASKS\.csv #1546/);
   assert.match(v, /modelDomainId, modelArea, setModelArea, \/\* #1546 \*\/ modelResolution,/);
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /aria-label=\{tr\("Model area"\)\}/);
   assert.match(p, /Holes checked in the Holes list \(\{n\} of \{m\}\)/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");

@@ -7,6 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { shellPaneMemory, memoryRef } from "../src/modules/viewer/shellPaneMemory.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the pane's memory: one per owner, kept across mounts; a ref-like view of one field", () => {
   const view1 = { current: [] }, view2 = { current: [] };
@@ -25,7 +26,7 @@ test("the run leaves the Cell box alone and says the cell it ran at; the pane re
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.doesNotMatch(r, /setNumericCellSize\?\.\(fit\)/);
   assert.match(r, /\.\.\.\(cellRefit \? \{ ranAt: cs, ranBudget: blockBudget \} : \{\}\)/);
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /\{numericBudgetHint\?\.ranAt && numericCellSize === NUMERIC_CELL_DEFAULT && <div/);
   assert.match(p, /numericBudgetHint && !numericBudgetHint\.advice && numericBudgetHint\.needed > 0 &&/);
   assert.match(p, /const shellMem = useMemo\(\(\) => shellPaneMemory\(tracesRef\), \[tracesRef\]\);/);

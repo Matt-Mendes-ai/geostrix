@@ -4,9 +4,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { NUMERIC_CELL_DEFAULT, BLOCK_BUDGETS, BLOCK_MODEL_BUDGETS, blockModelBudgetNote, gradeShellBudgetNote, cellToFit, gridBlockCount } from "../src/lib/estimationMeta.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const runs = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+const panes = modellingPanesSource();
 const viewer = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
 
 test("the default cell size is the shared constant", () => {

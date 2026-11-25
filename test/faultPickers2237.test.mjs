@@ -5,6 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the explicit fault picker groups faults apart from the other surfaces", () => {
   const src = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8");
@@ -14,6 +15,6 @@ test("the explicit fault picker groups faults apart from the other surfaces", ()
 });
 
 test("the stack's fault picker keeps its two groups", () => {
-  const src = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const src = modellingPanesSource();
   assert.match(src, /\[\[true, tr\("Named as faults"\)\], \[false, tr\("Other structure types"\)\]\]/);
 });

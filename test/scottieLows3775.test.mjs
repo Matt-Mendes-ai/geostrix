@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { holesForFilter, holeSetsOf, setKeyByLabel } from "../src/lib/holeFilter.js";
 import { allocateLegendRows } from "../src/lib/legendGroups.js";
 import { runQuery } from "../src/lib/sqlRun.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const require = createRequire(import.meta.url);
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
@@ -61,7 +62,7 @@ test("#3776 the model box notice states the box against the drilling", () => {
 });
 
 test("#3779 (2) (7) (8) the refusal says why, a new trend takes its fit's name, Veins / dykes says how a unit gets in", () => {
-  const t = read("../src/components/TrendsPanel.jsx"), m = read("../src/modules/viewer/ModellingPanes.jsx");
+  const t = read("../src/components/TrendsPanel.jsx"), m = modellingPanesSource();
   assert.match(t, /why = tr\("\{code\} has \{n\} top\(s\) here and a plane needs at least \{min\}\./);
   assert.match(t, /tr\("Not enough data to fit a plane: \{why\}", \{ why \}\)/);
   assert.match(t, /\|\| \/\^Trend \\d\+\$\/\.test\(t\.name \|\| ""\)/);

@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { caseVariantGroups, foldKey } from "../src/lib/lithoGroups.js";
 import { foldDomainRows, domainOfInterval } from "../src/lib/domainLayers.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const rows = [];
 const add = (v, n) => { for (let i = 0; i < n; i++) rows.push({ hole_id: "H" + (rows.length % 7), from: i, to: i + 1, value: v }); };
@@ -35,7 +36,7 @@ test("#2427 — domain rows fold to the most logged spelling, and say what was f
 });
 
 test("the panes and dialogs use them", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /const sug = caseVariantGroups\(layers\.litho \|\| \[\], lithoGroups\);/);
   assert.match(p, /const add = \(s\) => addLithoGroup\(\{ name: s\.name, codes: s\.codes \}\);/);
   const g = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");

@@ -2,9 +2,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("each type shows how many of its picks are oriented, and a type with none cannot be chosen", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const s = modellingPanesSource();
   assert.match(s, /const structCounts = useMemo\(/);
   assert.match(s, /Number\.isFinite\(Number\(r\.dip\)\) && Number\.isFinite\(Number\(r\.azimuth\)\)/);
   // #3282 — with Model area = checked holes, the area's counts first (ak / an), the project's after

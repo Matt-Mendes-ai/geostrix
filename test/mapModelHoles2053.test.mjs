@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the no-map note names the logged holes the tool will use", () => {
   const m = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8");
@@ -13,7 +14,7 @@ test("the no-map note names the logged holes the tool will use", () => {
 });
 
 test("Model area says how many of the holes have a trace", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /const tracedHoles = useMemo\(\(\) => new Set\(\(tracesRef\?\.current \|\| \[\]\)\.filter\(\(t\) => t\?\.pts\?\.length >= 2\)\.map\(\(t\) => t\.hole_id\)\)\.size, \[tracesSeq\]\);/);
   assert.match(p, /tracedHoles < checkedHoleCount\(collars, visibleHoles\)\.all/);
   assert.match(p, /"Holes checked in the Holes list \(\{n\} of \{m\}; \{t\} of the holes have a trace\)"/);

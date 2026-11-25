@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { gatherTrendData } from "../src/lib/trendHelperData.js";
 import { trendCandidates } from "../src/lib/trendCandidates.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const es = JSON.parse(read("../src/locales/es.json"));
 
@@ -38,7 +39,7 @@ test("#3910 gathered: core picks, outcrop readings, tops, surfaces, the grade, t
 });
 
 test("#3910 hooked into Model settings with one line, above the trends list; the helper writes the store through withHelperTrend", () => {
-  const m = read("../src/modules/viewer/ModellingPanes.jsx");
+  const m = modellingPanesSource();
   const lines = m.split("\n").filter((l) => l.includes("<TrendHelper "));
   assert.equal(lines.length, 1);
   assert.ok(m.indexOf("<TrendHelper ") > m.indexOf('{tr("Structural trends")}</div>') && m.indexOf("<TrendHelper ") < m.indexOf("<TrendsPanel "));

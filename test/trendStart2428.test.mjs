@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { startingTrendPlane } from "../src/lib/trendStart.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // tops on a grid of holes: flat (z = -20 ± 0.3) or dipping 20° towards the east (z falls with x)
 const grid = (zAt) => { const pts = []; let s = 5; const r = () => ((s = (s * 16807) % 2147483647) / 2147483647 - 0.5);
@@ -39,6 +40,6 @@ test("the panel starts from the data and offers Horizontal and unit tops", () =>
   assert.match(src, /<option value="flat">\{tr\("Horizontal \(dip 0°\)"\)\}<\/option>/);
   assert.match(src, /value=\{`tops:\$\{u\}`\}/);
   assert.match(src, /kind === "tops"/);
-  const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const panes = modellingPanesSource();
   assert.match(panes, /units=\{tiedUnits\(litho_units, lithoGroups\)\} unitTopPoints=\{\(code\) => \(topsOfUnit\(code\)\?\.tops \|\| \[\]\)\.map\(\(t\) => sheetPositionAt\(t\.hole_id, t\.md\)\)/); // #3767: groups in place of their members
 });

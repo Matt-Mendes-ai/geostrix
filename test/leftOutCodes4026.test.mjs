@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { setLeftOut, leftOutNames, withoutLeftOut, leftOutLayers, leftOutIn, isLeftOutUnit, codeInfo, codesInUse, codedRuns, rowKey } from "../src/lib/modellingCodes.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const litho = [
   { hole_id: "H1", from: 0, to: 2, value: "ALU" }, { hole_id: "H1", from: 2, to: 4, value: "CID" }, { hole_id: "H1", from: 4, to: 9, value: "DAC" },
@@ -70,7 +71,7 @@ test("wiring: the code row has the toggle, the pick bar has Leave out / Put back
   assert.match(pane, /Leave out of the model/);
   const runs = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(runs, /isLeftOutUnit\(/);
-  const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const panes = modellingPanesSource();
   assert.match(panes, /leftOutLayers\(/);
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /leftOutLayers\(/);

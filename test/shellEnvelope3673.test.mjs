@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { indicatorPoints, envelopeSearch, cleanField, taubinSmooth, coarsenFactor, coarsenField, ENVELOPE_RANGES, chooseShell, AUTO_ENVELOPE_SHARE, AUTO_FRAGMENTATION, atCutRunThickness } from "../src/lib/viewer/shellEnvelope.js";
 import { shellPost } from "../src/lib/viewer/shellPost.js";
 import { estimateDenseGrid } from "../src/lib/estimation.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // a dipping mineralized sheet (60° towards 090) cut by 25 holes 40 m apart; inside it two thirds of the composites are at or above the cut-off
 // (the dilution), outside a few stray high ones
@@ -100,7 +101,7 @@ test("the wiring: the default envelope, the tight shell a choice; the pane; the 
   assert.match(r, /maxSamples: envBox\[bi\] \? envLib\.ENVELOPE_MAX_SAMPLES : 16/);
   assert.match(r, /minHoles: envBox\[bi\] \? 1 : Math\.max\(1, numericMinHoles\)/);
   assert.match(r, /shellByArea: boxChoice\.map/);
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /<option value="auto">\{tr\("Automatic \(by the drilling\)"\)\}<\/option>/);
   assert.match(p, /<option value="envelope">\{tr\("Envelope \(a domain\)"\)\}<\/option>/);
   assert.match(p, /return m === "auto" \|\| m === "tight" \|\| m === "envelope" \? m : "tight";/); // the default Tight: Matt, 2026-11-20

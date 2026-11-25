@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { isNonMetal } from "../src/lib/nonMetal.js";
 import { anisotropyFor, rememberAnisotropy, anisotropyFromFits } from "../src/lib/estimateMemory.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const src = (f) => fs.readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 test("which variables are not metals", () => {
   for (const s of ["SiO2", "Al2O3", "LOI", "P", "S", "sio2", "Density", "SG"]) assert.equal(isNonMetal(s), true, s);
@@ -21,7 +22,7 @@ test("#3499: the anisotropy is remembered per project and element, and the Grade
   rememberAnisotropy(project, "Fe", anisotropyFromFits({ range: 40 }, { range: 400 }));
   assert.equal(anisotropyFor(project, "Fe").ratio, 10);
   assert.equal(anisotropyFor(project, "Cu"), null);
-  const m = src("../src/modules/viewer/ModellingPanes.jsx");
+  const m = modellingPanesSource();
   assert.match(m, /anisotropyFor\(storeProject, numericSymbol\)/);
   assert.match(m, /setNumericSearchRadius\(Math\.round\(an\.acrossM\)\); setNumericFlatReach\(Math\.round\(an\.downholeM\)\)/);
 });

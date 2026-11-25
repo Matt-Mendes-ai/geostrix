@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { pointFromInputs } from "../src/lib/pointInput.js";
 import { summarizeSupport } from "../src/lib/estimation.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (...p) => fs.readFileSync(path.join(root, ...p), "utf8");
@@ -20,7 +21,7 @@ test("#1743: Surface query's point needs all three coordinates (a blank box is n
 });
 
 test("#1847: the Estimation pane does not point at tools 'below' that are not there", () => {
-  const s = read("src", "modules", "viewer", "ModellingPanes.jsx");
+  const s = modellingPanesSource();
   assert.ok(s.includes("a separate workflow from the implicit surface tools.") && !s.includes("implicit surface tools below"));
   for (const l of ["es", "pt", "fr", "ar"]) assert.ok(!read("src", "locales", `${l}.json`).includes("implicit surface tools below"), l);
 });

@@ -6,6 +6,7 @@ import path from "node:path";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildSync } from "esbuild";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, "..", p), "utf8").replace(/\r\n/g, "\n");
@@ -61,8 +62,9 @@ test("#3994 the run's question: Use the holes' order / Run as it is / Cancel; th
 });
 
 test("#3994 the pane: Sort by the holes above the list (any time), the plan from the logs, the old note's button uses the same plan", () => {
-  const pane = read("src/modules/viewer/ModellingPanes.jsx");
-  assert.match(pane, /import \{ holesOrderPlan \} from "\.\.\/\.\.\/lib\/holesOrder\.js"; import SortByHoles from "\.\/SortByHoles\.jsx";/);
+  const pane = modellingPanesSource();
+  assert.match(pane, /import \{ holesOrderPlan \} from "\.\.\/\.\.\/lib\/holesOrder\.js";/);
+  assert.match(pane, /import SortByHoles from "\.\.\/SortByHoles\.jsx";/); // #4070 — in the Strat. stack's own file (panes/StackPane.jsx)
   assert.match(pane, /const holesPlan = useMemo\(\(\) => \{\n\s+if \(toolPane !== "stack" \|\| stackUnits\.length < 2\) return null;/);
   assert.ok(pane.indexOf("<SortByHoles ") < pane.indexOf("{stackHoles && ("), "above the note and the list");
   assert.ok(pane.indexOf("{stackHoles && (") < pane.indexOf("{stackUnits.map((u, i) => {"));

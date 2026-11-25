@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { layerCake, cakeGrid, gridAt, topsByHole, contactDipDeg, stackIsFlat } from "../src/lib/layerCake.js";
 import { checkAgainstLogs, unitVolumes, unitAt } from "../src/lib/modelCheck.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // a gently dipping pile of thin strands on a 1 x 1 km block, 12 x 12 holes, as the review's (5-6.5 m strands under 18 m cells):
 // top of A at 450 - 0.01 x (0.6 deg), then A 6 m, B 5 m (absent in the west quarter), C 6.5 m, D below
@@ -121,7 +122,7 @@ test("wiring: the stack run builds a layer-cake in place of the GemPy solve, wit
   assert.match(r, /return runSurfaceStack\(rawSpecs, \{ \.\.\.stackOpts, engine: "layercake", offerCake: false \}\);/);
   assert.match(r, /\.\.\.\(cake \? \{ engine: "layercake" \} : \{ offerCake: true \/\* #3086: the cake takes faults \*\/, pinchFor \}\)/);
   assert.match(r, /tool: cakeRun \? "stratigraphic stack \(layer-cake\)"/);
-  const p = fs.readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   // TASKS.csv #4070 — the stack as steps: the Run is the pane's action, the method a choice of the Method step (its full name in the tooltip)
   assert.match(p, /onClick: \(\) => runStackModel\(stackUnits, \{ method: stackMethod \}\)/);
   assert.match(p, /\{ value: "layercake", label: tr\("Flat-lying"\), title: `\$\{tr\("Layer-cake \(flat-lying\) — tops as elevation grids, kept in order"\)\}/);
