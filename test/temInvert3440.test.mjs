@@ -84,7 +84,7 @@ test("#3440 the pane runs the job with Cancel keeping the finished stations, and
   assert.match(p, /if \(ev\.iter === 0\) return tr\("Inverting the first stations: the first batch also prepares the engine, so it takes longer\."\);/);
   assert.match(p, /updateGeophysSurvey\(name, \{ method: "tem1d_cond", units: SURVEY_METHODS\.tem1d_cond\.units \}\)/);
   const t = readFileSync(new URL("../src/components/TemPane.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(t, /\{!needsTie && \(isJoin \|\| group\.role === "data" \|\| \(!group\.role && !group\.aux\)\) && \(/);
+  assert.match(t, /data && !needsTie && \(isJoin \|\| group\.role === "data" \|\| \(!group\.role && !group\.aux\)\) \? \[\{ key: "invert"/); // #4070: the same test, now the Inversion step's
   const d = readFileSync(new URL("../src/lib/desktop.js", import.meta.url), "utf8");
   assert.match(d, /export const runTem1dJob = \(request, opts\) => runSidecarJobKind\("tem1d", request, opts\);/);
 });

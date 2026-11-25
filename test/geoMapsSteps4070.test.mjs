@@ -80,3 +80,38 @@ test("Terrain: one question, Fetch the gold primary; the source CRS, crop, onlin
   assert.deepEqual(missing(fine, ["setDemSourceEpsg(", "setDemCrop(", "setTerrainSource(", "setTerrainDetail("]), []);
   assert.deepEqual(missing(s, ["terrainInput.current.click()", "onClick={openSrtmPicker}", "pointsTerrainInput.current.click()", "lidarInput.current.click()", "terrainFromProject"]), []);
 });
+
+test("TEM line data: 1 Data, 2 Decays (Map the decay constant gold), 3 Inversion (its run gold); the import note in the message slot", () => {
+  const s = read("components/TemPane.jsx");
+  assert.match(s, /<StepPane id="tem" label=\{tr\("TEM line data"\)\}\n\s+message=\{msg \?/);
+  for (const k of ['key: "data"', 'key: "decays"', 'key: "invert"']) assert.ok(s.includes(k), k);
+  assert.match(s, /className="gs-btn gs-btn--primary gs-btn--block"[^>]*onClick=\{mapTau\}/);
+  assert.match(read("components/TemInvertPanel.jsx"), /className="gs-btn gs-btn--primary gs-btn--block"[^>]*disabled=\{!ready\} onClick=\{run\}/);
+  assert.deepEqual(missing(s, ["open(f)", "timesText: e.target.value", "floor: (v == null", "useStd: e.target.checked", "maxUnc: (v == null", "stdKind: e.target.value", "line: e.target.value",
+    "sel: i", "gate: e.target.value", "addGate(st.gate)", "<TemGridTie", "<TemInvertPanel", "<Profiles", "<Decay "]), []);
+});
+
+test("FDEM 1D: 1 Data, 2 Fit -> Invert (the gold action), the Result step with the section and Add to 3D", () => {
+  const s = read("components/FdemPane.jsx");
+  assert.match(s, /<StepPane id="fdem" label=\{tr\("FDEM 1D"\)\}/);
+  for (const k of ['key: "data"', 'key: "fit"']) assert.ok(s.includes(k), k);
+  assert.match(s, /action=\{survey\?\.data\?\.length > 0 \? \{ label: tr\("Invert"\), onClick: run, disabled: busy/);
+  assert.match(s, /result=\{result && ksLine\.length > 0 \? \{ key: result, body:/);
+  assert.deepEqual(missing(s, ["openFiles(e.target.files)", "use: e.target.checked", "inphase: e.target.checked", "height: (v == null", "spacing: v", "errRel: (v == null", "errAbs: (v == null",
+    "n: (v == null", "first: (v == null", "bottom: (v == null", "lateral: Number(e.target.value)", "every: Math.round(v)", "abort.current?.abort()", "setLineKey(", "setSel(", "setAboveDoi(", "addTo3d"]), []);
+});
+
+test("MT / AMT: 1 Line (the pseudosection), 2 Station (its curves); a viewer, so no gold primary; the import report in the message slot", () => {
+  const s = read("components/MtSoundingsPane.jsx");
+  assert.match(s, /<StepPane id="mt" label=\{tr\("MT \/ AMT"\)\}\n\s+message=\{msg \?/);
+  for (const k of ['key: "line"', 'key: "station"']) assert.ok(s.includes(k), k);
+  assert.ok(!s.includes("gs-btn--primary"));
+  assert.deepEqual(missing(s, ["importEdi(e.target.files)", "setSurveyName(e.target.value)", "setLineKey(e.target.value)", "setQuantity(e.target.value)", "setComp(e.target.value)", "onPick={setStationId}",
+    "setStationId(e.target.value)", "<SoundingPlot", "Niblett–Bostick transform: a 1D estimate, wrong under a 3D body"]), []);
+});
+
+test("GeoTIFF / GXF follows the house rules: Build + what, an index or filter is Compute", () => {
+  const s = read("modules/RasterModule.jsx");
+  assert.ok(s.includes('{tr("Build the ternary image")}') && s.includes('tr("Compute the filtered grid")') && s.includes('tr("Compute the spectrum")'));
+  assert.ok(!s.includes("adds a new raster"));
+});

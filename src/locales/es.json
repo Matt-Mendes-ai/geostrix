@@ -15780,5 +15780,16 @@
   "Which role does each code play?": "¿Qué función tiene cada código?",
   "Fetch layers first.": "Primero obtén las capas.",
   "Draw options": "Opciones de dibujo",
-  "View options": "Opciones de vista"
+  "View options": "Opciones de vista",
+  "TEM line data": "Datos TEM en líneas",
+  "Which channels and gate times?": "¿Qué canales y tiempos de ventana?",
+  "Decays": "Decaimientos",
+  "Which line and station?": "¿Qué línea y estación?",
+  "Early gates purple, late yellow (log scale). Click a station for its decay.": "Ventanas tempranas en morado, tardías en amarillo (escala log). Haga clic en una estación para ver su decaimiento.",
+  "Invert the decays in 1D?": "¿Invertir los decaimientos en 1D?",
+  "Which soundings and coils?": "¿Qué sondeos y bobinas?",
+  "Which soundings?": "¿Qué sondeos?",
+  "Shallow (short periods) at the top. Click a column for its curves.": "Lo somero (periodos cortos) arriba. Haga clic en una columna para ver sus curvas.",
+  "Which station?": "¿Qué estación?",
+  "Elevation {z} m, {n} frequencies. Phase over 45°: more conductive with depth.": "Elevación {z} m, {n} frecuencias. Fase sobre 45°: más conductivo en profundidad."
 }

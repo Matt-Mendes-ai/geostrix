@@ -15780,5 +15780,16 @@
   "Which role does each code play?": "ما دور كل رمز؟",
   "Fetch layers first.": "اجلب الطبقات أولًا.",
   "Draw options": "خيارات الرسم",
-  "View options": "خيارات العرض"
+  "View options": "خيارات العرض",
+  "TEM line data": "بيانات TEM على الخطوط",
+  "Which channels and gate times?": "أي قنوات وأي أزمنة بوابات؟",
+  "Decays": "منحنيات التلاشي",
+  "Which line and station?": "أي خط وأي محطة؟",
+  "Early gates purple, late yellow (log scale). Click a station for its decay.": "البوابات المبكرة بنفسجية والمتأخرة صفراء (مقياس لوغاريتمي). انقر على محطة لرؤية تلاشيها.",
+  "Invert the decays in 1D?": "قلب منحنيات التلاشي أحادياً؟",
+  "Which soundings and coils?": "أي سبرات وأي ملفات؟",
+  "Which soundings?": "أي سبرات؟",
+  "Shallow (short periods) at the top. Click a column for its curves.": "الضحل (الدورات القصيرة) في الأعلى. انقر على عمود لرؤية منحنياته.",
+  "Which station?": "أي محطة؟",
+  "Elevation {z} m, {n} frequencies. Phase over 45°: more conductive with depth.": "الارتفاع {z} م، {n} تردداً. طور فوق 45°: أكثر توصيلاً مع العمق."
 }
