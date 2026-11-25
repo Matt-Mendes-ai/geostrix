@@ -2,7 +2,7 @@ import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1215
 import CompositeLengthNote from "./CompositeLengthNote.jsx"; // TASKS.csv #2549
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { makeVariogramClient } from "../lib/variogramClient.js"; // TASKS.csv #3009 — the pair loop in a worker
-import { X, Play } from "./icons.js";
+import { Play } from "./icons.js";
 import { gradeUnitLabel } from "../lib/geochem.js";
 import { compositeDownholeSliced, samplePointsSliced } from "../lib/compositeSliced.js"; // TASKS.csv #3111 — compositing and placing in slices of holes // gradeUnitLabel: #2429
 import { sendVariogramToEstimation, sendFlatSearchToEstimation, anisotropyFromFits, rememberAnisotropy } from "../lib/estimateMemory.js"; // TASKS.csv #3273; the rest: #3079 / #3080
@@ -16,14 +16,12 @@ import {
   VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, variogramStationarity, siteSpacingLag, lagsShortOfSpacing, downholeLinePoints /* #1843 */, DIRECTION_TABLE, longestDirection /* #1996 */, wellFittedDirections, directionVector /* #3385 */ } from "../lib/variogram.js";
 import { trendFromDirections, describeTrend, directionSpreadDeg, TREND_MIN_SPREAD_DEG } from "../lib/trend.js"; // TASKS.csv #3385; spread: #3787 / #3825
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
+import MoreFold from "./MoreFold.jsx";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { cleanTrend, trendBasis } from "../lib/trend.js"; // TASKS.csv #2424 — the block-estimation trend's plane
 import { surfaceElevation, flattenOnSurface } from "../lib/flattenOnSurface.js"; // TASKS.csv #2710 — pairs below a modelled contact
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // #2710 — repeated surface names told apart
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -51,8 +49,6 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const checkedN = checkedHoleIds ? collars.filter((c) => checkedHoleIds.has(c.hole_id)).length : collars.length;
   const [samplesFrom, setSamplesFrom] = useState(() => (modelArea === "checked" && checkedHoleIds?.size ? "checked" : "all"));
   const assays = useMemo(() => (samplesFrom === "checked" && checkedHoleIds?.size ? assaysAll.filter((a) => checkedHoleIds.has(a.hole_id)) : assaysAll), [assaysAll, samplesFrom, checkedHoleIds]);
-  useEscapeKey(onClose); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
   // TASKS.csv #135 — the variogram must be computed on sample points sitting on the SAME traces the
   // 3D view and the estimator use. This modal and #135's selectable desurvey method were built by two
   // agents working concurrently, so this caller was written against the pre-#135 4-argument signature
@@ -286,40 +282,27 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
   const nuggetFree = !!(result && result.fit && !(result.vg.reliableFromLag > 0 && result.vg.reliableFromLag <= result.lag * 1.01));
   const stat = result ? variogramStationarity(result.vg, result.fit) : null; // TASKS.csv #1576
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panelStyle} role="dialog" aria-modal="true" aria-label={tr("Variogram analysis")} onClick={(e) => e.stopPropagation()}>
-        <div style={headerStyle}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Variogram — spatial continuity")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Experimental variogram + fitted nugget / sill / range, from composited assays. {collars} holes, {assays} raw intervals loaded.", { collars: samplesFrom === "checked" ? checkedN : collars.length, assays: assays.length })}</div>
-            {checkedHoleIds && checkedN > 0 && checkedN < collars.length && <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>{tr("Samples from")}{/* #2544 */}
-              <select value={samplesFrom} onChange={(e) => { setSamplesFrom(e.target.value); setResult(null); }} aria-label={tr("Samples from")} style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" }}>
-                <option value="all">{tr("Every hole")}</option>
-                <option value="checked">{tr("The checked holes ({n} of {total})", { n: checkedN, total: collars.length })}</option>
-              </select>
-            </label>}
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
-
-        <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* The honesty banner. Deliberately the first thing on the screen, and deliberately not
-              softened: TASKS.csv #257-#270 made the estimation UI stop implying rigour it doesn't
-              have, and this screen is the one most likely to be mistaken for "GeoStrix does kriging". */}
-          <div style={noteBox("#f6f8fb", "#a9c6e0")}>
-            <b>{tr("This is a diagnostic, not an estimator.")}</b>{" "}{tr("GeoStrix computes and fits a variogram here so you can see and measure a domain's grade continuity. It does")}{" "}<b>{tr("not")}</b>{" "}{tr("feed the estimator by itself: ordinary kriging in Estimation takes its own nugget, sill and range (type these, or leave them blank to fit at run time), and nearest-neighbour and inverse distance use none. Fitting here changes no estimate already run.")}<div style={{ marginTop: 6 }}>{tr("What the numbers are genuinely good for: the")}{" "}<b>{tr("range")}</b>{" "}{tr("is a defensible search radius (past it, a sample tells you nothing about a block); the")}{" "}<b>{tr("nugget / sill ratio")}</b>{" "}{tr("is how much of the variability is short-scale noise no smooth interpolation can recover; and ranges in two directions measure the anisotropy ratio the Modelling tab otherwise asks you to judge by eye.")}</div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+  // TASKS.csv #4073 — the dialog as steps on the shared StepDialog (Data, Model, Run): the answers that matter in each, every other setting in its Fine-tune fold, the notes in Help.
+  const [stepAt, setStepAt] = useState(0);
+  const col = { display: "flex", flexDirection: "column", gap: 14, width: "100%" };
+  const row = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" };
+  const canRun = !(running || !symbols.length || !uns.ready);
+  const helpCard = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
+<div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 2 }}>{tr("Experimental variogram + fitted nugget / sill / range, from composited assays. {collars} holes, {assays} raw intervals loaded.", { collars: samplesFrom === "checked" ? checkedN : collars.length, assays: assays.length })}</div>
+    </details>
+  );
+  const steps = [
+    { key: "data", label: tr("Data"), primary: { label: tr("Next: model") }, render: () => (
+      <div style={col}>
+        <div style={row}>
             <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s] || "ppm")})</option>)}{/* #2429 */}
               </select>
             </label>
             <label style={fieldLabel} title={tr("A variogram assumes a common support — every sample the same volume. Compositing to a fixed length is what provides that; raw ragged intervals do not.")}>{tr("Composite length (m)")}<NumberInput min="0.1" value={compositeLength} onChange={(n) => setCompositeLength(n)} style={inp} />
               <CompositeLengthNote assays={srcAssays} symbol={symbol} length={compositeLength} onUse={(m) => { setCompositeLength(m); setResult(null); }} variogram />{/* #2549 */}
-            </label>
-            <label style={fieldLabel} title={tr("Minimum fraction of a composite that must be covered by real assay material.")}>{tr("Min coverage (%)")}<NumberInput min="0" max="100" step="1" value={Math.round(minCoverage * 100)} onChange={(n) => setMinCoverage(n / 100)} style={inp} />{/* #3286 (7) — in %, as Estimation's */}
             </label>
             <label style={fieldLabel}>{tr("Domain layer")}<select value={domainKey} onChange={(e) => { setDomainKey(e.target.value); setDomainValue("__all__"); }} style={inp}>
                 <option value="">{tr("(none)")}</option>
@@ -335,9 +318,35 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 </select>
               </label>
             )}
+        </div>
+        <MoreFold summary={tr("Fine-tune…")}>
+            {checkedHoleIds && checkedN > 0 && checkedN < collars.length && <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>{tr("Samples from")}{/* #2544 */}
+              <select value={samplesFrom} onChange={(e) => { setSamplesFrom(e.target.value); setResult(null); }} aria-label={tr("Samples from")} style={{ fontSize: "var(--font-size-sm)", padding: "2px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" }}>
+                <option value="all">{tr("Every hole")}</option>
+                <option value="checked">{tr("The checked holes ({n} of {total})", { n: checkedN, total: collars.length })}</option>
+              </select>
+            </label>}
+          <div style={row}>
+            <label style={fieldLabel} title={tr("Minimum fraction of a composite that must be covered by real assay material.")}>{tr("Min coverage (%)")}<NumberInput min="0" max="100" step="1" value={Math.round(minCoverage * 100)} onChange={(n) => setMinCoverage(n / 100)} style={inp} />{/* #3286 (7) — in %, as Estimation's */}
+            </label>
           </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <UnsampledChoice u={uns} selStyle={{ ...inp, width: "auto", padding: "3px 6px" }} />{/* TASKS.csv #2417 / #2542 */}
+        </MoreFold>
+      </div>) },
+    { key: "model", label: tr("Model"), primary: { label: tr("Next: run") }, render: () => (
+      <div style={col}>
+        <div style={row}>
+            <label style={fieldLabel}>{tr("Model")}<select value={model} onChange={(e) => setModel(e.target.value)} style={inp}>
+                {Object.entries(VARIOGRAM_MODELS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
+              </select>
+            </label>
+            <label style={fieldLabel} title={tr("Bin width. 0 uses a quarter of the median spacing between holes (composite to nearest composite in another hole), like ordinary kriging's automatic fit, or the downhole spacing with downhole-only pairs.")}>{tr("Lag distance (m, 0 = auto)")}<NumberInput min="0" value={lagDistance} onChange={(n) => setLagDistance(n)} style={inp} />
+            </label>
+            <label style={fieldLabel} title={tr("Number of lag bins. lags x lag distance should be about half the field's extent — beyond that, pair counts collapse and the plot is noise.")}>{tr("Number of lags")}<NumberInput min="3" max="60" step="1" value={nLags} onChange={(n) => setNLags(Math.round(n))} style={inp} />
+            </label>
+        </div>
+        <MoreFold summary={tr("Fine-tune…")}>
+          <div style={row}>
             <label style={fieldLabel} title={tr("The Matheron estimator squares differences, so a few very high grades can dominate every lag bin and hide real structure.")}>{tr("Value transform")}<select value={transform} onChange={(e) => setTransform(e.target.value)} style={inp}>
                 {Object.entries(VALUE_TRANSFORMS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
               </select>
@@ -351,10 +360,6 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               <label style={fieldLabel}>{tr("Cap percentile")}<NumberInput min="50" max="100" step="0.5" value={capPercentile} onChange={(n) => setCapPercentile(n)} style={inp} />
               </label>
             )}
-            <label style={fieldLabel} title={tr("Bin width. 0 uses a quarter of the median spacing between holes (composite to nearest composite in another hole), like ordinary kriging's automatic fit, or the downhole spacing with downhole-only pairs.")}>{tr("Lag distance (m, 0 = auto)")}<NumberInput min="0" value={lagDistance} onChange={(n) => setLagDistance(n)} style={inp} />
-            </label>
-            <label style={fieldLabel} title={tr("Number of lag bins. lags x lag distance should be about half the field's extent — beyond that, pair counts collapse and the plot is noise.")}>{tr("Number of lags")}<NumberInput min="3" max="60" step="1" value={nLags} onChange={(n) => setNLags(Math.round(n))} style={inp} />
-            </label>
             <label style={fieldLabel} title={tr("Half-width of a bin as a fraction of the lag distance. 0.5 = contiguous bins (the usual choice).")}>{tr("Lag tolerance")}<NumberInput min="0.1" max="1" step="0.05" value={lagTolerance} onChange={(n) => setLagTolerance(n)} style={inp} />
             </label>
             <label style={fieldLabel} title={tr("Downhole-only pairs are the classic way to resolve the nugget — only samples in the same hole get close enough together to see it.")}>{tr("Pairs")}<select value={holeMode} onChange={(e) => setHoleMode(e.target.value)} style={inp}>
@@ -363,12 +368,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 <option value="between">{tr("Between holes only")}</option>
               </select>
             </label>
-            <label style={fieldLabel}>{tr("Model")}<select value={model} onChange={(e) => setModel(e.target.value)} style={inp}>
-                {Object.entries(VARIOGRAM_MODELS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
-              </select>
-            </label>
           </div>
-
           <div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
               <input type="checkbox" checked={directional} onChange={(e) => setDirectional(e.target.checked)} />{tr("Directional variogram (same azimuth / dip convention as the anisotropy and search-ellipsoid fields)")}</label>
@@ -403,18 +403,19 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 200px" }}>{tr("Pairs within ± {w} m of the plane {p}.", { w: Number(planeHalf) > 0 ? Number(planeHalf) : compositeLength, p: pl.label })}</span>
               </div>); })()}
           </div>
-
-          <UnsampledChoice u={uns} selStyle={{ ...inp, width: "auto", padding: "3px 6px" }} />{/* TASKS.csv #2417 / #2542 */}
+        </MoreFold>
+      </div>) },
+    { key: "run", label: tr("Run"), primary: { label: <><Play size={14} /> {running ? tr("Running…") : tr("Compute variogram")}</>, onClick: run, disabled: !canRun }, render: () => (
+      <div style={col}>
+          <div style={noteBox("#f6f8fb", "#a9c6e0")}>
+            <b>{tr("This is a diagnostic, not an estimator.")}</b>{" "}<MoreFold summary={tr("Why")} style={{ display: "inline-block", marginBottom: 0 }}>{tr("GeoStrix computes and fits a variogram here so you can see and measure a domain's grade continuity. It does")}{" "}<b>{tr("not")}</b>{" "}{tr("feed the estimator by itself: ordinary kriging in Estimation takes its own nugget, sill and range (type these, or leave them blank to fit at run time), and nearest-neighbour and inverse distance use none. Fitting here changes no estimate already run.")}<div style={{ marginTop: 6 }}>{tr("What the numbers are genuinely good for: the")}{" "}<b>{tr("range")}</b>{" "}{tr("is a defensible search radius (past it, a sample tells you nothing about a block); the")}{" "}<b>{tr("nugget / sill ratio")}</b>{" "}{tr("is how much of the variability is short-scale noise no smooth interpolation can recover; and ranges in two directions measure the anisotropy ratio the Modelling tab otherwise asks you to judge by eye.")}</div></MoreFold>
+          </div>
           {verticalShare(collars, survey) >= 0.5 && <button className="gs-btn" style={{ width: "100%" }} onClick={runBoth} disabled={running || !symbols.length || !uns.ready} title={tr("Computes the downhole variogram and then the in-plane one, and states the anisotropy between them. Needs a plane (the trend, or horizontal).")}>{tr("Compute both: downhole and in the plane")}</button>}{/* TASKS.csv #3500 */}
-          <button className="gs-btn gs-btn--primary" style={{ width: "100%" }} onClick={run} disabled={running || !symbols.length || !uns.ready}>
-            <Play size={14} /> {running ? tr("Running…") : tr("Compute variogram")}
-          </button>
           {running && <button className="gs-btn gs-btn--sm" style={{ marginTop: 4 }} type="button" onClick={() => { vgClient.current.cancel(); setRunning(false); }}>{tr("Cancel")}</button>}{/* #3009 */}
-
           {error && <div style={noteBox("#fbf0f0", "#e0a9a9")}>{error}</div>}
-
           {result && plot && (
             <>
+              <MoreFold summary={tr("Cautions and details")}>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.planeLagFrom ? tr(" (the median hole spacing, {s} m, out to a third of the drilling's width)", { s: Math.round(result.planeLagFrom) }) /* #3015 */ : result.suggested != null ? (result.fromSites ? tr(" (suggested {suggested} m from the drill-site spacing)", { suggested: result.suggested.toFixed(1) }) : tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) })) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
               </div>
@@ -447,6 +448,54 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
               {lagsShortOfSpacing(result.lag, result.nLagsUsed, result.spacing) && ( /* TASKS.csv #2221 */
                 <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{tr("The lags stop at {max} m; the {sites} drill sites are typically {typ} m apart (nearest {near} m, up to {far} m): raise the lag or the number of lags to see continuity between holes.", { max: Math.round(result.lag * result.nLagsUsed), sites: result.spacing.sites, typ: Math.round(result.spacing.medianM), near: Math.round(result.spacing.nearestM), far: Math.round(result.spacing.farthestM) })}</div>
               )}
+              {/* TASKS.csv #3789 (Scottie Gold) — a raw variogram of a nuggety element: its first lag was 71 % of the sill, 77.5 % of it carried by 10 of 3,778 pairs, and a model fitted at r² 0.93 */}
+              {result.transform === "none" && (() => {
+                const heavy = (result.vg.bins || []).find((b) => b.top10Share != null && b.top10Share > 0.5 && b.nPairs >= 30);
+                const cv = result.vg.mean > 0 && result.vg.variance >= 0 ? (Math.sqrt(result.vg.variance) / result.vg.mean) * 100 : null;
+                if (!heavy && !(cv > 150)) return null;
+                return <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>
+                  {heavy ? tr("This raw variogram rests on a few high pairs: at {lag} m the ten largest of {n} pairs carry {pct}% of the semivariance, so the fit is mostly to those ten.", { lag: +Number(heavy.lag).toPrecision(3), n: heavy.nPairs.toLocaleString(), pct: Math.round(heavy.top10Share * 100) }) : ""}
+                  {cv > 150 ? " " + tr("The coefficient of variation of {symbol} is {cv}% (the Grade shell and Estimation cap it by default): compute again with the log or capped transform to see the bulk of the grades.", { symbol, cv: Math.round(cv) }) : ""}
+                </div>;
+              })()}
+              {result.transform === "log" && result.tP95 != null && result.tP95 < 0.2 && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{tr("Choose \"log10(value), zeros at half the smallest value\": 95 % of these values are below {p} {unit}, where log10(value + 1) is nearly linear, so this variogram is nearly the raw one rescaled.", { p: +result.tP95.toPrecision(2), unit: gradeUnitLabel(symbol, unit) })}</div>}{/* #1746 */}
+              {result.transform === "logfloor" && result.tFloor != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Zeros and values below {f} {unit} (half the smallest positive value) were set to {f} before the log.", { f: +result.tFloor.toPrecision(3), unit: gradeUnitLabel(symbol, unit) })}</div>}{/* #1746 */}
+
+              {holePairsLow && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{tr("Between holes, some lags (in red) rest on under {m} pairs of holes, each counted many times among the composite pairs: read them as a few hole-to-hole comparisons, not as that many measurements.", { m: MIN_HOLE_PAIRS })}</div>}{/* #3285 */}
+              {nPairsLow && (
+                <div style={noteBox("#fdf7ea", "#e2a63c")}>{result.vg.reliableFromLag > result.lag * 1.01 && result.vg.maxReliableLag > 0 /* #2065 — the first lags fail: name the usable run */
+                  ? (result.vg.maxReliableLag > result.vg.reliableFromLag
+                    ? tr("Some lag bins, the first ones among them, hold under 30 pairs (in red): too few for a measurement. Read only lags {a}–{b} m, the run that clears 30 pairs, or widen the lag distance or loosen the angular tolerance.", { a: Math.round(result.vg.reliableFromLag), b: Math.round(result.vg.maxReliableLag) })
+                    : tr("Some lag bins, the first ones among them, hold under 30 pairs (in red): too few for a measurement. Read only the {a} m lag, the one that clears 30 pairs, or widen the lag distance or loosen the angular tolerance.", { a: Math.round(result.vg.reliableFromLag) }))
+                  : <>{tr("Some lag bins hold under 30 pairs (in red): too few for a measurement. Widen the lag distance, loosen the angular tolerance, or read only out to")}{" "}<b>{result.vg.maxReliableLag} m</b>{tr(", the furthest lag that clears 30 pairs contiguously.")}</>}</div>
+              )}
+              {nuggetFree && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{result.holeMode === "between" /* #3285 — between holes a lag also needs MIN_HOLE_PAIRS pairs of holes */
+                ? (result.vg.reliableFromLag > 0
+                  ? tr("The nugget is not constrained: between holes, no lag closer than {h} m holds 30 pairs from {m} or more pairs of holes, so the fitted nugget is the model's guess, not a measurement.", { h: Math.round(result.vg.reliableFromLag), m: MIN_HOLE_PAIRS })
+                  : tr("The nugget is not constrained: between holes, no lag holds 30 pairs from {m} or more pairs of holes, so the fitted nugget is the model's guess, not a measurement.", { m: MIN_HOLE_PAIRS }))
+                : result.vg.reliableFromLag > 0
+                ? tr("The nugget is not constrained: no lag closer than {h} m holds 30 pairs, so the fitted nugget is the model's guess, not a measurement.", { h: Math.round(result.vg.reliableFromLag) })
+                : tr("The nugget is not constrained: no lag holds 30 pairs, so the fitted nugget is the model's guess, not a measurement.")}
+                {result.holeMode !== "downhole" ? " " + tr("Take it from Downhole only, where samples in one hole are close enough to see it.") : ""}</div>}{/* #2065 */}
+
+              {stat?.noSill && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("No sill at the population variance: at the last reliable lags the variogram is {r}× it{v}, which points to a trend or mixed domains, not a stationary grade. Estimate within a domain, or remove the trend, before trusting the range.", { r: stat.endRatio.toFixed(2), v: stat.rising ? tr(" and still rising") : "" })}</div>}{/* #1576 */}
+              {stat?.rangeBeyond && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("The fitted range ({range} m) is beyond the furthest reliable lag ({lag} m): it is extrapolated past the measured pairs, not read from them.", { range: Math.round(result.fit.range), lag: Math.round(stat.reliableLagM) })}</div>}
+
+              {fitWeak && vertical && result.holeMode === "all" && ( /* TASKS.csv #3015 */
+                <div style={noteBox("#fdf7ea", "#e2a63c")}>
+                  <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("These holes are near-vertical, so 'All pairs' mixes pairs down each hole with pairs between holes: a weak fit here does not mean no spatial structure. Compute Downhole only (nugget, short range), then Between holes only or In a plane (range along bedding), separately.")}
+                </div>
+              )}
+              {fitWeak && !(vertical && result.holeMode === "all") && (
+                <div style={noteBox("#fdf7ea", "#e2a63c")}>
+                  <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("Try a value transform, another domain or a smaller lag: the points do not follow the {v} shape well, so the nugget, sill and range above are not constrained. If the variogram is flat near the population variance, there is no resolvable spatial structure at these lags, and a smooth shell draws continuity the data does not support.", { v: tr(VARIOGRAM_MODELS[result.fit.model]?.label || "").toLowerCase() })}</div>
+              )}
+
+              {result.fit && result.fit.nuggetRatio != null && result.fit.nuggetRatio > 0.5 && !fitWeak && !nuggetFree /* #2065 */ && (
+                <div style={noteBox("#fdf7ea", "#e2a63c")}>
+                  <b>{tr("High nugget ({v}% of the sill).", { v: (result.fit.nuggetRatio * 100).toFixed(0) })}</b>{" "}{tr("Over half the variability is short-scale noise no interpolation can recover: estimates will be smooth because the method smooths, not because the grade is continuous. Treat any shell from it with caution.")}</div>
+              )}
+              </MoreFold>
               {/* flexShrink: 0 + an explicit aspectRatio are both load-bearing, not decoration. This
                   modal's body is a `display:flex; flexDirection:column` container, and an SVG with only
                   width="100%" and a viewBox has no intrinsic height a flex item can be sized from — it
@@ -509,17 +558,6 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                   </>
                 ) : <div style={{ color: "var(--color-text-muted)" }}>{tr("Too few usable lag bins to fit a model.")}</div>}
               </div>
-
-              {/* TASKS.csv #3789 (Scottie Gold) — a raw variogram of a nuggety element: its first lag was 71 % of the sill, 77.5 % of it carried by 10 of 3,778 pairs, and a model fitted at r² 0.93 */}
-              {result.transform === "none" && (() => {
-                const heavy = (result.vg.bins || []).find((b) => b.top10Share != null && b.top10Share > 0.5 && b.nPairs >= 30);
-                const cv = result.vg.mean > 0 && result.vg.variance >= 0 ? (Math.sqrt(result.vg.variance) / result.vg.mean) * 100 : null;
-                if (!heavy && !(cv > 150)) return null;
-                return <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>
-                  {heavy ? tr("This raw variogram rests on a few high pairs: at {lag} m the ten largest of {n} pairs carry {pct}% of the semivariance, so the fit is mostly to those ten.", { lag: +Number(heavy.lag).toPrecision(3), n: heavy.nPairs.toLocaleString(), pct: Math.round(heavy.top10Share * 100) }) : ""}
-                  {cv > 150 ? " " + tr("The coefficient of variation of {symbol} is {cv}% (the Grade shell and Estimation cap it by default): compute again with the log or capped transform to see the bulk of the grades.", { symbol, cv: Math.round(cv) }) : ""}
-                </div>;
-              })()}
               {result.fit && result.transform === "none" && ( /* TASKS.csv #3273 — the model to Estimation, not retyped (a transformed variogram is not in grade units) */
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <button className="gs-btn gs-btn--sm" type="button" onClick={() => {
@@ -543,53 +581,11 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
                   <b>{tr("Transformed values ({label}).", { label: tr((VALUE_TRANSFORMS[result.transform] || VALUE_TRANSFORMS.none).label) })}</b> {tr("{note}{v} The", { note: tr((VALUE_TRANSFORMS[result.transform] || VALUE_TRANSFORMS.none).note), v: (result.transform === "log" || result.transform === "logfloor") && tr(" In particular, do not quote this sill as a grade variance — back-transforming it correctly needs a lognormal correction GeoStrix does not apply.") })}{" "}<b>{tr("range")}</b>{" "}{tr("is still a distance in metres and is the number to carry into a search radius.")}</div>
               )}
-              {result.transform === "log" && result.tP95 != null && result.tP95 < 0.2 && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{tr("Choose \"log10(value), zeros at half the smallest value\": 95 % of these values are below {p} {unit}, where log10(value + 1) is nearly linear, so this variogram is nearly the raw one rescaled.", { p: +result.tP95.toPrecision(2), unit: gradeUnitLabel(symbol, unit) })}</div>}{/* #1746 */}
-              {result.transform === "logfloor" && result.tFloor != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Zeros and values below {f} {unit} (half the smallest positive value) were set to {f} before the log.", { f: +result.tFloor.toPrecision(3), unit: gradeUnitLabel(symbol, unit) })}</div>}{/* #1746 */}
-
-              {holePairsLow && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{tr("Between holes, some lags (in red) rest on under {m} pairs of holes, each counted many times among the composite pairs: read them as a few hole-to-hole comparisons, not as that many measurements.", { m: MIN_HOLE_PAIRS })}</div>}{/* #3285 */}
-              {nPairsLow && (
-                <div style={noteBox("#fdf7ea", "#e2a63c")}>{result.vg.reliableFromLag > result.lag * 1.01 && result.vg.maxReliableLag > 0 /* #2065 — the first lags fail: name the usable run */
-                  ? (result.vg.maxReliableLag > result.vg.reliableFromLag
-                    ? tr("Some lag bins, the first ones among them, hold under 30 pairs (in red): too few for a measurement. Read only lags {a}–{b} m, the run that clears 30 pairs, or widen the lag distance or loosen the angular tolerance.", { a: Math.round(result.vg.reliableFromLag), b: Math.round(result.vg.maxReliableLag) })
-                    : tr("Some lag bins, the first ones among them, hold under 30 pairs (in red): too few for a measurement. Read only the {a} m lag, the one that clears 30 pairs, or widen the lag distance or loosen the angular tolerance.", { a: Math.round(result.vg.reliableFromLag) }))
-                  : <>{tr("Some lag bins hold under 30 pairs (in red): too few for a measurement. Widen the lag distance, loosen the angular tolerance, or read only out to")}{" "}<b>{result.vg.maxReliableLag} m</b>{tr(", the furthest lag that clears 30 pairs contiguously.")}</>}</div>
-              )}
-              {nuggetFree && <div role="note" style={noteBox("#fdf7ea", "#e2a63c")}>{result.holeMode === "between" /* #3285 — between holes a lag also needs MIN_HOLE_PAIRS pairs of holes */
-                ? (result.vg.reliableFromLag > 0
-                  ? tr("The nugget is not constrained: between holes, no lag closer than {h} m holds 30 pairs from {m} or more pairs of holes, so the fitted nugget is the model's guess, not a measurement.", { h: Math.round(result.vg.reliableFromLag), m: MIN_HOLE_PAIRS })
-                  : tr("The nugget is not constrained: between holes, no lag holds 30 pairs from {m} or more pairs of holes, so the fitted nugget is the model's guess, not a measurement.", { m: MIN_HOLE_PAIRS }))
-                : result.vg.reliableFromLag > 0
-                ? tr("The nugget is not constrained: no lag closer than {h} m holds 30 pairs, so the fitted nugget is the model's guess, not a measurement.", { h: Math.round(result.vg.reliableFromLag) })
-                : tr("The nugget is not constrained: no lag holds 30 pairs, so the fitted nugget is the model's guess, not a measurement.")}
-                {result.holeMode !== "downhole" ? " " + tr("Take it from Downhole only, where samples in one hole are close enough to see it.") : ""}</div>}{/* #2065 */}
-
-              {stat?.noSill && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("No sill at the population variance: at the last reliable lags the variogram is {r}× it{v}, which points to a trend or mixed domains, not a stationary grade. Estimate within a domain, or remove the trend, before trusting the range.", { r: stat.endRatio.toFixed(2), v: stat.rising ? tr(" and still rising") : "" })}</div>}{/* #1576 */}
-              {stat?.rangeBeyond && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("The fitted range ({range} m) is beyond the furthest reliable lag ({lag} m): it is extrapolated past the measured pairs, not read from them.", { range: Math.round(result.fit.range), lag: Math.round(stat.reliableLagM) })}</div>}
-
-              {fitWeak && vertical && result.holeMode === "all" && ( /* TASKS.csv #3015 */
-                <div style={noteBox("#fdf7ea", "#e2a63c")}>
-                  <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("These holes are near-vertical, so 'All pairs' mixes pairs down each hole with pairs between holes: a weak fit here does not mean no spatial structure. Compute Downhole only (nugget, short range), then Between holes only or In a plane (range along bedding), separately.")}
-                </div>
-              )}
-              {fitWeak && !(vertical && result.holeMode === "all") && (
-                <div style={noteBox("#fdf7ea", "#e2a63c")}>
-                  <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("Try a value transform, another domain or a smaller lag: the points do not follow the {v} shape well, so the nugget, sill and range above are not constrained. If the variogram is flat near the population variance, there is no resolvable spatial structure at these lags, and a smooth shell draws continuity the data does not support.", { v: tr(VARIOGRAM_MODELS[result.fit.model]?.label || "").toLowerCase() })}</div>
-              )}
-
-              {result.fit && result.fit.nuggetRatio != null && result.fit.nuggetRatio > 0.5 && !fitWeak && !nuggetFree /* #2065 */ && (
-                <div style={noteBox("#fdf7ea", "#e2a63c")}>
-                  <b>{tr("High nugget ({v}% of the sill).", { v: (result.fit.nuggetRatio * 100).toFixed(0) })}</b>{" "}{tr("Over half the variability is short-scale noise no interpolation can recover: estimates will be smooth because the method smooths, not because the grade is continuous. Treat any shell from it with caution.")}</div>
-              )}
             </>
           )}
-        </div>
-
-        <div style={{ padding: "12px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <button className="gs-btn" onClick={onClose}>{tr("Close")}</button>
-        </div>
-      </div>
-    </div>
-  );
+      </div>) },
+  ];
+  return <StepDialog title={tr("Variogram — spatial continuity")} width="min(860px, 95vw)" onClose={onClose} steps={steps} at={stepAt} onAt={setStepAt} help={helpCard} />;
 }
 
 function Stat({ label, value }) {
@@ -612,8 +608,6 @@ function fmtNum(v) {
 }
 
 const noteBox = (bg, border) => ({ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "9px 11px", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.55 });
-const panelStyle = { width: "min(860px, 95vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
-const headerStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const fieldLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 4 };
 const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", width: 150 };
 
