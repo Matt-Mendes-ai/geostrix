@@ -23,8 +23,12 @@ function columnHeader(tokens) {
   const u = tokens.map((t) => t.toUpperCase());
   return u.length >= 6 && ["EAST", "STN", "STATION"].includes(u[0]) && u.filter((t) => GATE.test(t)).length >= 4;
 }
+// TASKS.csv #4077 — a SMARTem24 'TIP' file (induced polarisation: DATATYPE:TIP, electrodes C1E ... P2Z, the IP decay in CH1 ... CHn) has the same STN / RDNG / CH columns
+// as a TEM receiver file and used to be read as TEM. Looked for first by every TEM reader; the DC / IP pane reads it (dcipElectrodes.parseSmartemTip).
+export const isSmartemTipText = (text) => { const h = TITLE_HEAD(text); return /^\s*EXPORTED SMARTem\d* TIP data file/i.test(h.slice(0, 300)) || /^\s*SMARTem\d* TIP data file/i.test(h.slice(0, 300)) || (/\bDATATYPE:TIP\b/.test(h.slice(0, 2000)) && /\bC1E\b/.test(h)); };
 // whether the text is a receiver-text TEM file of this family: a Maxwell header, or a column-header line within its first lines
 export function isReceiverTem(text) {
+  if (isSmartemTipText(text)) return false; // #4077 — an IP file, not a TEM one
   if (isMaxwellTem(text)) return true;
   const head = TITLE_HEAD(text).split(/\r\n|\r|\n/, 60);
   return head.some((l) => l.trim() && !/^[/\\]/.test(l.trim()) && columnHeader(l.trim().split(/\s+/)));

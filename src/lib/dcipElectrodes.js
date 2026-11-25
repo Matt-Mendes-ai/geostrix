@@ -11,6 +11,7 @@ import { smallGridCoordinates } from "./crsFromColumns.js";
 import { placeLine } from "./maxwellTem.js";
 import { arrMin, arrMax } from "./arrayStats.js";
 import { t as tr } from "./i18n.js";
+import { isTs2dip, parseTs2dip } from "./tqipdbPlot.js"; // TASKS.csv #4077
 
 const num = (v) => { if (v == null || String(v).trim() === "" || /^(\*|na|nan|null|inf)$/i.test(String(v).trim())) return null; const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) ? n : null; };
 const norm = (h) => String(h).trim().toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -45,7 +46,7 @@ function axisOf(pts) {
 }
 
 // -> null (not an electrode-coordinate table, or its coordinates are a local grid: the along-line reader takes it as it is) | { error } | { lines: [{ name, headers, rows, pts, readings, note }] }
-export function electrodeLines(headers, rows, { lineCol = null, base = "line", tag = null } = {}) {
+export function electrodeLines(headers, rows, { lineCol = null, base = "line", tag = null, allowLocal = false } = {}) {
   const el = electrodeColumns(headers);
   if (!el) return null;
   const g = guessDcipColumns(headers.filter((h) => !Object.values(el).some((c) => c.x === h || c.y === h || c.z === h)));
@@ -63,7 +64,8 @@ export function electrodeLines(headers, rows, { lineCol = null, base = "line", t
       if (e.N && e.M && e.N[0] === e.M[0] && e.N[1] === e.M[1]) e.N = null;
     }
     const all = []; for (const e of E) for (const p of [e.A, e.B, e.M, e.N]) if (p) all.push(p);
-    if (smallGridCoordinates(all.map(([x, y]) => ({ x, y }))) || all.some(([x, y]) => Math.abs(x) < 1e5 && Math.abs(y) < 1e5)) return null; // a local grid / chainage: the along-line reader's own case (Zonge TQIPdb)
+    const local = smallGridCoordinates(all.map(([x, y]) => ({ x, y }))) || all.some(([x, y]) => Math.abs(x) < 1e5 && Math.abs(y) < 1e5); // #4077 — a SMARTem TIP file on a local grid is kept, unplaced (allowLocal)
+    if (local && !allowLocal) return null; // a local grid / chainage: the along-line reader's own case (Zonge TQIPdb)
     const ax = axisOf(all);
     if (ax.sdAcross > 60 && ax.sdAcross > 0.12 * ax.length) { // electrodes on several lines: a 3D survey
       // the receiver lines: the across-axis offsets of the potential electrodes, grouped where they stand more than 50 m (or 2 % of the length) apart
@@ -94,7 +96,7 @@ export function electrodeLines(headers, rows, { lineCol = null, base = "line", t
     const name = key ? `${base} ${String(key).replace(/^Tx(\S+)Rx\S+$/i, "$1")}` : base;
     out.push({
       name, headers: ["A", "B", "M", "N", rhoCol, ...(ipCol ? [ipCol] : [])], rows: outRows,
-      pts: { s1: 0, x1: p0[0], y1: p0[1], s2: span, x2: p1[0], y2: p1[1] },
+      pts: local ? null : { s1: 0, x1: p0[0], y1: p0[1], s2: span, x2: p1[0], y2: p1[1] },
       readings: E.length, stacked: E.length - outRows.length,
       note: tr("Electrodes read as one line (azimuth {az}°, {len} m){v}.", { az: azimuth.toFixed(1), len: Math.round(span).toLocaleString(), v: E.length !== outRows.length ? tr("; {n} repeats stacked", { n: (E.length - outRows.length).toLocaleString() }) : "" }),
     });
@@ -108,6 +110,7 @@ export const isSmartemTip = (text) => /^\s*EXPORTED SMARTem\d* TIP data file/i.t
 export function parseSmartemTip(text) {
   const lines = String(text || "").split(/\r\n|\r|\n/);
   let cols = null, line = "", rows = [];
+  const config = (/CONFIG:(\S+)/i.exec(String(text || "").slice(0, 3000)) || [])[1] || "", poleTx = /^Pole_/i.test(config), poleRx = /_Pole$/i.test(config); // #4077 — a pole's second electrode is given as a remote map position in the file: left out
   for (const raw of lines) {
     const l = raw.trim();
     if (!l || l[0] === "/") continue;
@@ -117,7 +120,7 @@ export function parseSmartemTip(text) {
     const t = l.split(/\s+/);
     if (t.length !== cols.length) continue;
     const o = { Line: line };
-    cols.forEach((c, i) => { if (/^(C1|C2|P1|P2)[ENZ]$/.test(c) || c === "APPRES" || c === "M" || c === "MERR" || c === "STN" || c === "RDNG") o[c === "APPRES" ? "Apparent resistivity" : c === "M" ? "Chargeability" : c] = t[i]; });
+    cols.forEach((c, i) => { if (poleTx && /^C2[ENZ]$/.test(c)) { o[c] = ""; return; } if (poleRx && /^P2[ENZ]$/.test(c)) { o[c] = ""; return; } if (/^(C1|C2|P1|P2)[ENZ]$/.test(c) || c === "APPRES" || c === "M" || c === "MERR" || c === "STN" || c === "RDNG") o[c === "APPRES" ? "Apparent resistivity" : c === "M" ? "Chargeability" : c] = t[i]; });
     rows.push(o);
   }
   if (!cols || !rows.length) return null;
@@ -154,7 +157,8 @@ export function parseUbc2dObs(text, base = "line") {
 export function electrodeFile(text, name, t, { lineTag = null } = {}) {
   const base = String(name || "line").replace(/\.[a-z0-9]+$/i, "");
   if (isUbc2dObs(text)) return parseUbc2dObs(text, base);
-  if (isSmartemTip(text)) { const tip = parseSmartemTip(text); return tip ? electrodeLines(tip.headers, tip.rows, { lineCol: "Line", base }) : null; }
+  if (isTs2dip(text)) return parseTs2dip(text, base); // TASKS.csv #4077 — a TS2DIP .ipd: the observed columns of its CSV, the IP unit from its comment line
+  if (isSmartemTip(text)) { const tip = parseSmartemTip(text); return tip ? electrodeLines(tip.headers, tip.rows, { lineCol: "Line", base, allowLocal: true }) : null; }
   if (!t?.headers?.length) return null;
   return electrodeLines(t.headers, t.rows, { base, tag: lineTag }) || placedFromName(t, base, lineTag);
 }

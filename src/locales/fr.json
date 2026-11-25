@@ -15791,5 +15791,15 @@
   "Which soundings?": "Quels sondages ?",
   "Shallow (short periods) at the top. Click a column for its curves.": "Le peu profond (périodes courtes) en haut. Cliquez sur une colonne pour ses courbes.",
   "Which station?": "Quelle station ?",
-  "Elevation {z} m, {n} frequencies. Phase over 45°: more conductive with depth.": "Altitude {z} m, {n} fréquences. Phase au-dessus de 45° : plus conducteur en profondeur."
+  "Elevation {z} m, {n} frequencies. Phase over 45°: more conductive with depth.": "Altitude {z} m, {n} fréquences. Phase au-dessus de 45° : plus conducteur en profondeur.",
+  "\"{name}\" is a SMARTem IP (TIP) file: electrode positions, apparent resistivity and chargeability, not a TEM survey. Open it in the DC / IP line pane.": "« {name} » est un fichier SMARTem de PP (TIP) : positions des électrodes, résistivité apparente et chargeabilité, et non un levé TEM. Ouvrez-le dans le volet Ligne DC / PP.",
+  "This is a TQIPdb plot-point table of a {array} survey: only pole-dipole plot points can be turned back into electrode positions.": "Il s'agit d'une table de points de tracé TQIPdb d'un levé {array} : seuls les points de tracé pôle-dipôle peuvent être reconvertis en positions d'électrodes.",
+  "TQIPdb plot-point table: {n} readings, pole-dipole with a {a} m dipole{v}. The table gives plot points and n-levels, not electrodes: the current pole is taken at the {side} end of each array. If the survey ran the other way the readings are mirrored; the raw dump of the line gives the electrode positions.": "Table de points de tracé TQIPdb : {n} lectures, pôle-dipôle avec un dipôle de {a} m{v}. La table donne des points de tracé et des niveaux n, pas des électrodes : le pôle d'injection est pris à l'extrémité de {side} de chaque dispositif. Si le levé a été fait dans l'autre sens, les lectures sont en miroir ; le fichier brut de la ligne donne les positions des électrodes.",
+  " (the array is not stated: read as pole-dipole)": " (le dispositif n'est pas indiqué : lu comme pôle-dipôle)",
+  "higher-coordinate": "coordonnée la plus élevée",
+  "lower-coordinate": "coordonnée la plus basse",
+  "{n} repeated plot points.": "{n} points de tracé répétés.",
+  "TS2DIP file{v}: {n} readings (the observed values; the contractor's model columns are not read){u}.": "Fichier TS2DIP{v} : {n} lectures (les valeurs observées ; les colonnes du modèle de l'entrepreneur ne sont pas lues){u}.",
+  ", IP as phase in mrad": ", PP en phase (mrad)",
+  ", IP in {unit}": ", PP en {unit}"
 }

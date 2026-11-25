@@ -10,6 +10,7 @@ import { terrainElevationAt } from "./inversion.js";
 import { median } from "./arrayStats.js"; // TASKS.csv #1114
 import { supportEnvelope } from "./supportEnvelope.js"; // TASKS.csv #681 — the shown / hidden rule in the CSV
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { isTqipdbPlot, parseTqipdbPlot, tqipdbLineName } from "./tqipdbPlot.js"; // TASKS.csv #4077 — Zonge TQIPdb plot-point tables
 
 const norm = (h) => String(h).trim().replace(/^["']+|["']+$/g, "").toLowerCase().replace(/[\s()\[\]./-]+/g, "_").replace(/_+$/, ""); // #4065: a quoted header ("F1x")
 // TASKS.csv #600 — contractor TDIP files (IRIS / Geosoft-style .dat / .ipg, e.g. a BC ARIS pole-dipole survey):
@@ -38,6 +39,7 @@ const ALIASES = {
 // has no such header (then it is read as an ordinary CSV).
 export const threeDError = (n, offline) => tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. Read it with \"3D survey from electrode coordinates\" at the end of this pane, or load the contractor's 3D model under Block models.", { n, offline }); // #1660 / #1784
 export function parseDcipWhitespaceText(text) {
+  if (isTqipdbPlot(text)) return parseTqipdbPlot(text); // TASKS.csv #4077 — Zonge TQIPdb "Line PltPt Nlevel Res Mx": plot points, the electrodes rebuilt from the array
   const lines = String(text).split(/\r?\n/);
   const isA = (t) => ALIASES.a.includes(norm(t)), isM = (t) => ALIASES.m.includes(norm(t));
   const hi = lines.findIndex((l) => { const t = l.trim().split(/\s+/); return t.length >= 4 && t.some(isA) && t.some(isM); });
@@ -421,5 +423,5 @@ export function suggestModelDepth(readings, span, cell) {
 // line file's header ('LINE:3850E', 'Line = 3850E'), the first hint for finding its stations. null when there is none.
 export function lineTagOf(text) {
   const m = /^[ \t]*LINE[ \t]*[:=][ \t]*([A-Za-z0-9._+-]+)/im.exec(String(text || "").slice(0, 4000));
-  return m ? m[1] : null;
+  return m ? m[1] : tqipdbLineName(text); // #4077 — a TQIPdb table whose header block was cut short: the line's number in its first row
 }

@@ -157,7 +157,7 @@ test("MIMDAS 2D lines with x positions only (eastings): placed from the line's n
 
 test("the picker offers .xyz and .dc; a line placed by its electrodes or its name is kept placed, and is not told to place it (found in the #4065 live check)", () => {
   const src = read("../src/components/DcipPanel.jsx");
-  assert.match(src, /accept="\.csv,\.txt,\.dat,\.ipg,\.arw,\.gpx,\.wpt,\.xyz,\.dc"/);
+  assert.match(src, /accept="\.csv,\.txt,\.dat,\.ipg,\.arw,\.gpx,\.wpt,\.xyz,\.dc,\.ip,\.ipd"/ /* TASKS.csv #4077 — .ip (SMARTem TIP) and .ipd (TS2DIP) */);
   assert.match(src, /const placedNow = placedPts \? placementOf\(placedPts\) : null;/);
   assert.match(src, /line: placedNow \|\| \{ x0: "", y0: ""/);
   assert.match(src, /\(newlyKept && !placedNow \? " " \+ tr\("Kept in the project as/);
