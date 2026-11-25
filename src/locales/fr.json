@@ -15791,5 +15791,20 @@
   "Which soundings?": "Quels sondages ?",
   "Shallow (short periods) at the top. Click a column for its curves.": "Le peu profond (périodes courtes) en haut. Cliquez sur une colonne pour ses courbes.",
   "Which station?": "Quelle station ?",
-  "Elevation {z} m, {n} frequencies. Phase over 45°: more conductive with depth.": "Altitude {z} m, {n} fréquences. Phase au-dessus de 45° : plus conducteur en profondeur."
+  "Elevation {z} m, {n} frequencies. Phase over 45°: more conductive with depth.": "Altitude {z} m, {n} fréquences. Phase au-dessus de 45° : plus conducteur en profondeur.",
+  "{name} is a Zonge raw file: open the averaged .avg of the same line.": "{name} est un fichier brut Zonge : ouvrez le .avg moyenné de la même ligne.",
+  "{name} holds Zonge parameters only: open the .avg or .amr.": "{name} ne contient que des paramètres Zonge : ouvrez le .avg ou le .amr.",
+  "{name} is a Zonge database: open the .avg or .amr.": "{name} est une base de données Zonge : ouvrez le .avg ou le .amr.",
+  "{name} holds a Zonge TEM .amr's gate times: open the .amr with it.": "{name} contient les temps de fenêtre d'un .amr TEM Zonge : ouvrez le .amr avec lui.",
+  "{name} is a Zonge TEM average: open the line's .amr in TEM line data.": "{name} est une moyenne TEM Zonge : ouvrez le .amr de la ligne dans Données TEM en lignes.",
+  "{name} is a Zonge CR (IP) average: open it in IP / Resistivity.": "{name} est une moyenne CR (PP) Zonge : ouvrez-la dans PP / Résistivité.",
+  "{name} is a Zonge CSAMT average: open it in MT / AMT.": "{name} est une moyenne CSAMT Zonge : ouvrez-la dans MT / AMT.",
+  "{name} is Zonge TEM line data: open it in TEM line data (EM).": "{name} est un fichier de données TEM en lignes Zonge : ouvrez-le dans Données TEM en lignes (EM).",
+  "{name}: a CR average with no {cols} column.": "{name} : une moyenne CR sans colonne {cols}.",
+  "{name}: a CR average with no dipole length ($ ASPACE).": "{name} : une moyenne CR sans longueur de dipôle ($ ASPACE).",
+  "{n} reading(s) plot off their dipoles' middle: check the electrodes.": "{n} lecture(s) se placent hors du milieu de leurs dipôles : vérifiez les électrodes.",
+  "{name}: a CR average in a layout GeoStrix does not know.": "{name} : une moyenne CR dans un format que GeoStrix ne connaît pas.",
+  "{name}: no CR reading with a 0 Hz row.": "{name} : aucune lecture CR avec une ligne à 0 Hz.",
+  "Zonge CR average: rho and the 3-point phase (mrad) at 0 Hz.": "Moyenne CR Zonge : rho et la phase en 3 points (mrad) à 0 Hz.",
+  "Zonge CR average: rho and phase (mrad) at the transmitter frequency.": "Moyenne CR Zonge : rho et phase (mrad) à la fréquence de l'émetteur."
 }

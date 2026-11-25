@@ -15791,5 +15791,20 @@
   "Which soundings?": "أي سبرات؟",
   "Shallow (short periods) at the top. Click a column for its curves.": "الضحل (الدورات القصيرة) في الأعلى. انقر على عمود لرؤية منحنياته.",
   "Which station?": "أي محطة؟",
-  "Elevation {z} m, {n} frequencies. Phase over 45°: more conductive with depth.": "الارتفاع {z} م، {n} تردداً. طور فوق 45°: أكثر توصيلاً مع العمق."
+  "Elevation {z} m, {n} frequencies. Phase over 45°: more conductive with depth.": "الارتفاع {z} م، {n} تردداً. طور فوق 45°: أكثر توصيلاً مع العمق.",
+  "{name} is a Zonge raw file: open the averaged .avg of the same line.": "{name} ملف Zonge خام: افتح ملف ‎.avg‎ المتوسط للخط نفسه.",
+  "{name} holds Zonge parameters only: open the .avg or .amr.": "{name} يحوي معاملات Zonge فقط: افتح ملف ‎.avg‎ أو ‎.amr‎.",
+  "{name} is a Zonge database: open the .avg or .amr.": "{name} قاعدة بيانات Zonge: افتح ملف ‎.avg‎ أو ‎.amr‎.",
+  "{name} holds a Zonge TEM .amr's gate times: open the .amr with it.": "{name} يحوي أزمنة بوابات ملف ‎.amr‎ من نوع TEM من Zonge: افتح ملف ‎.amr‎ معه.",
+  "{name} is a Zonge TEM average: open the line's .amr in TEM line data.": "{name} متوسط TEM من Zonge: افتح ملف ‎.amr‎ للخط في بيانات TEM على الخطوط.",
+  "{name} is a Zonge CR (IP) average: open it in IP / Resistivity.": "{name} متوسط CR (IP) من Zonge: افتحه في IP / المقاومية.",
+  "{name} is a Zonge CSAMT average: open it in MT / AMT.": "{name} متوسط CSAMT من Zonge: افتحه في MT / AMT.",
+  "{name} is Zonge TEM line data: open it in TEM line data (EM).": "{name} بيانات TEM على الخطوط من Zonge: افتحه في بيانات TEM على الخطوط (EM).",
+  "{name}: a CR average with no {cols} column.": "{name}: متوسط CR بلا عمود {cols}.",
+  "{name}: a CR average with no dipole length ($ ASPACE).": "{name}: متوسط CR بلا طول ثنائي القطب ($ ASPACE).",
+  "{n} reading(s) plot off their dipoles' middle: check the electrodes.": "{n} قراءة تُرسم خارج منتصف ثنائيات أقطابها: تحقق من الأقطاب.",
+  "{name}: a CR average in a layout GeoStrix does not know.": "{name}: متوسط CR بتنسيق لا يعرفه GeoStrix.",
+  "{name}: no CR reading with a 0 Hz row.": "{name}: لا توجد قراءة CR بصف عند 0 Hz.",
+  "Zonge CR average: rho and the 3-point phase (mrad) at 0 Hz.": "متوسط CR من Zonge: rho وطور النقاط الثلاث (mrad) عند 0 Hz.",
+  "Zonge CR average: rho and phase (mrad) at the transmitter frequency.": "متوسط CR من Zonge: rho والطور (mrad) عند تردد المرسل."
 }

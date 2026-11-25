@@ -34,6 +34,7 @@ import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2242
 import { t as tr } from "../lib/i18n.js";
 import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #3883 (#3812) — a 3D mesh handed to Block models // TASKS.csv #786
+import { zongeKind, zongeRefusal, crAvgToTable } from "../lib/zonge.js"; // TASKS.csv #4076 — Zonge CR averages
 import { isUBCMeshText } from "../lib/voxel.js"; // TASKS.csv #3812 — a 3D UBC mesh offered to the 2D import
 import { isDcip2dMeshText, looksLikeDcip2dModel, parseDcip2dMesh, parseDcip2dModel, parseDcip2dTopo, dcip2dSection, meshCore } from "../lib/ubc2d.js"; // TASKS.csv #1348
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
@@ -162,7 +163,10 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
       const textAll = decodeTableBytes(await f.arrayBuffer()).text;
       // TASKS.csv #4065 — a Queensland SL3 file with a header block and no data rows lists the survey's files; the readings are in the files it names
       if (/^H\d{3,4}\t/m.test(textAll.slice(0, 20000)) && !/^D\t/m.test(textAll)) { setMsg({ ok: false, text: tr("\"{name}\" is an SL3 header with no readings: open the data files it lists.", { name: f.name }) }); return; }
-      let t = await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
+      // TASKS.csv #4076 — a Zonge averaged file: a CR average is read here (each reading's 0 Hz row: rho and the 3-point phase); another Zonge file is named
+      { const no = zongeRefusal(textAll, f.name, "dcip"); if (no) { setMsg({ ok: false, text: no }); return; } }
+      let t = zongeKind(textAll) === "cr" ? (() => { const z = crAvgToTable(textAll, f.name); return { headers: z.headers, rows: z.rows, note: [z.note, ...z.warnings].join(" ") }; })()
+        : await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
       // TASKS.csv #600 — contractor TDIP files (.dat / .ipg): metadata lines, then a whitespace-separated table;
       // #826 — a Res2DInv .dat (positional header, electrodes from the array type) is tried first
       if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) {
@@ -222,6 +226,8 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
   const readLineFile = async (f) => {
     const text = decodeTableBytes(await f.arrayBuffer()).text;
     if (/^\s*\$\$DATA\$\$/.test(text)) throw new Error(tr("this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead."));
+    { const no = zongeRefusal(text, f.name, "dcip"); if (no) throw new Error(no); } // TASKS.csv #4076
+    if (zongeKind(text) === "cr") { const z = crAvgToTable(text, f.name); return [{ ...parseDcipRows(z.rows, guessDcipColumns(z.headers)), lineTag: z.lineName }]; }
     let t = await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
     if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) { const r = parseRes2dinv(text) || parseDcipWhitespaceText(text); if (r?.error) throw new Error(r.error); if (r) t = r; } // #1660
     const el = electrodeFile(text, f.name, t, { lineTag: lineTagOf(text) }); // TASKS.csv #4065 — returns the file's lines
@@ -237,7 +243,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
     // a table of stations or a line? A GPS Utility file has "W " waypoints; only a .txt / .gpx / .wpt can be one
     const stationFiles = [], lineFiles = [];
     for (const f of all) {
-      if (/\.(gpx|wpt)$/i.test(f.name)) { stationFiles.push(f); continue; }
+      if (/\.(gpx|wpt|stn)$/i.test(f.name)) { stationFiles.push(f); continue; } // .stn: a Zonge station file (#4076)
       if (/\.txt$/i.test(f.name) && !guessDcipColumns((await parseTableFile(f).catch(() => ({ headers: [] }))).headers).a) { stationFiles.push(f); continue; }
       lineFiles.push(f);
     }
@@ -440,7 +446,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
           {pick && <button className="gs-btn gs-btn--icon gs-btn--sm" onClick={async () => { const e = dcipLines.find((l) => l.id === pick); if (!await confirmDestructive(tr("Remove the saved line \"{name}\"{inv} from the project?", { name: e?.name || "", inv: e?.section ? tr(" and its inversion result") : "" }), { recover: e?.section ? tr("re-import the line file and run the inversion again.") : tr("re-import the line file.") })) return; removeDcipLine(pick); setPick(""); }} /* confirm: #322 */ title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")}><Trash2 size={14} /></button>}
         </div>
       )}
-      <input ref={fileRef} type="file" multiple accept=".csv,.txt,.dat,.ipg,.arw,.gpx,.wpt,.xyz,.dc" style={{ display: "none" }} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
+      <input ref={fileRef} type="file" multiple accept=".csv,.txt,.dat,.ipg,.arw,.gpx,.wpt,.xyz,.dc,.avg,.stn" style={{ display: "none" }} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
       {/* TASKS.csv #1348 — a contractor's UBC-GIF DCIP2D inversion (dcinv2d.msh + dcinv2d.con / ipinv2d.chg), placed along its line */}
       <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => ubcRef.current?.click()} title={tr("The mesh (dcinv2d.msh) with its .con and / or .chg model, the topography file and the line's station file to place it")}><Upload size={14} />{" "}{tr("Import a UBC DCIP2D inversion (mesh + model)…")}</button>
       <div style={{ ...small, marginTop: 4 }}>{tr("One 2D line only. A UBC 3D mesh goes to Block models; a cloud of apparent values (X Y Z value) to Point survey.")}</div>{/* TASKS.csv #3812 */}
@@ -488,7 +494,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
   </>);
   const placeStep = (<>
           <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => stationRef.current?.click()} title={tr("GPS waypoints named '<line> <station>' (e.g. '8575E 750N'), or a table of station, X, Y and optional elevation: places the line and its ground profile")}><Upload size={14} />{" "}{tr("Load the line stations (GPS / station file)…")}</button>
-          <input ref={stationRef} type="file" accept=".txt,.csv,.dat,.gpx,.wpt,.xyz" style={{ display: "none" }} onChange={(e) => { onStationFile(e.target.files[0]); e.target.value = ""; }} />
+          <input ref={stationRef} type="file" accept=".txt,.csv,.dat,.gpx,.wpt,.xyz,.stn" style={{ display: "none" }} onChange={(e) => { onStationFile(e.target.files[0]); e.target.value = ""; }} />
           {stationFile && (
             <div style={row}>
               <span style={lbl}>{tr("Which line?")}</span>
