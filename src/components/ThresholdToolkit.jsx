@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #1523
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
-import { X, Download } from "./icons.js";
+import { Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #2902 — no Math.min / max(...spread) over a population (#371)
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources, intervalLength, DRILL_DOMAINS, drillDomainKeyFn } from "../lib/thresholds.js"; import { thresholdUnreachable, usableDefaultMethod, LOG_RULES, thresholdScale, ARITH_RULES, isLowRule } from "../lib/thresholds.js"; import { linTicks } from "./GeochemPlot.jsx"; // ARITH_RULES / isLowRule: #3173; // LOG_RULES, thresholdScale, linTicks: #3070 // drill: TASKS.csv #2196
@@ -16,24 +16,20 @@ import { formatLimit, fileCensoring } from "../lib/qaqc.js"; // fileCensoring: #
 import { attributeDomainOptions, attributeDomainLabel, customDomainOptions } from "../lib/customDomains.js"; // #2504; customDomainOptions: #3108
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #3108 — the built-in logs' names for their extra fields
 import { useStore } from "../lib/store.jsx"; // #2504 — the collars
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps, sel, th, td, label, panel, header } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js";
+import { backdropProps, sel, th, td, label } from "../lib/modalStyles.js";
 import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { thresholdRows, drillThresholdRows } from "../lib/analysisExports.js"; // TASKS.csv #1083; drill: #2196
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap)
 
 // Okabe & Ito (2008) colour-blind-safe palette, one colour per method (SVG presentation, so plain hex)
 const METHOD_COLOURS = { p90: "#999999", p95: "#56B4E9", p98: "#0072B2", mean2sd: "#E69F00", median2mad: "#009E73", tukey: "#CC79A7", probbreak: "#D55E00" };
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : v >= 100 ? Math.round(v).toLocaleString() : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toPrecision(2));
 
 export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements = [], mapLayers = [], geochemThresholds = [], setGeochemThresholds, onClose, assays = [], assayElements = [], projectLayers = {} /* #2196 */ }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
   // TASKS.csv #2196 (Matt's decision 2026-11-09) — drill assays as a second source: length-weighted, populations by a logged domain at
   // each interval's middle (Lithology / Alteration / Weathering), saved apart from the surface threshold of the same element
   const drillAssays = useMemo(() => assays.filter((a) => intervalLength(a) != null), [assays]);
@@ -125,128 +121,129 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
     saveFile({ suggestedName: `${symbol}_${drill ? "drill_" : ""}thresholds.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panelBox} role="dialog" aria-modal="true" aria-label={tr("Anomaly thresholds")} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Anomaly thresholds")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{drill ? tr("Drill assays, length-weighted: candidate thresholds side by side, judged within each population") : tr("Surface samples: candidate thresholds side by side, judged within each population")}</div>
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
-
-        <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-            {surfaceElements.length > 0 && drillAssays.length > 0 && assayElements.length > 0 && ( // #2196
-              <label style={ctl}>{tr("Source")}<select value={source} onChange={(e) => switchSource(e.target.value)} aria-label={tr("Threshold source")} style={{ ...sel, display: "block", marginTop: 4 }}>
-                <option value="surface">{tr("Surface samples")}</option>
-                <option value="drill">{tr("Drill assays (length-weighted)")}</option>
-              </select></label>
-            )}
-            <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>
-              {elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}
+  // TASKS.csv #4070 (Geochem panes) — on the shared step shell (StepDialog): Data (the source, element, unit and populations, with the saved rule), Rules (the
+  // candidates side by side; a column or a rule picks one, a row the population to plot) and Plots (the histogram and the probability plot of one population;
+  // Save, the gold primary). How each source is weighted, how to read the table and that the rule is a decision moved into the Help card.
+  const [at, setAt] = useState(0);
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{tr("Anomaly thresholds")}</summary>
+      <div style={note}>{drill ? tr("Drill assays, length-weighted: candidate thresholds side by side, judged within each population") : tr("Surface samples: candidate thresholds side by side, judged within each population")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{drill ? tr("Each assay counts by its length, so close sampling in the ore does not outweigh the background. Group by the lithology, alteration or weathering code each interval overlaps most. The histogram counts intervals.") : tr("Soils over basalt and granite, or in B and C horizons, have different backgrounds: judge each on its own. Group by medium, any sample-file column, or map unit.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Robust rules need at least {a} samples, the probability-plot break {b}.", { a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
+      {!logOn && autoScale === "linear" && <div style={{ ...note, marginTop: 6 }}>{tr("{symbol} reads as a major element: the plots and rules use the values themselves, and the log rules are behind the tick. A major is often read by its cut-offs too (Grade stats, Above cut-off).", { symbol }) /* #3173 */}</div>}
+      <div style={{ ...note, marginTop: 6 }}>{tr("Geologists disagree on the right rule. The threshold you save is a decision, stored with its date and rule for review.")}</div>
+    </details>
+  );
+  const ruleLabel = method ? tr(THRESHOLD_METHODS.find((m) => m.id === method)?.label || "") : "";
+  const saveStep = { label: method ? tr("Save {rule} for {symbol}", { rule: ruleLabel, symbol }) : tr("Choose a rule (click its column)"), onClick: save, disabled: !pops.length || chosenUnusable /* #2507 */ };
+  const noPops = !pops.length ? (drill ? tr("No positive {symbol} values in the drill assays.", { symbol }) : tr("No positive {symbol} values in the surface samples.", { symbol })) : "";
+  const steps = [
+    { key: "data", label: tr("Data"), primary: { label: tr("Next: rules"), disabled: !pops.length }, hint: noPops, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+          {surfaceElements.length > 0 && drillAssays.length > 0 && assayElements.length > 0 && ( // #2196
+            <label style={ctl}>{tr("Source")}<select value={source} onChange={(e) => switchSource(e.target.value)} aria-label={tr("Threshold source")} style={{ ...sel, display: "block", marginTop: 4 }}>
+              <option value="surface">{tr("Surface samples")}</option>
+              <option value="drill">{tr("Drill assays (length-weighted)")}</option>
             </select></label>
-            {isPlainUnit(unit) && typeof setDisplayUnit === "function" && <label style={ctl} title={tr("The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.", { symbol })}>{tr("Show in")}
-              <select value={project?.displayUnits?.[symbol] && project.displayUnits[symbol] !== unit && project.displayUnits[symbol] !== storedLabel ? project.displayUnits[symbol] : ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={{ ...sel, display: "block", marginTop: 4 }} aria-label={tr("Show in")}>
-                <option value="">{tr("As stored ({unit})", { unit: storedLabel })}</option>
-                {DISPLAY_UNITS.filter((u) => u !== unit && u !== storedLabel).map((u) => <option key={u} value={u}>{u}</option>)}
-              </select></label>}{/* #3236 / #3290 */}
-            <label style={ctl}>{tr("Populations")}<select value={groupBy} onChange={(e) => { setGroupBy(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 320 }}>
-              {gOpts.map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "labmeta" ? tr("Lab column: {v}", { v: o.label }) /* #1828 */ : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : o.kind === "attribute" ? attributeDomainLabel(o.d, tr) : tr(o.label)}</option>)}
-            </select></label>
-          </div>
-          {drill
-            ? <div style={note}>{tr("Each assay counts by its length, so close sampling in the ore does not outweigh the background. Group by the lithology, alteration or weathering code each interval overlaps most. The histogram counts intervals.")}</div>
-            : <div style={note}>{tr("Soils over basalt and granite, or in B and C horizons, have different backgrounds: judge each on its own. Group by medium, any sample-file column, or map unit.")}</div>}
-          {mixedSources && <div style={{ ...note, color: groupBy === "medium_source" || groupBy === "attr:source" ? undefined : "var(--color-warn-text)" }}>{tr("Public survey samples and your own are judged apart by default, as labs, methods and decades differ. GeoStrix does not level one survey to another.")}</div>}
-          {saved && (
-            <div style={{ ...note, color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px" }}>
-              {tr("Saved for {symbol}: {rule}, populations by {groups}, decided {date}.", { symbol, rule: tr(saved.methodLabel), groups: saved.groupLabel, date: saved.decided })}
-            </div>
           )}
-
-          {!pops.length ? (
-            <div style={note}>{drill ? tr("No positive {symbol} values in the drill assays.", { symbol }) : tr("No positive {symbol} values in the surface samples.", { symbol })}</div>
-          ) : (
-            <>
-              <div style={{ overflowX: "auto", flexShrink: 0 }}>{/* #1384: in the column body an overflow box shrank to a 25 px header strip */}
-                <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                  <thead>
-                    <tr>
-                      <th style={{ ...th, textAlign: "start" }}>{tr("Population")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No result is flagged '<': this is the share on the column's lowest value, read as half a substituted limit (a guess).") : tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("On the floor %")}</th>{/* #3243 */}
-                      {shownMethods.map((m) => (
-                        <th key={m.id} style={{ ...th, cursor: "pointer", background: method === m.id ? "var(--color-selected-bg)" : undefined }} title={`${tr(m.label)}${m.ref ? ` (${m.ref})` : ""}: ${tr(m.assumption)}`} onClick={() => setMethod(m.id)}>
-                          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: METHOD_COLOURS[m.id], marginRight: 4 }} />{tr(m.label)}
-                        </th>
-                      ))}
-                      <th style={th} title={isLowRule(method) ? tr("Samples at or below the chosen threshold") : tr("Samples at or above the chosen threshold")}>{isLowRule(method) ? tr("Below") : tr("Above")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pops.map((p) => (
-                      <tr key={p.key} onClick={() => setViewKey(p.key)} style={{ cursor: "pointer", background: view?.key === p.key ? "var(--color-bg-subtle)" : undefined }}>
-                        <td style={{ ...td, textAlign: "start" }}>{groupLabel(p.key)}</td>
-                        <td style={td}>{p.summary.n}</td>
-                        <td style={{ ...td, color: p.summary.censoredPct > 30 || p.zero ? "var(--color-warn-text)" : undefined }} title={p.zero ? tr("{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics", { n: p.zero }) : undefined}>{p.zero ? tr("{pct} (+{n} at 0)", { pct: Math.round(p.summary.censoredPct), n: p.zero }) : Math.round(p.summary.censoredPct)}</td>
-                        {shownMethods.map((m) => { const off = thresholdUnreachable(p.cand.values[m.id], p.summary, unit, !!m.low); /* #2507 */ return <td key={m.id} title={off ? tr("Above every sample of this population (its highest is {max} {unit}): no anomaly by this rule", { max: fmt(sh(p.summary.max)), unit: dispUnit }) : undefined} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined, color: off ? "var(--color-text-disabled)" : undefined, textDecoration: off ? "line-through" : undefined }}>{fmt(sh(p.cand.values[m.id]))}</td>; })}
-                        <td style={td}>{p.cand.values[method] == null ? "—" : p.values.filter((v) => (isLowRule(method) ? v <= p.cand.values[method] : v >= p.cand.values[method])).length}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div style={note}>{tr("Values in {unit}. Click a column to pick its rule, a row to plot it. Robust rules need at least {a} samples, the probability-plot break {b}.", { unit: dispUnit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
-              <label style={{ ...note, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><input type="checkbox" checked={logOn} onChange={(e) => setLogChoice({ key: scaleKey, on: e.target.checked })} />{tr("Log scale and the log rules")}</label>{/* #3070 */}
-              {!logOn && <div style={note}>{autoScale === "linear" ? tr("{symbol} reads as a major element: the plots and rules use the values themselves, and the log rules are behind the tick. A major is often read by its cut-offs too (Grade stats, Above cut-off).", { symbol }) /* #3173 */ : tr("Arithmetic scale: the log rules are not offered.")}</div>}
-              {unusableRules.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Struck through: {rules} land above every sample (or over 100 %) and find no anomaly here, often a sign of two populations. Separate them with the Populations selector; these rules cannot be saved.", { rules: unusableRules.map((m) => tr(m.label)).join(", ") })}</div>}{/* #2507 */}
-              {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" are 0 in the source (below detection or not analyzed: the layer does not say) and are left out of n and every threshold. If below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
-              {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: formatLimit(sh(floor.floor)), unit: dispUnit, dl: formatLimit(sh(floor.dl)) })}</div>}{/* #1520 */}
-              {step && <div style={note}>{tr("{el} is reported to {step} {unit}, with {n} results of 0 below it: {step} is the reporting step, not half a limit, so it is not counted as <DL.", { el: symbol, step: formatLimit(sh(step.step)), unit: dispUnit, n: step.zeros.toLocaleString() })}</div>}{/* #2913 */}
-              {view && view.summary.censoredPct > 30 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round(view.summary.censoredPct), symbol, pop: groupLabel(view.key) })}</div>}
-
-              {view && (
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-                    <div style={label}>{logOn ? tr("Histogram — {pop}, log₁₀ {symbol}", { pop: groupLabel(view.key), symbol }) : tr("Histogram — {pop}, {symbol}", { pop: groupLabel(view.key), symbol })}</div>
-                    <LogHistogram summary={view.summary} values={pickValues(view.cand.values, shownMethods)} method={method} unit={dispUnit} k={dk} log={logOn} />
-                  </div>
-                  <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-                    <div style={label}>{tr("Probability plot — {pop}", { pop: groupLabel(view.key) })}</div>
-                    <ProbabilityPlot prob={view.cand.prob} values={pickValues(view.cand.values, shownMethods)} method={method} unit={dispUnit} k={dk} log={logOn} />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <div style={label}>{tr("The rules")}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 10px", fontSize: "var(--font-size-sm)" }}>
-                  {shownMethods.map((m) => (
-                    <React.Fragment key={m.id}>
-                      <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", whiteSpace: "nowrap" }}>
-                        <input type="radio" name="th-method" checked={method === m.id} onChange={() => setMethod(m.id)} />
-                        <span style={{ display: "inline-block", width: 10, height: 3, background: METHOD_COLOURS[m.id] }} />{tr(m.label)}
-                      </label>
-                      <span style={{ color: "var(--color-text-secondary)" }}>{m.ref ? `${m.ref}. ` : ""}{tr(m.assumption)}</span>
-                    </React.Fragment>
-                  ))}
-                </div>
-                <div style={{ ...note, marginTop: 6 }}>{tr("Geologists disagree on the right rule. The threshold you save is a decision, stored with its date and rule for review.")}</div>
-              </div>
-            </>
-          )}
+          <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>
+            {elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}
+          </select></label>
+          {isPlainUnit(unit) && typeof setDisplayUnit === "function" && <label style={ctl} title={tr("The unit {symbol} is shown in here and in Best intercepts and Grade stats. Display only: the rules are worked in the stored unit.", { symbol })}>{tr("Show in")}
+            <select value={project?.displayUnits?.[symbol] && project.displayUnits[symbol] !== unit && project.displayUnits[symbol] !== storedLabel ? project.displayUnits[symbol] : ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={{ ...sel, display: "block", marginTop: 4 }} aria-label={tr("Show in")}>
+              <option value="">{tr("As stored ({unit})", { unit: storedLabel })}</option>
+              {DISPLAY_UNITS.filter((u) => u !== unit && u !== storedLabel).map((u) => <option key={u} value={u}>{u}</option>)}
+            </select></label>}{/* #3236 / #3290 */}
+          <label style={ctl}>{tr("Populations")}<select value={groupBy} onChange={(e) => { setGroupBy(e.target.value); setViewKey(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 320 }}>
+            {gOpts.map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "labmeta" ? tr("Lab column: {v}", { v: o.label }) /* #1828 */ : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : o.kind === "attribute" ? attributeDomainLabel(o.d, tr) : tr(o.label)}</option>)}
+          </select></label>
         </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)", flexWrap: "wrap" }}>
-          <button className="gs-btn gs-btn--primary" type="button" onClick={save} disabled={!pops.length || chosenUnusable /* #2507 */}>{method ? tr("Save {rule} for {symbol}", { rule: tr(THRESHOLD_METHODS.find((m) => m.id === method)?.label || ""), symbol }) : tr("Choose a rule (click its column)")}</button>
-          {saved && <button className="gs-btn" type="button" onClick={clear}>{tr("Remove saved rule")}</button>}
-          <button className="gs-btn" type="button" onClick={exportCsv} disabled={!pops.length}><Download size={14} />{tr("Samples with z-scores (CSV)")}</button>
-          <span style={{ flex: 1 }} />
-          <button className="gs-btn" type="button" onClick={onClose}>{tr("Close")}</button>
+        {mixedSources && <div style={{ ...note, color: groupBy === "medium_source" || groupBy === "attr:source" ? undefined : "var(--color-warn-text)" }}>{tr("Public survey samples and your own are judged apart by default, as labs, methods and decades differ. GeoStrix does not level one survey to another.")}</div>}
+        {saved && (
+          <div style={{ ...note, color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px" }}>
+            {tr("Saved for {symbol}: {rule}, populations by {groups}, decided {date}.", { symbol, rule: tr(saved.methodLabel), groups: saved.groupLabel, date: saved.decided })}
+          </div>
+        )}
+      </div>
+    ) },
+    { key: "rules", label: tr("Rules"), primary: { label: tr("Next: plots"), disabled: !pops.length }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ overflowX: "auto", flexShrink: 0 }}>{/* #1384: in the column body an overflow box shrank to a 25 px header strip */}
+          <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
+            <thead>
+              <tr>
+                <th style={{ ...th, textAlign: "start" }}>{tr("Population")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No result is flagged '<': this is the share on the column's lowest value, read as half a substituted limit (a guess).") : tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("On the floor %")}</th>{/* #3243 */}
+                {shownMethods.map((m) => (
+                  <th key={m.id} style={{ ...th, cursor: "pointer", background: method === m.id ? "var(--color-selected-bg)" : undefined }} title={`${tr(m.label)}${m.ref ? ` (${m.ref})` : ""}: ${tr(m.assumption)}`} onClick={() => setMethod(m.id)}>
+                    <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: METHOD_COLOURS[m.id], marginRight: 4 }} />{tr(m.label)}
+                  </th>
+                ))}
+                <th style={th} title={isLowRule(method) ? tr("Samples at or below the chosen threshold") : tr("Samples at or above the chosen threshold")}>{isLowRule(method) ? tr("Below") : tr("Above")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pops.map((p) => (
+                <tr key={p.key} onClick={() => setViewKey(p.key)} style={{ cursor: "pointer", background: view?.key === p.key ? "var(--color-bg-subtle)" : undefined }}>
+                  <td style={{ ...td, textAlign: "start" }}>{groupLabel(p.key)}</td>
+                  <td style={td}>{p.summary.n}</td>
+                  <td style={{ ...td, color: p.summary.censoredPct > 30 || p.zero ? "var(--color-warn-text)" : undefined }} title={p.zero ? tr("{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics", { n: p.zero }) : undefined}>{p.zero ? tr("{pct} (+{n} at 0)", { pct: Math.round(p.summary.censoredPct), n: p.zero }) : Math.round(p.summary.censoredPct)}</td>
+                  {shownMethods.map((m) => { const off = thresholdUnreachable(p.cand.values[m.id], p.summary, unit, !!m.low); /* #2507 */ return <td key={m.id} title={off ? tr("Above every sample of this population (its highest is {max} {unit}): no anomaly by this rule", { max: fmt(sh(p.summary.max)), unit: dispUnit }) : undefined} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined, color: off ? "var(--color-text-disabled)" : undefined, textDecoration: off ? "line-through" : undefined }}>{fmt(sh(p.cand.values[m.id]))}</td>; })}
+                  <td style={td}>{p.cand.values[method] == null ? "—" : p.values.filter((v) => (isLowRule(method) ? v <= p.cand.values[method] : v >= p.cand.values[method])).length}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={note}>{tr("Values in {unit}; click a column to pick its rule.", { unit: dispUnit })}</div>
+        <label style={{ ...note, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><input type="checkbox" checked={logOn} onChange={(e) => setLogChoice({ key: scaleKey, on: e.target.checked })} />{tr("Log scale and the log rules")}</label>{/* #3070 */}
+        {!logOn && autoScale !== "linear" && <div style={note}>{tr("Arithmetic scale: the log rules are not offered.")}</div>}
+        {unusableRules.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Struck through: {rules} land above every sample (or over 100 %) and find no anomaly here, often a sign of two populations. Separate them with the Populations selector; these rules cannot be saved.", { rules: unusableRules.map((m) => tr(m.label)).join(", ") })}</div>}{/* #2507 */}
+        {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" are 0 in the source (below detection or not analyzed: the layer does not say) and are left out of n and every threshold. If below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
+        {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: formatLimit(sh(floor.floor)), unit: dispUnit, dl: formatLimit(sh(floor.dl)) })}</div>}{/* #1520 */}
+        {step && <div style={note}>{tr("{el} is reported to {step} {unit}, with {n} results of 0 below it: {step} is the reporting step, not half a limit, so it is not counted as <DL.", { el: symbol, step: formatLimit(sh(step.step)), unit: dispUnit, n: step.zeros.toLocaleString() })}</div>}{/* #2913 */}
+        {view && view.summary.censoredPct > 30 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round(view.summary.censoredPct), symbol, pop: groupLabel(view.key) })}</div>}
+        <div>
+          <div style={label}>{tr("The rules")}</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", fontSize: "var(--font-size-sm)" }}>
+            {shownMethods.map((m) => (
+              <label key={m.id} title={`${m.ref ? `${m.ref}. ` : ""}${tr(m.assumption)}`} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", whiteSpace: "nowrap" }}>
+                <input type="radio" name="th-method" checked={method === m.id} onChange={() => setMethod(m.id)} />
+                <span style={{ display: "inline-block", width: 10, height: 3, background: METHOD_COLOURS[m.id] }} />{tr(m.label)}
+              </label>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    ) },
+    { key: "plots", label: tr("Plots"), primary: saveStep, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+          {pops.length > 1 && <label style={ctl}>{tr("Population")}<select value={view?.key ?? ""} onChange={(e) => setViewKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 320 }}>
+            {pops.map((p) => <option key={p.key} value={p.key}>{groupLabel(p.key)}</option>)}
+          </select></label>}
+          <span style={{ flex: 1 }} />
+          {saved && <button className="gs-btn" type="button" onClick={clear}>{tr("Remove saved rule")}</button>}
+          <button className="gs-btn" type="button" onClick={exportCsv} disabled={!pops.length}><Download size={14} />{tr("Samples with z-scores (CSV)")}</button>
+        </div>
+        {view && (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 360px", minWidth: 0 }}>
+              <div style={label}>{logOn ? tr("Histogram — {pop}, log₁₀ {symbol}", { pop: groupLabel(view.key), symbol }) : tr("Histogram — {pop}, {symbol}", { pop: groupLabel(view.key), symbol })}</div>
+              <LogHistogram summary={view.summary} values={pickValues(view.cand.values, shownMethods)} method={method} unit={dispUnit} k={dk} log={logOn} />
+            </div>
+            <div style={{ flex: "1 1 360px", minWidth: 0 }}>
+              <div style={label}>{tr("Probability plot — {pop}", { pop: groupLabel(view.key) })}</div>
+              <ProbabilityPlot prob={view.cand.prob} values={pickValues(view.cand.values, shownMethods)} method={method} unit={dispUnit} k={dk} log={logOn} />
+            </div>
+          </div>
+        )}
+      </div>
+    ) },
+  ];
+  const heading = tr("Anomaly thresholds"); // the dialog's name, seen (not a tooltip)
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} width="min(1100px, 96vw)" overlayProps={backdropProps(onClose)} />;
 }
 
 // TASKS.csv #3070 — the candidates of the rules shown only (a hidden log rule draws no line)
@@ -301,6 +298,5 @@ function ProbabilityPlot({ prob, values, method, unit, k = 1, log = true }) {
     </svg>
   );
 }
-const panelBox = panel({ width: "min(1100px, 96vw)", maxHeight: "92vh" }); // TASKS.csv #997 — the shared modal chrome
 const ctl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };

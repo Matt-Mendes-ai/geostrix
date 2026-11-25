@@ -24,7 +24,7 @@ test("#1797 without a worker (Node) the client gives the library's result, from 
 test("#1797 the panel runs it asynchronously with a busy state, and opens on the largest medium", () => {
   const p = readFileSync(new URL("../src/components/DomainsPanel.jsx", import.meta.url), "utf8");
   assert.ok(p.includes("const r = await geochemDomainsAsync(subset, symbols, units, { k });"));
-  assert.ok(p.includes('{busy ? tr("Running…") : tr("Run")}'));
+  assert.ok(p.includes('label: busy ? tr("Running…") : tr("Find domains")')); // #4070: the Samples step's primary (StepDialog)
   assert.ok(p.includes("return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? \"all\";"));
   const w = readFileSync(new URL("../src/lib/geochemDomains.worker.js", import.meta.url), "utf8");
   assert.ok(w.includes("geochemDomains(samples, symbols, units, { k })"));
