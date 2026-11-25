@@ -63,7 +63,25 @@ export function fdemDualem() {
   return rows.join("\n") + "\n";
 }
 
+// --- borehole EM: a Maxwell table (CRLF, as the files are) for a made-up hole DH-SYN-01, stations every 10 m from 10 to 300 m, components A, U and V,
+// 10 gates; a made-up conductor at 180 m: the axial (A) component crosses zero there, the cross components peak beside it, all decaying with time
+const DH_T = [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8, 25.6, 51.2];
+export function dhemMaxwell() {
+  const out = ["TEM File Created by MAXWELL (SYNTHETIC: made up for GeoStrix's tests, not a survey)",
+    "LINE:DH-SYN-01 INSTRUMENT:SYNTHETIC DATATYPE:TEM CONFIG:DOWNHOLE UNITS:(nT/s) BFREQ:5.0 CURRENT:20.0 XCOLLAR:458150.0 YCOLLAR:6563750.0 ZCOLLAR:312.0 &",
+    "LOOP:#1 &", "LV1X:457800.00 LV1Y:6563400.00 LV1Z:312.00 &", "LV2X:458500.00 LV2Y:6563400.00 LV2Z:312.00 &", "LV3X:458500.00 LV3Y:6564100.00 LV3Z:312.00 &", "LV4X:457800.00 LV4Y:6564100.00 LV4Z:312.00",
+    `/TIMES(ms)=${DH_T.join(",")}`, `/TIMESWIDTH(ms)=${DH_T.map((t) => +(t / 2).toFixed(3)).join(",")}`,
+    "      EAST        NORTH        LEVEL         ELEV      STATION    COMPONENT         GAIN" + DH_T.map((_, k) => `             CH${k + 1}`).join("")];
+  for (let s = 10; s <= 300; s += 10) {
+    const z = 312 - s, d = (s - 180) / 25, bump = Math.exp(-d * d);
+    const comp = { A: (t) => (2000 * Math.exp(-t / 3) * (1 - 0.002 * s) - 900 * d * bump * Math.exp(-t / 12)), U: (t) => 400 * bump * Math.exp(-t / 10) - 20, V: (t) => -250 * bump * Math.exp(-t / 10) + 10 };
+    for (const c of ["A", "U", "V"]) out.push(`  458150.0  6563750.0  ${z.toFixed(1)}  ${z.toFixed(1)}  ${s.toFixed(1)}  ${c}  1.0  ${DH_T.map((t) => comp[c](t).toFixed(3)).join("  ")}`);
+  }
+  return out.join("\r\n") + "\r\n";
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  writeFileSync(path.join(dir, "dhem_maxwell_SYNTHETIC.tem"), dhemMaxwell());
   writeFileSync(path.join(dir, "tem_lines_SYNTHETIC.xyz"), temWorkbench());
   for (let k = 0; k < 5; k++) writeFileSync(path.join(dir, `mt_SYNTHETIC_${k + 1}.edi`), mtEdi(k));
   writeFileSync(path.join(dir, "fdem_dualem_SYNTHETIC.csv"), fdemDualem());

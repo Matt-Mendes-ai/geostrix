@@ -115,3 +115,9 @@ test("GeoTIFF / GXF follows the house rules: Build + what, an index or filter is
   assert.ok(s.includes('{tr("Build the ternary image")}') && s.includes('tr("Compute the filtered grid")') && s.includes('tr("Compute the spectrum")'));
   assert.ok(!s.includes("adds a new raster"));
 });
+
+test("Borehole EM: not crowded (97 words, 1.5 screens with the DHEM fixture), so no steps; Add as layers is its one gold primary", () => {
+  const s = read("components/BoreholeEmPane.jsx");
+  assert.equal((s.match(/gs-btn--primary/g) || []).length, 1);
+  assert.match(s, /onClick=\{\(\) => addLayers\(src\)\} className="gs-btn gs-btn--primary gs-btn--block"/);
+});
