@@ -162,10 +162,22 @@ export function linePlacement(lineName, files, to) {
     const k = matchStationLine(Object.keys(f.lines).filter((n) => n && f.lines[n].length >= 2), lineName);
     if (k == null || !String(lineName).toLowerCase().includes(String(k).toLowerCase())) continue;
     const list = f.lines[k].map((p) => { const [x, y] = to(p.x, p.y, f.epsg); return { s: p.s, x, y, z: p.z }; });
-    const fit = fitStationLine(list);
-    if (!fit) continue;
-    const r1 = (v) => String(+v.toFixed(1));
-    return { x0: r1(fit.start[0]), y0: r1(fit.start[1]), x1: r1(fit.end[0]), y1: r1(fit.end[1]), ground: "", scale: Math.abs(fit.scale - 1) > 0.002 ? String(+fit.scale.toFixed(4)) : "", pts: null, stations: { file: f.name, line: k, list } };
+    const placed = placeFrom(list, f, k);
+    if (placed) return placed;
   }
+  // TASKS.csv #4076 — no line named alike: the same line NUMBER, when exactly one station line in all the files has it (a Zonge survey named its average
+  // 476250N.avg and its station file 476250E.utm.stn: the same line). Only names that ARE a line number and a direction letter (a file called 3850_all is
+  // not line 3850, #2020); two lines sharing the number (100N, 100E of a grid) are left for the user.
+  const core = (s) => { const m = String(s ?? "").trim().match(/^(\d{3,})(?:\.\d+)?\s*[NSEW]$/i); return m ? m[1] : null; };
+  const want = core(lineName), same = [];
+  if (want) for (const f of files) for (const k of Object.keys(f.lines)) if (k && f.lines[k].length >= 2 && core(k) === want) same.push([f, k]);
+  if (same.length === 1) { const [f, k] = same[0]; return placeFrom(f.lines[k].map((p) => { const [x, y] = to(p.x, p.y, f.epsg); return { s: p.s, x, y, z: p.z }; }), f, k); }
   return null;
+}
+// a line's placement from its stations (already in the project CRS): the fitted straight line, its chaining scale, the stations kept for the ground profile
+function placeFrom(list, f, k) {
+  const fit = fitStationLine(list);
+  if (!fit) return null;
+  const r1 = (v) => String(+v.toFixed(1));
+  return { x0: r1(fit.start[0]), y0: r1(fit.start[1]), x1: r1(fit.end[0]), y1: r1(fit.end[1]), ground: "", scale: Math.abs(fit.scale - 1) > 0.002 ? String(+fit.scale.toFixed(4)) : "", pts: null, stations: { file: f.name, line: k, list } };
 }

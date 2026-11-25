@@ -44,9 +44,9 @@ export function zongeRefusal(text, name, pane) {
   if (kind === "mde") return tr("{name} holds Zonge parameters only: open the .avg or .amr.", { name });
   if (/\.zdb$/i.test(name) && (kind === "tem-avg" || kind === "cr" || kind === "csamt")) return tr("{name} is a Zonge database: open the .avg or .amr.", { name });
   if (kind === "chn") return tr("{name} holds a Zonge TEM .amr's gate times: open the .amr with it.", { name });
-  const where = { cr: "dcip", csamt: "mt", "tem-amr": "tem", "tem-avg": "tem" }[kind];
+  if (kind === "tem-avg") return tr("{name} is a Zonge TEM average: open the line's .amr in TEM line data.", { name }); // in the TEM pane too: it reads the .amr, not the .avg
+  const where = { cr: "dcip", csamt: "mt", "tem-amr": "tem" }[kind];
   if (!where || where === pane) return null;
-  if (kind === "tem-avg") return tr("{name} is a Zonge TEM average: open the line's .amr in TEM line data.", { name });
   return { dcip: tr("{name} is a Zonge CR (IP) average: open it in IP / Resistivity.", { name }), mt: tr("{name} is a Zonge CSAMT average: open it in MT / AMT.", { name }), tem: tr("{name} is Zonge TEM line data: open it in TEM line data (EM).", { name }) }[where];
 }
 

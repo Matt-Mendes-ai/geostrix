@@ -74,6 +74,15 @@ test("a header-less Zonge .stn (station, easting, northing, elevation) is a stat
   assert.equal(all.length, 3);
 });
 
+test("an average named 500N with a station file named 500E: the same line number places it, only when one station line has that number", async () => {
+  const { linePlacement } = await import("../src/lib/dcipStations.js");
+  const st = Array.from({ length: 5 }, (_, i) => ({ s: 1000 + i * 100, x: 500000, y: 6000000 + i * 100, z: 120 })), to = (x, y) => [x, y];
+  assert.ok(linePlacement("500N", [{ name: "500E.utm.stn", lines: { "500E": st }, epsg: null }], to), "one line with that number");
+  assert.equal(linePlacement("500N", [{ name: "grid.stn", lines: { "500E": st, "500W": st }, epsg: null }], to), null, "two lines share it: left for the user");
+  assert.equal(linePlacement("500_all", [{ name: "g.stn", lines: { "500E": st }, epsg: null }], to), null, "a name that is not a line (#2020)");
+  assert.match(read("../src/components/DcipPanel.jsx"), /f\.name\.replace\(\/\\\.\(csv\|txt\|dat\|ipg\|avg\)\$\/i, ""\)/);
+});
+
 test("raw, parameter and database files are refused in words, naming the file to open; a file for another pane names that pane", () => {
   const raw = "8210\r\nCR  0846 2001-01-01 10:00:00 12.1v D-D  56.8%  42.8 DegC\r\nOPER x TX ID y A-SP 100 M\r\n";
   assert.ok(isZongeRaw(raw, "L500.raw"));
@@ -143,6 +152,8 @@ test("a Zonge TEM .amr: LOOP-first header, '*' positions placed on the line (sta
   assert.deepEqual(d.gateTimes(d.groups[0]), [0.04, 0.07, 0.13, 0.3, 0.65, 1.3]);
   assert.deepEqual(Array.from(d.x), [100, 200, 300, 400], "the station along the line (east-west: N suffix)"); assert.deepEqual(Array.from(d.y), [900, 900, 900, 900]);
   assert.equal(zongeRefusal(amr(), "T900N.amr", "tem"), null);
+  // TEMAVGW's .avg (per-station blocks): the TEM pane reads the .amr, and says so, in that pane too (found in the live check)
+  assert.match(zongeRefusal("\\\\ TEM data from TEMAVGW v1.10d on 01/01/10\r\n \r\n$ Survey.Type = TEM\r\n", "T900N.avg", "tem"), /Zonge TEM average: open the line's \.amr in TEM line data/);
   assert.match(zongeRefusal(amr(), "T900N.amr", "dcip"), /Zonge TEM line data: open it in TEM line data/);
   const t = read("../src/components/TemPane.jsx");
   assert.match(t, /accept="\.xyz,\.csv,\.txt,\.dat,\.tem,\.amr"/);

@@ -197,6 +197,9 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
   }, [pendingFiles]); // importEdi reads the current props; it runs once per drop
 
   const pts = (layers?.geophys_pts || []).filter((r) => surveyKey(r) === active).length;
+  // TASKS.csv #4076 — a scalar sounding (Zonge CSAMT: xy only) has no determinant: show the component the stations have, not an empty section
+  const has = (k) => stations.some((s) => s.rho?.[k]);
+  const compShown = has(comp) ? comp : has("xy") ? "xy" : has("yx") ? "yx" : comp;
   return (
     <>
       <TaskPaneHeader title={tr("MT / AMT soundings (.edi)")} helpId="mt-soundings" icon={Waves} tone="data" onClose={onClose} />
@@ -219,13 +222,13 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
               <option value="rho">{tr("Apparent resistivity")}</option>
               <option value="phase">{tr("Phase")}</option>
             </select>
-            <select style={{ ...smallSel, flex: 1, minWidth: 0 }} value={comp} title={tr("Determinant (rotation-free)")} aria-label={tr("Impedance component")} onChange={(e) => setComp(e.target.value)}>
+            <select style={{ ...smallSel, flex: 1, minWidth: 0 }} value={compShown} title={tr("Determinant (rotation-free)")} aria-label={tr("Impedance component")} onChange={(e) => setComp(e.target.value)}>
               <option value="det">{tr("Determinant")}</option>
               <option value="xy">xy</option>
               <option value="yx">yx</option>
             </select>
           </div>
-          <Pseudosection ordered={ordered} comp={comp} quantity={quantity} selected={station?.id} onPick={setStationId} />
+          <Pseudosection ordered={ordered} comp={compShown} quantity={quantity} selected={station?.id} onPick={setStationId} />
           <div style={{ ...note, margin: "4px 0 10px" }}>{tr("Shallow (short periods) at the top. Click a column for its curves.")}</div>
       </>)}
           </>) },

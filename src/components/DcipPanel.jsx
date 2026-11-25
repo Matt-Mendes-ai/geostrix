@@ -201,7 +201,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
       if (p?.spacing) setOpts((o) => ({ ...o, cell: o.cell || String(+(p.spacing / 2).toFixed(2)), depth: o.depth || String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) })); // #680
       // TASKS.csv #2026 (review #2013, Woodjam) — one line file was read into the pane but not kept, while several files at once were: the
       // same rule now (kept unplaced, as the multi-file import keeps a line it cannot place); a line already in the project is left as it is
-      const keptName = f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
+      const keptName = f.name.replace(/\.(csv|txt|dat|ipg|avg)$/i, "");
       const newlyKept = !!(p?.readings.length && !(dcipLines || []).some((l) => l.name === keptName));
       const placedNow = placedPts ? placementOf(placedPts) : null; // #4065 — a line placed by its electrodes or its name is kept placed, and its message does not say to place it
       if (newlyKept) { const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : ""; saveDcipLine({ name: keptName, readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, ...(p.err ? { err: p.err } : {}), line: placedNow || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() }); }
@@ -264,7 +264,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
       try {
         for (const p of await readLineFile(f)) { // #4065 — a file can hold several lines
         if (!p.readings.length) throw new Error(tr("no usable readings."));
-        const name = p.name || f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
+        const name = p.name || f.name.replace(/\.(csv|txt|dat|ipg|avg)$/i, "");
         const placed = (p.pts ? placementOf(p.pts) : null) || linePlacement(name, files, to) || (p.lineTag ? linePlacement(p.lineTag, files, to) : null); // #2020 — the header's LINE: tag; #4065 — the file's own electrode coordinates
         if (!placed) unplaced.push(name);
         const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
@@ -281,7 +281,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
     ].filter(Boolean).join(" ") });
   };
   // TASKS.csv #322 — keep the line (normalised readings + placement + settings) in the project file
-  const lineName = file ? file.name.replace(/\.(csv|txt|dat|ipg)$/i, "") : "";
+  const lineName = file ? file.name.replace(/\.(csv|txt|dat|ipg|avg)$/i, "") : "";
   const keepLine = (extra = {}) => saveDcipLine({ name: lineName, readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, ipKind: parsed.ipKind, ...(parsed.err ? { err: parsed.err } : {}), line: { ...line }, opts: { ...opts }, savedAt: new Date().toISOString(), ...extra });
   const loadSaved = (id) => {
     const e = dcipLines.find((l) => l.id === id);
