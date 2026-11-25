@@ -84,7 +84,7 @@ function Decay({ times, vals, fit }) {
   );
 }
 
-export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, rasters, project, setEpsg, projectIsEmpty, onClose }) {
+export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, addBoundary, rasters, project, setEpsg, projectIsEmpty, onClose }) {
   const [st, setSt] = useState(() => LAST);
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -199,6 +199,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         {data && (<>
         {st.posNote && <div style={{ ...note, marginBottom: 6 }}>{st.posNote}</div>}
         <TemGridTie data={data} onTied={() => save({ ...st, data: { ...data } })} />{/* #4058 */}
+        {data.loop && addBoundary && !data.localGrid && <button className="gs-btn gs-btn--sm" type="button" onClick={() => addBoundary({ name: tr("Loop: {name}", { name: data.name }), polylines: [data.loop.map((p) => ({ x: p.x, y: p.y }))], closedFlags: [true], elevation: Math.round(data.loop.reduce((s, p) => s + p.z, 0) / data.loop.length) })} style={{ marginBottom: 6 }}>{tr("Draw the loop")}</button>}{/* TASKS.csv #4079 — a surface PEM file's transmitter loop as a boundary line in 3D */}
         <div style={rowS}><span>{tr("Channels")}</span>
           <select value={st.g} onChange={(e) => { if (e.target.value === "join") { save({ ...st, g: "join" }); return; } const g = Number(e.target.value), t = data.gateTimes(data.groups[g]); save({ ...st, g, timesText: t ? t.join(" ") : st.timesText }); }} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("TEM channel group")}>
             {data.groups.map((g, i) => <option key={g.prefix} value={i}>{tr("{name} ({m} gates)", { name: g.prefix, m: g.cols.length })}{g.aux ? ` — ${tr("uncertainty")}` : g.role === "time" ? ` — ${tr("gate times")}` : g.role === "model" ? ` — ${tr("model")}` : ""}</option>)}
@@ -230,7 +231,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
           <select value={line?.key} onChange={(e) => save({ ...st, line: e.target.value, sel: null })} style={smallSel} aria-label={tr("TEM line")}>{lines.map((l) => <option key={l.key} value={l.key}>{l.key} ({l.idx.length})</option>)}</select>
         </div>}
         {line && mat && <Profiles line={line} mat={mat} sel={sel} onPick={(i) => save({ ...st, sel: i })} />}
-        <div style={{ ...note, margin: "3px 0 8px" }}>{tr("Early gates purple, late yellow. Click a station for its decay.")}</div>
+        <div style={{ ...note, margin: "3px 0 8px" }}>{tr("Early gates purple, late yellow. Click a station.")}</div>
         {sel != null && vals && (<>
           <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>{tr("Station {i}: {x} E, {y} N", { i: sel + 1, x: fmt(data.x[sel]), y: fmt(data.y[sel]) })}</div>
           {times ? <Decay times={times} vals={vals} fit={fit} /> : <div style={note}>{tr("Type the gate times to draw the decay.")}</div>}

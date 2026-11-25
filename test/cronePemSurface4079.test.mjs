@@ -107,6 +107,24 @@ test("a step-response STP is never given dB/dt arithmetic: no decay constant, no
   for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"))["Step response (nT): tau and the 1D inversion need dB/dt."], lang);
 });
 
+test("the loop is used: its equivalent radius sets the 1D inversion's ground loop, and Draw the loop adds it as a boundary line", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { loopEquivalentRadius } = await import("../src/lib/cronePem.js");
+  const sq = (s) => [[0, 0], [s, 0], [s, s], [0, s]].map(([x, y]) => ({ x, y, z: 0 }));
+  assert.ok(Math.abs(loopEquivalentRadius(sq(100)) - 100 / Math.sqrt(Math.PI)) < 1e-9, "a 100 m square: the circle of its area");
+  assert.equal(loopEquivalentRadius(null), null); assert.equal(loopEquivalentRadius(sq(100).slice(0, 2)), null);
+  const r = parseCronePemSurface(surface(), "1000EAv.pem");
+  assert.ok(Math.abs(loopEquivalentRadius(r.loop) - 200 / Math.sqrt(Math.PI)) < 0.01, "the synthetic loop is a 200 x 200 m square: the circle of its area");
+  const inv = readFileSync(new URL("../src/components/TemInvertPanel.jsx", import.meta.url), "utf8");
+  assert.match(inv, /const loopA = useMemo\(\(\) => \{ const r = loopEquivalentRadius\(data\.loop\);/);
+  assert.match(inv, /geom: loopA \? "loop" : "vmd", r: 13, a: loopA \|\| 20,/);
+  assert.match(inv, /const p = loopA \? "ground" :/);
+  const pane = readFileSync(new URL("../src/components/TemPane.jsx", import.meta.url), "utf8");
+  assert.match(pane, /\{data\.loop && addBoundary && !data\.localGrid && <button[^\n]*addBoundary\(\{ name: tr\("Loop: \{name\}"/);
+  assert.match(pane, /polylines: \[data\.loop\.map\(\(p\) => \(\{ x: p\.x, y: p\.y \}\)\)\], closedFlags: \[true\]/);
+  assert.match(readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8"), /<TemPane [^\n]*addBoundary=\{addBoundary\}/);
+});
+
 test("the file pickers offer .pem and .stp", async () => {
   const { readFileSync } = await import("node:fs");
   for (const f of ["../src/components/TemPane.jsx", "../src/components/BoreholeEmPane.jsx"]) assert.match(readFileSync(new URL(f, import.meta.url), "utf8"), /\.pem,\.stp/, f);
