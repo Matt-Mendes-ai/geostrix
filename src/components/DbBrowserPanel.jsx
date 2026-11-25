@@ -210,7 +210,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
             <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={pwSaved ? tr("Saved — just Connect") : tr("Password")} style={pwInp} aria-label={tr("Password for {name}", { name: profile.name })}
                 onKeyDown={(e) => { if (e.key === "Enter") doConnect(); }} />
-              <button onClick={doConnect} disabled={connecting} style={connectBtn}>{connecting ? <Loader2 size={12} className="spin" /> : tr("Connect")}</button>
+              <button onClick={doConnect} disabled={connecting} className="gs-btn gs-btn--sm">{connecting ? <Loader2 size={12} className="spin" /> : tr("Connect")}</button>
             </div>
           )}
           {live && (
@@ -245,4 +245,3 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
 
 const sectionLabel = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 6, fontWeight: 600 };
 const pwInp = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 7px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" };
-const connectBtn = { padding: "4px 9px", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-success-border)", background: "var(--color-success-bg)", color: "var(--color-success-text)" };

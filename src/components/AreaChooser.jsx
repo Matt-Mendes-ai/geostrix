@@ -3,7 +3,6 @@
 // to the outline" when a boundary or claim is chosen. The choice is remembered per fetch on this computer. Loaded with the dialogs that use it.
 import React, { useEffect, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
-import { btn } from "../lib/modalStyles.js";
 import { areaSizeText } from "../lib/areaSize.js";
 import { rememberedFetchArea, rememberFetchArea, startingOption, optionBox, rememberedFetchMargin, rememberFetchMargin } from "../lib/fetchAreas.js";
 import NumberInput from "./NumberInput.jsx";
@@ -46,7 +45,7 @@ export default function AreaChooser({ options, area, onDraw, clip, onClip, disab
             <NumberInput value={area.margin} min={0} step={50} disabled={disabled} onChange={(m) => area.setMargin(m)} aria-label={tr("Margin (m)")} style={{ width: 64, fontSize: "var(--font-size-sm)", padding: "3px 6px", borderRadius: 4, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }} />
           </label>
         )}
-        <button type="button" disabled={disabled} onClick={onDraw} style={{ ...btn(false), width: "auto", padding: "4px 8px" }}>{tr("Draw an area…")}</button>
+        <button type="button" disabled={disabled} onClick={onDraw} className="gs-btn gs-btn--sm" style={{ width: "auto", padding: "4px 8px" }}>{tr("Draw an area…")}</button>
         {area.bboxLonLat && <span data-area-size="">{areaSizeText(area.bboxLonLat)}</span>}
       </div>
       {onClip && outline && (

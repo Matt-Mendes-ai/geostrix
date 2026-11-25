@@ -119,8 +119,8 @@ export default function ProjectReportModal({ store, onClose }) {
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
-          <button onClick={exportCSV} style={{ ...btn(true), flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }} disabled={!collars.length && !surfaceSamples.length}>
+          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
+          <button onClick={exportCSV} className="gs-btn gs-btn--primary" style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }} disabled={!collars.length && !surfaceSamples.length}>
             <Download size={14} />{" "}{tr("Export report (CSV)")}</button>
         </div>
       </div>
@@ -163,4 +163,3 @@ const header = { display: "flex", alignItems: "center", justifyContent: "space-b
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "right" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });

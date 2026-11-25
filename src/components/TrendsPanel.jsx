@@ -227,7 +227,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</div>
                 <div style={small}>{describeTrend(t)}</div>
               </div>
-              {onView && <button type="button" onClick={() => onView(viewingId === t.id ? null : t)} style={{ ...btnStyle, width: "auto", padding: "2px 7px", marginBottom: 0 }} title={tr("Show this trend's plane and ellipsoid in the 3D view")}>{viewingId === t.id ? tr("Hide") : tr("View")}</button>}
+              {onView && <button type="button" onClick={() => onView(viewingId === t.id ? null : t)} className="gs-btn gs-btn--block" style={{ width: "auto", padding: "2px 7px", marginBottom: 0 }} title={tr("Show this trend's plane and ellipsoid in the 3D view")}>{viewingId === t.id ? tr("Hide") : tr("View")}</button>}
               <Pencil size={14} style={{ cursor: "pointer", color: editing ? "var(--color-accent)" : "var(--color-text-secondary)" }} {...iconAction(() => setEditId(editing ? null : t.id), tr("Edit {name}", { name: t.name }))} />
               <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(async () => { if (await askConfirm(tr("Delete trend \"{name}\"? Models using it will no longer follow a trend.", { name: t.name }))) remove(t.id); }, tr("Delete {name}", { name: t.name }))} />
             </div>
@@ -256,7 +256,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
           </div>
         );
       })}
-      <button type="button" onClick={add} style={{ ...btnStyle, marginBottom: 10 }}><Plus size={14} />{" "}{tr("New trend")}</button>
+      <button type="button" onClick={add} className="gs-btn gs-btn--block" style={{ marginBottom: 10 }}><Plus size={14} />{" "}{tr("New trend")}</button>
       {trends.length > 0 && (
         <>
           <div style={{ ...small, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Used by")}</div>

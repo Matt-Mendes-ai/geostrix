@@ -67,7 +67,7 @@ test("#3932 wiring: change requests go to mcpActions.js (lazy) with the live sto
   assert.match(app, /onMcpRequest\(\(\) => \{[^\n]*\}, \(\) => storeNow\.current/);
   assert.match(store, /if \(typeof label === "string" && label\) undoStepLabels\.current\.set\(undoBeforeBurst\.current, label\.slice\(0, 160\)\);/);
   assert.match(store, /label: undoStepLabels\.current\.get\(top\) \|\| null/);
-  assert.match(toast, /typeof x\.undo === "function" && <button type="button" onClick=\{\(\) => \{ setItems\(\(L\) => L\.filter\(\(y\) => y\.id !== x\.id\)\); x\.undo\(\); \}\}/);
+  assert.match(toast, /typeof x\.undo === "function" && <button data-btn-own="" type="button" onClick=\{\(\) => \{ setItems\(\(L\) => L\.filter\(\(y\) => y\.id !== x\.id\)\); x\.undo\(\); \}\}/);
   assert.match(host, /\.\.\.\(meta\.change \? \{ change: true \} : \{\}\)/);
   assert.match(proto, /callTool\(name, params\?\.arguments \|\| \{\}, change \? \{ client, change, \.\.\.\(isNetworkTool\(def\) \? \{ network: true \} : isLongTool\(def\) \? \{ long: true \} : \{\}\) \} : \{ client \}\)/); // #3932 batch 2: a model run gets the long wait too
   assert.ok(!/window\.desktop|from "\.\/desktop\.js"/.test(acts), "the bridge never reaches the IPC wrappers");

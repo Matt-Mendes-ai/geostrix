@@ -10,7 +10,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #3931 — projectLoadi
 import { useLatestCallback } from "../lib/useLatestCallback.js"; // TASKS.csv #3931
 import { askAdoptCrs } from "../lib/adoptCrs.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
-import { smallSel, pBtn } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { percentile } from "../lib/arrayStats.js"; // #1114
 
@@ -188,7 +188,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
     <>
       <TaskPaneHeader title={tr("MT / AMT soundings (.edi)")} helpId="mt-soundings" icon={Waves} tone="data" onClose={onClose} />
       <div style={{ ...note, marginBottom: 8 }}>{tr("Drop MT or AMT .edi files here, or pick them: apparent resistivity and phase per station, a pseudosection per line, Niblett–Bostick depths in 3D.")}</div>
-      <button type="button" style={pBtn} disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{busy ? tr("Reading…") : tr("Import EDI files…")}</button>
+      <button type="button" className="gs-btn gs-btn--block" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{busy ? tr("Reading…") : tr("Import EDI files…")}</button>
       <input ref={fileRef} type="file" accept=".edi" multiple style={{ display: "none" }} onChange={(e) => { importEdi(e.target.files); e.target.value = ""; }} />
       {msg && <div role="status" style={{ marginBottom: 10, padding: "8px 10px", background: msg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${msg.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-sm)", color: msg.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>{msg.text}</div>}
       {!surveys.length ? (

@@ -80,7 +80,7 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
       onMouseEnter={enter}
       onMouseLeave={leave}
     >
-      <button
+      <button data-btn-own=""
         type="button"
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPinned((p) => !p); }}
         aria-label={title ? tr("Info: {title}", { title }) : tr("Info")}

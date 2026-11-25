@@ -37,7 +37,7 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
   return (
     <div style={wrap}>
       <div className="ge-card" style={{ ...card, position: "relative" }}>{/* TASKS.csv #3956 — the shared style-A card */}
-        {onClose && <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")} style={{ position: "absolute", top: 8, right: 8, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xl)", lineHeight: 1, padding: 2 }}>×</button>}{/* TASKS.csv #1327 */}
+        {onClose && <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")} style={{ position: "absolute", top: 8, right: 8, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xl)", lineHeight: 1, padding: 2 }}>×</button>}{/* TASKS.csv #1327 */}
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
           {icon ? <span style={{ display: "flex", color: "var(--color-text-muted)", flexShrink: 0 }}>{icon}</span> : null}
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", fontWeight: 600 }}>{trText(headline)}</div>
@@ -46,7 +46,7 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
         {(actionLabel || secondary) && (
           <div className="ge-empty-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>{/* TASKS.csv #3541 — the buttons share one grid (the css below drops a caller's own left margin) */}
             {actionLabel && (
-              <button onClick={onAction} disabled={actionDisabled} title={trText(actionTitle)} style={{ ...primaryBtn, cursor: actionDisabled ? "default" : "pointer", opacity: actionDisabled ? 0.6 : 1 }}>
+              <button data-btn-own="" onClick={onAction} disabled={actionDisabled} title={trText(actionTitle)} style={{ ...primaryBtn, cursor: actionDisabled ? "default" : "pointer", opacity: actionDisabled ? 0.6 : 1 }}>
                 {trText(actionLabel)}
               </button>
             )}

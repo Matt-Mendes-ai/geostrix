@@ -9,7 +9,7 @@ import { requestProjectCrs } from "../lib/projectCrsRequest.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js";
 import { t as tr } from "../lib/i18n.js";
 
-export default function DegreesProjectBanner({ btnStyle }) {
+export default function DegreesProjectBanner() {
   const { project, collars, surfaceSamples, terrain, mapLayers, reprojectProjectTo } = useStore();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -29,8 +29,8 @@ export default function DegreesProjectBanner({ btnStyle }) {
         {tr("Use a coordinate system in metres. In latitude and longitude ({name}), with elevations in metres, terrain draws as spikes and distances and volumes come out wrong.", { name: crsName(project.epsg) || `EPSG:${project.epsg}` })}
         {err && <>{" "}{tr("The move failed: {message}", { message: err })}</>}
       </span>
-      {target && <button type="button" disabled={busy} onClick={move} style={btnStyle}>{busy ? tr("Moving…") : tr("Move to {name}", { name: target.name })}</button>}
-      <button type="button" disabled={busy} onClick={() => requestProjectCrs(tr("Choose a coordinate system in metres. This only relabels the project: to move loaded data, use Maps > Reproject."))} style={btnStyle}>{tr("Choose another…")}</button>
+      {target && <button type="button" disabled={busy} onClick={move} className="gs-btn">{busy ? tr("Moving…") : tr("Move to {name}", { name: target.name })}</button>}
+      <button type="button" disabled={busy} onClick={() => requestProjectCrs(tr("Choose a coordinate system in metres. This only relabels the project: to move loaded data, use Maps > Reproject."))} className="gs-btn">{tr("Choose another…")}</button>
     </div>
   );
 }

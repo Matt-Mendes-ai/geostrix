@@ -17,7 +17,7 @@ export default function GeochemCompositingNote({ symbol, length, minCoverage, ca
       {g && <>{" "}{tr("Geochem > Compositing in this session: {len} m, min coverage {cov}%, {cap}{dom}.", { len: g.length, cov: Math.round(g.minCoverage * 100), cap: capText, dom: g.domain ? tr(", broken at {d} (choose a domain here yourself)", { d: g.domain }) : "" })}{" "}
         {sameCompositing(g, { length, minCoverage, cap })
           ? <span>{tr("The same as here.")}</span>
-          : <button type="button" onClick={() => onUse?.({ length: g.length, minCoverage: g.minCoverage, cap: g.cap })} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", cursor: "pointer", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}
+          : <button type="button" onClick={() => onUse?.({ length: g.length, minCoverage: g.minCoverage, cap: g.cap })} className="gs-btn gs-btn--sm"
             title={tr("Sets the composite length, minimum coverage and cap here to Geochem > Compositing's. The composites are recomputed here, not copied.")}>{tr("Use these settings")}</button>}</>}
     </div>
   );

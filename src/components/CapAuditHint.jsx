@@ -24,7 +24,6 @@ export default function CapAuditHint({ assays, symbol, unit, elementUnits, capVa
   const r975 = useMemo(() => removes(pcts?.p975), [pcts, assays]); // the metal removed: over all the samples either way
   const r99 = useMemo(() => removes(pcts?.p99), [pcts, assays]);
   if (!pcts) return null;
-  const btn = { background: "none", border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontFamily: "inherit" };
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, display: "flex", flexDirection: "column", gap: 3 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -36,8 +35,8 @@ export default function CapAuditHint({ assays, symbol, unit, elementUnits, capVa
             <option value="all">{tr("of all samples")}</option>
           </select>
         )}
-        <button type="button" style={btn} disabled={pcts.p975 == null} onClick={() => onSetCap(pcts.p975)} title={r975 != null ? tr("This cap removes {pct} % of the metal (grade × length).", { pct: r975.toFixed(1) }) : undefined}>P97.5 = {fmt(toShown(pcts.p975))}{r975 != null ? ` (${tr("removes {pct} % of the metal", { pct: r975.toFixed(1) })})` : ""}</button>
-        <button type="button" style={btn} disabled={pcts.p99 == null} onClick={() => onSetCap(pcts.p99)} title={r99 != null ? tr("This cap removes {pct} % of the metal (grade × length).", { pct: r99.toFixed(1) }) : undefined}>P99 = {fmt(toShown(pcts.p99))}{r99 != null ? ` (${tr("removes {pct} % of the metal", { pct: r99.toFixed(1) })})` : ""}</button>
+        <button type="button" className="gs-btn gs-btn--sm" disabled={pcts.p975 == null} onClick={() => onSetCap(pcts.p975)} title={r975 != null ? tr("This cap removes {pct} % of the metal (grade × length).", { pct: r975.toFixed(1) }) : undefined}>P97.5 = {fmt(toShown(pcts.p975))}{r975 != null ? ` (${tr("removes {pct} % of the metal", { pct: r975.toFixed(1) })})` : ""}</button>
+        <button type="button" className="gs-btn gs-btn--sm" disabled={pcts.p99 == null} onClick={() => onSetCap(pcts.p99)} title={r99 != null ? tr("This cap removes {pct} % of the metal (grade × length).", { pct: r99.toFixed(1) }) : undefined}>P99 = {fmt(toShown(pcts.p99))}{r99 != null ? ` (${tr("removes {pct} % of the metal", { pct: r99.toFixed(1) })})` : ""}</button>
         <span style={{ color: "var(--color-text-muted)" }}>{unitLabel || unit}</span>
       </div>
       {arr && arr.values.length > 1 && <MetalAtRiskTable values={arr.values} weights={arr.lengths} unitLabel={unitLabel || unit} toShown={toShown} onSetCap={onSetCap} />}

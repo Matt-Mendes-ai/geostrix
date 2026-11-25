@@ -40,7 +40,7 @@ export default function TotalSulphidesBox({ rows, style, onStyle }) {
               </label>
             ))}
           </div>
-          {!has && <button type="button" onClick={() => { onStyle?.({ sulphideCodes: ticked }); write(ticked); }} disabled={!ticked.length}>{tr("Add Total sulphides")}</button>}
+          {!has && <button className="gs-btn gs-btn--sm" type="button" onClick={() => { onStyle?.({ sulphideCodes: ticked }); write(ticked); }} disabled={!ticked.length}>{tr("Add Total sulphides")}</button>}
           {has && (
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
               <label style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>

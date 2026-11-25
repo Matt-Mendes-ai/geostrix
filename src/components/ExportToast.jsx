@@ -29,8 +29,8 @@ export default function ExportToast() {
           <span style={{ flex: 1 }}>{x.message ? x.message /* #1087 — a plain message (undo / redo) */ : x.ok
             ? tr("Saved {file} to {folder}.", { file: baseOf(x.filePath) || x.name, folder: folderOf(x.filePath) || tr("the chosen folder") })
             : tr("{file} was not saved: {error}", { file: baseOf(x.filePath) || x.name || tr("The file"), error: x.error })}</span>
-          {typeof x.undo === "function" && <button type="button" onClick={() => { setItems((L) => L.filter((y) => y.id !== x.id)); x.undo(); }} style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer", color: "inherit", font: "inherit", padding: "0 8px" }}>{tr("Undo")}</button>}
-          <button type="button" onClick={() => setItems((L) => L.filter((y) => y.id !== x.id))} aria-label={tr("Dismiss")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-lg)", lineHeight: 1, padding: 0 }}>×</button>
+          {typeof x.undo === "function" && <button data-btn-own="" type="button" onClick={() => { setItems((L) => L.filter((y) => y.id !== x.id)); x.undo(); }} style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer", color: "inherit", font: "inherit", padding: "0 8px" }}>{tr("Undo")}</button>}
+          <button data-btn-own="" type="button" onClick={() => setItems((L) => L.filter((y) => y.id !== x.id))} aria-label={tr("Dismiss")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "var(--font-size-lg)", lineHeight: 1, padding: 0 }}>×</button>
         </div>
       ))}
     </div>

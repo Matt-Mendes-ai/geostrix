@@ -192,7 +192,7 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
 
 function TabBtn({ active, onClick, icon, label }) {
   return (
-    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: active ? "var(--color-selected-bg)" : "transparent", border: active ? "1px solid var(--color-selected-border)" : "1px solid transparent", borderRadius: 6, color: active ? "var(--color-text)" : "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>
+    <button data-btn-own="" onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: active ? "var(--color-selected-bg)" : "transparent", border: active ? "1px solid var(--color-selected-border)" : "1px solid transparent", borderRadius: 6, color: active ? "var(--color-text)" : "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>
       {icon} {label}
     </button>
   );

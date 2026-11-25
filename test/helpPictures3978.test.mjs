@@ -65,7 +65,7 @@ test("the card draws the picture, unmirrored, with its legend; a second picture 
   assert.equal((ps.match(/data-drop-picture=/g) || []).length, 2, "its header pictures stay");
   assert.match(ps, /data-help-picture="lands"/);
   // the Use-instead chips are English "A → B": they read left to right in an Arabic interface too (their arrow pointed back)
-  assert.equal((ps.match(/<button type="button" dir="ltr" data-help-chip=/g) || []).length, 3);
+  assert.equal((ps.match(/<button data-btn-own="" type="button" dir="ltr" data-help-chip=/g) || []).length, 3);
   assert.match(ps, /<span dir="ltr" style="[^"]*">.*Maps &gt; GeoTIFF/);
 });
 

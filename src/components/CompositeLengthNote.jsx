@@ -11,7 +11,7 @@ export default function CompositeLengthNote({ assays, symbol, length, onUse, var
   return (
     <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginTop: 2 }}>
       {tr("{pct}% of the sampled metres of {el} are in samples longer than {len} m (length-weighted median {med} m): a composite shorter than its sample repeats the sample's grade, so the pairs inside one sample are identical{v}.", { pct: Math.round(100 * c.longer), el: symbol, len: length, med, v: variogram ? tr(" and the nugget is understated") : tr(" and the estimate looks smoother than the data") })}{" "}
-      {onUse && c.proposalM !== Number(length) && <button type="button" onClick={() => onUse(c.proposalM)} style={{ padding: "0 6px", fontSize: "var(--font-size-xs)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}>{tr("Use {m} m", { m: c.proposalM })}</button>}
+      {onUse && c.proposalM !== Number(length) && <button type="button" onClick={() => onUse(c.proposalM)} className="gs-btn gs-btn--sm">{tr("Use {m} m", { m: c.proposalM })}</button>}
     </div>
   );
 }
