@@ -178,7 +178,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
       }
       if (trend) params = { ...params, trend: trendToGeoml(trend) };
       const res = await runJob(kind, params, (s) => { if (!getRun()?.cancelling) updateRun({ progress: s.progress, message: s.message, elapsed: s.elapsed }); toBar(s.progress); }, ctrl.signal);
-      const note = `${await onResult(res, pj)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""} ${tr("Nothing is added yet: use the Result block.")}`;
+      const note = `${await onResult(res, pj)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""} ${tr("Nothing is added yet: use the Result block.")}`;
       const secs = Math.round((Date.now() - t0) / 1000);
       record = { label, note, secs, at: new Date().toLocaleTimeString(), intercepts: res.intercepts || null, advice: res.advice || null, mix: res.mix || null, blockM: res.blocks?.cell ?? null }; // advice, mix, blockM: #4019
       setNotices((p) => [...p, notice("geoML — {label}: {note} ({secs} s).", { label, note, secs })]);
@@ -343,7 +343,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
   return (
     <div>
       <div className="ge-section-label">{tr("Predictive modelling (geoML)")}</div>
-      <div style={box}>{tr("Models with")}{" "}<strong>{tr("uncertainty")}</strong>{" "}{tr("from Gaussian processes (")}<a href="https://github.com/italo-goncalves/geoML" target="_blank" rel="noreferrer">{tr("geoML")}</a>{tr(", Ítalo Gonçalves). Results appear in the 3D view beside your other models, named \"geoML — …\", so you can compare them. Everything runs on this computer.")}</div>
+      <div style={box}>{tr("Models with")}{" "}<strong>{tr("uncertainty")}</strong>{" "}{tr("from Gaussian processes (")}<a href="https://github.com/italo-goncalves/geoML" target="_blank" rel="noreferrer">{tr("geoML")}</a>{tr(", Ítalo Gonçalves). Results appear in the 3D view as \"geoML — …\" beside your other models. Everything runs on this computer.")}</div>
 
       {!st ? <div style={box}>{tr("Checking the add-on…")}</div> : !st.installed ? (
         <div style={box}>
@@ -379,13 +379,36 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
         </div>
       ) : (
         <>
+          {/* TASKS.csv #4046 — an older add-on keeps running after GeoStrix updates; the update is offered, never forced */}
+          {st.update && (
+            <div style={box}>
+              <div>{tr("Add-on {v} still works; {v2} is available.", { v: st.version, v2: st.latestVersion })}</div>
+              <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
+                {confirmInstall && !inst?.phase ? (
+                  <>
+                    <span style={{ flex: 1 }}>{tr("Download{v} now?", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</span>
+                    <button type="button" style={btn(true)} onClick={async () => { setConfirmInstall(false); setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>{tr("Download{v}", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</button>
+                    <button type="button" style={btn(false)} onClick={() => setConfirmInstall(false)}>{tr("Not now")}</button>
+                  </>
+                ) : inst?.phase ? (
+                  <>
+                    <span style={{ flex: 1 }}>{inst.phase === "unpack" ? tr("Unpacking…") : tr("Downloading {v} of {v2}", { v: fmtMB(inst.got), v2: fmtMB(inst.total) })}</span>
+                    {inst.phase === "download" && <button type="button" style={btn(false)} onClick={() => addonCancelInstall()}>{tr("Cancel")}</button>}
+                  </>
+                ) : (
+                  <button type="button" style={btn(false, !!job)} disabled={!!job} onClick={() => setConfirmInstall(true)}>{tr("Update to {v}…", { v: st.latestVersion })}</button>
+                )}
+              </div>
+              {inst?.error && <div style={{ marginTop: 6, color: "var(--color-danger-fg)" }}>{inst.error}</div>}
+            </div>
+          )}
           <div style={box}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <span style={{ flex: 1 }}>{tr("Quality")}</span>
               <select value={quality} onChange={(e) => setQuality(e.target.value)} aria-label={tr("Model quality")} style={{ ...smallSel, flex: 2 }}>
                 {Object.entries(QUALITY).map(([k, q]) => <option key={k} value={k}>{tr(q.label)}</option>)}
               </select>
-            </div>{tr("On 20 to 40 holes, Fast and Standard take a few minutes; time grows with holes and quality, so start with Fast. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
+            </div>{tr("Time grows with holes and quality: start with Fast. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
           </div>
 
           <div style={box}>

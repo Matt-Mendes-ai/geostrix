@@ -5299,7 +5299,6 @@
   "Imports {toImport} QC sample(s){v}; {unclassified} left out.": "يستورد {toImport} عينة ضبط جودة{v}؛ استُبعد {unclassified}.",
   "Starting the add-on": "جارٍ تشغيل الإضافة",
   "Starting the add-on ({s} s — the first start is slower)": "جارٍ تشغيل الإضافة ({s} ث — البدء الأول أبطأ)",
-  " — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)": " — لم يُطبق الاتجاه «{name}»: إصدار الإضافة هذا ({v}) أقدم من الاتجاهات؛ حدّثه (أزل الإضافة ثم ثبّتها مجددًا)",
   "; following the trend \"{name}\"": "؛ باتباع الاتجاه «{name}»",
   "contact surface {tri} triangles (darker = less certain)": "سطح التماس {tri} مثلث (الأغمق = أقل يقينًا)",
   "{cells} blocks of {cell} m with the probability of {name} (showing ≥ 50%) and its uncertainty (hidden){v}": "{cells} كتلة بحجم {cell} م باحتمال {name} (عرض ≥ 50%) وعدم يقينه (مخفي){v}",
@@ -5310,7 +5309,6 @@
   "gate times": "أزمنة النوافذ",
   "model": "نموذج",
   "from Gaussian processes (": "من العمليات الغاوسية (",
-  ", Ítalo Gonçalves). Results appear in the 3D view beside your other models, named \"geoML — …\", so you can compare them. Everything runs on this computer.": "، Ítalo Gonçalves). تظهر النتائج في العرض ثلاثي الأبعاد بجانب نماذجك الأخرى باسم «geoML — …» لتقارنها. كل شيء يعمل على هذا الحاسوب.",
   "Checking the add-on…": "جارٍ فحص الإضافة…",
   "Install the add-on": "تثبيت الإضافة",
   "What you get:": "ما تحصل عليه:",
@@ -14292,7 +14290,6 @@
   "Struck through: {rules} land above every sample (or over 100 %) and find no anomaly here, often a sign of two populations. Separate them with the Populations selector; these rules cannot be saved.": "المشطوبة: {rules} تقع فوق كل العينات (أو فوق 100 %) ولا تجد شذوذًا هنا، وكثيرًا ما يدل ذلك على مجموعتين. افصلهما بمحدد المجموعات؛ ولا يمكن حفظ هذه القواعد.",
   "{zero} {symbol} result(s) in \"{pop}\" are 0 in the source (below detection or not analyzed: the layer does not say) and are left out of n and every threshold. If below detection, the thresholds read high.": "{zero} نتيجة لـ {symbol} في \"{pop}\" قيمتها 0 في المصدر (دون حد الكشف أو لم تُحلَّل: لا تذكر الطبقة ذلك) واستُبعدت من n ومن كل العتبات. وإن كانت دون حد الكشف فالعتبات مرتفعة أكثر مما ينبغي.",
   "a download{v} from GitHub, {v2} (with TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most since 2012).": "تنزيل{v} من GitHub، {v2} (مع TensorFlow)، ونحو 2 غيغابايت ذاكرة حرة أثناء تشغيل نموذج، ومعالج يدعم AVX (معظمها منذ 2012).",
-  "On 20 to 40 holes, Fast and Standard take a few minutes; time grows with holes and quality, so start with Fast. {v}": "مع 20 إلى 40 ثقبًا يستغرق السريع والقياسي بضع دقائق؛ ويزداد الوقت مع الثقوب والجودة، لذا ابدأ بالسريع. {v}",
   "Added \"{name}\" to the map on the ground interpolated between the collars (the project has no terrain). Its values export as GeoTIFF from the Raster module.": "أُضيفت \"{name}\" إلى الخريطة على سطح الأرض المستكمَل بين رؤوس الآبار (المشروع بلا تضاريس). تُصدَّر قيمها بصيغة GeoTIFF من وحدة النقطية.",
   "Blank = automatic: the longest side / 500, coarsened at the cell limit. A soil grid at 25-50 m wants a cell about half its spacing.": "فارغ = تلقائي: الضلع الأطول / 500، ويُخشّن عند حد الخلايا. شبكة تربة بتباعد 25-50 م تحتاج خلية بنحو نصف تباعدها.",
   "The {c} m cell would exceed the grid's cell limit over this area, so it was coarsened to {d} m. A smaller area keeps it.": "الخلية {c} م ستتجاوز حد خلايا الشبكة على هذه المنطقة، فخُشّنت إلى {d} م. منطقة أصغر تحفظها.",
@@ -15330,5 +15327,10 @@
   "The azimuths are magnetic (column {c}): choose the declination when you map the survey.": "السموت مغناطيسية (العمود {c}): اختر الانحراف المغناطيسي عند ربط المسح.",
   "The azimuths are on the grid or true north (column {c}), not magnetic.": "السموت على شمال الشبكة أو الشمال الحقيقي (العمود {c})، لا المغناطيسي.",
   "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} من المعايير المرجعية المعتمدة المضمّنة ({names}) تُعلَّم كمعايير لا كعينات.",
-  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "الألوان من 0 إلى {v} ميلي راديان (المئين 98 للخلايا التي تراها البيانات؛ يصل النموذج إلى {b})"
+  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "الألوان من 0 إلى {v} ميلي راديان (المئين 98 للخلايا التي تراها البيانات؛ يصل النموذج إلى {b})",
+  " — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it": " — لم يُطبق الاتجاه «{name}»: إصدار الإضافة هذا ({v}) أقدم من الاتجاهات؛ حدّثه",
+  ", Ítalo Gonçalves). Results appear in the 3D view as \"geoML — …\" beside your other models. Everything runs on this computer.": "، Ítalo Gonçalves). تظهر النتائج في العرض ثلاثي الأبعاد باسم «geoML — …» بجانب نماذجك الأخرى. كل شيء يعمل على هذا الحاسوب.",
+  "Time grows with holes and quality: start with Fast. {v}": "يزداد الوقت مع الثقوب والجودة: ابدأ بالسريع. {v}",
+  "Add-on {v} still works; {v2} is available.": "الإضافة {v} ما زالت تعمل؛ الإصدار {v2} متاح.",
+  "Update to {v}…": "التحديث إلى {v}…"
 }

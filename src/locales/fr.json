@@ -5299,7 +5299,6 @@
   "Imports {toImport} QC sample(s){v}; {unclassified} left out.": "Importe {toImport} échantillon(s) de CQ{v} ; {unclassified} exclus.",
   "Starting the add-on": "Démarrage de l'extension",
   "Starting the add-on ({s} s — the first start is slower)": "Démarrage de l'extension ({s} s — le premier démarrage est plus lent)",
-  " — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)": " — la tendance « {name} » n'a PAS été appliquée : cette version de l'extension ({v}) est antérieure aux tendances ; mettez-la à jour (retirez l'extension, puis réinstallez-la)",
   "; following the trend \"{name}\"": "; selon la tendance « {name} »",
   "contact surface {tri} triangles (darker = less certain)": "surface de contact {tri} triangles (plus foncé = moins certain)",
   "{cells} blocks of {cell} m with the probability of {name} (showing ≥ 50%) and its uncertainty (hidden){v}": "{cells} blocs de {cell} m avec la probabilité de {name} (affichage ≥ 50 %) et son incertitude (masquée){v}",
@@ -5310,7 +5309,6 @@
   "gate times": "temps des fenêtres",
   "model": "modèle",
   "from Gaussian processes (": "à partir de processus gaussiens (",
-  ", Ítalo Gonçalves). Results appear in the 3D view beside your other models, named \"geoML — …\", so you can compare them. Everything runs on this computer.": ", Ítalo Gonçalves). Les résultats apparaissent dans la vue 3D à côté de vos autres modèles, nommés « geoML — … », pour pouvoir les comparer. Tout s'exécute sur cet ordinateur.",
   "Checking the add-on…": "Vérification de l'extension…",
   "Install the add-on": "Installer l'extension",
   "What you get:": "Ce que vous obtenez :",
@@ -14292,7 +14290,6 @@
   "Struck through: {rules} land above every sample (or over 100 %) and find no anomaly here, often a sign of two populations. Separate them with the Populations selector; these rules cannot be saved.": "Barrées : {rules} tombent au-dessus de tous les échantillons (ou au-delà de 100 %) et ne trouvent aucune anomalie ici, souvent le signe de deux populations. Séparez-les avec le sélecteur de Populations ; ces règles ne peuvent pas être enregistrées.",
   "{zero} {symbol} result(s) in \"{pop}\" are 0 in the source (below detection or not analyzed: the layer does not say) and are left out of n and every threshold. If below detection, the thresholds read high.": "{zero} résultat(s) de {symbol} dans « {pop} » valent 0 dans la source (sous la limite ou non analysés : la couche ne le dit pas) et sont exclus de n et de tous les seuils. S'ils sont sous la limite, les seuils sont trop élevés.",
   "a download{v} from GitHub, {v2} (with TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most since 2012).": "un téléchargement{v} depuis GitHub, {v2} (avec TensorFlow), environ 2 Go de mémoire libre pendant l'exécution d'un modèle, et un processeur avec AVX (la plupart depuis 2012).",
-  "On 20 to 40 holes, Fast and Standard take a few minutes; time grows with holes and quality, so start with Fast. {v}": "Avec 20 à 40 sondages, Rapide et Standard prennent quelques minutes ; le temps augmente avec les sondages et la qualité, donc commencez par Rapide. {v}",
   "Added \"{name}\" to the map on the ground interpolated between the collars (the project has no terrain). Its values export as GeoTIFF from the Raster module.": "« {name} » a été ajouté à la carte sur le sol interpolé entre les collets (le projet n'a pas de terrain). Ses valeurs s'exportent en GeoTIFF depuis le module Raster.",
   "Blank = automatic: the longest side / 500, coarsened at the cell limit. A soil grid at 25-50 m wants a cell about half its spacing.": "Vide = automatique : le plus grand côté / 500, grossi à la limite de cellules. Une maille de sols à 25-50 m demande une cellule d'environ la moitié de son espacement.",
   "The {c} m cell would exceed the grid's cell limit over this area, so it was coarsened to {d} m. A smaller area keeps it.": "La cellule de {c} m dépasserait la limite de cellules de la grille sur cette zone ; elle a donc été grossie à {d} m. Une zone plus petite la garde.",
@@ -15330,5 +15327,10 @@
   "The azimuths are magnetic (column {c}): choose the declination when you map the survey.": "Les azimuts sont magnétiques (colonne {c}) : choisissez la déclinaison en associant le levé.",
   "The azimuths are on the grid or true north (column {c}), not magnetic.": "Les azimuts sont au nord de la grille ou vrai (colonne {c}), pas magnétique.",
   "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.": "{n} étalon(s) de référence certifié(s) en ligne ({names}) sont marqués comme étalons, pas comme échantillons.",
-  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "couleurs de 0 à {v} mrad (le 98e centile des cellules vues par les données ; le modèle va jusqu'à {b})"
+  "colours over 0–{v} mrad (the 98th percentile of the cells the data see; the model runs to {b})": "couleurs de 0 à {v} mrad (le 98e centile des cellules vues par les données ; le modèle va jusqu'à {b})",
+  " — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it": " — la tendance « {name} » n'a PAS été appliquée : cette version de l'extension ({v}) est antérieure aux tendances ; mettez-la à jour",
+  ", Ítalo Gonçalves). Results appear in the 3D view as \"geoML — …\" beside your other models. Everything runs on this computer.": ", Ítalo Gonçalves). Les résultats apparaissent dans la vue 3D sous le nom « geoML — … » à côté de vos autres modèles. Tout s'exécute sur cet ordinateur.",
+  "Time grows with holes and quality: start with Fast. {v}": "Le temps augmente avec les sondages et la qualité : commencez par Rapide. {v}",
+  "Add-on {v} still works; {v2} is available.": "L'extension {v} fonctionne toujours ; la {v2} est disponible.",
+  "Update to {v}…": "Mettre à jour vers {v}…"
 }
