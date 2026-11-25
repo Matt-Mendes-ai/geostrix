@@ -180,7 +180,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
               </label>
               <div style={{ display: "flex", gap: 0, border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden" }}>
                 {[["holes", tr("Holes")], ["point", tr("Point")]].map(([k, label]) => (
-                  <button key={k} onClick={() => setTab(k)} style={{ ...tabBtn, background: tab === k ? "#e8eef8" : "transparent", color: tab === k ? "#1a4a9c" : "var(--color-text-secondary)" }}>{label}</button>
+                  <button data-btn-own="" key={k} onClick={() => setTab(k)} style={{ ...tabBtn, background: tab === k ? "#e8eef8" : "transparent", color: tab === k ? "#1a4a9c" : "var(--color-text-secondary)" }}>{label}</button>
                 ))}
               </div>
               {tab === "holes" && (
@@ -190,7 +190,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                 </label>
               )}
               {tab === "holes" && rows.length > 0 && (
-                <button onClick={exportCsv} style={{ ...exportBtn, marginLeft: "auto" }}><Download size={12} />{" "}{tr("Export CSV")}</button>
+                <button onClick={exportCsv} className="gs-btn" style={{ marginLeft: "auto" }}><Download size={12} />{" "}{tr("Export CSV")}</button>
               )}
             </div>
 
@@ -310,7 +310,6 @@ const panel = { background: "var(--color-bg)", border: "1px solid var(--color-bo
 const rowLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 3 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
 const tabBtn = { padding: "6px 14px", border: "none", fontSize: "var(--font-size-base)", cursor: "pointer" };
-const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "transparent", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" };
 const th = { textAlign: "start", padding: "6px 8px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600 };
 const td = { padding: "5px 8px", borderBottom: "1px solid #eef0f3", color: "var(--color-text)", whiteSpace: "nowrap" };
 const goodNote = { background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 6, padding: "7px 9px", fontSize: "var(--font-size-sm)", color: "#20512f", lineHeight: 1.5 };

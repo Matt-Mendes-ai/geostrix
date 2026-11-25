@@ -414,7 +414,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 {FENCE_VE.map((v) => <option key={v} value={v}>{v === 1 ? tr("1× (true scale)") : `${v}× exaggerated`}</option>)}{/* #2426 — up to 50× for a shallow flat deposit */}
               </select>
             </label>
-            {panel && suggestFenceVe(panel.sRange, panel.zRange) > ve && <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{tr("This section is {r} times longer than the holes are deep: {v}× makes the columns readable.", { r: Math.round((panel.sRange.max - panel.sRange.min) / Math.max(1e-6, panel.zRange.max - panel.zRange.min)), v: suggestFenceVe(panel.sRange, panel.zRange) })}{" "}<button onClick={() => setVe(suggestFenceVe(panel.sRange, panel.zRange))} style={miniBtn}>{tr("Use {v}×", { v: suggestFenceVe(panel.sRange, panel.zRange) })}</button></div>}{/* #2426 */}
+            {panel && suggestFenceVe(panel.sRange, panel.zRange) > ve && <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{tr("This section is {r} times longer than the holes are deep: {v}× makes the columns readable.", { r: Math.round((panel.sRange.max - panel.sRange.min) / Math.max(1e-6, panel.zRange.max - panel.zRange.min)), v: suggestFenceVe(panel.sRange, panel.zRange) })}{" "}<button onClick={() => setVe(suggestFenceVe(panel.sRange, panel.zRange))} className="gs-btn gs-btn--sm">{tr("Use {v}×", { v: suggestFenceVe(panel.sRange, panel.zRange) })}</button></div>}{/* #2426 */}
             <label style={rowLabel}>{tr("Column width")}<select value={colWidth} onChange={(e) => setColWidth(Number(e.target.value))} style={sel}>
                 {[5, 7, 9, 13, 18].map((v) => <option key={v} value={v}>{tr("{v} px", { v })}</option>)}
               </select>
@@ -431,14 +431,14 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
 
             {offHoles.length > 0 && (
               <div style={warnNote}>
-                {tr(offHoles.length === 1 ? "{offHoles} hole is more than {offsetLimit} m off the section plane and is drawn as if on it. Any contact correlated through it carries that much horizontal error." : "{offHoles} holes are more than {offsetLimit} m off the section plane and are drawn as if on it. Any contact correlated through them carries that much horizontal error.", { offHoles: offHoles.length, offsetLimit })}<button onClick={dropOffLine} style={{ ...miniBtn, marginTop: 5 }}>{tr("Drop them from the panel")}</button>{dropNote && <div style={{ marginTop: 4 }}>{dropNote}</div>}{/* #2064 */}
+                {tr(offHoles.length === 1 ? "{offHoles} hole is more than {offsetLimit} m off the section plane and is drawn as if on it. Any contact correlated through it carries that much horizontal error." : "{offHoles} holes are more than {offsetLimit} m off the section plane and are drawn as if on it. Any contact correlated through them carries that much horizontal error.", { offHoles: offHoles.length, offsetLimit })}<button onClick={dropOffLine} className="gs-btn gs-btn--sm" style={{ marginTop: 5 }}>{tr("Drop them from the panel")}</button>{dropNote && <div style={{ marginTop: 4 }}>{dropNote}</div>}{/* #2064 */}
               </div>
             )}
 
             <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", fontWeight: 600, marginTop: 2 }}>{tr("Holes ({size}/{allIds})", { size: selected.size, allIds: allIds.length })}</div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => setSelected(new Set(allIds))} style={miniBtn}>{tr("All")}</button>
-              <button onClick={() => setSelected(new Set())} style={miniBtn}>{tr("None")}</button>
+              <button onClick={() => setSelected(new Set(allIds))} className="gs-btn gs-btn--sm">{tr("All")}</button>
+              <button onClick={() => setSelected(new Set())} className="gs-btn gs-btn--sm">{tr("None")}</button>
             </div>
             <div style={{ maxHeight: 170, minHeight: 90, flexShrink: 0, overflow: "auto", border: "1px solid #e0e3e8", borderRadius: 5, padding: "4px 6px" }}>{/* #1552 — it shrank to two rows when the column filled */}
               {allIds.map((id) => {
@@ -473,7 +473,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
             <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.5 }}>
               <div style={{ fontWeight: 600, color: "#1a2028", marginBottom: 3 }}>{tr("Reading this panel")}</div>{tr("Horizontal is distance along the section line, vertical is elevation. Each whole trace is projected, so inclined holes lean as in the ground. The number under each collar is the hole's largest distance off the section plane: the error of this flattening.")}</div>
 
-            <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
+            <button onClick={exportSvg} className="gs-btn" style={{ marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
           </div>
         </div>
         )}
@@ -486,6 +486,4 @@ const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)"
 const modalPanel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxWidth: "96vw", maxHeight: "95vh", overflow: "auto" };
 const rowLabel = { fontSize: "var(--font-size-xs)", color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
 const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: "var(--font-size-sm)" };
-const miniBtn = { padding: "3px 8px", borderRadius: 5, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: "var(--font-size-xs)", cursor: "pointer" };
-const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: "var(--font-size-sm)", cursor: "pointer" };
 const warnNote = { background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: "var(--font-size-xs)", color: "#6b4e20", lineHeight: 1.45 };

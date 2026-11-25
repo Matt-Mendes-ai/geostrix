@@ -389,7 +389,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
               </div>
             )}
 
-            <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
+            <button onClick={exportSvg} className="gs-btn" style={{ marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
           </div>
         </div>
         )}
@@ -402,4 +402,3 @@ const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)"
 const panel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxWidth: "94vw", maxHeight: "94vh", overflow: "auto" };
 const rowLabel = { fontSize: "var(--font-size-xs)", color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
 const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: "var(--font-size-sm)" };
-const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: "var(--font-size-sm)", cursor: "pointer" };

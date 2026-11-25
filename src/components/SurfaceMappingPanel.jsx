@@ -650,7 +650,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         defaultText={project?.crsSet === false ? tr("From the file (.prj / GeoPackage), else the project CRS (not chosen yet)") /* #2262 */ : tr("From the file (.prj / GeoPackage), else the project CRS ({v})", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
         title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.")}
       />
-      <button onClick={() => mapInput.current.click()} style={pBtn} disabled={busy} title={tr("Formats: GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml")}>
+      <button onClick={() => mapInput.current.click()} className="gs-btn gs-btn--block" disabled={busy} title={tr("Formats: GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml")}>
         <MapIcon size={14} /> {busy ? tr("Importing…") : tr("Import map layer…")}
       </button>
       <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml,.tab,.map,.id,.dat,.mif,.mid,.gpx,.geojson,.json,.kml,.kmz" multiple style={{ display: "none" }}
@@ -659,7 +659,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         onChange={(e) => { applyQmlToLayer(e.target.files[0]); e.target.value = ""; }} />
       {/* TASKS.csv #1719 (review #1645, Copley) — the collars' top-of-hole lithology as a starting map */}
       {collars.length > 0 && (layers.litho || []).length > 0 && (
-        <button onClick={() => makeSubcrop()} style={{ ...pBtn, marginTop: 6 }} title={tr("A point layer: each hole's first logged unit under its cover, coloured like the logs, with the hole and the depth of cover as attributes.")}>
+        <button onClick={() => makeSubcrop()} className="gs-btn gs-btn--block" style={{ marginTop: 6 }} title={tr("A point layer: each hole's first logged unit under its cover, coloured like the logs, with the hole and the depth of cover as attributes.")}>
           <MapIcon size={14} /> {tr("Subcrop from collars")}
         </button>
       )}
@@ -696,14 +696,14 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             ))}
             {others.length > 10 && <div>{tr("…and {n} more code(s): all of them are in 3D Modelling > Modelling codes.", { n: others.length - 10 })}</div>}
             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-              <button onClick={() => makeSubcrop(layer)} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Make it again")}</button>
-              {subcropCard.depth == null && <button onClick={() => changeStyleField(layer, "cover_m")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Colour by depth of cover")}</button>}
+              <button onClick={() => makeSubcrop(layer)} className="gs-btn gs-btn--block" style={{ marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Make it again")}</button>
+              {subcropCard.depth == null && <button onClick={() => changeStyleField(layer, "cover_m")} className="gs-btn gs-btn--block" style={{ marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Colour by depth of cover")}</button>}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
               <span>{tr("Outline the units out to")}</span>
               <NumberInput min={1} value={subcropCard.reach === "" ? null : subcropCard.reach} onChange={(v) => setSubcropCard((c) => ({ ...c, reach: String(v) }))} aria-label={tr("Outline distance from the holes, m")} style={{ ...numInput, width: 70 }} />
               <span>{tr("m from a hole")}</span>
-              <button onClick={outlineSubcrop} title={tr("A polygon map of each hole's nearest-hole area, cut back to this distance, with its point's unit. Borders are not mapped contacts.")} style={{ ...pBtn, marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
+              <button onClick={outlineSubcrop} title={tr("A polygon map of each hole's nearest-hole area, cut back to this distance, with its point's unit. Borders are not mapped contacts.")} className="gs-btn gs-btn--block" style={{ marginBottom: 0, width: "auto" }}>{tr("Outline")}</button>
             </div>
           </div>
         );
@@ -756,7 +756,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                   {l.fields.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
                 <button title={tr("Apply a QGIS .qml style to this layer")} onClick={() => { qmlTargetRef.current = l.id; qmlInput.current.click(); }}
-                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 7px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", cursor: "pointer", flexShrink: 0 }}>
+                  className="gs-btn gs-btn--sm">
                   <Palette size={12} />{" "}{tr(".qml")}</button>
               </div>
             )}
@@ -765,13 +765,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 <span style={lbl}>{tr("Classes")}</span>
                 <input key={l.styleBreaks.join(",")} defaultValue={l.styleBreaks.join(", ")} onBlur={(e) => setBreaks(l, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                   title={tr("Class breaks, lowest first (e.g. 0.1, 0.5, 1, 5): each class runs from one break up to the next")} aria-label={tr("Class breaks")} style={select} />
-                <button onClick={() => eachValue(l)} title={tr("One colour per distinct value instead of classes")} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 7px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", cursor: "pointer", flexShrink: 0 }}>{tr("Each value")}</button>
+                <button onClick={() => eachValue(l)} title={tr("One colour per distinct value instead of classes")} className="gs-btn gs-btn--sm">{tr("Each value")}</button>
               </div>
             )}
             {!l.styleBreaks?.length && l.categories?.length > 12 && isNumericField(l.features, l.styleField) && ( /* #1600 */
               <div style={row}>
                 <span style={lbl} />
-                <button onClick={() => changeStyleField(l, l.styleField)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 7px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", cursor: "pointer", flexShrink: 0 }}>{tr("Graduated classes")}</button>
+                <button onClick={() => changeStyleField(l, l.styleField)} className="gs-btn gs-btn--sm">{tr("Graduated classes")}</button>
               </div>
             )}
             {l.geomType === "polygon" && (
@@ -794,7 +794,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 {legendOpen && (
                   <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 3 }}>
                     {/* TASKS.csv #2005 — units named by age ('Late Jurassic') in the international time scale's colours, from Macrostrat */}
-                    <button type="button" style={{ ...pBtn, padding: "2px 6px", width: "auto", fontSize: "var(--font-size-xs)", marginBottom: 4 }} title={tr("Colour units named for an age (Late Jurassic, Eocene ...) in the international time scale's colours (Macrostrat, CC BY 4.0; works offline). Other units keep their colours.")}
+                    <button type="button" className="gs-btn gs-btn--block" style={{ padding: "2px 6px", width: "auto", fontSize: "var(--font-size-xs)", marginBottom: 4 }} title={tr("Colour units named for an age (Late Jurassic, Eocene ...) in the international time scale's colours (Macrostrat, CC BY 4.0; works offline). Other units keep their colours.")}
                       onClick={async () => {
                         try {
                           const { bundledTimeScaleIntervals, timeScaleColours } = await import("../lib/macrostratColours.js"); // #2690 — bundled, offline
@@ -830,16 +830,16 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV or MapInfo point table (easting, northing, dip, and dip direction or strike). Each is a disc in the measured plane, coloured by type; rows without elevation sit on the terrain. 3D Modelling uses them to set contact dips.")} />
       </div>
       {!terrain && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 8 }}>{tr("No terrain yet: make one in Maps > Terrain. Map layers and measurements then sit on the ground.")}</div>}{/* TASKS.csv #1719 */}
-      <button onClick={() => structInput.current.click()} style={pBtn} title={tr("Formats: .csv, .xlsx, MapInfo .tab / .mif")}>
+      <button onClick={() => structInput.current.click()} className="gs-btn gs-btn--block" title={tr("Formats: .csv, .xlsx, MapInfo .tab / .mif")}>
         <Compass size={14} />{" "}{tr("Import structure measurements…")}</button>
       {sampleStructs && !pendingStruct && ( /* TASKS.csv #3842 - samples already in the project that carry a strike and a dip */
-        <button onClick={() => { setStructMsg(null); setPendingStruct({ name: tr("Surface samples"), rows: sampleStructs.rows, headers: sampleStructs.headers, cols: sampleStructs.cols, sourceEpsg: project?.epsg ? String(project.epsg) : "" }); }} style={pBtn} title={tr("Samples already in the project with a Strike and a Dip: check the columns, then add them as outcrop measurements at their positions.")}>
+        <button onClick={() => { setStructMsg(null); setPendingStruct({ name: tr("Surface samples"), rows: sampleStructs.rows, headers: sampleStructs.headers, cols: sampleStructs.cols, sourceEpsg: project?.epsg ? String(project.epsg) : "" }); }} className="gs-btn gs-btn--block" title={tr("Samples already in the project with a Strike and a Dip: check the columns, then add them as outcrop measurements at their positions.")}>
           <Compass size={14} />{" "}{tr("Add the {n} sample(s) with a strike and dip as structures", { n: sampleStructs.n })}</button>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: -2, marginBottom: 8 }}>{/* TASKS.csv #1719 — start mapping without a file */}
-        <button onClick={() => setTyping((t) => (t ? null : {}))} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }} aria-expanded={!!typing}>{tr("Add a measurement")}</button>
+        <button onClick={() => setTyping((t) => (t ? null : {}))} className="gs-btn gs-btn--block" style={{ marginBottom: 0, flex: 1, justifyContent: "center" }} aria-expanded={!!typing}>{tr("Add a measurement")}</button>
         <button onClick={() => saveFile({ quiet: "success", suggestedName: "outcrop_measurements_template.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: "Station,Easting,Northing,Elevation,Type,Dip,Dip direction,Strike,Comments\r\n" })}
-          title={tr("A CSV with the column headers this importer reads, to fill in a spreadsheet")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Template CSV")}</button>
+          title={tr("A CSV with the column headers this importer reads, to fill in a spreadsheet")} className="gs-btn gs-btn--block" style={{ marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Template CSV")}</button>
       </div>
       {typing && (
         <div style={card}>
@@ -866,8 +866,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               const rowObj = { Station: typing.station || "", Easting: typing.x, Northing: typing.y, Elevation: typing.z || "", Type: typing.type || "", Dip: typing.dip, "Dip direction": typing.dipDir ?? "", Strike: typing.strike ?? "", Comments: typing.comment || "" };
               setPendingStruct({ name: "Typed measurements", typed: true, rows: [rowObj], headers, cols: { x: "Easting", y: "Northing", z: Number.isFinite(n(typing.z)) ? "Elevation" : null, dip: "Dip", dipDir: Number.isFinite(n(typing.dipDir)) ? "Dip direction" : null, strike: Number.isFinite(n(typing.strike)) && !Number.isFinite(n(typing.dipDir)) ? "Strike" : null, type: "Type", station: "Station", comment: "Comments" }, sourceEpsg: project?.epsg ? String(project.epsg) : "" });
               setTyping(null); setStructMsg(null);
-            }} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Check and add")}</button>
-            <button onClick={() => setTyping(null)} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
+            }} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}>{tr("Check and add")}</button>
+            <button onClick={() => setTyping(null)} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
           </div>
         </div>
       )}
@@ -915,8 +915,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             </div>
           )}
           <div style={{ display: "flex", gap: 6, marginTop: 9 }}>
-            <button onClick={commitStructs} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Import")}</button>
-            <button onClick={() => { setPendingStruct(null); setStructMsg(null); /* #1722 — the column check's message goes with it */ }} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
+            <button onClick={commitStructs} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}>{tr("Import")}</button>
+            <button onClick={() => { setPendingStruct(null); setStructMsg(null); /* #1722 — the column check's message goes with it */ }} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
           </div>
         </div>
       )}

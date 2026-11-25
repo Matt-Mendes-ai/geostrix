@@ -49,7 +49,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
             {attrFields.other.map((f) => <option key={`field:${f}`} value={`field:${f}`}>{tr("Field: {name}", { name: fieldLabel(f) })}</option>)}
           </optgroup>}
         </select>
-        {cfg.mode !== "medium" && cfg.mode !== "field" && <button type="button" onClick={() => setOpen((o) => !o)} style={linkBtn} aria-expanded={open}>{open ? tr("Fewer options") : tr("Options")}</button>}
+        {cfg.mode !== "medium" && cfg.mode !== "field" && <button data-btn-own="" type="button" onClick={() => setOpen((o) => !o)} style={linkBtn} aria-expanded={open}>{open ? tr("Fewer options") : tr("Options")}</button>}
       </label>
       {cfg.mode !== "medium" && cfg.mode !== "field" && open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
@@ -118,7 +118,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
             </div>
           ))}
           {result.notes.map((n) => <div key={n.text} style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-xs)", lineHeight: 1.35 }}>{tr(n.text, n.params)}</div>)}
-          <button type="button" onClick={exportCsv} style={{ ...linkBtn, alignSelf: "flex-start" }}>{tr("Samples with classes (CSV)")}</button>{/* TASKS.csv #854 */}
+          <button data-btn-own="" type="button" onClick={exportCsv} style={{ ...linkBtn, alignSelf: "flex-start" }}>{tr("Samples with classes (CSV)")}</button>{/* TASKS.csv #854 */}
         </div>
       )}
     </div>

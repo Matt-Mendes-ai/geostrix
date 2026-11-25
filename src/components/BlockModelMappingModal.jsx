@@ -26,7 +26,7 @@ export default function BlockModelMappingModal({ fileName, headers, numeric, row
       <div role="dialog" aria-modal="true" aria-label={tr("Block model columns")} style={{ ...panel(), width: 520, maxHeight: "86vh" }}>
         <div style={headerStyle}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}><Box size={18} />{" "}{tr("Block model columns — {fileName}", { fileName })}</span>
-          <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
+          <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", fontSize: "var(--font-size-base)" }}>
           <div style={{ color: "var(--color-text-secondary)", marginBottom: 12 }}>{tr("{rowCount} rows. Check the columns GeoStrix guessed; sizes left on \"infer\" are taken from the spacing between centroids.", { rowCount: rowCount.toLocaleString() })}</div>
@@ -55,8 +55,8 @@ export default function BlockModelMappingModal({ fileName, headers, numeric, row
           )}
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Rotated block models are not supported: their centroids are in a local frame and would be drawn in the wrong place.")}</div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" onClick={onClose} style={{ ...sel, cursor: "pointer" }}>{tr("Cancel")}</button>
-            <button type="button" disabled={!ready} onClick={() => onImport(mapping, [...attrs])} style={{ ...sel, cursor: ready ? "pointer" : "default", opacity: ready ? 1 : 0.5, background: "var(--color-success-bg)", color: "var(--color-success-text)", border: "1px solid var(--color-success-border)" }}>{tr("Import {size} {v}", { size: attrs.size, v: tr(attrs.size === 1 ? "block model" : "block models") })}
+            <button type="button" onClick={onClose} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Cancel")}</button>
+            <button type="button" disabled={!ready} onClick={() => onImport(mapping, [...attrs])} className="gs-btn gs-btn--primary" style={{ opacity: ready ? 1 : 0.5 }}>{tr("Import {size} {v}", { size: attrs.size, v: tr(attrs.size === 1 ? "block model" : "block models") })}
             </button>
           </div>
         </div>

@@ -107,7 +107,7 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
           <button
             onClick={() => onProject(settings(), contact, layer, chosenRows)}
             disabled={!contact || !terrain || busy}
-            style={{ ...pBtn, marginBottom: 6, opacity: contact && terrain && !busy ? 1 : 0.5, cursor: contact && terrain && !busy ? "pointer" : "default" }}
+            className="gs-btn gs-btn--block" style={{ marginBottom: 6, opacity: contact && terrain && !busy ? 1 : 0.5, cursor: contact && terrain && !busy ? "pointer" : "default" }}
             title={terrain ? tr("Build a surface by sweeping this contact down-dip") : tr("Needs a terrain surface to drape the contact trace on (Maps → Terrain)")}
           ><ArrowDownToLine size={14} />{" "}{tr("Project contact to depth")}</button>
           <label style={{ ...row, cursor: contact && terrain ? "pointer" : "default", opacity: contact && terrain ? 1 : 0.5 }}

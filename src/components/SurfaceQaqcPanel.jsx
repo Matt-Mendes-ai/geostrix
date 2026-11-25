@@ -14,7 +14,7 @@ import { emptySurfaceQc, qcSettings, qcFromCertificates, batchSummary, standards
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps, sel, th, td, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
+import { overlay, backdropProps, sel, th, td, panel, header } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
@@ -107,14 +107,14 @@ export default function SurfaceQaqcPanel({ onClose }) {
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <button type="button" style={btn(true)} onClick={() => fileRef.current?.click()}>{tr("Add lab certificates…")}</button>
+            <button type="button" className="gs-btn gs-btn--primary" onClick={() => fileRef.current?.click()}>{tr("Add lab certificates…")}</button>
             <input ref={fileRef} type="file" accept=".csv" multiple style={{ display: "none" }} onChange={(e) => { const f = [...e.target.files]; e.target.value = ""; if (f.length) addCertificates(f); }} />
             <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
               {elementList.map((s) => <option key={s} value={s}>{s}{units[s] ? ` (${gradeUnitLabel(s, units[s])})` : ""}</option>)}
             </select></label>
-            <button type="button" style={btn(false)} onClick={() => setShowSettings((v) => !v)} aria-expanded={showSettings}>{showSettings ? tr("Hide program settings") : tr("Program settings")}</button>
+            <button type="button" className="gs-btn" onClick={() => setShowSettings((v) => !v)} aria-expanded={showSettings}>{showSettings ? tr("Hide program settings") : tr("Program settings")}</button>
             <span style={{ flex: 1 }} />
-            <button type="button" style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }} onClick={exportReport} disabled={!records.length}><Download size={14} />{tr("QC report (CSV)")}</button>
+            <button type="button" className="gs-btn" style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={exportReport} disabled={!records.length}><Download size={14} />{tr("QC report (CSV)")}</button>
           </div>
           {msg && <div style={{ ...note, color: msg.warn ? "var(--color-warn-text)" : "var(--color-text)" }}>{msg.text}</div>}
           {!records.length && <div style={note}>{tr("No QC results yet. Add the lab's certificates (its QC certificate holds the lab's blanks, standards and duplicates; your own inserts are found by name), or import a sample file whose sample-type column marks standards, blanks and duplicates.")}</div>}
@@ -144,7 +144,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
           )}
 
           <div role="tablist" style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--color-border)" }}>
-            {TABS.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} style={{ ...tabBtn, borderBottom: tab === k ? "2px solid var(--color-accent)" : "2px solid transparent", color: tab === k ? "var(--color-text)" : "var(--color-text-secondary)" }}>{tr(l)}</button>)}
+            {TABS.map(([k, l]) => <button data-btn-own="" key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} style={{ ...tabBtn, borderBottom: tab === k ? "2px solid var(--color-accent)" : "2px solid transparent", color: tab === k ? "var(--color-text)" : "var(--color-text-secondary)" }}>{tr(l)}</button>)}
           </div>
 
           {tab === "batches" && (
@@ -219,9 +219,9 @@ export default function SurfaceQaqcPanel({ onClose }) {
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          {records.length > 0 && <button type="button" style={btn(false)} onClick={async () => { if (await askConfirm(tr("Remove all {n} QC results and certificates from the project? Your samples are not changed.", { n: records.length }))) setSurfaceQc((prev) => ({ ...emptySurfaceQc(), settings: prev?.settings || emptySurfaceQc().settings })); }}>{tr("Remove QC results")}</button>}
+          {records.length > 0 && <button type="button" className="gs-btn" onClick={async () => { if (await askConfirm(tr("Remove all {n} QC results and certificates from the project? Your samples are not changed.", { n: records.length }))) setSurfaceQc((prev) => ({ ...emptySurfaceQc(), settings: prev?.settings || emptySurfaceQc().settings })); }}>{tr("Remove QC results")}</button>}
           <span style={{ flex: 1 }} />
-          <button type="button" style={btn(false)} onClick={onClose}>{tr("Close")}</button>
+          <button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button>
         </div>
       </div>
     </div>

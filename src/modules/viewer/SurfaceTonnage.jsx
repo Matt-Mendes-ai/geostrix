@@ -23,7 +23,6 @@ export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, 
   const inside = useMemo(() => (whole ? sgInsideSolid(sgRows, traces, geometry?.attributes?.position?.array, geometry?.index?.array, dRange) : null), [whole, sgRows, traces, geometry, dRange.min, dRange.max]);
   const tonnage = computeTonnage(volumeM3, Number(s.density));
   const from = s.densityFrom && Number(s.density) === s.densityFrom.mean ? s.densityFrom : null;
-  const btn = { ...smallSel, cursor: "pointer", width: "auto" };
   const muted = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
   return (
     <>
@@ -33,9 +32,9 @@ export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, 
       </label>
       {whole && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
-          {inside && <button type="button" style={btn} onClick={() => onDensity(inside.mean, { kind: "inside", ...inside })}
+          {inside && <button type="button" className="gs-btn gs-btn--sm" onClick={() => onDensity(inside.mean, { kind: "inside", ...inside })}
             title={tr("The length-weighted mean of the {n} Specific gravity intervals whose midpoints fall inside this solid ({range}).", { n: inside.n, range: range(inside) })}>{tr("Use the SG inside this solid ({v}, {n} intervals)", { v: inside.mean, n: inside.n })}</button>}
-          <button type="button" style={btn} onClick={() => onDensity(whole.mean, { kind: "layer", ...whole })}
+          <button type="button" className="gs-btn gs-btn--sm" onClick={() => onDensity(whole.mean, { kind: "layer", ...whole })}
             title={tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: whole.n, min: r2(whole.min), max: r2(whole.max) })}>{tr("Use the SG layer's mean ({v})", { v: whole.mean })}</button>
           {!inside && <span style={muted}>{tr("No Specific gravity interval has its midpoint inside this solid.")}</span>}
         </div>

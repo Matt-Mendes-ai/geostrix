@@ -320,8 +320,8 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             {attrLine.text && <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", marginTop: 1, maxWidth: 520, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={attrLine.all}>{attrLine.text}</div>}{/* TASKS.csv #3408 — the per-hole values joined onto this hole */}
           </div>
           <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button type="button" onClick={() => setSideBySide(true)} title={tr("Draw this hole's log beside other holes' on one depth scale, from their own 0 m or from their collar elevations.")} style={{ padding: "4px 10px", background: "#f4f6f8", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit" }}>{tr("Side by side…")}</button>{/* TASKS.csv #3560 A1 */}
-            {onOpenFence && <button type="button" onClick={onOpenFence} title={tr("Several holes side by side: the Fence diagram puts the holes of a drill line in columns on one depth scale, with correlation bands.")} style={{ padding: "4px 10px", background: "#f4f6f8", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit" }}>{tr("Several holes: Fence diagram")}</button>}{/* TASKS.csv #3560 A0 */}
+            <button type="button" onClick={() => setSideBySide(true)} title={tr("Draw this hole's log beside other holes' on one depth scale, from their own 0 m or from their collar elevations.")} className="gs-btn gs-btn--sm">{tr("Side by side…")}</button>{/* TASKS.csv #3560 A1 */}
+            {onOpenFence && <button type="button" onClick={onOpenFence} title={tr("Several holes side by side: the Fence diagram puts the holes of a drill line in columns on one depth scale, with correlation bands.")} className="gs-btn gs-btn--sm">{tr("Several holes: Fence diagram")}</button>}{/* TASKS.csv #3560 A0 */}
             <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
           </span>
         </div>
@@ -351,13 +351,13 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             <input type="checkbox" checked={patternsOn} onChange={(e) => setPatterns(e.target.checked)} />{" "}{tr("Patterns")}</label>}{/* TASKS.csv #1995 */}
           <label style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Vertical scale (px/m)")}<NumberInput min={FIT_MIN_PX} max={FIT_MAX_PX} value={pxPerMeter} onChange={(v) => setPxPerMeter(v)} style={{ ...selStyle, width: 60 }} />
           </label>
-          <button type="button" onClick={fit} style={{ ...btn(false), padding: "4px 8px", fontSize: "var(--font-size-sm)" }} title={tr("Scale the depths drawn to fit this window")}>{tr("Fit")}</button>{/* TASKS.csv #3559 */}
-          {sampled && <button type="button" onClick={showSampled} style={{ ...btn(false), padding: "4px 8px", fontSize: "var(--font-size-sm)" }} title={tr("Draw the sampled depths ({from}–{to} m) only, fitted", { from: +sampled.from.toFixed(1), to: +sampled.to.toFixed(1) })}>{tr("Sampled")}</button>}
-          {ranged && <button type="button" onClick={wholeHole} style={{ ...btn(false), padding: "4px 8px", fontSize: "var(--font-size-sm)" }} title={tr("Draw the whole hole, fitted")}>{tr("Whole hole")}</button>}
+          <button type="button" onClick={fit} className="gs-btn" style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)" }} title={tr("Scale the depths drawn to fit this window")}>{tr("Fit")}</button>{/* TASKS.csv #3559 */}
+          {sampled && <button type="button" onClick={showSampled} className="gs-btn" style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)" }} title={tr("Draw the sampled depths ({from}–{to} m) only, fitted", { from: +sampled.from.toFixed(1), to: +sampled.to.toFixed(1) })}>{tr("Sampled")}</button>}
+          {ranged && <button type="button" onClick={wholeHole} className="gs-btn" style={{ padding: "4px 8px", fontSize: "var(--font-size-sm)" }} title={tr("Draw the whole hole, fitted")}>{tr("Whole hole")}</button>}
           <div style={{ flex: 1 }} />
-          <button onClick={exportSVG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("SVG")}</button>
-          <button onClick={exportPNG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
-          {onAddToLayout && <button onClick={addToLayout} style={{ ...btn(false), padding: "6px 10px" }} title={tr("The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend")}>{tr("Add to Layout")}</button>}
+          <button onClick={exportSVG} className="gs-btn" style={{ padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("SVG")}</button>
+          <button onClick={exportPNG} className="gs-btn" style={{ padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
+          {onAddToLayout && <button onClick={addToLayout} className="gs-btn" style={{ padding: "6px 10px" }} title={tr("The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend")}>{tr("Add to Layout")}</button>}
         </div>
         {patternsOn && litho.length > 0 && ( /* TASKS.csv #1995 — each code's pattern, and a way to change it (saved with the project's legend) */
           <details style={{ padding: "4px 16px", borderBottom: "1px solid #d9dce1", fontSize: "var(--font-size-sm)", color: "#55606e" }}>
@@ -495,7 +495,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
+          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -516,4 +516,3 @@ function depthTicks(from, to, pxPerMeter) { // from / to: #1480
 const panel = { width: "min(760px, 95vw)", height: "min(820px, 92vh)", minWidth: 480, minHeight: 360, maxWidth: "98vw", maxHeight: "98vh", resize: "both" /* TASKS.csv #3559 — the log can be made as big as the window */, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
 const selStyle = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 7px", color: "#1a2028", fontSize: "var(--font-size-sm)", fontFamily: "inherit" };
-const btn = (primary) => ({ borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });

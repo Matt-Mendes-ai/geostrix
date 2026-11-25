@@ -14,7 +14,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #2902 — a model slice can hold 10^5 cells: no spread
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps, sel, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
+import { overlay, backdropProps, sel, panel, header } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
 
 const W = 1000, H = 750;
@@ -132,7 +132,7 @@ export default function SurfacePlanMap({ onClose }) {
       <div role="dialog" aria-modal="true" aria-label={tr("Plan map of surface samples")} style={{ ...panel({ width: "min(1100px, 96vw)", maxHeight: "94vh" }), display: "flex", flexDirection: "column" }}>
         <div style={header}>
           <div style={{ fontWeight: 600 }}>{tr("Plan map of surface samples")}</div>
-          <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)" }}><X size={16} /></button>
+          <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)" }}><X size={16} /></button>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", padding: "10px 16px", fontSize: "var(--font-size-base)" }}>
           <label>{tr("Element")} <select style={sel} value={symbol} onChange={(e) => setSymbol(e.target.value)}>{elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}{saved.has(e.symbol) ? ` — ${tr("threshold saved")}` : ""}</option>)}</select></label>
@@ -150,8 +150,8 @@ export default function SurfacePlanMap({ onClose }) {
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center", padding: "10px 16px" }}>
           {msg && <span style={{ color: "var(--color-danger-text)", fontSize: "var(--font-size-sm)", marginRight: "auto" }}>{msg}</span>}
           <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginRight: "auto" }}>{shown.length === ofMedium.length ? tr("{n} sample(s) drawn", { n: shown.length.toLocaleString() }) : tr("{n} of {m} sample(s) in the frame", { n: shown.length.toLocaleString(), m: ofMedium.length.toLocaleString() }) + (frame === "model" ? " " + tr("{k} more are outside it: set Frame to All the samples.", { k: (ofMedium.length - shown.length).toLocaleString() }) : "") /* #3753 */}</span>
-          <button type="button" style={btn(false)} onClick={savePng}>{tr("Save PNG")}</button>
-          <button type="button" style={btn(true)} onClick={sendToLayout} disabled={!shown.length}>{tr("Send to Layout")}</button>
+          <button type="button" className="gs-btn" onClick={savePng}>{tr("Save PNG")}</button>
+          <button type="button" className="gs-btn gs-btn--primary" onClick={sendToLayout} disabled={!shown.length}>{tr("Send to Layout")}</button>
         </div>
       </div>
     </div>

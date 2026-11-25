@@ -120,8 +120,8 @@ function CodeTable({ rows, order, minCount, unit, binned, keptScope }) {
         </table>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-        <button type="button" onClick={copy} style={{ ...smallSel, cursor: "pointer" }}>{tr("Copy table")}</button>
-        <button type="button" onClick={() => saveFile({ suggestedName: "log_code_table.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: codeTableCsv(codeTableCells(sorted, { binned, unit, notLogged: NOT_LOGGED })) })} style={{ ...smallSel, cursor: "pointer" }} title={tr("Save the table as a CSV file")}>{tr("Save CSV")}</button>{/* TASKS.csv #3289 */}
+        <button type="button" onClick={copy} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Copy table")}</button>
+        <button type="button" onClick={() => saveFile({ suggestedName: "log_code_table.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: codeTableCsv(codeTableCells(sorted, { binned, unit, notLogged: NOT_LOGGED })) })} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }} title={tr("Save the table as a CSV file")}>{tr("Save CSV")}</button>{/* TASKS.csv #3289 */}
         {unit && <span style={note}>{tr("Values in {u}.", { u: unit })}</span>}
       </div>
     </div>
@@ -318,7 +318,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
           {layerNotes && <div style={{ ...note, color: "var(--color-text-muted)", whiteSpace: "pre-wrap" }}>{tr("Layer notes: {v}", { v: layerNotes })}</div>}{/* TASKS.csv #2775 — the import's notes (what was left out, where readings sit), as the 3D View's row shows them (#2432); English project text */}
           {assays.length > 0 && source && ( /* TASKS.csv #2968 */
             <div style={{ ...note, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-              <button type="button" onClick={composite} style={{ ...smallSel, cursor: "pointer" }} title={tr("Average this log over each assay sample (length-weighted, after its valid range and despike, all holes) and add it as a numeric layer, beside the grades sample by sample")}>{tr("Composite to the assay intervals")}</button>
+              <button type="button" onClick={composite} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }} title={tr("Average this log over each assay sample (length-weighted, after its valid range and despike, all holes) and add it as a numeric layer, beside the grades sample by sample")}>{tr("Composite to the assay intervals")}</button>
               {compositeMsg?.key === source.key && <div role="status">{compositeMsg.text}</div>}
             </div>
           )}
@@ -399,7 +399,7 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               ) : <div style={note}>{tr("Fewer than three readings fall inside a cell of this model.")}</div>}
             </>
           ) : source?.evaluated ? null : <div style={{ ...note, marginTop: 8 }}>{tr("To compare this log with a block model, evaluate the model onto the holes first (Block models > the model's drillhole icon); it then appears here.")}</div>}
-          <div style={{ ...note, marginTop: 8 }}>{tr("To grid this log into a block model or shell it, use 3D Modelling > Estimation or Grade shell and pick it as the source.")}{onEstimate && <>{" "}<button type="button" onClick={onEstimate} style={{ ...smallSel, cursor: "pointer" }}>{tr("Open 3D Modelling")}</button></>}</div>
+          <div style={{ ...note, marginTop: 8 }}>{tr("To grid this log into a block model or shell it, use 3D Modelling > Estimation or Grade shell and pick it as the source.")}{onEstimate && <>{" "}<button type="button" onClick={onEstimate} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Open 3D Modelling")}</button></>}</div>
         </div>
       )}
     </>
