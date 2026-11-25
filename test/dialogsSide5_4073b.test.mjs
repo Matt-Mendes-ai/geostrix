@@ -20,7 +20,7 @@ const D = {
   MacrostratModal: { steps: ["area"], fragment: true,
     reach: ["onClick: addUnits", "onClick: addLayer", "onClick={addLayer}", "onClick={listUnits}", "<AreaChooser options={options} area={area} disabled={!!busy} onDraw={() => setPicking(true)} />", '<DropPicture picture="units" />',
       'className="spin" />{busy}', "msg.text", "units.map(", "<BasemapView", "area.setDrawn(b)", 'data-macrostrat-card=""', "if (e.target === e.currentTarget) onClose();", "credit: MACROSTRAT_CREDIT"],
-    seen: ["Regional geology (1:250,000 to 1:1,000,000), not property-scale mapping.", "Data CC BY 4.0: credit Macrostrat in shared figures."] },
+    seen: ["Regional geology (1:250,000 to 1:1,000,000), not property-scale mapping.", "CC BY 4.0: credit Macrostrat."] },
   GeoreferencerModal: { steps: ["image", "points", "import"],
     reach: ["fileInput.current.click()", 'accept=".png,.jpg,.jpeg,.tif,.tiff"', "loadImage(f)", "onClick={onCanvasClick}", "<SourceCrsField", "setCpEpsg(", "mineGrid={mineChoice", "mineSourceSentence(", "collarControlXY(c,", "mineCollarXY(c)",
       "updatePoint(p.id, { x:", "updatePoint(p.id, { y:", "removePoint(p.id)", "r.error.toFixed(2)", "onClick: doImport", "error={error}"],

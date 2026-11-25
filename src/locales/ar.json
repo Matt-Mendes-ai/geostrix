@@ -15603,7 +15603,6 @@
   "Click the image, then pick a collar or type X / Y.": "انقر على الصورة، ثم اختر فوهة أو اكتب X / Y.",
   "Click the image, then type X / Y.": "انقر على الصورة، ثم اكتب X / Y.",
   "Control points ({points})": "نقاط التحكم ({points})",
-  "Data CC BY 4.0: credit Macrostrat in shared figures.": "البيانات بترخيص CC BY 4.0: انسب الفضل إلى Macrostrat في الأشكال التي تشاركها.",
   "Depth raised to {d} m so the picture does not fold.": "رُفع العمق إلى {d} م كي لا تنطوي الصورة.",
   "Elements marked as last time take the column and unit chosen at this project's last surface import; change any of them in the list.": "تأخذ العناصر الموسومة «كما في المرة الأخيرة» العمود والوحدة المختارين في آخر استيراد سطحي لهذا المشروع؛ غيّر أيًّا منها في القائمة.",
   "Exact fit: add a fourth point to check the error.": "مطابقة تامة: أضف نقطة رابعة للتحقق من الخطأ.",
@@ -15634,5 +15633,6 @@
   "Limits": "الحدود",
   "A density outside this range is left out of the tonnage mean.": "تُستبعد الكثافة الواقعة خارج هذا النطاق من المتوسط المستخدم في حساب الحمولة.",
   "Markers": "العلامات",
-  "Untick a pick to leave it out; click its circle to make it soft.": "ألغِ تحديد نقطة لاستبعادها؛ وانقر على دائرتها لجعلها مرنة."
+  "Untick a pick to leave it out; click its circle to make it soft.": "ألغِ تحديد نقطة لاستبعادها؛ وانقر على دائرتها لجعلها مرنة.",
+  "CC BY 4.0: credit Macrostrat.": "CC BY 4.0: اذكر Macrostrat."
 }

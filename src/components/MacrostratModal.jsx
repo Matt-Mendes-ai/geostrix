@@ -100,7 +100,7 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
           <DropPicture picture="units" />
           <div style={note}>{tr("Regional geology (1:250,000 to 1:1,000,000), not property-scale mapping.")}</div>
           {/* the licence stays seen (shared figures must credit it), in one line */}
-          <div style={{ ...note, fontSize: "var(--font-size-xs)" }}>{tr("Data CC BY 4.0: credit Macrostrat in shared figures.")}</div>
+          <div style={{ ...note, fontSize: "var(--font-size-xs)" }}>{tr("CC BY 4.0: credit Macrostrat.")}</div>
           {/* #2314 / #3954 — which area the buttons fetch */}
           <AreaChooser options={options} area={area} disabled={!!busy} onDraw={() => setPicking(true)} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

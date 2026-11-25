@@ -15603,7 +15603,6 @@
   "Click the image, then pick a collar or type X / Y.": "Clique na imagem e depois escolha um colar ou digite X / Y.",
   "Click the image, then type X / Y.": "Clique na imagem e depois digite X / Y.",
   "Control points ({points})": "Pontos de controle ({points})",
-  "Data CC BY 4.0: credit Macrostrat in shared figures.": "Dados CC BY 4.0: credite a Macrostrat nas figuras que compartilhar.",
   "Depth raised to {d} m so the picture does not fold.": "Profundidade aumentada para {d} m para que a imagem não se dobre.",
   "Elements marked as last time take the column and unit chosen at this project's last surface import; change any of them in the list.": "Os elementos marcados como da última vez usam a coluna e a unidade escolhidas na última importação de superfície deste projeto; altere qualquer um na lista.",
   "Exact fit: add a fourth point to check the error.": "Ajuste exato: adicione um quarto ponto para verificar o erro.",
@@ -15634,5 +15633,6 @@
   "Limits": "Limites",
   "A density outside this range is left out of the tonnage mean.": "Uma densidade fora deste intervalo fica fora da média usada na tonelagem.",
   "Markers": "Marcadores",
-  "Untick a pick to leave it out; click its circle to make it soft.": "Desmarque um pick para deixá-lo de fora; clique no círculo para torná-lo suave."
+  "Untick a pick to leave it out; click its circle to make it soft.": "Desmarque um pick para deixá-lo de fora; clique no círculo para torná-lo suave.",
+  "CC BY 4.0: credit Macrostrat.": "CC BY 4.0: cite a Macrostrat."
 }

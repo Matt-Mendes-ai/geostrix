@@ -37,7 +37,7 @@ test("picture, one line of scale, the area and the buttons in view; the rest in 
   assert.match(m, /"Map units at the project centre"/);
   assert.match(after, /Macrostrat compiles geologic maps/);
   assert.match(after, /Data CC BY 4\.0: credit Macrostrat \(Peters et al\. 2018/);
-  assert.match(body, /tr\("Data CC BY 4\.0: credit Macrostrat in shared figures\."\)/, "the licence stays seen, in one line");
+  assert.match(body, /tr\("CC BY 4\.0: credit Macrostrat\."\)/, "the licence stays seen, in one line");
   assert.match(m, /credit: MACROSTRAT_CREDIT/, "the layer still carries the credit for maps and figures");
   assert.match(read("../src/components/DropDiagram.jsx"), /\n  units: \(id\) => <Block id=\{id\} top=\{<>/); // #3956: the units picture is drawn in style A, on the geology block
 });
