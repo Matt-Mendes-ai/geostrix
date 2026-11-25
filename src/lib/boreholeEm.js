@@ -2,7 +2,7 @@
 // station, a fixed loop, the readings down a hole 2 km from the drilling) was read by 'Import survey .xyz' as a ground magnetic survey ('736 points,
 // 0 with elevation · values -9,131.7 to 42,755 nT', Method 'Magnetics (TMI)': RAWMAG chosen from its diurnal-correction block) and by EM > TEM line data
 // as '736 stations on 1 line' with an airborne 1D inversion panel; the other eight imports refused it. There is no borehole EM reader: both routes now say
-// what the file is. Pure.
+// what the file is. TASKS.csv #4064: the reader is there now (EM › Borehole EM, lib/downholeEm.js), so both routes point to it. Pure.
 import { temChannelGroups } from "./temLines.js";
 import { t as tr } from "./i18n.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // no Math.min / max spread (#371)
@@ -27,7 +27,7 @@ const HOLE_HEADER = /\b(BOREHOLE|[XYZ]COLLAR)\s*[:=]\s*\S/i;
 // that says downhole): the reason, in words, instead of the reader's own error. -> string | null
 export function boreholeHeaderRefusal(name, headText) {
   const clues = boreholeEmClues([], [], headText);
-  return clues.length ? tr("\"{name}\" is borehole EM ({clues}): no reader for it yet.", { name, clues: clues.join(", ") }) : null;
+  return clues.length ? tr("\"{name}\" is borehole EM ({clues}): read it with EM › Borehole EM.", { name, clues: clues.join(", ") }) : null;
 }
 export const groundEmConfig = (headText) => { const m = String(headText || "").slice(0, 4000).match(/\bCONFIG\s*[:=]\s*(\S+)/i); return m && !DOWNHOLE_CONFIG.test(`CONFIG:${m[1]}`) ? m[1] : null; };
 
@@ -75,7 +75,7 @@ export function emPointRefusal(name, columns, rows, headText = "") {
   if (!d) return null;
   const bh = boreholeEmClues(columns, rows, headText);
   return bh.length
-    ? tr("\"{name}\" is a borehole EM file ({clues}; decay channels {first} … {last}, {n} gates), not a table of points. GeoStrix has no reader for borehole EM yet.", { name, clues: bh.join(", "), first: d.first, last: d.last, n: d.n })
+    ? tr("\"{name}\" is a borehole EM file ({clues}; decay channels {first} … {last}, {n} gates), not a table of points. Read it with EM › Borehole EM.", { name, clues: bh.join(", "), first: d.first, last: d.last, n: d.n })
     : tr("\"{name}\" is a multi-channel EM file (decay channels {first} … {last}, {n} gates), not a table of points. Read it with EM › TEM line data.", { name, first: d.first, last: d.last, n: d.n });
 }
 
@@ -84,5 +84,5 @@ export function boreholeEmRefusal(name, columns, rows, headText = "") {
   const d = emDecayChannels(columns);
   if (!d) return null;
   const bh = boreholeEmClues(columns, rows, headText);
-  return bh.length ? tr("\"{name}\" is borehole EM ({clues}; decay channels {first} … {last}, {n} gates). TEM line data reads airborne and ground line surveys, not a hole: GeoStrix has no reader for borehole EM yet.", { name, clues: bh.join(", "), first: d.first, last: d.last, n: d.n }) : null;
+  return bh.length ? tr("\"{name}\" is borehole EM ({clues}; decay channels {first} … {last}, {n} gates). TEM line data reads airborne and ground line surveys, not a hole. Read it with EM › Borehole EM.", { name, clues: bh.join(", "), first: d.first, last: d.last, n: d.n }) : null;
 }

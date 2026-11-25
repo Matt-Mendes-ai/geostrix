@@ -112,7 +112,7 @@ test("EMBASE: the processed rows only (not the \\RAW blocks), the gate times fro
 
 test("a hole's files say they are a hole's: a downhole title or CONFIG, a collar in the header, a tool log with no decay channels", () => {
   assert.throws(() => readTemText(crone({ config: "DOWNHOLE", title: "Example Ltd - DOWNHOLE PEM SURVEY" }), "dh.tem"), /is borehole EM \(.*a header that says borehole, a downhole configuration \(CONFIG:DOWNHOLE\); decay channels CH1 … CH10, 10 gates\)/);
-  assert.throws(() => readTemText(atlantisLog, "log.tem"), /is borehole EM \(a hole in the header \(XCOLLAR\)\): no reader for it yet/);
+  assert.throws(() => readTemText(atlantisLog, "log.tem"), /is borehole EM \(a hole in the header \(XCOLLAR\)\): read it with EM › Borehole EM/);
   assert.equal(boreholeHeaderRefusal("x", "a plain header"), null);
   assert.equal(boreholeHeaderRefusal("x", "LINE:1 BOREHOLE:DH1").includes("BOREHOLE"), true);
   // a ground file whose title says SURFACE is not
@@ -124,6 +124,6 @@ test("wired: the pane shows the notes; keys in every language", () => {
   assert.match(p, /\.\.\.\(d\.notes \|\| \[\]\)/);
   for (const k of ["a hole in the header ({v})", "No coordinates in the file: stations placed along their line.",
     "Component not named: Z assumed.", "{n} second-ADC reading(s) left out.",
-    "\"{name}\" is borehole EM ({clues}): no reader for it yet."])
+    "\"{name}\" is borehole EM ({clues}): read it with EM › Borehole EM."])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
 });

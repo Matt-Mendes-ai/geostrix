@@ -39,12 +39,23 @@ function bareName(name) {
 }
 
 // the side-file paths the .vo at voPath (with header text) names, each checked as above; realpath is injectable for tests
-async function voxetSidePaths(voPath, text, realpath = fs.promises.realpath) {
+const voxetSidePaths = (voPath, text, realpath = fs.promises.realpath) => sidePaths(voPath, propFileNames(text), realpath);
+
+// TASKS.csv #4066 — an ER Mapper .ers header names its data file the same way: the file of the same name with no extension (or stem.dat, GSQ's UBC sections), or the
+// header's own DataFile = "name". The same rules; only the names differ.
+function ersSideNames(ersPath, text) {
+  const stem = path.basename(String(ersPath || "")).replace(/\.ers$/i, "");
+  const m = /^\s*DataFile\s*=\s*"?([^"\r\n]+?)"?\s*$/im.exec(String(text || ""));
+  return [stem, `${stem}.dat`, ...(m ? [m[1]] : [])];
+}
+
+// the side-file paths the header at voPath names (names: its bare names), each checked as above
+async function sidePaths(voPath, names, realpath = fs.promises.realpath) {
   const dir = path.dirname(path.resolve(String(voPath || "")));
   let realDir;
   try { realDir = key(await realpath(dir)); } catch { return []; }
   const out = [];
-  for (const n of new Set(propFileNames(text).map(bareName).filter(Boolean))) {
+  for (const n of new Set(names.map(bareName).filter(Boolean))) {
     const full = path.join(dir, n);
     if (key(path.dirname(full)) !== key(dir)) continue;
     let real;
@@ -56,13 +67,13 @@ async function voxetSidePaths(voPath, text, realpath = fs.promises.realpath) {
 }
 
 // the allowed side files: note(voPath, text) after fs-read-file read a .vo; has(filePath) in fs-read-file's extension check
-function createVoxetSideRegistry(maxVo = MAX_VO, realpath = fs.promises.realpath) {
-  const byVo = new Map(); // .vo key -> Set of side-file keys, oldest first
+function createSideRegistry(namesOf, maxVo = MAX_VO, realpath = fs.promises.realpath) {
+  const byVo = new Map(); // header key -> Set of side-file keys, oldest first
   return {
     async note(voPath, text) {
       const k = key(voPath);
       byVo.delete(k);
-      byVo.set(k, new Set((await voxetSidePaths(voPath, text, realpath)).map(key)));
+      byVo.set(k, new Set((await sidePaths(voPath, namesOf(voPath, text), realpath)).map(key)));
       while (byVo.size > maxVo) byVo.delete(byVo.keys().next().value);
     },
     has(filePath) {
@@ -74,4 +85,7 @@ function createVoxetSideRegistry(maxVo = MAX_VO, realpath = fs.promises.realpath
   };
 }
 
-module.exports = { propFileNames, bareName, voxetSidePaths, createVoxetSideRegistry, MAX_VO };
+const createVoxetSideRegistry = (maxVo = MAX_VO, realpath = fs.promises.realpath) => createSideRegistry((_p, text) => propFileNames(text), maxVo, realpath);
+const createErsSideRegistry = (maxErs = MAX_VO, realpath = fs.promises.realpath) => createSideRegistry(ersSideNames, maxErs, realpath); // #4066
+
+module.exports = { propFileNames, bareName, voxetSidePaths, createVoxetSideRegistry, createErsSideRegistry, ersSideNames, MAX_VO };

@@ -52,11 +52,12 @@ const azRefOf = (v) => {
 // opens with it pre-set; nothing is converted unseen). -> adds azimuthCol (the column to read) and hint.
 // TASKS.csv #2154 (WA drillhole review) — the north is often only in the column's NAME: a map grid (AMG_AZIMUTH, MGA_Azimuth, Azimuth_UTM,
 // GDA94_Azi) is grid north, Azimuth_MAG magnetic north. Lithium / nickel / iron files went in as grid north with their true or magnetic azimuths.
-const GN_COLS = /^(azimuth|azi|az)[\s_-]*(corrected[\s_-]*)?(gn|grid|utm|mga|amg|gda|map)\d*$|^(grid|utm|mga|amg|gda|map)\d*[\s_-]*(azimuth|azi|az)$/i;
-const MN_COLS = /^(azimuth|azi|az)[\s_-]*(mag|magnetic|mn)$|^(mag|magnetic)[\s_-]*(azimuth|azi|az)$/i;
+const GN_COLS = /^(azimuth|azimut|azim|azi|az)[\s_-]*(corrected[\s_-]*)?(gn|grid|utm|mga|amg|gda|map)\d*$|^(grid|utm|mga|amg|gda|map)\d*[\s_-]*(azimuth|azimut|azim|azi|az)$/i;
+const MN_COLS = /^(azimuth|azimut|azim|azi|az)[\s_-]*(mag|magnetic|mn)$|^(mag|magnetic)[\s_-]*(azimuth|azimut|azim|azi|az)$/i;
 // #2154 — WAMEX's AZIMUTHGRIDNAME: the grid the azimuths are measured in (MGA94_51, AMG84_51, LOCAL); a north word is read as such
-const GRID_NAME_COLS = /^(azimuth|azi|az)[\s_-]*grid[\s_-]*name$/i;
-const TN_COLS = /^(azimuth|azi|az)[\s_-]*(corrected[\s_-]*)?(tn|true)$|^true[\s_-]*(azimuth|azi|az)$/i;
+const LOCAL_COLS = /^(azimuth|azimut|azim|azi|az)[\s_-]*(local|loc|mine|site)$|^(local|loc|mine|site)[\s_-]*(azimuth|azimut|azim|azi|az)$/i; // #4067 — never read as a north here (a local grid's north needs its tie), only listed
+const GRID_NAME_COLS =/^(azimuth|azimut|azim|azi|az)[\s_-]*grid[\s_-]*name$/i;
+const TN_COLS = /^(azimuth|azimut|azim|azi|az)[\s_-]*(corrected[\s_-]*)?(tn|true)$|^true[\s_-]*(azimuth|azimut|azim|azi|az)$/i;
 // TASKS.csv #3209 (#3195, Galore Creek) — 'SURVTYPE' (CHAMPGYRO on 593 stations) was not read as the instrument, so a dropped folder's gyro survey
 // went in as grid north unasked: surv / survey type, method, tool, instrument
 const INSTRUMENT_COLS = /^(instrument|surv(ey)?[\s_-]*(tool|instrument|method|type|inst)|tool|method)$/i;
@@ -80,6 +81,9 @@ function correctedColumns(headers, rows) {
     if (n < all) return { ref: null, col, mixed: true, azimuthCol: null, partial: { col, n, all } };
     // a plain Azimuth beside a named one is the raw reading the named one corrects (MX / acQuire sheets, #2015): not a rival
     const also = named.slice(1).map((x) => ({ col: x.col, ref: x.ref }));
+    // TASKS.csv #4067 — a LOCAL-grid azimuth beside the map grid's (Local_Azim / UTM_Azimut, Azi Local / Azi MGA): the map grid's is read, the local one listed, so the dialog says which was taken
+    const loc = hs.find((h) => LOCAL_COLS.test(String(h).trim()) && filled(h).n);
+    if (loc) also.push({ col: loc, ref: "local" });
     return { ref, col, mixed: false, azimuthCol: col, ...(also.length ? { also } : {}) };
   }
   const inst = hs.find((h) => INSTRUMENT_COLS.test(String(h).trim()));

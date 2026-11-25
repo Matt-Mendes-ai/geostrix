@@ -1357,9 +1357,11 @@ const READABLE_EXT = new Set([".csv", ".txt", ".tsv", ".xyz", ".dat", ".zip", ".
   ".gpkg", ".tif", ".tiff", ".gxf", ".grd", ".dxf", ".omf", ".json", ".geojson", ".ply", ".obj", ".msh", ".den", ".sus", ".mod",
   ".las", ".xlsx", ".kml", ".kmz",
   ".tab", ".map", ".id", // TASKS.csv #818 / #819 — MapInfo TAB (.dat is above); the Perk-Rocky sample is MapInfo
+  ".ers", // TASKS.csv #4066 — an ER Mapper header (text); its data file is allowed below (ersSides), as named by it
   ".vo", ".pl"]); // TASKS.csv #2725 — GOCAD Voxet header, GOCAD PLine (both text)
 // TASKS.csv #2725 — a Voxet's side files (PROP_FILE, often extension-less), allowed only as named by a .vo read below: voxetSideFiles.js
 const voxetSides = require("./voxetSideFiles.js").createVoxetSideRegistry();
+const ersSides = require("./voxetSideFiles.js").createErsSideRegistry(); // TASKS.csv #4066 — an ER Mapper header's data file (no extension): allowed only as that .ers names it, same rules
 const READ_MAX_BYTES = 200 * 1024 * 1024;
 // TASKS.csv #1351 — a GeoTIFF over the limit is not read here: fs-read-file answers { big: true, size } and the renderer reads it by byte
 // ranges (only the header and the tiles a read needs, raster.js openTiff). Only a path fs-read-file has just passed, by every check
@@ -1385,7 +1387,7 @@ ipcMain.handle("fs-read-range", async (_e, { filePath, offset, length }) => {
 ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   try {
     const ext = path.extname(String(filePath || "")).toLowerCase();
-    if (!READABLE_EXT.has(ext) && !voxetSides.has(filePath)) return { ok: false, error: `GeoStrix doesn't import ${ext || "extension-less"} files.` }; // voxetSides: #2725
+    if (!READABLE_EXT.has(ext) && !voxetSides.has(filePath) && !ersSides.has(filePath)) return { ok: false, error: `GeoStrix doesn't import ${ext || "extension-less"} files.` }; // voxetSides: #2725
     const full = dirKey(filePath); // #746 — its folder listed this session, or the bundled samples
     const inSamples = [...sampleRoots].some((r) => full.startsWith(r + path.sep));
     if (!inSamples && !listedDirs.has(path.dirname(full))) return { ok: false, error: "Open the file's folder in the Browser panel first." };
@@ -1402,6 +1404,7 @@ ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
     if (st.size > READ_MAX_BYTES) return { ok: false, error: `${path.basename(filePath)} is ${(st.size / 1048576).toFixed(0)} MB — over the ${READ_MAX_BYTES / 1048576} MB import limit. Crop or thin it first.` };
     const buf = await fs.promises.readFile(filePath);
     if (ext === ".vo") await voxetSides.note(filePath, buf.toString("latin1")); // #2725 — the side files this header names
+    if (ext === ".ers") await ersSides.note(filePath, buf.toString("latin1")); // #4066 — and an ER Mapper header's data file
     return { ok: true, data: buf, name: path.basename(filePath) };
   } catch (err) {
     return { ok: false, error: err.code === "EACCES" || err.code === "EPERM" ? `Permission denied: ${filePath}` : err.message };

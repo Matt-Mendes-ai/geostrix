@@ -157,7 +157,7 @@ export async function grdRows(bytes, name) {
 // east -> west when `mirrored`), shared by the GXF reader and the Geosoft / Surfer .grd reader. -> parseGeoTIFF's shape without the
 // dataUrl (the caller encodes `rgba` as a PNG: a canvas, or an OffscreenCanvas in the worker)
 // dummy: the GXF's no-data value (null: only non-finite values are no-data, as for a .grd)
-export function rowsPicture({ name, values, ncols, nrows, x0, y0, dx, dy, dummy = null, mirrored = false, withGrid = true, note = null }) {
+export function rowsPicture({ name, values, ncols, nrows, x0, y0, dx, dy, dummy = null, mirrored = false, withGrid = true, note = null, epsgTag = null }) { // epsgTag: an ER Mapper header names its datum and projection (#4066)
   const isDummy = dummy == null ? (v) => !Number.isFinite(v) : (v) => v === dummy || !Number.isFinite(v);
   const total = ncols * nrows;
   const scale = Math.min(1, MAX_TEXTURE_SIZE / Math.max(ncols, nrows));
@@ -209,7 +209,7 @@ export function rowsPicture({ name, values, ncols, nrows, x0, y0, dx, dy, dummy 
       height: nrows,
       stretch: { mode: gxfStretch.mode, lo: gxfStretch.lo, hi: gxfStretch.hi }, // #708
       bandCount: 1,
-      epsgTag: null, // GXF headers don't carry a standard CRS tag the way GeoTIFF's GeoKeys do
+      epsgTag, // GXF headers don't carry a standard CRS tag the way GeoTIFF's GeoKeys do (null); an ER Mapper header does (#4066)
       note,
     },
     rgba, outW, outH,

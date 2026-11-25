@@ -25,7 +25,7 @@ test("paired with its grid by name", () => {
 
 test("the raster pane pairs it and the import says where the CRS came from", () => {
   const m = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.match(m, /accept="\.tif,\.tiff,\.gxf,\.grd,\.tfw,\.tifw,\.tiffw,\.wld,\.xml,\.prj"/); // .prj: #2857
+  assert.match(m, /accept="\.tif,\.tiff,\.gxf,\.grd,\.ers,\.tfw,\.tifw,\.tiffw,\.wld,\.xml,\.prj"/); // .prj: #2857
   assert.match(m, /set\.images\.forEach\(\(\{ file, world, xml, prj \}\) => importRaster\(file, world, xml, prj\)\);/); // #2857 — paired in lib/rasterSideFiles.js (sideXmlFor there)
   assert.match(readFileSync(new URL("../src/lib/rasterSideFiles.js", import.meta.url), "utf8"), /const xml = sideXmlFor\(file, xmls\);/);
   assert.match(m, /const xc = xml && !sourceEpsg \? geosoftXmlCrs\(await xml\.text\(\)\) : null;/);

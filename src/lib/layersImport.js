@@ -44,14 +44,14 @@ export const TARGET_SCHEMAS = {
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "hole_name", "siteid", "site_id"] },
     { key: "x", label: "Easting (X)", required: true, aliases: ["x", "easting", "east", "utm_e", "utme", "collar_me", "collar_e", "collar_x"] },
     { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north", "utm_n", "utmn", "collar_mn", "collar_n", "collar_y"] },
-    { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z"] },
+    { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z", "rl_m", "height"] }, // rl_m / height: #4067 ('Rl m', 'Height (MSL)')
     { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azim_grid", "azi", "az", "brg", "bearing", "collar_az", "hole_az"] }, // collar_az / hole_az: #1655 (acQuire's Collar_Az_D; 'az' alone matches a whole header only) // az / brg / bearing: #546; azim_grid: GeoStrix's own collar export (#577) — exact, so it beats azim_true
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip", "inclination", "incl"] }, // #605: inclination (MX-style collar sheets)
     { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "td", "depth"] }, // td: #2151 (WAMEX); #600: "Actual depth" before a planned "Target depth"
   ], dipConvention: true },
   survey: { label: "Survey", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "siteid", "site_id"] },
-    { key: "depth", label: "Depth", required: true, aliases: ["depth", "at", "md", "station", "dist", "distance"] }, // dist: #1105 (Micromine HOLEID, DIST, AZIMUTH, DIP)
+    { key: "depth", label: "Depth", required: true, aliases: ["depth", "at", "md", "station", "dist", "distance", "survey_dep", "survey_depth", "surveyed_depth"] }, // survey_dep: #4067 (GSQ's 'survey_dep'); dist: #1105 (Micromine HOLEID, DIST, AZIMUTH, DIP)
     { key: "azimuth", label: "Azimuth", required: true, aliases: ["azimuth", "azi", "az", "azim", "brg", "bearing"] }, // brg / bearing: Datamine (#546)
     { key: "dip", label: "Dip", required: true, aliases: ["dip", "inclination", "incl"] },
   ], dipConvention: true },
@@ -346,7 +346,7 @@ export function guessTarget(headers) {
   // coordinate trio, so the trio itself is the discriminator. UTM_E/UTM_N/RL headers count too.
   const hasEast = has("easting") || hasCol("x") || hasCol("utm_e") || hasCol("utme") || hasCol("east");
   const hasNorth = has("northing") || hasCol("y") || hasCol("utm_n") || hasCol("utmn") || hasCol("north");
-  const hasElev = has("elevation") || hasCol("z") || hasCol("rl") || hasCol("elev") || hasCol("utm_z");
+  const hasElev = has("elevation") || hasCol("z") || hasCol("rl") || hasCol("elev") || hasCol("utm_z") || lower.some((h) => /^(rl|elev|height)[\s_]*(\(?m(sl)?\)?)?$/.test(h.trim())); // #4067 — 'Rl m', 'Height (MSL)'
   if (!has("from") && hasEast && hasNorth && hasElev) return "collars";
   // TASKS.csv #2151 — MGA_East / MGA_North / MGA_RL, GDA94_E / GDA94_N, GBMG_East / GBMG_North + Orig_RL: a grid pair and an elevation
   if (!has("from") && !has("depth_from") && gridCoordinateColumns(headers).length && (hasElev || gridElevation(headers))) return "collars";

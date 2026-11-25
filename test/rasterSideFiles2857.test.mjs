@@ -29,7 +29,7 @@ test("#2857 the plan routes a raster's side files with it", () => {
 
 test("#2857 the importer: the .prj's CRS, the dialog offers .prj, an unused world file is said", () => {
   const r = fs.readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.ok(r.includes('accept=".tif,.tiff,.gxf,.grd,.tfw,.tifw,.tiffw,.wld,.xml,.prj"'));
+  assert.ok(r.includes('accept=".tif,.tiff,.gxf,.grd,.ers,.tfw,.tifw,.tiffw,.wld,.xml,.prj"'));
   assert.ok(r.includes("const pe = !xc && prj && !sourceEpsg ? guessEpsgFromPrjWkt(await prj.text()) : null;"));
   assert.ok(r.includes("const importRasterFiles = (all, notes = []) => {")); assert.equal((r.match(/importRasterFiles\(/g) || []).length, 3, "used by the dialog, the sidebar drop and the plan drop");
   const l = fs.readFileSync(new URL("../src/lib/raster.js", import.meta.url), "utf8");

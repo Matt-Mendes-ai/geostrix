@@ -597,7 +597,7 @@ export default function RasterModule({ embedded = false } = {}) {
         <input
           ref={fileInput}
           type="file"
-          accept=".tif,.tiff,.gxf,.grd,.tfw,.tifw,.tiffw,.wld,.xml,.prj" /* .xml: #2830; .prj: #2857 */
+          accept=".tif,.tiff,.gxf,.grd,.ers,.tfw,.tifw,.tiffw,.wld,.xml,.prj" /* .xml: #2830; .prj: #2857; .ers: #4066 (its data file has no extension: All files, with the header) */
           multiple
           style={{ display: "none" }}
           onChange={(e) => { // #1855 — a world file goes with the image of the same name; #2857 — and its .prj (lib/rasterSideFiles.js)

@@ -93,6 +93,7 @@ const DownholeLogsPane = React.lazy(() => import("../components/DownholeLogsPane
 const MtSoundingsPane = React.lazy(() => import("../components/MtSoundingsPane.jsx")); // TASKS.csv #1989
 const FdemPane = React.lazy(() => import("../components/FdemPane.jsx")); // TASKS.csv #1986
 const TemPane = React.lazy(() => import("../components/TemPane.jsx")); // TASKS.csv #1986 step 1 — TEM line data
+const BoreholeEmPane = React.lazy(() => import("../components/BoreholeEmPane.jsx")); // TASKS.csv #4064 — downhole EM
 const EqsGridBox = React.lazy(() => import("../components/EqsGridBox.jsx")); // TASKS.csv #1985
 const GravityReductionBox = React.lazy(() => import("../components/GravityReductionBox.jsx")); // TASKS.csv #1985
 import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
@@ -218,6 +219,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [methodHint, setMethodHint] = useState(null);
   const methodBtn = (h) => ({ active: geoPane === "points" && methodHint === h, onClick: () => { setMethodHint(h); setGeoPane("points"); } });
   const [mtDrop, setMtDrop] = useState(null); // TASKS.csv #1989 — .edi files dropped on the tab, for the MT pane
+  const [bhemDrop, setBhemDrop] = useState(null); // TASKS.csv #4064 — downhole EM files dropped on the tab, for the Borehole EM pane
   const [fdemDrop, setFdemDrop] = useState(null); // TASKS.csv #1986 — Aarhus Workbench .xyz exports dropped on the tab, for the FDEM pane
   const [eqsFor, setEqsFor] = useState(null); // TASKS.csv #1985 — the survey whose equivalent-source box is open
   const [gravFor, setGravFor] = useState(null); // TASKS.csv #1985 — the survey whose gravity-reduction box is open
@@ -2185,13 +2187,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const csvs = files.filter((f) => f.name.toLowerCase().endsWith(".csv"));
         const rasterSides = rasterFileSet(files); // #2901 — world files, .prj and Geosoft .xml with the raster of the same name; ones with none are named below
         const tifs = files.filter((f) => /\.tiff?$/i.test(f.name));
-        const gxfs = files.filter((f) => /\.(gxf|grd)$/i.test(f.name)); // grd: #2855 — a Geosoft / Surfer grid, read as Maps and the 3D View read it
+        const gxfs = files.filter((f) => /\.(gxf|grd|ers)$/i.test(f.name)); // ers: #4066 (its data file is paired by rasterFileSet) // grd: #2855 — a Geosoft / Surfer grid, read as Maps and the 3D View read it
         const plys = files.filter((f) => /\.(ply|dxf)$/i.test(f.name));
         // TASKS.csv #1986 — an Aarhus Workbench export ("/INFO" then a Workbench line) is FDEM soundings or models, not a Geosoft XYZ
         const xyzAll = files.filter((f) => /\.xyz$/i.test(f.name)), wbs = [];
         for (const f of xyzAll) { const head = await f.slice(0, 400).text().catch(() => ""); if (/^\s*\/INFO\s*[\r\n]+\s*\/[^\n]*Workbench/i.test(head)) wbs.push(f); }
-        const xyzs = xyzAll.filter((f) => !wbs.includes(f));
+        // TASKS.csv #4064 — downhole EM (a .tem / .pem table, a Crone .chn, or a .txt / .dat / .xyz whose head says so) goes to the Borehole EM pane, not to the point importer
+        const bhems = [];
+        { const { downholeEmKind } = await import("../lib/downholeEm.js"); for (const f of files) if (/\.(tem|pem|chn|txt|dat|xyz)$/i.test(f.name) && downholeEmKind(await f.slice(0, 8000).text().catch(() => ""), f.name)) bhems.push(f); }
+        const xyzs = xyzAll.filter((f) => !wbs.includes(f) && !bhems.includes(f));
         if (wbs.length) { setFdemDrop(wbs); setGeoPane("fdem"); }
+        if (bhems.length) { setBhemDrop(bhems); setGeoPane("bhem"); }
         { const pair = gdfPair(files); if (pair) importGdf(pair); } // TASKS.csv #1990 — an ASEG-GDF2 .dfn + .dat dropped together
         { const vs = files.find((f) => /\.vs$/i.test(f.name)); if (vs) importVSet(vs); } // TASKS.csv #1992 — a GOCAD point set
         // TASKS.csv #603 — a closed format (Geosoft .gdb / binary .grd, .dwg, Access) says how to get it out; such
@@ -2203,8 +2209,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const lidarFiles = [];
         for (const f of lasFiles) { const b = new Uint8Array(await f.slice(0, 4).arrayBuffer()); if (/\.laz$/i.test(f.name) || (b[0] === 0x4c && b[1] === 0x41 && b[2] === 0x53 && b[3] === 0x46)) lidarFiles.push(f); else advice.push(tr("{name} is a LAS well log: drop it on StrixViewer, which reads downhole logs.", { name: f.name })); }
         if (lidarFiles.length) { if (geoPane === "terrain") openLidar(lidarFiles[0]); else { goToModule("maps"); requestModuleAction("maps-lidar", { file: lidarFiles[0] }); } if (lidarFiles.length > 1) advice.push(tr("Opened \"{name}\". Lidar files are imported one at a time: import it, then drop the next.", { name: lidarFiles[0].name })); }
-        const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj].filter(Boolean))); // #2901 — read with their raster
-        const other = files.filter((f) => !sideUsed.has(f) && !/\.(csv|tiff?|gxf|grd|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
+        const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj, i.data].filter(Boolean))); // #2901 — read with their raster; data: an ER Mapper data file, #4066
+        const other = files.filter((f) => !sideUsed.has(f) && !bhems.includes(f) && !/\.(csv|tiff?|gxf|grd|ers|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
         if (other.length) advice.push(tr("Not imported from this drop: {names}. This tab reads CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI and LAS / LAZ. UBC meshes go to Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
         // TASKS.csv #1989 — MT / AMT soundings go to their own pane, which reads them
         const edis = files.filter((f) => /\.edi$/i.test(f.name));
@@ -2261,7 +2267,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <RibbonButton icon={RWeight} label="Gravity" tone="data" title="Gravity: rock density, for dense massive sulphide, mafic intrusions, basins and faults. Import gravity stations (CSV / .xyz)." {...methodBtn("grav")} />
             <RibbonButton icon={RRadiation} label="Radiometrics" tone="data" title="Radiometrics: potassium, thorium and uranium at the surface, for potassic alteration, granites and uranium. Import K / eTh / eU channels (CSV / .xyz)." {...methodBtn("rad")} />
             <RibbonButton icon={RZap} label="IP / Resistivity" tone="model" title="IP / resistivity: chargeability (disseminated sulphide) and resistivity (silicification, clay, water) under a line; a 2D DC / IP inversion." {...geoBtn("dcip")} />
-            <RibbonButton icon={Radio} label="EM" tone="data" title="EM: electrical conductors (massive sulphide, graphite, clay, water). Time-domain (TEM) line data and ground loop-loop FDEM." active={geoPane === "em" || geoPane === "fdem" || geoPane === "tem"} onClick={() => setGeoPane("em")} />
+            <RibbonButton icon={Radio} label="EM" tone="data" title="EM: electrical conductors (massive sulphide, graphite, clay, water). Time-domain (TEM) line data and ground loop-loop FDEM." active={geoPane === "em" || geoPane === "fdem" || geoPane === "tem" || geoPane === "bhem"} onClick={() => setGeoPane("em")} />
             <RibbonButton icon={RWaves} label="MT / AMT" tone="data" title="MT / AMT: resistivity to depth from natural fields, hundreds of metres to kilometres (EDI soundings)." {...geoBtn("mt")} />{/* TASKS.csv #1989 */}
             <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Any other survey measured at points (SP, VLF, a contractor's channel): CSV or Geosoft .xyz, with its method set on its card." {...methodBtn(null)} />
             <RibbonButton advanced icon={RLayers} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
@@ -3323,6 +3329,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>{tr("EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Pick the kind of survey:")}</div>
           {[
             { label: tr("TEM line data: channels, decays, decay constant…"), text: tr("Time-domain EM along lines (SkyTEM, Workbench or Geosoft .xyz, a CSV with a column per gate): channels stacked, a station's decay, the decay constant mapped."), go: () => setGeoPane("tem"), help: "tem-lines" }, // #1986 step 1
+            { label: tr("Borehole EM…"), text: tr("Channels down a hole and the decay at a depth."), go: () => setGeoPane("bhem"), help: "borehole-em" }, // #4064
             { label: tr("FDEM 1D: ground loop-loop (DUALEM, GEM-2)…"), text: tr("Frequency-domain readings along lines: conductivity against depth under each sounding, a 1D inversion."), go: () => setGeoPane("fdem"), help: "fdem-1d" },
             { label: tr("TEM: one channel as points…"), text: tr("One channel already in a table (dB/dt, B-field or a decay constant) imported as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
           ].map((o) => (
@@ -3337,6 +3344,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </>)}
         {geoPane === "mt" && (<Suspense fallback={null}><MtSoundingsPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={mtDrop} onPendingDone={() => setMtDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1989 */}
         {geoPane === "tem" && (<Suspense fallback={null}><TemPane setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} addRaster={addRaster} rasters={rasters} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 step 1 */}
+        {geoPane === "bhem" && (<Suspense fallback={null}><BoreholeEmPane collars={collars} customLayers={customLayers} setCustomLayers={setCustomLayers} pendingFiles={bhemDrop} onPendingDone={() => setBhemDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #4064 */}
         {geoPane === "fdem" && (<Suspense fallback={null}><FdemPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={fdemDrop} onPendingDone={() => setFdemDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 */}
         {geoPane === "logs" && (<Suspense fallback={null}><DownholeLogsPane layers={layers} customLayers={customLayers} assays={assays} assayElements={assayElements} onClose={() => setGeoPane(null)} onEstimate={() => goToModule("modelling")} /></Suspense>)}{/* TASKS.csv #1425 */}
         {geoPane === "budget" && (<>

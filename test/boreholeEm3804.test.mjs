@@ -49,7 +49,7 @@ test("'Import survey .xyz' / 'Import CSV' refuse a decay-channel file, borehole 
   const g = parseXYZ(boreholeTem());
   const r = tableRefusal("DH21-93.tem", g.columns, g.rows, "point", boreholeTem());
   assert.match(r, /^"DH21-93\.tem" is a borehole EM file \(.*decay channels CH1 … CH12, 12 gates\), not a table of points/);
-  assert.match(r, /no reader for borehole EM yet/);
+  assert.match(r, /Read it with EM › Borehole EM\./); // #4064: the reader exists now
   const a = parseXYZ(airborneTem());
   assert.match(tableRefusal("line.xyz", a.columns, a.rows, "point", airborneTem()), /is a multi-channel EM file .* Read it with EM › TEM line data\./);
   const mag = parseXYZ("/X Y Z RAWMAG\n1 2 3 4\n5 6 7 8\n9 1 2 3\n"); assert.equal(tableRefusal("m.xyz", mag.columns, mag.rows, "point", ""), null);
@@ -71,6 +71,6 @@ test("wired: the picker's refusal gets the file's head; the several-files route 
   assert.match(m, /tableRefusal\(file\.name, columns, parsedRows, "point", text\)/);
   assert.match(m, /tableRefusal\(files\[0\]\.name, columns, parsedRows, "point", text\)/);
   for (const k of ["a component column ({col})", "a header that says borehole", "each station repeated for several components",
-    "\"{name}\" is borehole EM ({clues}; decay channels {first} … {last}, {n} gates). TEM line data reads airborne and ground line surveys, not a hole: GeoStrix has no reader for borehole EM yet."])
+    "\"{name}\" is borehole EM ({clues}; decay channels {first} … {last}, {n} gates). TEM line data reads airborne and ground line surveys, not a hole. Read it with EM › Borehole EM."])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
 });
