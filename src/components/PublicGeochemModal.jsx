@@ -3,12 +3,12 @@
 // fetches the project area's samples from the agency's service (main-process allow-list, geochem-fetch) and hands an
 // ordinary table to the surface-sample import, with the source and licence on every sample; the others link to the
 // agency page. The catalogue, the requests and the parsers are in lib/publicGeochem.js.
+// TASKS.csv #4073 — on the shared StepDialog: 1 Area (pre-filled from the project's data, or drawn; its size and centre as numbers), 2 Survey (the
+// catalogue, the entry's licence and caveat, the one choice an NGSA / CDoGS package needs) with Download, or Continue to the import, as the one primary.
 import React, { useEffect, useMemo, useState } from "react";
-import { X, Globe } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #963
-import { overlay, panel, header, label, sel } from "../lib/modalStyles.js";
+import { sel } from "../lib/modalStyles.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
+import { StepNumbers } from "./StepPane.jsx";
 import { useStore } from "../lib/store.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { geochemFetch } from "../lib/desktop.js";
@@ -21,8 +21,6 @@ const MAX_DEG = 5; // an area larger than this in either direction is refused (a
 const BC_MAX_PAGES = 6;
 
 export default function PublicGeochemModal({ onLoaded, onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
   const { collars, surfaceSamples, boundaries, mapLayers, project } = useStore();
   const [q, setQ] = useState("");
   const [onlyHere, setOnlyHere] = useState(true);
@@ -35,6 +33,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
   const [ngsa, setNgsa] = useState(null); // { text, sites, combos, pick }
   const [cdogs, setCdogs] = useState(null); // #905 — { index, cands, pick }
   const [layerIx, setLayerIx] = useState(0); // #1155 — which of the entry's layers
+  const [step, setStep] = useState(0);
 
   // the project area in lon / lat: collars, else surface samples, boundaries, map layers (with a margin)
   useEffect(() => {
@@ -48,6 +47,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
       if (!live || ll.some((p) => !p)) return;
       setArea([Math.min(...ll.map((p) => p.lon)), Math.min(...ll.map((p) => p.lat)), Math.max(...ll.map((p) => p.lon)), Math.max(...ll.map((p) => p.lat))]);
       setAreaFrom("project");
+      setStep(1); // #4073 — the area is known: straight to the catalogue
     })();
     return () => { live = false; };
   }, []); // the area on opening; Draw changes it after
@@ -158,81 +158,90 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
   const comboLabel = (k) => tr("{fraction}, {depth}, {digestion}: {n} sample(s)", { fraction: fractionLabel(k.fraction), depth: depthLabel(k.depth), digestion: k.digestion, n: k.n });
   const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
 
-  return (<>
-    <div style={overlay}>{/* TASKS.csv #968 — no backdrop close (#387: it holds a drawn area, a download, a choice); Esc or Close */}
-      <div style={panel({ width: 720, maxHeight: "90vh" })} role="dialog" aria-modal="true" aria-label={tr("Public geochemistry")} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text)", fontSize: "var(--font-size-lg)" }}><Globe size={16} />{" "}{tr("Public geochemistry")}</span>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} aria-label={tr("Close")} />
-        </div>
-        <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={small}>{tr("Government geochemical surveys, free under the licence shown, imported as surface samples with their source and licence. Only the area is sent (its bounding box; for the USGS, its map quadrangles), never your project's data.")}</div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search: name, agency, country, medium")} aria-label={tr("Search the catalogue")} style={{ ...sel, flex: 1, minWidth: 200 }} />
-            <label style={{ ...small, display: "flex", gap: 5, alignItems: "center" }}><input type="checkbox" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} disabled={!area} />{tr("Only surveys covering the area")}</label>
+  const heading = tr("Public geochemistry");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
+      <div style={small}>{tr("Government geochemical surveys, free under the licence shown, imported as surface samples with their source and licence. Only the area is sent (its bounding box; for the USGS, its map quadrangles), never your project's data.")}</div>
+    </details>
+  );
+  const areaStep = (
+    <div style={{ flex: 1, minWidth: 300, display: "flex", flexDirection: "column", gap: 10 }}>
+      {area ? <div style={{ maxWidth: 380 }}><StepNumbers rows={[{ label: tr("Size"), value: `${(area[2] - area[0]).toFixed(2)}° × ${(area[3] - area[1]).toFixed(2)}°`, level: tooBig ? "some" : undefined }, { label: tr("Centre"), value: `${((area[0] + area[2]) / 2).toFixed(3)}, ${((area[1] + area[3]) / 2).toFixed(3)}` },
+          { label: tr("From"), value: areaFrom === "drawn" ? tr("drawn") : tr("the project's data, with a margin") }]} /></div>
+        : <div style={small}>{project?.crsSet === false ? tr("The project's coordinate system is not chosen yet, so its data cannot be placed: choose it (status bar) or draw an area.") : tr("No area yet: the project has no located data. Draw one.")}</div>}
+      <button type="button" onClick={() => setDrawing(true)} className="gs-btn" style={{ alignSelf: "flex-start" }}>{tr("Draw area…")}</button>
+      <div style={small}>{tr("Only the area is sent, never your project's data.")}</div>
+    </div>
+  );
+  const surveyStep = (
+    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search: name, agency, country, medium")} aria-label={tr("Search the catalogue")} style={{ ...sel, flex: 1, minWidth: 200 }} />
+        <label style={{ ...small, display: "flex", gap: 5, alignItems: "center" }}><input type="checkbox" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} disabled={!area} />{tr("Only surveys covering the area")}</label>
+      </div>
+      <div role="listbox" aria-label={tr("Surveys")} style={{ border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 190, overflowY: "auto" }}>
+        {list.length ? list.map((e) => (
+          <div key={e.id} role="option" aria-selected={e.id === selId} tabIndex={0} onClick={() => { setSelId(e.id); setNgsa(null); setCdogs(null); setError(null); setLayerIx(0); }} onKeyDown={(ev) => { if (ev.key === "Enter") setSelId(e.id); }}
+            style={{ padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid var(--color-border)", background: e.id === selId ? "var(--color-selected-bg)" : "transparent" }}>
+            <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>{e.name}{" "}<span style={{ ...small, marginLeft: 6 }}>{e.downloadable ? tr("download by area") : tr("link to the agency")}</span></div>
+            <div style={small}>{e.agency} · {e.country} · {e.media}</div>
           </div>
-          <div style={{ ...small, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span>{!area && project?.crsSet === false ? tr("The project's coordinate system is not chosen yet, so its data cannot be placed: choose it (status bar) or draw an area.") : area ? tr("Area: {w}° × {h}° around {lon}, {lat} ({from})", { w: (area[2] - area[0]).toFixed(2), h: (area[3] - area[1]).toFixed(2), lon: ((area[0] + area[2]) / 2).toFixed(3), lat: ((area[1] + area[3]) / 2).toFixed(3), from: areaFrom === "drawn" ? tr("drawn") : tr("the project's data, with a margin") }) : tr("No area yet: the project has no located data. Draw one.")}</span>
-            <button onClick={() => setDrawing(true)} className="gs-btn" style={{ padding: "4px 10px" }}>{tr("Draw area…")}</button>
-          </div>
-          {tooBig && <div role="alert" style={{ ...small, color: "var(--color-warn-text)" }}>{tr("The area is larger than {n}° in one direction. Draw a smaller one: this is for a project, not a province.", { n: MAX_DEG })}</div>}
-          <div role="listbox" aria-label={tr("Surveys")} style={{ border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 190, overflowY: "auto" }}>
-            {list.length ? list.map((e) => (
-              <div key={e.id} role="option" aria-selected={e.id === selId} tabIndex={0} onClick={() => { setSelId(e.id); setNgsa(null); setError(null); setLayerIx(0); }} onKeyDown={(ev) => { if (ev.key === "Enter") setSelId(e.id); }}
-                style={{ padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid var(--color-border)", background: e.id === selId ? "var(--color-hover-bg)" : "transparent" }}>
-                <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>{e.name}{" "}<span style={{ ...small, marginLeft: 6 }}>{e.downloadable ? tr("download by area") : tr("link to the agency")}</span></div>
-                <div style={small}>{e.agency} · {e.country} · {e.media}</div>
-              </div>
-            )) : <div style={{ ...small, padding: 10 }}>{tr("No survey in the catalogue matches.")}</div>}
-          </div>
-          {entry && (
-            <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={label}>{entry.name}</div>
-              <div style={small}>{entry.years ? tr("Media: {media}. Size: {samples}. Years: {years}.", { media: entry.media, samples: entry.samples, years: entry.years }) : tr("Media: {media}. Size: {samples}.", { media: entry.media, samples: entry.samples })}</div>
-              <div style={small}>{tr("Licence:")}{" "}<a href={entry.licenceUrl} target="_blank" rel="noreferrer">{entry.licence}</a>{". "}{tr("Attribution: {text}", { text: entry.attribution })}</div>
-              <div style={small}>{entry.caveat}</div>
-              <div style={small}>{tr("Last checked {date}.", { date: entry.checked || CATALOGUE_CHECKED })}{" "}<a href={entry.page} target="_blank" rel="noreferrer">{tr("Agency page")}</a></div>
-              {entry.layers?.length > 1 && (
-                <label style={{ ...small, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>{tr("Layer")}
-                  <select value={layerIx} onChange={(e) => setLayerIx(Number(e.target.value))} aria-label={tr("Layer")} style={sel}>
-                    {entry.layers.map((l, i) => <option key={i} value={i}>{l.label}</option>)}
-                  </select>
-                </label>
-              )}
-              {entry.downloadable && !ngsa && !cdogs && (
-                <button onClick={download} disabled={!!busy || !area || tooBig || !coversArea(entry, area)} className="gs-btn gs-btn--primary" style={{ padding: "7px 12px", alignSelf: "flex-start", opacity: busy || !area || tooBig ? 0.6 : 1 }}>
-                  {busy || (area && !coversArea(entry, area) ? tr("This survey does not cover the area") : tr("Download the samples in the area"))}
-                </button>
-              )}
-              {cdogs && ( /* TASKS.csv #905 */
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={small}>{tr("{n} survey data package(s) overlap the area. Each is one sample type, size fraction and lab method: choose one, so every sample is comparable.", { n: cdogs.cands.length })}</div>
-                  <select value={cdogs.pick} onChange={(e) => setCdogs({ ...cdogs, pick: Number(e.target.value) })} aria-label={tr("Survey and data package")} style={sel}>
-                    {cdogs.cands.map((c, i) => <option key={i} value={i}>{`${c.year || "?"} · ${c.name.slice(0, 70)}${c.name.length > 70 ? "…" : ""} — ${c.sampleType || tr("sample type not given")}${c.prep ? `, ${c.prep}` : ""} — ${c.pkgName}${c.n ? ` (${c.n})` : ""}`}</option>)}
-                  </select>
-                  <button onClick={importCdogs} disabled={!!busy} className="gs-btn gs-btn--primary" /* gs-primary-alt: a later step of the dialog */ style={{ padding: "7px 12px", alignSelf: "flex-start", opacity: busy ? 0.6 : 1 }}>{busy || tr("Continue to the import")}</button>
-                </div>
-              )}
-              {ngsa && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={small}>{tr("{n} NGSA site(s) in the area. Each was sampled at two depths, sieved to two fractions and analyzed by several digestions: choose one, so every sample is comparable.", { n: ngsa.sites })}</div>
-                  <select value={ngsa.combos.indexOf(ngsa.pick)} onChange={(e) => setNgsa({ ...ngsa, pick: ngsa.combos[Number(e.target.value)] })} aria-label={tr("Fraction, depth and digestion")} style={sel}>
-                    {ngsa.combos.map((k, i) => <option key={i} value={i}>{comboLabel(k)}</option>)}
-                  </select>
-                  <button onClick={importNgsa} className="gs-btn gs-btn--primary" /* gs-primary-alt: a later step of the dialog */ style={{ padding: "7px 12px", alignSelf: "flex-start" }}>{tr("Continue to the import")}</button>
-                </div>
-              )}
+        )) : <div style={{ ...small, padding: 10 }}>{tr("No survey in the catalogue matches.")}</div>}
+      </div>
+      {entry && (
+        <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ fontWeight: 600, color: "var(--color-text)" }}>{entry.name}</div>
+          <div style={{ maxWidth: 380 }}><StepNumbers rows={[{ label: tr("Media"), value: entry.media }, { label: tr("Size"), value: entry.samples }, entry.years && { label: tr("Years"), value: entry.years }]} /></div>
+          <div style={small}>{tr("Licence:")}{" "}<a href={entry.licenceUrl} target="_blank" rel="noreferrer">{entry.licence}</a>{". "}{tr("Attribution: {text}", { text: entry.attribution })}</div>
+          <div style={small}>{entry.caveat}</div>
+          <div style={small}>{tr("Last checked {date}.", { date: entry.checked || CATALOGUE_CHECKED })}{" "}<a href={entry.page} target="_blank" rel="noreferrer">{tr("Agency page")}</a></div>
+          {entry.layers?.length > 1 && (
+            <label style={{ ...small, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>{tr("Layer")}
+              <select value={layerIx} onChange={(e) => setLayerIx(Number(e.target.value))} aria-label={tr("Layer")} style={sel}>
+                {entry.layers.map((l, i) => <option key={i} value={i}>{l.label}</option>)}
+              </select>
+            </label>
+          )}
+          {cdogs && ( /* TASKS.csv #905 */
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={small}>{tr("{n} survey data package(s) overlap the area. Each is one sample type, size fraction and lab method: choose one, so every sample is comparable.", { n: cdogs.cands.length })}</div>
+              <select value={cdogs.pick} onChange={(e) => setCdogs({ ...cdogs, pick: Number(e.target.value) })} aria-label={tr("Survey and data package")} style={sel}>
+                {cdogs.cands.map((c, i) => <option key={i} value={i}>{`${c.year || "?"} · ${c.name.slice(0, 70)}${c.name.length > 70 ? "…" : ""} — ${c.sampleType || tr("sample type not given")}${c.prep ? `, ${c.prep}` : ""} — ${c.pkgName}${c.n ? ` (${c.n})` : ""}`}</option>)}
+              </select>
             </div>
           )}
-          {error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{error}</div>}
+          {ngsa && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={small}>{tr("{n} NGSA site(s) in the area. Each was sampled at two depths, sieved to two fractions and analyzed by several digestions: choose one, so every sample is comparable.", { n: ngsa.sites })}</div>
+              <select value={ngsa.combos.indexOf(ngsa.pick)} onChange={(e) => setNgsa({ ...ngsa, pick: ngsa.combos[Number(e.target.value)] })} aria-label={tr("Fraction, depth and digestion")} style={sel}>
+                {ngsa.combos.map((k, i) => <option key={i} value={i}>{comboLabel(k)}</option>)}
+              </select>
+            </div>
+          )}
+          {busy && <div role="status" style={small}>{busy}</div>}
         </div>
-      </div>
+      )}
     </div>
-    {/* outside the backdrop: a click on the map would otherwise reach the backdrop and close the catalogue */}
+  );
+  // the one primary: download the area's samples; after an NGSA or CDoGS lookup, continue to the import with the one choice made
+  const covers = !!entry && !!area && coversArea(entry, area);
+  const primary = cdogs ? { label: busy || tr("Continue to the import"), onClick: importCdogs, disabled: !!busy }
+    : ngsa ? { label: tr("Continue to the import"), onClick: importNgsa }
+    : { label: busy || (entry && area && !covers ? tr("This survey does not cover the area") : tr("Download the samples in the area")), onClick: download, disabled: !!busy || !entry?.downloadable || !area || tooBig || !covers };
+  const steps = [
+    { key: "area", label: tr("Area"), render: () => areaStep, hint: tooBig ? tr("The area is larger than {n}° in one direction. Draw a smaller one: this is for a project, not a province.", { n: MAX_DEG }) : "",
+      primary: { label: tr("Next: surveys"), disabled: !area || tooBig } },
+    { key: "survey", label: tr("Survey"), render: () => surveyStep, hint: entry && !entry.downloadable ? tr("link to the agency") : "", primary },
+  ];
+  return (<>
+    {/* TASKS.csv #968 — no backdrop close (#387: it holds a drawn area, a download, a choice); Esc or Close */}
+    <StepDialog title={heading} onClose={onClose} steps={steps} at={step} onAt={setStep} help={help} error={error} width="min(760px, 96vw)" />
+    {/* outside the dialog: a click on the map would otherwise reach the dialog's backdrop */}
     {drawing && (
         <BasemapView mode="draw" title={tr("Draw the area to search for public geochemistry")} confirmLabel="Use this area" initialBboxLonLat={area}
           lon={area ? (area[0] + area[2]) / 2 : undefined} lat={area ? (area[1] + area[3]) / 2 : undefined}
-          onClose={() => setDrawing(false)} onConfirm={(b) => { setArea(b); setAreaFrom("drawn"); setNgsa(null); setDrawing(false); }} />
+          onClose={() => setDrawing(false)} onConfirm={(b) => { setArea(b); setAreaFrom("drawn"); setNgsa(null); setCdogs(null); setDrawing(false); }} />
     )}
   </>);
 }

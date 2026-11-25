@@ -2,7 +2,7 @@
 // reflectance granule (or any hyperspectral cube), its band wavelengths (from the file's GDAL metadata, else an ENVI
 // .hdr or a pasted list), a feature, and the continuum-removed depth / wavelength maps as value rasters
 // (lib/hyperspectral.js). Only the bands inside the feature's window are decoded.
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Upload } from "./icons.js";
 import { label, sel } from "../lib/modalStyles.js";
 import { buildRasterImport } from "../lib/raster.js";
@@ -14,7 +14,8 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the maps land only in the project they were made for
 
-export default function HyperspectralTab({ epsg, tie = null, defaultElevation, sourceEpsg, onImport, onClose }) { // tie: TASKS.csv #2648
+// bare / onPrimary: TASKS.csv #4073 — inside the Spectral index StepDialog the tab draws no footer of its own: its run is handed up as the dialog's one primary
+export default function HyperspectralTab({ epsg, tie = null, defaultElevation, sourceEpsg, onImport, onClose, bare = false, onPrimary = null }) { // tie: TASKS.csv #2648
   const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const beginJob = () => (startProjectJob ? startProjectJob({ label: tr("Hyperspectral (EMIT)") }) : noJob(tr("Hyperspectral (EMIT)"))); // TASKS.csv #3953
   const fileInput = useRef(null), hdrInput = useRef(null);
@@ -101,6 +102,9 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
     } catch (e) { setError(e.message); } finally { setBusy(false); job.end(); } // job: TASKS.csv #3953
   };
 
+  const runRef = useRef(null); runRef.current = run;
+  const primaryLabel = busy ? tr("Computing…") : mode === "match" ? tr("Make the map") : tr("Make the feature maps");
+  useEffect(() => { onPrimary?.({ label: primaryLabel, onClick: () => runRef.current(), disabled: !canRun }); }, [primaryLabel, canRun]); // onPrimary: the parent's state setter
   return (
     <>
       <div>
@@ -163,10 +167,10 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
         </>}
       </div>
       {error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{error}</div>}
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      {!bare && <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button className="gs-btn" onClick={onClose}>{tr("Cancel")}</button>
         <button className="gs-btn gs-btn--primary" onClick={run} disabled={!canRun}>{busy ? tr("Computing…") : mode === "match" ? tr("Make the map") : tr("Make the feature maps")}</button>
-      </div>
+      </div>}
     </>
   );
 }

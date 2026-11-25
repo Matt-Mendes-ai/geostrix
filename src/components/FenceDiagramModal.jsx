@@ -1,14 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"; // useRef: #3016
-import { X, Download } from "./icons.js";
+import { Download } from "./icons.js";
 import { colorForLithology, colorForAlteration, colorForVein, colorForWeathering } from "../lib/layers.js";
 import { customCodeColour } from "../lib/customColour.js"; // TASKS.csv #1745 — a custom layer's codes in its own colours
 import { useStore } from "../lib/store.jsx"; // #1745 — the other interval logs
 import { buildFencePanel, panelPointAtDepth, correlationBands, stackCollarLabels, lineFromSection, holesInCorridor, initialFenceSelection, FENCE_MANY, dropOffLineSelection, FENCE_LABEL_SLOTS, FENCE_VE, suggestFenceVe } from "../lib/fence.js"; // stackCollarLabels: #1375; section / corridor / initial: #1552
 import { saveFile } from "../lib/desktop.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { fenceFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
@@ -26,8 +23,7 @@ import { numericTrackSources, numericTrackRows, trackFraction } from "../lib/fen
 // east between 17HR-282 and 17HR-278", and that observation is what the next hole gets sited on.
 //
 // Follows DownholeStructurePlot.jsx (#277) throughout rather than inventing a second convention:
-// same modal shell, same useEscapeKey/useFocusTrap (#238), same inline-SVG rendering with a controls
-// column on the right, same Export SVG via saveFile. The projection math is in src/lib/fence.js so it
+// the same inline-SVG rendering with a controls column on the right (the shell is StepDialog's since #4073, with its Esc and focus trap, #238), same Export SVG via saveFile. The projection math is in src/lib/fence.js so it
 // could be verified in Node against hand-worked geometry first — see the #139 notes.
 //
 // ================= HOW OFF-LINE HOLES ARE HANDLED (the honest bit) =================
@@ -58,9 +54,9 @@ import { numericTrackSources, numericTrackRows, trackFraction } from "../lib/fen
 // off by default for that reason.
 // TASKS.csv #3016 (WA iron review) — areaIds: the Model area's checked holes (a Set) or null. The fence opens on them (a 12 km fence of 594 of
 // 6,390 holes opened on a 228-hole Model area); every hole stays in the list. It opens at the exaggeration it proposes (suggestFenceVe).
+// TASKS.csv #4073 — on the shared StepDialog: 1 Holes (the line and the holes, pre-selected as below, so it opens on step 2), 2 Panel (the figure, its
+// display settings and the panel in numbers; Export SVG). How to read it is in the Help card.
 export default function FenceDiagramModal({ traces = [], litho = [], labelFor = null, patternOverride = null, sections = [], areaIds = null, onClose }) { // labelFor, patternOverride: #1995; sections: #1552
-  useEscapeKey(onClose); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
 
   const allIds = useMemo(
     () => (traces || []).filter((t) => t?.wx?.length).map((t) => t.hole_id).sort(),
@@ -80,6 +76,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     return initialFenceSelection(pool, 100);
   });
   const [selected, setSelected] = useState(() => new Set(initial.ids));
+  const [step, setStep] = useState(() => (initial.ids.length >= 2 ? 1 : 0)); // TASKS.csv #4073 — the holes are pre-selected: open on the panel, Holes one click back
   const [azMode, setAzMode] = useState(initial.sectionId ? "section" : "fit"); // "fit" | "manual" | "section" (#1552)
   const [sectionId, setSectionId] = useState(initial.sectionId || "");
   const pickSection = (id) => { // its line, and the holes in its corridor
@@ -242,23 +239,82 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     return out;
   }, [view]);
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={modalPanel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#1a2028" }}>{tr("Fence / panel diagram")}{panel && <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)", color: "#65717e" }}>
-              {" "}{tr("— {holes} {v}, section {azimuth}°{v2}", { holes: panel.holes.length, v: tr(panel.holes.length === 1 ? "hole" : "holes"), azimuth: panel.line.azimuth.toFixed(1), v2: ve !== 1 ? tr(" · {ve}× vertical exaggeration", { ve }) : tr(" · true scale") })}
-            </span>}
+  const heading = tr("Fence / panel diagram");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("Reading this panel")}</summary>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>{tr("Horizontal is distance along the section line, vertical is elevation. Each whole trace is projected, so inclined holes lean as in the ground. The number under each collar is the hole's largest distance off the section plane: the error of this flattening.")}</div>
+    </details>
+  );
+  if (!allIds.length) {
+    return <StepDialog title={heading} onClose={onClose} help={help} width="min(560px, 96vw)" at={0} onAt={() => {}}
+      steps={[{ key: "none", label: heading, render: () => <div style={{ ...sheet, fontSize: "var(--font-size-base)", color: "#55606e", lineHeight: 1.6 }}>{tr("No desurveyed holes yet. Import collars and survey data (and a lithology layer) and this panel will fill in.")}</div>, primary: { label: tr("Close"), onClick: onClose } }]} />;
+  }
+  const holesStep = (
+    <div style={{ ...sheet, flex: 1, display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+      <div style={{ flex: "1 1 260px", minWidth: 240, display: "flex", flexDirection: "column", gap: 9 }}>
+        <label style={rowLabel} title={tr("Best fit: the principal (total-least-squares) axis of the selected collars. Unlike a y-on-x regression, it works for a north-south line and ignores map rotation.")}>{tr("Section line")}<select value={azMode} onChange={(e) => (e.target.value === "section" ? pickSection(sectionId) : setAzMode(e.target.value))} style={sel}>
+            <option value="fit">{tr("Best fit through collars")}</option>
+            <option value="manual">{tr("Fixed azimuth…")}</option>
+            <option value="through">{tr("Through the ticked holes, in order")}</option>{/* #3560 B3 */}
+            {usableSections.length > 0 && <option value="section">{tr("Along a saved section…")}</option>}{/* #1552 */}
+          </select>
+        </label>
+        {azMode === "through" && <div style={warnNote}>{tr("Holes are joined in the order you tick them, collar to collar in plan, and drawn unfolded along that bent line. Untick and tick again to change the order.")}</div>}{/* #3560 B3 */}
+        {azMode === "section" && (
+          <label style={rowLabel} title={tr("The section's own line from its start, with the holes mostly inside its corridor (at least half the hole). Tick or untick holes below.")}>{tr("Section")}
+            <select value={sectionId} onChange={(e) => pickSection(e.target.value)} style={sel}>
+              {usableSections.map((s) => <option key={s.id} value={s.id}>{tr("{name} (±{corridor} m)", { name: s.name || s.id, corridor: Number(s.corridor) || 100 })}</option>)}
+            </select>
+          </label>
+        )}
+        {initial.sectionId && azMode === "section" && sectionId === initial.sectionId && (
+          <div style={small}>{tr("This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.", { n: allIds.length })}</div>
+        )}
+        {initial.trimmed > 0 && azMode === "fit" && (
+          <div style={small}>{initial.site ? tr("Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line): one fan, one panel. {n} others are below, unticked.", { k: initial.ids.length, site: initial.site, n: initial.trimmed }) /* #2220 */ : tr("Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.", { k: initial.ids.length, n: initial.trimmed })}{usableSections.length ? " " + tr("Or draw the panel along a saved section.") : " " + tr("Or draw a cross-section in StrixViewer first and use it here.")}</div>
+        )}
+        {azMode === "manual" && (
+          <label style={rowLabel}>{tr("Azimuth (°)")}<input value={manualAz} onChange={(e) => setManualAz(e.target.value)} style={sel} />
+          </label>
+        )}
+        {areaIds?.size > 0 && <div style={small}>{tr("Opened on the Model area's {n} checked holes (Model settings); the others are in the list below.", { n: areaIds.size })}</div>}{/* #3016 */}
+        <label style={rowLabel} title={tr("Holes whose maximum perpendicular distance from the section plane exceeds this are flagged amber on the diagram and in the list below.")}>{tr("Flag holes over")}<select value={offsetLimit} onChange={(e) => setOffsetLimit(Number(e.target.value))} style={sel}>
+            {[25, 50, 100, 200, 500].map((v) => <option key={v} value={v}>{tr("{v} m off section", { v })}</option>)}
+          </select>
+        </label>
+        {offHoles.length > 0 && (
+          <div style={warnNote}>
+            {tr(offHoles.length === 1 ? "{offHoles} hole is more than {offsetLimit} m off the section plane and is drawn as if on it. Any contact correlated through it carries that much horizontal error." : "{offHoles} holes are more than {offsetLimit} m off the section plane and are drawn as if on it. Any contact correlated through them carries that much horizontal error.", { offHoles: offHoles.length, offsetLimit })}<button onClick={dropOffLine} className="gs-btn gs-btn--sm" style={{ marginTop: 5 }}>{tr("Drop them from the panel")}</button>{dropNote && <div style={{ marginTop: 4 }}>{dropNote}</div>}{/* #2064 */}
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+        )}
+      </div>
+      <div style={{ flex: "1 1 220px", minWidth: 200, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", fontWeight: 600 }}>{tr("Holes ({size}/{allIds})", { size: selected.size, allIds: allIds.length })}</div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => setSelected(new Set(allIds))} className="gs-btn gs-btn--sm">{tr("All")}</button>
+          <button onClick={() => setSelected(new Set())} className="gs-btn gs-btn--sm">{tr("None")}</button>
         </div>
-
-        {!allIds.length ? (
-          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "#55606e", lineHeight: 1.6, maxWidth: 520 }}>{tr("No desurveyed holes yet. Import collars and survey data (and a lithology layer) and this panel will fill in.")}</div>
-        ) : (
-        <div style={{ display: "flex", gap: 16 }}>
-          <div>
-            <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ background: "#fbfbfc", border: "1px solid #d9dce1", borderRadius: 8 }}>
+        <div style={{ maxHeight: 300, minHeight: 90, flexShrink: 0, overflow: "auto", border: "1px solid #e0e3e8", borderRadius: 5, padding: "4px 6px" }}>{/* #1552 — it shrank to two rows when the column filled */}
+          {allIds.map((id) => {
+            const h = panel?.holes.find((x) => x.hole_id === id);
+            const over = h && h.maxAbsOffset > offsetLimit;
+            return (
+              <label key={id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: over ? "#a8741a" : "#1a2028", padding: "1px 0" }}>
+                <input type="checkbox" checked={selected.has(id)} onChange={() => toggle(id)} />
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{id}</span>
+                {h && <span style={{ color: over ? "#a8741a" : "#65717e", fontSize: "var(--font-size-xs)" }}>{h.maxAbsOffset.toFixed(0)}m</span>}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+  const panelStep = (
+    <div style={{ ...sheet, display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+      <div>
+        <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ background: "#fbfbfc", border: "1px solid #d9dce1", borderRadius: 8 }}>
               {patternsOn && Object.keys(tiles).length > 0 && <defs dangerouslySetInnerHTML={{ __html: patternDefs(tiles, sectionTilePx(colWidth)) }} />}{/* #1995 — shapes only (lithoPatterns.sanitizeTile) */}
               <rect x={PAD_L} y={PAD_T} width={PLOT_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
               {view && zTicks.map((z) => (
@@ -368,122 +424,69 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                 : track.above === 0 ? tr("Track: {name}, the full width is {hi} (the 98th percentile of the panel's values)", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString() })
                 : tr(track.above === 1 ? "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher value is drawn at full width" : "Track: {name}, the full width is {hi} (the 98th percentile of the panel's values); {n} higher values are drawn at full width", { name: trackSrc.label, hi: Number(track.hi.toPrecision(3)).toLocaleString(), n: track.above.toLocaleString() })}</text>}{/* #2786 */}
             </svg>
-          </div>
-
-          <div style={{ width: 210, display: "flex", flexDirection: "column", gap: 9, maxHeight: "72vh", overflow: "auto" }}>
-            {showSources.length > 1 && <label style={rowLabel} title={tr("The interval log drawn in the columns; the correlation bands join its codes.")}>{tr("Show")}<select value={showSrc?.key || "litho"} onChange={(e) => setShow(e.target.value)} style={sel} aria-label={tr("Log shown in the columns")}>
-                {showSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
-              </select>
-            </label>}{/* #1745 / #2426 */}
-            {trackSources.length > 0 && <label style={rowLabel} title={tr("An assay element or a numeric log beside each column, on the hole's own depth: bars for intervals, a line for point readings. One scale for the whole panel.")}>{tr("Numeric track")}<select value={trackSrc?.key || ""} onChange={(e) => setTrackKey(e.target.value)} style={sel} aria-label={tr("Numeric track")}>
-                <option value="">{tr("— none —")}</option>
-                {trackSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
-              </select>
-            </label>}
-            {track && track.positive >= 2 && <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Log scale from the 2nd percentile of the positive values to the highest, for skewed values such as gamma or grades.")}>
-              <input type="checkbox" checked={trackLog} onChange={(e) => setTrackLog(e.target.checked)} />{tr("Log scale")}
-            </label>}{/* #2813 */}
-            {track && track.n === 0 && <div style={warnNote}>{tr("No {name} values in the selected holes.", { name: trackSrc.label })}</div>}{/* #2786 */}
-            <label style={rowLabel} title={tr("Best fit: the principal (total-least-squares) axis of the selected collars. Unlike a y-on-x regression, it works for a north-south line and ignores map rotation.")}>{tr("Section line")}<select value={azMode} onChange={(e) => (e.target.value === "section" ? pickSection(sectionId) : setAzMode(e.target.value))} style={sel}>
-                <option value="fit">{tr("Best fit through collars")}</option>
-                <option value="manual">{tr("Fixed azimuth…")}</option>
-                <option value="through">{tr("Through the ticked holes, in order")}</option>{/* #3560 B3 */}
-                {usableSections.length > 0 && <option value="section">{tr("Along a saved section…")}</option>}{/* #1552 */}
-              </select>
-            </label>
-            {azMode === "through" && <div style={warnNote}>{tr("Holes are joined in the order you tick them, collar to collar in plan, and drawn unfolded along that bent line. Untick and tick again to change the order.")}</div>}{/* #3560 B3 */}
-            {azMode === "section" && (
-              <label style={rowLabel} title={tr("The section's own line from its start, with the holes mostly inside its corridor (at least half the hole). Tick or untick holes below.")}>{tr("Section")}
-                <select value={sectionId} onChange={(e) => pickSection(e.target.value)} style={sel}>
-                  {usableSections.map((s) => <option key={s.id} value={s.id}>{tr("{name} (±{corridor} m)", { name: s.name || s.id, corridor: Number(s.corridor) || 100 })}</option>)}
-                </select>
-              </label>
-            )}
-            {initial.sectionId && azMode === "section" && sectionId === initial.sectionId && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{tr("This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.", { n: allIds.length })}</div>
-            )}
-            {initial.trimmed > 0 && azMode === "fit" && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{initial.site ? tr("Opened on {k} holes of the largest drill site's fan ({site} holes from one collar position, within 100 m of a line): one fan, one panel. {n} others are below, unticked.", { k: initial.ids.length, site: initial.site, n: initial.trimmed }) /* #2220 */ : tr("Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.", { k: initial.ids.length, n: initial.trimmed })}{usableSections.length ? " " + tr("Or draw the panel along a saved section.") : " " + tr("Or draw a cross-section in StrixViewer first and use it here.")}</div>
-            )}
-            {azMode === "manual" && (
-              <label style={rowLabel}>{tr("Azimuth (°)")}<input value={manualAz} onChange={(e) => setManualAz(e.target.value)} style={sel} />
-              </label>
-            )}
-            {areaIds?.size > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{tr("Opened on the Model area's {n} checked holes (Model settings); the others are in the list below.", { n: areaIds.size })}</div>}{/* #3016 */}
-            <label style={rowLabel} title={tr("1x is true scale — a 60° hole is drawn at 60° and you can measure a dip off the page. Any other value is labelled on the diagram itself.")}>{tr("Vertical scale")}<select value={ve} onChange={(e) => setVe(Number(e.target.value))} style={sel}>
-                {FENCE_VE.map((v) => <option key={v} value={v}>{v === 1 ? tr("1× (true scale)") : `${v}× exaggerated`}</option>)}{/* #2426 — up to 50× for a shallow flat deposit */}
-              </select>
-            </label>
-            {panel && suggestFenceVe(panel.sRange, panel.zRange) > ve && <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 }}>{tr("This section is {r} times longer than the holes are deep: {v}× makes the columns readable.", { r: Math.round((panel.sRange.max - panel.sRange.min) / Math.max(1e-6, panel.zRange.max - panel.zRange.min)), v: suggestFenceVe(panel.sRange, panel.zRange) })}{" "}<button onClick={() => setVe(suggestFenceVe(panel.sRange, panel.zRange))} className="gs-btn gs-btn--sm">{tr("Use {v}×", { v: suggestFenceVe(panel.sRange, panel.zRange) })}</button></div>}{/* #2426 */}
-            <label style={rowLabel}>{tr("Column width")}<select value={colWidth} onChange={(e) => setColWidth(Number(e.target.value))} style={sel}>
-                {[5, 7, 9, 13, 18].map((v) => <option key={v} value={v}>{tr("{v} px", { v })}</option>)}
-              </select>
-            </label>
-            {fencePatternCodes && <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("FGDC lithology patterns over the columns, each code's pattern as in its strip log (chosen there).")}>
-              <input type="checkbox" checked={patternsOn} onChange={(e) => setPatternsOn(e.target.checked)} />{tr("Lithology patterns (FGDC)")}
-            </label>}
-            <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Joins the shallowest occurrence of each shared lithology code between ADJACENT holes only. This is an interpretation, not a measurement — off by default.")}>
-              <input type="checkbox" checked={showBands} onChange={(e) => setShowBands(e.target.checked)} />{" "}{tr("Correlation bands")}</label>
-            <label style={rowLabel} title={tr("Holes whose maximum perpendicular distance from the section plane exceeds this are flagged amber on the diagram and in the list below.")}>{tr("Flag holes over")}<select value={offsetLimit} onChange={(e) => setOffsetLimit(Number(e.target.value))} style={sel}>
-                {[25, 50, 100, 200, 500].map((v) => <option key={v} value={v}>{tr("{v} m off section", { v })}</option>)}
-              </select>
-            </label>
-
-            {offHoles.length > 0 && (
-              <div style={warnNote}>
-                {tr(offHoles.length === 1 ? "{offHoles} hole is more than {offsetLimit} m off the section plane and is drawn as if on it. Any contact correlated through it carries that much horizontal error." : "{offHoles} holes are more than {offsetLimit} m off the section plane and are drawn as if on it. Any contact correlated through them carries that much horizontal error.", { offHoles: offHoles.length, offsetLimit })}<button onClick={dropOffLine} className="gs-btn gs-btn--sm" style={{ marginTop: 5 }}>{tr("Drop them from the panel")}</button>{dropNote && <div style={{ marginTop: 4 }}>{dropNote}</div>}{/* #2064 */}
-              </div>
-            )}
-
-            <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", fontWeight: 600, marginTop: 2 }}>{tr("Holes ({size}/{allIds})", { size: selected.size, allIds: allIds.length })}</div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => setSelected(new Set(allIds))} className="gs-btn gs-btn--sm">{tr("All")}</button>
-              <button onClick={() => setSelected(new Set())} className="gs-btn gs-btn--sm">{tr("None")}</button>
-            </div>
-            <div style={{ maxHeight: 170, minHeight: 90, flexShrink: 0, overflow: "auto", border: "1px solid #e0e3e8", borderRadius: 5, padding: "4px 6px" }}>{/* #1552 — it shrank to two rows when the column filled */}
-              {allIds.map((id) => {
-                const h = panel?.holes.find((x) => x.hole_id === id);
-                const over = h && h.maxAbsOffset > offsetLimit;
-                return (
-                  <label key={id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: over ? "#a8741a" : "#1a2028", padding: "1px 0" }}>
-                    <input type="checkbox" checked={selected.has(id)} onChange={() => toggle(id)} />
-                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{id}</span>
-                    {h && <span style={{ color: over ? "#a8741a" : "#65717e", fontSize: "var(--font-size-xs)" }}>{h.maxAbsOffset.toFixed(0)}m</span>}
-                  </label>
-                );
-              })}
-            </div>
-
-            {codes.length > 0 && (
-              <>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", fontWeight: 600, marginTop: 2 }}>{showSrc?.label || tr("Lithology")}</div>{/* #1745 */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                  {codes.map((c) => (
-                    <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "#55606e" }}>
-                      <div style={{ width: 8, height: 8, borderRadius: 2, background: colorOf(c) }} />{c}
-                    </div>
-                  ))}
+      </div>
+      <div style={{ width: 210, display: "flex", flexDirection: "column", gap: 9, maxHeight: "68vh", overflow: "auto" }}>
+        {panel && <div role="table" style={{ display: "grid", gridTemplateColumns: "1fr auto", columnGap: 10, rowGap: 3, fontSize: "var(--font-size-sm)" }}>{/* #4073 — the panel in numbers (StepPane's StepNumbers, in this figure's own colours) */}
+          {[[tr("Holes"), String(panel.holes.length)], [tr("Bearing"), `${panel.line.azimuth.toFixed(1)}°`], [tr("Vertical scale"), ve === 1 ? tr("1× (true scale)") : `${ve}×`], offHoles.length > 0 && [tr("Flag holes over"), `${offHoles.length}`]].filter(Boolean).map(([k, v]) => (
+            <React.Fragment key={k}><span role="rowheader" style={{ color: "#55606e" }}>{k}</span><span role="cell" style={{ fontWeight: 600, textAlign: "end", color: "#1a2028" }}>{v}</span></React.Fragment>
+          ))}
+        </div>}
+        {showSources.length > 1 && <label style={rowLabel} title={tr("The interval log drawn in the columns; the correlation bands join its codes.")}>{tr("Show")}<select value={showSrc?.key || "litho"} onChange={(e) => setShow(e.target.value)} style={sel} aria-label={tr("Log shown in the columns")}>
+            {showSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+          </select>
+        </label>}{/* #1745 / #2426 */}
+        {trackSources.length > 0 && <label style={rowLabel} title={tr("An assay element or a numeric log beside each column, on the hole's own depth: bars for intervals, a line for point readings. One scale for the whole panel.")}>{tr("Numeric track")}<select value={trackSrc?.key || ""} onChange={(e) => setTrackKey(e.target.value)} style={sel} aria-label={tr("Numeric track")}>
+            <option value="">{tr("— none —")}</option>
+            {trackSources.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+          </select>
+        </label>}
+        {track && track.positive >= 2 && <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Log scale from the 2nd percentile of the positive values to the highest, for skewed values such as gamma or grades.")}>
+          <input type="checkbox" checked={trackLog} onChange={(e) => setTrackLog(e.target.checked)} />{tr("Log scale")}
+        </label>}{/* #2813 */}
+        {track && track.n === 0 && <div style={warnNote}>{tr("No {name} values in the selected holes.", { name: trackSrc.label })}</div>}{/* #2786 */}
+        <label style={rowLabel} title={tr("1x is true scale — a 60° hole is drawn at 60° and you can measure a dip off the page. Any other value is labelled on the diagram itself.")}>{tr("Vertical scale")}<select value={ve} onChange={(e) => setVe(Number(e.target.value))} style={sel}>
+            {FENCE_VE.map((v) => <option key={v} value={v}>{v === 1 ? tr("1× (true scale)") : `${v}× exaggerated`}</option>)}{/* #2426 — up to 50× for a shallow flat deposit */}
+          </select>
+        </label>
+        {panel && suggestFenceVe(panel.sRange, panel.zRange) > ve && <div style={small}>{tr("This section is {r} times longer than the holes are deep: {v}× makes the columns readable.", { r: Math.round((panel.sRange.max - panel.sRange.min) / Math.max(1e-6, panel.zRange.max - panel.zRange.min)), v: suggestFenceVe(panel.sRange, panel.zRange) })}{" "}<button onClick={() => setVe(suggestFenceVe(panel.sRange, panel.zRange))} className="gs-btn gs-btn--sm">{tr("Use {v}×", { v: suggestFenceVe(panel.sRange, panel.zRange) })}</button></div>}{/* #2426 */}
+        <label style={rowLabel}>{tr("Column width")}<select value={colWidth} onChange={(e) => setColWidth(Number(e.target.value))} style={sel}>
+            {[5, 7, 9, 13, 18].map((v) => <option key={v} value={v}>{tr("{v} px", { v })}</option>)}
+          </select>
+        </label>
+        {fencePatternCodes && <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("FGDC lithology patterns over the columns, each code's pattern as in its strip log (chosen there).")}>
+          <input type="checkbox" checked={patternsOn} onChange={(e) => setPatternsOn(e.target.checked)} />{tr("Lithology patterns (FGDC)")}
+        </label>}
+        <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Joins the shallowest occurrence of each shared lithology code between ADJACENT holes only. This is an interpretation, not a measurement — off by default.")}>
+          <input type="checkbox" checked={showBands} onChange={(e) => setShowBands(e.target.checked)} />{" "}{tr("Correlation bands")}</label>
+        {codes.length > 0 && (
+          <>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e", fontWeight: 600, marginTop: 2 }}>{showSrc?.label || tr("Lithology")}</div>{/* #1745 */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {codes.map((c) => (
+                <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "#55606e" }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: colorOf(c) }} />{c}
                 </div>
-              </>
-            )}
-            {!codes.length && (
-              <div style={warnNote}>{showSrc && showSrc.key !== "litho" ? tr("No {layer} intervals for the selected holes — the panel shows the projected traces only.", { layer: showSrc.label }) : tr("No lithology intervals for the selected holes — the panel shows the projected traces only.")}</div>
-            )}
-
-            <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.5 }}>
-              <div style={{ fontWeight: 600, color: "#1a2028", marginBottom: 3 }}>{tr("Reading this panel")}</div>{tr("Horizontal is distance along the section line, vertical is elevation. Each whole trace is projected, so inclined holes lean as in the ground. The number under each collar is the hole's largest distance off the section plane: the error of this flattening.")}</div>
-
-            <button onClick={exportSvg} className="gs-btn" style={{ marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
-          </div>
-        </div>
+              ))}
+            </div>
+          </>
+        )}
+        {!codes.length && (
+          <div style={warnNote}>{showSrc && showSrc.key !== "litho" ? tr("No {layer} intervals for the selected holes — the panel shows the projected traces only.", { layer: showSrc.label }) : tr("No lithology intervals for the selected holes — the panel shows the projected traces only.")}</div>
         )}
       </div>
     </div>
   );
+  const steps = [
+    { key: "holes", label: tr("Holes"), render: () => holesStep, primary: { label: tr("Next: panel"), disabled: !panel } },
+    { key: "panel", label: tr("Panel"), render: () => panelStep, primary: { label: <><Download size={12} />{" "}{tr("Export SVG")}</>, onClick: exportSvg, disabled: !panel } },
+  ];
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={step} onAt={setStep} help={help} width="min(1120px, 97vw)" />;
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
-const modalPanel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxWidth: "96vw", maxHeight: "95vh", overflow: "auto" };
+// TASKS.csv #4073 — the figure keeps its own colours (theme.js's header: this file is excluded from the token migration): each step's content sits on its
+// own white sheet inside the shared shell, so the panel and its controls read the same in a dark theme as in the exported SVG
+const sheet = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 8, padding: 10, color: "#1a2028" };
+const small = { fontSize: "var(--font-size-xs)", color: "#55606e", lineHeight: 1.4 };
 const rowLabel = { fontSize: "var(--font-size-xs)", color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
 const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: "var(--font-size-sm)" };
 const warnNote = { background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: "var(--font-size-xs)", color: "#6b4e20", lineHeight: 1.45 };

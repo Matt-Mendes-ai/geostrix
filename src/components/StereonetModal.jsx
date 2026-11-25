@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X, Download } from "./icons.js";
+import { Download } from "./icons.js";
 import { findOriQualityLayer, oriQualityIndex, filterByQuality, qualityLevels, qualityNote } from "../lib/oriQuality.js"; // TASKS.csv #1545
 import { projectPole, projectLowerHemisphere, greatCirclePoints, fisherStats, kambContourGrid, roseDiagramBins, DEFAULT_TERZAGHI_MAX_WEIGHT, fabricShape } from "../lib/stereonet.js";
 import { netZoom } from "../lib/stereonetZoom.js"; // TASKS.csv #2971
@@ -9,10 +9,7 @@ import { TREND_MIN_PICKS, TREND_MAX_ALPHA95 } from "../lib/stereonetGroups.js"; 
 import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #3843
 import { keepWhere, classEntries, areaEntries, keepPick, trendLabel, stereonetTrendName, surfacePicksOf } from "../lib/stereonetGroups.js"; // TASKS.csv #3843
 import { saveFile } from "../lib/desktop.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { stereonetFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1068
@@ -42,10 +39,11 @@ const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); //
 // TASKS.csv #281 — `domains`/`domainFilter` add a SPATIAL filter alongside the existing type filter.
 // Both are optional props: the modal still works standalone with picks alone (domainFilter absent =
 // the domain control simply isn't offered), so nothing here depends on the caller having a scene.
+// TASKS.csv #4073 — on the shared StepDialog: 1 Picks (source and filters: what goes on the net, in numbers), 2 Plot (the net or rose, its display settings,
+// the statistics and Add as structural trend; Export SVG). It opens on Plot: every pick is in by default.
 export default function StereonetModal({ picks: downholePicks, surfacePicks: surfacePicksIn = [], surfaceSets = null, onClose, onUseAsTrend, domains = [], domainFilter = null, customLayers = [], locate = null }) { // customLayers: TASKS.csv #1545
   const surfacePicks = useMemo(() => (surfaceSets ? surfacePicksOf(surfaceSets) : surfacePicksIn), [surfaceSets, surfacePicksIn]); // TASKS.csv #3843 - from the structure sets: class and area kept
-  useEscapeKey(onClose); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
+  const [step, setStep] = useState(1); // TASKS.csv #4073 — every pick is in by default: open on the plot (with no data, its empty state says where structure data comes from, #2389); Picks one click back
   const [view, setView] = useState("stereonet"); // TASKS.csv #278 — "stereonet" | "rose"
   const [projection, setProjection] = useState("equalArea");
   const [showPoles, setShowPoles] = useState(true);
@@ -184,11 +182,77 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
     saveFile({ suggestedName: view === "rose" ? "rose-diagram.svg" : "stereonet.svg", filters: [{ name: "SVG", extensions: ["svg"] }], content, encoding: "text" });
   };
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#1a2028" }}>
+  const heading = view === "rose" ? tr("Rose diagram") : tr("Stereonet");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>{tr("Lower hemisphere. Each point is a plane's pole: clusters are a consistent trend; scatter flags unreliable picks before they go into the anisotropy or structural-surface tools.")}</div>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}><b>{tr("Density contours")}</b> {tr("Unshaded = no denser than a random spread. Higher σ = a tighter, more significant cluster.")}</div>
+    </details>
+  );
+  const nums = (rows) => <div role="table" style={{ display: "grid", gridTemplateColumns: "1fr auto", columnGap: 10, rowGap: 3, fontSize: "var(--font-size-sm)" }}>{rows.filter(Boolean).map(([k, v]) => <React.Fragment key={k}><span role="rowheader" style={{ color: "#55606e" }}>{k}</span><span role="cell" style={{ fontWeight: 600, textAlign: "end", color: "#1a2028" }}>{v}</span></React.Fragment>)}</div>;
+  const picksStep = (
+    <div style={{ ...sheet, flex: 1, display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+      <div style={{ flex: "1 1 240px", minWidth: 220, display: "flex", flexDirection: "column", gap: 10 }}>
+            <label style={rowLabel}>{tr("Source")}<select value={source} onChange={(e) => setSource(e.target.value)} style={sel} aria-label={tr("Measurement source")}>
+                  <option value="downhole" disabled={!downholePicks.length}>{tr("Downhole picks ({downholePicks})", { downholePicks: downholePicks.length })}</option>
+                  <option value="surface" disabled={!surfacePicks.length}>{tr("Outcrop measurements ({surfacePicks})", { surfacePicks: surfacePicks.length })}</option>
+                  <option value="both" disabled={!downholePicks.length || !surfacePicks.length}>{tr("Both")}</option>
+                </select>
+                {domainId && source !== "downhole" && <span style={{ fontSize: "var(--font-size-xs)", color: "#b06a1f" }}>{tr("domain filter: downhole only")}</span>}
+            </label>
+            {oriLayer && ( // TASKS.csv #1545 — the orientation-line quality logged as an interval table (Lawyers' OriCore 1 / 2 / 3)
+              <label style={rowLabel} title={tr("The layer \"{name}\" logs orientation-line quality per interval; picks in an interval above this quality are left out. Picks with no logged quality are kept.", { name: oriLayer.name })}>{tr("Orientation quality ≤")}<select value={qualityMax} onChange={(e) => setQualityMax(e.target.value)} style={sel} aria-label={tr("Orientation quality ≤")}>
+                  <option value="">{tr("Any quality")}</option>
+                  {qualityLevels(qIndex).map((q) => <option key={q} value={q}>{q}</option>)}
+                </select>
+              </label>
+            )}
+            {oriLayer && qualityMax !== "" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{qualityNote(qualityRes, qualityMax, tr)}</div>}
+            <label style={rowLabel}>{tr("Structure type")}<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
+                <option value="all">{tr("All types")}</option>
+                {typeList.map((t) => <option key={t.key} value={t.key}>{both && t.core && t.outcrop ? tr("{type}: {core} core + {outcrop} outcrop", { type: t.label, core: t.core, outcrop: t.outcrop }) : both && t.outcrop ? tr("{type} (outcrop)", { type: t.label }) : t.label}</option>)}
+                {classList.map((c) => <option key={c.key} value={c.key}>{tr("{type} (all {n})", { type: c.label, n: c.n })}</option>)}{/* TASKS.csv #3843 */}
+              </select>
+            </label>
+            {areaList.length > 0 && ( /* TASKS.csv #3843 - the Zone / Area column of the structure file */
+              <label style={rowLabel}>{tr("Area / zone")}<select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)} style={sel} aria-label={tr("Area of the readings")}>
+                <option value="all">{tr("All areas")}</option>
+                {areaList.map((a) => <option key={a.key} value={a.key}>{`${a.key} (${a.n})`}</option>)}
+              </select></label>
+            )}
+            {locate && ( /* TASKS.csv #3843 — only what is in the window / inside a boundary */
+              <>
+                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Only the readings whose collar or outcrop point is in the 3D view's window now (a ground point at the scene's level)")}>
+                  <input type="checkbox" checked={viewOnly} onChange={(e) => setViewOnly(e.target.checked)} />{tr("Only readings in the view")}</label>
+                {(locate.boundaries || []).length > 0 && (
+                  <label style={rowLabel}>{tr("Inside a boundary")}<select value={boundaryId} onChange={(e) => setBoundaryId(e.target.value)} style={sel} aria-label={tr("Boundary the readings are inside")}>
+                    <option value="">{tr("Anywhere")}</option>
+                    {locate.boundaries.map((b) => <option key={b.id} value={b.id}>{b.name || b.id}</option>)}
+                  </select></label>
+                )}
+              </>
+            )}
+            {/* TASKS.csv #281 — spatial-domain filter. Only offered when the caller actually supplied
+                domains and a filter (i.e. from the 3D viewer, where a domain has a meaning); the same
+                domains the Modelling tab's tools use, so "Fault block A" means one thing app-wide. */}
+            {domainFilter && domains.length > 0 && (
+              <label style={rowLabel} title={tr("Plot only the picks inside one structural domain (the Modelling tab's domains). Mixing two domains into one mean or contour gives a confident-looking but meaningless trend.")}>{tr("Structural domain")}<select aria-label={tr("Model domain")} value={domainId} onChange={(e) => setDomainId(e.target.value)} style={sel}>
+                  <option value="">{tr("Whole property")}</option>
+                  {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </label>
+            )}
+      </div>
+      <div style={{ flex: "1 1 220px", minWidth: 200, display: "flex", flexDirection: "column", gap: 8 }}>{/* #4073 — what goes on the net, in numbers (StepPane's StepNumbers, in this figure's own colours) */}
+        {nums([[tr("Picks"), picks.length.toLocaleString()], [tr("Kept by the filters"), filtered.length.toLocaleString()], [tr("Plotted"), plotted.toLocaleString()]])}
+        {(betaRefs.top + betaRefs.bottom) > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "#6b4e20", background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "5px 8px", marginBottom: 8, lineHeight: 1.4 }}>{[betaRefs.bottom && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.bottom.toLocaleString(), ref: tr("bottom") }), betaRefs.top && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.top.toLocaleString(), ref: tr("top") })].filter(Boolean).join(" ")}</div>}{/* #2055 */}
+      </div>
+    </div>
+  );
+  const plotStep = (
+    <div style={{ ...sheet, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "#1a2028" }}>
             {plotted === filtered.length
               ? tr("{v} — structure picks ({filtered}/{picks})", { v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), filtered: filtered.length, picks: picks.length })
               : tr("{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); not plotted: {why}", { /* #1448; #1551 — each reason apart */ v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), plotted: plotted.toLocaleString(), filtered: filtered.length.toLocaleString(), picks: picks.length.toLocaleString(),
@@ -198,13 +262,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
             )}
             {/* TASKS.csv #2270 — what the rose counts once 'Dips of at least' is set (the header kept '85/85' at 60°) */}
             {view === "rose" && rose && roseMinDip > 0 && <span style={{ fontWeight: 400, fontSize: "var(--font-size-sm)", color: "#55606e", marginLeft: 6 }}>{tr("· the rose counts {n} of {m} plane(s): those dipping {d}° or more", { n: rose.n.toLocaleString(), m: plotted.toLocaleString(), d: roseMinDip })}</span>}
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
-        </div>
-        {(betaRefs.top + betaRefs.bottom) > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "#6b4e20", background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "5px 8px", marginBottom: 8, lineHeight: 1.4 }}>{[betaRefs.bottom && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.bottom.toLocaleString(), ref: tr("bottom") }), betaRefs.top && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: betaRefs.top.toLocaleString(), ref: tr("top") })].filter(Boolean).join(" ")}</div>}{/* #2055 */}
-
-        <div style={{ display: "flex", gap: 16 }}>
-          <div>
+      </div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div>
             {view === "rose" ? (
               <RoseDiagram svgRef={svgRef} rose={rose} size={SIZE} pad={PAD} />
             ) : (
@@ -328,22 +388,13 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
               )}
             </svg>
             )}
-          </div>
-
-          <div style={{ width: 190, display: "flex", flexDirection: "column", gap: 10 }}>
+        </div>
+        <div style={{ width: 200, display: "flex", flexDirection: "column", gap: 10, maxHeight: "64vh", overflow: "auto" }}>
             {/* TASKS.csv #278 — plot selector. Both views read the same filtered population. */}
             <label style={rowLabel}>{tr("Plot")}<select value={view} onChange={(e) => setView(e.target.value)} style={sel}>
                 <option value="stereonet">{tr("Stereonet (pole plot)")}</option>
                 <option value="rose">{tr("Rose diagram")}</option>
               </select>
-            </label>
-            {/* TASKS.csv #1444 — Source in both plots (in rose mode it had gone: outcrop data needed it set before switching) */}
-            <label style={rowLabel}>{tr("Source")}<select value={source} onChange={(e) => setSource(e.target.value)} style={sel} aria-label={tr("Measurement source")}>
-                  <option value="downhole" disabled={!downholePicks.length}>{tr("Downhole picks ({downholePicks})", { downholePicks: downholePicks.length })}</option>
-                  <option value="surface" disabled={!surfacePicks.length}>{tr("Outcrop measurements ({surfacePicks})", { surfacePicks: surfacePicks.length })}</option>
-                  <option value="both" disabled={!downholePicks.length || !surfacePicks.length}>{tr("Both")}</option>
-                </select>
-                {domainId && source !== "downhole" && <span style={{ fontSize: "var(--font-size-xs)", color: "#b06a1f" }}>{tr("domain filter: downhole only")}</span>}
             </label>
             {view === "stereonet" && (
               <label style={rowLabel}>{tr("Projection")}<select value={projection} onChange={(e) => setProjection(e.target.value)} style={sel}>
@@ -368,48 +419,6 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                   <NumberInput min={0} max={89} step={5} value={roseMinDip} onChange={(v) => setRoseMinDip(v)} style={sel} aria-label={tr("Minimum dip for the rose")} />
                 </label>
               </>
-            )}
-            {oriLayer && ( // TASKS.csv #1545 — the orientation-line quality logged as an interval table (Lawyers' OriCore 1 / 2 / 3)
-              <label style={rowLabel} title={tr("The layer \"{name}\" logs orientation-line quality per interval; picks in an interval above this quality are left out. Picks with no logged quality are kept.", { name: oriLayer.name })}>{tr("Orientation quality ≤")}<select value={qualityMax} onChange={(e) => setQualityMax(e.target.value)} style={sel} aria-label={tr("Orientation quality ≤")}>
-                  <option value="">{tr("Any quality")}</option>
-                  {qualityLevels(qIndex).map((q) => <option key={q} value={q}>{q}</option>)}
-                </select>
-              </label>
-            )}
-            {oriLayer && qualityMax !== "" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{qualityNote(qualityRes, qualityMax, tr)}</div>}
-            <label style={rowLabel}>{tr("Structure type")}<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
-                <option value="all">{tr("All types")}</option>
-                {typeList.map((t) => <option key={t.key} value={t.key}>{both && t.core && t.outcrop ? tr("{type}: {core} core + {outcrop} outcrop", { type: t.label, core: t.core, outcrop: t.outcrop }) : both && t.outcrop ? tr("{type} (outcrop)", { type: t.label }) : t.label}</option>)}
-                {classList.map((c) => <option key={c.key} value={c.key}>{tr("{type} (all {n})", { type: c.label, n: c.n })}</option>)}{/* TASKS.csv #3843 */}
-              </select>
-            </label>
-            {areaList.length > 0 && ( /* TASKS.csv #3843 - the Zone / Area column of the structure file */
-              <label style={rowLabel}>{tr("Area / zone")}<select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)} style={sel} aria-label={tr("Area of the readings")}>
-                <option value="all">{tr("All areas")}</option>
-                {areaList.map((a) => <option key={a.key} value={a.key}>{`${a.key} (${a.n})`}</option>)}
-              </select></label>
-            )}
-            {locate && ( /* TASKS.csv #3843 — only what is in the window / inside a boundary */
-              <>
-                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Only the readings whose collar or outcrop point is in the 3D view's window now (a ground point at the scene's level)")}>
-                  <input type="checkbox" checked={viewOnly} onChange={(e) => setViewOnly(e.target.checked)} />{tr("Only readings in the view")}</label>
-                {(locate.boundaries || []).length > 0 && (
-                  <label style={rowLabel}>{tr("Inside a boundary")}<select value={boundaryId} onChange={(e) => setBoundaryId(e.target.value)} style={sel} aria-label={tr("Boundary the readings are inside")}>
-                    <option value="">{tr("Anywhere")}</option>
-                    {locate.boundaries.map((b) => <option key={b.id} value={b.id}>{b.name || b.id}</option>)}
-                  </select></label>
-                )}
-              </>
-            )}
-            {/* TASKS.csv #281 — spatial-domain filter. Only offered when the caller actually supplied
-                domains and a filter (i.e. from the 3D viewer, where a domain has a meaning); the same
-                domains the Modelling tab's tools use, so "Fault block A" means one thing app-wide. */}
-            {domainFilter && domains.length > 0 && (
-              <label style={rowLabel} title={tr("Plot only the picks inside one structural domain (the Modelling tab's domains). Mixing two domains into one mean or contour gives a confident-looking but meaningless trend.")}>{tr("Structural domain")}<select aria-label={tr("Model domain")} value={domainId} onChange={(e) => setDomainId(e.target.value)} style={sel}>
-                  <option value="">{tr("Whole property")}</option>
-                  {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </label>
             )}
             {view === "stereonet" && (
               <>
@@ -448,7 +457,6 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 )}
               </div>
             )}
-
             {/* TASKS.csv #141 follow-up — contour legend. Levels are in standard deviations (σ) above
                 the density a UNIFORM/random spread of the same n poles would give — the Kamb convention
                 every standard stereonet package uses, so the numbers here read the same as in Stereonet
@@ -469,7 +477,6 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                       ))}
                     </div>
                     <div style={{ color: "#55606e" }}>{tr("Peak")}{" "}<b style={{ color: "#1a2028" }}>{contour.maxSigma.toFixed(1)}σ</b>{" "}{tr("· counting circle {countingAngleDeg}° (n={n})", { countingAngleDeg: contour.countingAngleDeg.toFixed(1), n: contour.n })}</div>
-                    <div style={{ color: "#65717e", marginTop: 2 }}>{tr("Unshaded = no denser than a random spread. Higher σ = a tighter, more significant cluster.")}</div>
                     {/* TASKS.csv #276 — small-n reliability caveat. Kamb's σ is a ratio against the
                         density expected from a UNIFORM spread of the SAME n, so it happily reports a
                         strong-looking peak from a handful of picks: with n below ~15-20 a couple of
@@ -488,7 +495,6 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
                 )}
               </div>
             )}
-
             {/* TASKS.csv #236 — mean vector / Fisher statistics readout. This was the Stereonet's own
                 original justification (#141/#178): letting a geologist check numerically, not just by
                 eye, whether a trend is representative before feeding it to the anisotropy/structural
@@ -554,21 +560,11 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
             ) : noData ? null /* #2389 */ : (
               <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", lineHeight: 1.4 }}>{tr("Mean orientation needs at least 2 picks with a valid dip and dip direction.")}</div>
             )}
-
-            <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", lineHeight: 1.4, marginTop: 4 }}>
-              {view === "rose" ? (
-                rose
-                  ? <>{tr("Petal AREA is proportional to frequency (radius scales as √count), so a petal twice as long holds four times the picks. Longest petal = {maxCount}{v}, n = {n}.", { maxCount: rose.maxCount.toFixed(rose.maxCount % 1 ? 1 : 0), v: terzaghi ? tr(" (weighted)") : "", n: rose.n })}</>
-                  : <>{tr("A rose diagram needs at least one pick with a valid dip and dip direction.")}</>
-              ) : (
-                <>{tr("Lower hemisphere. Each point is a plane's pole: clusters are a consistent trend; scatter flags unreliable picks before they go into the anisotropy or structural-surface tools.")}</>
-              )}
-            </div>
-            {/* #1721 — nothing drawn, nothing to export */}
-            <button onClick={exportSvg} disabled={view === "rose" ? !rose : plotted === 0} title={(view === "rose" ? !rose : plotted === 0) ? tr("Nothing is plotted, so there is nothing to export.") : ""} className="gs-btn" style={{ marginTop: "auto", opacity: (view === "rose" ? !rose : plotted === 0) ? 0.5 : 1 }}><Download size={12} />{" "}{tr("Export SVG")}</button>
-          </div>
+            {view === "rose" && <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", lineHeight: 1.4 }}>{rose
+              ? tr("Petal AREA is proportional to frequency (radius scales as √count), so a petal twice as long holds four times the picks. Longest petal = {maxCount}{v}, n = {n}.", { maxCount: rose.maxCount.toFixed(rose.maxCount % 1 ? 1 : 0), v: terzaghi ? tr(" (weighted)") : "", n: rose.n })
+              : tr("A rose diagram needs at least one pick with a valid dip and dip direction.")}</div>}
         </div>
-
+      </div>
         {view !== "rose" && (types.length > 1 || both) && ( /* #1444 — a rose is one colour */
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
             {typeList.map((t) => (
@@ -580,9 +576,15 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks: sur
             {both && <div style={{ fontSize: "var(--font-size-xs)", color: "#55606e" }}>{tr("Filled poles: core; open poles: outcrop")}</div>}
           </div>
         )}
-      </div>
     </div>
   );
+  const nothing = view === "rose" ? !rose : plotted === 0; // #1721 — nothing drawn, nothing to export
+  const steps = [
+    { key: "picks", label: tr("Picks"), render: () => picksStep, primary: { label: tr("Next: plot") } },
+    { key: "plot", label: tr("Plot"), render: () => plotStep, hint: nothing ? tr("Nothing is plotted, so there is nothing to export.") : "",
+      primary: { label: <><Download size={12} />{" "}{tr("Export SVG")}</>, onClick: exportSvg, disabled: nothing } },
+  ];
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={step} onAt={setStep} help={help} width="min(760px, 97vw)" />;
 }
 
 // TASKS.csv #278 — rose diagram renderer. Deliberately the same 420px square, same compass labelling
@@ -660,9 +662,8 @@ const contourColor = (sigma) => {
   return CONTOUR_COLORS[k];
 };
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
-// TASKS.csv #1368 — never taller or wider than the window: it measured 1,023 px in an 835 px window, with its title, close
-// button and Plot / Source dropdowns above the screen and nothing to scroll. Now it scrolls inside the window.
-const panel = { width: 660, maxWidth: "calc(100vw - 24px)", maxHeight: "calc(100vh - 24px)", overflowY: "auto", boxSizing: "border-box", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" };
+// TASKS.csv #1368 — never taller or wider than the window: since #4073 the shared StepDialog keeps it inside the window (92vh, its body scrolls).
+// TASKS.csv #4073 — the figure keeps its own colours (theme.js's header: this file is excluded from the token migration): each step sits on its own white sheet.
+const sheet = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 8, padding: 10, color: "#1a2028" };
 const rowLabel = { fontSize: "var(--font-size-xs)", color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
 const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: "var(--font-size-sm)" };

@@ -13,5 +13,6 @@ test("the pole plot says what is missing and why the picks are not drawn", () =>
 });
 
 test("Export SVG is disabled while nothing is plotted, in both views", () => {
-  assert.match(m, /<button onClick=\{exportSvg\} disabled=\{view === "rose" \? !rose : plotted === 0\}/);
+  assert.match(m, /const nothing = view === "rose" \? !rose : plotted === 0;/); // TASKS.csv #4073 — Export SVG is the StepDialog's primary
+  assert.match(m, /onClick: exportSvg, disabled: nothing/);
 });
