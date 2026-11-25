@@ -8,7 +8,7 @@
 //   - a Help-card slot: the header's "?" opens it, so the long explanations live there. Pass the card's content as a <details open> with a <summary> title: the word count reads a <details> body as folded (#3939);
 //   - a hint (one short sentence saying what is missing, or what to do) and an error, both shown under the step.
 // The parts are exported too, with the shared styles, so a dialog that cannot be steps yet looks like the same family.
-// steps: [{ key, label, render: () => node, primary: { label, onClick?, disabled? }, hint?: string }] (labels already translated); at / onAt: the step index, owned by the dialog
+// steps: [{ key, label, render: () => node, primary: { label, onClick?, disabled?, attrs? }, hint?: string }] (labels already translated); at / onAt: the step index, owned by the dialog
 // (it needs to know it); help: node | null (a <details open>); error: string | null; title: the dialog's name; extra: header controls before the Help button.
 import React from "react";
 import { X } from "./icons.js";
@@ -47,7 +47,11 @@ export function StepBar({ steps, at, onAt, label }) {
   );
 }
 
-export default function StepDialog({ title, onClose, steps, at, onAt, help = null, error = null, extra = null, width = "min(1120px, 96vw)" }) {
+// zIndex: a dialog that must stand above another open dialog (the CRS question over the import's column matching, #3951); cancelLabel: the first step's
+// way out when it is not a cancel ("Decide later" on an unset CRS); overlayProps: spread on the overlay (the first-run wizard swallows a file dropped
+// beside its drop area, so the 3D view under it does not import it); a step's primary.attrs: spread on the gold button (data-start-next / data-start-done,
+// which the tests and the Guide find it by, as StepPane's action does, #4070). All optional (TASKS.csv #4073, side 2).
+export default function StepDialog({ title, onClose, steps, at, onAt, help = null, error = null, extra = null, width = "min(1120px, 96vw)", zIndex = null, cancelLabel = null, overlayProps = null }) {
   const [helpOpen, setHelpOpen] = React.useState(false);
   useEscapeKey(() => (helpOpen ? setHelpOpen(false) : onClose()));
   useFocusTrap();
@@ -56,7 +60,7 @@ export default function StepDialog({ title, onClose, steps, at, onAt, help = nul
   const reserveHint = steps.some((s) => "hint" in s); // a dialog with a hint keeps its slot, so the dialog does not change height as the hint comes and goes
   const go = () => { if (p.onClick) p.onClick(); else onAt(Math.min(steps.length - 1, i + 1)); };
   return (
-    <div style={overlay}>
+    <div style={zIndex != null ? { ...overlay, zIndex } : overlay} {...overlayProps}>
       <div style={{ width, maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}
         role="dialog" aria-modal="true" aria-label={title} data-step-dialog data-step={step.key} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" }}>
@@ -83,8 +87,8 @@ export default function StepDialog({ title, onClose, steps, at, onAt, help = nul
           </div>
         )}
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          {i > 0 ? <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={() => onAt(i - 1)}>{tr("Back")}</button> : <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{tr("Cancel")}</button>}
-          <button type="button" className="gs-btn gs-btn--primary" style={{ flex: 2 }} disabled={!!p.disabled} onClick={go}>{p.label}</button>
+          {i > 0 ? <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={() => onAt(i - 1)}>{tr("Back")}</button> : <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{cancelLabel || tr("Cancel")}</button>}
+          <button {...p.attrs} type="button" className="gs-btn gs-btn--primary" style={{ flex: 2 }} disabled={!!p.disabled} onClick={go}>{p.label}</button>
         </div>
       </div>
     </div>

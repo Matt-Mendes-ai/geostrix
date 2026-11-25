@@ -16,7 +16,7 @@ test("no data from either source: the net says where it comes from", () => {
 
 test("no mean-orientation line when there is nothing at all, Export still disabled", () => {
   assert.match(src, /\) : noData \? null \/\* #2389 \*\/ : \(\s*<div[^>]*>\{tr\("Mean orientation needs at least 2 picks/);
-  assert.match(src, /disabled=\{view === "rose" \? !rose : plotted === 0\}/);
+  assert.match(src, /const nothing = view === "rose" \? !rose : plotted === 0;[\s\S]*onClick: exportSvg, disabled: nothing/); // TASKS.csv #4073 — the StepDialog's primary
 });
 
 test("the names it points at are the app's own", () => {

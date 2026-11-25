@@ -1,14 +1,10 @@
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1192
 import React, { useMemo, useState } from "react";
-import { X, Download, Ruler } from "./icons.js";
+import { Download } from "./icons.js";
 import { buildMeshQuery, isMeshClosed, signedDistanceToMesh, intervalsInsideMesh, holeDistanceToMesh } from "../lib/meshQuery.js";
 import { saveFile } from "../lib/desktop.js";
 import { toCsv, FORMULA_LEAD } from "../lib/tabular.js"; // TASKS.csv #1082
 import { surfaceQueryRows } from "../lib/tableExports.js"; // TASKS.csv #1083
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2626 — the shell's element and the assays (read only)
 import { resolvedSegments } from "../lib/geochem.js";
@@ -17,6 +13,8 @@ import { sampledByHole, sampledMetres } from "../lib/insideSampling.js"; // TASK
 import { pointFromInputs } from "../lib/pointInput.js"; // TASKS.csv #1743
 import { buildVoxelLookup, sampleModelOnHoles, holesInBlockModel } from "../lib/voxelSample.js"; // TASKS.csv #2727
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import StepDialog, { stepDialogStyles } from "./StepDialog.jsx"; // TASKS.csv #4073
+import { StepNumbers } from "./StepPane.jsx";
 
 // TASKS.csv #146 — DISTANCE-TO-SURFACE / POINT-IN-DOMAIN QUERY AND REPORTING.
 //
@@ -30,9 +28,9 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 // resource-classification-style summary once #140's volumetrics exist).
 //
 // WHAT IT ANSWERS
-//   * HOLES tab — every hole against one surface: closest approach (m) and the MD it occurs at, the
+//   * HOLES — every hole against one surface: closest approach (m) and the MD it occurs at, the
 //     MDs where the hole pierces the surface, and, for a CLOSED surface, the downhole metres inside.
-//   * POINT tab — one real-world XYZ against one surface: distance, and inside/outside with a sign.
+//   * POINT — one real-world XYZ against one surface: distance, and inside/outside with a sign.
 //
 // The geometry lives in src/lib/meshQuery.js, deliberately separate and dependency-free so it could be
 // verified in Node against analytic ground truth (sphere/box) BEFORE any of this UI existed — see the
@@ -51,12 +49,12 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 // coordinates, because that is what a user reads off a map.
 // TASKS.csv #3016 (WA iron review) — inArea: the traces are the Model area's checked holes (Model settings); the sweep says so. It swept 6,390
 // holes against a shell built from 228 (5.1 s to open).
+// TASKS.csv #4073 — on the shared StepDialog: 1 Question (the surface, holes or a point, a block model: pre-filled, with the surface's closure as numbers),
+// 2 Result (the totals as numbers, the table and Export CSV; or the point's distance). The explanations are in the Help card.
 export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToWorld, worldToScene, inArea = false, onClose }) {
-  useEscapeKey(onClose); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
-
   const [surfaceId, setSurfaceId] = useState(() => surfaces[0]?.id || "");
   const [tab, setTab] = useState("holes");
+  const [at, setAt] = useState(0); // the step
   // Closest-approach is swept at this spacing along the trace. It bounds ONLY that number's precision;
   // pierce depths and metres-inside are exact intersections and do not depend on it at all. Default 2 m
   // because performance is priority #1 here and a whole-project sweep is step-proportional: 0.5 m is
@@ -79,7 +77,8 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
   const bmUnit = bm ? bm.params?.gradeUnit || bm.params?.unit || bm.unit || "" : "";
   const bmCutoff = bmCut !== "" && Number.isFinite(Number(bmCut)) ? Number(bmCut) : null;
   const bmLookup = useMemo(() => (bm ? buildVoxelLookup(bm.cells) : null), [bm]);
-  const bmHoles = useMemo(() => (bm && tab === "holes" ? sampleModelOnHoles({ model: bm, collars, survey, desurveyMethod }).rows : null), [bm, tab, collars, survey, desurveyMethod]);
+  const showing = at === 1; // the sweeps run on the Result step only
+  const bmHoles = useMemo(() => (bm && showing && tab === "holes" ? sampleModelOnHoles({ model: bm, collars, survey, desurveyMethod }).rows : null), [bm, showing, tab, collars, survey, desurveyMethod]);
   const bmRows = useMemo(() => (bmHoles ? holesInBlockModel(bmHoles, bmCutoff) : []), [bmHoles, bmCutoff]);
   const bmPoint = useMemo(() => { if (!bmLookup || tab !== "point") return undefined; const p = pointFromInputs(ptX, ptY, ptZ); return p ? bmLookup.find(p.x, p.y, p.z) : undefined; }, [bmLookup, tab, ptX, ptY, ptZ]);
   const shellEl = useMemo(() => { const el = generatedSurfaces.find((g) => g.id === surface?.id)?.params?.element; return el && assayElements.some((e) => e.symbol === el) ? el : null; }, [generatedSurfaces, surface, assayElements]);
@@ -96,7 +95,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
   }, [surface]);
 
   const rows = useMemo(() => {
-    if (!mesh || tab !== "holes") return [];
+    if (!mesh || tab !== "holes" || !showing) return [];
     return traces
       .filter((t) => t.pts && t.pts.length > 1)
       .map((t) => {
@@ -127,7 +126,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
         };
       })
       .sort((a, b) => (a.minDistance ?? Infinity) - (b.minDistance ?? Infinity));
-  }, [mesh, traces, step, tab, sampledHoles]);
+  }, [mesh, traces, step, tab, showing, sampledHoles]);
 
   const totals = useMemo(() => ({
     holes: rows.length,
@@ -136,7 +135,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
     sampled: rows.reduce((s, r) => s + (r.sampledInside || 0), 0), // #2626
   }), [rows]);
 
-  // POINT tab. Input is real-world easting/northing/elevation — the numbers on a collar sheet — and is
+  // POINT. Input is real-world easting/northing/elevation — the numbers on a collar sheet — and is
   // converted into scene space to be queried, so the user never has to know the internal frame exists.
   const pointResult = useMemo(() => {
     if (!mesh || tab !== "point") return null;
@@ -159,159 +158,131 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
   };
 
   const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toFixed(d));
-
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>
-            <Ruler size={14} />{" "}{tr("Distance to surface / point-in-domain")}</div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+  const heading = tr("Distance to surface / point-in-domain");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
+      <div style={note}><b>{tr("Holes")}</b> {tr("Closest approach is the true distance to the nearest face, edge or vertex, not just the nearest mesh vertex. Rows that cross the surface are highlighted and show 0. Hover an \"Inside\" cell for its intercepts.")}</div>
+      <div style={note}><b>{tr("Point")}</b> {tr("The exact distance to the nearest point on the surface, negative inside a closed one.")}</div>
+      <div style={note}><b>{tr("Closed")}</b> {tr("Only a closed surface has an inside. A draped contact or fault plane is open by nature; a shell that should be closed was probably clipped by a modelling domain or the grid boundary.")}</div>
+      <div style={note}><b>{tr("Sweep step")}</b> {tr("Step of the closest-approach sweep along each trace. It limits only that number's precision: pierce depths and metres inside are exact intersections. Coarser is faster.")}</div>
+    </details>
+  );
+  if (!surfaces.length) {
+    return <StepDialog title={heading} onClose={onClose} help={help} width="min(560px, 96vw)" at={0} onAt={() => {}}
+      steps={[{ key: "none", label: heading, render: () => <div style={note}>{tr("No generated surfaces yet: build one in 3D Modelling.")}</div>, primary: { label: tr("Close"), onClick: onClose } }]} />;
+  }
+  const closedRows = mesh ? [{ label: tr("Closed"), value: mesh.closed ? tr("Yes") : tr("no ({openEdgeCount} open edges)", { openEdgeCount: mesh.boundaryEdges.toLocaleString() }), level: mesh.closed ? undefined : "some" }, { label: tr("Edges"), value: mesh.edges.toLocaleString() }] : [];
+  const question = (
+    <div style={{ flex: 1, minWidth: 300, display: "flex", flexDirection: "column", gap: 10 }}>
+      <label style={rowLabel}>{tr("Surface")}<select value={surface?.id || ""} onChange={(e) => setSurfaceId(e.target.value)} style={{ ...sel, minWidth: 260 }}>
+          {surfaces.map((s) => <option key={s.id} value={s.id}>{surfaceOptionLabels(surfaces).get(s.id) ?? s.name}</option>)}
+        </select>
+      </label>
+      {mesh ? <div style={{ maxWidth: 380 }}><StepNumbers rows={closedRows} /></div> : <div style={warn}>{tr("This surface's mesh is empty or degenerate — nothing to query.")}</div>}
+      {mesh && !mesh.closed && <div style={note}>{tr("Open: no metres inside, only distances and pierce depths.")}</div>}
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={rowLabel}>{tr("Ask about")}</span>
+        {[["holes", tr("Holes")], ["point", tr("Point")]].map(([k, label]) => <button data-btn-own="" type="button" key={k} aria-pressed={tab === k} onClick={() => setTab(k)} style={chip(tab === k)}>{label}</button>)}
+        {tab === "holes" && (
+          <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6, marginInlineStart: 8 }}>{tr("Sweep step")}<select value={step} onChange={(e) => setStep(Number(e.target.value))} style={sel}>
+              {[0.5, 1, 2, 5].map((s) => <option key={s} value={s}>{s} m</option>)}
+            </select>
+          </label>
+        )}
+      </div>
+      {blockModels.length > 0 && (<div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>{/* TASKS.csv #2727 */}
+        <label style={rowLabel}>{tr("Block model")}<select value={bmId} onChange={(e) => setBmId(e.target.value)} style={{ ...sel, minWidth: 210 }} aria-label={tr("Block model to query")}>
+          <option value="">{tr("— none —")}</option>
+          {blockModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select></label>
+        {bm && <label style={rowLabel}>{tr("Cutoff ({unit})", { unit: bmUnit || "—" })}<NumberInput allowEmpty value={bmCut} onChange={(v) => setBmCut(v == null ? "" : String(v))} placeholder={tr("none")} style={{ ...sel, width: 90 }} aria-label={tr("Cutoff of the block model")} /></label>}
+      </div>)}
+    </div>
+  );
+  const holesResult = mesh && (
+    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ maxWidth: 380 }}><StepNumbers rows={[{ label: tr("Holes"), value: totals.holes.toLocaleString() }, { label: tr("Pierce the surface"), value: totals.piercing.toLocaleString(), level: totals.piercing === 0 && totals.holes > 0 ? "some" : undefined },
+        mesh.closed && { label: tr("Inside (m)"), value: totals.inside.toFixed(1) }, mesh.closed && shellEl && totals.inside > 0 && { label: tr("Sampled for {el} (m)", { el: shellEl }), value: totals.sampled.toFixed(1), level: totals.inside - totals.sampled > 0.5 * totals.inside ? "some" : undefined }]} /></div>
+      <div style={note}>{inArea && <span>{" "}{tr("(the Model area's checked holes, Model settings)")}</span>}{/* #3016 */}
+        {totals.piercing === 0 && totals.holes > 0 && <span style={{ color: "var(--color-warn-text)" }}>{" "}{tr("— no hole intersects this surface at all, which is usually worth a second look at the modelling inputs.")}</span>}
+      </div>
+      {mesh.closed && shellEl && totals.inside > 0 && ( /* TASKS.csv #2626 — the shell's metres with no sample of its element */
+        <div role="note" style={{ ...note, color: totals.inside - totals.sampled > 0.5 * totals.inside ? "var(--color-warn-text)" : undefined }}>
+          {tr("Of the {inside} m inside, {s} m are sampled for {el} and {u} m have no {el} sample: there the shell is the estimate's reach, not a measured grade.", { inside: totals.inside.toFixed(1), s: totals.sampled.toFixed(1), el: shellEl, u: Math.max(0, totals.inside - totals.sampled).toFixed(1) })}
         </div>
-
-        {!surfaces.length ? (
-          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>{tr("No generated surfaces yet: build one in 3D Modelling.")}</div>
-        ) : (
+      )}
+      <div style={{ maxHeight: "40vh", overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
+          <thead>
+            <tr>
+              {[tr("Hole"), tr("Closest (m)"), tr("at MD (m)"), tr("Pierce points (MD)"), mesh.closed ? tr("Inside (m)") : tr("Inside"), ...(mesh.closed && shellEl ? [tr("Sampled for {el} (m)", { el: shellEl })] : []) /* #2626 */, tr("Hole length (m)")].map((h) => (
+                <th key={h} style={th}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.hole_id} style={{ background: r.intercepts.length ? "var(--color-selected-bg)" : "transparent" }}>
+                <td style={{ ...td, fontWeight: 600 }}>{r.hole_id}</td>
+                <td style={td}>{r.minDistance === 0 ? "0 (intersects)" : fmt(r.minDistance, 2)}</td>
+                <td style={td}>{fmt(r.atMd, 1)}</td>
+                <td style={{ ...td, color: "var(--color-text-secondary)" }} title={r.intercepts.some((i) => i.tangential) ? tr("A tangential intercept touches the surface and leaves at the same depth without entering it — a real contact point, but zero metres inside.") : ""}>
+                  {r.intercepts.length ? r.intercepts.map((i) => `${i.md.toFixed(1)}${i.tangential ? " (tangential)" : ""}`).join(", ") : "—"}
+                </td>
+                <td style={td} title={r.insideIntervals.map((x) => `${x.from.toFixed(1)}–${x.to.toFixed(1)} m`).join(", ")}>
+                  {r.insideLength == null ? "n/a" : r.insideLength > 0 ? r.insideLength.toFixed(2) : "0"}
+                </td>
+                {mesh.closed && shellEl && <td style={{ ...td, color: r.insideLength > 0 && (r.sampledInside || 0) < 0.5 * r.insideLength ? "var(--color-warn-text)" : undefined }}>{r.insideLength > 0 ? (r.sampledInside || 0).toFixed(2) : "—"}</td>}{/* #2626 */}
+                <td style={{ ...td, color: "var(--color-text-muted)" }}>{fmt(r.totalLength, 1)}</td>
+              </tr>
+            ))}
+            {!rows.length && <tr><td style={td} colSpan={mesh.closed && shellEl ? 7 : 6}>{tr("No desurveyed holes — import collars and survey data first.")}</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      {bm && (bmRows.length ? <div style={{ maxHeight: "28vh", overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}><table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
+        <thead><tr>{[tr("Hole"), tr("In the model (m)"), ...(bmCutoff != null ? [tr("At or above {c} {unit} (m)", { c: bmCutoff, unit: bmUnit }), tr("Mean there ({unit})", { unit: bmUnit })] : [])].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+        <tbody>{bmRows.map((r) => <tr key={r.hole_id}><td style={{ ...td, fontWeight: 600 }}>{r.hole_id}</td><td style={td}>{r.inM.toFixed(1)}</td>{bmCutoff != null && <><td style={td}>{r.aboveM.toFixed(1)}</td><td style={td}>{r.meanAbove == null ? "—" : +r.meanAbove.toPrecision(4)}</td></>}</tr>)}</tbody>
+      </table></div> : <div style={note}>{tr("No drillhole passes through \"{name}\".", { name: bm.name })}</div>)}
+    </div>
+  );
+  const pointPart = mesh && (
+    <div style={{ flex: 1, display: "flex", gap: 18, alignItems: "flex-start", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 220 }}>
+        <div style={note}>{tr("Real-world coordinates (same frame as your collars)")}</div>
+        {[[tr("Easting (X)"), ptX, setPtX], [tr("Northing (Y)"), ptY, setPtY], [tr("Elevation (Z)"), ptZ, setPtZ]].map(([label, v, set]) => (
+          <label key={label} style={rowLabel}>
+            {label}
+            <input value={v} onChange={(e) => set(e.target.value)} style={{ ...sel, fontFamily: "monospace" }} placeholder="0" />
+          </label>
+        ))}
+      </div>
+      <div style={{ flex: 1, minWidth: 260, display: "flex", flexDirection: "column", gap: 6 }}>
+        {!pointResult ? <div style={note}>{tr("Enter all three coordinates.")}</div> : (
           <>
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
-              <label style={rowLabel}>{tr("Surface")}<select value={surface?.id || ""} onChange={(e) => setSurfaceId(e.target.value)} style={{ ...sel, minWidth: 210 }}>
-                  {surfaces.map((s) => <option key={s.id} value={s.id}>{surfaceOptionLabels(surfaces).get(s.id) ?? s.name}</option>)}
-                </select>
-              </label>
-              <div style={{ display: "flex", gap: 0, border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden" }}>
-                {[["holes", tr("Holes")], ["point", tr("Point")]].map(([k, label]) => (
-                  <button data-btn-own="" key={k} onClick={() => setTab(k)} style={{ ...tabBtn, background: tab === k ? "#e8eef8" : "transparent", color: tab === k ? "#1a4a9c" : "var(--color-text-secondary)" }}>{label}</button>
-                ))}
-              </div>
-              {tab === "holes" && (
-                <label style={rowLabel} title={tr("Step of the closest-approach sweep along each trace. It limits only that number's precision: pierce depths and metres inside are exact intersections. Coarser is faster.")}>{tr("Sweep step")}<select value={step} onChange={(e) => setStep(Number(e.target.value))} style={sel}>
-                    {[0.5, 1, 2, 5].map((s) => <option key={s} value={s}>{s} m</option>)}
-                  </select>
-                </label>
-              )}
-              {tab === "holes" && rows.length > 0 && (
-                <button onClick={exportCsv} className="gs-btn" style={{ marginLeft: "auto" }}><Download size={12} />{" "}{tr("Export CSV")}</button>
-              )}
-            </div>
-
-            {/* Watertightness is stated up front, because it decides which of the two questions this tool
-                can actually answer for this surface. */}
-            {mesh && (
-              <div style={mesh.closed ? goodNote : warnNote}>
-                {mesh.closed
-                  ? tr("This surface is watertight ({edges} edges, none open), so \"metres inside\" is well defined.", { edges: mesh.edges.toLocaleString() })
-                  : tr("This surface is NOT closed ({boundaryEdges} of its {edges} edges are open), so it has no inside: metres-inside is left blank, not guessed, while distances and pierce depths stay exact. A draped contact or fault plane is open by nature; a shell that should be closed was probably clipped by a modelling domain or the grid boundary.", { boundaryEdges: mesh.boundaryEdges.toLocaleString(), edges: mesh.edges.toLocaleString() })}
-              </div>
-            )}
-            {!mesh && <div style={warnNote}>{tr("This surface's mesh is empty or degenerate — nothing to query.")}</div>}
-
-            {tab === "holes" && mesh && (
-              <>
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "8px 0 6px" }}>
-                  {tr("{holes} {v} · {piercing} pierce this surface{v2}", { holes: totals.holes, v: tr(totals.holes === 1 ? "hole" : "holes"), piercing: totals.piercing, v2: mesh.closed ? tr(" · {inside} m total inside", { inside: totals.inside.toFixed(1) }) : "" })}
-                  {inArea && <span>{" "}{tr("(the Model area's checked holes, Model settings)")}</span>}{/* #3016 */}
-                  {totals.piercing === 0 && totals.holes > 0 && (
-                    <span style={{ color: "#8a6d1f" }}>{" "}{tr("— no hole intersects this surface at all, which is usually worth a second look at the modelling inputs.")}</span>
-                  )}
-                </div>
-                {mesh.closed && shellEl && totals.inside > 0 && ( /* TASKS.csv #2626 — the shell's metres with no sample of its element */
-                  <div role="note" style={{ fontSize: "var(--font-size-sm)", color: totals.inside - totals.sampled > 0.5 * totals.inside ? "var(--color-warn-text)" : "var(--color-text-secondary)", margin: "0 0 6px", lineHeight: 1.45 }}>
-                    {tr("Of the {inside} m inside, {s} m are sampled for {el} and {u} m have no {el} sample: there the shell is the estimate's reach, not a measured grade.", { inside: totals.inside.toFixed(1), s: totals.sampled.toFixed(1), el: shellEl, u: Math.max(0, totals.inside - totals.sampled).toFixed(1) })}
-                  </div>
-                )}
-                <div style={{ maxHeight: "48vh", overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-                  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
-                    <thead>
-                      <tr>
-                        {[tr("Hole"), tr("Closest (m)"), tr("at MD (m)"), tr("Pierce points (MD)"), mesh.closed ? tr("Inside (m)") : tr("Inside"), ...(mesh.closed && shellEl ? [tr("Sampled for {el} (m)", { el: shellEl })] : []) /* #2626 */, tr("Hole length (m)")].map((h) => (
-                          <th key={h} style={th}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((r) => (
-                        <tr key={r.hole_id} style={{ background: r.intercepts.length ? "#f3f8f3" : "transparent" }}>
-                          <td style={{ ...td, fontWeight: 600 }}>{r.hole_id}</td>
-                          <td style={td}>{r.minDistance === 0 ? "0 (intersects)" : fmt(r.minDistance, 2)}</td>
-                          <td style={td}>{fmt(r.atMd, 1)}</td>
-                          <td style={{ ...td, color: "var(--color-text-secondary)" }} title={r.intercepts.some((i) => i.tangential) ? tr("A tangential intercept touches the surface and leaves at the same depth without entering it — a real contact point, but zero metres inside.") : ""}>
-                            {r.intercepts.length ? r.intercepts.map((i) => `${i.md.toFixed(1)}${i.tangential ? " (tangential)" : ""}`).join(", ") : "—"}
-                          </td>
-                          <td style={td} title={r.insideIntervals.map((x) => `${x.from.toFixed(1)}–${x.to.toFixed(1)} m`).join(", ")}>
-                            {r.insideLength == null ? "n/a" : r.insideLength > 0 ? r.insideLength.toFixed(2) : "0"}
-                          </td>
-                          {mesh.closed && shellEl && <td style={{ ...td, color: r.insideLength > 0 && (r.sampledInside || 0) < 0.5 * r.insideLength ? "var(--color-warn-text)" : undefined }}>{r.insideLength > 0 ? (r.sampledInside || 0).toFixed(2) : "—"}</td>}{/* #2626 */}
-                          <td style={{ ...td, color: "var(--color-text-muted)" }}>{fmt(r.totalLength, 1)}</td>
-                        </tr>
-                      ))}
-                      {!rows.length && <tr><td style={td} colSpan={mesh.closed && shellEl ? 7 : 6}>{tr("No desurveyed holes — import collars and survey data first.")}</td></tr>}
-                    </tbody>
-                  </table>
-                </div>
-                <div style={hint}>{tr("Closest approach is the true distance to the nearest face, edge or vertex, not just the nearest mesh vertex. Rows that cross the surface are highlighted and show 0. Hover an \"Inside\" cell for its intercepts.")}</div>
-              </>
-            )}
-
-            {tab === "point" && mesh && (
-              <div style={{ display: "flex", gap: 18, alignItems: "flex-start", marginTop: 6 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 220 }}>
-                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Real-world coordinates (same frame as your collars)")}</div>
-                  {[[tr("Easting (X)"), ptX, setPtX], [tr("Northing (Y)"), ptY, setPtY], [tr("Elevation (Z)"), ptZ, setPtZ]].map(([label, v, set]) => (
-                    <label key={label} style={rowLabel}>
-                      {label}
-                      <input value={v} onChange={(e) => set(e.target.value)} style={{ ...sel, fontFamily: "monospace" }} placeholder="0" />
-                    </label>
-                  ))}
-                </div>
-                <div style={{ flex: 1, minWidth: 300 }}>
-                  {!pointResult ? (
-                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", padding: "20px 0", lineHeight: 1.6 }}>{tr("Enter all three coordinates to query. The result is the exact distance to the nearest point on the surface{v}.", { v: mesh.closed ? tr(", signed negative when the point is inside it") : tr(" (this surface is open, so there is no inside to report)") })}</div>
-                  ) : (
-                    <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "10px 12px", fontSize: "var(--font-size-base)", lineHeight: 1.9, color: "var(--color-text)" }}>
-                      <div><b>{tr("Distance to surface:")}</b> {pointResult.distance.toFixed(3)} m</div>
-                      {mesh.closed ? (
-                        <>
-                          <div><b>{tr("Position:")}</b> {pointResult.inside ? <span style={{ color: "#1c7a3e" }}>{tr("INSIDE")}</span> : <span style={{ color: "#8a4b1f" }}>{tr("outside")}</span>}</div>
-                          <div><b>{tr("Signed distance:")}</b> {pointResult.signed.toFixed(3)} m <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("(negative = inside)")}</span></div>
-                        </>
-                      ) : (
-                        <div style={{ color: "#8a6d1f" }}>{tr("Inside/outside is not defined for an open surface.")}</div>
-                      )}
-                      <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #e0e3e8", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Nearest point on surface: {x}, {y}, {z}", { x: pointResult.worldNearest.x.toFixed(1), y: pointResult.worldNearest.y.toFixed(1), z: pointResult.worldNearest.z.toFixed(1) })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            <div style={{ maxWidth: 380 }}><StepNumbers rows={[{ label: tr("Distance to surface"), value: `${pointResult.distance.toFixed(3)} m` },
+              mesh.closed && { label: tr("Position"), value: pointResult.inside ? tr("INSIDE") : tr("outside") },
+              mesh.closed && { label: tr("Signed distance"), value: `${pointResult.signed.toFixed(3)} m`, title: tr("(negative = inside)") }]} /></div>
+            {!mesh.closed && <div style={note}>{tr("Inside/outside is not defined for an open surface.")}</div>}
+            <div style={note}>{tr("Nearest point on surface: {x}, {y}, {z}", { x: pointResult.worldNearest.x.toFixed(1), y: pointResult.worldNearest.y.toFixed(1), z: pointResult.worldNearest.z.toFixed(1) })}</div>
           </>
         )}
-        {blockModels.length > 0 && (<div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--color-border)" }}>{/* TASKS.csv #2727 */}
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 6 }}>
-            <label style={rowLabel}>{tr("Block model")}<select value={bmId} onChange={(e) => setBmId(e.target.value)} style={{ ...sel, minWidth: 210 }} aria-label={tr("Block model to query")}>
-              <option value="">{tr("— none —")}</option>
-              {blockModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select></label>
-            {bm && <label style={rowLabel}>{tr("Cutoff ({unit})", { unit: bmUnit || "—" })}<NumberInput allowEmpty value={bmCut} onChange={(v) => setBmCut(v == null ? "" : String(v))} placeholder={tr("none")} style={{ ...sel, width: 90 }} aria-label={tr("Cutoff of the block model")} /></label>}
-          </div>
-          {bm && tab === "holes" && (bmRows.length ? <div style={{ maxHeight: "32vh", overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}><table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
-            <thead><tr>{[tr("Hole"), tr("In the model (m)"), ...(bmCutoff != null ? [tr("At or above {c} {unit} (m)", { c: bmCutoff, unit: bmUnit }), tr("Mean there ({unit})", { unit: bmUnit })] : [])].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
-            <tbody>{bmRows.map((r) => <tr key={r.hole_id}><td style={{ ...td, fontWeight: 600 }}>{r.hole_id}</td><td style={td}>{r.inM.toFixed(1)}</td>{bmCutoff != null && <><td style={td}>{r.aboveM.toFixed(1)}</td><td style={td}>{r.meanAbove == null ? "—" : +r.meanAbove.toPrecision(4)}</td></>}</tr>)}</tbody>
-          </table></div> : <div style={hint}>{tr("No drillhole passes through \"{name}\".", { name: bm.name })}</div>)}
-          {bm && tab === "point" && <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.7 }}>{bmPoint === undefined ? <span style={{ color: "var(--color-text-muted)" }}>{tr("Enter all three coordinates above to read the model at that point.")}</span> : !bmPoint ? tr("The point is outside every block of \"{name}\".", { name: bm.name }) : <>{tr("Block value at the point: {v} {unit}", { v: +Number(bmPoint.value).toPrecision(5), unit: bmUnit })}{bmCutoff != null ? " · " + (Number(bmPoint.value) >= bmCutoff ? tr("at or above the cutoff") : tr("below the cutoff")) : ""}{bmPoint.support ? " · " + tr("support: {s}", { s: bmPoint.support }) : ""}</>}</div>}
-        </div>)}
+        {bm && <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.7 }}>{bmPoint === undefined ? null : !bmPoint ? tr("The point is outside every block of \"{name}\".", { name: bm.name }) : <>{tr("Block value at the point: {v} {unit}", { v: +Number(bmPoint.value).toPrecision(5), unit: bmUnit })}{bmCutoff != null ? " · " + (Number(bmPoint.value) >= bmCutoff ? tr("at or above the cutoff") : tr("below the cutoff")) : ""}{bmPoint.support ? " · " + tr("support: {s}", { s: bmPoint.support }) : ""}</>}</div>}
       </div>
     </div>
   );
+  const steps = [
+    { key: "question", label: tr("Question"), render: () => question, primary: { label: tab === "holes" ? tr("Sweep the holes") : tr("Next: the point"), disabled: !mesh } },
+    { key: "result", label: tr("Result"), render: () => (tab === "holes" ? holesResult : pointPart),
+      primary: tab === "holes" ? { label: <><Download size={12} />{" "}{tr("Export CSV")}</>, onClick: exportCsv, disabled: !rows.length } : { label: tr("Done"), onClick: onClose } },
+  ];
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} width="min(860px, 96vw)" />;
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
-const panel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", width: 820, maxWidth: "94vw", maxHeight: "94vh", overflow: "auto" };
+const { note, warn } = stepDialogStyles;
 const rowLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 3 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
-const tabBtn = { padding: "6px 14px", border: "none", fontSize: "var(--font-size-base)", cursor: "pointer" };
+const chip = (on) => ({ padding: "3px 12px", borderRadius: 12, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid " + (on ? "var(--color-selected-border)" : "var(--color-border-light)"), background: on ? "var(--color-selected-bg)" : "var(--color-bg)", color: on ? "var(--color-text)" : "var(--color-text-secondary)", fontWeight: on ? 600 : 400 });
 const th = { textAlign: "start", padding: "6px 8px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600 };
-const td = { padding: "5px 8px", borderBottom: "1px solid #eef0f3", color: "var(--color-text)", whiteSpace: "nowrap" };
-const goodNote = { background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 6, padding: "7px 9px", fontSize: "var(--font-size-sm)", color: "#20512f", lineHeight: 1.5 };
-const warnNote = { background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "7px 9px", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", lineHeight: 1.5 };
-const hint = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 7, lineHeight: 1.5 };
+const td = { padding: "5px 8px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text)", whiteSpace: "nowrap" };

@@ -2,28 +2,31 @@
 // UTM / national grids for that spot (regional datum first), or search every CRS GeoStrix can build. With collars
 // loaded, the choice is checked by showing where on Earth they would land: a wrong UTM zone puts them hundreds of
 // kilometres away, which the user sees at once (Matt's zone 10 data sat in zone 9, #614).
+// TASKS.csv #4073 — on the shared StepDialog: 1 Where (the answer: a zone of the file's grid, the local mine grid, or a CRS for the spot typed, which is
+// pre-filled from where the collars land in the CRS already chosen or suggested), 2 Check (the world map, where the collars land, the warnings), and Use.
+// The explanations are in the Help card.
 import React, { Suspense, useEffect, useMemo, useState } from "react";
-import { X } from "./icons.js";
 import CrsPicker from "./CrsPicker.jsx";
 import { useStore } from "../lib/store.jsx";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js";
 import { crsName, datumNote, loadEpsgRegistry, onEpsgRegistry, crsAreaOf, getProj4DefSync } from "../lib/reproject.js"; // crsAreaOf: #3339
 import { crsMapArea, inCrsArea, areaText } from "../lib/crsMapArea.js"; // TASKS.csv #3339
 import { crsCandidatesAt, crsCandidatesByLanding, localCrsAt, parseLatLon, collarCentreLonLat, formatLonLat, collarSpread } from "../lib/projectCrs.js"; // collarSpread: #2181; ByLanding: #2892
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { smallGridCoordinates } from "../lib/crsFromColumns.js"; // TASKS.csv #2180 — a local grid pre-selected by the magnitude check
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import StepDialog, { stepDialogStyles } from "./StepDialog.jsx"; // TASKS.csv #4073
 
 const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
+// TASKS.csv #3951 — in front of the import's column matching (62, #3688), which asks this question while it is still open: it sat behind that dialog until Matt closed it
+const Z_ABOVE_IMPORT = 64;
 
 export default function ProjectCrsModal({ reason, points, suggested = null, noLocalGrid = false, family = null, onDone }) { // noLocalGrid: #2621; family: #2495
   const { project, collars: storeCollars, setEpsg, setLocalGrid, setLocalGridDatum, projectIsEmpty } = useStore();
   const collars = points?.length ? points : storeCollars; // the file being imported, when there is one
-  const [where, setWhere] = useState("");
-  const [choice, setChoiceRaw] = useState(project.crsSet ? Number(project.epsg) : suggested ? Number(suggested) : null); // suggested: #1345
+  const firstChoice = project.crsSet ? Number(project.epsg) : suggested ? Number(suggested) : null; // suggested: #1345
+  // TASKS.csv #4073 — the spot pre-filled from where the collars land in the CRS already chosen or suggested, so its candidates show at once
+  const [where, setWhere] = useState(() => { const l = firstChoice ? collarCentreLonLat(collars, firstChoice) : null; return l ? `${l.lat.toFixed(2)}, ${l.lon.toFixed(2)}` : ""; });
+  const [choice, setChoiceRaw] = useState(firstChoice);
   // TASKS.csv #2180 — the third answer: local mine-grid coordinates, kept, no CRS. Pre-selected on a local-grid project, or when the
   // coordinates are ones no UTM / MGA zone has (and the file named no CRS)
   const smallGrid = useMemo(() => smallGridCoordinates((points?.length ? points : storeCollars) || []), [points, storeCollars]);
@@ -32,9 +35,8 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
   const [gridRl, setGridRl] = useState(project.localGrid?.rlOffset != null ? String(project.localGrid.rlOffset) : ""), [gridNorth, setGridNorth] = useState(project.localGrid?.northDeg != null ? String(project.localGrid.northDeg) : ""); // TASKS.csv #3495 (#2809) — the RL datum and the typed north, as the Local grid panel has them
   const setChoice = (c) => { setChoiceRaw(c); setLocalMode(false); };
   const [searchAll, setSearchAll] = useState(false);
+  const [step, setStep] = useState(0);
   const cancel = () => onDone(null);
-  useEscapeKey(cancel);
-  useFocusTrap();
 
   // TASKS.csv #835 — the EPSG registry (#834) supplies the local grids and each CRS's area of use: load it with the dialog
   const [regTick, setRegTick] = useState(0);
@@ -60,103 +62,97 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
   const spread = landing && !outside ? collarSpread(collars, choice) : null; // #2181
   const relabel = project.crsSet && !projectIsEmpty && choice && choice !== Number(project.epsg);
   const kmFromStated = landing && at ? Math.round(Math.hypot((landing.lat - at.lat) * 111, (landing.lon - at.lon) * 111 * Math.cos((at.lat * Math.PI) / 180))) : null;
+  const choiceName = choice ? crsName(choice) || tr("EPSG:{choice}", { choice }) : "";
 
   const use = () => { if (!choice) return; setEpsg(choice); onDone(choice); };
   const keepLocal = () => { setLocalGrid(gridName); const d = { rlOffset: gridRl, ...(project.localGrid?.tie ? {} : { northDeg: gridNorth }) }; if ((gridRl !== "" || project.localGrid?.rlOffset != null) || (gridNorth !== "" || project.localGrid?.northDeg != null)) setLocalGridDatum?.(d); onDone(null); }; // #3495 — the datum and north with the name // #2180 — no CRS: callers place the coordinates as they are
 
-  return (
-    <div style={{ ...overlay, zIndex: 64 /* TASKS.csv #3951 — in front of the import's column matching (62, #3688), which asks this question while it is still open: it sat behind that dialog until Matt closed it */ }}>
-      <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Project coordinate system")} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Project coordinate system")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              {project.crsSet ? <>{tr("Now: {v} · EPSG:{epsg}", { v: crsName(project.epsg) || tr("Unrecognized CRS"), epsg: project.epsg })}</> : project.localGrid ? (project.localGrid.name ? tr("Now: the local mine grid \"{name}\", no CRS", { name: project.localGrid.name }) : tr("Now: a local mine grid, no CRS")) : tr("Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in.")}
-            </div>
+  const now = project.crsSet ? tr("Now: {v} · EPSG:{epsg}", { v: crsName(project.epsg) || tr("Unrecognized CRS"), epsg: project.epsg }) : project.localGrid ? (project.localGrid.name ? tr("Now: the local mine grid \"{name}\", no CRS", { name: project.localGrid.name }) : tr("Now: a local mine grid, no CRS")) : tr("Not set yet. Choose the CRS your coordinates (collars, samples, maps) are in.");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
+      <div style={note}>{tr("GeoStrix places every file, terrain and online map with this CRS: a collar CSV doesn't name its CRS, and the numbers can't tell UTM zones apart.")}</div>
+      {!noLocalGrid && <div style={note}><b>{tr("Local mine grid")}</b> {tr("Everything stays in the grid's metres and later files are not asked again. Downloads, basemaps, Macrostrat, true / magnetic north and CRS exports wait for a CRS.")}</div>}
+      <div style={note}><b>{tr("Check")}</b> {tr("A wrong UTM zone puts the collars hundreds of kilometres from the project.")}</div>
+    </details>
+  );
+  const whereStep = (
+    <div style={{ flex: 1, minWidth: 300, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={note}>{now}</div>
+      {reason && <div style={{ ...note, color: "var(--color-text)" }}>{reason}</div>}
+      {familyZones.length > 0 && ( /* TASKS.csv #2495 */
+        <div>
+          <div style={label}>{tr("{grid} zones (from the column names), with where the collars would land", { grid: family.grid })}</div>
+          <div role="listbox" aria-label={tr("{grid} zones", { grid: family.grid })} style={listBox}>
+            {familyZones.map((c) => option(c, c.landing ? tr("— collars at {where}", { where: formatLonLat(c.landing) }) : tr("— the collars do not fit this zone")))}
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={cancel} />
+          {family.datums.length > 1 && <div style={{ ...note, marginTop: 4 }}>{tr("The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.", { a: family.datums[0], b: family.datums[1] })}</div>}
         </div>
-        <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          {reason && <div style={{ ...note, color: "var(--color-text)" }}>{reason}</div>}
-          <div style={note}>{familyZones.length ? tr("GeoStrix places every file, terrain and online map with this CRS.") : tr("GeoStrix places every file, terrain and online map with this CRS: a collar CSV doesn't name its CRS, and the numbers can't tell UTM zones apart.")}</div>
-          {familyZones.length > 0 && ( /* TASKS.csv #2495 */
-            <div>
-              <div style={label}>{tr("{grid} zones (from the column names), with where the collars would land", { grid: family.grid })}</div>
-              <div role="listbox" aria-label={tr("{grid} zones", { grid: family.grid })} style={{ border: "1px solid var(--color-border)", borderRadius: 5, maxHeight: 190, overflowY: "auto" }}>
-                {familyZones.map((c) => option(c, c.landing ? tr("— collars at {where}", { where: formatLonLat(c.landing) }) : tr("— the collars do not fit this zone")))}
-              </div>
-              {family.datums.length > 1 && <div style={{ ...note, marginTop: 4 }}>{tr("The file cannot tell {a} from {b}: choose the datum the coordinates were surveyed in.", { a: family.datums[0], b: family.datums[1] })}</div>}
-            </div>
-          )}
-          {/* TASKS.csv #2180 — the third answer; #2621: not when the question is which real CRS the coordinates are in */}
-          {!noLocalGrid && <div role="radio" aria-checked={localMode} tabIndex={0} onClick={() => setLocalMode(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLocalMode(true); } }}
-            style={{ border: `1px solid ${localMode ? "var(--color-accent)" : "var(--color-border)"}`, background: localMode ? "var(--color-selected-bg)" : "transparent", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
-            <div style={{ color: "var(--color-text)", fontWeight: 600 }}>{tr("These are local mine-grid coordinates: keep them, no CRS")}</div>
-            <div style={{ color: "var(--color-text-muted)" }}>{smallGrid && !project.localGrid ? tr("{n} of {of} coordinates are ones no UTM / MGA zone has (eastings {x0}–{x1}), so this is chosen.", { n: smallGrid.n, of: smallGrid.of, x0: Math.round(smallGrid.x[0]).toLocaleString(), x1: Math.round(smallGrid.x[1]).toLocaleString() }) + " " : ""}{tr("Everything stays in the grid's metres and later files are not asked again. Downloads, basemaps, Macrostrat, true / magnetic north and CRS exports wait for a CRS.")}</div>
-            {localMode && <input value={gridName} onClick={(e) => e.stopPropagation()} onChange={(e) => setGridName(e.target.value)} placeholder={tr("Grid name (optional), e.g. Wallaby mine grid")} aria-label={tr("Local grid name")} style={{ ...inp, marginTop: 6 }} />}
-            {localMode && <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>{/* TASKS.csv #3495 */}
-              <label title={tr("Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.")}>{tr("RL datum: grid RL = elevation +")} <NumberInput allowEmpty value={gridRl === "" ? null : gridRl} onChange={(v) => setGridRl(v == null ? "" : String(v))} placeholder={tr("blank")} aria-label={tr("RL datum offset (m)")} style={{ ...inp, width: 80 }} /> {tr("m")}</label>
-              {!project.localGrid?.tie && <label title={tr("For an untied grid: grid north's turn from true north, east positive. True-north surveys are converted with it on import; a tie knows its own rotation.")}>{tr("Grid north is")} <NumberInput allowEmpty value={gridNorth === "" ? null : gridNorth} onChange={(v) => setGridNorth(v == null ? "" : String(v))} placeholder={tr("blank")} aria-label={tr("Grid north from true north (degrees, east positive)")} style={{ ...inp, width: 80 }} /> {tr("° east of true north")}</label>}
-            </div>}
-          </div>}
-
-          <div>
-            <div style={label}>{tr("Where is the project? (latitude, longitude — roughly is enough)")}</div>
-            <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder={tr("e.g. 12.5, -45.5 or 12.5 N 45.5 W")} /* TASKS.csv #3076 — one point both ways (it was a place in BC, then another in Brazil) */ aria-label={tr("Project latitude and longitude")} style={inp} />
-            {where && !at && <div style={{ ...note, marginTop: 4 }}>{tr("Type latitude then longitude in decimal degrees (south and west negative, or add S / W).")}</div>}
-            {candidates.length > 0 && (
-              <div role="listbox" aria-label={tr("Suggested CRSs")} style={{ marginTop: 6, border: "1px solid var(--color-border)", borderRadius: 5 }}>
-                {candidates.slice(0, 8).map((c, i) => option(c, hasCollars ? (c.km == null ? tr("— the collars do not fit this CRS") : tr("— your collars land {km} km from here", { km: c.km.toLocaleString() })) : i === 0 ? tr("— most used here") : null))}{/* the landing: #2892 */}
-              </div>
-            )}
-            {locals.length > 0 && (
-              <>
-                <div style={{ ...label, marginTop: 8 }}>{tr("Provincial, state and local grids here")}</div>
-                <div role="listbox" aria-label={tr("Provincial, state and local grids here")} style={{ border: "1px solid var(--color-border)", borderRadius: 5, maxHeight: 190, overflowY: "auto" }}>
-                  {(moreLocal ? locals : locals.slice(0, 6)).map((c) => option(c, c.noShift ? tr("— no published datum shift") : null))}
-                </div>
-                {locals.length > 6 && <button data-btn-own="" type="button" onClick={() => setMoreLocal((m) => !m)} style={{ ...linkBtn, marginTop: 4 }} aria-expanded={moreLocal}>{moreLocal ? tr("Show fewer") : tr("Show all {n}", { n: locals.length })}</button>}
-              </>
-            )}
+      )}
+      {/* TASKS.csv #2180 — the third answer; #2621: not when the question is which real CRS the coordinates are in */}
+      {!noLocalGrid && <div role="radio" aria-checked={localMode} tabIndex={0} onClick={() => setLocalMode(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLocalMode(true); } }}
+        style={{ border: `1px solid ${localMode ? "var(--color-accent)" : "var(--color-border)"}`, background: localMode ? "var(--color-selected-bg)" : "transparent", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
+        <div style={{ color: "var(--color-text)", fontWeight: 600 }}>{tr("These are local mine-grid coordinates: keep them, no CRS")}</div>
+        {smallGrid && !project.localGrid && <div style={{ color: "var(--color-text-muted)" }}>{tr("{n} of {of} coordinates are ones no UTM / MGA zone has (eastings {x0}–{x1}), so this is chosen.", { n: smallGrid.n, of: smallGrid.of, x0: Math.round(smallGrid.x[0]).toLocaleString(), x1: Math.round(smallGrid.x[1]).toLocaleString() })}</div>}
+        {localMode && <input value={gridName} onClick={(e) => e.stopPropagation()} onChange={(e) => setGridName(e.target.value)} placeholder={tr("Grid name (optional), e.g. Wallaby mine grid")} aria-label={tr("Local grid name")} style={{ ...inp, marginTop: 6 }} />}
+        {localMode && <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>{/* TASKS.csv #3495 */}
+          <label title={tr("Grid RL = elevation + this offset (a mine datum of +1000: RL 1,250 is 250 m above sea level). Blank: the RLs are elevations.")}>{tr("RL datum: grid RL = elevation +")} <NumberInput allowEmpty value={gridRl === "" ? null : gridRl} onChange={(v) => setGridRl(v == null ? "" : String(v))} placeholder={tr("blank")} aria-label={tr("RL datum offset (m)")} style={{ ...inp, width: 80 }} /> {tr("m")}</label>
+          {!project.localGrid?.tie && <label title={tr("For an untied grid: grid north's turn from true north, east positive. True-north surveys are converted with it on import; a tie knows its own rotation.")}>{tr("Grid north is")} <NumberInput allowEmpty value={gridNorth === "" ? null : gridNorth} onChange={(v) => setGridNorth(v == null ? "" : String(v))} placeholder={tr("blank")} aria-label={tr("Grid north from true north (degrees, east positive)")} style={{ ...inp, width: 80 }} /> {tr("° east of true north")}</label>}
+        </div>}
+      </div>}
+      <div>
+        <div style={label}>{tr("Where is the project? (latitude, longitude — roughly is enough)")}</div>
+        <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder={tr("e.g. 12.5, -45.5 or 12.5 N 45.5 W")} /* TASKS.csv #3076 — one point both ways (it was a place in BC, then another in Brazil) */ aria-label={tr("Project latitude and longitude")} style={inp} />
+        {where && !at && <div style={{ ...note, marginTop: 4 }}>{tr("Type latitude then longitude in decimal degrees (south and west negative, or add S / W).")}</div>}
+        {candidates.length > 0 && (
+          <div role="listbox" aria-label={tr("Suggested CRSs")} style={{ ...listBox, marginTop: 6, maxHeight: undefined }}>
+            {candidates.slice(0, 8).map((c, i) => option(c, hasCollars ? (c.km == null ? tr("— the collars do not fit this CRS") : tr("— your collars land {km} km from here", { km: c.km.toLocaleString() })) : i === 0 ? tr("— most used here") : null))}{/* the landing: #2892 */}
           </div>
-
-          <div>
-            <button data-btn-own="" type="button" onClick={() => setSearchAll((s) => !s)} style={linkBtn} aria-expanded={searchAll}>{searchAll ? tr("Hide the full list") : tr("Or search every CRS (name, zone or EPSG code)")}</button>
-            {searchAll && <div style={{ marginTop: 6 }}><CrsPicker value={choice} onChange={setChoice} height={170} hideMap /></div>}
-          </div>
-
-          {choice && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
-              <Suspense fallback={null}><CrsWorldMap epsg={choice} point={landing || at} width={180} /></Suspense>
-              <div style={{ flex: "1 1 240px", minWidth: 0 }}>
-              <div><b>{crsName(choice) || tr("EPSG:{choice}", { choice })}</b> <span style={{ color: "var(--color-text-muted)" }}>{tr("· EPSG:{choice}", { choice })}</span></div>
-              {collars.length > 0 && (landing
-                ? <div>{tr("Your {collars} {v} would be at", { collars: collars.length, v: tr(collars.length === 1 ? "collar" : "collars") })}{" "}<b>{formatLonLat(landing)}</b>{kmFromStated != null && kmFromStated <= 50 ? tr(" — {kmFromStated} km from where you said", { kmFromStated: kmFromStated.toLocaleString() }) : ""}.{kmFromStated > 50
-                    ? <span style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{" "}{tr("That is {kmFromStated} km from where you said: almost certainly the wrong CRS or UTM zone.", { kmFromStated: kmFromStated.toLocaleString() })}</span>
-                    : tr(" If that isn't the project, this is the wrong CRS or zone.")}</div>
-                : <div style={{ color: "var(--color-danger-fg)" }}>{tr("The collar coordinates don't fit this CRS (they land off the globe), so it is the wrong one.")}</div>)}
-              {outside && !(kmFromStated > 50) && <div style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{tr("Read as {v}, these numbers fall outside the area it is used in ({area}): they are not in it.", { v: crsName(choice) || tr("EPSG:{newCrs}", { newCrs: choice }), area: areaText(area) })}</div>}{/* #3339 */}
-              {spread?.far > 0 && <div style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{tr("{far} of the {total} collars land over 50 km from the others (up to {km} km): they are not in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() })}</div>}{/* #2181 */}
-              {datumNote(choice) && <div style={{ color: "var(--color-warn-text)" }}>⚠ {datumNote(choice)}</div>}
-              {relabel && <div style={{ color: "var(--color-text-secondary)" }}>{tr("This relabels the project: no coordinates change. To convert data into another CRS, use \"Reproject all data\" in the Maps tab (Project CRS).")}</div>}
-              </div>
+        )}
+        {locals.length > 0 && (
+          <>
+            <div style={{ ...label, marginTop: 8 }}>{tr("Provincial, state and local grids here")}</div>
+            <div role="listbox" aria-label={tr("Provincial, state and local grids here")} style={listBox}>
+              {(moreLocal ? locals : locals.slice(0, 6)).map((c) => option(c, c.noShift ? tr("— no published datum shift") : null))}
             </div>
-          )}
-        </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button className="gs-btn" type="button" onClick={cancel}>{project.crsSet ? tr("Cancel") : tr("Decide later")}</button>
-          {localMode
-            ? <button className="gs-btn gs-btn--primary" type="button" onClick={keepLocal}>{tr("Keep the local grid")}</button>
-            : <button className="gs-btn gs-btn--primary" /* gs-primary-alt: one or the other, by the mode */ type="button" disabled={!choice} onClick={use}>{choice ? tr("Use {v}", { v: crsName(choice) || tr("EPSG:{choice}", { choice }) }) : tr("Choose a CRS")}</button>}
-        </div>
+            {locals.length > 6 && <button data-btn-own="" type="button" onClick={() => setMoreLocal((m) => !m)} style={{ ...linkBtn, marginTop: 4 }} aria-expanded={moreLocal}>{moreLocal ? tr("Show fewer") : tr("Show all {n}", { n: locals.length })}</button>}
+          </>
+        )}
+      </div>
+      <div>
+        <button data-btn-own="" type="button" onClick={() => setSearchAll((s) => !s)} style={linkBtn} aria-expanded={searchAll}>{searchAll ? tr("Hide the full list") : tr("Or search every CRS (name, zone or EPSG code)")}</button>
+        {searchAll && <div style={{ marginTop: 6 }}><CrsPicker value={choice} onChange={setChoice} height={170} hideMap /></div>}
       </div>
     </div>
   );
+  const checkStep = choice ? (
+    <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 12, fontSize: "var(--font-size-sm)", lineHeight: 1.45, alignItems: "flex-start" }}>
+      <Suspense fallback={null}><CrsWorldMap epsg={choice} point={landing || at} width={240} /></Suspense>
+      <div style={{ flex: "1 1 240px", minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div><b>{choiceName}</b> <span style={{ color: "var(--color-text-muted)" }}>{tr("· EPSG:{choice}", { choice })}</span></div>
+        {collars.length > 0 && (landing
+          ? <div>{tr("Your {collars} {v} would be at", { collars: collars.length, v: tr(collars.length === 1 ? "collar" : "collars") })}{" "}<b>{formatLonLat(landing)}</b>{kmFromStated != null && kmFromStated <= 50 ? tr(" — {kmFromStated} km from where you said", { kmFromStated: kmFromStated.toLocaleString() }) : ""}.{kmFromStated > 50
+              ? <span style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{" "}{tr("That is {kmFromStated} km from where you said: almost certainly the wrong CRS or UTM zone.", { kmFromStated: kmFromStated.toLocaleString() })}</span>
+              : tr(" If that isn't the project, this is the wrong CRS or zone.")}</div>
+          : <div style={{ color: "var(--color-danger-fg)" }}>{tr("The collar coordinates don't fit this CRS (they land off the globe), so it is the wrong one.")}</div>)}
+        {outside && !(kmFromStated > 50) && <div style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{tr("Read as {v}, these numbers fall outside the area it is used in ({area}): they are not in it.", { v: crsName(choice) || tr("EPSG:{newCrs}", { newCrs: choice }), area: areaText(area) })}</div>}{/* #3339 */}
+        {spread?.far > 0 && <div style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{tr("{far} of the {total} collars land over 50 km from the others (up to {km} km): they are not in one coordinate frame, so no single CRS places them all.", { far: spread.far, total: spread.total, km: spread.km.toLocaleString() })}</div>}{/* #2181 */}
+        {datumNote(choice) && <div style={{ color: "var(--color-warn-text)" }}>⚠ {datumNote(choice)}</div>}
+        {relabel && <div style={warn}>{tr("This relabels the project: no coordinates change. To convert data into another CRS, use \"Reproject all data\" in the Maps tab (Project CRS).")}</div>}
+      </div>
+    </div>
+  ) : <div style={note}>{tr("Choose a CRS")}</div>;
+  const steps = [
+    { key: "where", label: tr("Where"), render: () => whereStep,
+      primary: localMode ? { label: tr("Keep the local grid"), onClick: keepLocal } : { label: choice ? tr("Next: check") : tr("Choose a CRS"), disabled: !choice } },
+    { key: "check", label: tr("Check"), render: () => checkStep, primary: { label: choice ? tr("Use {v}", { v: choiceName }) : tr("Choose a CRS"), onClick: use, disabled: !choice } },
+  ];
+  const heading = tr("Project coordinate system");
+  return <StepDialog title={heading} onClose={cancel} steps={steps} at={localMode ? 0 : step} onAt={setStep} help={help} width="min(680px, 96vw)" zIndex={Z_ABOVE_IMPORT} cancelLabel={project.crsSet ? null : tr("Decide later")} />;
 }
 
-const panel = { width: "min(620px, 96vw)", maxHeight: "90vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--color-border)" };
-const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
-const label = { fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", marginBottom: 4 };
-const inp = { width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
+const { note, warn, input } = stepDialogStyles;
+const label = { fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", marginBottom: 4 }; // a question, not a caption: not the shell's upper-case label
+const inp = { ...input, padding: "5px 7px", fontFamily: "inherit" };
+const listBox = { border: "1px solid var(--color-border)", borderRadius: 5, maxHeight: 190, overflowY: "auto" };
 const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", fontSize: "var(--font-size-sm)", fontFamily: "inherit" };

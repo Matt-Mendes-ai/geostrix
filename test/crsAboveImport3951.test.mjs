@@ -9,7 +9,10 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\
 const z = (src, re) => Number((src.match(re) || [])[1]);
 
 test("#3951 the Project coordinate system dialog is above the import's column matching and the assay import (62), and the Start dialog is under them all", () => {
-  const crs = z(read("../src/components/ProjectCrsModal.jsx"), /\.\.\.overlay, zIndex: (\d+)/);
+  // TASKS.csv #4073 — the dialog is on the shared StepDialog: its z-index is a constant passed as the shell's zIndex
+  const crsSrc = read("../src/components/ProjectCrsModal.jsx");
+  assert.match(crsSrc, /zIndex=\{Z_ABOVE_IMPORT\}/);
+  const crs = z(crsSrc, /const Z_ABOVE_IMPORT = (\d+);/);
   const mapping = z(read("../src/components/ImportMappingModal.jsx"), /\.\.\.overlay, zIndex: (\d+)/);
   const assay = z(read("../src/components/AssayImportModal.jsx"), /\.\.\.overlay, zIndex: (\d+)/);
   const start = z(read("../src/components/StartDialogs.jsx"), /const Z = (\d+);/);
