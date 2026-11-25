@@ -6,18 +6,18 @@ echo  GeoStrix Python sidecar setup
 echo ============================================================
 echo.
 echo This will:
-echo   1. Check for Python 3.11 (via the "py" launcher)
+echo   1. Check for Python 3.14 (via the "py" launcher)
 echo   2. Create an isolated virtual environment in this folder
 echo   3. Install fastapi/uvicorn/numpy/scipy/gempy into it
 echo   4. Point GeoStrix at this environment (GEOSTRIX_PYTHON)
 echo.
 
-py -3.11 --version >nul 2>&1
+py -3.14 --version >nul 2>&1
 if errorlevel 1 (
-    echo [X] Python 3.11 was not found via the "py" launcher.
+    echo [X] Python 3.14 was not found via the "py" launcher.
     echo.
     echo     Please install it first from:
-    echo     https://www.python.org/downloads/release/python-3119/
+    echo     https://www.python.org/downloads/release/python-3147/
     echo     ^(the "Windows installer ^(64-bit^)" link^)
     echo.
     echo     You don't need to check "Add to PATH" - just install it,
@@ -28,12 +28,12 @@ if errorlevel 1 (
 )
 
 echo [OK] Found:
-py -3.11 --version
+py -3.14 --version
 echo.
 
 if not exist "%~dp0venv" (
     echo Creating virtual environment in .\venv ...
-    py -3.11 -m venv "%~dp0venv"
+    py -3.14 -m venv "%~dp0venv"
     if errorlevel 1 (
         echo [X] Failed to create the virtual environment.
         pause

@@ -23,7 +23,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.11"
+          python-version: "3.14" # TASKS.csv #4049 (was 3.11): 3.11 and 3.12 get source-only security fixes now; 3.14 still gets Windows builds
       - name: Install the pinned engine dependencies
         working-directory: python-sidecar
         run: |
