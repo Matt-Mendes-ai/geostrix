@@ -79,7 +79,7 @@ export default function BlockCalculatorModal({ onClose }) {
       <div role="dialog" aria-modal="true" aria-label={tr("Block calculator")} style={{ ...panel(), width: 620, maxHeight: "88vh" }}>
         <div style={headerStyle}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}><Calculator size={18} />{" "}{tr("Block calculator")}</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("block-calculator")} aria-label={tr("Help: {name}", { name: tr("Block calculator") })} title={tr("Help for this tool (F1, works offline)")}>?</button><button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("block-calculator")} aria-label={tr("Help: {name}", { name: tr("Block calculator") })} title={tr("Help for this tool (F1, works offline)")}>?</button><button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button></span>
         </div>
         <div style={{ padding: 16, overflowY: "auto", fontSize: "var(--font-size-base)" }}>
           <div style={{ ...small, marginBottom: 12, lineHeight: 1.45 }}>{tr("A new block model from a formula over block models on the same blocks. A block that lacks a value in any model the formula reads is left out, not set to zero.")}</div>
@@ -94,7 +94,7 @@ export default function BlockCalculatorModal({ onClose }) {
                       {varError(x, i) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)" }}>{varError(x, i)}</div>}
                     </td>
                     <td style={{ padding: "3px 8px", color: "var(--color-text)" }}>{x.model.name}{x.model.params?.unit ? ` (${x.model.params.unit})` : ""}{i === 0 && <span style={{ ...small, marginInlineStart: 6 }}>{tr("(sets the blocks)")}</span>}</td>
-                    <td style={{ padding: "3px 0", textAlign: "end" }}><button type="button" onClick={() => { setInputs((cur) => cur.filter((y) => y.key !== x.key)); changed(); }} aria-label={tr("Remove {model}", { model: x.model.name })} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={14} /></button></td>
+                    <td style={{ padding: "3px 0", textAlign: "end" }}><button data-btn-own="" type="button" onClick={() => { setInputs((cur) => cur.filter((y) => y.key !== x.key)); changed(); }} aria-label={tr("Remove {model}", { model: x.model.name })} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={14} /></button></td>
                   </tr>
                 ))}
               </tbody>
@@ -105,7 +105,7 @@ export default function BlockCalculatorModal({ onClose }) {
               <option value="">{picked.length ? tr("Add a block model on the same blocks…") : tr("Pick the first block model…")}</option>
               {choices.filter((c) => !c.why).map(({ m }) => <option key={keyOf(m)} value={keyOf(m)}>{m.name}</option>)}
             </select>
-            {set.length > 0 && <button type="button" onClick={() => add(set)} style={{ ...sel, cursor: "pointer" }}>{tr("Add the rest of its set ({n})", { n: set.length })}</button>}
+            {set.length > 0 && <button className="gs-btn gs-btn--sm" type="button" onClick={() => add(set)}>{tr("Add the rest of its set ({n})", { n: set.length })}</button>}
           </div>
           {choices.some((c) => c.why) && ( /* TASKS.csv #3809 — said before the first pick too: four models in the project and an empty list, with no word why (a UBC mesh with two cell heights) */
             <details style={{ ...small, marginBottom: 10 }}>
@@ -148,9 +148,9 @@ export default function BlockCalculatorModal({ onClose }) {
             </div>
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            {running && <button type="button" onClick={() => acRef.current?.abort()} style={{ ...sel, cursor: "pointer" }}>{tr("Cancel")}</button>}
-            <button type="button" disabled={!ready} onClick={run} style={{ ...sel, cursor: ready ? "pointer" : "default", opacity: ready ? 1 : 0.5 }}>{running ? (progress != null ? tr("Calculating… {p} %", { p: Math.round(progress * 100) }) : tr("Calculating…")) : tr("Calculate")}</button>
-            <button type="button" disabled={!canAdd} onClick={addModel} title={!unit.trim() ? tr("State the unit of the new value first") : undefined} style={{ ...sel, cursor: canAdd ? "pointer" : "default", opacity: canAdd ? 1 : 0.5, background: "var(--color-success-bg)", color: "var(--color-success-text)", border: "1px solid var(--color-success-border)" }}>{tr("Add block model")}</button>
+            {running && <button className="gs-btn" type="button" onClick={() => acRef.current?.abort()}>{tr("Cancel")}</button>}
+            <button className="gs-btn gs-btn--primary" type="button" disabled={!ready} onClick={run}>{running ? (progress != null ? tr("Calculating… {p} %", { p: Math.round(progress * 100) }) : tr("Calculating…")) : tr("Calculate")}</button>
+            <button className="gs-btn" type="button" disabled={!canAdd} onClick={addModel} title={!unit.trim() ? tr("State the unit of the new value first") : undefined}>{tr("Add block model")}</button>
           </div>
         </div>
       </div>

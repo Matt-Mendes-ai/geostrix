@@ -48,7 +48,7 @@ test("wiring: the dialog runs the sliced check, shows its progress, and a newer 
   const s = fs.readFileSync(new URL("../src/components/DataQCModal.jsx", import.meta.url), "utf8");
   assert.match(s, /runDataQCSliced\(qcArgs\(\), \{ onProgress: \(p\) => \{ if \(runGen\.current === gen\) setProgress\(p\); \}, cancelled: \(\) => runGen\.current !== gen \}\)/);
   assert.match(s, /useEffect\(\(\) => \(\) => \{ runGen\.current\+\+; \}, \[\]\);/);
-  assert.match(s, /<button onClick=\{check\} disabled=\{!!progress\}/);
+  assert.match(s, /<button className="gs-btn gs-btn--primary" onClick=\{check\} disabled=\{!!progress\}/);
   const q = fs.readFileSync(new URL("../src/lib/dataQC.js", import.meta.url), "utf8");
   for (const f of ["validateSurveyAndTrajectorySteps", "validateIntervalLayerSteps", "validateAssaysSteps"]) assert.match(q, new RegExp(`function\\* ${f}\\(`));
 });

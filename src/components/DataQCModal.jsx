@@ -118,7 +118,7 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
             <ShieldAlert size={18} color="#55606e" />
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Drillhole data QA/QC")}</div>
           </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("data-qc")} aria-label={tr("Help: {name}", { name: tr("Drillhole data QA/QC") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("data-qc")} aria-label={tr("Help: {name}", { name: tr("Drillhole data QA/QC") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
         </div>
 
         <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
@@ -170,10 +170,10 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
                   {/* TASKS.csv #3569 — a row can be acted on: its interval in the table, its hole in 3D, marked as checked (undone by the same button) */}
                   <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0, justifyContent: "center" }}>
                     <div style={{ display: "flex", gap: 4 }}>
-                      {qcTableRequest(issue) && <button type="button" style={rowBtn} onClick={() => openDataTable(qcTableRequest(issue))} title={tr("Open the table at this row")}>{tr("Table")}</button>}
-                      {onZoomHole && issue.holeId && <button type="button" style={rowBtn} onClick={() => onZoomHole(issue.holeId)} title={tr("Find the hole in the 3D view")}>{tr("Find")}</button>}
+                      {qcTableRequest(issue) && <button className="gs-btn gs-btn--sm" type="button" onClick={() => openDataTable(qcTableRequest(issue))} title={tr("Open the table at this row")}>{tr("Table")}</button>}
+                      {onZoomHole && issue.holeId && <button className="gs-btn gs-btn--sm" type="button" onClick={() => onZoomHole(issue.holeId)} title={tr("Find the hole in the 3D view")}>{tr("Find")}</button>}
                     </div>
-                    <button type="button" style={rowBtn} onClick={() => toggleChecked(issue)} aria-pressed={checked.has(qcKey(issue))} title={tr("Mark as checked and kept (kept with the project; click again to undo)")}>{checked.has(qcKey(issue)) ? tr("Unmark") : tr("Checked")}</button>
+                    <button className="gs-btn gs-btn--sm" type="button" onClick={() => toggleChecked(issue)} aria-pressed={checked.has(qcKey(issue))} title={tr("Mark as checked and kept (kept with the project; click again to undo)")}>{checked.has(qcKey(issue)) ? tr("Unmark") : tr("Checked")}</button>
                   </div>
                 </div>
               );
@@ -192,13 +192,13 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
           </span>
           {terrain && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("Collars further than this from the loaded terrain are flagged (an auto-fetched terrain: ~15 m or more; LiDAR: a few metres){v}", { v: terrainNodeM(terrain) ? tr(". This terrain's nodes are ~{v} m apart.", { v: Math.round(terrainNodeM(terrain)) }) : "" /* #3807 — [dx, dy] read too */ })}>{tr("Collar vs terrain over")}<NumberInput min="0.5" step="0.5" value={terrainThreshold} onChange={(v) => setTerrainThreshold(v)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Collar vs terrain threshold (m)")} /> m
-              <button type="button" onClick={requestCollarZFromTerrain} style={rerunBtn} title={tr("Take collar elevations from the terrain; preview first, Ctrl+Z undoes it.")}>{tr("Collar elevations from the terrain…")}</button>
-              {terrainOff.length > 0 && <button onClick={snapToTerrain} style={rerunBtn} title={tr("Set those collars' elevation to the terrain (undoable; the old value is kept)")}>{tr("Snap {n} to terrain", { n: terrainOff.length })}</button>}
+              <button className="gs-btn gs-btn--sm" type="button" onClick={requestCollarZFromTerrain} title={tr("Take collar elevations from the terrain; preview first, Ctrl+Z undoes it.")}>{tr("Collar elevations from the terrain…")}</button>
+              {terrainOff.length > 0 && <button className="gs-btn gs-btn--sm" onClick={snapToTerrain} title={tr("Set those collars' elevation to the terrain (undoable; the old value is kept)")}>{tr("Snap {n} to terrain", { n: terrainOff.length })}</button>}
             </span>
           )}
-          <button onClick={exportIssues} disabled={!result.issues.length} style={{ ...rerunBtn, marginRight: 8, opacity: result.issues.length ? 1 : 0.5 }} title={tr("Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header")}>
+          <button className="gs-btn" style={{ marginRight: 8 }} onClick={exportIssues} disabled={!result.issues.length} title={tr("Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header")}>
             <Download size={14} />{" "}{tr("Export CSV")}</button>
-          <button onClick={check} disabled={!!progress} style={{ ...rerunBtn, opacity: progress ? 0.5 : 1 }}>
+          <button className="gs-btn gs-btn--primary" onClick={check} disabled={!!progress}>
             <RefreshCw size={14} />{" "}{tr("Re-run")}</button>
         </div>
       </div>
@@ -209,5 +209,3 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
 const panel = { width: "min(640px, 92vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const rowBtn = { padding: "1px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-xs)", cursor: "pointer", fontFamily: "inherit" };
-const rerunBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };

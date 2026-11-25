@@ -416,7 +416,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("best-intercepts")} aria-label={tr("Help: {name}", { name: tr("Best intercepts") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("best-intercepts")} aria-label={tr("Help: {name}", { name: tr("Best intercepts") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -439,7 +439,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             {suggested != null && cutoff === suggested && (() => { const med = quantileOf(symbol, 0.5, 2), q3 = quantileOf(symbol, 0.75, 2), p90Exact = quantileRaw(symbol, 0.9); return ( /* TASKS.csv #3223 — said beside the box, not only in its tooltip */
               <div role="status" style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>
                 <span>{p90Exact != null ? tr("Suggested: the 90th percentile ({v}, length-weighted) rounded to one significant figure. Set the cut-off you report at, or try:", { v: +shownBox(p90Exact).toPrecision(3) }) : tr("Suggested: the 90th percentile. Set the cut-off you report at, or try:")}</span>
-                {[[tr("median"), med], [tr("Q3"), q3]].filter(([, v]) => v != null && v !== cutoff).map(([name, v]) => <button key={name} type="button" onClick={() => { setCutoff(v); setSuggested(null); setCutoffNote(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }}>{`${name} ${+shownBox(v).toPrecision(4)}`}</button>)}
+                {[[tr("median"), med], [tr("Q3"), q3]].filter(([, v]) => v != null && v !== cutoff).map(([name, v]) => <button className="gs-btn gs-btn--sm" key={name} type="button" onClick={() => { setCutoff(v); setSuggested(null); setCutoffNote(null); }}>{`${name} ${+shownBox(v).toPrecision(4)}`}</button>)}
               </div>); })()}
             {cutoffNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{/* TASKS.csv #2513 */}{cutoffNote.kind === "kept" ? tr("Cut-off {v} kept from {from} (the same unit).", { v: cutoffNote.value, from: cutoffNote.from }) : cutoffNote.kind === "restored" ? tr("Cut-off back to {v}, the one last used for {to}.", { v: cutoffNote.value, to: cutoffNote.to }) : tr("Cut-off reset to the suggestion for {to} ({v}): {to} is not in {from}'s unit.", { v: cutoffNote.value, to: cutoffNote.to, from: cutoffNote.from })}</div>}
             {(() => { const offers = sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)); return offers.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center" }}>{/* #2347 — offered, never applied */}
@@ -450,7 +450,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                 <option value="">{tr("{n} populations, highest first…", { n: offers.length })}</option>
                 {offers.map((o) => <option key={o.key} value={o.key}>{`${o.population ? `${o.population.split(": ").pop()} ` : ""}${+shownBox(Number(o.value)).toPrecision(4)}`}</option>)}
               </select>}
-              {offers.length <= 4 && offers.map((o) => <button key={o.key} type="button" onClick={() => { setCutoff(o.value); setSuggested(null); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the cutoff.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+shownBox(Number(o.value)).toPrecision(4)}</button>)}
+              {offers.length <= 4 && offers.map((o) => <button className="gs-btn gs-btn--sm" key={o.key} type="button" onClick={() => { setCutoff(o.value); setSuggested(null); }} title={tr("{rule}{pop}, decided {date}. Click to use it as the cutoff.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+shownBox(Number(o.value)).toPrecision(4)}</button>)}
             </div> : null; })()}
             <label style={fieldLabel} title={tr("How much below-cutoff ('waste') core between two above-cutoff samples is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.")}>{tr("Max internal dilution (m)")}<NumberInput min="0" value={maxInternalDilution} onChange={(v) => setMaxInternalDilution(Math.max(0, v ?? 0))} style={inp} />
             </label>
@@ -532,7 +532,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                 <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title={tr("Dip of the mineralized structure, degrees below horizontal.")}>{tr("dip")}<NumberInput allowEmpty min="0" max="90" value={twDipText} onChange={(v) => setTwDipText(v == null ? "" : String(v))} style={{ ...inp, width: 55 }} aria-label={tr("Structure dip")} />
                 </label>
                 {/* TASKS.csv #3160 (#2925 (7), review #2876) — flat bedding (a bedded iron ore, a palaeochannel) in one click: dip 0, the direction irrelevant */}
-                <button type="button" onClick={() => { setTwDipDirText("0"); setTwDipText("0"); }} style={{ ...inp, width: "auto", cursor: "pointer", padding: "1px 6px" }} title={tr("A horizontal structure (flat bedding): the true width of a vertical hole is its downhole length.")}>{tr("flat (0 / 0)")}</button>
+                <button className="gs-btn gs-btn--sm" type="button" onClick={() => { setTwDipDirText("0"); setTwDipText("0"); }} title={tr("A horizontal structure (flat bedding): the true width of a vertical hole is its downhole length.")}>{tr("flat (0 / 0)")}</button>
               </>
             )}
             {!collars?.length && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Import collars to enable.")}</span>}
@@ -628,7 +628,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                       <td style={td}>{glFmt(dg(interceptGradeLength(r)))}</td>{/* #2475; one number of decimals down the column: #3565 */}
                       {/* TASKS.csv #1164 — the same order as the header: Including, then the equivalent */}
                       {optionalInterceptColumns({ including: incOn, metalEquivalent: meqCol }).map((c) => (c === "including"
-                        ? <td key={c} style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? incText(r.including[0]) : "—"}{r.including && r.including.length > 1 && <button type="button" onClick={() => setInclFor(inclFor === rowKey(r) ? null : rowKey(r))} aria-expanded={inclFor === rowKey(r)} aria-label={tr("Show every 'including' line of this intercept")} style={{ marginInlineStart: 6, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent", color: "var(--color-accent-dark)", cursor: "pointer", fontSize: "var(--font-size-sm)", padding: "0 5px" }}>{`+${r.including.length - 1}`}</button>}</td>
+                        ? <td key={c} style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? incText(r.including[0]) : "—"}{r.including && r.including.length > 1 && <button data-btn-own="" type="button" onClick={() => setInclFor(inclFor === rowKey(r) ? null : rowKey(r))} aria-expanded={inclFor === rowKey(r)} aria-label={tr("Show every 'including' line of this intercept")} style={{ marginInlineStart: 6, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent", color: "var(--color-accent-dark)", cursor: "pointer", fontSize: "var(--font-size-sm)", padding: "0 5px" }}>{`+${r.including.length - 1}`}</button>}</td>
                         : <td key={c} style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${+dg(v).toPrecision(4)}`; })()}</td>))}{/* dg: #3221 */}
                       {shownExtras.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : exFmt[s]((s === symbol ? dg(r.extras[s]) : r.extras[s]))}</td>)}
                       <td style={td}>{r.intervals}</td>
@@ -656,17 +656,17 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                 ].filter(Boolean).join(". ") })}</div>
             )}{tr("Intercepts never average below the cutoff: dilution is bridged only while the result stays at or above it. \"≥\": the grade holds an over-range result.")}{" "}{sortKey === "gl" && sortDesc ? tr("Sorted by grade × length (best intercepts first).") : tr("In the order of the column heading clicked.")}{" "}{weightNote}{hasBelowDet ? ` ${tr("Below-detection assay values are already substituted at half the detection limit (same convention as the plots).")}` : ""}{" "}{tr("This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.")}{/* #3562 weighting named; #3579 below-detection only where there is some */}</div>
 
-          <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
+          <button className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start" }} onClick={exportCSV} disabled={results.length === 0}>
             <Download size={14} />{" "}{perHole ? tr("Export totals per hole (CSV)") : tr("Export report (CSV)")}</button>{/* TASKS.csv #3699 — the button says which table it writes */}
           <CsvStampToggle />{/* TASKS.csv #3614 */}
-          <button onClick={toLayout} disabled={results.length === 0} title={tr("Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot (the CSV has them all)")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
+          <button className="gs-btn" style={{ alignSelf: "flex-start" }} onClick={toLayout} disabled={results.length === 0} title={tr("Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot (the CSV has them all)")}>
             <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}
           <label style={{ display: "flex", alignItems: "center", gap: 5, alignSelf: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }} title={tr("The intercepts that do not fit the sheet go on new Layout pages, as the collar table's continuation does, instead of a closing count row")}>
             <input type="checkbox" checked={continuePages} onChange={(e) => setContinuePages(e.target.checked)} />{tr("Continue on new pages")}</label>{/* TASKS.csv #2708 */}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
+          <button className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -677,6 +677,5 @@ const panel = { width: "min(1500px, 96vw)", /* #3565 — the dialog uses the win
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const fieldLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 4 };
 const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", width: 130 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
 const th = { textAlign: "start", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };
 const td = { padding: "5px 8px", color: "var(--color-text-strong)", whiteSpace: "nowrap" };

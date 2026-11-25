@@ -298,7 +298,6 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
 
   const ctrl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 5 };
   const inp = { width: 70, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" };
-  const btn = { display: "flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 5, border: "1px solid var(--color-border-light)", background: "var(--color-bg-subtle)", color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer" };
 
   return (
     <div role="dialog" aria-modal="true" aria-label={tr("Level plan")} style={{ position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
@@ -319,7 +318,7 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
           <label style={ctrl} title={tr("Off to start with above {n} pierce points: hover a pierce point for its hole id", { n: LABELS_AUTO_MAX })}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} />{" "}{tr("Hole ids")}</label>
           <label style={ctrl} title={tr("Frame the holes that are in the slab (zoomed in) instead of the whole project (a fixed frame as the RL moves)")}><input type="checkbox" checked={fitSlab} onChange={(e) => setFitSlab(e.target.checked)} />{" "}{tr("Fit to slab")}</label>
           <div style={{ flex: 1 }} />
-          <button onClick={onClose} title={tr("Close")} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><XIcon size={18} /></button>
+          <button data-btn-own="" onClick={onClose} title={tr("Close")} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><XIcon size={18} /></button>
         </div>
         <div ref={plotRef} style={{ flex: "1 1 0", minHeight: 0, minWidth: 0, position: "relative", overflow: "hidden" }}>{/* #3970 — the plot box: the plot fills it */}
         <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="'Segoe UI', system-ui, Arial, sans-serif" role="img" aria-label={tr("Level plan at {rl} m", { rl })} onClick={onClick} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onDoubleClick={() => !drawing && setView(null)} style={{ display: "block", background: "#ffffff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: drawing ? "crosshair" : "grab", position: "absolute", left: 0, top: 0 }}>
@@ -378,12 +377,12 @@ export default function LevelPlanWindow({ planCtx, zRange, defaultRl, onClose, o
             {idLabels && (idLabels.hidden > 0 || idLabels.grouped > 0) && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", display: "block" }}>{tr("Hole ids: 'ID +n' stands for n more hole(s) piercing within a few pixels (hover it for the list); {hidden} label(s) had no free spot and are left out. Zoom in, or hover a pierce point.", { hidden: idLabels.hidden })}</span>}{/* #2212 */}
           </div>
           {!drawing
-            ? <button style={btn} onClick={() => { setDrawing(true); setPts([]); setNote(tr("Click points on the plan; Save outline when done.")); }}><Pencil size={14} />{" "}{tr("Draw outline")}</button>
-            : <><button style={btn} onClick={saveOutline}><Check size={14} />{" "}{tr("Save outline")}</button><button style={btn} onClick={() => { setDrawing(false); setPts([]); setNote(null); }}>{tr("Cancel")}</button></>}
-          <button style={btn} onClick={() => setRev((r) => r + 1)} title={tr("Rebuild from the current layers, filters and models")}>{tr("Refresh")}</button>
+            ? <button className="gs-btn gs-btn--sm" onClick={() => { setDrawing(true); setPts([]); setNote(tr("Click points on the plan; Save outline when done.")); }}><Pencil size={14} />{" "}{tr("Draw outline")}</button>
+            : <><button className="gs-btn gs-btn--sm" onClick={saveOutline}><Check size={14} />{" "}{tr("Save outline")}</button><button className="gs-btn gs-btn--sm" onClick={() => { setDrawing(false); setPts([]); setNote(null); }}>{tr("Cancel")}</button></>}
+          <button className="gs-btn gs-btn--sm" onClick={() => setRev((r) => r + 1)} title={tr("Rebuild from the current layers, filters and models")}>{tr("Refresh")}</button>
           <span role="status" ref={statusRef} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", minWidth: 130, whiteSpace: "nowrap", visibility: building ? "visible" : "hidden" }}>{tr("Building the plan…")}</span>{/* #3137; #3970 — always there, so the row does not change when a build starts */}
-          <button style={btn} onClick={() => exportPng(false)}><Download size={14} />{" "}{tr("PNG")}</button>
-          <button style={btn} onClick={() => exportPng(true)}>{tr("Add to Layout")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => exportPng(false)}><Download size={14} />{" "}{tr("PNG")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => exportPng(true)}>{tr("Add to Layout")}</button>
         </div>
         {/* #3970 — the legend and the note are fixed-height rows (the legend scrolls), so a different RL never moves the plot */}
         <div style={{ flex: "0 0 auto", height: 40, overflowY: "auto", marginTop: 6 }}>

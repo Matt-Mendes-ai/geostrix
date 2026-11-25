@@ -105,7 +105,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
         <div style={header}>
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{meta.label} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", fontWeight: 400 }}>{tr("({rows} rows)", { rows: rows.length })}</span></div>
           <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button type="button" onClick={() => { openDataTable({ source: layerKey }); onClose(); }} title={tr("Every row of this layer as a table to sort and filter")} style={{ padding: "4px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit" }}>{tr("Table")}</button>{/* TASKS.csv #3563 — all the rows, not the first 400 */}
+            <button className="gs-btn gs-btn--sm" type="button" onClick={() => { openDataTable({ source: layerKey }); onClose(); }} title={tr("Every row of this layer as a table to sort and filter")}>{tr("Table")}</button>{/* TASKS.csv #3563 — all the rows, not the first 400 */}
             <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
           </span>
         </div>
@@ -130,16 +130,16 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                     many categories (e.g. a dozen lithology codes). "Only" on each row does that in one
                     click; Show all/Hide all handle the common "reset" cases. */}
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <button onClick={onShowAll} style={miniBtn}>{tr("Show all")}</button>
-                  <button onClick={onHideAll} style={miniBtn}>{tr("Hide all")}</button>
+                  <button className="gs-btn gs-btn--sm" onClick={onShowAll}>{tr("Show all")}</button>
+                  <button className="gs-btn gs-btn--sm" onClick={onHideAll}>{tr("Hide all")}</button>
                 </div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                  <button onClick={() => exportLayerStyle(layerKey, meta, categories, legendOverride)} style={miniBtn} title={tr("Save this legend's colours/labels as a reusable file")}><Download size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Export style")}</button>
-                  <button onClick={() => styleFileInput.current.click()} style={miniBtn} title={tr("Apply a previously-exported style file to this legend")}><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Import style")}</button>
+                  <button className="gs-btn gs-btn--sm" onClick={() => exportLayerStyle(layerKey, meta, categories, legendOverride)} title={tr("Save this legend's colours/labels as a reusable file")}><Download size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Export style")}</button>
+                  <button className="gs-btn gs-btn--sm" onClick={() => styleFileInput.current.click()} title={tr("Apply a previously-exported style file to this legend")}><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Import style")}</button>
                   <input ref={styleFileInput} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) importLayerStyle(f); e.target.value = ""; }} />
-                  <button onClick={() => descFileInput.current.click()} style={miniBtn} title={tr("A table of codes and descriptions (CSV: the first two columns, or columns named code and description). Each code's label in legends, section keys and strip logs becomes its description; colours stay.")}><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Descriptions from CSV…")}</button>{/* #1778 */}
+                  <button className="gs-btn gs-btn--sm" onClick={() => descFileInput.current.click()} title={tr("A table of codes and descriptions (CSV: the first two columns, or columns named code and description). Each code's label in legends, section keys and strip logs becomes its description; colours stay.")}><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Descriptions from CSV…")}</button>{/* #1778 */}
                   <input ref={descFileInput} type="file" accept=".csv,.txt,.tsv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) importDescriptions(f); e.target.value = ""; }} />
-                  {layerKey === "litho" && <button onClick={macrostratColours} style={miniBtn} title={tr("Colour each code like Macrostrat's lithology of the same name (by its code, label or logged description; data CC BY 4.0). Unmatched codes keep their colour.")}>{tr("Macrostrat colours")}</button>}{/* TASKS.csv #2005 */}
+                  {layerKey === "litho" && <button className="gs-btn gs-btn--sm" onClick={macrostratColours} title={tr("Colour each code like Macrostrat's lithology of the same name (by its code, label or logged description; data CC BY 4.0). Unmatched codes keep their colour.")}>{tr("Macrostrat colours")}</button>}{/* TASKS.csv #2005 */}
                 </div>
                 {styleNotice && (
                   <div style={{ marginBottom: 10, padding: "6px 8px", background: styleNotice.ok ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${styleNotice.ok ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 5, fontSize: "var(--font-size-sm)", color: styleNotice.ok ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.4 }}>
@@ -182,7 +182,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
             {!meta.numeric && (
               <div role="tablist" style={{ display: "flex", gap: 4, padding: "8px 14px 0" }}>{/* TASKS.csv #2163 */}
                 {[["rows", tr("Rows")], ["dict", tr("Code dictionary")]].map(([k, text]) => (
-                  <button key={k} role="tab" aria-selected={rightPane === k} onClick={() => setRightPane(k)} style={{ ...miniBtn, flex: "none", padding: "4px 10px", ...(rightPane === k ? { color: "var(--color-accent-dark)", borderColor: "var(--color-accent)" } : {}) }}>{text}</button>
+                  <button data-btn-own="" key={k} role="tab" aria-selected={rightPane === k} onClick={() => setRightPane(k)} style={{ ...miniBtn, flex: "none", padding: "4px 10px", ...(rightPane === k ? { color: "var(--color-accent-dark)", borderColor: "var(--color-accent)" } : {}) }}>{text}</button>
                 ))}
               </div>
             )}

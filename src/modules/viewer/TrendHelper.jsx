@@ -132,7 +132,7 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
   const card = (c) => {
     const on = c.id === selId;
     return (
-      <button key={c.id} type="button" data-trend-candidate={c.id} onClick={() => setSelId(c.id)} onMouseEnter={() => setHoverId(c.id)} onMouseLeave={() => setHoverId(null)} onFocus={() => setHoverId(c.id)} onBlur={() => setHoverId(null)}
+      <button data-btn-own="" key={c.id} type="button" data-trend-candidate={c.id} onClick={() => setSelId(c.id)} onMouseEnter={() => setHoverId(c.id)} onMouseLeave={() => setHoverId(null)} onFocus={() => setHoverId(c.id)} onBlur={() => setHoverId(null)}
         aria-pressed={on} style={{ display: "block", width: "100%", textAlign: "start", margin: "4px 0", padding: "6px 8px", borderRadius: 4, cursor: "pointer", background: on ? "var(--color-selected-bg)" : "transparent", border: `1px solid ${on ? "var(--color-info)" : "var(--color-border)"}`, color: "inherit", font: "inherit" }}>
         <div style={{ display: "flex", gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
           <strong>{c.words}</strong>
@@ -158,7 +158,7 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
       {sampleElements.length > 1 && (
         <label style={{ ...small, display: "block", marginTop: 4 }}>{tr("Grade to look at")} <select value={gradeElement} onChange={(e) => setGradeElement(e.target.value)} style={inputStyle}>{sampleElements.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
       )}
-      <button type="button" style={{ ...btnStyle, marginTop: 6 }} onClick={look}>{result ? tr("Look again") : tr("Look at my data")}</button>
+      <button className="gs-btn" style={{ marginTop: 6 }} type="button" onClick={look}>{result ? tr("Look again") : tr("Look at my data")}</button>
 
       {result && (<>
         <div style={{ marginTop: 8 }}>{tr("Here is what your data says.")}</div>
@@ -166,7 +166,7 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
         {cands.map(card)}
         {!regional?.cards?.length && (
           <div data-trend-regional="" style={{ margin: "6px 0" }}>
-            <button type="button" style={btnStyle} disabled={!!regional?.busy} onClick={lookRegional}>{regional?.busy ? tr("Looking…") : tr("Look at the regional geology")}</button>
+            <button className="gs-btn" type="button" disabled={!!regional?.busy} onClick={lookRegional}>{regional?.busy ? tr("Looking…") : tr("Look at the regional geology")}</button>
             <div style={small}>{tr("Sends the area around the project to Macrostrat (macrostrat.org) for its published geology map, and reads the direction its contacts, faults and fold axes run: a regional direction only, not a dip.")}</div>
             {regional?.note && <div role="status" style={{ ...small, color: regional.warn ? "var(--color-warn-text)" : undefined }}>{regional.note}</div>}
           </div>
@@ -185,8 +185,8 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
         {how === "points" && (
           <div data-trend-points="" style={{ marginTop: 4 }}>
             {picking
-              ? <div style={small}>{tr("Click point {n} of 3 on the drilling, a surface or the ground.", { n: picks.length + 1 })} <button type="button" style={btnStyle} onClick={stopPicking}>{tr("Cancel")}</button></div>
-              : <button type="button" style={btnStyle} disabled={!explicitClickRef || !worldPointFromHits} onClick={startPicking}>{picks.length ? tr("Click three new points") : tr("Click three points")}</button>}
+              ? <div style={small}>{tr("Click point {n} of 3 on the drilling, a surface or the ground.", { n: picks.length + 1 })} <button className="gs-btn" type="button" onClick={stopPicking}>{tr("Cancel")}</button></div>
+              : <button className="gs-btn" type="button" disabled={!explicitClickRef || !worldPointFromHits} onClick={startPicking}>{picks.length ? tr("Click three new points") : tr("Click three points")}</button>}
           </div>
         )}
         {how === "surface" && (
@@ -221,7 +221,7 @@ export default function TrendHelper({ structuralTrends, setStructuralTrends, sce
             </label>
           ))}
         </div>
-        <button type="button" style={{ ...btnStyle, marginTop: 6 }} onClick={use} data-trend-use="">{tr("Use this trend")}</button>
+        <button className="gs-btn" style={{ marginTop: 6 }} type="button" onClick={use} data-trend-use="">{tr("Use this trend")}</button>
       </>)}
       {done && <div role="status" style={{ ...small, marginTop: 4 }}>{done}</div>}
     </div>
