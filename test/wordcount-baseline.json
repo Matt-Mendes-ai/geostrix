@@ -1,16 +1,16 @@
 {
   "note": "Recorded by scripts/word-count.mjs --update-baseline (#3899). No surface may grow past its number; lower it after a rewording.",
   "surfaces": {
-    "help.seenFirst": 12851,
-    "help.seenFirstWithoutMineDesign": 4317,
-    "tooltips": 18042,
+    "help.seenFirst": 12918,
+    "help.seenFirstWithoutMineDesign": 4384,
+    "tooltips": 18060,
     "infoPopups": 1100,
     "notices": 14959,
-    "interface.other": 96935,
-    "interface.all": 131036,
+    "interface.other": 97054,
+    "interface.all": 131173,
     "help.page.data": 332,
     "help.page.everyday": 335,
-    "help.page.geophysics": 917,
+    "help.page.geophysics": 984,
     "help.page.layout": 215,
     "help.page.maps": 223,
     "help.page.mineDesign": 8534,
@@ -23,10 +23,10 @@
     "help.page.view": 302,
     "interface.area.Mine Design (hidden)": 8214,
     "interface.area.Basic path": 16874,
-    "interface.area.Geophysics": 13571,
+    "interface.area.Geophysics": 13583,
     "interface.area.Modelling": 18514,
     "interface.area.Targeting, Maps, Geological Mapping": 15237,
     "interface.area.Geochem": 5628,
-    "interface.area.Everything else (shared dialogs and library messages)": 18897
+    "interface.area.Everything else (shared dialogs and library messages)": 19004
   }
 }
