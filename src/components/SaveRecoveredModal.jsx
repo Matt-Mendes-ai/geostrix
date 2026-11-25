@@ -9,16 +9,15 @@ import { t as tr } from "../lib/i18n.js";
 export default function SaveRecoveredModal({ file, onAnswer }) {
   useFocusTrap();
   useEscapeKey(() => onAnswer("cancel"));
-  const btn = { padding: "7px 14px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "transparent", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" };
   return (
     <div style={overlay} {...backdropProps(() => onAnswer("cancel"))}>
       <div role="dialog" aria-modal="true" aria-label={tr("Save recovered work")} onClick={(e) => e.stopPropagation()} style={{ width: 420, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" }}>
         <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", fontWeight: 600, marginBottom: 10 }}>{tr("Save recovered work")}</div>
         <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Save this recovered work over \"{file}\" (which holds your last save), or keep both and save it as a new file?", { file })}</div>
         <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          <button type="button" data-testid="save-recovered-cancel" onClick={() => onAnswer("cancel")} style={btn}>{tr("Cancel")}</button>
-          <button type="button" data-testid="save-recovered-new" onClick={() => onAnswer("new")} style={btn}>{tr("Save as a new file…")}</button>
-          <button type="button" data-testid="save-recovered-over" onClick={() => onAnswer("over")} style={{ ...btn, border: "1px solid var(--color-success-border)", background: "var(--color-success-bg)", color: "var(--color-success-text)" }}>{tr("Save over it")}</button>
+          <button className="gs-btn" type="button" data-testid="save-recovered-cancel" onClick={() => onAnswer("cancel")}>{tr("Cancel")}</button>
+          <button className="gs-btn" type="button" data-testid="save-recovered-new" onClick={() => onAnswer("new")}>{tr("Save as a new file…")}</button>
+          <button className="gs-btn gs-btn--primary" type="button" data-testid="save-recovered-over" onClick={() => onAnswer("over")}>{tr("Save over it")}</button>
         </div>
       </div>
     </div>

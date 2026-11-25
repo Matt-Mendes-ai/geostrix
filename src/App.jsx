@@ -602,7 +602,7 @@ export default function App() {
         <div role="alert" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#2a1616", borderBottom: "1px solid #5a2a2a", fontSize: "var(--font-size-base)", color: "#e8b4b4" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>{tr("The autosave from a previous session could not be read (damaged file). It was kept, not deleted, at:")}{" "}{recovery.unreadable}</span>
-          <button onClick={() => { setRecovery(null); recoveryCheck.settle(null); }} style={recoveryBtn}>{tr("Dismiss")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => { setRecovery(null); recoveryCheck.settle(null); }}>{tr("Dismiss")}</button>
         </div>
       )}
       {saveChoice && <SaveRecoveredModal file={saveChoice.file} onAnswer={answerSaveChoice} />}{/* TASKS.csv #3638 */}
@@ -614,16 +614,16 @@ export default function App() {
             {recovery.autosavedAt ? tr(" (autosaved {when})", { when: timeAgo(recovery.autosavedAt) }) : ""}.
             {recovery.newer ? ` It was written by a newer GeoStrix (project format ${recovery.newer}); this version will ask before saving over anything that version added.` : ""}{/* #686 */}
           </span>
-          <button onClick={doRestore} style={{ ...recoveryBtn, background: "#3d3423", color: "#e2c68c", border: "1px solid #5a4a2a" }}>{tr("Restore")}</button>
-          <button onClick={doDiscardRecovery} style={recoveryBtn}>{tr("Discard…")}</button>
+          <button className="gs-btn gs-btn--primary gs-btn--sm" onClick={doRestore}>{tr("Restore")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={doDiscardRecovery}>{tr("Discard…")}</button>
         </div>
       )}
       {/* TASKS.csv #598 — the last session did not end normally (crash, forced close, power cut): offer a report */}
       {lastExitUnclean && (
         <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)" }}>
           <span style={{ flex: 1 }}>{tr("GeoStrix didn't close normally last time. If it crashed or froze, a short report helps fix it.")}</span>
-          <button onClick={() => { (uncleanExitCheck.settle(null), setLastExitUnclean(false)); openReportProblem(true); }} style={recoveryBtn}>{tr("Report it…")}</button>
-          <button onClick={() => (uncleanExitCheck.settle(null), setLastExitUnclean(false))} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("Dismiss")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => { (uncleanExitCheck.settle(null), setLastExitUnclean(false)); openReportProblem(true); }}>{tr("Report it…")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => (uncleanExitCheck.settle(null), setLastExitUnclean(false))} aria-label={tr("Dismiss")}>{tr("Dismiss")}</button>
         </div>
       )}
       {project.crsSet && isMetricProjectedEpsg(project.epsg) === false && <Suspense fallback={null}><DegreesProjectBanner btnStyle={recoveryBtn} /></Suspense>}{/* #1148 */}
@@ -631,13 +631,13 @@ export default function App() {
         <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>{recoveryNote}</span>
-          <button onClick={() => setRecoveryNote(null)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("OK")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => setRecoveryNote(null)} aria-label={tr("Dismiss")}>{tr("OK")}</button>
         </div>
       )}
       {jobNotes.map((n) => ( /* TASKS.csv #3953 — on every module: the job's project may not be the one shown */
         <div key={n.id} role="status" data-job-note={n.level} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: n.level === "warning" ? "var(--color-warn-bg)" : "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)", color: n.level === "warning" ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>
           <span style={{ flex: 1 }}>{n.text}</span>
-          <button onClick={() => dismissJobNote?.(n.id)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("OK")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => dismissJobNote?.(n.id)} aria-label={tr("Dismiss")}>{tr("OK")}</button>
         </div>
       ))}
       <WorkspaceTabBar
@@ -660,7 +660,7 @@ export default function App() {
         {g.modules.map((m) => {
           const Icon = m.icon;
           return (
-            <button
+            <button data-btn-own=""
               key={m.id}
               data-tier={m.tier}
               className={`ge-tool-btn ${active === m.id ? "active" : ""}`}
@@ -679,16 +679,16 @@ export default function App() {
         ))}
         <div className="ge-tool-sep" />
         {/* TASKS.csv #449 — below 1280 px these action labels collapse to icons (app.css), the module tabs keep theirs. */}
-        <button className="ge-tool-btn" onClick={doNew} title={tr("New project")} aria-label={tr("New project")}><FilePlus2 size={14} /> <span className="ge-tool-label-opt">{tr("New")}</span></button>
-        <button className="ge-tool-btn" onClick={doOpen} title={tr("Open project")} aria-label={tr("Open project")}><FolderOpen size={14} /> <span className="ge-tool-label-opt">{tr("Open")}</span></button>
-        <button className="ge-tool-btn" onClick={() => doSave()} title={tr("Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)")} aria-label={tr("Save project")}><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? tr("Saved ✓") : tr("Save")}</span></button>
+        <button data-btn-own="" className="ge-tool-btn" onClick={doNew} title={tr("New project")} aria-label={tr("New project")}><FilePlus2 size={14} /> <span className="ge-tool-label-opt">{tr("New")}</span></button>
+        <button data-btn-own="" className="ge-tool-btn" onClick={doOpen} title={tr("Open project")} aria-label={tr("Open project")}><FolderOpen size={14} /> <span className="ge-tool-label-opt">{tr("Open")}</span></button>
+        <button data-btn-own="" className="ge-tool-btn" onClick={() => doSave()} title={tr("Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)")} aria-label={tr("Save project")}><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? tr("Saved ✓") : tr("Save")}</span></button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={undoTooltip("undo", peekUndo?.(), tr("Undoable: data edits, sections, map layers, interpretation lines and Layout pages. Not undoable: rasters, terrain, block models, generated surfaces and view changes."))} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
-        <button className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={undoTooltip("redo", peekRedo?.(), "")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
+        <button data-btn-own="" className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={undoTooltip("undo", peekUndo?.(), tr("Undoable: data edits, sections, map layers, interpretation lines and Layout pages. Not undoable: rasters, terrain, block models, generated surfaces and view changes."))} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
+        <button data-btn-own="" className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={undoTooltip("redo", peekRedo?.(), "")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Export PDF")}</span></button>
-        <button className="ge-tool-btn" onClick={doExportKmz} title={tr("Export the whole project as one KMZ for Google Earth: every layer with a map position, in folders, with its colours and classes")} aria-label={tr("Export project as KMZ")}><Globe size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("KMZ")}</span></button>{/* TASKS.csv #3068 */}
-        <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title={tr("Consolidated drillhole/assay project summary (CSV)")} aria-label={tr("Project report")}><FileBarChart2 size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Report")}</span></button>
+        <button data-btn-own="" className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Export PDF")}</span></button>
+        <button data-btn-own="" className="ge-tool-btn" onClick={doExportKmz} title={tr("Export the whole project as one KMZ for Google Earth: every layer with a map position, in folders, with its colours and classes")} aria-label={tr("Export project as KMZ")}><Globe size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("KMZ")}</span></button>{/* TASKS.csv #3068 */}
+        <button data-btn-own="" className="ge-tool-btn" onClick={() => setReportOpen(true)} title={tr("Consolidated drillhole/assay project summary (CSV)")} aria-label={tr("Project report")}><FileBarChart2 size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Report")}</span></button>
       </div>
 
       {/* TASKS.csv #309 — .ge-subtoolbar (the QGIS-style 38px icon row from #155) is rendered by
@@ -713,8 +713,8 @@ export default function App() {
             same place on every tab, and the top bar has no room left at 1,424 px. */}
         <div className="ge-ui-mode" role="group" aria-label={tr("Interface mode")} title={tr("Basic tools shows each tab's main tools; All tools shows every tool. Remembered on this computer.")}>
           {/* TASKS.csv #3903 — the words only: the values and the stored key (geostrix.uiMode: simple / advanced) are unchanged */}
-          <button type="button" aria-pressed={uiMode === "simple"} onClick={() => setUiMode("simple")}>{tr("Basic tools")}</button>
-          <button type="button" aria-pressed={uiMode === "advanced"} onClick={() => setUiMode("advanced")}>{tr("All tools")}</button>
+          <button data-btn-own="" type="button" aria-pressed={uiMode === "simple"} onClick={() => setUiMode("simple")}>{tr("Basic tools")}</button>
+          <button data-btn-own="" type="button" aria-pressed={uiMode === "advanced"} onClick={() => setUiMode("advanced")}>{tr("All tools")}</button>
         </div>
       </div>
 
@@ -753,7 +753,7 @@ export default function App() {
       {aiAccessOpen && <Suspense fallback={null}><AiAccessModal onClose={() => setAiAccessOpen(false)} /></Suspense>}{/* TASKS.csv #3190 */}
       {(importGate.held > 0 || importGate.lost > 0) && ( /* TASKS.csv #3931 — the files a pane was given while a project was coming forward */
         <div role="status" style={{ position: "fixed", left: "50%", bottom: 36, transform: "translateX(-50%)", zIndex: 4000, maxWidth: 460, padding: "8px 12px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, boxShadow: "0 2px 10px rgba(0,0,0,0.18)", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
-          {importGate.held > 0 ? tr("The project is still loading: the files are read when it has loaded.") : <>{tr("The pane the files were chosen in closed while the project loaded: choose them again.")}{" "}<button type="button" onClick={importGate.clearLost} style={{ marginLeft: 6, fontSize: "var(--font-size-sm)" }}>{tr("OK")}</button></>}
+          {importGate.held > 0 ? tr("The project is still loading: the files are read when it has loaded.") : <>{tr("The pane the files were chosen in closed while the project loaded: choose them again.")}{" "}<button className="gs-btn gs-btn--sm" style={{ marginLeft: 6 }} type="button" onClick={importGate.clearLost}>{tr("OK")}</button></>}
         </div>
       )}
       <TitleCards />
@@ -796,19 +796,19 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
           // TASKS.csv #596 — the switch and the close are SIBLING buttons (the close X used to be a role=button
           // nested inside the tab's role=button: nested interactive controls, announced as one)
           <div key={t.id} className={`ge-tab ${isActive ? "active" : ""}`} title={label}>
-            <button type="button" className="ge-tab-switch" onClick={() => onSwitch(t.id)}
+            <button data-btn-own="" type="button" className="ge-tab-switch" onClick={() => onSwitch(t.id)}
               aria-current={isActive ? "true" : undefined} // TASKS.csv #388
               aria-label={dirty ? tr("{label} (unsaved changes)", { label }) : label}> {/* tr: the release smoke test (TASKS.csv #2008) */}
               {dirty && <span className="ge-tab-dot" title={tr("Unsaved changes")} />}
               <span className="ge-tab-label">{label}</span>
             </button>
-            <button type="button" className="ge-tab-close" onClick={() => onClose(t.id)} title={tr("Close project")} aria-label={tr("Close {label}", { label })}>
+            <button data-btn-own="" type="button" className="ge-tab-close" onClick={() => onClose(t.id)} title={tr("Close project")} aria-label={tr("Close {label}", { label })}>
               <X size={12} aria-hidden="true" />
             </button>
           </div>
         );
       })}
-      <button className="ge-tab-add" onClick={onNew} title={tr("New project (opens another tab)")} aria-label={tr("New project (opens another tab)")}>
+      <button data-btn-own="" className="ge-tab-add" onClick={onNew} title={tr("New project (opens another tab)")} aria-label={tr("New project (opens another tab)")}>
         <Plus size={14} />
       </button>
     </div>
@@ -863,7 +863,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
           is the least likely to go looking in — a full accessibility-tree scan of the rendered UI
           found zero buttons or links mentioning help/shortcuts/guide/about anywhere. This opens the
           exact same modal the Help menu opens, from a spot that's visible on every screen. */}
-      <button
+      <button data-btn-own=""
         onClick={() => onHelp?.()}
         title={tr("Help (F1) — the help pages, keyboard shortcuts and about GeoStrix")}
         aria-label={tr("Help (F1) — the help pages, keyboard shortcuts and about GeoStrix")}
@@ -875,11 +875,11 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
       </button>
       {/* TASKS.csv #391 — a button now: opens Help › Python features (was a hover-only README pointer) */}
       {ai?.enabled && (() => { const names = (ai.clients || []).map((c) => c.name).join(", "), label = ai.changes ? (names ? tr("AI app: {names}, can make changes", { names }) : tr("AI app access: on, can make changes")) : names ? tr("AI app: {names}", { names }) : tr("AI app access: on"); return ( // #3932 — says so while changes are allowed
-        <button type="button" onClick={() => onAiAccess?.()} title={ai.changes ? tr("An AI app can read this project and make changes in it. Click to see what it asked for, or to stop it.") : tr("An AI app can read this project (read-only). Click to see what it asked for, or to stop it.")} aria-label={label}
+        <button data-btn-own="" type="button" onClick={() => onAiAccess?.()} title={ai.changes ? tr("An AI app can read this project and make changes in it. Click to see what it asked for, or to stop it.") : tr("An AI app can read this project (read-only). Click to see what it asked for, or to stop it.")} aria-label={label}
           style={{ background: "none", border: "none", color: "var(--color-warn-text)", padding: 0, font: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
           <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--color-warn-text)", display: "inline-block" }} />{label}
         </button>); })()}
-      <button type="button" onClick={() => onPython?.()} title={pyLabel} aria-label={pyLabel}
+      <button data-btn-own="" type="button" onClick={() => onPython?.()} title={pyLabel} aria-label={pyLabel}
         style={{ background: "none", border: "none", color: "inherit", padding: 0, font: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
         <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />{tr("Py:")}{" "}{pyStatus === "connected" ? tr("on") : pyStatus === "checking" ? "…" : pyStatus === "standby" ? tr("idle") : tr("off")}
       </button>
@@ -902,8 +902,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
               (currently the implicit-modelling tools), so this button only appears where it works. */}
           {/* TASKS.csv #1117 (review #1016) — a worded button with a 24 px target (#386's minimum), not a 12 px icon */}
           {taskProgress.onCancel && (
-            <button onClick={taskProgress.onCancel} title={tr("Cancel this task")} aria-label={tr("Cancel this task")}
-              style={{ display: "inline-flex", alignItems: "center", gap: 3, minHeight: 24, padding: "0 8px", border: "1px solid var(--color-danger-fg)", borderRadius: 4, background: "transparent", color: "var(--color-danger-fg)", font: "inherit", cursor: "pointer" }}>
+            <button className="gs-btn gs-btn--danger gs-btn--sm" onClick={taskProgress.onCancel} title={tr("Cancel this task")} aria-label={tr("Cancel this task")}>
               <X size={12} aria-hidden="true" />{tr("Cancel")}
             </button>
           )}
@@ -923,7 +922,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
           {updater.portable ? ( /* TASKS.csv #473 — a zip copy updates by downloading the new zip, never the installer */
             <a href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest" target="_blank" rel="noreferrer" title={tr("This is the portable (zip) copy: download the new zip and replace this folder")} style={{ color: "var(--color-success-fg)", border: "1px solid var(--color-success-border-soft)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", textDecoration: "none" }}>{tr("Get the new zip")}</a>
           ) : (
-          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-fg)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>{tr("Download")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => downloadUpdate()}>{tr("Download")}</button>
           )}
         </span>
       )}
@@ -935,7 +934,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
         </span>
       )}
       {updater.event === "downloaded" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>{tr("Update v{v} ready", { v: updater.version })}<button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-fg)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>{tr("Restart & install")}</button>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>{tr("Update v{v} ready", { v: updater.version })}<button className="gs-btn gs-btn--sm" onClick={() => installUpdate()}>{tr("Restart & install")}</button>
         </span>
       )}
       {updater.event === "error" && (

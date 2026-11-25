@@ -10,7 +10,7 @@ import { dumpFromFootprint, looseTonnes } from "../lib/dumpDesign.js";
 import { collarGround, collarsLookUnderground } from "../lib/pitShell.js";
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { stringStats } from "../lib/designStrings.js";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import DumpRunList from "../modules/viewer/DumpRunList.jsx"; // TASKS.csv #2285
 import { confirmDestructive } from "../lib/confirmDestructive.js";
@@ -97,8 +97,8 @@ export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onC
         {field("density", tr("In-situ density (t/m³)"), { min: 0, placeholder: tr("optional") })}
         {field("swell", tr("Swell factor"), { min: 1, placeholder: tr("optional"), title: tr("Broken rock takes more room than in place: the dump holds its volume ÷ swell of rock as it lay in place, so tonnes = volume × in-situ density ÷ swell.") })}
         {pits.length > 0 && <label style={row}>{tr("Compare with pit")}<select value={f.pitId} onChange={set("pitId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell whose waste the dump is compared with")}><option value="">{tr("— none —")}</option>{pits.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}</select></label>}
-        {pit && Number(pit.params?.inputs?.wasteDensity) > 0 && f.density === "" && <div style={note}><button onClick={() => setF((p) => ({ ...p, density: String(pit.params.inputs.wasteDensity) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the pit's waste density, {v}", { v: pit.params.inputs.wasteDensity })}</button></div>}{/* TASKS.csv #2437 */}
-        <button onClick={make} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Box size={14} /> {tr("Make the dump")}</button>
+        {pit && Number(pit.params?.inputs?.wasteDensity) > 0 && f.density === "" && <div style={note}><button className="gs-btn gs-btn--sm" onClick={() => setF((p) => ({ ...p, density: String(pit.params.inputs.wasteDensity) }))}>{tr("Use the pit's waste density, {v}", { v: pit.params.inputs.wasteDensity })}</button></div>}{/* TASKS.csv #2437 */}
+        <button className="gs-btn gs-btn--block" style={{ marginTop: 8 }} onClick={make} disabled={missing}><Box size={14} /> {tr("Make the dump")}</button>
         {reposeBad && <div style={warn}>{tr("The angle of repose must be between 1 and 89°.")}</div>}
         {swellBad && <div style={warn}>{tr("The swell factor is 1 or more: broken rock takes more room than in place, never less.")}</div>}{/* #1940 */}
         {missing && !reposeBad && <div style={note}>{tr("Enter the crest elevation and the angle of repose: neither has a default.")}</div>}

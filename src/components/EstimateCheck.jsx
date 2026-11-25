@@ -64,9 +64,9 @@ export default function EstimateCheck({ cells, nnCells, points, unit, symbol, me
       <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "8px 0 4px" }} role="tablist" aria-label={tr("Swath direction")}>
         <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Swath along")}</span>
         {AXES.map(([k, label]) => (
-          <button key={k} role="tab" aria-selected={axis === k} onClick={() => setAxis(k)} style={{ padding: "3px 9px", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border)", background: axis === k ? "var(--color-bg-subtle)" : "transparent", color: "var(--color-text)", fontWeight: axis === k ? 600 : 400 }}>{tr(label)}</button>
+          <button data-btn-own="" key={k} role="tab" aria-selected={axis === k} onClick={() => setAxis(k)} style={{ padding: "3px 9px", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border)", background: axis === k ? "var(--color-bg-subtle)" : "transparent", color: "var(--color-text)", fontWeight: axis === k ? 600 : 400 }}>{tr(label)}</button>
         ))}
-        <button onClick={exportCsv} title={tr("Export the swath as CSV")} style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border)", background: "transparent", color: "var(--color-text)" }}><Download size={12} />{" "}{tr("CSV")}</button>
+        <button className="gs-btn gs-btn--sm" style={{ marginInlineStart: "auto" }} onClick={exportCsv} title={tr("Export the swath as CSV")}><Download size={12} />{" "}{tr("CSV")}</button>
       </div>
       {bins.length > 0 && (
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={tr("Swath plot")} style={{ display: "block" }} dir="ltr">

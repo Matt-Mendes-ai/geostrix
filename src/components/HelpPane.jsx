@@ -45,7 +45,7 @@ export default function HelpPane({ initialId = null, area = null, onClose }) { /
     <aside className="ge-help" role="complementary" aria-label={tr("GeoStrix Help")} onKeyDown={onKeyDown}>
       <div className="ge-help-head">
         <span style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", color: "var(--color-text)", flex: 1 }}>{tr("Help")}</span>
-        <button type="button" className="ge-pane-close" onClick={onClose} aria-label={tr("Close help")} title={tr("Close help (Esc)")}><X size={14} /></button>
+        <button data-btn-own="" type="button" className="ge-pane-close" onClick={onClose} aria-label={tr("Close help")} title={tr("Close help (Esc)")}><X size={14} /></button>
       </div>
       <label className="ge-help-search">
         <Search size={13} aria-hidden="true" />
@@ -70,14 +70,14 @@ function Contents({ onOpen }) {
   const link = { background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", font: "inherit", textDecoration: "underline" };
   return (
     <div>
-      <div style={{ ...muted, fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{/* TASKS.csv #3534 — what the status bar's ? used to open */}<button type="button" style={link} onClick={() => openShortcuts("shortcuts")}>{tr("Keyboard shortcuts")}</button> · <button type="button" style={link} onClick={() => openShortcuts("about")}>{tr("About GeoStrix")}</button></div>
-      <button type="button" data-first-steps-open="" style={{ ...link, display: "block", fontWeight: 600, textDecoration: "none", margin: "4px 0 8px", fontSize: "var(--font-size-base)" }} onClick={() => onOpen("first-steps")}>{tr("New here? First steps, in six screens")}</button>{/* TASKS.csv #3887 */}
+      <div style={{ ...muted, fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{/* TASKS.csv #3534 — what the status bar's ? used to open */}<button data-btn-own="" type="button" style={link} onClick={() => openShortcuts("shortcuts")}>{tr("Keyboard shortcuts")}</button> · <button data-btn-own="" type="button" style={link} onClick={() => openShortcuts("about")}>{tr("About GeoStrix")}</button></div>
+      <button data-btn-own="" type="button" data-first-steps-open="" style={{ ...link, display: "block", fontWeight: 600, textDecoration: "none", margin: "4px 0 8px", fontSize: "var(--font-size-base)" }} onClick={() => onOpen("first-steps")}>{tr("New here? First steps, in six screens")}</button>{/* TASKS.csv #3887 */}
       <div style={{ ...muted, fontSize: "var(--font-size-sm)", lineHeight: 1.45, marginBottom: 6 }}>{tr("One page per tool: what it does and is not, each field and how to set it, its warnings and a short walk-through. Works offline.")}</div>
       {byArea.map(([area, ps]) => (
         <div key={area}>
           <div style={sectionHead}>{tr(area)}</div>
           <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.7 }}>
-            {ps.map((p) => <li key={p.id}><button type="button" style={linkBtn} onClick={() => onOpen(p.id)}>{tr(p.title)}</button></li>)}
+            {ps.map((p) => <li key={p.id}><button data-btn-own="" type="button" style={linkBtn} onClick={() => onOpen(p.id)}>{tr(p.title)}</button></li>)}
           </ul>
         </div>
       ))}
@@ -92,7 +92,7 @@ function Results({ results, query, onOpen }) {
       <div style={{ ...muted, fontSize: "var(--font-size-xs)", marginBottom: 6 }}>{tr(results.length === 1 ? "1 page" : "{n} pages", { n: results.length })}</div>
       {results.map(({ page, snippet }) => (
         <div key={page.id} style={{ marginBottom: 10 }}>
-          <button type="button" style={{ ...linkBtn, fontWeight: 600 }} onClick={() => onOpen(page.id)}>{tr(page.title)}</button>
+          <button data-btn-own="" type="button" style={{ ...linkBtn, fontWeight: 600 }} onClick={() => onOpen(page.id)}>{tr(page.title)}</button>
           <span style={{ ...muted, fontSize: "var(--font-size-xs)" }}> · {tr(page.area)}</span>
           {snippet && <div {...EN} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 2 }}>{snippet}</div>}
         </div>
@@ -106,14 +106,14 @@ function Page({ page, onOpen, onBack, backLabel }) {
   if (page.line) { // TASKS.csv #3973 — the card shape (src/help/CardPage.jsx); a page without `line` reads as before
     const seeAlso = related.length > 0 && (<>
       <div style={sectionHead}>{tr("See also")}</div>
-      <ul style={{ margin: 0, paddingLeft: 16 }}>{related.map((r) => <li key={r.id}><button type="button" style={linkBtn} onClick={() => onOpen(r.id)}>{tr(r.title)}</button></li>)}</ul>
+      <ul style={{ margin: 0, paddingLeft: 16 }}>{related.map((r) => <li key={r.id}><button data-btn-own="" type="button" style={linkBtn} onClick={() => onOpen(r.id)}>{tr(r.title)}</button></li>)}</ul>
     </>);
     return <CardPage page={page} onOpen={onOpen} pageExists={(pid) => !!pageById(pid)} More={More} related={seeAlso}
-      backButton={<button type="button" style={{ ...linkBtn, fontSize: "var(--font-size-xs)", marginBottom: 6 }} onClick={onBack}>← {backLabel}</button>} />;
+      backButton={<button data-btn-own="" type="button" style={{ ...linkBtn, fontSize: "var(--font-size-xs)", marginBottom: 6 }} onClick={onBack}>← {backLabel}</button>} />;
   }
   return (
     <article style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.5, color: "var(--color-text-secondary)" }}>
-      <button type="button" style={{ ...linkBtn, fontSize: "var(--font-size-xs)", marginBottom: 6 }} onClick={onBack}>← {backLabel}</button>
+      <button data-btn-own="" type="button" style={{ ...linkBtn, fontSize: "var(--font-size-xs)", marginBottom: 6 }} onClick={onBack}>← {backLabel}</button>
       <h2 style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", margin: "0 0 2px" }}>{tr(page.title)}</h2>
       <div style={{ ...muted, fontSize: "var(--font-size-xs)", marginBottom: 8 }}>{tr(page.area)}</div>
       {page.guide ? <p style={{ margin: 0, color: "var(--color-text)" }}>{tr(page.summary)}</p> : <p {...EN} style={{ margin: 0, color: "var(--color-text)" }}>{page.summary}</p>}
@@ -157,7 +157,7 @@ function Page({ page, onOpen, onBack, backLabel }) {
       })()}
       {related.length > 0 && (<>
         <div style={sectionHead}>{tr("See also")}</div>
-        <ul style={{ margin: 0, paddingLeft: 16 }}>{related.map((r) => <li key={r.id}><button type="button" style={linkBtn} onClick={() => onOpen(r.id)}>{tr(r.title)}</button></li>)}</ul>
+        <ul style={{ margin: 0, paddingLeft: 16 }}>{related.map((r) => <li key={r.id}><button data-btn-own="" type="button" style={linkBtn} onClick={() => onOpen(r.id)}>{tr(r.title)}</button></li>)}</ul>
       </>)}
     </article>
   );

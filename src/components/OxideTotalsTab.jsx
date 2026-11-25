@@ -61,8 +61,8 @@ export default function OxideTotalsTab({ assays, majors, setAssays, sel, tabBtn 
         </div>
       )}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <button type="button" disabled={!flagged.length || !setAssays} onClick={exclude} style={tabBtn} title={tr("Marks each sample excluded: Grade stats, Correlation, Compositing, Best intercepts, estimation and the diagrams leave it out. Saved with the project; reversible.")}>{tr("Exclude {n} sample(s) from plots and statistics", { n: flagged.length.toLocaleString() })}</button>
-        {excludedN > 0 && <button type="button" onClick={restore} style={tabBtn}>{tr("Include the {n} excluded sample(s) again", { n: excludedN.toLocaleString() })}</button>}
+        <button className="gs-btn" type="button" disabled={!flagged.length || !setAssays} onClick={exclude} title={tr("Marks each sample excluded: Grade stats, Correlation, Compositing, Best intercepts, estimation and the diagrams leave it out. Saved with the project; reversible.")}>{tr("Exclude {n} sample(s) from plots and statistics", { n: flagged.length.toLocaleString() })}</button>
+        {excludedN > 0 && <button className="gs-btn" type="button" onClick={restore}>{tr("Include the {n} excluded sample(s) again", { n: excludedN.toLocaleString() })}</button>}
         {msg && <span role="status" style={{ fontSize: "var(--font-size-sm)" }}>{msg}</span>}
       </div>
     </div>

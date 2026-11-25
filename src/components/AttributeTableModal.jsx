@@ -127,8 +127,8 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
         </div>
         <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)", display: "flex", gap: 8, alignItems: "center" }}>
           <input placeholder={tr("Search rows…")} value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 10px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }} />
-          <button onClick={() => setCalcOpen((v) => !v)} style={{ ...saveBtn, background: calcOpen ? "var(--color-selected-bg)" : "transparent", borderColor: calcOpen ? "var(--color-selected-border)" : "var(--color-border-light)", color: calcOpen ? "var(--color-text)" : "var(--color-text-secondary)" }}><Sigma size={14} />{" "}{tr("Field calculator")}</button>
-          <button onClick={save} disabled={!dirty} style={{ ...saveBtn, opacity: dirty ? 1 : 0.5, cursor: dirty ? "pointer" : "default" }}><Save size={14} /> {dirty ? tr("Save changes") : tr("Saved")}</button>
+          <button data-btn-own="" onClick={() => setCalcOpen((v) => !v)} style={{ ...saveBtn, background: calcOpen ? "var(--color-selected-bg)" : "transparent", borderColor: calcOpen ? "var(--color-selected-border)" : "var(--color-border-light)", color: calcOpen ? "var(--color-text)" : "var(--color-text-secondary)" }}><Sigma size={14} />{" "}{tr("Field calculator")}</button>
+          <button className="gs-btn gs-btn--primary" onClick={save} disabled={!dirty}><Save size={14} /> {dirty ? tr("Save changes") : tr("Saved")}</button>
         </div>
         {calcOpen && (
           <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)", background: "#f9fafb", display: "flex", flexDirection: "column", gap: 6 }}>
@@ -146,7 +146,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
                 onChange={(e) => setCalcExpr(e.target.value)}
                 style={{ flex: 1, minWidth: 260, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }}
               />
-              <button onClick={runCalc} style={{ ...saveBtn, padding: "6px 12px" }}>{tr("Apply to {v} rows", { v: calcOnlyMatching && searchDebounced ? filtered.length : working.length })}</button>
+              <button className="gs-btn gs-btn--sm" onClick={runCalc}>{tr("Apply to {v} rows", { v: calcOnlyMatching && searchDebounced ? filtered.length : working.length })}</button>
             </div>
             <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <label title={tr("Only the rows the search box shows")}><input type="checkbox" checked={calcOnlyMatching} onChange={(e) => setCalcOnlyMatching(e.target.checked)} />{" "}{tr("Only rows matching the search{v}", { v: searchDebounced ? ` (${filtered.length})` : "" })}</label>

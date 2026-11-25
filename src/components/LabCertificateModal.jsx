@@ -66,7 +66,7 @@ export default function LabCertificateModal({ review, assays, onChange, onCancel
           <div style={note}>{tr("GeoStrix suggests a type for each sample that is only in the certificates:")}{" "}<b>{tr("blank")}</b>{" "}{tr("when its ore elements sit at the bottom of the drill samples,")}{" "}<b>{tr("standard")}</b>{" "}{tr("when several inserts share one multi-element signature (one group per reference material),")}{" "}<b>{tr("duplicate")}</b>{" "}{tr("when it is within ~30 % of a drill sample just before or after it in the numbering. Check them against the lab's QC list; nothing is classified until you import.")}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>
             {[["all", tr("All {rows}", { rows: rows.length })], ...QC_TYPES.map(([k, l]) => [k, `${l} ${counts[k]}`])].map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setFilter(k)} style={{ ...chip, ...(filter === k ? chipOn : null) }}>{l}</button>
+              <button data-btn-own="" key={k} type="button" onClick={() => setFilter(k)} style={{ ...chip, ...(filter === k ? chipOn : null) }}>{l}</button>
             ))}
           </div>
           {groups.length > 0 && (
@@ -114,8 +114,8 @@ export default function LabCertificateModal({ review, assays, onChange, onCancel
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)", alignItems: "center" }}>
           <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Imports {toImport} QC sample(s){v}; {unclassified} left out.", { toImport: toImport.toLocaleString(), v: review.fill && s.fillable ? tr(" and {fillable} missing value(s)", { fillable: s.fillable.toLocaleString() }) : "", unclassified: counts.unclassified })}</div>
-          <button type="button" onClick={onCancel} style={btn(false)}>{tr("Cancel")}</button>
-          <button type="button" onClick={onCommit} style={btn(true)} disabled={!toImport && !(review.fill && s.fillable)}>{tr("Import")}</button>
+          <button className="gs-btn" type="button" onClick={onCancel}>{tr("Cancel")}</button>
+          <button className="gs-btn gs-btn--primary" type="button" onClick={onCommit} disabled={!toImport && !(review.fill && s.fillable)}>{tr("Import")}</button>
         </div>
       </div>
     </div>
@@ -131,4 +131,3 @@ const th = { padding: "4px 6px", fontWeight: 600 };
 const td = { padding: "4px 6px", verticalAlign: "top" };
 const chip = { background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 12, padding: "3px 10px", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer", fontFamily: "inherit" };
 const chipOn = { borderColor: "var(--color-accent)", color: "var(--color-accent)" };
-const btn = (primary) => ({ padding: "7px 14px", borderRadius: 6, fontSize: "var(--font-size-base)", fontFamily: "inherit", cursor: "pointer", border: primary ? "1px solid var(--color-accent)" : "1px solid var(--color-border)", background: primary ? "var(--color-accent)" : "var(--color-bg)", color: primary ? "var(--color-bg)" : "var(--color-text)" });

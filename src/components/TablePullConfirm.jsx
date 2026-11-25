@@ -14,12 +14,11 @@ export default function TablePullConfirm({ pending, onFirst, onAll, onCancel }) 
       <div style={{ marginBottom: 6 }}>
         {tr("{table_schema}.{table_name} is large. Loading all of it pulls every row into memory at once and can take a while on a modest machine.", { table_schema: pending.t.table_schema, table_name: pending.t.table_name })}</div>
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-        <button onClick={onFirst} style={smallBtn}>{tr("First {ROW_WARN_THRESHOLD}", { ROW_WARN_THRESHOLD: ROW_WARN_THRESHOLD.toLocaleString() })}</button>
-        <button onClick={onAll} style={smallBtn}>{tr("Import all")}</button>
-        <button onClick={onCancel} style={{ ...smallBtn, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
+        <button className="gs-btn gs-btn--sm" onClick={onFirst}>{tr("First {ROW_WARN_THRESHOLD}", { ROW_WARN_THRESHOLD: ROW_WARN_THRESHOLD.toLocaleString() })}</button>
+        <button className="gs-btn gs-btn--primary gs-btn--sm" onClick={onAll}>{tr("Import all")}</button>
+        <button className="gs-btn gs-btn--sm" onClick={onCancel}>{tr("Cancel")}</button>
       </div>
     </div>
   );
 }
 
-const smallBtn = { padding: "3px 8px", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid #c9a24a", background: "var(--color-bg)", color: "#6b5a2a", fontFamily: "inherit" };

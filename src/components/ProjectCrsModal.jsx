@@ -115,13 +115,13 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
                 <div role="listbox" aria-label={tr("Provincial, state and local grids here")} style={{ border: "1px solid var(--color-border)", borderRadius: 5, maxHeight: 190, overflowY: "auto" }}>
                   {(moreLocal ? locals : locals.slice(0, 6)).map((c) => option(c, c.noShift ? tr("— no published datum shift") : null))}
                 </div>
-                {locals.length > 6 && <button type="button" onClick={() => setMoreLocal((m) => !m)} style={{ ...linkBtn, marginTop: 4 }} aria-expanded={moreLocal}>{moreLocal ? tr("Show fewer") : tr("Show all {n}", { n: locals.length })}</button>}
+                {locals.length > 6 && <button data-btn-own="" type="button" onClick={() => setMoreLocal((m) => !m)} style={{ ...linkBtn, marginTop: 4 }} aria-expanded={moreLocal}>{moreLocal ? tr("Show fewer") : tr("Show all {n}", { n: locals.length })}</button>}
               </>
             )}
           </div>
 
           <div>
-            <button type="button" onClick={() => setSearchAll((s) => !s)} style={linkBtn} aria-expanded={searchAll}>{searchAll ? tr("Hide the full list") : tr("Or search every CRS (name, zone or EPSG code)")}</button>
+            <button data-btn-own="" type="button" onClick={() => setSearchAll((s) => !s)} style={linkBtn} aria-expanded={searchAll}>{searchAll ? tr("Hide the full list") : tr("Or search every CRS (name, zone or EPSG code)")}</button>
             {searchAll && <div style={{ marginTop: 6 }}><CrsPicker value={choice} onChange={setChoice} height={170} hideMap /></div>}
           </div>
 
@@ -144,10 +144,10 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
           )}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button type="button" style={btn(false)} onClick={cancel}>{project.crsSet ? tr("Cancel") : tr("Decide later")}</button>
+          <button className="gs-btn" type="button" onClick={cancel}>{project.crsSet ? tr("Cancel") : tr("Decide later")}</button>
           {localMode
-            ? <button type="button" style={btn(true)} onClick={keepLocal}>{tr("Keep the local grid")}</button>
-            : <button type="button" style={btn(true)} disabled={!choice} onClick={use}>{choice ? tr("Use {v}", { v: crsName(choice) || tr("EPSG:{choice}", { choice }) }) : tr("Choose a CRS")}</button>}
+            ? <button className="gs-btn gs-btn--primary" type="button" onClick={keepLocal}>{tr("Keep the local grid")}</button>
+            : <button className="gs-btn gs-btn--primary" /* gs-primary-alt: one or the other, by the mode */ type="button" disabled={!choice} onClick={use}>{choice ? tr("Use {v}", { v: crsName(choice) || tr("EPSG:{choice}", { choice }) }) : tr("Choose a CRS")}</button>}
         </div>
       </div>
     </div>
@@ -160,4 +160,3 @@ const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)"
 const label = { fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", marginBottom: 4 };
 const inp = { width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", fontSize: "var(--font-size-sm)", fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "7px 14px", borderRadius: 6, fontSize: "var(--font-size-base)", fontFamily: "inherit", cursor: "pointer", border: primary ? "1px solid var(--color-accent)" : "1px solid var(--color-border)", background: primary ? "var(--color-accent)" : "var(--color-bg)", color: primary ? "var(--color-bg)" : "var(--color-text)" });

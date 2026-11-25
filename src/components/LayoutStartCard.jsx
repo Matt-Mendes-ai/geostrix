@@ -16,11 +16,11 @@ export default function LayoutStartCard({ sheets, onMake, onCurrentView, onClose
     <div data-layout-start="" role="region" aria-label={tr("A sheet in one click")} onMouseDown={(e) => e.stopPropagation()} className="ge-card"
       style={{ pointerEvents: "auto", width: "min(460px, calc(100% - 32px))", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", lineHeight: 1.45, position: "relative", overflow: "hidden" }}>
       <div className="ge-card-head" style={{ padding: "11px 16px 9px", fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{tr("A sheet in one click")}</div>
-      <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")} style={{ position: "absolute", top: 8, insetInlineEnd: 10, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>×</button>
+      <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")} style={{ position: "absolute", top: 8, insetInlineEnd: 10, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>×</button>
       <div style={{ padding: "12px 16px 14px" }}>
         <div dir="ltr" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
           {sheets.map((s) => (
-            <button key={s.kind} type="button" data-layout-start-sheet={s.kind} disabled={s.disabled} title={tr(s.disabled ? s.reason : s.title)} onClick={() => onMake(s.kind)} style={tile(s.disabled)}>
+            <button data-btn-own="" key={s.kind} type="button" data-layout-start-sheet={s.kind} disabled={s.disabled} title={tr(s.disabled ? s.reason : s.title)} onClick={() => onMake(s.kind)} style={tile(s.disabled)}>
               <DropPicture picture={s.kind === "intercepts" ? "table" : s.kind} style={{ maxHeight: 58, opacity: s.disabled ? 0.55 : 1 }} />
               <span dir="auto" style={{ textAlign: "center", lineHeight: 1.2 }}>{tr(s.label)}</span>
             </button>
@@ -28,7 +28,7 @@ export default function LayoutStartCard({ sheets, onMake, onCurrentView, onClose
         </div>
         <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <span>{tr("Or start from the 3D view:")}</span>
-          <button type="button" data-layout-start-view="" onClick={onCurrentView} style={{ background: "none", border: "none", padding: 0, color: "var(--color-primary)", cursor: "pointer", font: "inherit", textDecoration: "underline" }}>{tr("Current view")}</button>
+          <button data-btn-own="" type="button" data-layout-start-view="" onClick={onCurrentView} style={{ background: "none", border: "none", padding: 0, color: "var(--color-primary)", cursor: "pointer", font: "inherit", textDecoration: "underline" }}>{tr("Current view")}</button>
         </div>
       </div>
     </div>

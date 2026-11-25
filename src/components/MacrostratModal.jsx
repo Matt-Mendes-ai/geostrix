@@ -8,7 +8,7 @@ import { isCancelledError } from "../lib/desktop.js"; // TASKS.csv #3976
 import { X, Globe, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, panel, header, btn } from "../lib/modalStyles.js";
+import { overlay, panel, header } from "../lib/modalStyles.js";
 import BasemapView from "./BasemapView.jsx"; // #2314 — the area picker
 import { DropPicture } from "./DropDiagram.jsx"; // TASKS.csv #3952 — the card's picture
 import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3952
@@ -90,7 +90,7 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
       <div role="dialog" aria-modal="true" aria-label={tr("Macrostrat geology")} data-macrostrat-card="" className="ge-card" style={panel({ width: 520, maxWidth: "94vw", maxHeight: "86vh", borderRadius: 12, boxShadow: "var(--shadow-pop)" })}>{/* #3956: the shared card */}
         <div className="ge-card-head" style={header}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}><Globe size={16} />{tr("Macrostrat geology")}</span>
-          <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
+          <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
           <DropPicture picture="units" />
@@ -99,9 +99,9 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
           <AreaChooser options={options} area={area} disabled={!!busy} onDraw={() => setPicking(true)} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {/* #3952 — Matt: "add the units as a map layer should be the default, only as raster should be the optional": the units (sharp, named, for Model it) are the main button; the image is a choice that says it is a picture */}
-            {addMapLayer && <button type="button" disabled={!bboxLonLat || !!busy} onClick={addUnits} style={{ ...btn(true), width: "auto", padding: "6px 12px", opacity: bboxLonLat && !busy ? 1 : 0.5 }} title={tr("Sharp polygons with names: for Model it, Identify and the legend.")}>{tr("Add the units as a map layer")}</button>}{/* #2012 */}
-            <button type="button" disabled={!bboxLonLat || !!busy} onClick={addLayer} style={{ ...btn(!addMapLayer), width: "auto", padding: "6px 12px", opacity: bboxLonLat && !busy ? 1 : 0.5 }} title={tr("A picture only, with no names.")}>{tr("Add as an image only")}</button>
-            <button type="button" disabled={!centre || !!busy} onClick={listUnits} style={{ ...btn(false), width: "auto", padding: "6px 12px", opacity: centre && !busy ? 1 : 0.5 }}>{tr(atProject ? "Map units at the project centre" : "Map units at the centre of this area")}</button>
+            {addMapLayer && <button className="gs-btn gs-btn--primary" type="button" disabled={!bboxLonLat || !!busy} onClick={addUnits} title={tr("Sharp polygons with names: for Model it, Identify and the legend.")}>{tr("Add the units as a map layer")}</button>}{/* #2012 */}
+            <button className={addMapLayer ? "gs-btn" : "gs-btn gs-btn--primary"} /* gs-primary-alt: the image is the main button only when the units cannot be added */ type="button" disabled={!bboxLonLat || !!busy} onClick={addLayer} title={tr("A picture only, with no names.")}>{tr("Add as an image only")}</button>
+            <button className="gs-btn" type="button" disabled={!centre || !!busy} onClick={listUnits}>{tr(atProject ? "Map units at the project centre" : "Map units at the centre of this area")}</button>
           </div>
           {busy && <div role="status" style={{ ...note, display: "flex", alignItems: "center", gap: 6 }}><Loader2 size={14} className="spin" />{busy}</div>}
           {msg && <div role="status" style={{ ...note, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-text)" }}>{msg.text}</div>}

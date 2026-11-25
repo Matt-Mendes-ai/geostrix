@@ -86,6 +86,6 @@ test("colour lookups: lithology codes and age-named units, the most specific nam
   const ints = parseIntervals({ success: { data: [{ name: "Jurassic", color: "#34B2C9", b_age: 201.3, t_age: 145 }, { name: "Late Jurassic", color: "#B3E3EE", b_age: 163.5, t_age: 145 }, { name: "Eocene", color: "#FDB46C", b_age: 56, t_age: 33.9 }] } });
   const ts = timeScaleColours([{ value: "Late Jurassic granite" }, { value: "Jurassic sediments" }, { value: "Unit 7", label: "Eocene volcanics" }, { value: "Quaternary till" }], ints);
   assert.deepEqual(ts.map((t) => [t.value, t.interval]), [["Late Jurassic granite", "Late Jurassic"], ["Jurassic sediments", "Jurassic"], ["Unit 7", "Eocene"]]);
-  assert.ok(read("src/components/LayerInspector.jsx").includes('layerKey === "litho" && <button onClick={macrostratColours}'));
+  assert.ok(read("src/components/LayerInspector.jsx").includes('layerKey === "litho" && <button className="gs-btn gs-btn--sm" onClick={macrostratColours}'));
   assert.ok(read("src/components/SurfaceMappingPanel.jsx").includes('tr("Time-scale colours")')); // "(online)" (#2415) went with #2690: the colours are bundled
 });

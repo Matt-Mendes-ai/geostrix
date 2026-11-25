@@ -25,8 +25,8 @@ test("picture, one line of scale, the area and the buttons in view; the rest beh
   // the units are the main (green) button, the image a second choice that says it is a picture
   const units = body.indexOf('tr("Add the units as a map layer")'), image = body.indexOf('tr("Add as an image only")');
   assert.ok(units > 0 && image > units, "units first, then the image");
-  assert.match(body, /onClick=\{addUnits\} style=\{\{ \.\.\.btn\(true\)/);
-  assert.match(body, /onClick=\{addLayer\} style=\{\{ \.\.\.btn\(!addMapLayer\)/);
+  assert.match(body, /<button className="gs-btn gs-btn--primary" type="button" disabled=\{!bboxLonLat \|\| !!busy\} onClick=\{addUnits\}/);
+  assert.match(body, /<button className=\{addMapLayer \? "gs-btn" : "gs-btn gs-btn--primary"\}[^>]*onClick=\{addLayer\}/);
   assert.match(body, /"Map units at the project centre"/);
   const after = m.slice(more);
   assert.match(after, /Macrostrat compiles geologic maps/);

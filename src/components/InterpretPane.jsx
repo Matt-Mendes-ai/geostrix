@@ -13,7 +13,7 @@ import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #2768
 import { interpretationOnCollars } from "../lib/viewer/sceneBuilders.js";
 import { activateOnKey } from "../lib/a11y.js";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
@@ -167,26 +167,26 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
         {onLevel && drawOn === "level" && <label style={row}>{tr("Elev. (m RL)")}<NumberInput value={levelRl} onChange={(v) => setLevelRl(Number.isFinite(v) ? v : levelRl)} disabled={drawing.on} aria-label={tr("Elev. (m RL)")} style={{ width: 90 }} /></label>}
         {onLevel && drawOn === "slice" && <div role="note" style={note}>{level == null ? tr("Turn on the 3D slice, Horizontal, to draw at its level.") : tr("RL {rl} m", { rl: level.toLocaleString() })}</div>}
         {!drawing.on ? (
-          <button type="button" onClick={onStart} disabled={drawOn === "slice" && level == null} style={{ ...pBtn, justifyContent: "center", marginBottom: 0, opacity: drawOn === "slice" && level == null ? 0.5 : 1 }}>{tr("Draw a line")}</button>
+          <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 0 }} type="button" onClick={onStart} disabled={drawOn === "slice" && level == null}>{tr("Draw a line")}</button>
         ) : (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{n ? tr("{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.", { n, m: Math.round(lineLengthM(pts)).toLocaleString() }) : tr("Click the first point of the line.") /* #2274 — the pane is also the mapping tab's */}</div>
             {lastSnap && <div style={note}>{lastSnap.kind === "collar" ? tr("Snapped to the collar of {hole}.", { hole: lastSnap.hole_id }) : lastSnap.kind === "trace" ? tr("Snapped to {hole} at {md} m.", { hole: lastSnap.hole_id, md: lastSnap.md }) : tr("Snapped to {hole} at {md} m ({label}).", { hole: lastSnap.hole_id, md: lastSnap.md, label: lastSnap.label })}</div>}{/* #2630 */}
             <div style={{ display: "flex", gap: 6 }}>
-              <button type="button" onClick={finish} disabled={n < 2} style={{ ...pBtn, flex: 1, justifyContent: "center", marginBottom: 0, opacity: n < 2 ? 0.5 : 1 }}>{tr("Finish")}</button>
-              <button type="button" onClick={onUndo} disabled={!n} style={{ ...pBtn, width: "auto", marginBottom: 0, opacity: n ? 1 : 0.5 }}>{tr("Undo point")}</button>
-              <button type="button" onClick={onCancel} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Cancel")}</button>
+              <button className="gs-btn" style={{ flex: 1 }} type="button" onClick={finish} disabled={n < 2}>{tr("Finish")}</button>
+              <button className="gs-btn" type="button" onClick={onUndo} disabled={!n}>{tr("Undo point")}</button>
+              <button className="gs-btn" type="button" onClick={onCancel}>{tr("Cancel")}</button>
             </div>
           </div>
         )}
         {editIdx != null && layer?.features?.[editIdx] && (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>{/* #2767 */}
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Editing \"{name}\": in the 3D view, drag a vertex (orange) to move it, a midpoint (small yellow) to add one, Alt+click a vertex to remove it.", { name: layer.features[editIdx].attributes.name })}</div>
-            <button type="button" onClick={() => setEditIdx(null)} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Done")}</button>
+            <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 0 }} type="button" onClick={() => setEditIdx(null)}>{tr("Done")}</button>
           </div>
         )}
         {msg && <div role="status" style={note}>{msg}</div>}
-        {removed && <button type="button" onClick={restore} style={{ ...pBtn, marginBottom: 0 }}>{tr("Restore \"{name}\"", { name: removed.feature?.attributes?.name || "" })}</button>}{/* #2522 — outside the list: it stays when the last line went */}
+        {removed && <button className="gs-btn gs-btn--block" style={{ marginBottom: 0 }} type="button" onClick={restore}>{tr("Restore \"{name}\"", { name: removed.feature?.attributes?.name || "" })}</button>}{/* #2522 — outside the list: it stays when the last line went */}
         {layer && layer.features.length > 0 && (
           <div>
             <div className="ge-section-label" style={{ marginTop: 6 }}>{tr("Lines in \"{layer}\"", { layer: layer.name })}</div>

@@ -155,7 +155,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
             {pw.saved ? (
               <>
                 <span style={{ flex: 1 }}>{tr("A password is saved on this computer for this login (encrypted with your Windows account). Leave the box empty to use it.")}</span>
-                <button type="button" onClick={forgetPassword} style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Forget it")}</button>
+                <button className="gs-btn gs-btn--sm" type="button" onClick={forgetPassword}>{tr("Forget it")}</button>
               </>
             ) : pw.available ? (
               <label style={{ display: "flex", alignItems: "flex-start", gap: 6 }} title={tr("Kept encrypted by the operating system (Windows: only your Windows account on this computer can read it), in GeoStrix's own settings folder — never in the project file. Untick and use Forget to remove it.")}>
@@ -178,7 +178,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 10 }}>
             {/* TASKS.csv #477 — honest wording: the read-only session is a guard, not a guarantee */}{tr("GeoStrix opens the database read-only, one statement at a time, and stops any query after 2 minutes. This guards against accidental changes but is not a security boundary: for a real guarantee, connect as a database user with read permission only.")}</div>
 
-          <button onClick={test} disabled={testing} style={{ ...btn(true), width: "100%" }}>
+          <button className="gs-btn" style={{ width: "100%" }} onClick={test} disabled={testing}>
             {testing ? <Loader2 size={14} className="spin" /> : liveEntry ? tr("Reconnect") : tr("Test connection")}
           </button>
 
@@ -240,10 +240,10 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
             </div>
           )}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <button onClick={run} disabled={running || !status?.ok} style={{ ...btn(true), flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <button className="gs-btn" style={{ flex: 1 }} onClick={run} disabled={running || !status?.ok}>
               <Play size={14} /> {running ? tr("Running…") : tr("Run query")}
             </button>
-            <button onClick={() => setSavePromptOpen(true)} disabled={!sql.trim()} title={tr("Save this query for reuse across projects/connections")} style={{ ...btn(false), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0 12px" }}>
+            <button className="gs-btn gs-btn--icon" onClick={() => setSavePromptOpen(true)} disabled={!sql.trim()} title={tr("Save this query for reuse across projects/connections")}>
               <Save size={14} />
             </button>
           </div>
@@ -275,8 +275,8 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
-          <button onClick={useResults} disabled={!result || !result.rows.length} style={{ ...btn(true), flex: 2 }}>{tr("Import these {v} rows…", { v: result?.rowCount || 0 })}</button>
+          <button className="gs-btn" style={{ flex: 1 }} onClick={onCancel}>{tr("Close")}</button>
+          <button className="gs-btn gs-btn--primary" style={{ flex: 2 }} onClick={useResults} disabled={!result || !result.rows.length}>{tr("Import these {v} rows…", { v: result?.rowCount || 0 })}</button>
         </div>
       </div>
     </div>
@@ -295,4 +295,3 @@ const inp = { width: "100%", background: "var(--color-bg)", border: "1px solid v
 const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 };
 const th = { textAlign: "start", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)" };
 const td = { padding: "5px 8px", color: "var(--color-text-strong)", whiteSpace: "nowrap" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });

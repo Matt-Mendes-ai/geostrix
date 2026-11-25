@@ -37,10 +37,9 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
       )}
 
       {!active ? (
-        <button
+        <button className="gs-btn gs-btn--block" style={{ marginBottom: 0 }}
           onClick={() => sculpt.begin(surface.id)}
           disabled={!!sculpt.targetId}
-          style={{ ...pBtn, marginBottom: 0, opacity: sculpt.targetId ? 0.5 : 1, cursor: sculpt.targetId ? "default" : "pointer" }}
           title={tr("Locally correct this surface: click a point on it in the 3D view and nudge that patch, with a smooth falloff so the neighbours follow.")}
         ><Hand size={12} />{" "}{tr("Sculpt this surface")}</button>
       ) : (
@@ -89,17 +88,13 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
           )}
 
           <div style={{ display: "flex", gap: 4 }}>
-            <button onClick={sculpt.apply} disabled={!info || !sculpt.offset}
-              style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)", opacity: info && sculpt.offset ? 1 : 0.5 }}
+            <button className="gs-btn gs-btn--sm" style={{ flex: 1 }} onClick={sculpt.apply} disabled={!info || !sculpt.offset}
               title={tr("Commit this edit to the surface")}><Check size={12} />{" "}{tr("Apply")}</button>
-            <button onClick={sculpt.cancelAnchor} disabled={!info}
-              style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)", opacity: info ? 1 : 0.5 }}
+            <button className="gs-btn gs-btn--sm" style={{ flex: 1 }} onClick={sculpt.cancelAnchor} disabled={!info}
               title={tr("Discard the preview and put the surface back")}>{tr("Discard")}</button>
-            <button onClick={() => sculpt.undo(surface.id)} disabled={!sculpt.historyDepth}
-              style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)", opacity: sculpt.historyDepth ? 1 : 0.5 }}
+            <button className="gs-btn gs-btn--sm" style={{ flex: 1 }} onClick={() => sculpt.undo(surface.id)} disabled={!sculpt.historyDepth}
               title={tr("Undo the last applied sculpt on this surface (session-local history)")}><Undo2 size={12} />{" "}{tr("Undo ({historyDepth})", { historyDepth: sculpt.historyDepth })}</button>
-            <button onClick={sculpt.end}
-              style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", fontSize: "var(--font-size-sm)" }}
+            <button className="gs-btn gs-btn--icon gs-btn--sm" onClick={sculpt.end}
               title={tr("Leave sculpt mode")}><XIcon size={12} /></button>
           </div>
 

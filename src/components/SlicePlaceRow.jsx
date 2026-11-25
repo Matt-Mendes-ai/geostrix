@@ -35,7 +35,7 @@ export default function SlicePlaceRow({ slice3d, setSlice3d, ext, origin, collar
           <NumberInput allowEmpty value={e === "" ? null : e} placeholder="E" onChange={(v) => setE(v == null ? "" : String(v))} style={{ ...inp, width: 90 }} aria-label={tr("Slice through E")} />
           <NumberInput allowEmpty value={n === "" ? null : n} placeholder="N" onChange={(v) => setN(v == null ? "" : String(v))} style={{ ...inp, width: 90 }} aria-label={tr("Slice through N")} />
         </>)}
-        <button type="button" disabled={horizontal ? rl === "" : e === "" || n === ""} onClick={() => (horizontal ? place(NaN, NaN, Number(rl), tr("That elevation")) : place(Number(e), Number(n), NaN, tr("That point")))} style={{ ...inp, cursor: "pointer" }}>{tr("Place")}</button>
+        <button className="gs-btn gs-btn--sm" type="button" disabled={horizontal ? rl === "" : e === "" || n === ""} onClick={() => (horizontal ? place(NaN, NaN, Number(rl), tr("That elevation")) : place(Number(e), Number(n), NaN, tr("That point")))}>{tr("Place")}</button>
       </div>
       {msg && <div role="status" style={{ color: "var(--color-warn-text)" }}>{msg}</div>}
     </div>

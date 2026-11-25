@@ -62,8 +62,7 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
           style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", maxWidth: 110 }}>
           {Object.entries(PALETTES).map(([k, p]) => <option key={k} value={k} title={p.label}>{paletteShortName(k)}</option>)}
         </select>
-        <button onClick={apply} disabled={!values.length}
-          style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--color-selected-border)", background: values.length ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", color: "var(--color-primary)", fontSize: "var(--font-size-sm)", cursor: values.length ? "pointer" : "default", opacity: values.length ? 1 : 0.5 }}
+        <button className="gs-btn gs-btn--sm" onClick={apply} disabled={!values.length}
         >{tr("Classify")}</button>
         {stops.length > 0 && (
           <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onChange(null)} title={tr("Remove the custom classes and go back to the default ramp")}

@@ -31,7 +31,6 @@ const cautions = () => [
 
 const box = { marginTop: 10, padding: "9px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 };
 const label = { display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
-const btn = { width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", color: "var(--color-text)" };
 
 export default function ProbableGradePanel({ plannedHoles, collars, survey, voxelModels, desurveyMethod, surfaces = [] }) {
   const { assays, assayElements, updatePlannedHole, undoCheckpoint } = useStore();
@@ -149,10 +148,10 @@ export default function ProbableGradePanel({ plannedHoles, collars, survey, voxe
       {busy ? (
         <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flex: 1 }} role="status">{tr("Predicting… {p} %", { p: Math.round(progress * 100) })}</span>
-          <button type="button" onClick={() => abort.current?.abort()} style={{ ...btn, width: "auto" }}>{tr("Cancel")}</button>
+          <button className="gs-btn" type="button" onClick={() => abort.current?.abort()}>{tr("Cancel")}</button>
         </div>
       ) : (
-        <button type="button" onClick={run} disabled={!todo.length || !source} style={btn}>
+        <button className="gs-btn gs-btn--block" type="button" onClick={run} disabled={!todo.length || !source}>
           {tr(todo.length === 1 ? "Predict {n} planned hole" : "Predict {n} planned holes", { n: todo.length })}
         </button>
       )}
@@ -160,9 +159,9 @@ export default function ProbableGradePanel({ plannedHoles, collars, survey, voxe
       {offers.map((o) => (
         <div key={o.holeId} data-as-drilled-offer="" style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text)" }}>
           <span style={{ flex: 1 }}>{tr("{plan} looks like {hole}, {d} m away.", { plan: o.holeName, hole: o.collarId, d: Math.round(o.distance) })}</span>
-          <button type="button" onClick={() => link(o)} disabled={busy} style={{ ...btn, width: "auto" }}>{tr("Link")}</button>
+          <button className="gs-btn gs-btn--sm" type="button" onClick={() => link(o)} disabled={busy}>{tr("Link")}</button>
         </div>))}
-      {toCompare.length > 0 && !busy && <button type="button" onClick={compare} style={{ ...btn, marginTop: 6 }}>{tr("Compare drilled holes ({n})", { n: toCompare.length })}</button>}
+      {toCompare.length > 0 && !busy && <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} type="button" onClick={compare}>{tr("Compare drilled holes ({n})", { n: toCompare.length })}</button>}
       {cal.n > 0 && <div data-calibration="" role="status" style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: cal.overconfident ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4 }}>
         {tr("Calibration: {k} of {n} drilled holes inside their range.", { k: cal.inside, n: cal.n })}
         {cal.overconfident && " " + tr("Too few: the model is overconfident (check the variogram range and the domain).")}

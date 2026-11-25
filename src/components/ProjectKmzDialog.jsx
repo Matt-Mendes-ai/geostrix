@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { X, Globe } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps, btn } from "../lib/modalStyles.js";
+import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { KMZ_PARTS } from "../lib/projectKmz.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -60,7 +60,7 @@ export default function ProjectKmzDialog({ store, onExport, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Export project as KMZ")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}><Globe size={18} />{tr("Export project as KMZ")}</div>
-          <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={16} /></button>
+          <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={16} /></button>
         </div>
         <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={note}>{tr("The parts of the project to put in the KMZ, each in a folder with StrixViewer's colours; hidden layers come unticked in Google Earth.")}</div>
@@ -81,8 +81,8 @@ export default function ProjectKmzDialog({ store, onExport, onClose }) {
           )}{/* TASKS.csv #3252 phase 4 */}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button type="button" onClick={onClose} style={btn(false)}>{tr("Cancel")}</button>
-          <button type="button" onClick={go} disabled={!chosen.length} style={{ ...btn(true), opacity: chosen.length ? 1 : 0.5 }}>{tr("Export…")}</button>
+          <button className="gs-btn" type="button" onClick={onClose}>{tr("Cancel")}</button>
+          <button className="gs-btn gs-btn--primary" type="button" onClick={go} disabled={!chosen.length}>{tr("Export…")}</button>
         </div>
       </div>
     </div>

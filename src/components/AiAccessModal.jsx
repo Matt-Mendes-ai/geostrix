@@ -28,7 +28,6 @@ export default function AiAccessModal({ onClose }) {
   const when = (t) => new Date(t).toLocaleTimeString();
   const heading = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 4px" };
   const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
-  const btn = { padding: "5px 12px", borderRadius: 5, border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-base)" };
   const act = st?.activity || [];
   return (
     <div style={overlay}>
@@ -69,7 +68,7 @@ export default function AiAccessModal({ onClose }) {
                 <div key={c.id} style={{ ...small, display: "flex", gap: 8, alignItems: "center", color: c.undone ? "var(--color-text-muted)" : "var(--color-text-secondary)" }}>
                   <span style={{ minWidth: 70 }}>{when(c.at)}</span>
                   <span style={{ flex: 1, textDecoration: c.undone ? "line-through" : "none" }}>{c.message}</span>
-                  {c.undone ? <span>{tr("Undone")}</span> : c.canUndo ? <button type="button" onClick={() => c.undo()} title={tr("Undo this change")} style={{ ...btn, padding: "1px 8px", fontSize: "var(--font-size-sm)" }}>{tr("Undo")}</button> : null}
+                  {c.undone ? <span>{tr("Undone")}</span> : c.canUndo ? <button className="gs-btn gs-btn--sm" type="button" onClick={() => c.undo()} title={tr("Undo this change")}>{tr("Undo")}</button> : null}
                 </div>
               ))}
             </>
@@ -79,12 +78,12 @@ export default function AiAccessModal({ onClose }) {
               <div style={heading}>{tr("Connect an AI app")}</div>
               <div style={small}>{tr("Add this entry to the AI app's configuration (for Claude Desktop: Settings > Developer > Edit Config), then restart that app.")}</div>
               <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", fontSize: "var(--font-size-sm)", lineHeight: 1.4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: 8, margin: "6px 0" }}>{cfg?.text || "…"}</pre>
-              <button type="button" onClick={copy} disabled={!cfg} style={btn}>{copied ? tr("Copied") : tr("Copy the entry")}</button>
+              <button className="gs-btn" type="button" onClick={copy} disabled={!cfg}>{copied ? tr("Copied") : tr("Copy the entry")}</button>
               <div style={heading}>{tr("Connected now")}</div>
               {st.clients?.length ? st.clients.map((c) => <div key={c.name} style={small}>{tr("{name}: connected at {time}, {n} call(s)", { name: c.name, time: when(c.since), n: c.calls })}</div>) : <div style={small}>{tr("No AI app is connected.")}</div>}
               <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button type="button" onClick={() => mcpStop()} style={btn}>{tr("Stop")}</button>
-                {st.allowed?.length > 0 && <button type="button" onClick={() => mcpForgetClients()} style={btn} title={st.allowed.join(", ")}>{tr("Forget the apps I always allowed")}</button>}
+                <button className="gs-btn gs-btn--danger" type="button" onClick={() => mcpStop()}>{tr("Stop")}</button>
+                {st.allowed?.length > 0 && <button className="gs-btn" type="button" onClick={() => mcpForgetClients()} title={st.allowed.join(", ")}>{tr("Forget the apps I always allowed")}</button>}
               </div>
               <div style={heading}>{tr("What they asked for")}</div>
               {act.length === 0 && <div style={small}>{tr("Nothing yet.")}</div>}

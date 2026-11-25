@@ -38,7 +38,7 @@ export default function LayerPicker({ layerId, onSelectLayer, tracestrackKey, on
               placeholder={tr("Paste API key…")}
               style={{ flex: 1, fontSize: "var(--font-size-sm)", padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 4 }}
             />
-            <button onClick={() => onSaveKey(keyDraft)} style={saveBtnStyle}>{tr("Save")}</button>
+            <button className="gs-btn gs-btn--sm" onClick={() => onSaveKey(keyDraft)}>{tr("Save")}</button>
           </div>
           {!tracestrackKey && <div style={{ fontSize: "var(--font-size-xs)", color: "#a95a3a", marginTop: 4 }}>{tr("No key saved yet — showing Standard until one is set.")}</div>}
         </div>
@@ -47,7 +47,7 @@ export default function LayerPicker({ layerId, onSelectLayer, tracestrackKey, on
         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Map tiles saved for offline use — see the download button on the full map view")}>{tr("Offline cache: {v}", { v: cacheStats ? tr(cacheStats.count === 1 ? "{count} tile ({v2})" : "{count} tiles ({v2})", { count: cacheStats.count, v2: formatCacheBytes(cacheStats.bytes) }) : "…" })}
         </span>
         {cacheStats && cacheStats.count > 0 && (
-          <button onClick={clearCache} title={tr("Clear the offline tile cache")} style={{ ...iconOnlyBtnStyle }}><Trash2 size={12} /></button>
+          <button className="gs-btn gs-btn--icon gs-btn--sm" onClick={clearCache} title={tr("Clear the offline tile cache")}><Trash2 size={12} /></button>
         )}
       </div>
     </div>
@@ -64,11 +64,3 @@ const rowStyle = {
   fontSize: "var(--font-size-base)", color: "#3a4048", cursor: "pointer",
 };
 const rowActiveStyle = { background: "#eef3fb", color: "var(--color-text)", fontWeight: 600 };
-const saveBtnStyle = {
-  padding: "4px 8px", fontSize: "var(--font-size-sm)", borderRadius: 4, border: "1px solid var(--color-primary)",
-  background: "var(--color-primary)", color: "var(--color-bg)", cursor: "pointer",
-};
-const iconOnlyBtnStyle = {
-  width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center",
-  borderRadius: 4, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-danger-icon)", cursor: "pointer", flexShrink: 0,
-};

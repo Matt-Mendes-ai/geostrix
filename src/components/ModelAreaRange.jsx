@@ -19,7 +19,7 @@ export default function ModelAreaRange({ collars = [], visibleHoles = {}, setVis
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{field("e0", tr("E from"))}{field("e1", tr("to"))}</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{field("n0", tr("N from"))}{field("n1", tr("to"))}</div>
       {hit && <div style={small}>{tr("{n} of {m} holes in {w} × {h} m.", { n: hit.ids.length.toLocaleString(), m: collars.length.toLocaleString(), w: Math.round(hit.width).toLocaleString(), h: Math.round(hit.height).toLocaleString() })}</div>}
-      <button type="button" disabled={!hit || !hit.ids.length} onClick={() => setVisibleHoles((v) => visibilityPatch(v, collars.map((c) => c.hole_id), hit.ids, "only"))} style={{ alignSelf: "flex-start", fontSize: "var(--font-size-sm)", padding: "4px 10px", borderRadius: 5, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: hit?.ids.length ? "pointer" : "default", opacity: hit?.ids.length ? 1 : 0.5 }}>{tr("Check only these holes")}</button>
+      <button className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-start" }} type="button" disabled={!hit || !hit.ids.length} onClick={() => setVisibleHoles((v) => visibilityPatch(v, collars.map((c) => c.hole_id), hit.ids, "only"))}>{tr("Check only these holes")}</button>
     </div>
   );
 }

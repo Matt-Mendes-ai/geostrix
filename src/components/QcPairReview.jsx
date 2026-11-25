@@ -42,10 +42,10 @@ export default function QcPairReview({ assays, symbol, unit, elementUnits, unitL
       )}
       {ambiguous > 0 && <div style={{ marginTop: 4, color: "var(--color-text-secondary)" }}>{tr("{n} rows sit on an interval met three or more times: not suggested (which one is the original?).", { n: fmtNum(ambiguous) })}</div>}
       <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-        {differ > 0 && <button type="button" onClick={() => setTicked(new Set(pairs.filter((p) => !p.identical).map((p) => p.key)))}>{tr("Tick the {n} pairs whose values differ", { n: fmtNum(differ) })}</button>}
-        {ticked.size > 0 && <button type="button" onClick={() => setTicked(new Set())}>{tr("Untick all")}</button>}
-        <button type="button" disabled={!ticked.size} onClick={() => { const r = applyPairs(assays, pairs.filter((p) => ticked.has(p.key))); onApply(r.rows, r.marked); }}>{tr("Mark {n} as duplicates", { n: fmtNum(ticked.size) })}</button>
-        <button type="button" onClick={onClose}>{tr("Close")}</button>
+        {differ > 0 && <button className="gs-btn gs-btn--sm" type="button" onClick={() => setTicked(new Set(pairs.filter((p) => !p.identical).map((p) => p.key)))}>{tr("Tick the {n} pairs whose values differ", { n: fmtNum(differ) })}</button>}
+        {ticked.size > 0 && <button className="gs-btn gs-btn--sm" type="button" onClick={() => setTicked(new Set())}>{tr("Untick all")}</button>}
+        <button className="gs-btn gs-btn--primary" type="button" disabled={!ticked.size} onClick={() => { const r = applyPairs(assays, pairs.filter((p) => ticked.has(p.key))); onApply(r.rows, r.marked); }}>{tr("Mark {n} as duplicates", { n: fmtNum(ticked.size) })}</button>
+        <button className="gs-btn" type="button" onClick={onClose}>{tr("Close")}</button>
       </div>
     </div>
   );

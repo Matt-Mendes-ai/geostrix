@@ -12,7 +12,7 @@ import TieScatterPlot from "./TieScatterPlot.jsx"; // TASKS.csv #2981
 import { PROJECT_SOURCE } from "../lib/thresholds.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps, sel, th, td, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
+import { overlay, backdropProps, sel, th, td, panel, header } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { DOMAIN_ATTR } from "../lib/geochemDomains.js"; // TASKS.csv #1390
@@ -116,7 +116,7 @@ export default function LevellingPanel({ onClose }) {
                 </table>
               )}
               {method === "quantile" && <div style={warn}>{tr("Statistical level: every adjusted sample records this in its basis column.")}</div>}
-              <div><button type="button" onClick={write} disabled={!method} style={{ ...btn(true), opacity: method ? 1 : 0.5 }}>{tr("Write {col}", { col: levelledSymbol(symbol) })}</button></div>
+              <div><button className="gs-btn" type="button" onClick={write} disabled={!method}>{tr("Write {col}", { col: levelledSymbol(symbol) })}</button></div>
             </>)}
           </>)}
           {msg && <div role="status" style={note}>{msg}</div>}

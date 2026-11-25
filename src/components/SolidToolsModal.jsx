@@ -11,7 +11,7 @@ import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { clipSolidBySurface, solidBoolean, terrainPatchMesh, meanNormalZ, meshBounds } from "../lib/solidBoolean.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 };
 const warn = { ...note, color: "var(--color-warn-text-strong)" };
@@ -102,7 +102,7 @@ export default function SolidToolsModal({ solid, surfaces = [], meshOf, groundAt
             {!hasTerrain && !others.length && <option value="">{tr("— no surface to clip by —")}</option>}
           </select>
           <select value={keep} onChange={(e) => setKeep(e.target.value)} style={{ ...smallSel, width: 150 }} aria-label={tr("Side to keep")}><option value="positive">{tr("keep {side}", { side: sideLabel("positive") })}</option><option value="negative">{tr("keep {side}", { side: sideLabel("negative") })}</option></select>
-          <button onClick={runClip} disabled={!me || !cutterMesh || !!busy} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "4px 10px", opacity: !me || !cutterMesh || busy ? 0.5 : 1 }}>{busy === "clip" ? tr("Cutting…") : tr("Clip")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={runClip} disabled={!me || !cutterMesh || !!busy}>{busy === "clip" ? tr("Cutting…") : tr("Clip")}</button>
         </div>
         {cutterId === "terrain" && cutterMesh && <div style={note}>{tr("The terrain is sampled on a {n}-point grid over the solid's extent.", { n: cutterMesh.sampled.toLocaleString() })}</div>}
         <div style={{ fontWeight: 600, marginTop: 14 }}>{tr("Combine with another solid")}</div>
@@ -113,7 +113,7 @@ export default function SolidToolsModal({ solid, surfaces = [], meshOf, groundAt
             {!others.length && <option value="">{tr("— no other surface —")}</option>}
             {others.map((s) => <option key={s.id} value={s.id}>{s.name}{s.closure === "closed" ? "" : tr(" (not closed)")}</option>)}
           </select>
-          <button onClick={runBoolean} disabled={!me || !other || !!busy || (meClosed && !meClosed.closed)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "4px 10px", opacity: !me || !other || busy || (meClosed && !meClosed.closed) ? 0.5 : 1 }}>{busy === "bool" ? tr("Combining…") : tr("Combine")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={runBoolean} disabled={!me || !other || !!busy || (meClosed && !meClosed.closed)}>{busy === "bool" ? tr("Combining…") : tr("Combine")}</button>
         </div>
         {msg && <div style={{ ...note, marginTop: 10, color: "var(--color-text)" }}>{msg}</div>}
         <div style={{ ...note, marginTop: 10 }}>{tr("The result is a new surface in Generated surfaces; the inputs are not changed. A grade-tonnage inside it (Block models › Grade-tonnage) needs it closed.")}</div>

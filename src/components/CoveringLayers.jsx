@@ -24,7 +24,7 @@ export default function CoveringLayers() {
           <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{i.kind}</span>
         </label>
       ))}
-      {items.length > 1 && <button type="button" onClick={() => items.forEach((i) => i.set(shown === 0))} style={{ marginTop: 4, fontSize: "var(--font-size-sm)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer" }}>{shown === 0 ? tr("Show all") : tr("Hide all")}</button>}
+      {items.length > 1 && <button className="gs-btn gs-btn--sm" style={{ marginTop: 4 }} type="button" onClick={() => items.forEach((i) => i.set(shown === 0))}>{shown === 0 ? tr("Show all") : tr("Hide all")}</button>}
     </div>
   );
 }
