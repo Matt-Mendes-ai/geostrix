@@ -56,7 +56,7 @@ test("#4073 Solid tools: every setting and action of the old dialog is still rea
   const src = read("src/components/SolidToolsModal.jsx");
   assert.deepEqual(missingFrom(src, ["setCutterId(", "setKeep(", "setOtherId(", "setOp(", "onClick: clip ? runClip : runBoolean", 'value="terrain"', 'value="positive"', 'value="negative"',
     'value="intersection"', 'value="union"', 'value="difference"', "clipSolidBySurface(me, cutterMesh, { keep })", "solidBoolean(me, om, op)", "onAdd({", "cutterMesh.sampled"]), []);
-  assert.ok(src.includes("<StepNumbers rows={[") && src.includes('label: tr("Volume")') && src.includes('label: tr("Closed")') && src.includes('label: tr("Separate bodies")'), "the Result step: volume, closure, pieces");
+  assert.ok(src.includes("<StepNumbers rows={[") && src.includes('label: tr("Volume")') && src.includes('label: tr("Closed")') && src.includes('label: tr("Bodies")'), "the Result step: volume, closure, pieces");
   for (const k of ["nothing to cut.", "share no volume.", "nothing was cut, so nothing was added.", "a boolean needs two closed solids", "the cut is approximate there", "the solid was not cut there"]) assert.ok(src.includes(k), k);
 });
 
@@ -87,7 +87,7 @@ test("#4073 Surface query: Question, then Result; the closure as numbers; nothin
   const s = renderToStaticMarkup(h(StoreProvider, null, h(M, { surfaces: [{ id: "a", name: "Shell A", ...b }], traces: [], onClose: () => {} })));
   assert.equal(count(s, /role="listitem"/g), 2);
   assert.equal(count(s, /gs-btn--primary/g), 1);
-  assert.ok(s.includes(">Sweep the holes<") && /Closed<\/span><span[^>]*>Yes</.test(s) && /Edges<\/span><span[^>]*>18</.test(s), "a closed box: Yes, 18 edges");
+  assert.ok(s.includes(">Sweep the holes<") && /Closed<\/span><span[^>]*>yes</.test(s) && /Edges<\/span><span[^>]*>18</.test(s), "a closed box: yes, 18 edges");
   const none = renderToStaticMarkup(h(StoreProvider, null, h(M, { surfaces: [], onClose: () => {} })));
   assert.ok(none.includes("No generated surfaces yet") && !none.includes('role="list"'), "no surface: one screen saying so");
 });
@@ -204,6 +204,16 @@ test("#4073 StepDialog's optional props: zIndex, cancelLabel, overlayProps on th
   assert.match(s, /<div style="[^"]*z-index:70[^"]*" data-drop-guard="">/);
   const btn = s.match(/<button[^>]*data-start-next=""[^>]*>/)?.[0] || "";
   assert.ok(btn.includes('class="gs-btn gs-btn--primary"') && !btn.includes("nope"), "the attrs are on the gold button; the shell's class wins");
+});
+
+test("#4070 consistency: a first step whose primary is the dialog's own close has no Cancel beside it; any other primary keeps it", async () => {
+  const { default: SD } = await import(bundle("src/components/StepDialog.jsx", "sd-close.mjs"));
+  const close = () => {};
+  const one = (primary) => renderToStaticMarkup(h(SD, { title: "T", onClose: close, at: 0, onAt: () => {}, steps: [{ key: "a", label: "A", render: () => h("p", null, "x"), primary }] }));
+  const empty = one({ label: "Close", onClick: close });
+  assert.ok(!empty.includes(">Cancel<") && empty.includes(">Close<"), "an empty state: one Close");
+  assert.ok(one({ label: "Go", onClick: () => {} }).includes(">Cancel<"), "a real action: Cancel stays");
+  for (const f of ["FenceDiagramModal", "SurfaceCompareModal", "SurfaceQueryModal"]) assert.match(read(`src/components/${f}.jsx`), /primary: \{ label: tr\("Close"\), onClick: onClose/, f);
 });
 
 test("#4073 Solid tools: a clipped solid is named 'Body above Fault A', not 'above it Fault A'; the select keeps 'keep above it'", () => {
