@@ -2,7 +2,8 @@
 // vite on :5173, electron with --remote-debugging-port=9333, a project open so every ribbon has its tools) and, for each width, tab and Basic / All tools mode,
 // lists the buttons that are cut off, hidden or covered, and the ones that moved into a More menu (reachable, one click further).
 //   node scripts/audit-ribbon.mjs                       (widths 1366, 1280, 1024; height 768; every tab; both modes)
-//   WIDTHS=1366 TABS=Geochem,Layout node scripts/audit-ribbon.mjs
+//   WIDTHS=1366 TABS=Geochem,Layout node scripts/audit-ribbon.mjs   (English names, or positions: TABS=5,2)
+// Language and text size are the app's own settings (localStorage geostrix.language / geostrix.textSize, then a reload): the audit works in any language.
 // CDP_PORT (default 9333). Exit code 1 when any button is LOST (unreachable), so it can gate a change; the report goes to the console.
 const port = Number(process.env.CDP_PORT || 9333);
 const widths = (process.env.WIDTHS || "1366,1280,1024").split(",").map(Number);
@@ -19,15 +20,14 @@ const send = (method, params = {}) => new Promise((res) => { const i = ++id; pen
 const run = async (expr) => { const r = await send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }); if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.text + " " + (r.result.exceptionDetails.exception?.description || "")); return r.result?.result?.value; };
 
 // in the page: click a tab (by its visible text), set the mode, then classify every tool button
-const PROBE = (tab, mode) => `(async () => {
+const PROBE = (tab, mode) => `(async () => { // tab: the tab's position in the top bar (any language); mode: "basic" | "advanced" (the toggle's first and second button)
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const t = (n) => (n?.textContent || "").replace(/\\s+/g, " ").trim();
   const vis = (b) => b.getBoundingClientRect().width > 0;
-  const tabBtn = [...document.querySelectorAll(".ge-toolbar .ge-tool-btn[data-tier]")].find((b) => t(b) === ${JSON.stringify(tab)} || (b.getAttribute("aria-label") || "") === ${JSON.stringify(tab)});
+  const tabBtn = [...document.querySelectorAll(".ge-toolbar .ge-tool-btn[data-tier]")][${Number(tab)}];
   if (!tabBtn) return { tab: ${JSON.stringify(tab)}, missing: true, tools: [] };
   if (!tabBtn.classList.contains("active")) { tabBtn.click(); await sleep(700); }
-  const want = ${JSON.stringify(mode)} === "basic" ? /^Basic tools$/ : /^All tools$/;
-  const mb = [...document.querySelectorAll(".ge-ui-mode button")].find((b) => want.test(t(b)));
+  const mb = [...document.querySelectorAll(".ge-ui-mode button")][${JSON.stringify(mode)} === "basic" ? 0 : 1];
   if (mb && mb.getAttribute("aria-pressed") !== "true") { mb.click(); await sleep(500); }
   await sleep(500);
   const W = window.innerWidth, H = window.innerHeight;
@@ -62,17 +62,18 @@ const PROBE = (tab, mode) => `(async () => {
 })()`;
 
 const tabs = await run(`[...document.querySelectorAll(".ge-toolbar .ge-tool-btn[data-tier]")].map((b) => (b.textContent || "").replace(/\\s+/g, " ").trim() || b.getAttribute("aria-label"))`);
-const names = (onlyTabs || tabs).filter(Boolean);
+// each tab by its position in the top bar (so French and Arabic work); TABS may name them (English) or number them (0, 1, ...)
+const names = tabs.map((label, i) => ({ i, label: label || String(i) })).filter((x) => !onlyTabs || onlyTabs.some((o) => o === String(x.i) || o === x.label));
 let lost = 0, more = 0, total = 0;
 for (const w of widths) {
   await send("Emulation.setDeviceMetricsOverride", { width: w, height, deviceScaleFactor: 1, mobile: false });
   await new Promise((r) => setTimeout(r, 900));
-  for (const tab of names) for (const mode of ["basic", "advanced"]) {
+  for (const { i: tab, label } of names) for (const mode of ["basic", "advanced"]) {
     const r = await run(PROBE(tab, mode));
-    if (r.missing) { console.log(`${w} | ${tab} | ${mode}: no such tab`); continue; }
+    if (r.missing) { console.log(`${w} | ${label} | ${mode}: no such tab`); continue; }
     const bad = r.tools.filter((x) => x.state.startsWith("LOST")), inMore = r.tools.filter((x) => x.state === "more");
     total += r.tools.length; lost += bad.length; more += inMore.length;
-    console.log(`${w} | ${tab.padEnd(18)} | ${mode.padEnd(8)} | ${String(r.tools.length).padStart(3)} tools | ${String(inMore.length).padStart(2)} in More | ${bad.length} LOST${r.scrollOver ? " | ribbon wider than its band" : ""}${r.barOver ? " | top bar wider than the window" : ""}`);
+    console.log(`${w} | ${label.padEnd(18)} | ${mode.padEnd(8)} | ${String(r.tools.length).padStart(3)} tools | ${String(inMore.length).padStart(2)} in More | ${bad.length} LOST${r.scrollOver ? " | ribbon wider than its band" : ""}${r.barOver ? " | top bar wider than the window" : ""}`);
     for (const b of bad) console.log(`      LOST: ${b.label} (${b.where}): ${b.state}`);
   }
 }
