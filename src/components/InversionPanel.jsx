@@ -15,6 +15,8 @@ import { confirmReplaceTerrain, replacedTerrainNote } from "../lib/terrainReplac
 import InResultArea from "./InResultArea.jsx"; // TASKS.csv #1199
 import { useKeptState, scopeOf, keptIn } from "../lib/keptState.js"; // TASKS.csv #1174; keptIn: #1431
 import { ChevronDown, ChevronRight, Activity, Square, Compass, Play, Gauge } from "./icons.js";
+import StepPane, { StepNumbers } from "./StepPane.jsx"; // TASKS.csv #4070 part 2 — the inversion as steps
+import MoreFold from "./MoreFold.jsx";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
 import { activateOnKey } from "../lib/a11y.js";
@@ -45,7 +47,7 @@ import { inversionLogSources, defaultLogSource, logReadingCounts } from "../lib/
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const METHODS = {
-  mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total magnetic field in nT as measured (not RTP, not a derivative): either the anomaly, with the IGRF / regional field removed in processing, or the raw total field over an area small enough that its regional field is a plane, which Remove base level > Best-fit plane takes out. For the raw total field over a larger area, Remove base level > Subtract the IGRF field takes the computed IGRF-14 out first.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
+  mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the measured total field in nT (not RTP, not a derivative). Over a larger area, Remove base level > Subtract the IGRF field takes the computed IGRF-14 out first.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
   grav: { label: "Gravity (gz)", unit: "mGal", confirm: "These values are Bouguer/residual gravity in mGal, positive over dense rock (terrain-corrected, regional removed).", property: "density contrast (g/cc)", contrastLabel: "Density contrast (g/cc)" },
 };
 
@@ -496,12 +498,6 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
   const row = { display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
   const lbl = { width: 104, flexShrink: 0 };
   const inp = { ...numInput, width: 78, flex: "none" };
-  const step = (n, title, children) => (
-    <fieldset style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px 9px", margin: "8px 0 0", minWidth: 0 /* #1433 — a fieldset is min-content wide by default */ }}>
-      <legend style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", padding: "0 4px" }}>{n}. {title}</legend>
-      {children}
-    </fieldset>
-  );
   const status = job?.status;
   const prog = status?.progress || {};
 
@@ -521,6 +517,9 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
         <InfoButton title={tr("Magnetics / gravity modelling")} width={420} text={tr("Uses SimPEG in the Python engine on Point survey data. Test a body: compare a dipping plate's response with the data. Invert: one smooth model of many that fit; bodies look blurred, deeper, weaker. Remanence breaks susceptibility inversions.")} />
       </div>
       </>)}
+      {/* TASKS.csv #4070 part 2 (side 2, Matt's layout C) — the survey's inversion as steps: 1 Data (the survey, its field, its heights), 2 Field (magnetics:
+          the inducing field), 3 Fit (uncertainty, cell, depth, the estimate) -> Invert, the one gold primary; 4 Result in numbers, the maps in the result area.
+          The mesh, base level, magnetization, model style, drillhole constraints and the advanced settings are in Fine-tune; the forward models in their own fold. */}
       {open && (
         <div style={{ fontSize: "var(--font-size-sm)" }}>
           {engine === null && <div style={small}>{tr("Starting the Python engine…")}</div>}
@@ -537,7 +536,7 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
                 return "✓ " + tr("{k} survey(s) loaded; {u} can be inverted (magnetic or gravity): {list}.", { k: c.n, u: c.usable.length, list: c.usable.slice(0, 3).map((x) => `${x.key} (${x.count.toLocaleString()})`).join(", ") + (c.usable.length > 3 ? "…" : "") });
               })()}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span>{terrain ? "✓ " + tr("Terrain: {name}.", { name: terrain.name || tr("loaded") }) : "○ " + tr("Terrain: none yet. Fetch one, import a DEM, or make one from the samples and collars, so the inversion knows which cells are underground.")}</span>
+                <span>{terrain ? "✓ " + tr("Terrain: {name}.", { name: terrain.name || tr("loaded") }) : "○ " + tr("Terrain: none yet.")}</span>
                 {!terrain && <button className="gs-btn gs-btn--sm" type="button" onClick={() => { goToModule("maps"); requestModuleAction("maps-terrain"); }}>{tr("Go to Maps › Terrain")}</button>}
               </div>
             </div>
@@ -552,27 +551,6 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
             <div>{tr("To design the survey first, tick \"Forward model on a planned grid\": a block model or plate predicts the anomaly over the grid you'd walk.")}</div>
           </div>}
           {/* TASKS.csv #364 — one survey per model; imported surveys are never mixed. */}
-          {engine?.available && (<div style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{/* #1710 — outside the survey-gated form, so a drill-only project can switch it on */}
-              {/* TASKS.csv #1710 — the planned grid the forward models below can run on instead of a survey */}
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setPlanned((p) => (p.open ? { ...p, open: false } : { ...p, open: true, ...fitPlannedSpacing(plannedExtent, p) }))} /* #2969 — opened on the default spacing, a spacing its cap accepts */ aria-expanded={!!planned.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
-                {planned.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Forward model on a planned grid")}</div>
-              {planned.open && (
-                <div style={{ marginLeft: 6, marginTop: 4 }}>
-                  <label style={{ ...row, cursor: "pointer" }}><input type="checkbox" checked={!!planned.on} onChange={(e) => { setPlanned((p) => ({ ...p, on: e.target.checked })); setPlan(null); }} /> <span style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use a planned station grid instead of a survey")}</span></label>
-                  <div style={small}>{tr("Survey design: the body or geology model below is forward-modelled at these stations, {h} m above the ground{v}. Blank extent: the collars' box, padded.", { h: planned.height, v: terrain ? tr(" (the terrain)") : tr(" (the collars' mean elevation; load a terrain for real ground)") })}</div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                    {["xmin", "ymin", "xmax", "ymax"].map((k) => <label key={k} style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{k === "xmin" ? tr("E from") : k === "xmax" ? tr("E to") : k === "ymin" ? tr("N from") : tr("N to")}<NumberInput allowEmpty value={planned[k]} placeholder={plannedExtent ? String(plannedExtent[k]) : ""} onChange={(v) => setPlanned((p) => ({ ...p, [k]: (v == null ? "" : String(v)) }))} aria-label={k} style={{ ...numInput, width: 90 }} /></label>)}
-                  </div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Line spacing (m)")}<NumberInput allowEmpty min={1} value={planned.line} onChange={(v) => setPlanned((p) => ({ ...p, line: (v == null ? "" : String(v)) }))} aria-label={tr("Line spacing (m)")} style={{ ...numInput, width: 64 }} /></label>
-                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Station spacing (m)")}<NumberInput allowEmpty min={1} value={planned.station} onChange={(v) => setPlanned((p) => ({ ...p, station: (v == null ? "" : String(v)) }))} aria-label={tr("Station spacing (m)")} style={{ ...numInput, width: 64 }} /></label>
-                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Lines")}<select value={planned.dir} onChange={(e) => setPlanned((p) => ({ ...p, dir: e.target.value }))} aria-label={tr("Line direction")} style={numInput}><option value="NS">{tr("north–south")}</option><option value="EW">{tr("east–west")}</option></select></label>
-                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Sensor height (m)")}<NumberInput allowEmpty min={0} value={planned.height} onChange={(v) => setPlanned((p) => ({ ...p, height: (v == null ? "" : String(v)) }))} aria-label={tr("Planned sensor height (m)")} style={{ ...numInput, width: 56 }} /></label>
-                  </div>
-                  <div style={{ ...small, marginTop: 4 }}>{plannedGrid.stats ? tr("{n} stations on {lines} line(s) ({dir}), {per} per line{v}.", { n: plannedGrid.stats.n.toLocaleString(), lines: plannedGrid.stats.lines, dir: plannedGrid.stats.dir === "NS" ? tr("north–south") : tr("east–west"), per: plannedGrid.stats.perLine, v: plannedGrid.stats.capped ? tr(" — capped at {cap}; widen the spacings", { cap: (20000).toLocaleString() }) : "" }) : tr("Two collars, or a typed extent, are needed to lay out a grid.")}</div>
-                </div>
-              )}
-          </div>)}
           {engine?.available && surveys.length > 1 && (
             <label style={{ ...small, display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>{tr("Survey to model ({surveys} imported — they are never mixed)", { surveys: surveys.length })}<select value={survey} onChange={(e) => { setSurvey(e.target.value); setPlan(null); }} style={{ ...numInput, width: "100%" }}>
                 <option value="">{tr("— choose one —")}</option>
@@ -584,11 +562,14 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
           {engine?.available && activeSurvey && geophysSurveys?.[activeSurvey]?.method && !methodIsInvertible(geophysSurveys[activeSurvey].method) && (
             <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("\"{survey}\" is labelled {label}. Only measured total magnetic field and Bouguer gravity are inverted: never a derivative, a filtered product or another method.", { survey: activeSurvey, label: tr(SURVEY_METHODS[geophysSurveys[activeSurvey].method].label) })}</div>
           )}
-          {engine?.available && rows.length > 0 && (
-            <>
+          {engine?.available && rows.length > 0 && (() => {
+            const fitOf = lastResult && lastResult.result.kind !== "forward" ? fitVerdict(lastResult.result) : null;
+            return (
+            <StepPane id="inversion" label={tr("Mag / gravity inversion")}
+              steps={[
+                { key: "data", label: tr("Data"), question: tr("What was measured?"), body: (<>
               <div style={small}>{tr("{rows} survey stations loaded{v}. SimPEG {simpeg}.", { rows: rows.length.toLocaleString(), v: spacing ? tr(", median spacing {spacing} m", { spacing: spacing.toFixed(spacing < 10 ? 1 : 0) }) + (coreHint?.lineSpacing ? tr(" along lines {l} m apart", { l: Math.round(coreHint.lineSpacing) }) : "") : checking ? tr(" (checking the stations…)") : "", simpeg: engine.simpeg })}</div>
               {downhole?.isDownhole && <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("Not survey stations: {pct}% sit over 10 m below the {ground} (typically {med} m): points at depth, a downhole log, an inversion model or a pseudo-section as points.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })}</div>}{/* #1709 */}
-              {step(1, tr("Data"), <>
                 <div role="radiogroup" aria-label={tr("Survey type")} style={{ display: "flex", gap: 10, marginTop: 4 }}>
                   {Object.entries(METHODS).map(([k, m]) => (
                     <label key={k} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
@@ -630,8 +611,8 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
                       title={tr("{rows} stations is over the {MAX_STATIONS} an inversion takes", { rows: rows.length.toLocaleString(), MAX_STATIONS: MAX_STATIONS.toLocaleString() })}>{tr("Thin to {spacing} m", { spacing: thinSuggestion.spacing })}</button>
                   )}
                 </div>
-              </>)}
-              {method === "mag" && step(2, tr("Inducing field"), <>
+                </>) },
+                ...(method === "mag" ? [{ key: "field", label: tr("Field"), question: tr("Inducing field"), body: (<>
                 <div style={row}><span style={lbl}>{tr("Survey date")}</span><input type="date" value={field.date} onChange={(e) => { const date = e.target.value; setIgrfMsg(null); setField((p) => ({ ...p, date, ...(String(p.source || "").startsWith("IGRF") && !String(p.source).startsWith(`IGRF-14 for ${date} `) ? { source: "" } : {}) })); /* #2563 — an IGRF source for another date is dropped */ }} style={{ ...numInput, flex: "none" }} /></div>
                 {[["strength", tr("Strength (nT)")], ["inclination", tr("Inclination (°)")], ["declination", tr("Declination (° true)")]].map(([k, l]) => (
                   <div key={k} style={row}><span style={lbl}>{l}</span><NumberInput allowEmpty value={field[k]} onChange={(v) => setField((p) => ({ ...p, [k]: (v == null ? "" : String(v)), source: "entered by user" }))} style={inp} /></div>
@@ -641,8 +622,8 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
                 {crsUnset && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("IGRF needs the survey's real-world location, and the project CRS isn't set: set it in the status bar first.")}</div>}{/* #2238 */}
                 {field.source && <div style={{ ...small, marginTop: 4 }}>{tr("Source: {source}", { source: field.source })}</div>}
                 {igrfMsg && <div role={igrfMsg.ok ? "status" : "alert"} style={{ ...small, marginTop: 4, color: igrfMsg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{igrfMsg.text}</div>}{/* #2563 */}
-              </>)}
-              {step(method === "mag" ? 3 : 2, tr("Uncertainty & mesh"), <>
+                </>) }] : []),
+                { key: "fit", label: tr("Fit"), question: tr("How far do you trust each reading?"), body: (<>
                 <div style={row} title={tr("How far you trust each reading. Too small and the model chases noise; too large and real bodies are smoothed away. There is no default.")}><span style={lbl}>{tr("Uncertainty floor")}</span><NumberInput allowEmpty min={0} value={unc.floor} onChange={(v) => setUnc((p) => ({ ...p, floor: (v == null ? "" : String(v)) }))} style={inp} /> {M?.unit || ""}</div>
                 {/* TASKS.csv #775 — what SimPEG's own tutorials use, as a hint only */}
                 {method === "mag" && (() => { const h = simpegMagFloorHint(rows.map((r) => r.value)); return h ? <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("SimPEG's magnetic tutorials use a floor of 2% of the largest anomaly, about {v} {unit} here; your survey's noise and levelling are the better guide.", { v: h < 10 ? h.toFixed(1) : Math.round(h), unit: M.unit })}</div> : null; })()}
@@ -653,6 +634,49 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
                 </div>
                 {coreHint?.lineSpacing && !mesh.coreCell && <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("Readings {s} m apart on lines {l} m apart: the core cell follows the lines ({c} m, a quarter of their spacing) and readings are thinned to it.", { s: spacing.toFixed(spacing < 10 ? 1 : 0), l: Math.round(coreHint.lineSpacing), c: coreHint.cell })}</div>}{/* #1590 */}
                 <div style={row} title={tr("How deep below the stations the model extends. Potential-field data lose resolution quickly with depth.")}><span style={lbl}>{tr("Model depth")}</span><NumberInput allowEmpty min={1} value={mesh.depth} onChange={(v) => setMesh((p) => ({ ...p, depth: (v == null ? "" : String(v)) }))} style={inp} /> m</div>
+              {rows.length > 0 && ( // TASKS.csv #1589
+                <div style={{ ...small, marginTop: 6 }}>
+                  {terrain
+                    ? (coverage && <span style={{ color: coverage.pct < 90 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{coverage.pct >= 99.95 ? tr("The terrain covers every station.") : tr("The terrain covers {pct}% of the stations; the others would be left out.", { pct: Math.round(coverage.pct) }) /* #2247 — 'the others' only when there are some */}</span>)
+                    : <span style={{ color: "var(--color-warn-text)" }}>{tr("No terrain yet: an inversion needs one to know which cells are underground.")}</span>}
+                  {(!terrain || (coverage && coverage.pct < 90)) && !(runGround && runGround.survey === activeSurvey) && <div><button className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0 }} onClick={groundFromStations}>{tr("Ground from the stations' own elevations…")}</button></div>}
+                  {runGround && runGround.survey === activeSurvey && ( /* #2638 */
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                      {projectTerrain && <button className="gs-btn gs-btn--sm" onClick={() => { setRunGround(null); setGroundNote(null); }}>{tr("Use the project's terrain instead")}</button>}
+                      <button className="gs-btn gs-btn--sm" onClick={groundToProject}>{tr("Make it the project's terrain…")}</button>
+                    </div>
+                  )}
+                  {groundNote && <div style={{ marginTop: 4 }}>{groundNote}</div>}
+                </div>
+              )}
+              <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 4 }} onClick={() => doPlan("inversion")} disabled={planBusy || running || methodClash}><Gauge size={14} /> {planBusy ? tr("Estimating…") : tr("Estimate size and memory")}</button>
+              {plan && (
+                <div style={{ ...small, marginBottom: 6 }} aria-live="polite">
+                  {tr("{nData} stations × {v}{nActiveEst} underground cells", { nData: plan.nData.toLocaleString(), v: plan.octree ? "" : "~", nActiveEst: plan.nActiveEst.toLocaleString() })}{" "}
+                  {plan.octree
+                    ? <>{tr("(adaptive mesh, cells {v} m; a uniform mesh would need ~{tensorActiveEst} — {v2}× more memory).", { v: plan.octree.cellSizes.map((h) => `${h}`).join(" / "), tensorActiveEst: plan.octree.tensorActiveEst.toLocaleString(), v2: (plan.octree.tensorActiveEst / Math.max(1, plan.nActiveEst)).toFixed(1) })}{" "}</>
+                    : <>{tr("({meshShape} mesh).", { meshShape: plan.meshShape.join(" × ") })}{" "}</>}
+                  {plan.kind === "inversion"
+                    ? <>{tr("Sensitivity matrix {v} of the {v2} this machine can spare right now; peak memory ≈ {v3}, ~{v4} s to build it, then a few seconds per iteration.", { v: formatBytes(plan.sensitivityBytes), v2: formatBytes(plan.ramCapBytes), v3: formatBytes(plan.peakRamEstimateBytes), v4: Math.max(1, Math.round(plan.buildSecondsEstimate)) })}</>
+                    : <>{tr("Forward only — no matrix is stored.")}</>}{" "}
+                  {plan.ok ? tr("OK to run.") : ""}
+                  {plan.clearance && <div style={{ marginTop: 3 }}>{tr("Sensor clearance above the terrain: median {median} m, 5th percentile {p5} m, lowest {min} m ({n} stations). A steady offset from the survey height means different vertical datums.", { median: plan.clearance.median.toFixed(1), p5: plan.clearance.p5.toFixed(1), min: plan.clearance.min.toFixed(1), n: plan.clearance.n.toLocaleString() })}</div>}
+                  {plan.notes?.map((n) => <div key={n} style={{ marginTop: 3 }}>⚠ {n}</div>)}
+                </div>
+              )}
+                </>) },
+              ]}
+              action={{ label: tr("Invert"), onClick: runInversion, disabled: running || planBusy || !!invertBlocked, title: invertBlocked || undefined, icon: <Play size={14} /> }}
+              result={lastResult && !running ? { key: lastResult, body: (<>
+                {lastResult.result.kind === "forward" ? <StepNumbers rows={[{ label: tr("Forward runs"), value: String((lastResult.result.runs || []).length) }, { label: tr("Stations"), value: lastResult.prepared.stations.length.toLocaleString() }]} />
+                  : <StepNumbers rows={[
+                    fitOf ? { label: tr("Fit"), value: tr("{x}× the target", { x: fitOf.chi.toFixed(2) }), level: fitOf.level === "ok" ? undefined : fitOf.level === "under" ? "high" : "some", title: fitOf.shown } : null,
+                    { label: tr("Iterations"), value: String(lastResult.result.iterations ?? "—") },
+                    { label: tr("Stations"), value: lastResult.prepared.stations.length.toLocaleString() },
+                  ]} />}
+                <InResultArea slot={resultSlot}><FitView last={lastResult} method={method} mapSize={resultSlot ? 260 : 78} /></InResultArea>
+              </>) } : null}
+              fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="inversion">
                 {/* TASKS.csv #324 — adaptive (octree) mesh */}
                 <div style={row} title={tr("Uniform: every cell at core size. Octree: fine cells near the surface only, 4-6× less memory; exports as a cell list and OcTree files.")}>
                   <span style={lbl}>{tr("Mesh")}</span>
@@ -751,39 +775,41 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
                     </>}
                   <div style={row} title={tr("Hides cells whose normalized sensitivity is below this: the data barely see them, so their values reflect the regularization, not the rock. Display only.")}><span style={lbl}>{tr("Hide cells below support")}</span><NumberInput allowEmpty min={0} max={1} step={0.01} value={adv.supportCutoff} onChange={(v) => setAdv((p) => ({ ...p, supportCutoff: (v == null ? "" : String(v)) }))} style={inp} /></div>
                 </>}
-              </>)}
-              {rows.length > 0 && ( // TASKS.csv #1589
-                <div style={{ ...small, marginTop: 6 }}>
-                  {terrain
-                    ? (coverage && <span style={{ color: coverage.pct < 90 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{coverage.pct >= 99.95 ? tr("The terrain covers every station.") : tr("The terrain covers {pct}% of the stations; the others would be left out.", { pct: Math.round(coverage.pct) }) /* #2247 — 'the others' only when there are some */}</span>)
-                    : <span style={{ color: "var(--color-warn-text)" }}>{tr("No terrain yet: an inversion needs one to know which cells are underground.")}</span>}
-                  {(!terrain || (coverage && coverage.pct < 90)) && !(runGround && runGround.survey === activeSurvey) && <div><button className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0 }} onClick={groundFromStations}>{tr("Ground from the stations' own elevations…")}</button></div>}
-                  {runGround && runGround.survey === activeSurvey && ( /* #2638 */
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                      {projectTerrain && <button className="gs-btn gs-btn--sm" onClick={() => { setRunGround(null); setGroundNote(null); }}>{tr("Use the project's terrain instead")}</button>}
-                      <button className="gs-btn gs-btn--sm" onClick={groundToProject}>{tr("Make it the project's terrain…")}</button>
-                    </div>
-                  )}
-                  {groundNote && <div style={{ marginTop: 4 }}>{groundNote}</div>}
+              </MoreFold>} />
+            );
+          })()}
+              {running && (
+                <div style={{ marginTop: 8, padding: "7px 9px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+                  <div style={{ color: "var(--color-text)" }}>{job.meta.label}: {prog.stage === "iterating" && prog.iter ? tr("iteration {iter} of {maxIter}", { iter: prog.iter, maxIter: prog.maxIter }) : prog.message || prog.stage || "starting"}</div>
+                  {prog.phi_d != null && <div style={small}>{tr("Misfit {v}× the target", { v: (prog.phi_d / prog.target).toFixed(2) })}</div>}
+                  <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={() => cancelInversionJob()}><Square size={12} />{" "}{tr("Cancel")}</button>
                 </div>
               )}
-              <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 4 }} onClick={() => doPlan("inversion")} disabled={planBusy || running || methodClash}><Gauge size={14} /> {planBusy ? tr("Estimating…") : tr("Estimate size and memory")}</button>
-              {plan && (
-                <div style={{ ...small, marginBottom: 6 }} aria-live="polite">
-                  {tr("{nData} stations × {v}{nActiveEst} underground cells", { nData: plan.nData.toLocaleString(), v: plan.octree ? "" : "~", nActiveEst: plan.nActiveEst.toLocaleString() })}{" "}
-                  {plan.octree
-                    ? <>{tr("(adaptive mesh, cells {v} m; a uniform mesh would need ~{tensorActiveEst} — {v2}× more memory).", { v: plan.octree.cellSizes.map((h) => `${h}`).join(" / "), tensorActiveEst: plan.octree.tensorActiveEst.toLocaleString(), v2: (plan.octree.tensorActiveEst / Math.max(1, plan.nActiveEst)).toFixed(1) })}{" "}</>
-                    : <>{tr("({meshShape} mesh).", { meshShape: plan.meshShape.join(" × ") })}{" "}</>}
-                  {plan.kind === "inversion"
-                    ? <>{tr("Sensitivity matrix {v} of the {v2} this machine can spare right now; peak memory ≈ {v3}, ~{v4} s to build it, then a few seconds per iteration.", { v: formatBytes(plan.sensitivityBytes), v2: formatBytes(plan.ramCapBytes), v3: formatBytes(plan.peakRamEstimateBytes), v4: Math.max(1, Math.round(plan.buildSecondsEstimate)) })}</>
-                    : <>{tr("Forward only — no matrix is stored.")}</>}{" "}
-                  {plan.ok ? tr("OK to run.") : ""}
-                  {plan.clearance && <div style={{ marginTop: 3 }}>{tr("Sensor clearance above the terrain: median {median} m, 5th percentile {p5} m, lowest {min} m ({n} stations). A steady offset from the survey height means different vertical datums.", { median: plan.clearance.median.toFixed(1), p5: plan.clearance.p5.toFixed(1), min: plan.clearance.min.toFixed(1), n: plan.clearance.n.toLocaleString() })}</div>}
-                  {plan.notes?.map((n) => <div key={n} style={{ marginTop: 3 }}>⚠ {n}</div>)}
+              {job && !running && job.error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 6 }}>{job.error}</div>}
+              {job && !running && job.status?.state === "cancelled" && <div style={{ ...small, marginTop: 6 }}>{tr("Cancelled — the worker process was stopped and its memory released.")}</div>}
+              {msg && <div role={msg.ok ? "status" : "alert"} style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
+          {engine?.available && (
+            <MoreFold summary={tr("Forward models…")} data-more-forward="" open={!allRows.length}>{/* a body, a geology model, a planned grid: open in a project with no survey (the planned grid is the way in there) */}
+              {/* TASKS.csv #1710 — the planned grid the forward models below can run on instead of a survey */}
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setPlanned((p) => (p.open ? { ...p, open: false } : { ...p, open: true, ...fitPlannedSpacing(plannedExtent, p) }))} /* #2969 — opened on the default spacing, a spacing its cap accepts */ aria-expanded={!!planned.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
+                {planned.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Forward model on a planned grid")}</div>
+              {planned.open && (
+                <div style={{ marginLeft: 6, marginTop: 4 }}>
+                  <label style={{ ...row, cursor: "pointer" }}><input type="checkbox" checked={!!planned.on} onChange={(e) => { setPlanned((p) => ({ ...p, on: e.target.checked })); setPlan(null); }} /> <span style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use a planned station grid instead of a survey")}</span></label>
+                  <div style={small}>{tr("Survey design: the body or geology model below is forward-modelled at these stations, {h} m above the ground{v}. Blank extent: the collars' box, padded.", { h: planned.height, v: terrain ? tr(" (the terrain)") : tr(" (the collars' mean elevation; load a terrain for real ground)") })}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                    {["xmin", "ymin", "xmax", "ymax"].map((k) => <label key={k} style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{k === "xmin" ? tr("E from") : k === "xmax" ? tr("E to") : k === "ymin" ? tr("N from") : tr("N to")}<NumberInput allowEmpty value={planned[k]} placeholder={plannedExtent ? String(plannedExtent[k]) : ""} onChange={(v) => setPlanned((p) => ({ ...p, [k]: (v == null ? "" : String(v)) }))} aria-label={k} style={{ ...numInput, width: 90 }} /></label>)}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Line spacing (m)")}<NumberInput allowEmpty min={1} value={planned.line} onChange={(v) => setPlanned((p) => ({ ...p, line: (v == null ? "" : String(v)) }))} aria-label={tr("Line spacing (m)")} style={{ ...numInput, width: 64 }} /></label>
+                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Station spacing (m)")}<NumberInput allowEmpty min={1} value={planned.station} onChange={(v) => setPlanned((p) => ({ ...p, station: (v == null ? "" : String(v)) }))} aria-label={tr("Station spacing (m)")} style={{ ...numInput, width: 64 }} /></label>
+                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Lines")}<select value={planned.dir} onChange={(e) => setPlanned((p) => ({ ...p, dir: e.target.value }))} aria-label={tr("Line direction")} style={numInput}><option value="NS">{tr("north–south")}</option><option value="EW">{tr("east–west")}</option></select></label>
+                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Sensor height (m)")}<NumberInput allowEmpty min={0} value={planned.height} onChange={(v) => setPlanned((p) => ({ ...p, height: (v == null ? "" : String(v)) }))} aria-label={tr("Planned sensor height (m)")} style={{ ...numInput, width: 56 }} /></label>
+                  </div>
+                  <div style={{ ...small, marginTop: 4 }}>{plannedGrid.stats ? tr("{n} stations on {lines} line(s) ({dir}), {per} per line{v}.", { n: plannedGrid.stats.n.toLocaleString(), lines: plannedGrid.stats.lines, dir: plannedGrid.stats.dir === "NS" ? tr("north–south") : tr("east–west"), per: plannedGrid.stats.perLine, v: plannedGrid.stats.capped ? tr(" — capped at {cap}; widen the spacings", { cap: (20000).toLocaleString() }) : "" }) : tr("Two collars, or a typed extent, are needed to lay out a grid.")}</div>
                 </div>
               )}
-              <button className="gs-btn gs-btn--block" style={{ marginBottom: 4 }} onClick={runInversion} disabled={running || planBusy || !!invertBlocked} title={invertBlocked || undefined}><Play size={14} />{" "}{tr("Invert")}</button>
-
+              {rows.length > 0 && (<>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setPlate((p) => ({ ...p, open: !p.open }))} aria-expanded={plate.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
                 {plate.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Test a body (forward model)")}</div>
               {plate.open && (
@@ -797,7 +823,6 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
                   <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={runForward} disabled={running || planBusy}><Activity size={14} />{" "}{tr("Forward model")}</button>
                 </div>
               )}
-
               {/* TASKS.csv #760 — test a geology model against the survey */}
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGeo((g) => ({ ...g, open: !g.open }))} aria-expanded={geo.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
                 {geo.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Test a geology model (forward model)")}</div>
@@ -837,7 +862,6 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
                   </>)}
                 </div>
               )}
-
               {/* TASKS.csv #2640 Stage 1 — which contacts of the last geology model this survey can see (a sensitivity pass; no fit) */}
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSfOpen((o) => !o)} aria-expanded={sfOpen} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
                 {sfOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Which contacts can this survey see?")}</div>
@@ -846,19 +870,8 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
                   <StructFitPanel method={method} unit={M?.unit || ""} keptScope={keptScope} prepareForward={() => prepare("structfit")} unc={unc} setUnc={setUnc} field={field} ui={{ small, inp, row, lbl }} />
                 </React.Suspense>
               )}
-
-              {running && (
-                <div style={{ marginTop: 8, padding: "7px 9px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-                  <div style={{ color: "var(--color-text)" }}>{job.meta.label}: {prog.stage === "iterating" && prog.iter ? tr("iteration {iter} of {maxIter}", { iter: prog.iter, maxIter: prog.maxIter }) : prog.message || prog.stage || "starting"}</div>
-                  {prog.phi_d != null && <div style={small}>{tr("Misfit {v}× the target", { v: (prog.phi_d / prog.target).toFixed(2) })}</div>}
-                  <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={() => cancelInversionJob()}><Square size={12} />{" "}{tr("Cancel")}</button>
-                </div>
-              )}
-              {job && !running && job.error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 6 }}>{job.error}</div>}
-              {job && !running && job.status?.state === "cancelled" && <div style={{ ...small, marginTop: 6 }}>{tr("Cancelled — the worker process was stopped and its memory released.")}</div>}
-              {msg && <div role={msg.ok ? "status" : "alert"} style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
-              {lastResult && !running && <InResultArea slot={resultSlot}><FitView last={lastResult} method={method} mapSize={resultSlot ? 260 : 78} /></InResultArea>}
-            </>
+              </>)}
+            </MoreFold>
           )}
         </div>
       )}
