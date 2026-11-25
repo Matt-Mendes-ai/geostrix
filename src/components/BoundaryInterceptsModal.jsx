@@ -151,10 +151,10 @@ export default function BoundaryInterceptsModal({ intercepts: interceptsProp = n
                 {interceptSets.map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
               </select>
               {editingSet && (
-                <button onClick={() => askPrompt(tr("Rename set"), editingSet.name, (n) => { if (n && n.trim()) onRenameSet?.(editingSet.id, n.trim()); })} style={miniBtn} title={tr("Rename this set")}>{tr("Rename")}</button>
+                <button onClick={() => askPrompt(tr("Rename set"), editingSet.name, (n) => { if (n && n.trim()) onRenameSet?.(editingSet.id, n.trim()); })} className="gs-btn gs-btn--sm" title={tr("Rename this set")}>{tr("Rename")}</button>
               )}
               {editingSet && (
-                <button onClick={async () => { if (await askConfirm(tr("Delete the set \"{name}\"? The intercepts themselves are untouched.", { name: editingSet.name }))) { onDeleteSet?.(editingSet.id); setEditingSetId(""); } }} style={{ ...miniBtn, color: "var(--color-danger-icon)" }} title={tr("Delete this set")}>
+                <button onClick={async () => { if (await askConfirm(tr("Delete the set \"{name}\"? The intercepts themselves are untouched.", { name: editingSet.name }))) { onDeleteSet?.(editingSet.id); setEditingSetId(""); } }} className="gs-btn gs-btn--sm" style={{ color: "var(--color-danger-icon)" }} title={tr("Delete this set")}>
                   <Trash2 size={12} />
                 </button>
               )}
@@ -164,12 +164,12 @@ export default function BoundaryInterceptsModal({ intercepts: interceptsProp = n
                 onKeyDown={(e) => { if (e.key === "Enter" && newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
                 style={{ ...sel, flex: 1 }} />
               <button disabled={!newSetName.trim()} onClick={() => { if (newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
-                style={{ ...miniBtn, opacity: newSetName.trim() ? 1 : 0.5 }}><Plus size={12} />{" "}{tr("Create")}</button>
+                className="gs-btn gs-btn--sm" style={{ opacity: newSetName.trim() ? 1 : 0.5 }}><Plus size={12} />{" "}{tr("Create")}</button>
             </div>
             {editingSet && (
               <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), true)} style={miniBtn}>{tr("Add the {shown} shown", { shown: shown.length })}</button>
-                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), false)} style={miniBtn}>{tr("Remove the {shown} shown", { shown: shown.length })}</button>
+                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), true)} className="gs-btn gs-btn--sm">{tr("Add the {shown} shown", { shown: shown.length })}</button>
+                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), false)} className="gs-btn gs-btn--sm">{tr("Remove the {shown} shown", { shown: shown.length })}</button>
                 <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} intercept(s) in this set.", { n: (editingSet.ids || []).length })}</span>
               </div>
             )}
@@ -201,7 +201,7 @@ export default function BoundaryInterceptsModal({ intercepts: interceptsProp = n
               {shown.length > limit && ( /* #2209 */
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderTop: "1px solid var(--color-border-subtle)", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
                   {tr("Showing {n} of {total}: narrow them with the filters above, or", { n: limit.toLocaleString(), total: shown.length.toLocaleString() })}
-                  <button onClick={() => setLimit((l) => l + INTERCEPT_PAGE)} style={miniBtn}>{tr("Show {k} more", { k: Math.min(INTERCEPT_PAGE, shown.length - limit).toLocaleString() })}</button>
+                  <button onClick={() => setLimit((l) => l + INTERCEPT_PAGE)} className="gs-btn gs-btn--sm">{tr("Show {k} more", { k: Math.min(INTERCEPT_PAGE, shown.length - limit).toLocaleString() })}</button>
                 </div>
               )}
             </div>
@@ -209,7 +209,7 @@ export default function BoundaryInterceptsModal({ intercepts: interceptsProp = n
         </div>
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={exportCsv} disabled={!intercepts.length} style={{ ...rerunBtn, opacity: intercepts.length ? 1 : 0.5 }}>
+          <button onClick={exportCsv} disabled={!intercepts.length} className="gs-btn gs-btn--primary" style={{ opacity: intercepts.length ? 1 : 0.5 }}>
             <Download size={14} />{" "}{tr("Export CSV")}</button>
         </div>
       </div>
@@ -222,5 +222,3 @@ const header = { display: "flex", alignItems: "center", justifyContent: "space-b
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const th = { textAlign: "start", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, position: "sticky", top: 0, background: "var(--color-bg)" };
 const td = { padding: "5px 8px", color: "var(--color-text-strong)", whiteSpace: "nowrap" };
-const miniBtn = { display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit" };
-const rerunBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };

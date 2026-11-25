@@ -266,7 +266,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       {zOffer && (
         <div role="note" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", margin: "-2px 0 5px", lineHeight: 1.4 }}>
           <span style={{ flex: 1, ...(zOffer.far ? { color: "var(--color-warn-text)" } : {}) }}>{groundAt ? tr("Elev is blank: {z} from the terrain at this E / N.", { z: zOffer.z }) : zOffer.far ? farText(zOffer) : zOffer.nearestM != null ? tr("Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain): the nearest collar is {d} away, the collars used stand at {a} to {b} m.", { z: zOffer.z, d: distanceText(zOffer.nearestM), a: Math.round(zOffer.zMin), b: Math.round(zOffer.zMax) }) : tr("Elev is blank: {z} from the ground interpolated between the nearest collars (no terrain).", { z: zOffer.z })}</span>{/* #3335 */}
-          {zOffer.z != null && <button type="button" onClick={() => { set("z", zOffer.z); setZSource(groundAt ? "the terrain at the typed E / N" : collarFillSource(zOffer)); }} style={{ ...miniBtn, flex: "none" }}>{tr("Use it")}</button>}
+          {zOffer.z != null && <button type="button" onClick={() => { set("z", zOffer.z); setZSource(groundAt ? "the terrain at the typed E / N" : collarFillSource(zOffer)); }} className="gs-btn gs-btn--sm" style={{ flex: "none" }}>{tr("Use it")}</button>}
         </div>
       )}
       {!groundAt && !underground && (zOffer || /collars/.test(zSource)) && <CollarLevelsNote collars={collars} survey={survey} />}{/* #2584; survey: #3634 */}
@@ -289,16 +289,16 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       <div style={{ display: "flex", gap: 5 }}>
         <button
           onClick={onStartPick}
-          style={{ ...miniBtn, flex: 1, background: pickMode ? "var(--color-primary)" : miniBtn.background, border: pickMode ? "1px solid var(--color-primary)" : miniBtn.border, color: pickMode ? "var(--color-bg)" : miniBtn.color }}
+          data-btn-own="" style={{ flex: 1, background: pickMode ? "var(--color-primary)" : miniBtn.background, border: pickMode ? "1px solid var(--color-primary)" : miniBtn.border, color: pickMode ? "var(--color-bg)" : miniBtn.color }}
           title={tr("Click, then click anywhere in the 3D view to place a hole there")}
         >
           {pickMode ? tr("Click on the view…") : tr("Pick on view")}
         </button>
-        <button onClick={submit} disabled={!canAdd} title={canAdd ? undefined : tr("+ Add hole needs E, N and Elev as numbers, and a length above 0.")} style={{ ...miniBtn, flex: 1, background: canAdd ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: canAdd ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: canAdd ? 1 : 0.5 }}>{tr("+ Add hole")}</button>
+        <button onClick={submit} disabled={!canAdd} title={canAdd ? undefined : tr("+ Add hole needs E, N and Elev as numbers, and a length above 0.")} className="gs-btn gs-btn--sm" style={{ flex: 1 }}>{tr("+ Add hole")}</button>
       </div>
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>{/* #2651 */}
         <input ref={importRef} type="file" accept=".csv,.txt,.tsv" style={{ display: "none" }} onChange={(e) => { importCsv(e.target.files?.[0]); e.target.value = ""; }} />
-        <button type="button" onClick={() => importRef.current?.click()} style={{ ...miniBtn, flex: 1 }} title={tr("Planned holes from a CSV: E, N, Elev, azimuth (grid), dip and length; name, type, notes, target and lift / drift are read if present.")}>{tr("Import CSV…")}</button>
+        <button type="button" onClick={() => importRef.current?.click()} className="gs-btn gs-btn--sm" style={{ flex: 1 }} title={tr("Planned holes from a CSV: E, N, Elev, azimuth (grid), dip and length; name, type, notes, target and lift / drift are read if present.")}>{tr("Import CSV…")}</button>
       </div>
       {importMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: importMsg.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4, marginBottom: 5 }}>{importMsg.text}</div>}
       {/* TASKS.csv #2449 — a line or grid of holes from the E / N above, with the Az / Dip / Length above */}
@@ -314,8 +314,8 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
           <NumField label={tr("Target Elev")} value={target.z} onChange={(v) => setTarget((p) => ({ ...p, z: v }))} />
         </div>
         {upward && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: underground ? "var(--color-text-secondary)" : "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{underground ? tr("The target is above the collar, so the hole is an uphole: normal from underground development, not drillable from a surface collar.") /* #2251 */ : tr("The target is above the collar, so the hole points upward: not drillable from a surface collar. Check the target's elevation.")}</div>}
-        <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: targetReady && fromReady ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: targetReady && fromReady ? 1 : 0.5 }}>{tr("Solve az/dip/length to target")}</button>
-        <button onClick={solveCollar} disabled={!collarReady} style={{ ...miniBtn, width: "100%", marginTop: 4, opacity: collarReady ? 1 : 0.5 }} title={tr("Keeps the azimuth and dip and moves the collar to where a line through the target meets the terrain (the typed Elev with no terrain)")}>{tr("Solve collar for this dip/azimuth")}</button>{/* #1835 */}
+        <button onClick={solveTarget} disabled={!targetReady || !fromReady} className="gs-btn gs-btn--sm" style={{ width: "100%", background: targetReady && fromReady ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: targetReady && fromReady ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: targetReady && fromReady ? 1 : 0.5 }}>{tr("Solve az/dip/length to target")}</button>
+        <button onClick={solveCollar} disabled={!collarReady} className="gs-btn gs-btn--sm" style={{ width: "100%", marginTop: 4, opacity: collarReady ? 1 : 0.5 }} title={tr("Keeps the azimuth and dip and moves the collar to where a line through the target meets the terrain (the typed Elev with no terrain)")}>{tr("Solve collar for this dip/azimuth")}</button>{/* #1835 */}
         {/* TASKS.csv #2455 (review #2325, WA uranium) — on a surface project the answer to a target is a new hole above it, not five shallow holes from
             the neighbouring pads: the nearest-collars list is for collars drilled from underground; elsewhere one click places a vertical hole */}
         {targetReady && !underground && ground && (() => {
@@ -326,14 +326,14 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
           if (j.far) return (
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginTop: 6 }}>
               <span style={{ flex: 1, color: "var(--color-warn-text)" }}>{tr("Vertical hole above the target, no collar Elev: the nearest collar is {d} away (over 3 × {s} m). Type the Elev and length, or load a terrain.", { d: distanceText(j.f.nearestM), s: Math.round(j.f.spacing) })}</span>
-              <button onClick={() => { setDraft((p) => ({ ...withTargetXY(p), z: "", length: "" })); setZSource("typed"); setCollarNote(null); setUpward(false); setFromCollarId(""); }} style={{ ...miniBtn, padding: "1px 7px" }} title={tr("Fills the E, N, azimuth and dip; the Elev and the length are left blank for you")}>{tr("Use")}</button>
+              <button onClick={() => { setDraft((p) => ({ ...withTargetXY(p), z: "", length: "" })); setZSource("typed"); setCollarNote(null); setUpward(false); setFromCollarId(""); }} className="gs-btn gs-btn--sm" style={{ padding: "1px 7px" }} title={tr("Fills the E, N, azimuth and dip; the Elev and the length are left blank for you")}>{tr("Use")}</button>
             </div>
           );
           const zr = groundAt ? Math.round(j.z * 10) / 10 : j.z /* already judged: to the metre past one spacing */, depth = zr - Number(target.z);
           return depth > 0 ? (
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginTop: 6 }}>
               <span style={{ flex: 1 }}>{groundAt || j.f?.nearestM == null ? tr("A vertical hole above the target: collar at {z} m ({src}), {d} m to the target.", { z: zr, src: groundAt ? tr("the terrain") : tr("the ground interpolated between the nearest collars"), d: Math.round(depth) }) : tr("Vertical hole above the target: collar at {z} m, interpolated ground (nearest collar {n} away; collars at {a} to {b} m), {d} m to the target.", { z: zr, n: distanceText(j.f.nearestM), a: Math.round(j.f.zMin), b: Math.round(j.f.zMax), d: Math.round(depth) })}</span>
-              <button onClick={() => { setDraft((p) => ({ ...withTargetXY(p), z: zr, length: Math.round((depth + PAST_TARGET_M) * 10) / 10 })); setZSource(groundAt ? "the terrain at the target's E / N" : j.source /* #3818 — with the nearest collar's distance */); setCollarNote(null); setUpward(false); setFromCollarId(""); }} style={{ ...miniBtn, padding: "1px 7px" }}>{tr("Use")}</button>
+              <button onClick={() => { setDraft((p) => ({ ...withTargetXY(p), z: zr, length: Math.round((depth + PAST_TARGET_M) * 10) / 10 })); setZSource(groundAt ? "the terrain at the target's E / N" : j.source /* #3818 — with the nearest collar's distance */); setCollarNote(null); setUpward(false); setFromCollarId(""); }} className="gs-btn gs-btn--sm" style={{ padding: "1px 7px" }}>{tr("Use")}</button>
             </div>
           ) : null;
         })()}
@@ -343,7 +343,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
             {nearest.map((n) => (
               <div key={n.hole_id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: n.dip < 0 && isShallowDip(n.dip) ? "var(--color-warn-text)" : undefined }} title={n.dip < 0 && isShallowDip(n.dip) ? tr("Shallow: flatter than about {s}°.", { s: -SHALLOW_DIP_DEG }) : undefined}>{tr("{id}: az {az}°, dip {dip}°, {len} m", { id: n.hole_id, az: Math.round(n.azimuth), dip: dipPrinted(n.dip) /* TASKS.csv #3878 */, len: Math.round(n.length) })}</span>
-                <button onClick={() => planFromNearest(n)} style={{ ...miniBtn, padding: "1px 7px" }} aria-label={tr("Plan from {id}", { id: n.hole_id })}>{tr("Use")}</button>
+                <button onClick={() => planFromNearest(n)} className="gs-btn gs-btn--sm" style={{ padding: "1px 7px" }} aria-label={tr("Plan from {id}", { id: n.hole_id })}>{tr("Use")}</button>
               </div>
             ))}
           </div>
@@ -434,7 +434,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
         <NumField label={tr("Per new pad ($)")} value={rates[FIXED_KEYS.perPad] ?? ""} placeholder={tr("optional")} onChange={(v) => setRate(FIXED_KEYS.perPad, v)} />
       </div>
       {typedMin == null && autoMin != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -3, marginBottom: 7, lineHeight: 1.4 }}>{(holeSp > 0 && holeSp < 0.9 * siteSpacing ? tr("Min. spacing: a quarter of the drilled holes' site spacing ({s} m); the holes themselves are {h} m apart (nearest other hole, 3D). Type your own.", { s: Math.round(siteSpacing).toLocaleString(), h: Math.round(holeSp) }) /* #3820 */ : tr("Min. spacing: a quarter of the drilled holes' site spacing ({s} m). Type your own.", { s: Math.round(siteSpacing).toLocaleString() }))}</div>}{/* #2976 */}
-      {typedMin != null && autoMin != null && Number(typedMin) !== autoMin && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -3, marginBottom: 7 }}>{/* TASKS.csv #3824 (9) — a cleared or typed minimum had no way back to the suggested value short of reopening the pane */}<button type="button" onClick={() => setTypedMin(null)} style={{ background: "none", border: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", textDecoration: "underline", fontSize: "inherit" }}>{tr("Use the suggested {m} m", { m: autoMin })}</button></div>}
+      {typedMin != null && autoMin != null && Number(typedMin) !== autoMin && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -3, marginBottom: 7 }}>{/* TASKS.csv #3824 (9) — a cleared or typed minimum had no way back to the suggested value short of reopening the pane */}<button data-btn-own="" type="button" onClick={() => setTypedMin(null)} style={{ background: "none", border: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", textDecoration: "underline", fontSize: "inherit" }}>{tr("Use the suggested {m} m", { m: autoMin })}</button></div>}
       {typed && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 7 }}>{byType.rows.map((r) => <div key={r.type} style={{ flex: "1 1 30%" }}><NumField label={tr("{type} ($/m)", { type: r.type || tr("(no type)") })} value={rates[r.type] ?? ""} placeholder={tr("enter your rate")} onChange={(v) => setRate(r.type, v)} /></div>)}</div>}{/* #2581 */}
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 7 }}>
         {tr("{plannedHoles} {v}, {totalM} m total{v2}", { plannedHoles: plannedHoles.length, v: tr(plannedHoles.length === 1 ? "hole" : "holes"), totalM: totalM.toLocaleString(), v2: totalCost != null ? tr(" — est. ${totalCost} at ${rate}/m", { totalCost: totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 }), rate }) : "" })}
@@ -513,7 +513,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
         );
       })}
       {surfaces.length > 0 && onExportPierces && (
-        <button onClick={onExportPierces} style={{ width: "100%", marginTop: 4, padding: "5px 8px", fontSize: "var(--font-size-sm)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}
+        <button onClick={onExportPierces} className="gs-btn gs-btn--sm" style={{ width: "100%", marginTop: 4 }}
           title={tr("Every planned hole's crossings of the visible modelled surfaces: hole, surface, downhole and vertical depth, easting, northing, elevation and angle")}>{tr("Export pierce points (CSV)")}</button>
       )}
       {surfaces.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Build or show a modelled surface (3D Modelling) to list where the planned holes cross it.")}</div>}

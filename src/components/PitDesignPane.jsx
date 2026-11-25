@@ -20,7 +20,7 @@ import { terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #3316 /
 import { buildDXF, dxfNotes } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
 import { topCutCells } from "../lib/topCutCells.js";
@@ -198,7 +198,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         {Number.isFinite(Number(pit?.params?.inputs?.upperSlope?.rl)) && !upTyped && <div style={note}>{tr("The shell was run with a {s}° slope above {rl} m: give the upper benches their face and berm to match it.", { s: pit.params.inputs.upperSlope.slopeDeg, rl: pit.params.inputs.upperSlope.rl })}</div>}
         {field("datum", tr("Bench datum (m)"), { placeholder: "0", title: tr("Bench floors sit at this elevation plus whole bench heights. Blank: multiples of the bench height.") })}
         {/* TASKS.csv #1952 — a face angle and a berm width per wall sector: blank takes the overall */}
-        <div style={{ ...note, marginTop: 2 }}><button onClick={() => setShowSectors((s) => !s)} style={linkBtn} aria-expanded={showSectors}>{showSectors ? tr("Hide the face and berm by wall sector") : tr("Face and berm by wall sector…")}</button></div>
+        <div style={{ ...note, marginTop: 2 }}><button data-btn-own="" onClick={() => setShowSectors((s) => !s)} style={linkBtn} aria-expanded={showSectors}>{showSectors ? tr("Hide the face and berm by wall sector") : tr("Face and berm by wall sector…")}</button></div>
         {showSectors && (
           <div style={{ marginTop: 4 }}>
             <div style={note}>{tr("The wall on each side of the pit: face angle (°) and berm width (m). Blank takes the overall. From the geotechnical domains, not a guess.")}</div>
@@ -245,8 +245,8 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         {pitCount > 1 && !area && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The shell is several separate pits; the design grid then goes to the largest alone.")}><input type="checkbox" checked={largestOnly} onChange={(e) => setLargestOnly(e.target.checked)} />{tr("Design the largest of the {n} separate pits only", { n: pitCount })}</label>}{/* #1899 */}
         {designs.some((s) => s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier designs")}</label>}
         {!busy
-          ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Design the benches")}</button>
-          : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{busy && busy.stage === "grid" ? tr("Building the design grid: cancel") : busy && busy.stage === "mesh" ? tr("Meshing the design and counting its tonnes: cancel") /* #3002 */ : busy && busy.k ? (busy.n ? tr("Designing bench {k} of about {n}: cancel", { k: busy.k, n: Math.max(busy.n, busy.k) }) : tr("Designing bench {k}: cancel", { k: busy.k })) : tr("Designing: cancel")}</button>}{/* #2286 */}
+          ? <button onClick={run} disabled={missing} className="gs-btn gs-btn--block" style={{ marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Design the benches")}</button>
+          : <button onClick={cancel} className="gs-btn gs-btn--block" style={{ marginTop: 8 }}>{busy && busy.stage === "grid" ? tr("Building the design grid: cancel") : busy && busy.stage === "mesh" ? tr("Meshing the design and counting its tonnes: cancel") /* #3002 */ : busy && busy.k ? (busy.n ? tr("Designing bench {k} of about {n}: cancel", { k: busy.k, n: Math.max(busy.n, busy.k) }) : tr("Designing bench {k}: cancel", { k: busy.k })) : tr("Designing: cancel")}</button>}{/* #2286 */}
         {missing && !busy && <div style={note}>{tr("Enter the bench height, berm width and face angle: none has a default, because they are the design.")}</div>}
       </>)}
       {designs.length > 0 && (
@@ -254,11 +254,11 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           <div style={{ ...row, marginTop: 0, fontWeight: 600, color: "var(--color-text)" }}>{tr("Designs ({n})", { n: designs.length })}</div>
           {designs.map((s) => (
             <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
-              <button onClick={() => onToggle?.(s.id)} style={iconBtnStyle} aria-label={s.visible ? tr("Hide {name}", { name: s.name }) : tr("Show {name}", { name: s.name })} title={s.visible ? tr("Hide") : tr("Show")}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</button>
+              <button data-btn-own="" onClick={() => onToggle?.(s.id)} style={iconBtnStyle} aria-label={s.visible ? tr("Hide {name}", { name: s.name }) : tr("Show {name}", { name: s.name })} title={s.visible ? tr("Hide") : tr("Show")}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</button>
               <span title={s.name} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: s.visible ? "var(--color-text)" : "var(--color-text-muted)" }}>{String(s.name).replace(/^Pit design: /, "")}</span>
               {Number.isFinite(s.params?.oreTonnes) && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{`${big(s.params.oreTonnes)} t`}</span>}
-              {onZoomTo && <button onClick={() => onZoomTo(s.id)} style={iconBtnStyle} aria-label={tr("Zoom to {name}", { name: s.name })} title={tr("Zoom to")}><Maximize2 size={13} /></button>}{/* #2996 */}
-              <button onClick={() => removeDesign(s)} style={iconBtnStyle} aria-label={tr("Remove {name}", { name: s.name })} title={tr("Remove")}><Trash2 size={13} /></button>
+              {onZoomTo && <button data-btn-own="" onClick={() => onZoomTo(s.id)} style={iconBtnStyle} aria-label={tr("Zoom to {name}", { name: s.name })} title={tr("Zoom to")}><Maximize2 size={13} /></button>}{/* #2996 */}
+              <button data-btn-own="" onClick={() => removeDesign(s)} style={iconBtnStyle} aria-label={tr("Remove {name}", { name: s.name })} title={tr("Remove")}><Trash2 size={13} /></button>
             </div>
           ))}
         </div>
@@ -325,9 +325,9 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
             </table>
           </div>
           <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-            <button onClick={exportStringsDxf} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0 }} title={tr("Crest and toe strings, one DXF layer per bench")}><Download size={13} /> {tr("Strings DXF")}</button>
-            <button onClick={exportStringsCsv} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> {tr("Strings CSV")}</button>
-            <button onClick={exportBenchesCsv} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> {tr("Benches CSV")}</button>
+            <button onClick={exportStringsDxf} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }} title={tr("Crest and toe strings, one DXF layer per bench")}><Download size={13} /> {tr("Strings DXF")}</button>
+            <button onClick={exportStringsCsv} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> {tr("Strings CSV")}</button>
+            <button onClick={exportBenchesCsv} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> {tr("Benches CSV")}</button>
           </div>
           <div style={{ ...note, marginTop: 4 }}>{tr("A geometric design on a conceptual shell, at your bench, berm and face angle. It is not a Mineral Reserve or Resource.")}</div>
         </div>

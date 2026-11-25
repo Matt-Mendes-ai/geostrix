@@ -280,7 +280,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
           {designLines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
         {c && c.vertices?.length > 0 && view?.zoomTo && <Maximize2 size={14} style={{ cursor: "pointer", flexShrink: 0, alignSelf: "center" }} {...iconAction(() => view.zoomTo(c.vertices), tr("Zoom to this line"))} />}{/* #1892 */}
-        <button onClick={newLine} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }}><Plus size={13} /> {tr("New line")}</button>
+        <button onClick={newLine} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 8px" }}><Plus size={13} /> {tr("New line")}</button>
       </div>
       {msg && <div style={note}>{msg}</div>}{/* #1754 */}
       {line && (<>
@@ -307,7 +307,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
           <label style={{ ...row, marginTop: 0 }}>{tr("Radius (m)")}<NumberInput allowEmpty min={0} value={radius} onChange={asEvent((e) => setRadius(e.target.value))} placeholder={tr("sharp")} style={num} aria-label={tr("Curve radius of the next segment")} title={tr("The turning radius in plan. When drawing, each click curves off the line's heading at this radius, then runs straight to the point. Blank: a sharp corner.")} /></label>
         </div>
         {gradeRatio(Number(grade)) && <div style={{ ...note, marginTop: 2 }}>{tr("{ratio} {dir}", { ratio: gradeRatio(Number(grade)), dir: Number(grade) > 0 ? tr("up") : tr("down") })}</div>}
-        <button onClick={() => setDrawing((d) => !d)} disabled={!canDraw} aria-pressed={drawing} style={{ ...pBtn, marginTop: 6, background: drawing ? "var(--color-selected-bg)" : undefined, opacity: canDraw ? 1 : 0.5 }}>
+        <button data-btn-own="" onClick={() => setDrawing((d) => !d)} disabled={!canDraw} aria-pressed={drawing} style={{ ...pBtn, marginTop: 6, background: drawing ? "var(--color-selected-bg)" : undefined, opacity: canDraw ? 1 : 0.5 }}>
           <Spline size={14} /> {drawing ? tr("Click points in the view. Esc stops; right-drag moves the view") : tr("Draw in the 3D view")}
         </button>
         {drawing && !started && <div style={note}>{tr("The first click places the start.")}</div>}
@@ -318,12 +318,12 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
             <div style={{ ...row, flexWrap: "wrap" }}>
               <Cell value={num0(lengthText)} ariaLabel={tr("Length of the straight")} placeholder={tr("length")} onCommit={(v) => setLengthText(v == null ? "" : String(v))} />
               <Cell value={num0(azText)} ariaLabel={tr("Azimuth of the straight")} placeholder={tr("az °")} onCommit={(v) => setAzText(v == null ? "" : String(v))} />
-              <button onClick={addStraight} disabled={!(Number(lengthText) > 0)} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }}>{tr("Add straight")}</button>
+              <button onClick={addStraight} disabled={!(Number(lengthText) > 0)} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }}>{tr("Add straight")}</button>
             </div>
             <div style={{ ...row, flexWrap: "wrap" }}>
               <Cell value={num0(angleText)} ariaLabel={tr("Angle of the curve")} placeholder={tr("angle °")} onCommit={(v) => setAngleText(v == null ? "" : String(v))} />
               <select value={turn} onChange={(e) => setTurn(e.target.value)} style={{ ...smallSel, width: 62 }} aria-label={tr("Direction of the curve")}><option value="right">{tr("right")}</option><option value="left">{tr("left")}</option></select>
-              <button onClick={addCurve} disabled={!(Number(radius) > 0 && Number(angleText) > 0)} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }}>{tr("Add curve")}</button>
+              <button onClick={addCurve} disabled={!(Number(radius) > 0 && Number(angleText) > 0)} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }}>{tr("Add curve")}</button>
             </div>
             <div style={note}>{tr("A curve can pass 360° for a spiral ramp. It uses the radius above.")}</div>
           </div>
@@ -336,7 +336,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
             <Cell value={num0(tgt.x)} width={66} placeholder="E" ariaLabel={tr("Target easting")} onCommit={(v) => setTgt((t) => ({ ...t, x: v == null ? "" : String(v), holeId: "" }))} />
             <Cell value={num0(tgt.y)} width={70} placeholder="N" ariaLabel={tr("Target northing")} onCommit={(v) => setTgt((t) => ({ ...t, y: v == null ? "" : String(v), holeId: "" }))} />
             <Cell value={num0(tgt.z)} width={52} placeholder="Z" ariaLabel={tr("Target elevation")} onCommit={(v) => setTgt((t) => ({ ...t, z: v == null ? "" : String(v), holeId: "" }))} />
-            <button onClick={() => setPicking((p) => !p)} aria-pressed={picking} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px", background: picking ? "var(--color-selected-bg)" : undefined }}>{picking ? tr("Click the target…") : tr("Pick in view")}</button>
+            <button data-btn-own="" onClick={() => setPicking((p) => !p)} aria-pressed={picking} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px", background: picking ? "var(--color-selected-bg)" : undefined }}>{picking ? tr("Click the target…") : tr("Pick in view")}</button>
           </div>
           {plannedHoles.length > 0 && <label style={row}>{tr("Or a planned hole's toe")}<select value={tgt.holeId} onChange={(e) => setTgt((t) => ({ ...t, holeId: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Planned hole whose toe is the target")}><option value="">{tr("— none —")}</option>{plannedHoles.map((h) => <option key={h.id} value={h.id}>{h.name || h.id}</option>)}</select></label>}
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -345,7 +345,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
           </div>
           {pickedOn?.miss && <div style={note}>{tr("Nothing under the cursor there: the target was not changed.")}</div>}{/* #1921 */}
           {pickedOn && !pickedOn.miss && !tgt.holeId && <div style={note}>{pickedOn.on ? tr("Picked on {name} at Z {z}: set the Z by hand if that is not the elevation you mean.", { name: pickedOn.on, z: m1(pickedOn.z) }) : tr("Picked on the flat reference plane (nothing drawn under the cursor): set the Z by hand.")}</div>}{/* #1891 */}
-          <button onClick={designToTarget} disabled={!targetPoint()} style={{ ...pBtn, marginTop: 4, opacity: targetPoint() ? 1 : 0.5 }}><Spline size={14} /> {tr("Design to the target")}</button>
+          <button onClick={designToTarget} disabled={!targetPoint()} className="gs-btn gs-btn--block" style={{ marginTop: 4, opacity: targetPoint() ? 1 : 0.5 }}><Spline size={14} /> {tr("Design to the target")}</button>
           {toTargetMsg && <div style={note}>{toTargetMsg}</div>}
         </>)}
         {c && c.segments.length > 0 && (<>
@@ -387,7 +387,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
             <label style={{ ...row, marginTop: 0 }}>{tr("Height (m)")}<Cell value={line.profile?.height ?? null} width={52} ariaLabel={tr("Profile height")} onCommit={(v) => update({ profile: { ...(line.profile || { shape: "flat" }), height: v } })} /></label>
             <select value={line.profile?.shape || "flat"} onChange={(e) => update({ profile: { ...(line.profile || {}), shape: e.target.value } })} style={{ ...smallSel, width: 72 }} aria-label={tr("Profile shape")}><option value="flat">{tr("flat back")}</option><option value="arched">{tr("arched")}</option></select>
           </div>
-          {line.profile?.width > 0 && line.profile?.height > 0 && onAdd && <div style={{ marginTop: 4 }}><button onClick={addOpening} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }} title={tr("The swept profile as a closed solid in Generated surfaces: export it, query it against the holes, take it out of a stope.")}>{tr("Add the opening as a solid")}</button></div>}{/* #1954 */}
+          {line.profile?.width > 0 && line.profile?.height > 0 && onAdd && <div style={{ marginTop: 4 }}><button onClick={addOpening} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 8px" }} title={tr("The swept profile as a closed solid in Generated surfaces: export it, query it against the holes, take it out of a stope.")}>{tr("Add the opening as a solid")}</button></div>}{/* #1954 */}
           {line.profile?.width > 0 && line.profile?.height > 0 && <div style={note}>{tr("{a} m² section, {v} m³ along this line{t}. The profile is drawn in the view.", { a: m2(profileArea(line.profile)), v: Math.round(profileArea(line.profile) * c.length).toLocaleString(), t: num0(density) > 0 ? tr(", {t} t at {d} t/m³", { t: Math.round(profileArea(line.profile) * c.length * num0(density)).toLocaleString(), d: num0(density) }) : "" })}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             <label style={{ ...row, marginTop: 0 }}>{tr("Density (t/m³)")}<NumberInput allowEmpty min={0} value={density} onChange={asEvent((e) => setDensity(e.target.value))} style={num} aria-label={tr("Rock density for the excavation tonnes")} /></label>
@@ -402,14 +402,14 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
               <tbody>{devRows.map((r) => <tr key={r.line}><td style={{ ...cellStyle, textAlign: "left" }}>{r.line}</td><td style={cellStyle}>{r.length_m.toLocaleString()}</td><td style={cellStyle}>{r.level_m.toLocaleString()}</td><td style={cellStyle}>{r.ramp_m.toLocaleString()}</td><td style={cellStyle}>{r.volume_m3 === "" ? "—" : r.volume_m3.toLocaleString()}</td><td style={cellStyle}>{r.tonnes === "" ? "—" : r.tonnes.toLocaleString()}</td></tr>)}</tbody>
             </table>
             <div style={note}>{tr("Level: segments within 2 % of flat; ramp: the rest. m³ and t need a profile on the line and a density.")}</div>
-            <button onClick={exportDevCsv} style={{ ...pBtn, marginTop: 4 }}><Download size={13} /> {tr("Development CSV")}</button>
+            <button onClick={exportDevCsv} className="gs-btn gs-btn--block" style={{ marginTop: 4 }}><Download size={13} /> {tr("Development CSV")}</button>
           </div>
         )}
       </>)}
       {designLines.some((l) => l.segments.length) && (
         <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
-          <button onClick={exportDxf} style={{ ...pBtn, marginBottom: 0 }}><Download size={13} /> DXF</button>
-          <button onClick={exportCsv} style={{ ...pBtn, marginBottom: 0 }}><Download size={13} /> CSV</button>
+          <button onClick={exportDxf} className="gs-btn gs-btn--block" style={{ marginBottom: 0 }}><Download size={13} /> DXF</button>
+          <button onClick={exportCsv} className="gs-btn gs-btn--block" style={{ marginBottom: 0 }}><Download size={13} /> CSV</button>
         </div>
       )}
     </div>

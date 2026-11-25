@@ -20,7 +20,7 @@ import { slopeName } from "../lib/pitWalls.js"; // TASKS.csv #2433
 import { valueUnit } from "../lib/blockModelExport.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
 import { topCutCells } from "../lib/topCutCells.js";
@@ -163,8 +163,8 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
         <label style={row}>{tr("Mining rate (t rock / year)")}<NumberInput allowEmpty min={0} value={f.rate} onChange={asEvent((e) => setF((p) => ({ ...p, rate: e.target.value })))} style={num} aria-label={tr("Mining rate")} placeholder={tr("optional")} /></label>
         <label style={row}>{tr("Discount rate (% / year)")}<NumberInput allowEmpty min={0} value={f.discount} onChange={asEvent((e) => setF((p) => ({ ...p, discount: e.target.value })))} style={num} aria-label={tr("Discount rate")} placeholder={tr("optional")} disabled={!rate} /></label>
         {busy == null
-          ? <button onClick={run} disabled={!factors.length || byMissing} style={{ ...pBtn, marginTop: 8, opacity: factors.length && !byMissing ? 1 : 0.5 }}><Layers size={14} /> {tr("Run the series")}</button>
-          : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Solving shell {i} of {n}: cancel", { i: (busy.idx || 0) + 1, n: busy.of || factors.length })}</button>}
+          ? <button onClick={run} disabled={!factors.length || byMissing} className="gs-btn gs-btn--block" style={{ marginTop: 8, opacity: factors.length && !byMissing ? 1 : 0.5 }}><Layers size={14} /> {tr("Run the series")}</button>
+          : <button onClick={cancel} className="gs-btn gs-btn--block" style={{ marginTop: 8 }}>{tr("Solving shell {i} of {n}: cancel", { i: (busy.idx || 0) + 1, n: busy.of || factors.length })}</button>}
       </>)}
       {lastPit && <UndergroundOreNote model={model} cutoff={lastPit.params?.cutoffGrade} />}{/* #2277 */}
       {lastPit && <TopCutNote model={model} />}{/* #3794 */}
@@ -180,7 +180,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
                   <td style={cellStyle}>{r.rf}</td><td style={cellStyle}>{r.blocks ? big(r.oreT) : "—"}</td><td style={cellStyle}>{r.meanGrade == null ? "—" : Number(r.meanGrade.toPrecision(3))}</td>{(res.alsoLabels || []).map((l, k) => <td key={l} style={cellStyle}>{r.also?.[k]?.meanGrade == null ? "—" : Number(r.also[k].meanGrade.toPrecision(3))}</td>)}<td style={cellStyle}>{r.stripRatio == null ? "—" : r.stripRatio.toFixed(2)}</td><td style={cellStyle}>{r.blocks ? moneyText(cur, big(r.moneyBase)) : "—"}</td>
                   {res.rate && <td style={cellStyle}>{r.blocks ? r.years.toFixed(1) : "—"}</td>}
                   {res.rate && res.discountPct != null && <td style={cellStyle}>{r.blocks ? moneyText(cur, big(r.npv)) : "—"}</td>}
-                  <td style={{ ...cellStyle, padding: 0 }}>{r.positions && <button onClick={() => showShell(i)} style={iconBtnStyle} aria-label={shownState(i) === "on" ? tr("Hide the shell at {rf}", { rf: r.rf }) : tr("Show the shell at {rf}", { rf: r.rf })} title={shownState(i) === "on" ? tr("Hide") : tr("Show in the 3D view")}>{shownState(i) === "on" ? <Eye size={12} /> : <EyeOff size={12} />}</button>}</td>
+                  <td style={{ ...cellStyle, padding: 0 }}>{r.positions && <button data-btn-own="" onClick={() => showShell(i)} style={iconBtnStyle} aria-label={shownState(i) === "on" ? tr("Hide the shell at {rf}", { rf: r.rf }) : tr("Show the shell at {rf}", { rf: r.rf })} title={shownState(i) === "on" ? tr("Hide") : tr("Show in the 3D view")}>{shownState(i) === "on" ? <Eye size={12} /> : <EyeOff size={12} />}</button>}</td>
                 </tr>
               ))}</tbody>
             </table>
@@ -228,7 +228,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
           {res.coarsened && <div style={warn}>{tr("The grid was made coarser to stay within the limit, so the walls are coarser than the block model.")}</div>}
           {res.runs.some((r) => r.touchesBase) && <div style={warn}>{tr("A shell reaches the bottom of the block model: it may go deeper if the body does.")}</div>}
-          <button onClick={exportCsv} style={{ ...pBtn, marginTop: 6 }}><Download size={13} /> {tr("Shells and years CSV")}</button>
+          <button onClick={exportCsv} className="gs-btn gs-btn--block" style={{ marginTop: 6 }}><Download size={13} /> {tr("Shells and years CSV")}</button>
           <div style={{ ...note, marginTop: 4 }}>{tr("Conceptual, from your inputs and this block model: the schedule has no stockpiles, ramps, dilution, capital or closure, and each shell is mined whole before the next. Not a Mineral Reserve, a Resource or a value of the project.")}</div>
         </div>
       )}

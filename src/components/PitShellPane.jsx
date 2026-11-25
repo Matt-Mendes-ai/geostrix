@@ -18,7 +18,7 @@ import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { collarsForGround } from "../lib/collarGround.js"; // TASKS.csv #3582
 import { runPitShellAsync } from "../lib/pitShellClient.js";
 import { slopeName } from "../lib/pitWalls.js"; // TASKS.csv #2433
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import UndergroundOreNote from "./UndergroundOreNote.jsx"; // TASKS.csv #2277
 import TopCutNote from "./TopCutNote.jsx"; // TASKS.csv #3794
 import { topCutRecord } from "../lib/topCutCells.js";
@@ -387,9 +387,9 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
               <select value={r.modelId} onChange={(e) => setPen(i, { modelId: e.target.value })} style={{ ...smallSel, flex: 1, minWidth: 90 }} aria-label={tr("Penalty block model")}><option value="">{tr("— model —")}</option>{alsoCandidates.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}{m.property ? ` (${m.property})` : ""}</option>)}</select>
               {tr("over")}<NumberInput allowEmpty min={0} value={r.limit} onChange={asEvent((e) => setPen(i, { limit: e.target.value }))} style={{ ...num, width: 56 }} aria-label={tr("Penalty limit")} />
               <NumberInput allowEmpty min={0} value={r.perUnit} onChange={asEvent((e) => setPen(i, { perUnit: e.target.value }))} style={{ ...num, width: 56 }} aria-label={tr("Penalty per unit over the limit ($/dmt)")} />{tr("$/dmt per 1 over")}
-              <button type="button" onClick={() => setF((p) => ({ ...p, penalties: (p.penalties || []).filter((_, k) => k !== i) }))} style={{ ...smallSel, cursor: "pointer" }} aria-label={tr("Remove this penalty line")}>×</button>
+              <button type="button" onClick={() => setF((p) => ({ ...p, penalties: (p.penalties || []).filter((_, k) => k !== i) }))} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }} aria-label={tr("Remove this penalty line")}>×</button>
             </div>))}
-          <button type="button" onClick={() => setF((p) => ({ ...p, penalties: [...(p.penalties || []), { modelId: "", limit: "", perUnit: "" }] }))} style={{ ...smallSel, cursor: "pointer", alignSelf: "flex-start" }}>{tr("+ add a penalty line")}</button>
+          <button type="button" onClick={() => setF((p) => ({ ...p, penalties: [...(p.penalties || []), { modelId: "", limit: "", perUnit: "" }] }))} className="gs-btn gs-btn--sm" style={{ cursor: "pointer", alignSelf: "flex-start" }}>{tr("+ add a penalty line")}</button>
         </div>}
         {field("miningCost", tr("Mining cost ($/t rock)"))}
         {field("processingCost", tr("Processing cost ($/t ore)"))}
@@ -397,7 +397,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {field("density", tr("Density (t/m³)"), { title: tr("The density of the ore blocks; of all the rock when no waste density is entered.") })}
         {field("wasteDensity", tr("Waste density (t/m³)"), { placeholder: tr("optional"), title: tr("Optional: the density of the blocks below cut-off and of the rock outside the block model (cover, host rock). Blank: the density above for all rock.") })}{/* #2437 */}
         {codeLayers.length > 0 && <label style={row} title={tr("A density per code of a logged layer: each block takes the nearest logged interval within reach and that code's density, ore or waste; a block with no code, or a code with no density typed, takes the densities above.")}>{tr("Density by")}<select value={f.densityLayer} onChange={set("densityLayer")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Density by")}><option value="">{tr("one value")}</option>{codeLayers.map((k) => <option key={k} value={k}>{k === "weath" ? tr("Weathering") : k === "litho" ? tr("Lithology") : tr("Alteration")}</option>)}</select></label>}{/* #2647 */}
-        {f.densityLayer && layerCodes.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 4, fontSize: "var(--font-size-sm)" }}>{layerCodes.map((code) => <label key={code} style={{ display: "flex", alignItems: "center", gap: 4 }}>{code}<NumberInput allowEmpty min={0} step={0.01} value={f.densityByCode?.[code] ?? ""} placeholder={tr("blank")} onChange={asEvent((e) => { const v = e.target.value; setF((p) => ({ ...p, densityByCode: { ...(p.densityByCode || {}), [code]: v } })); setMsg(null); })} aria-label={tr("Density of {code} (t/m³)", { code })} style={{ ...smallSel, width: 60 }} /></label>)}{allLayerCodes.length > layerCodes.length && <button type="button" onClick={() => setAllCodesShown(true)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Show all {n} codes ({k} more, the least logged)", { n: allLayerCodes.length, k: allLayerCodes.length - layerCodes.length })}</button>}</div>}{/* #2993 */}
+        {f.densityLayer && layerCodes.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 4, fontSize: "var(--font-size-sm)" }}>{layerCodes.map((code) => <label key={code} style={{ display: "flex", alignItems: "center", gap: 4 }}>{code}<NumberInput allowEmpty min={0} step={0.01} value={f.densityByCode?.[code] ?? ""} placeholder={tr("blank")} onChange={asEvent((e) => { const v = e.target.value; setF((p) => ({ ...p, densityByCode: { ...(p.densityByCode || {}), [code]: v } })); setMsg(null); })} aria-label={tr("Density of {code} (t/m³)", { code })} style={{ ...smallSel, width: 60 }} /></label>)}{allLayerCodes.length > layerCodes.length && <button type="button" onClick={() => setAllCodesShown(true)} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Show all {n} codes ({k} more, the least logged)", { n: allLayerCodes.length, k: allLayerCodes.length - layerCodes.length })}</button>}</div>}{/* #2993 */}
         {codeDensityBad && <div style={warn}>{tr("A code's density must be above 0, or blank.")}</div>}
         {/* TASKS.csv #2597 — an optional weathered zone with its own density */}
         <label style={row}>{tr("Weathered zone (optional)")}<select value={f.weathMode} onChange={set("weathMode")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Weathered zone")}>
@@ -407,7 +407,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {f.weathMode === "log" && <label style={row}>{tr("Fresh rock is logged as")}<select value={f.weathCode} onChange={set("weathCode")} style={num} aria-label={tr("Code of fresh rock in the Weathering log")}><option value="">{tr("— choose —")}</option>{weathCodes.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>}
         {f.weathMode === "log" && weathBase?.points.length > 0 && <div style={note}>{tr("Its top in {n} of the {l} logged holes: {a}–{b} m below the collar (median {m}); between the holes it is interpolated. {w} hole(s) never reach it.", { n: weathBase.points.length, l: weathBase.logged, a: Math.round(weathBase.min), b: Math.round(weathBase.max), m: Math.round(weathBase.median), w: weathBase.without })}</div>}
         {f.weathMode && field("weathDensity", tr("Weathered density (t/m³)"), { title: tr("Every tonne above the base of the weathered zone, ore or waste, at this density.") })}
-        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v} (all {n} measurements, every hole)", { v: sg.mean, n: sg.n })}</button>{sg.left > 0 && <span style={{ marginLeft: 6 }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out (the range is set in Data QC).", { n: sg.left.toLocaleString(), min: sg.range.min, max: sg.range.max })}</span> /* #3587 */}</div>}{/* every hole: #1755 */}
+        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v} (all {n} measurements, every hole)", { v: sg.mean, n: sg.n })}</button>{sg.left > 0 && <span style={{ marginLeft: 6 }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out (the range is set in Data QC).", { n: sg.left.toLocaleString(), min: sg.range.min, max: sg.range.max })}</span> /* #3587 */}</div>}{/* every hole: #1755 */}
         {field("slopeDeg", tr("Overall slope (°)"))}
         {/* TASKS.csv #2439 — a slope for the ground above an RL (soft cover over the ore): both blank, the overall slope everywhere */}
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
@@ -417,7 +417,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {field("limitM", tr("Keep within (m of the block model)"), { placeholder: tr("optional"), title: tr("Optional: the pit may not reach further than this, in plan, from the block model's columns; a block whose slope would need ground beyond it stays in the ground. Blank: no limit, the walls go where the slope takes them and the rock outside the model counts as barren.") })}{/* #2665 */}
         {limitBad && <div style={warn}>{tr("The distance must be 0 or more, or blank.")}</div>}
         {/* TASKS.csv #1881 — a slope per wall sector: the wall on that side of the pit; blank takes the overall slope */}
-        <div style={{ ...note, marginTop: 2 }}><button onClick={() => setShowSectors((v) => !v)} style={linkBtn} aria-expanded={showSectors}>{showSectors ? tr("Hide the slope by wall sector") : tr("Slope by wall sector…")}</button></div>
+        <div style={{ ...note, marginTop: 2 }}><button data-btn-own="" onClick={() => setShowSectors((v) => !v)} style={linkBtn} aria-expanded={showSectors}>{showSectors ? tr("Hide the slope by wall sector") : tr("Slope by wall sector…")}</button></div>
         {showSectors && (
           <div style={{ marginTop: 4 }}>
             <div style={note}>{tr("The wall on each side of the pit: blank takes the overall slope. From a geotechnical study, not a guess.")}</div>
@@ -446,24 +446,24 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           : tr("No terrain is loaded and no collar has an elevation, so the top of each column of the block model stands in for the ground, interpolated between columns: nothing above the highest block is costed. Load a terrain in Maps for the real surface.")}</div>}{/* #1850 */}
         {surfaces.some((s) => s.type === "pit_shell" && s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier pits when this one is made")}{/* #2119 — it acts on Run, not when ticked */}</label>}
         {busy == null
-          ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Pickaxe size={14} /> {editing ? tr("Run and replace the pit") : tr("Run the pit shell")}</button>
-          : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Solving ({n}): cancel", { n: busy })}</button>}
+          ? <button onClick={run} disabled={missing} className="gs-btn gs-btn--block" style={{ marginTop: 8, opacity: missing ? 0.5 : 1 }}><Pickaxe size={14} /> {editing ? tr("Run and replace the pit") : tr("Run the pit shell")}</button>
+          : <button onClick={cancel} className="gs-btn gs-btn--block" style={{ marginTop: 8 }}>{tr("Solving ({n}): cancel", { n: busy })}</button>}
         {missing && busy == null && (outOfRange
           ? <div style={warn}>{outOfRange}</div>
           : <div style={note}>{tr("Enter every number above: none has a default, because the result is only as good as they are.")}</div>)}{/* #1753 */}
-        {editing && <div style={{ ...note, marginTop: 4 }}>{tr("Editing \"{name}\": its inputs are in the form; running replaces it.", { name: editing.name })} <button onClick={() => setEditingId(null)} style={linkBtn}>{tr("Stop editing")}</button></div>}
+        {editing && <div style={{ ...note, marginTop: 4 }}>{tr("Editing \"{name}\": its inputs are in the form; running replaces it.", { name: editing.name })} <button data-btn-own="" onClick={() => setEditingId(null)} style={linkBtn}>{tr("Stop editing")}</button></div>}
       </>)}
       {pits.length > 0 && (
         <div style={{ marginTop: 10 }}>
           <div style={{ ...row, marginTop: 0, fontWeight: 600, color: "var(--color-text)" }}>{tr("Pits ({n})", { n: pits.length })}</div>
           {pits.map((s) => (
             <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, padding: "4px 6px", border: `1px solid ${s.id === editingId ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 5, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
-              <button onClick={() => onToggle?.(s.id)} style={iconBtnStyle} aria-label={s.visible ? tr("Hide {name}", { name: s.name }) : tr("Show {name}", { name: s.name })} title={s.visible ? tr("Hide") : tr("Show")}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</button>
+              <button data-btn-own="" onClick={() => onToggle?.(s.id)} style={iconBtnStyle} aria-label={s.visible ? tr("Hide {name}", { name: s.name }) : tr("Show {name}", { name: s.name })} title={s.visible ? tr("Hide") : tr("Show")}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</button>
               <span title={s.name} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: s.visible ? "var(--color-text)" : "var(--color-text-muted)" }}>{String(s.name).replace(/^Pit shell: /, "")}</span>
               {Number.isFinite(s.params?.oreTonnes) && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{`${big(s.params.oreTonnes)} t`}</span>}
-              {onZoomTo && <button onClick={() => onZoomTo(s.id)} style={iconBtnStyle} aria-label={tr("Zoom to {name}", { name: s.name })} title={tr("Zoom to")}><Maximize2 size={13} /></button>}{/* #2996 */}
-              <button onClick={() => editPit(s)} style={iconBtnStyle} aria-label={tr("Edit {name}", { name: s.name })} title={tr("Put this pit's inputs in the form; the next run replaces it")}><Pencil size={13} /></button>
-              <button onClick={() => removePit(s)} style={iconBtnStyle} aria-label={tr("Remove {name}", { name: s.name })} title={tr("Remove")}><Trash2 size={13} /></button>
+              {onZoomTo && <button data-btn-own="" onClick={() => onZoomTo(s.id)} style={iconBtnStyle} aria-label={tr("Zoom to {name}", { name: s.name })} title={tr("Zoom to")}><Maximize2 size={13} /></button>}{/* #2996 */}
+              <button data-btn-own="" onClick={() => editPit(s)} style={iconBtnStyle} aria-label={tr("Edit {name}", { name: s.name })} title={tr("Put this pit's inputs in the form; the next run replaces it")}><Pencil size={13} /></button>
+              <button data-btn-own="" onClick={() => removePit(s)} style={iconBtnStyle} aria-label={tr("Remove {name}", { name: s.name })} title={tr("Remove")}><Trash2 size={13} /></button>
             </div>
           ))}
         </div>

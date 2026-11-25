@@ -20,7 +20,7 @@ export default function StopeRunRows({ stopes, onShow, onOpen }) {
           title={MINE_DESIGN_ENABLED ? tr("{n} stope solids from one Stope outlines run; manage them in Mine Design > Stope outlines", { n: r.count }) : tr("{n} stope solids from one run", { n: r.count })}>
           {tr("Stopes: {model} ≥ {c} ({n} on {l} level(s))", { model: r.model, c: `${r.cutoff ?? "?"} ${r.unit}`.trim(), n: r.count, l: r.levels.length })}
         </div>
-        {MINE_DESIGN_ENABLED && <button type="button" onClick={onOpen} style={{ border: "1px solid var(--color-border)", background: "var(--color-bg)", borderRadius: 4, padding: "1px 6px", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", cursor: "pointer", flexShrink: 0 }}>{tr("Manage")}</button>}
+        {MINE_DESIGN_ENABLED && <button type="button" onClick={onOpen} className="gs-btn gs-btn--sm" style={{ flexShrink: 0 }}>{tr("Manage")}</button>}
       </div>
     );
   });

@@ -46,9 +46,9 @@ ${info?.componentStack || ""}`.slice(0, 6000) }); if (list.length > 50) list.spl
           <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 12, wordBreak: "break-word" }}>{String(this.state.error?.message || this.state.error)}</div>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 14 }}>{tr("Your project is still open and nothing has been lost. Saving now is a good idea.")}</div>
           {this.props.onSave && (
-            <button onClick={async () => { const r = await this.props.onSave(); if (r && !r.ok && r.error) askAlert(tr("The project could not be saved: {error}", { error: r.error })); /* #467 */ }} style={{ marginRight: 10, padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>{tr("Save project…")}</button>
+            <button onClick={async () => { const r = await this.props.onSave(); if (r && !r.ok && r.error) askAlert(tr("The project could not be saved: {error}", { error: r.error })); /* #467 */ }} className="gs-btn" style={{ marginRight: 10 }}>{tr("Save project…")}</button>
           )}
-          <button onClick={() => { this.setState({ error: null }); this.props.onClose?.(); }} style={{ padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>
+          <button onClick={() => { this.setState({ error: null }); this.props.onClose?.(); }} className="gs-btn">
             {this.props.scope === "modal" ? tr("Close") : tr("Try again")}
           </button>
         </div>
@@ -64,11 +64,11 @@ ${info?.componentStack || ""}`.slice(0, 6000) }); if (list.length > 50) list.spl
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 16 }}>{tr("The project state could not be kept here. If the app was autosaving, restart it to recover the last autosave (at most a minute old). The full stack trace is in the DevTools console.")}</div>
           <button
             onClick={() => this.setState({ error: null })}
-            style={{ marginRight: 10, padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}
+            className="gs-btn" style={{ marginRight: 10 }}
           >{tr("Try to continue")}</button>
           <button
             onClick={() => window.location.reload()}
-            style={{ padding: "8px 14px", background: "var(--color-success-bg)", border: "1px solid var(--color-success-border)", borderRadius: 6, color: "var(--color-success-fg)", fontSize: "var(--font-size-base)", cursor: "pointer" }}
+            className="gs-btn gs-btn--primary"
           >{tr("Reload app")}</button>
         </div>
       </div>
