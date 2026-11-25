@@ -142,7 +142,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         tr("{name} ({src}): {n} stations on {l} line(s); channels {ch} ({m} gates).", { name: file.name, src: d.source, n: d.n.toLocaleString(), l: L.length, ch: d.groups[g].prefix, m: d.groups[g].cols.length }),
         t ? tr("Gate times read from the file: {a} to {b} ms.", { a: fmt(t[0]), b: fmt(t[t.length - 1]) }) : tr("The file does not state its gate times: type them below (ms, one per gate) to fit the decay constant."),
         ...(d.notes || []), // #4063
-        d.components ? tr("Components {c}: {first} first; the others are kept.", { c: d.components.join(", "), first: d.components[0] }) : "", // #4058
+        d.components?.length > 1 ? tr("Components {c}: {first} first; the others are kept.", { c: d.components.join(", "), first: d.components[0] }) : "", // #4058
       ].filter(Boolean).join(" ") });
     } catch (err) { setMsg({ text: tr("Could not read the file: {v}", { v: err?.message || String(err) }) }); }
     setBusy(false);
