@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, ShieldAlert, AlertTriangle, Info, RefreshCw, Download } from "./icons.js";
+import { ShieldAlert, AlertTriangle, Info, Download } from "./icons.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import { useStore } from "../lib/store.jsx";
 import { runDataQCSliced, collarTerrainOffsets, qcIssueRows, qcSorted, DOGLEG_ERROR_DEFAULT, terrainNodeM } from "../lib/dataQC.js"; // qcIssueRows: #1111; Sliced: #3136
 import { saveFile } from "../lib/desktop.js";
@@ -12,9 +13,7 @@ import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js";
 import { normalizeDesurveyMethod } from "../lib/desurvey.js";
 import { version as APP_VERSION } from "../../package.json";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
+import { backdropProps } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
@@ -42,8 +41,6 @@ const SEVERITY_META = {
 const NOT_YET = { issues: [], byCategory: new Map(), summary: {} }; // #3099 — before the check has run
 
 export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #3569 — find the hole in 3D */ }) {
-  useEscapeKey(onCancel); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
   const { project, collars, survey, layers, boundaries, assays, assayElements, terrain, setCollars, customLayers, setProjectDensityRange, setProjectQcChecked } = useStore(); // customLayers: #2493; assayElements: #3569; the setters: #3587 / #3569
   // TASKS.csv #558 — collars vs the loaded terrain, with an adjustable threshold and an (undoable) snap
   const [terrainThreshold, setTerrainThreshold] = useState(15);
@@ -110,52 +107,60 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
   const toggleSeverity = (sev) => setFilter((p) => { const n = new Set(p); if (n.has(sev)) n.delete(sev); else n.add(sev); return n; });
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(shown.length, ISSUE_ROW_H);
 
-  return (
-    <div style={overlay} {...backdropProps(onCancel)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ShieldAlert size={18} color="#55606e" />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Drillhole data QA/QC")}</div>
-          </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("data-qc")} aria-label={tr("Help: {name}", { name: tr("Drillhole data QA/QC") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows"; "too wordy … cut, don't just cap") — a StepDialog of two steps: Issues (the result, its
+  // filters, each row's Table / Find / Checked, the terrain fixes and the export) and Limits (the density range, the dogleg and the collar-vs-terrain
+  // thresholds), Re-run the gold primary of both. What each limit means, and the intro, moved from long tooltips into the Help card; the line that says a
+  // density outside the range is dropped from the tonnage mean stays seen on Limits. No zIndex: Data QC stays on the common overlay (60), under the import dialogs (62, #3688).
+  const [at, setAt] = useState(0);
+  const heading = tr("Drillhole data QA/QC"); // the dialog's name, seen (a JSX title= would count it as a tooltip); also its help page's key (lib/help.js)
+  const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 };
+  const numBox = { width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" };
+  const limitRow = { display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 10 };
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{heading}</summary>
+      <div style={small}>{tr("Checks collars, surveys, assays and logs for problems that distort a model. It fixes nothing: correct the source and run it again.")}</div>
+      <div style={{ ...small, marginTop: 6 }}><b>{tr("Density (t/m³)")}</b>{" "}{tr("The densities this project accepts (t/m³). A value outside is flagged and left out of the density mean the tonnages use; raise the top for massive sulphide.")}</div>
+      <div style={{ ...small, marginTop: 6 }}><b>{tr("Dogleg over")}</b>{" "}{tr("Bends sharper than this are listed, one row per hole. Deviated holes bend 3–7° per 30 m; under 2° is not counted; 20° per 30 m (over 5°) is an error.")}</div>
+      {terrain && <div style={{ ...small, marginTop: 6 }}><b>{tr("Collar vs terrain over")}</b>{" "}{tr("Collars further than this from the loaded terrain are flagged (an auto-fetched terrain: ~15 m or more; LiDAR: a few metres){v}", { v: terrainNodeM(terrain) ? tr(". This terrain's nodes are ~{v} m apart.", { v: Math.round(terrainNodeM(terrain)) }) : "" /* #3807 — [dx, dy] read too */ })}</div>}
+      <div style={{ ...small, marginTop: 6 }}><b>{tr("Export CSV")}</b>{" "}{tr("Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header")}</div>
+      <button type="button" className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-start", marginTop: 8 }} onClick={() => openHelp("data-qc")}>{tr("Help: {name}", { name: heading })}</button>{/* TASKS.csv #3528 — the help page of this dialog */}
+    </details>
+  );
+  const rerun = { label: tr("Re-run"), onClick: check, disabled: !!progress };
+  const steps = [
+    { key: "issues", label: tr("Issues"), primary: rerun, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        {(!ran || progress) && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 10 }}>{progress?.step ? tr("Checking {n} holes… ({k} of {m})", { n: (collars || []).length, k: progress.step, m: progress.of }) : tr("Checking {n} holes…", { n: (collars || []).length })}</div>}{/* #3099; progress: #3136 */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          {(["error", "warning", "info"]).map((sev) => {
+            const meta = SEVERITY_META[sev];
+            const Icon = meta.icon;
+            const active = filter.has(sev);
+            return (
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={sev} onClick={() => toggleSeverity(sev)} aria-pressed={active}
+                style={{ flex: 1, cursor: "pointer", padding: "9px 10px", borderRadius: 7, background: active ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${active ? meta.color : "var(--color-border)"}`, opacity: active ? 1 : 0.5, textAlign: "center" }}>
+                <Icon size={14} color={meta.color} style={{ marginBottom: 3 }} />
+                <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-text)", fontWeight: 600 }}>{ran ? (result.summary[sev] || 0) : "…" /* TASKS.csv #3532 — no verdict before the first check has run */}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{tr(result.summary[sev] === 1 ? meta.label : meta.plural)}</div>
+              </div>
+            );
+          })}
         </div>
-
-        <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Checks collars, surveys, assays and logs for problems that distort a model. It fixes nothing: correct the source and run it again.")}</div>
-
-          {(!ran || progress) && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 10 }}>{progress?.step ? tr("Checking {n} holes… ({k} of {m})", { n: (collars || []).length, k: progress.step, m: progress.of }) : tr("Checking {n} holes…", { n: (collars || []).length })}</div>}{/* #3099; progress: #3136 */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-            {(["error", "warning", "info"]).map((sev) => {
-              const meta = SEVERITY_META[sev];
-              const Icon = meta.icon;
-              const active = filter.has(sev);
-              return (
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={sev} onClick={() => toggleSeverity(sev)}
-                  style={{ flex: 1, cursor: "pointer", padding: "9px 10px", borderRadius: 7, background: active ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${active ? meta.color : "var(--color-border)"}`, opacity: active ? 1 : 0.5, textAlign: "center" }}>
-                  <Icon size={14} color={meta.color} style={{ marginBottom: 3 }} />
-                  <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-text)", fontWeight: 600 }}>{ran ? (result.summary[sev] || 0) : "…" /* TASKS.csv #3532 — no verdict before the first check has run */}</div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{tr(result.summary[sev] === 1 ? meta.label : meta.plural)}</div>
-                </div>
-              );
-            })}
-          </div>
-
-          {categories.length > 0 && (
-            <select aria-label={tr("Filter by category")} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>
-              <option value="all">{tr("All categories ({n})", { n: result.issues.length })}</option>
-              {categories.map((c) => <option key={c} value={c}>{tr(c)} ({result.byCategory.get(c).length})</option>)}
-            </select>
-          )}
-          {checkedHere > 0 && <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 10, cursor: "pointer" }}><input type="checkbox" checked={hideChecked} onChange={(e) => setHideChecked(e.target.checked)} />{tr("Hide the {n} rows marked as checked", { n: checkedHere })}</label> /* TASKS.csv #3569 */}
-        </div>
+        {categories.length > 0 && (
+          <select aria-label={tr("Filter by category")} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>
+            <option value="all">{tr("All categories ({n})", { n: result.issues.length })}</option>
+            {categories.map((c) => <option key={c} value={c}>{tr(c)} ({result.byCategory.get(c).length})</option>)}
+          </select>
+        )}
+        {checkedHere > 0 && <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 10, cursor: "pointer" }}><input type="checkbox" checked={hideChecked} onChange={(e) => setHideChecked(e.target.checked)} />{tr("Hide the {n} rows marked as checked", { n: checkedHere })}</label> /* TASKS.csv #3569 */}
 
         {!ran ? null /* #3532 — nothing is said (not "No issues found") until a result exists */ : result.issues.length === 0 ? (
           <div style={{ padding: "20px 10px", textAlign: "center", color: "#7fd9c9", fontSize: "var(--font-size-base)" }}>{tr("No issues found — collars, survey, and every layer look internally consistent.")}</div>
         ) : shown.length === 0 ? (
           <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>{tr("No issues match the current filters.")}</div>
         ) : (
-          <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 16px 16px" }}>
+          <div ref={scrollRef} onScroll={onScroll} style={{ height: "min(44vh, 400px)", overflowY: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: 6 }}>
             <div style={{ height: topPad }} />
             {shown.slice(startIndex, endIndex).map((issue, i) => {
               const meta = SEVERITY_META[issue.severity];
@@ -181,31 +186,36 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
             <div style={{ height: bottomPad }} />
           </div>
         )}
-
-        <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end", flexWrap: "wrap", rowGap: 6 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("The densities this project accepts (t/m³). A value outside is flagged and left out of the density mean the tonnages use; raise the top for massive sulphide.")}>{/* TASKS.csv #3587 */}
-            {tr("Density (t/m³)")}
-            <NumberInput min="0" value={dMin} onChange={(v) => { const t = String(v ?? ""); setDMin(t); applyDensity(t, dMax); }} aria-label={tr("Plausible density, lowest (t/m³)")} style={{ ...sel, width: 56, padding: "3px 6px" }} />–
-            <NumberInput min="0" value={dMax} onChange={(v) => { const t = String(v ?? ""); setDMax(t); applyDensity(dMin, t); }} aria-label={tr("Plausible density, highest (t/m³)")} style={{ ...sel, width: 56, padding: "3px 6px" }} />
-          </span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("Bends sharper than this are listed, one row per hole. Deviated holes bend 3–7° per 30 m; under 2° is not counted; 20° per 30 m (over 5°) is an error.")}>{tr("Dogleg over")}<NumberInput min="0.5" step="0.5" value={doglegWarn} onChange={(v) => setDoglegWarn(v)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Dogleg warning threshold (degrees per 30 m)")} /> °/30 m
-          </span>
-          {terrain && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("Collars further than this from the loaded terrain are flagged (an auto-fetched terrain: ~15 m or more; LiDAR: a few metres){v}", { v: terrainNodeM(terrain) ? tr(". This terrain's nodes are ~{v} m apart.", { v: Math.round(terrainNodeM(terrain)) }) : "" /* #3807 — [dx, dy] read too */ })}>{tr("Collar vs terrain over")}<NumberInput min="0.5" step="0.5" value={terrainThreshold} onChange={(v) => setTerrainThreshold(v)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Collar vs terrain threshold (m)")} /> m
-              <button className="gs-btn gs-btn--sm" type="button" onClick={requestCollarZFromTerrain} title={tr("Take collar elevations from the terrain; preview first, Ctrl+Z undoes it.")}>{tr("Collar elevations from the terrain…")}</button>
-              {terrainOff.length > 0 && <button className="gs-btn gs-btn--sm" onClick={snapToTerrain} title={tr("Set those collars' elevation to the terrain (undoable; the old value is kept)")}>{tr("Snap {n} to terrain", { n: terrainOff.length })}</button>}
-            </span>
-          )}
-          <button className="gs-btn" style={{ marginRight: 8 }} onClick={exportIssues} disabled={!result.issues.length} title={tr("Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header")}>
-            <Download size={14} />{" "}{tr("Export CSV")}</button>
-          <button className="gs-btn gs-btn--primary" onClick={check} disabled={!!progress}>
-            <RefreshCw size={14} />{" "}{tr("Re-run")}</button>
+        {/* the export and the fixes: on the result they act on; the thresholds are on Limits */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
+          <button className="gs-btn gs-btn--sm" type="button" onClick={exportIssues} disabled={!result.issues.length}><Download size={14} />{" "}{tr("Export CSV")}</button>
+          {terrain && <button className="gs-btn gs-btn--sm" type="button" onClick={requestCollarZFromTerrain} title={tr("Take collar elevations from the terrain; preview first, Ctrl+Z undoes it.")}>{tr("Collar elevations from the terrain…")}</button>}
+          {terrain && terrainOff.length > 0 && <button className="gs-btn gs-btn--sm" type="button" onClick={snapToTerrain} title={tr("Set those collars' elevation to the terrain (undoable; the old value is kept)")}>{tr("Snap {n} to terrain", { n: terrainOff.length })}</button>}
+          <button className="gs-btn gs-btn--sm gs-btn--quiet" type="button" onClick={() => setAt(1)} style={{ marginInlineStart: "auto" }}>{tr("Limits")}</button>
         </div>
       </div>
-    </div>
-  );
+    ) },
+    { key: "limits", label: tr("Limits"), primary: { ...rerun, onClick: () => { check(); setAt(0); } }, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={limitRow}>{/* TASKS.csv #3587 */}
+          <span style={{ minWidth: 170 }}>{tr("Density (t/m³)")}</span>
+          <NumberInput min="0" value={dMin} onChange={(v) => { const t = String(v ?? ""); setDMin(t); applyDensity(t, dMax); }} aria-label={tr("Plausible density, lowest (t/m³)")} style={{ ...sel, width: 56, padding: "3px 6px" }} />–
+          <NumberInput min="0" value={dMax} onChange={(v) => { const t = String(v ?? ""); setDMax(t); applyDensity(dMin, t); }} aria-label={tr("Plausible density, highest (t/m³)")} style={{ ...sel, width: 56, padding: "3px 6px" }} />
+        </div>
+        <div role="note" style={{ ...small, margin: "-4px 0 12px" }}>{tr("A density outside this range is left out of the tonnage mean.")}</div>
+        <div style={limitRow}>
+          <span style={{ minWidth: 170 }}>{tr("Dogleg over")}</span><NumberInput min="0.5" step="0.5" value={doglegWarn} onChange={(v) => setDoglegWarn(v)} style={numBox} aria-label={tr("Dogleg warning threshold (degrees per 30 m)")} /> °/30 m
+        </div>
+        {terrain && (
+          <div style={limitRow}>
+            <span style={{ minWidth: 170 }}>{tr("Collar vs terrain over")}</span><NumberInput min="0.5" step="0.5" value={terrainThreshold} onChange={(v) => setTerrainThreshold(v)} style={numBox} aria-label={tr("Collar vs terrain threshold (m)")} /> m
+          </div>
+        )}
+      </div>
+    ) },
+  ];
+
+  return <StepDialog title={heading} onClose={onCancel} steps={steps} at={at} onAt={setAt} help={help} cancelLabel={tr("Close")} width="min(640px, 92vw)" overlayProps={backdropProps(onCancel)} />;
 }
 
-const panel = { width: "min(640px, 92vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };

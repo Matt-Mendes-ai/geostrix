@@ -1,15 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Milestone, CheckSquare, Square, Download, Circle, Layers, Plus, Trash2 } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { CheckSquare, Square, Circle, Layers, Plus, Trash2 } from "./icons.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #444; crsCell: #1053
 import { boundaryInterceptRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1053 — the project CRS for the CSV
 import { saveFile } from "../lib/desktop.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
+import { backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
-import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
 import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
@@ -44,8 +42,6 @@ export default function BoundaryInterceptsModal({ intercepts: interceptsProp = n
   handlers.current = { onToggle, onToggleSoft, onToggleInSet }; // the memoized rows call the latest handlers
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const { project } = useStore(); // #1053
-  useEscapeKey(onCancel); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
   const [layerFilter, setLayerFilter] = useState("all");
   const [unitFilter, setUnitFilter] = useState("all");
   const [holeFilter, setHoleFilter] = useState("");
@@ -107,118 +103,114 @@ export default function BoundaryInterceptsModal({ intercepts: interceptsProp = n
     saveFile({ suggestedName: "boundary_intercepts.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 
-  return (
-    <div style={overlay} {...backdropProps(onCancel)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows"; "too wordy … cut, don't just cap") — a StepDialog of ONE step (a table to review, not a
+  // sequence of questions): the counts, the filters, the set editor and the table, Export CSV the gold primary and Close the way out. What the picks are,
+  // what unticking and soft do, and what a set is moved from the intro and the two Mores into the Help card; one short line says what a click does.
+  const heading = tr("Boundary intercepts"); // the dialog's name, seen (a JSX title= would count it as a tooltip)
+  const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 };
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{heading}</summary>
+      <div style={note}>{tr("Each lithology/alteration interval's top, placed in 3D along its hole's desurveyed trace: the control points the implicit-modelling tools read on the Modelling tab.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Untick one to keep it out of a surface without changing the imported data. Click the circle to make a point \"soft\": the run honours it only approximately (a GemPy nugget tolerance) instead of exactly.")}</div>
+      <div style={{ ...note, marginTop: 6 }}><b>{tr("Intercept sets")}</b>{" "}{tr("A named subset of these picks, so a unit that repeats in the pile can be modelled as the separate surfaces it is, not as one.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Build a set here, then choose it on the Modelling tab to restrict a run to it. Sets are saved with the project and exclude nothing: a pick left out of the active set is just not used by that run.")}</div>
+    </details>
+  );
+  const steps = [
+    { key: "intercepts", label: tr("Intercepts"), primary: { label: tr("Export CSV"), onClick: exportCsv, disabled: !intercepts.length }, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
         {promptEl}
-        <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Milestone size={18} color="#55606e" />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Boundary intercepts")}</div>
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+        <div style={{ ...note, marginBottom: 10 }}>{tr("{intercepts} total{v}{v2}.", { intercepts: intercepts.length, v: excludedCount > 0 ? `, ${excludedCount} excluded` : "", v2: softCount > 0 ? `, ${softCount} soft` : "" })}{" "}{tr("Untick a pick to leave it out; click its circle to make it soft.")}</div>
+
+        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+          <select aria-label={tr("Filter by layer")} value={layerFilter} onChange={(e) => { setLayerFilter(e.target.value); setUnitFilter("all"); }} style={{ ...sel, flex: 1 }}>
+            <option value="all">{tr("All layers")}</option>
+            <option value="litho">{tr("Lithology")}</option>
+            <option value="alt">{tr("Alteration")}</option>
+            <option value="vein">{tr("Vein / dyke")}</option>
+          </select>
+          <select aria-label={tr("Filter by unit")} value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} style={{ ...sel, flex: 1 }}>
+            <option value="all">{tr("All units")}</option>
+            {units.map(([u, n]) => <option key={u} value={u}>{`${u} (${n})`}</option>)}
+          </select>
+          <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder={tr("Hole ID…")} style={{ ...sel, flex: 1 }} />
         </div>
 
-        <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, lineHeight: 1.5 }}>{tr("Each lithology/alteration interval's top, placed in 3D along its hole's desurveyed trace: the control points the implicit-modelling tools read on the Modelling tab.")}{" "}{tr("{intercepts} total{v}{v2}.", { intercepts: intercepts.length, v: excludedCount > 0 ? `, ${excludedCount} excluded` : "", v2: softCount > 0 ? `, ${softCount} soft` : "" })}</div>
-          <MoreFold style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Untick one to keep it out of a surface without changing the imported data. Click the circle to make a point \"soft\": the run honours it only approximately (a GemPy nugget tolerance) instead of exactly.")}</MoreFold>{/* #3939 */}
-
-          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-            <select aria-label={tr("Filter by layer")} value={layerFilter} onChange={(e) => { setLayerFilter(e.target.value); setUnitFilter("all"); }} style={{ ...sel, flex: 1 }}>
-              <option value="all">{tr("All layers")}</option>
-              <option value="litho">{tr("Lithology")}</option>
-              <option value="alt">{tr("Alteration")}</option>
-              <option value="vein">{tr("Vein / dyke")}</option>
-            </select>
-            <select aria-label={tr("Filter by unit")} value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} style={{ ...sel, flex: 1 }}>
-              <option value="all">{tr("All units")}</option>
-              {units.map(([u, n]) => <option key={u} value={u}>{`${u} (${n})`}</option>)}
-            </select>
-            <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder={tr("Hole ID…")} style={{ ...sel, flex: 1 }} />
+        {/* TASKS.csv #52 (c) — set editor. */}
+        <div style={{ border: "1px solid var(--color-border-subtle)", borderRadius: 6, padding: 8, marginBottom: 10, background: "var(--color-bg-inset)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <Layers size={14} color="#55606e" />
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", fontWeight: 600 }}>{tr("Intercept sets")}</div>
           </div>
-
-          {/* TASKS.csv #52 (c) — set editor. */}
-          <div style={{ border: "1px solid var(--color-border-subtle)", borderRadius: 6, padding: 8, marginBottom: 10, background: "var(--color-bg-inset)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <Layers size={14} color="#55606e" />
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", fontWeight: 600 }}>{tr("Intercept sets")}</div>
-            </div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 3 }}>{tr("A named subset of these picks, so a unit that repeats in the pile can be modelled as the separate surfaces it is, not as one.")}</div>
-            <MoreFold style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 7 }}>{tr("Build a set here, then choose it on the Modelling tab to restrict a run to it. Sets are saved with the project and exclude nothing: a pick left out of the active set is just not used by that run.")}</MoreFold>{/* #3939 */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <select aria-label={tr("Intercept set being edited")} value={editingSetId} onChange={(e) => setEditingSetId(e.target.value)} style={{ ...sel, flex: 1 }}>
-                <option value="">{tr("— no set being edited —")}</option>
-                {interceptSets.map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
-              </select>
-              {editingSet && (
-                <button onClick={() => askPrompt(tr("Rename set"), editingSet.name, (n) => { if (n && n.trim()) onRenameSet?.(editingSet.id, n.trim()); })} className="gs-btn gs-btn--sm" title={tr("Rename this set")}>{tr("Rename")}</button>
-              )}
-              {editingSet && (
-                <button onClick={async () => { if (await askConfirm(tr("Delete the set \"{name}\"? The intercepts themselves are untouched.", { name: editingSet.name }))) { onDeleteSet?.(editingSet.id); setEditingSetId(""); } }} className="gs-btn gs-btn--sm" style={{ color: "var(--color-danger-icon)" }} title={tr("Delete this set")}>
-                  <Trash2 size={12} />
-                </button>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <input value={newSetName} onChange={(e) => setNewSetName(e.target.value)} placeholder={tr("New set name…")}
-                onKeyDown={(e) => { if (e.key === "Enter" && newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
-                style={{ ...sel, flex: 1 }} />
-              <button disabled={!newSetName.trim()} onClick={() => { if (newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
-                className="gs-btn gs-btn--sm" style={{ opacity: newSetName.trim() ? 1 : 0.5 }}><Plus size={12} />{" "}{tr("Create")}</button>
-            </div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <select aria-label={tr("Intercept set being edited")} value={editingSetId} onChange={(e) => setEditingSetId(e.target.value)} style={{ ...sel, flex: 1 }}>
+              <option value="">{tr("— no set being edited —")}</option>
+              {interceptSets.map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
+            </select>
             {editingSet && (
-              <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), true)} className="gs-btn gs-btn--sm">{tr("Add the {shown} shown", { shown: shown.length })}</button>
-                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), false)} className="gs-btn gs-btn--sm">{tr("Remove the {shown} shown", { shown: shown.length })}</button>
-                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} intercept(s) in this set.", { n: (editingSet.ids || []).length })}</span>
-              </div>
+              <button type="button" onClick={() => askPrompt(tr("Rename set"), editingSet.name, (n) => { if (n && n.trim()) onRenameSet?.(editingSet.id, n.trim()); })} className="gs-btn gs-btn--sm" title={tr("Rename this set")}>{tr("Rename")}</button>
+            )}
+            {editingSet && (
+              <button type="button" onClick={async () => { if (await askConfirm(tr("Delete the set \"{name}\"? The intercepts themselves are untouched.", { name: editingSet.name }))) { onDeleteSet?.(editingSet.id); setEditingSetId(""); } }} className="gs-btn gs-btn--sm" style={{ color: "var(--color-danger-icon)" }} title={tr("Delete this set")}>
+                <Trash2 size={12} />
+              </button>
             )}
           </div>
-
-          {shown.length === 0 ? (
-            <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>
-              {intercepts.length === 0 ? tr("No litho/alteration intervals loaded yet.") : tr("No intercepts match the current filters.")}
-            </div>
-          ) : (
-            <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
-                <thead>
-                  <tr style={{ background: "var(--color-bg)" }}>
-                    <th style={th}></th>
-                    <th style={th} title={tr("Soft constraint — feeds the model but only approximately honoured")}></th>
-                    {editingSet && <th style={th}>{tr("Set")}</th>}
-                    <th style={th}>{tr("Layer")}</th>
-                    <th style={th}>{tr("Hole")}</th>
-                    <th style={th}>{tr("Unit")}</th>
-                    <th style={th}>{tr("From (m)")}</th>
-                    <th style={th}>X / Y / Z</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rowEls}
-                </tbody>
-              </table>
-              {shown.length > limit && ( /* #2209 */
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderTop: "1px solid var(--color-border-subtle)", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-                  {tr("Showing {n} of {total}: narrow them with the filters above, or", { n: limit.toLocaleString(), total: shown.length.toLocaleString() })}
-                  <button onClick={() => setLimit((l) => l + INTERCEPT_PAGE)} className="gs-btn gs-btn--sm">{tr("Show {k} more", { k: Math.min(INTERCEPT_PAGE, shown.length - limit).toLocaleString() })}</button>
-                </div>
-              )}
+          <div style={{ display: "flex", gap: 6 }}>
+            <input value={newSetName} onChange={(e) => setNewSetName(e.target.value)} placeholder={tr("New set name…")}
+              onKeyDown={(e) => { if (e.key === "Enter" && newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
+              style={{ ...sel, flex: 1 }} />
+            <button type="button" disabled={!newSetName.trim()} onClick={() => { if (newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
+              className="gs-btn gs-btn--sm" style={{ opacity: newSetName.trim() ? 1 : 0.5 }}><Plus size={12} />{" "}{tr("Create")}</button>
+          </div>
+          {editingSet && (
+            <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <button type="button" onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), true)} className="gs-btn gs-btn--sm">{tr("Add the {shown} shown", { shown: shown.length })}</button>
+              <button type="button" onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), false)} className="gs-btn gs-btn--sm">{tr("Remove the {shown} shown", { shown: shown.length })}</button>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} intercept(s) in this set.", { n: (editingSet.ids || []).length })}</span>
             </div>
           )}
         </div>
 
-        <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={exportCsv} disabled={!intercepts.length} className="gs-btn gs-btn--primary" style={{ opacity: intercepts.length ? 1 : 0.5 }}>
-            <Download size={14} />{" "}{tr("Export CSV")}</button>
-        </div>
+        {shown.length === 0 ? (
+          <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>
+            {intercepts.length === 0 ? tr("No litho/alteration intervals loaded yet.") : tr("No intercepts match the current filters.")}
+          </div>
+        ) : (
+          <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
+              <thead>
+                <tr style={{ background: "var(--color-bg)" }}>
+                  <th style={th}></th>
+                  <th style={th} title={tr("Soft constraint — feeds the model but only approximately honoured")}></th>
+                  {editingSet && <th style={th}>{tr("Set")}</th>}
+                  <th style={th}>{tr("Layer")}</th>
+                  <th style={th}>{tr("Hole")}</th>
+                  <th style={th}>{tr("Unit")}</th>
+                  <th style={th}>{tr("From (m)")}</th>
+                  <th style={th}>X / Y / Z</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rowEls}
+              </tbody>
+            </table>
+            {shown.length > limit && ( /* #2209 */
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderTop: "1px solid var(--color-border-subtle)", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
+                {tr("Showing {n} of {total}: narrow them with the filters above, or", { n: limit.toLocaleString(), total: shown.length.toLocaleString() })}
+                <button type="button" onClick={() => setLimit((l) => l + INTERCEPT_PAGE)} className="gs-btn gs-btn--sm">{tr("Show {k} more", { k: Math.min(INTERCEPT_PAGE, shown.length - limit).toLocaleString() })}</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    </div>
-  );
+    ) },
+  ];
+
+  return <StepDialog title={heading} onClose={onCancel} steps={steps} at={0} onAt={() => {}} help={help} cancelLabel={tr("Close")} width="min(720px, 92vw)" overlayProps={backdropProps(onCancel)} />;
 }
 
-const panel = { width: "min(720px, 92vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const th = { textAlign: "start", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, position: "sticky", top: 0, background: "var(--color-bg)" };
 const td = { padding: "5px 8px", color: "var(--color-text-strong)", whiteSpace: "nowrap" };

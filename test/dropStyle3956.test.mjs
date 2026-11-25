@@ -44,7 +44,8 @@ test("#3956 (part 2) the other first-screen cards share the style: the Start dia
   assert.match(sd, /borderRadius: 14, padding: "18px 16px", textAlign: "center", background: over \? "var\(--color-selected-bg\)" : "linear-gradient\(160deg, var\(--color-bg\) 0%, var\(--color-tier-basic-bg\) 75%\)", boxShadow: "var\(--shadow-lift\)"/, "the lifted drop area");
   assert.match(lay, /className="ge-card"/); assert.match(lay, /className="ge-card-head"/);
   assert.match(lay, /<DropPicture picture=\{s\.kind === "intercepts" \? "table" : s\.kind\}/, "each sheet's picture is the block");
-  assert.match(mac, /className="ge-card" style=\{panel\(\{[^}]*boxShadow: "var\(--shadow-pop\)"/); assert.match(mac, /<div className="ge-card-head" style=\{header\}>/);
+  // TASKS.csv #4073 — Macrostrat is on the shared step shell too (StepDialog, as the Start dialog above): one family of pop-ups, its card hook kept on the body
+  assert.match(mac, /return \(\n\s*<>\n[^\n]*\n\s*<StepDialog title=\{heading\}/); assert.match(mac, /<div data-macrostrat-card=""/);
   assert.match(smp, /borderRadius: 10, boxShadow: "var\(--shadow-chip\)"/);
   assert.match(tip, /className="ge-tool-info ge-card"/); assert.match(tip, /boxShadow: "var\(--shadow-pop\)"/); assert.match(tip, /<div className="ge-card-head"/);
   for (const [f, s] of [["MacrostratModal", mac], ["HoverToolInfo", tip], ["LayoutStartCard", lay]]) assert.doesNotMatch(s, /rgba?\(/, `${f}: shadows are tokens`);

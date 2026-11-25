@@ -1,12 +1,10 @@
 import React, { useMemo, useRef, useState } from "react";
 import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #488
-import { X, Upload, Trash2, MapPin } from "./icons.js";
+import { Upload, Trash2, MapPin } from "./icons.js";
+import StepDialog, { stepDialogStyles } from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import { fitAffine, residuals, georeferenceImage, collarControlXY } from "../lib/georef.js"; // collarControlXY: TASKS.csv #1763
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1763 — the project's collars
 import { reprojectXY, getProj4DefSync, isMetricProjectedEpsg } from "../lib/reproject.js"; // TASKS.csv #290; metric: #1628
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { mineSourceOf, isMineSource, mineChoiceToProject, mineChoiceFromProject, mineSourceSentence } from "../lib/mineGrid.js"; // TASKS.csv #2684
@@ -32,8 +30,7 @@ const DISPLAY_MAX = 700; // scaled-down on-screen canvas size; control points ar
 // Low severity by design — a wildly wrong CRS shows up immediately as a terrible RMSE rather than
 // silently — but "immediately visible" isn't the same as "correctable", and it wasn't correctable.
 export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
-  useEscapeKey(onClose); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
+  const [at, setAt] = useState(0); // TASKS.csv #4073 — the step on screen
   const [img, setImg] = useState(null); // { bitmap, width, height, dataUrl } | null
   const [points, setPoints] = useState([]); // [{id, px, py, x, y, hole?}]
   const { collars = [], project } = useStore(); // #1763; project: #2684
@@ -145,120 +142,121 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
     }
   };
 
-  return (
-    <div style={overlay}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Georeferencer — manual control points")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Load a scanned map or claim sketch (PNG / JPG / TIFF), click points on it, and type the matching real-world coordinates for each.")}</div>
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
-
-        <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <button className="gs-btn" onClick={() => fileInput.current.click()}>
-              <Upload size={14} style={{ marginRight: 6 }} />{" "}{tr("Load image (PNG / JPG / TIFF)…")}</button>
-            <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg,.tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
-            {img ? (
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey}
-                onClick={onCanvasClick}
-                style={{ position: "relative", width: dispW, height: dispH, cursor: "crosshair", border: "1px solid var(--color-border)", background: "#ececec" }}
-              >
-                <canvas
-                  width={dispW} height={dispH}
-                  style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-                  ref={(c) => { canvasRef.current = c; if (c) { const ctx = c.getContext("2d"); ctx.clearRect(0, 0, dispW, dispH); ctx.drawImage(img.bitmap, 0, 0, dispW, dispH); } }}
-                />
-                {points.map((p, i) => (
-                  <div key={p.id} style={{ position: "absolute", left: p.px * displayScale - 8, top: p.py * displayScale - 16, pointerEvents: "none", color: "var(--color-danger-alt)" }}>
-                    <MapPin size={18} fill="#d9534f" />
-                    <span style={{ position: "absolute", left: 16, top: 0, fontSize: "var(--font-size-xs)", background: "var(--color-bg)", padding: "0 3px", borderRadius: 3, color: "var(--color-text)" }}>{i + 1}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ width: DISPLAY_MAX, height: 400, border: "1px dashed var(--color-border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>{tr("Load an image to begin placing control points.")}</div>
-            )}
-          </div>
-
-          <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 8 }}>
-            {/* TASKS.csv #290 — control-point CRS. Defaults to "same as project", so an existing
-                workflow that types project coordinates behaves exactly as it did before. */}
-            <SourceCrsField
-              label={tr("Control points are in")} value={cpEpsg} onChange={(c) => setCpEpsg(c === "" ? "" : String(c))} mineGrid={mineChoice /* #2684 */}
-              defaultText="Same as project (already project coordinates)"
-              title={tr("The CRS of the coordinates printed on the scanned map (e.g. WGS 84, BC Albers); they are reprojected to the project's CRS before the fit.")}
-            />
-            {cpMine && mineChoice?.kind !== "local" && ( /* #2684 */
-              <div style={{ fontSize: "var(--font-size-sm)", color: mineChoice?.kind === "tie" ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{mineSourceSentence(mineChoice, projectEpsg).trim()}</div>
-            )}
-            {needsReproject && !crsError && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Points are reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before fitting, so the errors below are in project units.", { cpEpsg, projectEpsg })}</div>
-            )}
-            {crsError && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>{crsError}</div>
-            )}
-            <div style={label}>{tr("Control points ({points}, need 3+ with valid coordinates)", { points: points.length })}</div>
-            {points.length === 0 ? (
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{holes.length > 0 ? tr("Click on the image to add a point, then pick the collar it shows, or enter its known real-world X/Y here.") : tr("Click on the image to add a point, then enter its known real-world X/Y here.")}</div>
-            ) : (
-              <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                <thead><tr><th style={th}>#</th><th style={th}>{tr("Pixel")}</th>{holes.length > 0 && <th style={th}>{tr("Collar")}</th>}<th style={th}>{isGeographicCp ? tr("Longitude") : tr("World X")}</th><th style={th}>{isGeographicCp ? tr("Latitude") : tr("World Y")}</th><th style={th}>{tr("Error (m)")}</th><th style={th}></th></tr></thead>
-                <tbody>
-                  {points.map((p, i) => {
-                    const r = fitResiduals?.find((rr) => rr.id === p.id);
-                    return (
-                      <tr key={p.id}>
-                        <td style={td}>{i + 1}</td>
-                        <td style={td}>{p.px}, {p.py}</td>
-                        {holes.length > 0 && ( /* TASKS.csv #1763 — a collar the scan shows fills X / Y (in the control points' CRS) */
-                          <td style={td}><select value={p.hole ?? ""} aria-label={tr("Collar at control point {n}", { n: i + 1 })} style={{ ...numInput, width: 90 }}
-                            onChange={(e) => { const c = holes.find((h) => String(h.hole_id) === e.target.value); const xy = c ? (cpMine ? mineCollarXY(c) : collarControlXY(c, { cpEpsg, projectEpsg, reproject: reprojectXY, geographic: isGeographicCp })) : null; /* mine: #2684 */ updatePoint(p.id, xy ? { hole: e.target.value, ...xy } : { hole: "" }); }}>
-                            <option value="">{tr("(typed)")}</option>
-                            {holes.map((h) => <option key={h.hole_id} value={String(h.hole_id)}>{h.hole_id}</option>)}
-                          </select></td>
-                        )}
-                        <td style={td}><NumberInput allowEmpty value={p.x === "" ? null : p.x} onChange={(v) => updatePoint(p.id, { x: v == null ? "" : String(v), hole: "" })} style={numInput} aria-label={tr("Easting")} /></td>
-                        <td style={td}><NumberInput allowEmpty value={p.y === "" ? null : p.y} onChange={(v) => updatePoint(p.id, { y: v == null ? "" : String(v), hole: "" })} style={numInput} aria-label={tr("Northing")} /></td>
-                        <td style={{ ...td, color: r && r.error > (rmse || 0) * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r && fitResiduals.length > 3 ? r.error.toFixed(2) : "—" /* #1628 — no error to show with three points */}</td>
-                        <td style={td}><Trash2 aria-label={tr("Remove this control point")} title={tr("Remove this control point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => removePoint(p.id)} /></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-            {fit && (
-              <div style={{ fontSize: "var(--font-size-base)", color: rmse > 0 ? "var(--color-text-secondary)" : "var(--color-text-secondary)" }}>{fitResiduals.length === 3 /* #1628 — an affine has 6 unknowns: three points fit it exactly, whatever they are */
-                ? tr("Exact fit: three points always fit this transform exactly, so they cannot show an error. Add a fourth point to check the others.")
-                : isMetricProjectedEpsg(projectEpsg) ? tr("Transform fit — RMSE {rmse} m.", { rmse: rmse.toFixed(2) }) : tr("Transform fit — RMSE {rmse} project units.", { rmse: rmse.toFixed(2) })}{" "}{rmse > 0 && fitResiduals.some((r) => r.error > rmse * 3) && <span style={{ color: "var(--color-danger-alt)" }}>{tr("One or more points has a much larger error than the rest — double-check its pixel click and typed coordinates.")}</span>}
-              </div>
-            )}
-            {usablePoints.length > 0 && usablePoints.length < 3 && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Need at least 3 points with valid coordinates to fit a transform.")}</div>
-            )}
-            {error && (
-              <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)" }}>{error}</div>
-            )}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{tr("Cancel")}</button>
-          <button className="gs-btn gs-btn--primary" style={{ flex: 2 }} onClick={doImport} disabled={!fit || busy}>
-            {busy ? tr("Georeferencing…") : tr("Georeference & import as raster")}
-          </button>
-        </div>
-      </div>
-    </div>
+  const outlierWarn = rmse > 0 && fitResiduals.some((r) => r.error > rmse * 3);
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — three steps, as the section figure's georeferencing (#4071): 1 Image (load the scan),
+  // 2 Points (their CRS, then click and type), 3 Import (the fit, then the gold Import). The long explanations are in the Help card
+  const heading = tr("Georeferencer");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{heading}</summary>
+      <div style={note}>{tr("Load a scanned map or claim sketch (PNG / JPG / TIFF), click points on it, and type the matching real-world coordinates for each.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{holes.length > 0 ? tr("Click on the image to add a point, then pick the collar it shows, or enter its known real-world X/Y here.") : tr("Click on the image to add a point, then enter its known real-world X/Y here.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Points in another CRS are reprojected to the project's CRS before the fit, so the errors are in project units.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Exact fit: three points always fit this transform exactly, so they cannot show an error. Add a fourth point to check the others.")}</div>
+    </details>
   );
+  const steps = [
+    { key: "image", label: tr("Image"), primary: { label: tr("Next: points"), disabled: !img }, render: () => (<>
+      {img ? (
+        <div style={{ border: "1px solid var(--color-border)", alignSelf: "flex-start" }}>
+          <canvas width={dispW} height={dispH} aria-label={tr("The image")} role="img" style={{ display: "block", background: "#ececec" }}
+            ref={(c) => { if (c) { const ctx = c.getContext("2d"); ctx.clearRect(0, 0, dispW, dispH); ctx.drawImage(img.bitmap, 0, 0, dispW, dispH); } }} />
+        </div>
+      ) : (
+        <div style={{ width: DISPLAY_MAX, maxWidth: "100%", height: 400, border: "1px dashed var(--color-border-light)", display: "flex", flexDirection: "column", gap: 10, alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)" }}
+          onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) loadImage(f); }}>
+          <Upload size={30} />
+          <button type="button" className="gs-btn" onClick={() => fileInput.current.click()}>{tr("Load image (PNG / JPG / TIFF)…")}</button>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {img && <button type="button" className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => fileInput.current.click()}>{tr("Choose another…")}</button>}
+        <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg,.tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
+      </div>
+    </>) },
+    { key: "points", label: tr("Points"), primary: { label: tr("Next: check"), disabled: !fit }, hint: points.length > 0 && usablePoints.length < 3 ? tr("Need at least 3 points with valid coordinates to fit a transform.") : "", render: () => (<>
+      {img && (
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey}
+          onClick={onCanvasClick}
+          style={{ position: "relative", width: dispW, height: dispH, cursor: "crosshair", border: "1px solid var(--color-border)", background: "#ececec", alignSelf: "flex-start" }}
+        >
+          <canvas
+            width={dispW} height={dispH}
+            style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+            ref={(c) => { canvasRef.current = c; if (c) { const ctx = c.getContext("2d"); ctx.clearRect(0, 0, dispW, dispH); ctx.drawImage(img.bitmap, 0, 0, dispW, dispH); } }}
+          />
+          {points.map((p, i) => (
+            <div key={p.id} style={{ position: "absolute", left: p.px * displayScale - 8, top: p.py * displayScale - 16, pointerEvents: "none", color: "var(--color-danger-alt)" }}>
+              <MapPin size={18} fill="#d9534f" />
+              <span style={{ position: "absolute", left: 16, top: 0, fontSize: "var(--font-size-xs)", background: "var(--color-bg)", padding: "0 3px", borderRadius: 3, color: "var(--color-text)" }}>{i + 1}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* TASKS.csv #290 — control-point CRS. Defaults to "same as project", so an existing
+            workflow that types project coordinates behaves exactly as it did before. */}
+        <SourceCrsField
+          label={tr("Control points are in")} value={cpEpsg} onChange={(c) => setCpEpsg(c === "" ? "" : String(c))} mineGrid={mineChoice /* #2684 */}
+          defaultText="Same as project (already project coordinates)"
+          title={tr("The CRS of the coordinates printed on the scanned map (e.g. WGS 84, BC Albers); they are reprojected to the project's CRS before the fit.")}
+        />
+        {cpMine && mineChoice?.kind !== "local" && ( /* #2684 */
+          <div style={{ fontSize: "var(--font-size-sm)", color: mineChoice?.kind === "tie" ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{mineSourceSentence(mineChoice, projectEpsg).trim()}</div>
+        )}
+        {/* the coordinates are converted before the fit: said in one line */}
+        {needsReproject && !crsError && <div style={note}>{tr("Reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before the fit.", { cpEpsg, projectEpsg })}</div>}
+        {crsError && <div style={warnBox}>{crsError}</div>}
+        <div style={label}>{tr("Control points ({points})", { points: points.length })}</div>
+        {points.length === 0 ? (
+          <div style={note}>{holes.length > 0 ? tr("Click the image, then pick a collar or type X / Y.") : tr("Click the image, then type X / Y.")}</div>
+        ) : (
+          <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
+            <thead><tr><th style={th}>#</th><th style={th}>{tr("Pixel")}</th>{holes.length > 0 && <th style={th}>{tr("Collar")}</th>}<th style={th}>{isGeographicCp ? tr("Longitude") : tr("World X")}</th><th style={th}>{isGeographicCp ? tr("Latitude") : tr("World Y")}</th><th style={th}>{tr("Error (m)")}</th><th style={th}></th></tr></thead>
+            <tbody>
+              {points.map((p, i) => {
+                const r = fitResiduals?.find((rr) => rr.id === p.id);
+                return (
+                  <tr key={p.id}>
+                    <td style={td}>{i + 1}</td>
+                    <td style={td}>{p.px}, {p.py}</td>
+                    {holes.length > 0 && ( /* TASKS.csv #1763 — a collar the scan shows fills X / Y (in the control points' CRS) */
+                      <td style={td}><select value={p.hole ?? ""} aria-label={tr("Collar at control point {n}", { n: i + 1 })} style={{ ...numInput, width: 90 }}
+                        onChange={(e) => { const c = holes.find((h) => String(h.hole_id) === e.target.value); const xy = c ? (cpMine ? mineCollarXY(c) : collarControlXY(c, { cpEpsg, projectEpsg, reproject: reprojectXY, geographic: isGeographicCp })) : null; /* mine: #2684 */ updatePoint(p.id, xy ? { hole: e.target.value, ...xy } : { hole: "" }); }}>
+                        <option value="">{tr("(typed)")}</option>
+                        {holes.map((h) => <option key={h.hole_id} value={String(h.hole_id)}>{h.hole_id}</option>)}
+                      </select></td>
+                    )}
+                    <td style={td}><NumberInput allowEmpty value={p.x === "" ? null : p.x} onChange={(v) => updatePoint(p.id, { x: v == null ? "" : String(v), hole: "" })} style={numInput} aria-label={tr("Easting")} /></td>
+                    <td style={td}><NumberInput allowEmpty value={p.y === "" ? null : p.y} onChange={(v) => updatePoint(p.id, { y: v == null ? "" : String(v), hole: "" })} style={numInput} aria-label={tr("Northing")} /></td>
+                    <td style={{ ...td, color: r && r.error > (rmse || 0) * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r && fitResiduals.length > 3 ? r.error.toFixed(2) : "—" /* #1628 — no error to show with three points */}</td>
+                    <td style={td}><Trash2 aria-label={tr("Remove this control point")} title={tr("Remove this control point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => removePoint(p.id)} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>) },
+    { key: "import", label: tr("Import"), primary: { label: busy ? tr("Georeferencing…") : tr("Import"), onClick: doImport, disabled: !fit || busy }, render: () => (
+      <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 8 }}>
+        {fit && (
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{fitResiduals.length === 3 /* #1628 — an affine has 6 unknowns: three points fit it exactly, whatever they are */
+            ? tr("Exact fit: add a fourth point to check the error.")
+            : isMetricProjectedEpsg(projectEpsg) ? tr("Transform fit — RMSE {rmse} m.", { rmse: rmse.toFixed(2) }) : tr("Transform fit — RMSE {rmse} project units.", { rmse: rmse.toFixed(2) })}
+          </div>
+        )}
+        {/* a point far off the others stays seen where you import, with what to check */}
+        {fit && outlierWarn && <div style={warnBox}>{tr("One or more points has a much larger error than the rest — double-check its pixel click and typed coordinates.")}</div>}
+        {crsError && <div style={warnBox}>{crsError}</div>}
+      </div>
+    ) },
+  ];
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} error={error} width="min(1100px, 96vw)" />;
 }
 
-const panel = { width: "min(1100px, 96vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)" };
+const { label, note, warn: warnBox } = stepDialogStyles;
 const th = { padding: "4px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "start", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 6px", color: "var(--color-text)" };
 const numInput = { width: 80, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
