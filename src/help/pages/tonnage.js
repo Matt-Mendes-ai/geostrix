@@ -33,7 +33,7 @@ export default [
       { name: "By bench / Bench height (m) / Datum (m) / at cutoff", what: "Splits the figures into benches, for one cutoff.", more: "How to choose: Enter the height of the bench you would mine. The floors sit at the datum plus whole benches. A block that spans two benches is shared between them." },
       { name: "Table columns", what: "Blocks, Volume (m³), Mean grade, and Tonnes and metal with a density.", choose: "Read Interpolated first: a high tonnage with a low Interpolated share is mostly extrapolated.", more: "Metal is in kg and troy oz. Interpolated is the share of the volume the estimate classed as between holes. Beyond the samples is the share of the metal in blocks lying wholly above or below every sample that informs them. From the log is the share from a log that filled unsampled metres. No density counts blocks left out for want of a density." },
       { name: "Export CSV", what: "Saves the table as shown, with the cutoffs, the density used and the notes.", more: "Keep the file with the project so the figures can be reproduced." },
-      { name: "Export", what: "Block models export from their row in the model list: CSV, VTK or OMF.", choose: "Use OMF for Leapfrog, Micromine or Datamine; see Export: what goes where.", more: "With the density kept in the model, the file has a DENSITY column. A grade-tonnage table has its own Export CSV." },
+      { name: "Export", what: "A block model exports from its row in the model list: CSV, VTK or OMF.", choose: "OMF for Leapfrog, Micromine or Datamine; see Export: what goes where.", more: "A DENSITY column is written when the density was kept. A grade-tonnage table has its own Export CSV." },
     ],
     warnings: [
       { says: "Enter the bench height: the floors sit at the datum plus whole benches.", more: "By bench is ticked and the bench height is empty.", do: "Type the bench height in metres." },
@@ -75,7 +75,7 @@ export default [
       { name: "Name of the new block model / Unit of the new value", gist: "both required", what: "Both are required; the unit is not guessed.", more: "How to choose: State the unit as you will read it: %, g/t or $/t. A formula can turn grades into anything (a grade, a value per tonne), so the unit cannot be guessed." },
       { name: "Colour it as … (the same ramp and range)", what: "Gives the new model the first input's ramp and range, to compare by eye.", more: "How to choose: On for a grade-like result; off for a value on another scale." },
       { name: "Calculate / Add block model", what: "Calculate shows the count, mean and range; Add block model keeps it.", more: "How to choose: Check them against what you expect before adding." },
-      { name: "Export", what: "Block models export from their row in the model list: CSV, VTK or OMF.", choose: "Use OMF for Leapfrog, Micromine or Datamine; see Export: what goes where.", more: "With the density kept in the model, the file has a DENSITY column. A grade-tonnage table has its own Export CSV." },
+      { name: "Export", what: "A block model exports from its row in the model list: CSV, VTK or OMF.", choose: "OMF for Leapfrog, Micromine or Datamine; see Export: what goes where.", more: "A DENSITY column is written when the density was kept. A grade-tonnage table has its own Export CSV." },
     ],
     warnings: [
       { says: "Letters, digits and _, starting with a letter", means: "A name in the formula is not a valid name.", do: "Rename it, for example Au or au_gt." },
