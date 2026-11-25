@@ -39,6 +39,8 @@ export default function SolidToolsModal({ solid, surfaces = [], meshOf, groundAt
   const cutterName = cutterId === "terrain" ? tr("the terrain") : others.find((s) => s.id === cutterId)?.name || "";
   const faces = cutterMesh ? meanNormalZ(cutterMesh.positions, cutterMesh.indices) : 0; // +1: its positive side is above
   const sideLabel = (side) => (faces === 0 ? (side === "positive" ? tr("the side the surface faces") : tr("the other side")) : (side === "positive") === (faces > 0) ? tr("above it") : tr("below it"));
+  // the same side before the surface's name, in the new solid's name and the messages: "above Fault A", not "above it Fault A"; the select keeps "keep above it" (TASKS.csv #4073, side 2)
+  const sideOf = (side) => (faces === 0 ? (side === "positive" ? tr("in front of") : tr("behind")) : (side === "positive") === (faces > 0) ? tr("above") : tr("below"));
   const taken = new Set(surfaces.map((s) => s.name));
   const unique = (base) => { let name = base; for (let k = 2; taken.has(name); k++) name = `${base} (${k})`; return name; };
   const finish = (r, name, notes) => { setDone({ name, volumeM3: r.volumeM3, closed: r.closed, boundaryEdges: r.boundaryEdges, components: r.components, notes: notes.filter(Boolean) }); setStep(2); };
@@ -49,11 +51,11 @@ export default function SolidToolsModal({ solid, surfaces = [], meshOf, groundAt
       try {
         const r = clipSolidBySurface(me, cutterMesh, { keep });
         if (!r.ok) { if (r.reason === "no-overlap") setMsg(tr("\"{s}\" does not reach \"{c}\": nothing to cut.", { s: solid.name, c: cutterName })); else setError(tr("The clip failed: {v}", { v: r.reason })); return; }
-        if (r.empty) { setMsg(tr("Nothing of \"{s}\" lies {side} \"{c}\".", { s: solid.name, side: sideLabel(keep), c: cutterName })); return; }
-        if (r.unchanged) { setMsg(tr("All of \"{s}\" already lies {side} \"{c}\": nothing was cut, so nothing was added.", { s: solid.name, side: sideLabel(keep), c: cutterName })); return; }
-        const name = unique(tr("{s} {side} {c}", { s: solid.name, side: sideLabel(keep), c: cutterName }));
+        if (r.empty) { setMsg(tr("Nothing of \"{s}\" lies {side} \"{c}\".", { s: solid.name, side: sideOf(keep), c: cutterName })); return; }
+        if (r.unchanged) { setMsg(tr("All of \"{s}\" already lies {side} \"{c}\": nothing was cut, so nothing was added.", { s: solid.name, side: sideOf(keep), c: cutterName })); return; }
+        const name = unique(tr("{s} {side} {c}", { s: solid.name, side: sideOf(keep), c: cutterName }));
         onAdd({ name, positions: r.positions, indices: r.indices, volumeM3: r.volumeM3, type: "clipped_solid", closure: r.closed ? "closed" : "open", color: "#7c4dff", tag: "clipped",
-          tip: tr("{s} clipped {side} {c}", { s: solid.name, side: sideLabel(keep), c: cutterName }),
+          tip: tr("{s} clipped {side} {c}", { s: solid.name, side: sideOf(keep), c: cutterName }),
           params: { tool: "solid clipped by a surface (exact cut at the crossings; the surface inside the solid is the cap)", source: solid.name, sourceId: solid.id, cutter: cutterName, cutterId, keep: sideLabel(keep), volumeM3: Math.round(r.volumeM3), closed: r.closed, seamOpenEdges: r.boundaryEdges, components: r.components, capTriangles: r.capTriangles, unresolvedEdges: r.unresolvedEdges, generatedAt: new Date().toISOString() } });
         finish(r, name, [r.unresolvedEdges && tr("{n} edge(s) crossed the surface where it does not reach: those triangles were left whole, so the cut is approximate there.", { n: r.unresolvedEdges }),
           cutterId === "terrain" && cutterMesh.missing && tr("The terrain has no data under {n} of the {m} sample points: the solid was not cut there.", { n: cutterMesh.missing, m: cutterMesh.sampled })]);
@@ -132,7 +134,7 @@ export default function SolidToolsModal({ solid, surfaces = [], meshOf, groundAt
           {choice("combine", tr("Combine with another solid"), tr("Intersection, union or difference."), !canCombine)}
         </div>
         {!me && <div style={warn}>{tr("This surface's mesh is not in the view.")}</div>}
-        {meClosed && !meClosed.closed && <div style={warn}>{tr("\"{name}\" is not closed ({n} open edges): it can be clipped, but not combined with another solid, and the clip has no volume to trust.", { name: solid.name, n: meClosed.boundaryEdges })}</div>}
+        {meClosed && !meClosed.closed && <div style={warn}>{tr("\"{name}\" has {n} open edges: it can be clipped, not combined, and a clip's volume is unreliable.", { name: solid.name, n: meClosed.boundaryEdges })}</div>}
       </div>
     ), primary: { label: tr("Next"), disabled: !me } },
     { key: "setup", label: tr("Setup"), render: () => (clip ? setupClip : setupCombine), hint: msg || "",

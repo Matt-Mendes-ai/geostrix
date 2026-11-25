@@ -13977,7 +13977,7 @@
   "Reduce the offset or widen the radius: the patch went through the surface, so the volume and any tonnage are meaningless, though the mesh still reports watertight.": "Reduza o deslocamento ou aumente o raio: o trecho atravessou a superfície, então o volume e qualquer tonelagem não têm sentido, embora a malha ainda apareça como estanque.",
   "Moving vertices keeps a watertight shell watertight and an open surface as open as it was. Undo lasts this session only: once saved, an edit is permanent (coordinates round to 1 cm). Deleting and pinning vertices or triangles is not available yet.": "Mover vértices mantém estanque um envelope estanque e tão aberta quanto estava uma superfície aberta. Desfazer vale só nesta sessão: depois de salvo, uma edição é permanente (as coordenadas são arredondadas para 1 cm). Excluir e fixar vértices ou triângulos ainda não está disponível.",
   "not closed ({n} open edges: the cut's seam is two loops on one curve), so a closure check says open; the volume is exact to the cut tolerance": "não fechado ({n} arestas abertas: a costura do corte são dois laços na mesma curva), por isso uma verificação de fechamento diz aberto; o volume é exato à tolerância do corte",
-  "\"{name}\" is not closed ({n} open edges): it can be clipped, but not combined with another solid, and the clip has no volume to trust.": "\"{name}\" não está fechado ({n} arestas abertas): pode ser recortado, mas não combinado com outro sólido, e o recorte não tem volume confiável.",
+  "\"{name}\" has {n} open edges: it can be clipped, not combined, and a clip's volume is unreliable.": "\"{name}\" tem {n} arestas abertas: pode ser recortado, não combinado, e o volume de um recorte não é confiável.",
   "Keep the part of the solid on one side of a surface: a body cut at the ground, or ore trimmed at a fault. The surface inside the solid becomes the cap.": "Mantém a parte do sólido de um lado de uma superfície: um corpo cortado no solo, ou minério aparado numa falha. A superfície dentro do sólido torna-se a tampa.",
   "Intersection (ore inside a stope shape), union (two lenses as one domain) or difference (a vein minus a dyke), each as a new solid with its volume. Both must be closed.": "Interseção (minério dentro da forma de um realce), união (duas lentes como um domínio) ou diferença (um veio menos um dique), cada uma como um novo sólido com o seu volume. Ambos devem estar fechados.",
   "The model is rebuilt from this project's last model run as sent: relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.": "O modelo é reconstruído a partir da última execução do modelo deste projeto como foi enviada: relação (erosão ou onlap), pacotes concordantes, rejeitos de falhas, alcance do campo potencial e precisão.",
@@ -15522,5 +15522,7 @@
   "Panel": "Painel",
   "Kept by the filters": "Mantidas pelos filtros",
   "Plotted": "Plotadas",
-  "Next: plot": "Próximo: gráfico"
+  "Next: plot": "Próximo: gráfico",
+  "in front of": "à frente de",
+  "behind": "atrás de"
 }

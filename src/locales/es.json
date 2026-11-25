@@ -13977,7 +13977,7 @@
   "Reduce the offset or widen the radius: the patch went through the surface, so the volume and any tonnage are meaningless, though the mesh still reports watertight.": "Reduzca el desplazamiento o amplíe el radio: el parche atravesó la superficie, así que el volumen y cualquier tonelaje no tienen sentido, aunque la malla siga figurando como estanca.",
   "Moving vertices keeps a watertight shell watertight and an open surface as open as it was. Undo lasts this session only: once saved, an edit is permanent (coordinates round to 1 cm). Deleting and pinning vertices or triangles is not available yet.": "Mover vértices mantiene estanca una envolvente estanca y tan abierta como estaba una superficie abierta. Deshacer dura solo esta sesión: una vez guardado, una edición es permanente (las coordenadas se redondean a 1 cm). Borrar y fijar vértices o triángulos aún no está disponible.",
   "not closed ({n} open edges: the cut's seam is two loops on one curve), so a closure check says open; the volume is exact to the cut tolerance": "no cerrado ({n} aristas abiertas: la costura del corte son dos lazos sobre una misma curva), así que una verificación de cierre dice abierto; el volumen es exacto a la tolerancia del corte",
-  "\"{name}\" is not closed ({n} open edges): it can be clipped, but not combined with another solid, and the clip has no volume to trust.": "«{name}» no está cerrado ({n} aristas abiertas): se puede recortar, pero no combinar con otro sólido, y el recorte no tiene un volumen confiable.",
+  "\"{name}\" has {n} open edges: it can be clipped, not combined, and a clip's volume is unreliable.": "«{name}» tiene {n} aristas abiertas: se puede recortar, no combinar, y el volumen de un recorte no es fiable.",
   "Keep the part of the solid on one side of a surface: a body cut at the ground, or ore trimmed at a fault. The surface inside the solid becomes the cap.": "Conserva la parte del sólido a un lado de una superficie: un cuerpo cortado en el suelo, o mena recortada en una falla. La superficie dentro del sólido pasa a ser la tapa.",
   "Intersection (ore inside a stope shape), union (two lenses as one domain) or difference (a vein minus a dyke), each as a new solid with its volume. Both must be closed.": "Intersección (mena dentro de la forma de un caserón), unión (dos lentes como un dominio) o diferencia (una veta menos un dique), cada una como un nuevo sólido con su volumen. Ambos deben estar cerrados.",
   "The model is rebuilt from this project's last model run as sent: relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.": "El modelo se reconstruye a partir de la última corrida del modelo de este proyecto tal como se envió: relación (erosión u onlap), paquetes conformes, desplazamientos de fallas, rango del campo potencial y precisión.",
@@ -15522,5 +15522,7 @@
   "Panel": "Panel",
   "Kept by the filters": "Conservadas por los filtros",
   "Plotted": "Graficadas",
-  "Next: plot": "Siguiente: gráfico"
+  "Next: plot": "Siguiente: gráfico",
+  "in front of": "delante de",
+  "behind": "detrás de"
 }

@@ -205,3 +205,14 @@ test("#4073 StepDialog's optional props: zIndex, cancelLabel, overlayProps on th
   const btn = s.match(/<button[^>]*data-start-next=""[^>]*>/)?.[0] || "";
   assert.ok(btn.includes('class="gs-btn gs-btn--primary"') && !btn.includes("nope"), "the attrs are on the gold button; the shell's class wins");
 });
+
+test("#4073 Solid tools: a clipped solid is named 'Body above Fault A', not 'above it Fault A'; the select keeps 'keep above it'", () => {
+  const src = read("src/components/SolidToolsModal.jsx");
+  const sideOf = src.match(/const sideOf = \(side\) => (.*);\n/)?.[1] || "";
+  assert.ok(sideOf.includes('tr("above")') && sideOf.includes('tr("below")') && !sideOf.includes(" it\")"), "the side before a name has no 'it'");
+  for (const key of ["\"Nothing of \\\"{s}\\\" lies {side}", "\"All of \\\"{s}\\\" already lies {side}", "tr(\"{s} {side} {c}\"", "tr(\"{s} clipped {side} {c}\""]) {
+    const at = src.indexOf(key);
+    assert.ok(at > 0 && src.slice(at, at + 200).includes("side: sideOf(keep)"), `${key}: uses sideOf`);
+  }
+  assert.ok(src.includes('tr("keep {side}", { side: sideLabel("positive") })'), "the select still reads 'keep above it'");
+});
