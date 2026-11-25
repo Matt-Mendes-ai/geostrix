@@ -15332,5 +15332,7 @@
   ", Ítalo Gonçalves). Results appear in the 3D view as \"geoML — …\" beside your other models. Everything runs on this computer.": "، Ítalo Gonçalves). تظهر النتائج في العرض ثلاثي الأبعاد باسم «geoML — …» بجانب نماذجك الأخرى. كل شيء يعمل على هذا الحاسوب.",
   "Time grows with holes and quality: start with Fast. {v}": "يزداد الوقت مع الثقوب والجودة: ابدأ بالسريع. {v}",
   "Add-on {v} still works; {v2} is available.": "الإضافة {v} ما زالت تعمل؛ الإصدار {v2} متاح.",
-  "Update to {v}…": "التحديث إلى {v}…"
+  "Update to {v}…": "التحديث إلى {v}…",
+  "{v}Read as UTF-16 text (the file starts with a UTF-16 byte-order mark).": "{v}تمت القراءة كنص UTF-16 (يبدأ الملف بعلامة ترتيب البايتات UTF-16).",
+  "This table has no header row (its first row is data): its {n} columns are named Column 1, Column 2 and so on. Say what each one is when you map the columns.": "لا يحتوي هذا الجدول على صف ترويسة (صفه الأول بيانات): تُسمّى أعمدته الـ {n} Column 1 وColumn 2 وهكذا. حدّد ما يمثله كل عمود عند ربط الأعمدة."
 }

@@ -15332,5 +15332,7 @@
   ", Ítalo Gonçalves). Results appear in the 3D view as \"geoML — …\" beside your other models. Everything runs on this computer.": ", Ítalo Gonçalves). Los resultados aparecen en la vista 3D como \"geoML — …\" junto a sus otros modelos. Todo corre en este equipo.",
   "Time grows with holes and quality: start with Fast. {v}": "El tiempo crece con los sondajes y la calidad: comience con Rápido. {v}",
   "Add-on {v} still works; {v2} is available.": "El complemento {v} sigue funcionando; está disponible la {v2}.",
-  "Update to {v}…": "Actualizar a {v}…"
+  "Update to {v}…": "Actualizar a {v}…",
+  "{v}Read as UTF-16 text (the file starts with a UTF-16 byte-order mark).": "{v}Leído como texto UTF-16 (el archivo empieza con una marca de orden de bytes UTF-16).",
+  "This table has no header row (its first row is data): its {n} columns are named Column 1, Column 2 and so on. Say what each one is when you map the columns.": "Esta tabla no tiene fila de encabezado (su primera fila son datos): sus {n} columnas se llaman Column 1, Column 2, etc. Indique qué es cada una al asignar las columnas."
 }
