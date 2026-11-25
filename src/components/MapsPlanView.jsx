@@ -550,7 +550,7 @@ export default function MapsPlanView() {
                 {assayElements.flatMap((e) => [<option key={`max:${e.symbol}`} value={`max:${e.symbol}`}>{tr("Highest {el} in the hole", { el: e.symbol })}</option>, <option key={`mean:${e.symbol}`} value={`mean:${e.symbol}`}>{tr("{el}, length-weighted mean of the hole", { el: e.symbol })}</option>])}
               </optgroup>}
             </select>
-            <button type="button" onClick={() => setChipOpen((o) => !o)} aria-expanded={chipOpen} aria-label={chipOpen ? tr("Fold the Collars panel") : tr("Unfold the Collars panel")} title={chipOpen ? tr("Fold the Collars panel and its legend out of the way") : tr("Unfold the Collars panel")}
+            <button data-btn-own="" type="button" onClick={() => setChipOpen((o) => !o)} aria-expanded={chipOpen} aria-label={chipOpen ? tr("Fold the Collars panel") : tr("Unfold the Collars panel")} title={chipOpen ? tr("Fold the Collars panel and its legend out of the way") : tr("Unfold the Collars panel")}
               style={{ background: "none", border: "none", cursor: "pointer", padding: "0 2px", color: "inherit", fontSize: "var(--font-size-sm)" }}>{chipOpen ? "▾" : "▸"}</button>{/* TASKS.csv #3458 */}
           </label>
           {chipOpen && <>
@@ -587,7 +587,7 @@ export default function MapsPlanView() {
           {gtPlan && gtMax > 0 && ( /* TASKS.csv #2755 */
             <div aria-label={tr("Grade × thickness legend")} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", fontVariantNumeric: "tabular-nums" }}>
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("GT per hole ({u}), from 3D Modelling > Grade × thickness in plan", { u: gtPlan.label })}
-                <button type="button" onClick={() => showGtOnPlan(null)} style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Clear")}</button></span>
+                <button data-btn-own="" type="button" onClick={() => showGtOnPlan(null)} style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Clear")}</button></span>
               <span style={{ color: "var(--color-text-muted)" }}>{gtPlan.title}</span>
               <span style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
                 {gtLegend(gtMax).map((l) => <span key={l.gt} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}><svg width={l.r * 2 + 2} height={l.r * 2 + 2} aria-hidden="true"><circle cx={l.r + 1} cy={l.r + 1} r={l.r} fill="rgba(194,65,12,0.55)" stroke="#7c2d12" /></svg>{l.gt.toLocaleString()}</span>)}
@@ -620,11 +620,11 @@ export default function MapsPlanView() {
       </div>
       <div style={{ ...chip, right: 10, top: 10, display: "flex", gap: 8, alignItems: "center" }}>
         <span style={{ fontWeight: 700 }} title={tr("Grid north: the plan is drawn on the project's grid, north up. True north differs by the grid convergence (Maps > Project CRS, or Measure).")}>{tr("N ↑")}</span>{/* TASKS.csv #3352 */}
-        <button onClick={fit} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Fit")}</button>
+        <button className="gs-btn gs-btn--sm" onClick={fit}>{tr("Fit")}</button>
         <label style={{ display: "flex", alignItems: "center", gap: 3 }}><input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />{tr("Grid")}</label>{/* #2128 */}
         {project?.crsSet !== false && project?.epsg && !isGeographicCrs(project.epsg) && <label style={{ display: "flex", alignItems: "center", gap: 3 }} title={tr("Longitude / latitude lines over the plan, to find a zone edge or a point given in degrees")}><input type="checkbox" checked={showLonLat} onChange={(e) => setShowLonLat(e.target.checked)} />{tr("Lon / lat")}</label>}{/* TASKS.csv #3466 */}
-        <button onClick={toLayout} title={tr("Put this view on the Layout page, north up at its scale, with a legend of its layers")} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Snapshot to Layout")}</button>{/* #3194 — the 3D View's own words for the same thing */}
-        <button onClick={() => { setMeasuring((m) => !m); setMPts([]); }} aria-pressed={measuring} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: `1px solid ${measuring ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 4, background: measuring ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{tr("Measure")}</button>
+        <button className="gs-btn gs-btn--sm" onClick={toLayout} title={tr("Put this view on the Layout page, north up at its scale, with a legend of its layers")}>{tr("Snapshot to Layout")}</button>{/* #3194 — the 3D View's own words for the same thing */}
+        <button data-btn-own="" onClick={() => { setMeasuring((m) => !m); setMPts([]); }} aria-pressed={measuring} style={{ fontSize: "var(--font-size-sm)", padding: "1px 7px", border: `1px solid ${measuring ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 4, background: measuring ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{tr("Measure")}</button>
         {fenceBox.button}
       </div>
       {fenceBox.status}
@@ -643,7 +643,7 @@ export default function MapsPlanView() {
               <input type="checkbox" checked={!surveysHidden.has(s.key)} aria-label={tr("Show {name} on the plan", { name: s.name })} onChange={(e) => setSurveysHidden((h) => { const n = new Set(h); if (e.target.checked) n.delete(s.key); else n.add(s.key); return n; })} />
               <span style={{ width: 8, height: 8, background: SURVEY_COLOURS[i % SURVEY_COLOURS.length], flex: "0 0 auto" }} />
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.name}>{tr("{name} ({n})", { name: s.name, n: s.n.toLocaleString() })}</span>
-              <button type="button" style={{ fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}
+              <button data-btn-own="" type="button" style={{ fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}
                 title={tr("Add the survey's outline (the convex hull of its points) to Boundaries")}
                 onClick={() => { const b = surveyOutlineBoundary(layers.geophys_pts, s.key); if (!b) { setOutlineNote(tr("{name}: too few points for an outline.", { name: s.name })); return; } addBoundary(b); setOutlineNote(tr("Added \"{name}\" to Boundaries: the convex hull of {n} points, {ha} ha.", { name: b.name, n: s.n.toLocaleString(), ha: (ringArea(b.polylines[0]) / 1e4).toLocaleString(undefined, { maximumFractionDigits: 1 }) })); }}>{tr("Outline as boundary")}</button>
             </span>

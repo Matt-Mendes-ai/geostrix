@@ -329,9 +329,9 @@ export default function BasemapView({
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {canRecenter && (
-            <button onClick={recenter} title={tr("Centre on project location")} style={{ ...iconBtnStyle, width: "auto", padding: "0 10px", gap: 6, fontSize: "var(--font-size-sm)" }}><Crosshair size={14} />{tr("Centre on project")}</button>
+            <button className="gs-btn gs-btn--sm" onClick={recenter} title={tr("Centre on project location")}><Crosshair size={14} />{tr("Centre on project")}</button>
           )}
-          <button onClick={onClose} title={tr("Close")} style={iconBtnStyle}><X size={18} /></button>
+          <button data-btn-own="" onClick={onClose} title={tr("Close")} style={iconBtnStyle}><X size={18} /></button>
         </div>
       </div>
       <div
@@ -361,7 +361,7 @@ export default function BasemapView({
         {!online && ( /* #2680 */
           <div style={{ position: "absolute", left: 12, top: 12, right: 60, padding: "8px 10px", background: "rgba(255,255,255,0.92)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", zIndex: 2 }} onMouseDown={(e) => e.stopPropagation()}>
             <span style={{ flex: 1, minWidth: 200 }}>{tr("No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.")}</span>
-            <button type="button" onClick={() => setOnline(true)} style={{ padding: "3px 10px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Show the online map")}</button>
+            <button className="gs-btn gs-btn--sm" type="button" onClick={() => setOnline(true)}>{tr("Show the online map")}</button>
           </div>
         )}
         {online && tileState.failed >= 3 && !tileState.ok && (
@@ -390,10 +390,11 @@ export default function BasemapView({
           <div style={{ position: "absolute", left: bboxPx.left, top: bboxPx.top, width: bboxPx.width, height: bboxPx.height, border: "2px solid var(--color-primary)", background: "rgba(47,111,224,0.15)", pointerEvents: "none" }} />
         )}
         <div style={zoomCtrlStyle}>
-          <button onClick={() => changeZoom(1)} style={iconBtnStyle} title={tr("Zoom in")}><Plus size={14} /></button>
-          <button onClick={() => changeZoom(-1)} style={iconBtnStyle} title={tr("Zoom out")}><Minus size={14} /></button>
+          <button className="gs-btn gs-btn--icon" onClick={() => changeZoom(1)} title={tr("Zoom in")}><Plus size={14} /></button>
+          <button className="gs-btn gs-btn--icon" onClick={() => changeZoom(-1)} title={tr("Zoom out")}><Minus size={14} /></button>
           {mode === "locate" && (
             <button
+              className="gs-btn gs-btn--icon"
               onClick={downloadAreaOffline}
               disabled={offlineDownloading}
               // TASKS.csv #300 — left clickable rather than disabled when the layer is OSM, so the click
@@ -402,11 +403,11 @@ export default function BasemapView({
               title={bulkCacheBlocked
                 ? tr("Switch to Topo or Satellite to pre-cache: the OpenStreetMap layer's tile policy doesn't permit downloading areas in advance.")
                 : tr("Download this area's map tiles for offline use (this zoom level + 2 closer levels)")}
-              style={{ ...iconBtnStyle, opacity: offlineDownloading ? 0.5 : bulkCacheBlocked ? 0.55 : 1, cursor: offlineDownloading ? "default" : "pointer" }}
+              style={{ opacity: offlineDownloading ? 0.5 : bulkCacheBlocked ? 0.55 : 1 }}
             ><Download size={14} /></button>
           )}
           <div style={{ position: "relative" }}>
-            <button onClick={() => setLayerPickerOpen((v) => !v)} title={tr("Base layer")} style={{ ...iconBtnStyle, ...(layerPickerOpen ? { background: "#eef3fb", borderColor: "var(--color-selected-border)" } : {}) }}><Layers size={14} /></button>
+            <button className="gs-btn gs-btn--icon" style={{ ...(layerPickerOpen ? { background: "#eef3fb", borderColor: "var(--color-selected-border)" } : {}) }} onClick={() => setLayerPickerOpen((v) => !v)} title={tr("Base layer")}><Layers size={14} /></button>
             {layerPickerOpen && (
               <LayerPicker
                 layerId={baseLayerId}
@@ -424,9 +425,9 @@ export default function BasemapView({
       </div>
       {mode === "draw" && (
         <div style={bottomBarStyle}>
-          <button onClick={() => setSubMode("pan")} style={subMode === "pan" ? toolBtnActiveStyle : toolBtnStyle} title={tr("Pan the map to find the area")}>
+          <button data-btn-own="" onClick={() => setSubMode("pan")} style={subMode === "pan" ? toolBtnActiveStyle : toolBtnStyle} title={tr("Pan the map to find the area")}>
             <Move size={14} />{" "}{tr("Pan")}</button>
-          <button onClick={() => setSubMode("draw")} style={subMode === "draw" ? toolBtnActiveStyle : toolBtnStyle} title={tr("Drag on the map to draw the fetch area")}>
+          <button data-btn-own="" onClick={() => setSubMode("draw")} style={subMode === "draw" ? toolBtnActiveStyle : toolBtnStyle} title={tr("Drag on the map to draw the fetch area")}>
             <Square size={14} />{" "}{tr("Draw area")}</button>
           {areaOptions && areaOptions.length > 0 && (
             <select
@@ -450,11 +451,10 @@ export default function BasemapView({
               {areaSizeText(bbox) /* #1765 / #2469 — on the ground, as Macrostrat's dialog says it; the degrees in the tooltip */}
             </div>
           )}
-          <button onClick={onClose} style={toolBtnStyle}>{tr("Cancel")}</button>
-          <button
+          <button className="gs-btn" onClick={onClose}>{tr("Cancel")}</button>
+          <button className="gs-btn gs-btn--primary"
             onClick={() => bbox && onConfirm(bbox)}
             disabled={!bbox}
-            style={{ ...toolBtnActiveStyle, opacity: bbox ? 1 : 0.5, cursor: bbox ? "pointer" : "not-allowed" }}
           >
             <Check size={14} /> {tr(confirmLabel)}
           </button>

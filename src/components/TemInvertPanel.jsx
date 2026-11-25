@@ -9,7 +9,7 @@ import { WAVEFORM_PRESETS, waveformFrom, parseWaveformTable, parseFilters, timeZ
 import { modelPoints } from "../lib/fdem.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { runTem1dJob, saveFile } from "../lib/desktop.js";
-import { smallSel, pBtn } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js";
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
@@ -377,10 +377,10 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
       {busy ? (
         <div role="status" style={{ ...note, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
           <span style={{ flex: 1 }}>{busy.text}{Number.isFinite(busy.eta) ? " " + tr("About {m} min left.", { m: Math.max(1, Math.round(busy.eta / 60)) }) : ""}</span>
-          <button type="button" onClick={() => ctl.current?.abort()} style={{ ...smallSel, cursor: "pointer" }}>{tr("Cancel")}</button>
+          <button className="gs-btn" type="button" onClick={() => ctl.current?.abort()}>{tr("Cancel")}</button>
         </div>
       ) : (
-        <button type="button" disabled={!ready} onClick={run} title={ready ? undefined : tr("Type the gate times first")} style={{ ...pBtn, justifyContent: "center" }}>{tr("Invert the stations (Python engine)")}</button>
+        <button className="gs-btn gs-btn--block" style={{ justifyContent: "center" }} type="button" disabled={!ready} onClick={run} title={ready ? undefined : tr("Type the gate times first")}>{tr("Invert the stations (Python engine)")}</button>
       )}
       {msg && <div role={msg.info ? "status" : "alert"} style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", margin: "4px 0 8px" }}>{msg.text}</div>}
       {R && lineStations.length > 0 && (<>
@@ -397,8 +397,8 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           {stationExtra && <div style={{ ...note, marginBottom: 4 }}>{stationExtra}</div>}
           <Fit times={fit.times} obs={fit.obs} pred={fit.pred} />
         </>}
-        <button type="button" onClick={add3d} style={{ ...pBtn, justifyContent: "center", marginTop: 8 }}>{tr("Add the models to the 3D view")}</button>
-        <button type="button" onClick={exportCsv} style={{ ...pBtn, justifyContent: "center", marginTop: 6 }}>{tr("Export the models (CSV)")}</button>
+        <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginTop: 8 }} type="button" onClick={add3d}>{tr("Add the models to the 3D view")}</button>
+        <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginTop: 6 }} type="button" onClick={exportCsv}>{tr("Export the models (CSV)")}</button>
       </>)}
       {R && !lineStations.length && <div style={note}>{tr("No model on this line: pick another line, or run with every station.")}</div>}
     </div>

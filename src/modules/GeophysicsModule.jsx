@@ -2310,7 +2310,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             : methodHint === "grav" ? tr("A survey imported here is labelled gravity (Bouguer anomaly), or the gravity product its column names (free air, Gzz). Change it on the survey's card.")
               : methodHint === "rad" ? tr("Labelled radiometrics: each K, eTh, eU or total-count column becomes its own survey. Change the method on the survey's card.")
                 : tr("Labelled a TEM channel (dB/dt), or B-field or decay constant when its column says so. Change it on the survey's card.")}
-          {" "}<button type="button" onClick={() => setMethodHint(null)} style={{ border: "none", background: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", fontSize: "inherit", textDecoration: "underline" }}>{tr("Import without a method")}</button>
+          {" "}<button data-btn-own="" type="button" onClick={() => setMethodHint(null)} style={{ border: "none", background: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", fontSize: "inherit", textDecoration: "underline" }}>{tr("Import without a method")}</button>
         </div>}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Point cloud (CSV)")}<InfoButton title={tr("Point cloud (CSV)")} text={tr("Import a CSV point cloud (x, y, z, value): mag, IP, gravity, radiometrics or any point-sampled survey. It shows with the drillholes in 3D (the \"Geophysics points\" layer).")} />
         </div>
@@ -2323,13 +2323,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           title={tr("The CRS these points' x/y are in. They are reprojected into the project CRS on import.")}
         />
 
-        <button onClick={() => fileInput.current.click()} style={pBtn}>
+        <button className="gs-btn gs-btn--block" onClick={() => fileInput.current.click()}>
           <Upload size={14} />{" "}{tr("Import CSV…")}</button>
 
         {/* Geosoft .xyz line/profile import — its column layout isn't fixed like the CSV importer
             above (a real airborne survey export carries a dozen+ geophysics channels), so this is a
             picker rather than a name-guessed single button — see importXYZFile/confirmImportXYZ. */}
-        <button onClick={() => xyzInput.current.click()} style={{ ...pBtn, marginTop: 6 }}>
+        <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => xyzInput.current.click()}>
           <MapPin size={14} />{" "}{tr("Import survey .xyz (one or many)…")}</button>
         <input
           ref={xyzInput}
@@ -2354,11 +2354,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                           onBlur={(e) => commitSurveyRename(sv.key, e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") commitSurveyRename(sv.key, e.currentTarget.value); if (e.key === "Escape") setRenamingSurvey(null); }} />
                       : <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={sv.key}>{sv.key}</span>}
                     {/* TASKS.csv #3325 — show / hide this survey in the 3D view and its legend (two clouds on the same points shared one mass) */}
-                    <button type="button" aria-pressed={!meta.hidden} aria-label={meta.hidden ? tr("Show survey \"{key}\" in the 3D view", { key: sv.key }) : tr("Hide survey \"{key}\" in the 3D view", { key: sv.key })} title={meta.hidden ? tr("Show survey \"{key}\" in the 3D view", { key: sv.key }) : tr("Hide survey \"{key}\" in the 3D view", { key: sv.key })} style={{ ...iconBtn, opacity: meta.hidden ? 0.55 : 1 }} onClick={() => updateGeophysSurvey(sv.key, { hidden: !meta.hidden })}>{meta.hidden ? <EyeOff size={12} aria-hidden="true" /> : <Eye size={12} aria-hidden="true" />}</button>
-                    <button type="button" aria-label={tr("Rename survey \"{key}\"", { key: sv.key })} title={tr("Rename survey \"{key}\"", { key: sv.key })} style={iconBtn} onClick={() => setRenamingSurvey(sv.key)}><Pencil size={12} aria-hidden="true" /></button>
+                    <button className="gs-btn gs-btn--icon gs-btn--sm" style={{ opacity: meta.hidden ? 0.55 : 1 }} type="button" aria-pressed={!meta.hidden} aria-label={meta.hidden ? tr("Show survey \"{key}\" in the 3D view", { key: sv.key }) : tr("Hide survey \"{key}\" in the 3D view", { key: sv.key })} title={meta.hidden ? tr("Show survey \"{key}\" in the 3D view", { key: sv.key }) : tr("Hide survey \"{key}\" in the 3D view", { key: sv.key })} onClick={() => updateGeophysSurvey(sv.key, { hidden: !meta.hidden })}>{meta.hidden ? <EyeOff size={12} aria-hidden="true" /> : <Eye size={12} aria-hidden="true" />}</button>
+                    <button className="gs-btn gs-btn--icon gs-btn--sm" type="button" aria-label={tr("Rename survey \"{key}\"", { key: sv.key })} title={tr("Rename survey \"{key}\"", { key: sv.key })} onClick={() => setRenamingSurvey(sv.key)}><Pencil size={12} aria-hidden="true" /></button>
                     {/* TASKS.csv #2871 — buttons, not bare svg elements */}
-                    <button type="button" aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={iconBtn} onClick={() => exportSurvey(sv.key)}><Download size={12} aria-hidden="true" /></button>{/* #1094 */}
-                    <button type="button" aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={iconBtn}
+                    <button className="gs-btn gs-btn--icon gs-btn--sm" type="button" aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} onClick={() => exportSurvey(sv.key)}><Download size={12} aria-hidden="true" /></button>{/* #1094 */}
+                    <button className="gs-btn gs-btn--icon gs-btn--sm" type="button" aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })}
                       onClick={async () => { if (await askConfirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) { setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); setGeophysSurveys((m) => { const { [sv.key]: _gone, ...rest } = m || {}; return rest; }); const about = (e) => (e && typeof e === "object" && String(e.text || "").includes(`"${sv.key}"`) ? null : e); setXyzError(about); setError(about); /* #3442 (3) — 'Imported … from "x"' goes with x */ /* TASKS.csv #3330 (2) — its Method, units and legend go with its last point: a later import under that name inherited them */ } }}><Trash2 size={12} aria-hidden="true" /></button>
                   </div>
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
@@ -2381,16 +2381,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   {/* TASKS.csv #1985 — gridded on one level with equivalent sources (Harmonica, in the Python engine) */}
                   {/* TASKS.csv #3321 — not for a survey that is not a potential field (IP, resistivity, EM, radiometrics ...): said in one line */}
                   {eqsApplies(meta.method) === "no" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>{tr("Equivalent sources: for magnetic and gravity surveys only (a field measured on or above the ground); this survey is {label}.", { label: tr(SURVEY_METHODS[meta.method]?.label || meta.method) })}</div>}
-                  {(eqsApplies(meta.method) === "ok" || eqsApplies(meta.method) === "assume") /* derived points at depth (Euler, Niblett-Bostick, lidar, FDEM models): no button, as before */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights end on one surface; a higher level continues upward")}>{tr("Grid with equivalent sources…")}</button>}
-                  {eqsFor === sv.key && <Suspense fallback={null}><EqsGridBox survey={sv.key} rows={rows} units={meta.units || ""} method={meta.method || null} /* #2639 */ addRaster={addRaster} defaultElevation={defaultElevation} numInput={numInput} pBtn={pBtn} /></Suspense>}
+                  {(eqsApplies(meta.method) === "ok" || eqsApplies(meta.method) === "assume") /* derived points at depth (Euler, Niblett-Bostick, lidar, FDEM models): no button, as before */ && <button className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0 }} type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights end on one surface; a higher level continues upward")}>{tr("Grid with equivalent sources…")}</button>}
+                  {eqsFor === sv.key && <Suspense fallback={null}><EqsGridBox survey={sv.key} rows={rows} units={meta.units || ""} method={meta.method || null} /* #2639 */ addRaster={addRaster} defaultElevation={defaultElevation} numInput={numInput} /></Suspense>}
                   {/* TASKS.csv #1985 — free-air and Bouguer anomalies of a gravity survey (or of values that look like absolute gravity) */}
-                  {(["grav", "grav_fa"].includes(meta.method) || (Number.isFinite(sv.min) && sv.min > 900000)) && <button type="button" onClick={() => setGravFor(gravFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Free-air anomaly (observed less normal gravity) and Bouguer anomaly (less the Bouguer plate or the terrain's gravity), in the Python engine")}><Scale size={14} />{tr("Gravity reductions…")}</button>}
-                  {gravFor === sv.key && <Suspense fallback={null}><GravityReductionBox survey={sv.key} method={meta.method || null} /* #2841 */ rows={rows} epsg={project?.epsg} terrain={terrain} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} numInput={numInput} pBtn={pBtn} /></Suspense>}
+                  {(["grav", "grav_fa"].includes(meta.method) || (Number.isFinite(sv.min) && sv.min > 900000)) && <button className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0 }} type="button" onClick={() => setGravFor(gravFor === sv.key ? null : sv.key)} title={tr("Free-air anomaly (observed less normal gravity) and Bouguer anomaly (less the Bouguer plate or the terrain's gravity), in the Python engine")}><Scale size={14} />{tr("Gravity reductions…")}</button>}
+                  {gravFor === sv.key && <Suspense fallback={null}><GravityReductionBox survey={sv.key} method={meta.method || null} /* #2841 */ rows={rows} epsg={project?.epsg} terrain={terrain} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} numInput={numInput} /></Suspense>}
                   </>}
                   {/* TASKS.csv #1152 — interpretation lines over this survey, drawn in the 3D view */}
-                  <button type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
+                  <button className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0 }} type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
                   {(meta.zMeaning === "agl") && (
-                    <button type="button" disabled={!terrain} onClick={() => convertAgl(sv.key)} style={{ ...pBtn, marginTop: 5, opacity: terrain ? 1 : 0.5 }}
+                    <button className="gs-btn gs-btn--block" style={{ marginTop: 5 }} type="button" disabled={!terrain} onClick={() => convertAgl(sv.key)}
                       title={terrain ? tr("elevation = terrain + the height in z (the heights are kept, so this can be redone after loading a better terrain)") : tr("Load a terrain first")}>
                       {sv.withAgl ? tr("Recompute elevations from the terrain") : tr("Convert heights to elevations (terrain + height)")}
                     </button>
@@ -2484,7 +2484,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       <div style={{ color: "var(--color-text-faint)", lineHeight: 1.4 }}>{tr("Load every day's base-station files (GEM .tbl / .b): each survey file is corrected against its own day's base. Value is the raw reading, \"{time}\" the time.", { time: xyzPending.batch.timeCol })}</div>
                       {xyzPending.batch.bases.length > 0 && <div style={{ marginTop: 4 }}>{tr("{n} base file(s) for {days} day(s): {v}", { n: xyzPending.batch.bases.length, days: plan.days.length, v: plan.days.join(", ") })}{plan.basesWithoutDay.length ? ` ${tr("No day could be read from {v}; they are not used.", { v: plan.basesWithoutDay.join(", ") })}` : ""}</div>}
                       {xyzPending.batch.bases.length > 0 && <div style={{ marginTop: 2, color: plan.withoutBase.length ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{plan.withoutBase.length ? tr("No base for {n} of {total} survey files: {v} — they will be imported raw.", { n: plan.withoutBase.length, total: plan.files.length, v: plan.withoutBase.map((f) => f.name).join(", ") }) : tr("Every survey file has a base for its day.")}</div>}
-                      <button type="button" onClick={() => batchBaseInput.current?.click()} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{xyzPending.batch.bases.length ? tr("Add more base files…") : tr("Load base-station files…")}</button>
+                      <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={() => batchBaseInput.current?.click()}>{xyzPending.batch.bases.length ? tr("Add more base files…") : tr("Load base-station files…")}</button>
                       <input ref={batchBaseInput} type="file" multiple accept=".tbl,.b,.txt,.dat,.csv" style={{ display: "none" }} onChange={(e) => { const fs = Array.from(e.target.files || []); e.target.value = ""; addBatchBases(fs); }} />
                     </div>
                   );
@@ -2502,15 +2502,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             {!xyzPending.batch?.gpsFiles.length && !xyzPending.grid && looksLikeLocalGrid(xyzPending.rows, xyzPending.xCol, xyzPending.yCol) && (
               <div style={{ marginTop: 8, padding: "6px 8px", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>
                 {tr("Local grid coordinates: unplaced, they land far from your other data. Place them with the survey's GPS file (stations named like \"9000N 4650E\").")}
-                <button type="button" onClick={() => gridGpsInput.current?.click()} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Load the GPS file…")}</button>
+                <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={() => gridGpsInput.current?.click()}>{tr("Load the GPS file…")}</button>
                 <input ref={gridGpsInput} type="file" accept=".txt,.csv,.dat,.gpx,.wpt" style={{ display: "none" }} onChange={(e) => { placeLocalGrid(e.target.files[0]); e.target.value = ""; }} />
               </div>
             )}
-            {xyzPending.source !== "csv" && !xyzPending.batch && diurnalApplies(xyzPending.valueCol, { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }) /* #1586 — a magnetics step */ && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
+            {xyzPending.source !== "csv" && !xyzPending.batch && diurnalApplies(xyzPending.valueCol, { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }) /* #1586 — a magnetics step */ && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} />}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button onClick={() => confirmImportXYZ()} disabled={!!xyzPending.streaming} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
+              <button className="gs-btn" style={{ flex: 1 }} onClick={() => confirmImportXYZ()} disabled={!!xyzPending.streaming}>
                 {xyzPending.streaming ? <Loader2 size={14} className="spin" /> : <Upload size={14} />}{" "}{xyzPending.streaming ? tr("Reading…") : tr("Import")}</button>
-              <button onClick={() => { setXyzPending(null); setXyzError(null); setError(null); /* TASKS.csv #3442 (3) — a cancelled picker's message goes with it, not under the next file's picker */ }} style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
+              <button className="gs-btn" style={{ width: 90 }} onClick={() => { setXyzPending(null); setXyzError(null); setError(null); /* TASKS.csv #3442 (3) — a cancelled picker's message goes with it, not under the next file's picker */ }}>{tr("Cancel")}</button>
             </div>
           </div>
         )}
@@ -2580,21 +2580,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               />
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button onClick={() => goToModule("viewer")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("View in 3D")}{" "}<ArrowRight size={14} />
+              <button className="gs-btn" style={{ flex: 1 }} onClick={() => goToModule("viewer")}>{tr("View in 3D")}{" "}<ArrowRight size={14} />
               </button>
-              <button
+              <button className="gs-btn gs-btn--danger" style={{ width: 90 }}
                 onClick={async () => { if (await askConfirm(tr("Clear all {rows} geophysics point(s)?", { rows: rows.length }))) { replaceLayer("geophys_pts", []); setError(null); setXyzError(null); /* #2871 — no 'Imported 7809 point(s)' left on screen */ } }}
-                style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-danger-fg)" }}
               >
                 <Trash2 size={14} />{" "}{tr("Clear")}</button>
             </div>
             {/* TASKS.csv #51 — Voronoi/Delaunay tessellation + polygonal declustering, over whatever
                 point cloud is currently loaded. Needs >=3 points to be meaningful (see SpatialAnalysis's
                 own guard), so only shown once points exist rather than as a separately-gated button. */}
-            <button onClick={() => setSpatialOpen(true)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center" }}>
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0, justifyContent: "center" }} onClick={() => setSpatialOpen(true)}>
               <Triangle size={14} />{" "}{tr("Spatial analysis (Voronoi / declustering)…")}</button>
             {/* TASKS.csv #3324 — the survey's value along the holes, as a downhole layer */}
-            <button onClick={() => setHoleOpen((v) => !v)} title={tr("The survey's value along each drillhole (nearest point or inverse-distance mean, within a distance), as a downhole layer for Downhole logs and strip logs.")} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: holeOpen ? "var(--color-selected-bg)" : undefined }}>
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0, justifyContent: "center", background: holeOpen ? "var(--color-selected-bg)" : undefined }} onClick={() => setHoleOpen((v) => !v)} title={tr("The survey's value along each drillhole (nearest point or inverse-distance mean, within a distance), as a downhole layer for Downhole logs and strip logs.")}>
               <Waypoints size={14} />{" "}{tr("Sample along the drillholes…")}</button>
             {holeOpen && (
               <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
@@ -2615,12 +2614,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     </select>
                   </div>
                   {holeSuggest && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{holeSuggest.sectionSpacing ? tr("Defaults from the cloud: sections about {l} m apart, so the distance is three quarters of that; the step, a quarter of the {s} m spacing.", { l: Math.round(holeSuggest.sectionSpacing), s: +holeSuggest.spacing.toFixed(1) }) : tr("Defaults from the cloud's spacing ({s} m): a distance of 1.5 spacings and a step of a quarter spacing.", { s: +holeSuggest.spacing.toFixed(1) })}</div>}
-                  <button disabled={holeBusy} onClick={() => sampleSurveyAlongHoles(legendKey)} style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center" }}>{holeBusy ? tr("Sampling…") : tr("Add as a downhole layer")}</button>
+                  <button className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, justifyContent: "center" }} disabled={holeBusy} onClick={() => sampleSurveyAlongHoles(legendKey)}>{holeBusy ? tr("Sampling…") : tr("Add as a downhole layer")}</button>
                 </>}
               </div>
             )}
             {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), pure JS. */}
-            <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }}>
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }} onClick={() => setIdwOpen((v) => !v)}>
               <Box size={14} />{" "}{tr("Grid to raster (IDW, minimum curvature, spline)…")}</button>
             {idwOpen && (
               <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
@@ -2680,8 +2679,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     <option value="linear">{tr("Linear min-max")}</option>
                   </select>
                 </div>
-                {idwBusy && <div role="status" style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}><span style={{ flex: 1 }}>{idwBusy}</span>{idwMethod !== "spline" && <button type="button" onClick={() => idwCancel.current?.()} style={{ ...pBtn, width: "auto", marginTop: 0, marginBottom: 0 }}>{tr("Cancel")}</button>}</div>}
-                <button
+                {idwBusy && <div role="status" style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}><span style={{ flex: 1 }}>{idwBusy}</span>{idwMethod !== "spline" && <button className="gs-btn" type="button" onClick={() => idwCancel.current?.()}>{tr("Cancel")}</button>}</div>}
+                <button className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}
                   disabled={!!idwBusy}
                   onClick={async () => {
                     const pts = idwSlice; // #1783 — a 3D cloud: the chosen depth slice
@@ -2767,7 +2766,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     setIdwOpen(false);
                     } finally { pj.end(); } // TASKS.csv #3953
                   }}
-                  style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
                 >{tr("Generate raster")}</button>
                 {idwShape?.is3D && idwMethod === "idw" && ( // TASKS.csv #3420
                   <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
@@ -2780,7 +2778,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       <span style={{ color: "var(--color-text-faint)" }}>{tr("to")}</span>
                       <NumberInput allowEmpty value={levelSet.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(t) => setLevelSet((v) => ({ ...v, hi: (t == null ? "" : String(t)) }))} style={{ ...numInput, width: 70 }} aria-label={tr("Highest elevation of the levels")} />
                     </div>
-                    <button type="button" disabled={!!idwBusy} onClick={makeLevelGrids} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Generate a grid per level")}</button>
+                    <button className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }} type="button" disabled={!!idwBusy} onClick={makeLevelGrids}>{tr("Generate a grid per level")}</button>
                   </div>
                 )}
               </div>
@@ -2795,12 +2793,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </>)}
         {geoPane === "inversion" && (<>
         <TaskPaneHeader title="Mag / gravity inversion (SimPEG)" icon={RMagnet} tone="model" />
-        <InversionPanel pBtn={pBtn} numInput={numInput} inPane resultSlot={resultSlot} />
+        <InversionPanel numInput={numInput} inPane resultSlot={resultSlot} />
 
         </>)}
         {geoPane === "dcip" && (<>
         <TaskPaneHeader title="DC resistivity / IP line (2D, SimPEG)" icon={RZap} tone="model" />
-        <DcipPanel pBtn={pBtn} numInput={numInput} resultSlot={resultSlot} />
+        <DcipPanel numInput={numInput} resultSlot={resultSlot} />
         </>)}
         {geoPane === "terrain" && (<>
         <TaskPaneHeader title="Terrain (SRTM / DEM)" icon={RMountain} tone="data" />
@@ -2849,39 +2847,37 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </div>
         {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, up to a second to build.", { mb: terrainDetail > 1500 ? 40 : terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 1500 ? 22 : terrainDetail > 600 ? 6 : 1.5 })}</div>}
         <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => terrainInput.current.click()} style={{ ...pBtn, flex: 1 }} disabled={terrainBusy}>
+          <button className="gs-btn" style={{ flex: 1 }} onClick={() => terrainInput.current.click()} disabled={terrainBusy}>
             {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? tr("Reading…") : terrain ? tr("Replace terrain…") : tr("Import SRTM/DEM…")}
           </button>
-          <button
+          <button className="gs-btn" style={{ flex: 1 }}
             onClick={openSrtmPicker}
-            style={{ ...pBtn, flex: 1 }}
             disabled={terrainBusy}
             title={tr("Pick an area on a map and fetch elevation for it — no manual download needed")}
           >
             {srtmProgress ? <Loader2 size={14} className="spin" /> : <Radio size={14} />} {srtmProgress ? tr("Fetching {done}/{total}…", { done: srtmProgress.done, total: srtmProgress.total }) : tr("Fetch terrain for this area")}
           </button>
         </div>
-        <button onClick={() => pointsTerrainInput.current.click()} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy}
+        <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => pointsTerrainInput.current.click()} disabled={terrainBusy}
           title={tr("Survey points (CSV, TXT or XYZ: X, Y, elevation) or DXF contours and spot heights, triangulated into a terrain where there is no elevation model")}>
           <Triangle size={14} /> {tr("Terrain from points or contours…")}
         </button>{/* TASKS.csv #894 */}
-        <button onClick={() => lidarInput.current.click()} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy || lidarBusy}
+        <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => lidarInput.current.click()} disabled={terrainBusy || lidarBusy}
           title={tr("A lidar point cloud (LAS, LAZ or COPC): a terrain from its ground-classified points, and a thinned cloud in StrixViewer")}>
           <Mountain size={14} /> {tr("Lidar point cloud (LAS / LAZ)…")}
         </button>{/* TASKS.csv #1994 */}
         <input ref={lidarInput} type="file" accept=".las,.laz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) openLidar(f); e.target.value = ""; }} />
         {lidarPending && <LidarImportBox key={lidarPending.file.name + lidarPending.file.size} pending={lidarPending} projectEpsg={lidarPending.epsg} busy={lidarBusy} onImport={confirmLidar} onCancel={() => setLidarPending(null)} btn={pBtn} />}
         {projectZPoints.points.length >= 3 && (
-          <button onClick={terrainFromProject} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy || zCount < 3}
+          <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={terrainFromProject} disabled={terrainBusy || zCount < 3}
             title={tr("Triangulates the elevations of the project's surface samples and collars, offline. Only as good as those elevations (GPS heights are rough).")}>
             <Triangle size={14} /> {tr("Terrain from this project's samples and collars ({n})", { n: zCount.toLocaleString() })}
           </button>
         )}{/* TASKS.csv #1599 */}
         {projectZPoints.points.length >= 3 && ( /* TASKS.csv #3095 — the points inside a drawn area only */
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexWrap: "wrap" }}>
-            <button type="button" onClick={async () => { const seed = await defaultSrtmBboxLonLat(); setSrtmSeedBbox(projArea || seed); setSrtmSeedLonLat(seed ? { lon: (seed[0] + seed[2]) / 2, lat: (seed[1] + seed[3]) / 2 } : null); setSrtmAreaOptions(await buildSrtmAreaOptions()); setProjAreaPicker(true); }}
-              style={{ ...pBtn, flex: "0 0 auto" }} title={tr("Build the terrain from the samples and collars inside an area you draw: for a field wider than one grid can resolve")}>{tr("Limit to a drawn area…")}</button>
-            {projArea && <span>{tr("Inside {w} × {h} km", { w: ((projArea[2] - projArea[0]) * 111.32 * Math.cos(((projArea[1] + projArea[3]) / 2) * Math.PI / 180)).toFixed(1), h: ((projArea[3] - projArea[1]) * 110.57).toFixed(1) })} <button type="button" onClick={() => setProjArea(null)} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "var(--font-size-sm)" }}>{tr("Clear")}</button></span>}
+            <button className="gs-btn gs-btn--sm" style={{ flex: "0 0 auto" }} type="button" onClick={async () => { const seed = await defaultSrtmBboxLonLat(); setSrtmSeedBbox(projArea || seed); setSrtmSeedLonLat(seed ? { lon: (seed[0] + seed[2]) / 2, lat: (seed[1] + seed[3]) / 2 } : null); setSrtmAreaOptions(await buildSrtmAreaOptions()); setProjAreaPicker(true); }} title={tr("Build the terrain from the samples and collars inside an area you draw: for a field wider than one grid can resolve")}>{tr("Limit to a drawn area…")}</button>
+            {projArea && <span>{tr("Inside {w} × {h} km", { w: ((projArea[2] - projArea[0]) * 111.32 * Math.cos(((projArea[1] + projArea[3]) / 2) * Math.PI / 180)).toFixed(1), h: ((projArea[3] - projArea[1]) * 110.57).toFixed(1) })} <button data-btn-own="" type="button" onClick={() => setProjArea(null)} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "var(--font-size-sm)" }}>{tr("Clear")}</button></span>}
           </div>
         )}
         {projAreaPicker && (
@@ -2953,7 +2949,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <span>{tr("nodes ~{n} m apart at {level}", { n: p.nodeM < 10 ? p.nodeM.toFixed(1) : Math.round(p.nodeM).toLocaleString(), level: tr(TERRAIN_DETAIL_NAMES[terrainDetail] || "Standard") })}</span>
                   {!fits && <span style={{ color: "var(--color-warn-text)" }}>{tr("over this computer's {max} MB", { max: fetchBudgetMB(ramGB).toLocaleString() })}</span>}
                   {coarse && p.fullSideKm * 1000 < Math.max((bbox[2] - bbox[0]) * 111320 * Math.cos(((bbox[1] + bbox[3]) / 2) * Math.PI / 180), (bbox[3] - bbox[1]) * 110574) && (
-                    <button type="button" onClick={() => setArea(centreBox(bbox, p.fullSideKm * 1000))} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}
+                    <button className="gs-btn gs-btn--sm" type="button" onClick={() => setArea(centreBox(bbox, p.fullSideKm * 1000))}
                       title={tr("The source's own {f} m detail at this Terrain detail covers about {km} km across: keep the centre of the drawn area", { f: p.nativeM.toFixed(1), km: p.fullSideKm.toFixed(1) })}>{tr("Full resolution: centre {km} km", { km: p.fullSideKm.toFixed(1) })}</button>
                   )}
                 </span>
@@ -2994,8 +2990,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
             {/GEM-15/.test(String(terrain.source?.service || "")) && ( /* TASKS.csv #3950 — for a GEM-15 terrain already fetched; Undo restores the heights (this session) */
               gemOriginal.current.has(terrain.id)
-                ? <button data-gem-smooth-undo="" onClick={() => { const orig = gemOriginal.current.get(terrain.id); gemOriginal.current.delete(terrain.id); const { stepSmooth: _drop, ...src } = terrain.source || {}; updateTerrain({ elevations: orig, source: src }); setTerrainError({ info: true, text: tr("Smoothing undone.") }); }} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }}>{tr("Undo smoothing")}</button>
-                : !terrain.source?.stepSmooth && <button data-gem-smooth-run="" onClick={async () => {
+                ? <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0 }} data-gem-smooth-undo="" onClick={() => { const orig = gemOriginal.current.get(terrain.id); gemOriginal.current.delete(terrain.id); const { stepSmooth: _drop, ...src } = terrain.source || {}; updateTerrain({ elevations: orig, source: src }); setTerrainError({ info: true, text: tr("Smoothing undone.") }); }}>{tr("Undo smoothing")}</button>
+                : !terrain.source?.stepSmooth && <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0 }} data-gem-smooth-run="" onClick={async () => {
                     const { smoothSteps } = await import("../lib/stepSmooth.js");
                     const r = smoothSteps(terrain.elevations, terrain.gridW, terrain.gridH, { nodeM: terrain.source?.nodeM || 15 });
                     if (!r.changed) { setTerrainError({ info: true, text: tr("No steps found: nothing changed.") }); return; }
@@ -3003,16 +2999,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     gemOriginal.current.set(terrain.id, terrain.elevations);
                     updateTerrain({ elevations: r.out, source: { ...terrain.source, stepSmooth: sm } });
                     setTerrainError({ info: true, text: stepSmoothNote(sm).trim() });
-                  }} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title={tr("Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.")}>{tr("Smooth its steps")}</button>
+                  }} title={tr("Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.")}>{tr("Smooth its steps")}</button>
             )}
-            <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title={tr("Export the merged/processed terrain's elevation grid as a single-band GeoTIFF")}>
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0 }} onClick={exportTerrainGeoTIFF} title={tr("Export the merged/processed terrain's elevation grid as a single-band GeoTIFF")}>
               <Download size={14} />{" "}{tr("Export to GeoTIFF…")}</button>
             {/* TASKS.csv #4042 — stream-sediment sites from this DEM: the Survey planner's Stream sites (in Geochem) */}
-            <button onClick={() => { goToModule?.("geochem"); requestModuleAction("plan-stream-sites", { tab: "streams" }); }} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}><MapPin size={14} />{" "}{tr("Plan stream sites…")}</button>
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={() => { goToModule?.("geochem"); requestModuleAction("plan-stream-sites", { tab: "streams" }); }}><MapPin size={14} />{" "}{tr("Plan stream sites…")}</button>
             {/* TASKS.csv #237 — raster derivative: hillshade from the terrain's own elevation grid,
                 standard Horn-method slope/aspect shading (same algorithm GDAL/QGIS's own hillshade tools
                 use). Lands as an ordinary raster drape, same pipeline as every other raster source. */}
-            <button onClick={() => setHillshadeOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: hillshadeOpen ? "var(--color-selected-bg)" : undefined }}>
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0, background: hillshadeOpen ? "var(--color-selected-bg)" : undefined }} onClick={() => setHillshadeOpen((v) => !v)}>
               <Mountain size={14} />{" "}{tr("Hillshade, slope, aspect…")}</button>
             {hillshadeOpen && (
               <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -3042,7 +3038,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Height of the sun above the horizon, in degrees.")}>{tr("Sun altitude")}</span>
                   <NumberInput min={1} max={90} value={hillshadeAltitude} onChange={(v) => setHillshadeAltitude(v)} style={numInput} />
                 </div>}
-                <button
+                <button className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}
                   onClick={() => {
                     // TASKS.csv #2460 — a hillshade exaggerated by the terrain's own slopes (1x on rugged ground), the factor in its name and message
                     const shade = derivKind === "hillshade" || derivKind === "multi";
@@ -3063,7 +3059,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     if (hid) setTerrainError((prev) => ({ info: true, text: (prev?.text ? prev.text + " " : "") + hid.trim() })); // #1764
                     setHillshadeOpen(false);
                   }}
-                  style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
                 >{tr("Generate")}</button>
               </div>
             )}
@@ -3073,7 +3068,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 lands as ordinary BOUNDARY polylines (not a raster) since contours are genuinely
                 vector data, and that pipeline already gives them colour, opacity and drape-on-terrain
                 for free. One boundary per contour level so individual levels can be styled/hidden. */}
-            <button onClick={() => { if (!contourOpen && !contourTyped) { const r = terrainRange(terrain); if (r) setContourInterval(niceContourInterval(r[0], r[1])); } setContourOpen((v) => !v); }} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: contourOpen ? "var(--color-selected-bg)" : undefined }}>{/* #2462 — the interval from the relief */}
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0, background: contourOpen ? "var(--color-selected-bg)" : undefined }} onClick={() => { if (!contourOpen && !contourTyped) { const r = terrainRange(terrain); if (r) setContourInterval(niceContourInterval(r[0], r[1])); } setContourOpen((v) => !v); }}>{/* #2462 — the interval from the relief */}
               <Waypoints size={14} />{" "}{tr("Generate contours…")}</button>
             {contourMsg && ( /* #1759 */
               <div style={{ marginTop: 6, padding: "6px 8px", fontSize: "var(--font-size-sm)", borderRadius: 6, background: typeof contourMsg === "object" && contourMsg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", color: typeof contourMsg === "object" && contourMsg.info ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{typeof contourMsg === "object" ? contourMsg.text : contourMsg}</div>
@@ -3089,7 +3084,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Colour of the contour lines (all levels are one boundary).")}>{tr("Colour")}</span>
                   <input type="color" value={contourColor} onChange={(e) => setContourColor(e.target.value)} style={{ width: 30, height: 20, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, background: "none", cursor: "pointer" }} />
                 </div>
-                <button
+                <button className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}
                   onClick={() => {
                     setContourMsg(null);
                     const { levels, truncated, min, max } = contourTerrain(terrain, { interval: contourInterval });
@@ -3114,7 +3109,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     setContourMsg({ info: true, text: tr(levels.length === 1 ? "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}" : "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}", { levels: levels.length, contourInterval, v2: truncated ? tr(" Stopped at the 200-level cap — use a larger interval for full coverage.") : "" }) + (same.length ? tr(" It replaces the earlier contours of this terrain at this interval.") : "") }); // #2462
                     setContourOpen(false);
                   }}
-                  style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
                 >{tr("Generate")}</button>
               </div>
             )}
@@ -3131,7 +3125,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           defaultText={tr("From the file (.prj / GeoPackage), else the project CRS")}
           title={tr("Change it only for a missing or wrong .prj, or a .ply / .dxf on a mine grid. KML, GPX and GeoJSON are lon/lat.")}
         />
-        <button onClick={() => boundaryInput.current.click()} style={pBtn}>
+        <button className="gs-btn gs-btn--block" onClick={() => boundaryInput.current.click()}>
           <Waypoints size={14} />{" "}{tr("Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
         <input
           ref={boundaryInput}
@@ -3219,14 +3213,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <TaskPaneHeader title="Web layers (WMS / WFS)" icon={RGlobe} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Web layers (WMS / WFS)")}<InfoButton title={tr("Web layers")} text={tr("Add a layer from an OGC service URL, as in QGIS: a WMS layer (bedrock geology, airborne mag) as a raster drape, a WFS layer (claims) as a Map layer or boundary lines.")} />
         </div>
-        <button onClick={async () => {
+        <button className="gs-btn gs-btn--block" onClick={async () => {
           // #615 — a web map is fetched for wherever the project CRS puts the data: choose it first when it never was
           if (project?.crsSet === false) { if (await ensureProjectCrs(project, tr("Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first."))) setWebLayerModalOpen(true); return; }
           setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebAreaOptions(await buildFetchAreas()); setWebLayerModalOpen(true); // #3954
-        }} style={pBtn}>
+        }}>
           <Globe size={14} />{" "}{tr("Add web layer (WMS / WFS)…")}</button>
         {/* TASKS.csv #2005 — Macrostrat's world geologic map (CC BY 4.0) for the project area, and the units at its centre */}
-        <button onClick={openMacrostrat /* #3287 — shared with the Maps ribbon's button */} style={pBtn} title={tr("Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps")}>
+        <button className="gs-btn gs-btn--block" onClick={openMacrostrat /* #3287 — shared with the Maps ribbon's button */} title={tr("Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps")}>
           <Globe size={14} />{" "}{tr("Macrostrat geology…")}</button>
         {macrostratOpen && <React.Suspense fallback={null}><MacrostratModal onClose={() => setMacrostratOpen(false)} addRaster={addRaster} addMapLayer={addMapLayer} /* #2012 */ projectEpsg={project?.epsg} bboxLonLat={webLayerDefaultBbox} areaOptions={webAreaOptions} /* #3954 */ /></React.Suspense>}
 
@@ -3240,7 +3234,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           defaultText={tr("From the file (.prj / GeoPackage), else the project CRS")}
           title={tr("Change it only for a missing or wrong .prj, or a .ply / .dxf on a mine grid. KML, GPX and GeoJSON are lon/lat.")}
         />
-        <button onClick={() => claimInput.current.click()} style={pBtn}>
+        <button className="gs-btn gs-btn--block" onClick={() => claimInput.current.click()}>
           <Flag size={14} />{" "}{tr("Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
         <input
           ref={claimInput}
@@ -3335,8 +3329,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           ].map((o) => (
             <div key={o.help} style={{ padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8, background: "var(--color-bg)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button type="button" onClick={o.go} style={{ ...pBtn, flex: 1, marginBottom: 0 }}>{o.label}</button>
-                <button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(o.help)} aria-label={tr("Help: {name}", { name: o.label })} title={tr("Help for this tool (F1, works offline)")}>?</button>
+                <button className="gs-btn gs-btn--block" style={{ flex: 1, marginBottom: 0 }} type="button" onClick={o.go}>{o.label}</button>
+                <button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(o.help)} aria-label={tr("Help: {name}", { name: o.label })} title={tr("Help for this tool (F1, works offline)")}>?</button>
               </div>
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 5 }}>{o.text}</div>
             </div>
@@ -3379,7 +3373,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           {tr("Crop block models to the drillholes +")}
           <NumberInput allowEmpty min={0} step={100} value={omfCrop.buffer} onChange={(v) => setOmfCrop((p) => ({ ...p, buffer: (v == null ? "" : String(v)) }))} style={{ width: 64 }} aria-label={tr("Crop buffer around the drillholes (m)")} disabled={!collars.length} /> m
         </label>
-        <button onClick={() => omfInput.current.click()} style={pBtn} disabled={omfBusy}>
+        <button className="gs-btn gs-btn--block" onClick={() => omfInput.current.click()} disabled={omfBusy}>
           {omfBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {omfBusy ? tr("Reading…") : tr("Import OMF (.omf)…")}
         </button>
         <input
@@ -3390,7 +3384,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           onChange={(e) => { importOmf(e.target.files[0]); e.target.value = ""; }}
         />
         {/* TASKS.csv #1993 — Geoscience ANALYST: points, curves, surfaces, block models and 2D grids (read only); drillholes later */}
-        <button onClick={() => geoh5Input.current.click()} style={{ ...pBtn, marginTop: 6 }} disabled={omfBusy} title={tr("A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.")}>
+        <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => geoh5Input.current.click()} disabled={omfBusy} title={tr("A Geoscience ANALYST workspace: its points, curves, surfaces, block models and 2D grids are read. Drillholes and other objects are listed as not read.")}>
           {omfBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {omfBusy ? tr("Reading…") : tr("Import Geoscience ANALYST (.geoh5)…")}
         </button>
         <input ref={geoh5Input} type="file" accept=".geoh5" style={{ display: "none" }} onChange={(e) => { importOmf(e.target.files[0]); e.target.value = ""; }} />
@@ -3406,7 +3400,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <select value={pick} onChange={(e) => setOmfPick((p) => ({ ...p, [c.volume]: e.target.value }))} aria-label={tr("Another attribute of \"{volume}\"", { volume: c.volume })} title={c.volume} style={{ ...numInput, flex: 1, minWidth: 0 }}>
                 {others.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
-              <button onClick={() => importOmf(omfChoices.file, { attribute: pick, volume: c.volume, volumesOnly: true })} disabled={omfBusy} style={{ ...pBtn, width: "auto", marginBottom: 0, flexShrink: 0 }}>{tr("Add as a block model")}</button>
+              <button className="gs-btn" style={{ flexShrink: 0 }} onClick={() => importOmf(omfChoices.file, { attribute: pick, volume: c.volume, volumesOnly: true })} disabled={omfBusy}>{tr("Add as a block model")}</button>
             </div>
           );
         })}
@@ -3432,7 +3426,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <TaskPaneHeader title="Voxel / block models" icon={RBox} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Block models")}<InfoButton title={tr("Voxel / block models")} text={tr("Import a UBC-GIF tensor mesh (the .msh with its .mod / .con / .den, together) or a block-model CSV (centroid, cell size, value: Datamine, Micromine, Surpac, Vulcan, Leapfrog). Shown as coloured blocks with a cut-off.")} />
         </div>
-        <button onClick={() => ubcInput.current.click()} style={pBtn} disabled={voxelBusy}>
+        <button className="gs-btn gs-btn--block" onClick={() => ubcInput.current.click()} disabled={voxelBusy}>
           {voxelBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {voxelBusy ? (voxelProgress ? tr("Reading… {voxelProgress} values", { voxelProgress: voxelProgress.toLocaleString() }) : tr("Reading…")) : tr("Import UBC mesh + model…")}
         </button>
         <input
@@ -3443,7 +3437,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           style={{ display: "none" }}
           onChange={(e) => { importUBC(e.target.files); e.target.value = ""; }}
         />
-        <button onClick={() => blockModelInput.current.click()} style={pBtn}>
+        <button className="gs-btn gs-btn--block" onClick={() => blockModelInput.current.click()}>
           <Upload size={14} />{" "}{tr("Import block model CSV…")}</button>
         <input
           ref={blockModelInput}
@@ -3452,7 +3446,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files[0]; importBlockModelCSV(f); e.target.value = ""; }}
         />
-        <button onClick={() => sgridInput.current.click()} style={pBtn} disabled={voxelBusy} /* TASKS.csv #2726 */
+        <button className="gs-btn gs-btn--block" onClick={() => sgridInput.current.click()} disabled={voxelBusy} /* TASKS.csv #2726 */
           title={tr("A GOCAD stratigraphic grid: select the .sg file together with its points file and its property files (names like model__points@@, model__Density@@).")}>
           <Box size={14} />{" "}{tr("Import GOCAD SGrid (.sg + its side files)…")}</button>
         <input
@@ -3602,7 +3596,6 @@ let pendingLegend = null; // { id, at }
 // TASKS.csv #2871 (GSC review B23) — the Point survey Source CRS, for the app session: the tab remounts when it is left (changing the project CRS
 // from another tab, say) and the box was back on 'Same as project', so the next longitude / latitude import went in as degrees again
 let keptGeophysSourceEpsg = "";
-const iconBtn = { border: 0, background: "none", padding: 0, display: "flex", cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }; // #2871
 function useOpenLegendRequest(model, open) {
   useEffect(() => {
     const id = String(model.id);
@@ -3685,7 +3678,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
             <option value="__grade">{model.params?.declaredGrade ? tr("{el} ({unit}), a grade", { el: model.params.element, unit: model.params.unit }) : tr("A grade (element, unit)…")}</option>{/* #2667 */}
             <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : tr("Other…")}</option>
           </select>
-          {onReciprocal && /^(Conductivity|Resistivity)/.test(model.property || "") && <button type="button" onClick={() => onReciprocal(model)} style={{ fontSize: "var(--font-size-sm)", padding: "1px 6px", cursor: "pointer", flexShrink: 0 }} title={tr("Adds a copy of this model at 1 / x (S/m conductivity to ohm·m resistivity, and back); the model itself is unchanged.")}>{/^Conductivity/.test(model.property) ? tr("As resistivity (1 / x)") : tr("As conductivity (1 / x)")}</button>}{/* TASKS.csv #3809 */}
+          {onReciprocal && /^(Conductivity|Resistivity)/.test(model.property || "") && <button className="gs-btn gs-btn--sm" style={{ flexShrink: 0 }} type="button" onClick={() => onReciprocal(model)} title={tr("Adds a copy of this model at 1 / x (S/m conductivity to ohm·m resistivity, and back); the model itself is unchanged.")}>{/^Conductivity/.test(model.property) ? tr("As resistivity (1 / x)") : tr("As conductivity (1 / x)")}</button>}{/* TASKS.csv #3809 */}
         </div>
       )}
       {/* TASKS.csv #1780 (review #1646, Kodiak) — the one-sided "value >= cutoff" slider could only hide the conductors on a resistivity
@@ -3696,7 +3689,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
       {/* TASKS.csv #1806 (review #1646, Kodiak) — an inversion mesh carries the topography as its air / ground boundary: a terrain from it,
           offline, for the samples with no elevation, the sections' profile and the clip at topography */}
       {onTerrain && (model.source === "ubc" || model.source === "omf" || model.source === "simpeg") && (
-        <button type="button" onClick={() => onTerrain(model)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, fontSize: "var(--font-size-sm)" }} title={tr("Uses each column's top cell as a terrain, as fine as the mesh: samples without elevation sit on it and sections follow it.")}>{tr("Terrain from the model's top (offline)")}</button>
+        <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={() => onTerrain(model)} title={tr("Uses each column's top cell as a terrain, as fine as the mesh: samples without elevation sit on it and sections follow it.")}>{tr("Terrain from the model's top (offline)")}</button>
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Opacity")}</span>
@@ -3823,9 +3816,9 @@ function VoxelLegendEditor({ model, onUpdate }) {
             as broken with nothing showing the top class actually still reaches the real max. The "to …"
             captions above make each row's actual covered range explicit instead of a bare number. */}
         <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-          <button onClick={addStop} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, justifyContent: "center" }}><Plus size={12} />{" "}{tr("Add stop")}</button>
+          <button className="gs-btn" style={{ flex: 1 }} onClick={addStop}><Plus size={12} />{" "}{tr("Add stop")}</button>
           {stops.length > 0 && (
-            <button onClick={resetToDefault} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, justifyContent: "center" }}>{tr("Reset to default")}</button>
+            <button className="gs-btn" style={{ flex: 1 }} onClick={resetToDefault}>{tr("Reset to default")}</button>
           )}
         </div>
       </div>
@@ -3839,7 +3832,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
             {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key} title={p.label}>{paletteShortName(key)}</option>)}
           </select>
           {stops.length > 0 && PALETTES[palette] && (
-            <button onClick={recolorWithPalette} style={{ ...pBtn, width: "auto", marginBottom: 0 }} title={tr("Re-colour the existing stops with this palette, keeping their current values")}>{tr("Recolour")}</button>
+            <button className="gs-btn" onClick={recolorWithPalette} title={tr("Re-colour the existing stops with this palette, keeping their current values")}>{tr("Recolour")}</button>
           )}
         </div>
         <div style={{ display: "flex", gap: 2, marginTop: 4, height: 10, borderRadius: 3, overflow: "hidden" }}>
@@ -3861,7 +3854,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
             <option value="jenks">{tr("Natural breaks (Jenks)")}</option>
           </select>
           <NumberInput min={2} max={64} step={1} value={classCount} onChange={(v) => setClassCount(Math.round(v))} style={{ ...numInput, width: 44, flex: "none" }} /* #1433 */ />
-          <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Apply")}</button>
+          <button className="gs-btn" onClick={applyClassify}>{tr("Apply")}</button>
         </div>
         {classNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 3 }}>{classNote}</div>} {/* #1430 */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{(model.id === "geophys_pts" /* #2247 — the editor is shared with point surveys */ ? tr("Generates {classCount} classes from this survey's point values and switches to classified (stepped) styling.", { classCount }) : tr("Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.", { classCount }))}</div>

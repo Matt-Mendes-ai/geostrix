@@ -7,7 +7,7 @@ import { useStore } from "../lib/store.jsx";
 import { tieFromControlPoints } from "../lib/localGridTie.js";
 import { mineGridOf, collarCoordinateFields, collarControlText } from "../lib/mineGrid.js";
 import { crsName } from "../lib/reproject.js";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -66,8 +66,8 @@ export default function MineGridPanel() {
         </div>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        <button type="button" onClick={save} disabled={!fit?.tie} style={{ ...pBtn, flex: 1, marginBottom: 0, justifyContent: "center", opacity: fit?.tie ? 1 : 0.5 }}>{tr("Save the mine grid")}</button>
-        {saved && <button type="button" onClick={() => { setMineGrid(null); setMsg(tr("The mine grid was removed.")); }} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Remove")}</button>}
+        <button className="gs-btn" style={{ flex: 1 }} type="button" onClick={save} disabled={!fit?.tie}>{tr("Save the mine grid")}</button>
+        {saved && <button className="gs-btn" type="button" onClick={() => { setMineGrid(null); setMsg(tr("The mine grid was removed.")); }}>{tr("Remove")}</button>}
       </div>
       {msg && <div role="status" style={{ ...note, marginTop: 6 }}>{msg}</div>}
     </div>

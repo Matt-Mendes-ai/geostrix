@@ -44,7 +44,7 @@ test("wiring: Maps loads the payload on use; Layout keeps the fields, draws the 
   // the plan's own grid is left off the picture and Layout's ticked instead when it was on
   assert.match(m, /if \(hadGrid\) \{\n      setShowGrid\(false\);\n      for \(let i = 0; i < 30 && gridDrawn\.current; i\+\+\)/);
   assert.match(m, /gridDrawn\.current = showGrid;/);
-  assert.match(m, /<button onClick=\{toLayout\}[^>]*>\{tr\("Snapshot to Layout"\)\}<\/button>/);
+  assert.match(m, /<button className="gs-btn gs-btn--sm" onClick=\{toLayout\}[^>]*>\{tr\("Snapshot to Layout"\)\}<\/button>/);
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
   assert.match(l, /\.\.\.\(img\.planView && img\.targetWorld && img\.worldHeightAtTarget \? \{ mapsView: !!img\.mapsView, planView: true, trueScale: true, targetWorld: img\.targetWorld, worldHeightAtTarget: img\.worldHeightAtTarget, cameraAzimuthDeg: 0, utmGrid: !!img\.utmGrid, \.\.\.\(img\.mapsCapture \? \{ mapsCapture: img\.mapsCapture \} : \{\}\) \/\* #3491 \*\/ \} : \{\}\)/); // #3491 — keeps the plan scale
   assert.match(l, /\{el\.utmGrid && utmGridReady\(el\) && <div style=\{\{ position: "absolute", inset: 0 \}\}><UtmGridOverlay el=\{el\} crs=\{ctx\?\.crs \|\| ""\} \/><\/div>\}/);

@@ -7,7 +7,7 @@ import { useStore } from "../lib/store.jsx";
 import { tieFromControlPoints, tieFromOrigin, localToWorld, tieOf } from "../lib/localGridTie.js";
 import { pointTransform, crsName } from "../lib/reproject.js";
 import { formatLonLat } from "../lib/projectCrs.js";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
@@ -45,7 +45,7 @@ export default function LocalGridPanel() {
     return (
       <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", marginTop: 10 }}>
         <div style={note}>{tr("No CRS chosen. For a local mine grid, keep it as one: imports stop asking, and you can tie it to a real CRS later.")}</div>
-        <button type="button" onClick={() => setLocalGrid("")} style={{ ...pBtn, marginTop: 6, marginBottom: 0, justifyContent: "center" }}>{tr("Keep the coordinates as a local mine grid")}</button>
+        <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0, justifyContent: "center" }} type="button" onClick={() => setLocalGrid("")}>{tr("Keep the coordinates as a local mine grid")}</button>
       </div>
     );
   }
@@ -93,8 +93,8 @@ export default function LocalGridPanel() {
         </div>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        <button type="button" onClick={save} disabled={!fit?.tie} style={{ ...pBtn, flex: 1, marginBottom: 0, justifyContent: "center", opacity: fit?.tie ? 1 : 0.5 }}>{tr("Save the tie")}</button>
-        {saved && <button type="button" onClick={() => { setLocalGridTie(null); setMsg(tr("The tie was removed: the grid stands on its own again.")); }} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Remove the tie")}</button>}
+        <button className="gs-btn" style={{ flex: 1 }} type="button" onClick={save} disabled={!fit?.tie}>{tr("Save the tie")}</button>
+        {saved && <button className="gs-btn" type="button" onClick={() => { setLocalGridTie(null); setMsg(tr("The tie was removed: the grid stands on its own again.")); }}>{tr("Remove the tie")}</button>}
       </div>
       {msg && <div role="status" style={{ ...note, marginTop: 6 }}>{msg}</div>}
     </div>

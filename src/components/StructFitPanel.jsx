@@ -20,7 +20,7 @@ const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? "–" : Math.abs(v
 
 export default function StructFitPanel({ method, unit, keptScope, prepareForward, unc, setUnc, field, ui }) {
   const { lastImplicitRequest: record, setLayers, updateGeophysSurvey, goToModule } = useStore(); // goToModule: #2640 Stage 2
-  const { small, inp, row, lbl, pBtn } = ui;
+  const { small, inp, row, lbl } = ui;
   const [st, setSt] = useKeptState(keptScope, "inversion.structfit", { props: {}, surface: "", picked: [], maxM: "", resolve: false, bounds: {} });
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -134,8 +134,8 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
             {surf.points.length > 400 && <div style={small}>{tr("The first 400 points are listed; use the button to spread points over all of them.")}</div>}
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 4, alignItems: "center" }}>
-            <button type="button" onClick={() => set({ picked: [...(st.picked || []).filter((m) => m.surface !== surf.name), ...everyNth(surf.points, surf.name, 20)].slice(0, 20) })} style={{ ...pBtn, width: "auto", margin: 0 }}>{tr("Spread up to 20 over this surface")}</button>
-            <button type="button" onClick={() => set({ picked: [] })} style={{ ...pBtn, width: "auto", margin: 0 }}>{tr("Clear")}</button>
+            <button className="gs-btn gs-btn--sm" type="button" onClick={() => set({ picked: [...(st.picked || []).filter((m) => m.surface !== surf.name), ...everyNth(surf.points, surf.name, 20)].slice(0, 20) })}>{tr("Spread up to 20 over this surface")}</button>
+            <button className="gs-btn gs-btn--sm" type="button" onClick={() => set({ picked: [] })}>{tr("Clear")}</button>
           </div>
         </>)}
         <div style={{ ...small, marginTop: 4 }}>{tr("{n} of at most 20 points marked.", { n: (st.picked || []).length })}</div>
@@ -143,8 +143,8 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
         <div style={small}>{tr("A contact is seen when the survey would notice a move within this distance. Each point costs one model solve; a run estimated over 10 minutes is refused before it starts.")}</div>
         {busy ? (
           <div role="status" style={{ ...small, display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}><span style={{ flex: 1 }}>{busy.text}</span>
-            <button type="button" onClick={() => abort.current?.abort()} style={{ ...pBtn, width: "auto", margin: 0 }}>{tr("Cancel")}</button></div>
-        ) : <button type="button" onClick={run} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Find which contacts the survey can see")}</button>}
+            <button className="gs-btn" type="button" onClick={() => abort.current?.abort()}>{tr("Cancel")}</button></div>
+        ) : <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={run}>{tr("Find which contacts the survey can see")}</button>}
       </>)}
       {msg && <div role={msg.ok ? "status" : "alert"} style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
       {out && (
@@ -157,13 +157,13 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
                 <td style={{ color: r.verdict === "seen" ? "var(--color-text)" : "var(--color-text-muted)" }}>{r.verdict === "seen" ? tr("seen") : r.verdict === "none" ? tr("no contact here") : tr("not constrained by this survey")}</td>
               </tr>))}</tbody>
           </table>
-          <button type="button" onClick={show3d} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Show the tested points in StrixViewer")}</button>
+          <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={show3d}>{tr("Show the tested points in StrixViewer")}</button>
           <div style={{ ...small, marginTop: 4 }}>{tr("Seen: the survey would notice a move within your distance. Not constrained: it would not, so a fit could move that contact freely. Tested with a quarter-cell move (the response is linear).")}</div>
           {/* TASKS.csv #2640 Stage 2 — the fit */}
           {seenPoints.length > 0 && !busy && (
             <div style={{ marginTop: 8, borderTop: "1px solid var(--color-border)", paddingTop: 6 }}>
               <div style={small}>{tr("Fit moves the seen points (at most {n}) within your distance until the response matches the readings to their stated uncertainty. Drillhole contacts never move; steps that change which units touch are refused. The result is one geometry that fits, not the answer.", { n: MAX_FIT_POINTS })}</div>
-              <button type="button" onClick={runFit} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Fit the {n} seen point(s)", { n: seenPoints.length })}</button>
+              <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={runFit}>{tr("Fit the {n} seen point(s)", { n: seenPoints.length })}</button>
               <div style={small}>{tr("Each round re-solves the model once per point, plus once or twice to try the step, for at most 8 rounds. Your model's solve is timed first; a fit that would take over 10 minutes is refused. Cancel stops it between solves.")}</div>
             </div>
           )}
@@ -179,8 +179,8 @@ export default function StructFitPanel({ method, unit, keptScope, prepareForward
               </table>
               {fit.rows.some((r) => r.atLimit) && <div style={small}>{tr("A point at the limit of its distance: the survey would move it further. Check the unit values and the uncertainty before allowing more.")}</div>}
               {fit.result.history.some((h) => h.reasons?.length) && <div style={small}>{tr("Steps refused: {list}", { list: [...new Set(fit.result.history.flatMap((h) => h.reasons || []))].slice(0, 3).join("; ") })}</div>}
-              {fit.rows.some((r) => r.constrained && Math.abs(r.movedM) > 1e-6) && <button type="button" onClick={runFittedVersion} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Run the fitted model as a new version")}</button>}
-              <button type="button" onClick={saveFitCsv} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Save the moved points (CSV)")}</button>
+              {fit.rows.some((r) => r.constrained && Math.abs(r.movedM) > 1e-6) && <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={runFittedVersion}>{tr("Run the fitted model as a new version")}</button>}
+              <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={saveFitCsv}>{tr("Save the moved points (CSV)")}</button>
               <div style={{ ...small, marginTop: 4 }}>{tr("The fit uses at most 32 cells a side. A new version runs the fitted model at full resolution in 3D Modelling, each surface named '(fitted)'; the original model is not changed.")}</div>
             </div>
           )}

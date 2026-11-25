@@ -2,7 +2,7 @@
 // where its eastings fall on the map. Shown by TemPane while the file is untied, and after the tie to say how well it fitted.
 import React, { useState } from "react";
 import { tieTemToMap } from "../lib/temGridTie.js";
-import { smallSel, pBtn } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
@@ -21,7 +21,7 @@ export default function TemGridTie({ data, onTied }) {
         : <div role="alert" style={{ ...note, color: "var(--color-warn-text)" }}>{tr("On a local grid: enter 2 or more control points (grid E, N, map E, N) to tie it.")}</div>}
       <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} spellCheck={false} placeholder={"50000 3000 452000 7544000" + String.fromCharCode(10) + "52600 3000 454600 7544000"} style={{ ...smallSel, width: "100%", fontFamily: "monospace", resize: "vertical", marginTop: 4 }} aria-label={tr("Control points")} />
       {err && <div role="alert" style={{ ...note, color: "var(--color-warn-text)" }}>{err}</div>}
-      <button type="button" onClick={tie} style={{ ...pBtn, justifyContent: "center", marginTop: 4 }}>{data.placed === "tie" ? tr("Tie again") : tr("Tie to the map")}</button>
+      <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginTop: 4 }} type="button" onClick={tie}>{data.placed === "tie" ? tr("Tie again") : tr("Tie to the map")}</button>
     </div>
   );
 }

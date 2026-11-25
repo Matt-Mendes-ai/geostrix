@@ -11,7 +11,7 @@ import { useStore } from "../lib/store.jsx";
 import { assumedForTerrain, planCollarsFromTerrain, applyCollarsFromTerrain, planBrief } from "../lib/collarFromTerrain.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, panel, header, rowBtn, backdropProps } from "../lib/modalStyles.js";
+import { overlay, panel, header, backdropProps } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
 
 const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -42,7 +42,7 @@ function Dialog({ onClose, onDone }) {
       <div style={panel({ width: "min(520px, calc(100vw - 32px))" })} role="dialog" aria-modal="true" aria-label={tr("Collar elevations from the terrain")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <span style={{ fontWeight: 600 }}>{tr("Collar elevations from the terrain")}</span>
-          <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={16} /></button>
+          <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={16} /></button>
         </div>
         <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
           {!terrain ? <div style={small}>{tr("No terrain yet: add one (Maps > Terrain), then come back.")}</div> : (
@@ -62,8 +62,8 @@ function Dialog({ onClose, onDone }) {
           )}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button type="button" style={rowBtn(false)} onClick={onClose}>{tr("Cancel")}</button>
-          <button type="button" style={rowBtn(true)} onClick={apply} disabled={!plan?.count}>{tr("Apply")}</button>
+          <button className="gs-btn" type="button" onClick={onClose}>{tr("Cancel")}</button>
+          <button className="gs-btn gs-btn--primary" type="button" onClick={apply} disabled={!plan?.count}>{tr("Apply")}</button>
         </div>
       </div>
     </div>
@@ -88,13 +88,13 @@ export default function CollarZFromTerrain({ open, setOpen, offer, setOffer }) {
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.45 }}>
               {offer.result || tr("The terrain \"{name}\" is added, and {n} collar(s) have no elevation (placed at the median or 0 m). Place them on it?", { name: offer.name, n: offer.n })}
             </div>
-            <button type="button" onClick={() => setOffer(null)} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={14} /></button>
+            <button data-btn-own="" type="button" onClick={() => setOffer(null)} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={14} /></button>
           </div>
           {!offer.result && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" style={rowBtn(true)} onClick={placeThem}>{tr("Place them")}</button>
-              <button type="button" style={rowBtn(false)} onClick={() => { setOffer(null); setOpen(true); }}>{tr("Preview…")}</button>
-              <button type="button" style={rowBtn(false)} onClick={() => setOffer(null)}>{tr("Not now")}</button>
+              <button className="gs-btn gs-btn--primary gs-btn--sm" type="button" onClick={placeThem}>{tr("Place them")}</button>
+              <button className="gs-btn gs-btn--sm" type="button" onClick={() => { setOffer(null); setOpen(true); }}>{tr("Preview…")}</button>
+              <button className="gs-btn gs-btn--sm" type="button" onClick={() => setOffer(null)}>{tr("Not now")}</button>
             </div>
           )}
         </div>

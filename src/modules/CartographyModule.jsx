@@ -36,7 +36,6 @@ const LocalGridPanel = React.lazy(() => import("../components/LocalGridPanel.jsx
 const MineGridPanel = React.lazy(() => import("../components/MineGridPanel.jsx")); // TASKS.csv #2586 — on demand
 
 const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", marginTop: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };
-const primary = { ...btn, background: "var(--color-accent)", borderColor: "var(--color-accent-dark)", color: "#fff" };
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginTop: 8 };
 const box = (ok) => ({ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", lineHeight: 1.5, background: ok ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${ok ? "var(--color-border)" : "var(--color-danger-border)"}`, color: ok ? "var(--color-text-secondary)" : "var(--color-danger-text)" });
 const selectStyle = { width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
@@ -309,11 +308,11 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                     <input type="checkbox" checked={rotate} onChange={(e) => setRotate(e.target.checked)} style={{ marginTop: 3 }} />
                     <span>{tr("Turn azimuths and dip directions with grid north, so holes and structures keep pointing the same way on the ground (recommended).")}</span>
                   </label>
-                  <button style={primary} disabled={busy} onClick={moveAll}>{busy ? <Loader2 size={14} className="spin" /> : <Globe2 size={14} />}{" "}{tr("Reproject all data to {v}", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) })}</button>
-                  <button style={btn} disabled={busy} onClick={setOnly} title={tr("Use this when the label was wrong: the coordinates already ARE in the new CRS")}>{tr("Only change the label (the data is already in it)")}</button>
+                  <button className="gs-btn" disabled={busy} onClick={moveAll}>{busy ? <Loader2 size={14} className="spin" /> : <Globe2 size={14} />}{" "}{tr("Reproject all data to {v}", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) })}</button>
+                  <button className="gs-btn" disabled={busy} onClick={setOnly} title={tr("Use this when the label was wrong: the coordinates already ARE in the new CRS")}>{tr("Only change the label (the data is already in it)")}</button>
                 </>
               ) : (
-                <button style={primary} onClick={setOnly}><CheckCircle2 size={14} />{" "}{tr("Use {v}", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) })}</button>
+                <button className="gs-btn" onClick={setOnly}><CheckCircle2 size={14} />{" "}{tr("Use {v}", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) })}</button>
               )
             )}
           </>
@@ -334,7 +333,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 {mineGridOf(project) /* #2826 — a project with a mine grid reads a layer on it too */
                   ? <div style={{ marginTop: 10 }}><SourceCrsField label={tr("Its coordinates are really in")} value={objFrom ?? ""} onChange={(c) => setObjFrom(c === "" ? null : isMineSource(c) ? MINE_SOURCE : Number(c))} mineGrid={fileGrid} defaultText={tr("Choose…")} title={tr("The CRS the layer's numbers are really in, or the project's local mine grid.")} /></div>
                   : <div style={{ marginTop: 10 }}><CrsPicker label={tr("Its coordinates are really in")} value={objFrom} onChange={setObjFrom} height={150} /></div>}
-                <button style={primary} disabled={busy || !obj || !objFrom || (!isMineSource(objFrom) && Number(objFrom) === Number(project.epsg))} onClick={moveObject}>
+                <button className="gs-btn" disabled={busy || !obj || !objFrom || (!isMineSource(objFrom) && Number(objFrom) === Number(project.epsg))} onClick={moveObject}>
                   {busy ? <Loader2 size={14} className="spin" /> : <Layers size={14} />}{" "}{tr("Reproject into the project CRS")}</button>
               </>
             ) : <div style={box(true)}>{tr("Nothing with map coordinates is loaded yet.")}</div>}
@@ -357,7 +356,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                     title={tr("Leave it on the file's tag unless that is missing or wrong.")} />
                 </div>
                 <div style={{ marginTop: 4 }}><CrsPicker label={tr("To")} value={fileTo} onChange={setFileTo} height={120} /></div>
-                <button style={primary} disabled={busy || !fileTo || (!fileFrom && !file.epsg)} onClick={saveReprojectedTif}>
+                <button className="gs-btn" disabled={busy || !fileTo || (!fileFrom && !file.epsg)} onClick={saveReprojectedTif}>
                   {busy ? <Loader2 size={14} className="spin" /> : <FileSpreadsheet size={14} />}{" "}{tr("Save reprojected GeoTIFF…")}</button>
               </>
             )}
@@ -372,7 +371,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                     title={tr("Leave it on the .prj unless that is missing or wrong.")} />
                 </div>
                 <div style={{ marginTop: 4 }}><CrsPicker label={tr("To")} value={fileTo} onChange={setFileTo} height={120} /></div>
-                <button style={primary} disabled={busy || !fileTo || (!fileFrom && !file.layers.every((l) => l.epsg))} onClick={saveReprojectedShp}>
+                <button className="gs-btn" disabled={busy || !fileTo || (!fileFrom && !file.layers.every((l) => l.epsg))} onClick={saveReprojectedShp}>
                   {busy ? <Loader2 size={14} className="spin" /> : <FileSpreadsheet size={14} />}{" "}{tr("Save reprojected shapefile…")}</button>
               </>
             )}
@@ -402,10 +401,10 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 {fromUtm && fromUtm.outside > 0 && ( /* TASKS.csv #2588 */
                   <div role="alert" style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Check the X / Y columns and the From CRS: {n} of {m} rows checked fit no UTM / MGA zone (e.g. {x}, {y}), more like a local mine grid than {crs}. Such rows are left blank.", { n: fromUtm.outside.toLocaleString(), m: fromUtm.checked.toLocaleString(), x: fromUtm.example[0].toLocaleString(), y: fromUtm.example[1].toLocaleString(), crs: nameOf(fileFrom) })}</div>
                 )}
-                <button style={primary} disabled={busy || !file.xCol || !file.yCol || !fileFrom || !fileTo || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2) || (fromUtm && fromUtm.outside > fromUtm.checked / 2)} onClick={saveReprojected}>
+                <button className="gs-btn" disabled={busy || !file.xCol || !file.yCol || !fileFrom || !fileTo || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2) || (fromUtm && fromUtm.outside > fromUtm.checked / 2)} onClick={saveReprojected}>
                   {busy ? <Loader2 size={14} className="spin" /> : <FileSpreadsheet size={14} />}{" "}{tr("Save reprojected CSV…")}</button>
                 {/* TASKS.csv #2130 — GeoJSON is always WGS 84, so only From matters */}
-                <button style={{ ...primary, marginTop: 6 }} disabled={busy || !file.xCol || !file.yCol || !fileFrom || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2) || (fromUtm && fromUtm.outside > fromUtm.checked / 2)} onClick={saveGeoJSON}>
+                <button className="gs-btn" style={{ marginTop: 6 }} disabled={busy || !file.xCol || !file.yCol || !fileFrom || (fromDegrees && fromDegrees.outside > fromDegrees.checked / 2) || (fromUtm && fromUtm.outside > fromUtm.checked / 2)} onClick={saveGeoJSON}>
                   {tr("Save as GeoJSON points (WGS 84)…")}</button>
               </>
             )}

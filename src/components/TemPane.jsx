@@ -10,7 +10,7 @@ import { surveyGridDefaults } from "../lib/surveyGridDefaults.js";
 import { idwGridToRasterInput, snappedGridExtent, uniqueName } from "../lib/idw.js";
 import { reprojectXY, crsName } from "../lib/reproject.js";
 import { askAdoptCrs } from "../lib/adoptCrs.js";
-import { smallSel, pBtn } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // no Math.min / max spread (#371)
 import TemInvertPanel from "./TemInvertPanel.jsx"; // TASKS.csv #3440 step 3 — the 1D inversion
 import TemGridTie from "./TemGridTie.jsx"; // TASKS.csv #4058 — a file on a local grid asks for its tie to the map
@@ -182,7 +182,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
     <div>
       <TaskPaneHeader title={tr("TEM line data (multi-channel)")} helpId="tem-lines" icon={Radio} tone="data" onClose={onClose} />
       <div style={{ ...note, marginBottom: 8 }}>{tr("Time-domain EM lines (SkyTEM or Aarhus .xyz, Geosoft .xyz, CSV): channels stacked, a station's decay, late-time tau mapped. A long tau: a good conductor.")}</div>
-      <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} style={{ ...pBtn, justifyContent: "center" }}><Upload size={14} />{" "}{tr("Open TEM line data…")}</button>
+      <button className="gs-btn gs-btn--block" style={{ justifyContent: "center" }} type="button" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{" "}{tr("Open TEM line data…")}</button>
       <input ref={fileRef} type="file" accept=".xyz,.csv,.txt,.dat,.tem" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; open(f); }} aria-label={tr("TEM line data file")} />
       {msg && <div role={msg.info ? "status" : "alert"} style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", margin: "4px 0 8px" }}>{msg.text}</div>}
       {data && (<>
@@ -222,13 +222,13 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
           {times ? <Decay times={times} vals={vals} fit={fit} /> : <div style={note}>{tr("Type the gate times to draw the decay.")}</div>}
           {times && <div style={{ ...note, marginTop: 3 }}>{fit ? tr("Decay constant tau = {tau} ms, from gates {a} to {b} ({t0} to {t1} ms, r² {r2}).", { tau: fmt(fit.tau), a: fit.from + 1, b: fit.to + 1, t0: fmt(times[fit.from]), t1: fmt(times[fit.to]), r2: fit.r2.toFixed(3) }) : tr("No decay constant here: fewer than three positive late readings, or they do not fall.")}{masked?.dropped ? " " + tr("{n} reading(s) in the noise were left out.", { n: masked.dropped }) : ""}</div>}
         </>)}
-        <button type="button" disabled={!times || needsTie} onClick={mapTau} title={needsTie ? tr("Tie the grid first.") : times ? undefined : tr("Type the gate times first")} style={{ ...pBtn, justifyContent: "center", marginTop: 8 }}>{tr("Map the decay constant (tau)")}</button>
+        <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginTop: 8 }} type="button" disabled={!times || needsTie} onClick={mapTau} title={needsTie ? tr("Tie the grid first.") : times ? undefined : tr("Type the gate times first")}>{tr("Map the decay constant (tau)")}</button>
         <div style={rowS}>
           <select value={st.gate ?? ""} onChange={(e) => save({ ...st, gate: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Gate to add as a point survey")}>
             <option value="">{tr("Add one gate as a point survey…")}</option>
             {group.cols.map((c, k) => <option key={c} value={k}>{times ? tr("Gate {k} ({t} ms)", { k: k + 1, t: fmt(times[k]) }) : tr("Gate {k}", { k: k + 1 })}</option>)}
           </select>
-          <button type="button" disabled={st.gate == null || needsTie} onClick={() => addGate(st.gate)} style={{ ...smallSel, cursor: "pointer" }}>{tr("Add")}</button>
+          <button className="gs-btn gs-btn--sm" type="button" disabled={st.gate == null || needsTie} onClick={() => addGate(st.gate)}>{tr("Add")}</button>
         </div>
         {/* TASKS.csv #3440 step 3 — the 1D inversion, for a set of decays (one, or both moments joined) */}
         {!needsTie && (isJoin || group.role === "data" || (!group.role && !group.aux)) && (

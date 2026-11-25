@@ -162,19 +162,19 @@ function useMeshSelectCore(r) {
       <div data-mesh-select="" role="toolbar" aria-label={tr("Selected mesh")} style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", zIndex: 6, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", maxWidth: "90%", padding: "4px 8px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, boxShadow: "0 2px 6px rgba(0,0,0,0.18)", fontSize: "var(--font-size-sm)" }}>
         <b style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{en ? en.name : tr("{n} meshes selected", { n: sel.length })}</b>
         {piece == null ? (<>
-          <button type="button" style={b} onClick={deleteSel}>{tr("Delete")}</button>
-          <button type="button" style={b} onClick={hideSel}>{tr("Hide")}</button>
-          <button type="button" style={b} onClick={zoomSel}>{tr("Zoom to")}</button>
-          {one && <button type="button" style={b} onClick={() => rr.current.setExpandedSurfaceId(one)}>{tr("Properties")}</button>}
-          {hasPieces && <button type="button" style={{ ...b, ...(pieceMode ? { background: "var(--color-selected-bg)" } : {}) }} aria-pressed={pieceMode} onClick={() => setPieceMode((v) => !v)}>{tr("Select a piece")}</button>}
+          <button className="gs-btn gs-btn--sm" type="button" onClick={deleteSel}>{tr("Delete")}</button>
+          <button className="gs-btn gs-btn--sm" type="button" onClick={hideSel}>{tr("Hide")}</button>
+          <button className="gs-btn gs-btn--sm" type="button" onClick={zoomSel}>{tr("Zoom to")}</button>
+          {one && <button className="gs-btn gs-btn--sm" type="button" onClick={() => rr.current.setExpandedSurfaceId(one)}>{tr("Properties")}</button>}
+          {hasPieces && <button data-btn-own="" type="button" style={{ ...b, ...(pieceMode ? { background: "var(--color-selected-bg)" } : {}) }} aria-pressed={pieceMode} onClick={() => setPieceMode((v) => !v)}>{tr("Select a piece")}</button>}
           {hasPieces && pieceMode && <span style={{ color: "var(--color-text-muted)" }}>{tr("Click one of its {n} pieces.", { n: pieces.count })}</span>}
         </>) : (<>
           <span>{tr("Piece {k} of {n}", { k: piece + 1, n: pieces.count })}</span>
-          <button type="button" style={b} disabled={busy} onClick={() => editPieces("delete")}>{tr("Delete this piece")}</button>
-          <button type="button" style={b} disabled={busy} onClick={() => editPieces("keep")}>{tr("Keep only this piece")}</button>
-          <button type="button" style={b} disabled={busy} onClick={() => editPieces("split")}>{tr("Split into separate meshes")}</button>
+          <button className="gs-btn gs-btn--sm" type="button" disabled={busy} onClick={() => editPieces("delete")}>{tr("Delete this piece")}</button>
+          <button className="gs-btn gs-btn--sm" type="button" disabled={busy} onClick={() => editPieces("keep")}>{tr("Keep only this piece")}</button>
+          <button className="gs-btn gs-btn--sm" type="button" disabled={busy} onClick={() => editPieces("split")}>{tr("Split into separate meshes")}</button>
         </>)}
-        <button type="button" onClick={clear} aria-label={tr("Clear the selection")} title={tr("Clear the selection")} style={{ ...b, border: "none", background: "none", fontSize: "var(--font-size-lg)", lineHeight: 1 }}>×</button>
+        <button data-btn-own="" type="button" onClick={clear} aria-label={tr("Clear the selection")} title={tr("Clear the selection")} style={{ ...b, border: "none", background: "none", fontSize: "var(--font-size-lg)", lineHeight: 1 }}>×</button>
       </div>
     );
   }

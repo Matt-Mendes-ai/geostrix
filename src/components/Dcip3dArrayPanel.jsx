@@ -20,7 +20,7 @@ const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const minutes = (s) => (s < 90 ? tr("{s} s", { s: Math.round(s) }) : s < 5400 ? tr("{m} min", { m: Math.round(s / 60) }) : tr("{h} h", { h: (s / 3600).toFixed(1) }));
 const fmt = (v) => (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : +v.toPrecision(3));
 
-export default function Dcip3dArrayPanel({ pBtn, numInput }) {
+export default function Dcip3dArrayPanel({ numInput }) {
   const { terrain, voxelModels = [], addVoxelModelToTab, getProjectToken, startProjectJob /* #3953 */ } = useStore();
   const setTaskProgress = useSetTaskProgress();
   const fileRef = useRef(null);
@@ -135,7 +135,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
     <div style={{ marginTop: 14 }}>
       <div className="ge-section-label">{tr("3D survey from electrode coordinates")}</div>
       <div style={small}>{tr("Inverts a 3D array whose readings give every electrode's coordinates (C1, C2, P1, P2). Each reading keeps the contractor's geometric factor.")}</div>
-      <button onClick={() => fileRef.current?.click()} disabled={running} style={{ ...pBtn, marginTop: 6 }}><Upload size={14} />{" "}{tr("Read a 3D array file…")}</button>
+      <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => fileRef.current?.click()} disabled={running}><Upload size={14} />{" "}{tr("Read a 3D array file…")}</button>
       <input ref={fileRef} type="file" accept=".txt,.csv,.dat,.xyz" style={{ display: "none" }} onChange={(e) => { read(e.target.files?.[0]); e.target.value = ""; }} aria-label={tr("3D array file")} />
       {readMsg && <div role="status" style={{ ...small, marginTop: 6, color: readMsg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{readMsg.text}</div>}
       {parsed && (
@@ -181,9 +181,9 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
           <div style={row} title={tr("Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.005} value={o.cutoff} onChange={(v) => set("cutoff", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Support cutoff")} /></div>
           <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <button onClick={estimate} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Box size={14} />{" "}{tr("Estimate")}</button>
-            <button onClick={run} disabled={running || !plan?.ok} title={plan ? "" : tr("Estimate first")} style={{ ...pBtn, flex: 1, opacity: running || !plan?.ok ? 0.5 : 1 }}><Play size={14} />{" "}{tr("Invert in 3D")}</button>
-            {running && job?.meta?.dcip3d && <button onClick={() => cancelInversionJob()} style={{ ...pBtn, width: "auto" }}>{tr("Cancel")}</button>}
+            <button className="gs-btn" style={{ flex: 1 }} onClick={estimate} disabled={running}><Box size={14} />{" "}{tr("Estimate")}</button>
+            <button className="gs-btn" style={{ flex: 1 }} onClick={run} disabled={running || !plan?.ok} title={plan ? "" : tr("Estimate first")}><Play size={14} />{" "}{tr("Invert in 3D")}</button>
+            {running && job?.meta?.dcip3d && <button className="gs-btn" onClick={() => cancelInversionJob()}>{tr("Cancel")}</button>}
           </div>
           {plan && (
             <div style={{ ...small, marginTop: 6, color: plan.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>

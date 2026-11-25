@@ -24,7 +24,7 @@ export default function GridContourControls({ raster, inputStyle }) {
   const field = useMemo(() => (values && !geochemRule ? fieldContourLevels(values) : null), [values, geochemRule]);
   const suggested = useMemo(() => (values ? (field ? field.levels : suggestedContourLevels(values)) : []), [values, field]);
   if (!raster.grid?.values) return null;
-  if (!open) return <button type="button" onClick={() => setOpen(true)} style={{ marginTop: 7, padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Contours…")}</button>;
+  if (!open) return <button className="gs-btn gs-btn--sm" style={{ marginTop: 7 }} type="button" onClick={() => setOpen(true)}>{tr("Contours…")}</button>;
   if (!values) return null;
   const unit = rasterUnitOf(raster); // #1858 — the unit typed on the raster first
   const add = () => {
@@ -52,7 +52,7 @@ export default function GridContourControls({ raster, inputStyle }) {
         <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={field ? tr("every {d}", { d: field.interval }) : suggested.join(", ")} aria-label={tr("Contour levels")} title={field /* #2836 / #2844 */
           ? tr("Levels in {unit}, lowest first, or 'every 5'; blank: every {d}{du} across the grid's 2–98 % range ({lo} to {hi}){z}", { unit: unit || tr("the grid's unit"), d: field.interval, du: unit ? " " + unit : "", lo: +field.range[0].toPrecision(3), hi: +field.range[1].toPrecision(3), z: field.range[0] < 0 && field.range[1] > 0 ? tr(", with the zero line") : "" })
           : tr("Levels in {unit}, lowest first; blank: the 75th, 90th, 95th and 98th percentiles of the grid's positive values", { unit: unit || tr("the grid's unit") })} style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
-        <button onClick={add} style={{ padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer", flexShrink: 0 }}>{tr("Add")}</button>
+        <button className="gs-btn gs-btn--sm" style={{ flexShrink: 0 }} onClick={add}>{tr("Add")}</button>
       </div>
       {msg && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{msg}</div>}
     </div>

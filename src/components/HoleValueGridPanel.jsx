@@ -100,7 +100,7 @@ export default function HoleValueGridPanel() {
   };
   return (
     <div>
-      <button onClick={() => { setOpen((o) => !o); setMsg(null); }} aria-expanded={open} style={{ width: "100%", padding: "2px 6px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Grid a per-hole value…")}</button>
+      <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} onClick={() => { setOpen((o) => !o); setMsg(null); }} aria-expanded={open}>{tr("Grid a per-hole value…")}</button>
       {open && !sources.length && <div style={{ fontSize: "var(--font-size-xs)", marginTop: 4 }}>{tr("No assays or numeric downhole logs to take a value per hole from.")}</div>}
       {open && source && (
         <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 5 }}>
@@ -141,7 +141,7 @@ export default function HoleValueGridPanel() {
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{placeAt === "intercept" ? tr("{n} of {total} holes have a value. Each is placed at the middle of its interval down the desurveyed hole.", { n: samples.length.toLocaleString(), total: collars.length.toLocaleString() }) + (placed.atCollar ? " " + tr("{m} of them have no trace to place it on and stay at the collar.", { m: placed.atCollar.toLocaleString() }) : "") : tr("{n} of {total} holes have a value. Each is placed at its collar, not at the intercept.", { n: samples.length.toLocaleString(), total: collars.length.toLocaleString() })}</div>
           {advice && advice.padHoles > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: placeAt === "collar" && advice.apart > 0 ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{placeAt === "intercept" ? (placeAtChoice ? "" : tr("{n} of the {total} holes share {k} collar points, and their values part by more than a cell down the holes, so each is placed at its intercept. Choose the collar to place them there.", { n: advice.padHoles.toLocaleString(), total: advice.holes.toLocaleString(), k: advice.pads.toLocaleString() })) : tr("{n} of the {total} holes share {k} collar points: their values are combined there, one cell for each pad.", { n: advice.padHoles.toLocaleString(), total: advice.holes.toLocaleString(), k: advice.pads.toLocaleString() })}</div>}{/* TASKS.csv #3826 */}
-          <button onClick={run} disabled={samples.length < 3} style={{ padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-selected-border)", borderRadius: 4, background: "var(--color-selected-bg)", color: "var(--color-primary)", cursor: samples.length < 3 ? "default" : "pointer" }}>{tr("Grid to raster")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={run} disabled={samples.length < 3}>{tr("Grid to raster")}</button>
         </div>
       )}
       {msg && <div role="status" style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: msg.err ? "var(--color-danger-text)" : "var(--color-text-secondary)" }}>{msg.text}</div>}

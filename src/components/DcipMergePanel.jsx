@@ -14,7 +14,7 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' an
 const KINDS = { ip: { label: "Chargeability", unit: "mV/V", property: "Chargeability (mV/V)", line: "IP" }, ipp: { label: "IP phase", unit: "mrad", property: "IP phase (mrad)", line: "IP phase" } /* TASKS.csv #4059 */, dc: { label: "Resistivity", unit: "ohm·m", property: "Resistivity (ohm·m)", line: "DC" } };
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
-export default function DcipMergePanel({ pBtn, numInput }) {
+export default function DcipMergePanel({ numInput }) {
   const { voxelModels, addVoxelModelToTab, getProjectToken } = useStore();
   const byMethod = useMemo(() => sectionModelsByMethod(voxelModels), [voxelModels]);
   const kinds = Object.keys(KINDS).filter((k) => byMethod[k].length >= 2);
@@ -96,8 +96,8 @@ export default function DcipMergePanel({ pBtn, numInput }) {
         <NumberInput allowEmpty min={1} value={cell} placeholder={String(lineCell)} onChange={(v) => setCell((v == null ? "" : String(v)))} style={inp} aria-label={tr("Merge block size")} />
       </div>
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        <button onClick={run} disabled={busy != null} style={{ ...pBtn, flex: 1, opacity: busy != null ? 0.5 : 1 }}><Play size={14} /> {busy != null ? tr("Merging… {v}%", { v: Math.round(busy * 100) }) : tr("Merge {label} lines", { label: KINDS[kind].label.toLowerCase() })}</button>
-        {busy != null && <button onClick={() => abortRef.current?.abort()} style={{ ...pBtn, width: "auto" }}>{tr("Cancel")}</button>}
+        <button className="gs-btn" style={{ flex: 1 }} onClick={run} disabled={busy != null}><Play size={14} /> {busy != null ? tr("Merging… {v}%", { v: Math.round(busy * 100) }) : tr("Merge {label} lines", { label: KINDS[kind].label.toLowerCase() })}</button>
+        {busy != null && <button className="gs-btn" onClick={() => abortRef.current?.abort()}>{tr("Cancel")}</button>}
       </div>
       {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
     </div>

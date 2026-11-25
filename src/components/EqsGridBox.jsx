@@ -16,7 +16,7 @@ import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — th
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 4 };
 
-export default function EqsGridBox({ survey, rows, units = "", method = null /* TASKS.csv #2639 */, addRaster, defaultElevation = 0, numInput, pBtn }) {
+export default function EqsGridBox({ survey, rows, units = "", method = null /* TASKS.csv #2639 */, addRaster, defaultElevation = 0, numInput }) {
   const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const pts = useMemo(() => rows.filter((r) => surveyKey(r) === survey && Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)), [rows, survey]);
   const withZ = pts.filter((r) => Number.isFinite(r.z)).length;
@@ -105,9 +105,9 @@ export default function EqsGridBox({ survey, rows, units = "", method = null /* 
       </div>
       <div style={note}>{noZ ? tr("{n} of the readings have no elevation, so all are taken at one height and the grid is a continuation from it.", { n: (pts.length - withZ).toLocaleString() }) : tr("Blank: the grid follows the readings' surface. An elevation gives a level grid; above the highest reading ({z} m) it is smoother, showing deeper sources.", { z: Number.isFinite(zMax) ? Math.ceil(zMax) : "?" })}</div>
       {busy ? (
-        <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center" }}><span style={{ flex: 1 }}>{busy}</span><button type="button" onClick={() => abort.current?.abort()} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Cancel")}</button></div>
+        <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center" }}><span style={{ flex: 1 }}>{busy}</span><button className="gs-btn" type="button" onClick={() => abort.current?.abort()}>{tr("Cancel")}</button></div>
       ) : (
-        <button type="button" onClick={run} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Grid with equivalent sources")}</button>
+        <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={run}>{tr("Grid with equivalent sources")}</button>
       )}
       {msg && <div role="status" style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-danger-text)" }}>{msg.text}</div>}
     </div>
