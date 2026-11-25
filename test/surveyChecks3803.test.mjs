@@ -66,7 +66,7 @@ test("a 250,000-point cloud is checked in well under a second (it took about 10 
 test("wired: the pane reads the checks from the worker, says it is checking, and does not offer Invert for points that are not stations", () => {
   const s = fs.readFileSync(new URL("../src/components/InversionPanel.jsx", import.meta.url), "utf8");
   assert.match(s, /surveyChecksFor\(checksKey, rows, terrain, collars\)/);
-  assert.match(s, /disabled=\{running \|\| planBusy \|\| !!invertBlocked\}/);
+  assert.match(s, /disabled: running \|\| planBusy \|\| !!invertBlocked/); // #4070 part 2: Invert is the step pane's action
   assert.match(s, /downhole\?\.isDownhole \? tr\("These points are not survey stations \(see above\): nothing to invert\."\)/);
   assert.doesNotMatch(s, /useMemo\(\(\) => \(rows\.length > 1 \? medianNearestSpacing/);
   const w = fs.readFileSync(new URL("../src/lib/surveyChecksClient.js", import.meta.url), "utf8");

@@ -82,6 +82,7 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import DropDiagram from "../components/DropDiagram.jsx"; // TASKS.csv #3939
 import MoreFold from "../components/MoreFold.jsx"; // TASKS.csv #3939
+import StepPane from "../components/StepPane.jsx"; // TASKS.csv #4070 part 2 — the survey, EM and terrain panes as steps
 import { tx } from "../lib/i18nRich.js"; // TASKS.csv #3939
 import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
 import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC resistivity / IP
@@ -344,7 +345,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [omfPick, setOmfPick] = useState({});
   const omfInput = useRef(null);
   const geoh5Input = useRef(null); // TASKS.csv #1993
-  const [idwOpen, setIdwOpen] = useState(false); // TASKS.csv #235 — grid geophys_pts to a raster (IDW)
   // TASKS.csv #3324 — the pane's survey sampled along the drillholes, as a downhole layer
   const [holeOpen, setHoleOpen] = useState(false);
   const [holeOpts, setHoleOpts] = useState({ dist: "", step: "", mode: "nearest" });
@@ -511,7 +511,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // TASKS.csv #538 — gridding used EVERY imported survey at once (a mag survey in nT blended with a gravity or
   // radiometric one) and filled the whole bounding box. Now one survey, blanked beyond a distance from the data.
   const idwKey = measuredList.some((s) => s.key === idwSurvey) ? idwSurvey : measuredList[0]?.key || ""; // #3511 — a positions-only survey is not gridded
-  const idwRows = useMemo(() => (idwOpen ? rows.filter((r) => surveyKey(r) === idwKey) : []), [idwOpen, rows, idwKey]);
+  const idwRows = useMemo(() => (geoPane === "points" ? rows.filter((r) => surveyKey(r) === idwKey) : []), [geoPane, rows, idwKey]); // #4070 part 2: the Grid step is always there (was opened by a button)
   // TASKS.csv #1783 (review #1646, Kodiak) — a 3D point cloud (an inversion model imported as points) is gridded one depth slice at a time
   const idwDefaults = usePointDefaults(idwRows, {}, idwRows.length > 0); // TASKS.csv #3883 (#3803) — in the worker, kept per survey
   const idwShape = idwDefaults?.shape || null;
@@ -557,7 +557,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     }
     if (tooBig) { setError(tr("That cell size would make a level grid over 4 million cells. Use a bigger cell size.")); return; }
     setError({ info: made > 0, text: made ? tr("Added {k} level grid(s) from {lo} to {hi} m, every {step} m (IDW {c} m, blanked > {b} m).{v}", { k: made, lo: +lo.toFixed(2), hi: +hi.toFixed(2), step: +step.toFixed(2), c: idwCellSize, b: Number.isFinite(blank) ? Math.round(blank) : 0, v: skipped ? " " + tr("{n} level(s) with fewer than 3 points were skipped.", { n: skipped }) : "" }) : tr("No level had enough points to grid.") });
-    if (made) setIdwOpen(false);
   };
   // #451 — radar-altimeter heights -> elevations on the loaded terrain
   const convertAgl = (key) => {
@@ -2306,15 +2305,34 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             : methodHint === "rad" ? <TaskPaneHeader title="Radiometric survey (CSV / XYZ)" icon={RRadiation} tone="data" />
               : <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />}
         {methodHint && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, margin: "-4px 0 10px" }}>
-          {methodHint === "mag" ? tr("Labelled magnetics (total field), or the product its columns name (reduced to pole, a derivative). Change it on the survey's card.")
-            : methodHint === "grav" ? tr("A survey imported here is labelled gravity (Bouguer anomaly), or the gravity product its column names (free air, Gzz). Change it on the survey's card.")
-              : methodHint === "rad" ? tr("Labelled radiometrics: each K, eTh, eU or total-count column becomes its own survey. Change the method on the survey's card.")
-                : tr("Labelled a TEM channel (dB/dt), or B-field or decay constant when its column says so. Change it on the survey's card.")}
+          {methodHint === "mag" ? tr("Imported as magnetics (total field), or the product its columns name.")
+            : methodHint === "grav" ? tr("Imported as gravity (Bouguer anomaly), or the product its column names.")
+              : methodHint === "rad" ? tr("Imported as radiometrics: each K, eTh, eU or total-count column its own survey.")
+                : tr("Imported as a TEM channel (dB/dt), or what its column names.")}
           {" "}<button data-btn-own="" type="button" onClick={() => setMethodHint(null)} style={{ border: "none", background: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", fontSize: "inherit", textDecoration: "underline" }}>{tr("Import without a method")}</button>
         </div>}
-        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Point cloud (CSV)")}<InfoButton title={tr("Point cloud (CSV)")} text={tr("Import a CSV point cloud (x, y, z, value): mag, IP, gravity, radiometrics or any point-sampled survey. It shows with the drillholes in 3D (the \"Geophysics points\" layer).")} />
-        </div>
+        {/* TASKS.csv #4070 part 2 (side 2, Matt's layout C) — the survey pane as steps: 1 Survey (import, and the loaded surveys with their tools), 2 Colours
+            (legend and scale), 3 Grid (to a raster; Generate raster the one gold primary). Spatial analysis and sampling along the holes are in a fold below. */}
+        <StepPane id="points" label={tr("Point survey")}
+          top={<>
+        {xyzError && (
+          <div style={{ marginTop: 8, padding: "8px 10px", background: xyzError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${xyzError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: xyzError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+            {xyzError.text}
+          </div>
+        )}
 
+        {error && (() => {
+          // #484 — {info, text} renders neutral (success / "pick the columns"); a plain string is an error
+          const info = typeof error === "object" && error.info;
+          return (
+            <div style={{ marginTop: 8, padding: "8px 10px", background: info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+              {typeof error === "object" ? error.text : error}
+            </div>
+          );
+        })()}
+          </>}
+          steps={[
+            { key: "survey", label: tr("Survey"), question: tr("Which survey?"), body: (<>
         {/* TASKS.csv #120 — optional source EPSG, shared by the CSV and .xyz importers below. Left
             blank, x/y is assumed to already be in the project's EPSG (unchanged behavior). */}
         <SourceCrsField
@@ -2514,24 +2532,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
           </div>
         )}
-        {xyzError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: xyzError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${xyzError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: xyzError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
-            {xyzError.text}
-          </div>
-        )}
-
-        {error && (() => {
-          // #484 — {info, text} renders neutral (success / "pick the columns"); a plain string is an error
-          const info = typeof error === "object" && error.info;
-          return (
-            <div style={{ marginTop: 8, padding: "8px 10px", background: info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
-              {typeof error === "object" ? error.text : error}
-            </div>
-          );
-        })()}
-
-        {rows.length > 0 && (
-          <div style={{ marginTop: 14, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
+            </>) },
+            ...(rows.length > 0 ? [
+            { key: "colours", label: tr("Colours"), question: tr("How is it coloured?"), body: (<>
             <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{rows} {v} loaded", { rows: rows.length, v: tr(rows.length === 1 ? "point" : "points") })}</div>
             {manySurveys && ( // #1587 — which survey the legend below edits
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, marginBottom: 4, fontSize: "var(--font-size-sm)" }}>
@@ -2587,41 +2590,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               >
                 <Trash2 size={14} />{" "}{tr("Clear")}</button>
             </div>
-            {/* TASKS.csv #51 — Voronoi/Delaunay tessellation + polygonal declustering, over whatever
-                point cloud is currently loaded. Needs >=3 points to be meaningful (see SpatialAnalysis's
-                own guard), so only shown once points exist rather than as a separately-gated button. */}
-            <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0, justifyContent: "center" }} onClick={() => setSpatialOpen(true)}>
-              <Triangle size={14} />{" "}{tr("Spatial analysis (Voronoi / declustering)…")}</button>
-            {/* TASKS.csv #3324 — the survey's value along the holes, as a downhole layer */}
-            <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0, justifyContent: "center", background: holeOpen ? "var(--color-selected-bg)" : undefined }} onClick={() => setHoleOpen((v) => !v)} title={tr("The survey's value along each drillhole (nearest point or inverse-distance mean, within a distance), as a downhole layer for Downhole logs and strip logs.")}>
-              <Waypoints size={14} />{" "}{tr("Sample along the drillholes…")}</button>
-            {holeOpen && (
-              <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
-                {!holeShape?.is3D ? <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", lineHeight: 1.5 }}>{tr("\"{key}\" is a surface survey: only a hole's top passes near it. Sampling along holes is for 3D clouds (inversion models, pseudo-sections as points).", { key: legendKey })}</div> : <>
-                  <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("\"{key}\" along each hole: at every step, the nearest point's value within the distance (or the inverse-distance mean). Steps beyond every point stay empty.", { key: legendKey })}</div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Distance (m)")}</span>
-                    <NumberInput allowEmpty min={0.1} value={holeOpts.dist} placeholder={holeSuggest ? String(holeSuggest.maxDist) : "25"} onChange={(v) => setHoleOpts((o) => ({ ...o, dist: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Search distance from the hole")} />
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Step (m)")}</span>
-                    <NumberInput allowEmpty min={0.1} value={holeOpts.step} placeholder={holeSuggest ? String(holeSuggest.step) : "5"} onChange={(v) => setHoleOpts((o) => ({ ...o, step: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Step down the hole")} />
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Value")}</span>
-                    <select value={holeOpts.mode} onChange={(e) => setHoleOpts((o) => ({ ...o, mode: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Value taken at each step")}>
-                      <option value="nearest">{tr("Nearest point")}</option><option value="idw">{tr("Inverse-distance mean")}</option>
-                    </select>
-                  </div>
-                  {holeSuggest && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{holeSuggest.sectionSpacing ? tr("Defaults from the cloud: sections about {l} m apart, so the distance is three quarters of that; the step, a quarter of the {s} m spacing.", { l: Math.round(holeSuggest.sectionSpacing), s: +holeSuggest.spacing.toFixed(1) }) : tr("Defaults from the cloud's spacing ({s} m): a distance of 1.5 spacings and a step of a quarter spacing.", { s: +holeSuggest.spacing.toFixed(1) })}</div>}
-                  <button className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, justifyContent: "center" }} disabled={holeBusy} onClick={() => sampleSurveyAlongHoles(legendKey)}>{holeBusy ? tr("Sampling…") : tr("Add as a downhole layer")}</button>
-                </>}
-              </div>
-            )}
-            {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), pure JS. */}
-            <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }} onClick={() => setIdwOpen((v) => !v)}>
-              <Box size={14} />{" "}{tr("Grid to raster (IDW, minimum curvature, spline)…")}</button>
-            {idwOpen && (
+            </>) },
+            { key: "grid", label: tr("Grid"), question: tr("Grid it to a raster?"), body: (<>
               <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>{/* TASKS.csv #2846 */}
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Method")}</span>
@@ -2680,7 +2650,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   </select>
                 </div>
                 {idwBusy && <div role="status" style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}><span style={{ flex: 1 }}>{idwBusy}</span>{idwMethod !== "spline" && <button className="gs-btn" type="button" onClick={() => idwCancel.current?.()}>{tr("Cancel")}</button>}</div>}
-                <button className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}
+                <button className="gs-btn gs-btn--primary gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }} /* #4070 part 2: the Grid step's one gold primary */
                   disabled={!!idwBusy}
                   onClick={async () => {
                     const pts = idwSlice; // #1783 — a 3D cloud: the chosen depth slice
@@ -2763,7 +2733,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       : idwMethod === "spline" ? tr(" Spline: fitted to {pts} block median(s) {b} m across; damping {d} chosen by cross-validation, R² {r} on the held-out blocks.", { pts: (how.splinePoints ?? 0).toLocaleString(), b: Math.round(how.blockM ?? idwCellSize), d: how.damping == null ? tr("none") : String(how.damping), r: Number.isFinite(how.cvR2) ? how.cvR2.toFixed(2) : "–" })
                       : potential ? tr(" Derivatives of an IDW grid show the station pattern (a bull's-eye at each station): grid with minimum curvature for derivatives.") : "";
                     setError({ info: true, text: kept + howText + where }); // where: #2075
-                    setIdwOpen(false);
                     } finally { pj.end(); } // TASKS.csv #3953
                   }}
                 >{tr("Generate raster")}</button>
@@ -2782,8 +2751,43 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   </div>
                 )}
               </div>
+            </>) },
+            ] : []),
+          ]} />
+        {rows.length > 0 && (
+          <MoreFold summary={tr("Spatial analysis, values along the holes…")} data-more-points="">
+            {/* TASKS.csv #51 — Voronoi/Delaunay tessellation + polygonal declustering, over whatever
+                point cloud is currently loaded. Needs >=3 points to be meaningful (see SpatialAnalysis's
+                own guard), so only shown once points exist rather than as a separately-gated button. */}
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0, justifyContent: "center" }} onClick={() => setSpatialOpen(true)}>
+              <Triangle size={14} />{" "}{tr("Spatial analysis (Voronoi / declustering)…")}</button>
+            {/* TASKS.csv #3324 — the survey's value along the holes, as a downhole layer */}
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 0, justifyContent: "center", background: holeOpen ? "var(--color-selected-bg)" : undefined }} onClick={() => setHoleOpen((v) => !v)} title={tr("The survey's value along each drillhole (nearest point or inverse-distance mean, within a distance), as a downhole layer for Downhole logs and strip logs.")}>
+              <Waypoints size={14} />{" "}{tr("Sample along the drillholes…")}</button>
+            {holeOpen && (
+              <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
+                {!holeShape?.is3D ? <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", lineHeight: 1.5 }}>{tr("\"{key}\" is a surface survey: only a hole's top passes near it. Sampling along holes is for 3D clouds (inversion models, pseudo-sections as points).", { key: legendKey })}</div> : <>
+                  <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("\"{key}\" along each hole: at every step, the nearest point's value within the distance (or the inverse-distance mean). Steps beyond every point stay empty.", { key: legendKey })}</div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Distance (m)")}</span>
+                    <NumberInput allowEmpty min={0.1} value={holeOpts.dist} placeholder={holeSuggest ? String(holeSuggest.maxDist) : "25"} onChange={(v) => setHoleOpts((o) => ({ ...o, dist: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Search distance from the hole")} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Step (m)")}</span>
+                    <NumberInput allowEmpty min={0.1} value={holeOpts.step} placeholder={holeSuggest ? String(holeSuggest.step) : "5"} onChange={(v) => setHoleOpts((o) => ({ ...o, step: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Step down the hole")} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Value")}</span>
+                    <select value={holeOpts.mode} onChange={(e) => setHoleOpts((o) => ({ ...o, mode: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Value taken at each step")}>
+                      <option value="nearest">{tr("Nearest point")}</option><option value="idw">{tr("Inverse-distance mean")}</option>
+                    </select>
+                  </div>
+                  {holeSuggest && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{holeSuggest.sectionSpacing ? tr("Defaults from the cloud: sections about {l} m apart, so the distance is three quarters of that; the step, a quarter of the {s} m spacing.", { l: Math.round(holeSuggest.sectionSpacing), s: +holeSuggest.spacing.toFixed(1) }) : tr("Defaults from the cloud's spacing ({s} m): a distance of 1.5 spacings and a step of a quarter spacing.", { s: +holeSuggest.spacing.toFixed(1) })}</div>}
+                  <button className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, justifyContent: "center" }} disabled={holeBusy} onClick={() => sampleSurveyAlongHoles(legendKey)}>{holeBusy ? tr("Sampling…") : tr("Add as a downhole layer")}</button>
+                </>}
+              </div>
             )}
-          </div>
+          </MoreFold>
         )}
 
         {/* TASKS.csv #321 — SimPEG magnetics/gravity forward modelling and inversion, fed by the survey
@@ -2802,55 +2806,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </>)}
         {geoPane === "terrain" && (<>
         <TaskPaneHeader title="Terrain (SRTM / DEM)" icon={RMountain} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Terrain (SRTM/DEM)")}<InfoButton title={tr("Terrain (SRTM/DEM)")} text={tr("Import an elevation GeoTIFF (SRTM or any DEM) as the terrain in 3D: rasters can drape on it. Select adjacent tiles to merge them; lon/lat is reprojected. One terrain per project.")} />
-        </div>
-        {/* TASKS.csv #419 — for a DEM with no CRS tag or a wrong one */}
-        <SourceCrsField
-          label={tr("DEM source CRS")} value={demSourceEpsg} onChange={(c) => setDemSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
-          defaultText={tr("From the file's own CRS tag")}
-          title={tr("Leave it on the file's tag; change it for a DEM with none or a wrong one (BC TRIM: BC Albers; CDEM: NAD83(CSRS) lon/lat).")}
-        />
-        {(collars || []).length > 0 && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Reads only each DEM tile's part around the drillholes, at the terrain grid's resolution: less memory, finer cells. Untick to import whole tiles.")}>
-            <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} />{" "}{tr("Crop to the drillholes +")}<NumberInput allowEmpty min={1000} step={500} value={demCropBuffer} onChange={(v) => setDemCropBuffer((v == null ? "" : String(v)))} style={{ ...numInput, width: 70, flex: "none" }} aria-label={tr("Crop buffer in metres")} /> m
-          </label>
-        )}
-        {/* TASKS.csv #814 — online elevation model */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-          <span style={{ flexShrink: 0 }}>{tr("Online source")}</span>
-          <select value={terrainSource} onChange={(e) => setTerrainSource(e.target.value)} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Online source")}
-            title={tr("Copernicus GLO-30 (default): global ~30 m, with forest. AWS Terrain Tiles: to ~5 m, checked for cones. NRCan MRDEM-30: bare earth; HRDEM: 1 m lidar.")}>
-            <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>{/* TASKS.csv #3882 — the default, so first */}
-            <option value="aws">{tr("AWS Terrain Tiles (SRTM / CDEM blend)")}</option>
-            <option value="mrdem" disabled={outsideCanada && terrainSource !== "mrdem"}>{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815; disabled outside Canada: #2465 */}
-            <option value="hrdem" disabled={outsideCanada && terrainSource !== "hrdem"}>{tr("NRCan HRDEM lidar (Canada, where flown)")}</option>
-            <option value="gem15">{tr("Google GEM-15 (15 m, bare earth)")}</option>{/* TASKS.csv #3721 — experimental; gaps filled from GLO-30 and said */}
-            <option value="gem15dsm">{tr("Google GEM-15 surface (15 m, trees and buildings)")}</option>
-          </select>
-        </div>
-        {terrainSource === "gem15dsm" && <div data-gem-surface-note="" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 6px", lineHeight: 1.4 }}>{tr("Trees, buildings, cut blocks and flat snow or ice show as steps. GEM-15 bare earth has the same 15 m.")}</div>}{/* TASKS.csv #3946 */}
-        {(terrainSource === "gem15" || terrainSource === "gem15dsm") && ( /* TASKS.csv #3950 — off by default */
-          <label data-gem-smooth="" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.")}>
-            <input type="checkbox" checked={gemSmooth} onChange={(e) => setGemSmooth(e.target.checked)} />{tr("Smooth GEM-15's steps on flat ground")}
-          </label>
-        )}
-        {/* TASKS.csv #796 — terrain detail */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-          <span style={{ flexShrink: 0 }}>{tr("Terrain detail")}</span>
-          <select value={terrainDetail} onChange={(e) => setTerrainDetail(Number(e.target.value))} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Terrain detail")}
-            title={tr("Nodes along the terrain's longer side, for the next fetch or import. High and Very high are adaptive: more triangles where the ground is rough.")}>
-            <option value={200}>{tr("Standard (200 nodes)")}</option>
-            <option value={513}>{tr("High (513 nodes)")}</option>
-            <option value={1025}>{tr("Very high (1,025 nodes)")}</option>
-            <option value={2049}>{tr("Full (2,049 nodes)")}</option>{/* TASKS.csv #3251 — the fetch reads tiles to match (srtmFetch tileBudget) */}
-          </select>
-        </div>
-        {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, up to a second to build.", { mb: terrainDetail > 1500 ? 40 : terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 1500 ? 22 : terrainDetail > 600 ? 6 : 1.5 })}</div>}
+        {/* TASKS.csv #4070 part 2 (side 2) — one question; Fetch is the gold primary. The source CRS, crop, online source and detail shape the next fetch or
+            import, so they sit in Fine-tune; the long explanations are on the Terrain Help page. */}
+        <StepPane id="terrain" label={tr("Terrain")} steps={[{ key: "terrain", label: tr("Terrain"), question: tr("Where does the ground come from?"), body: (<>
         <div style={{ display: "flex", gap: 6 }}>
           <button className="gs-btn" style={{ flex: 1 }} onClick={() => terrainInput.current.click()} disabled={terrainBusy}>
             {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? tr("Reading…") : terrain ? tr("Replace terrain…") : tr("Import SRTM/DEM…")}
           </button>
-          <button className="gs-btn" style={{ flex: 1 }}
+          <button className="gs-btn gs-btn--primary" style={{ flex: 1 }} /* #4070 part 2: the Terrain pane's gold primary; gs-primary-alt: shown instead of the survey pane */
             onClick={openSrtmPicker}
             disabled={terrainBusy}
             title={tr("Pick an area on a map and fetch elevation for it — no manual download needed")}
@@ -2924,7 +2887,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           </label>
         )}
         <input ref={pointsTerrainInput} type="file" accept=".csv,.txt,.xyz,.dxf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importPointsTerrain(f); e.target.value = ""; }} />
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("\"Fetch terrain for this area\" opens a map to draw the area, pre-filled around your data. Public elevation data, no account needed.")}</div>
         {srtmPickerOpen && (
           <BasemapView
             mode="draw"
@@ -3114,6 +3076,51 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             )}
           </div>
         )}
+        </>) }]}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="terrain">
+        {/* TASKS.csv #419 — for a DEM with no CRS tag or a wrong one */}
+        <SourceCrsField
+          label={tr("DEM source CRS")} value={demSourceEpsg} onChange={(c) => setDemSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
+          defaultText={tr("From the file's own CRS tag")}
+          title={tr("Leave it on the file's tag; change it for a DEM with none or a wrong one (BC TRIM: BC Albers; CDEM: NAD83(CSRS) lon/lat).")}
+        />
+        {(collars || []).length > 0 && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Reads only each DEM tile's part around the drillholes, at the terrain grid's resolution: less memory, finer cells. Untick to import whole tiles.")}>
+            <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} />{" "}{tr("Crop to the drillholes +")}<NumberInput allowEmpty min={1000} step={500} value={demCropBuffer} onChange={(v) => setDemCropBuffer((v == null ? "" : String(v)))} style={{ ...numInput, width: 70, flex: "none" }} aria-label={tr("Crop buffer in metres")} /> m
+          </label>
+        )}
+        {/* TASKS.csv #814 — online elevation model */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+          <span style={{ flexShrink: 0 }}>{tr("Online source")}</span>
+          <select value={terrainSource} onChange={(e) => setTerrainSource(e.target.value)} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Online source")}
+            title={tr("Copernicus GLO-30 (default): global ~30 m, with forest. AWS Terrain Tiles: to ~5 m, checked for cones. NRCan MRDEM-30: bare earth; HRDEM: 1 m lidar.")}>
+            <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>{/* TASKS.csv #3882 — the default, so first */}
+            <option value="aws">{tr("AWS Terrain Tiles (SRTM / CDEM blend)")}</option>
+            <option value="mrdem" disabled={outsideCanada && terrainSource !== "mrdem"}>{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815; disabled outside Canada: #2465 */}
+            <option value="hrdem" disabled={outsideCanada && terrainSource !== "hrdem"}>{tr("NRCan HRDEM lidar (Canada, where flown)")}</option>
+            <option value="gem15">{tr("Google GEM-15 (15 m, bare earth)")}</option>{/* TASKS.csv #3721 — experimental; gaps filled from GLO-30 and said */}
+            <option value="gem15dsm">{tr("Google GEM-15 surface (15 m, trees and buildings)")}</option>
+          </select>
+        </div>
+        {terrainSource === "gem15dsm" && <div data-gem-surface-note="" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 6px", lineHeight: 1.4 }}>{tr("Trees, buildings, cut blocks and flat snow or ice show as steps. GEM-15 bare earth has the same 15 m.")}</div>}{/* TASKS.csv #3946 */}
+        {(terrainSource === "gem15" || terrainSource === "gem15dsm") && ( /* TASKS.csv #3950 — off by default */
+          <label data-gem-smooth="" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Feathers straight steps on flat ground. Slopes, ridges and cliffs stay.")}>
+            <input type="checkbox" checked={gemSmooth} onChange={(e) => setGemSmooth(e.target.checked)} />{tr("Smooth GEM-15's steps on flat ground")}
+          </label>
+        )}
+        {/* TASKS.csv #796 — terrain detail */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+          <span style={{ flexShrink: 0 }}>{tr("Terrain detail")}</span>
+          <select value={terrainDetail} onChange={(e) => setTerrainDetail(Number(e.target.value))} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Terrain detail")}
+            title={tr("Nodes along the terrain's longer side, for the next fetch or import. High and Very high are adaptive: more triangles where the ground is rough.")}>
+            <option value={200}>{tr("Standard (200 nodes)")}</option>
+            <option value={513}>{tr("High (513 nodes)")}</option>
+            <option value={1025}>{tr("Very high (1,025 nodes)")}</option>
+            <option value={2049}>{tr("Full (2,049 nodes)")}</option>{/* TASKS.csv #3251 — the fetch reads tiles to match (srtmFetch tileBudget) */}
+          </select>
+        </div>
+        {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, up to a second to build.", { mb: terrainDetail > 1500 ? 40 : terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 1500 ? 22 : terrainDetail > 600 ? 6 : 1.5 })}</div>}
+          </MoreFold>} />
 
         </>)}
         {geoPane === "boundaries" && (<>
@@ -3320,12 +3327,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         </>)}
         {geoPane === "em" && (<>{/* TASKS.csv #3400 — EM: which kind of EM survey, each with its help page */}
           <TaskPaneHeader title="Electromagnetic surveys (EM)" icon={Radio} tone="data" onClose={() => setGeoPane(null)} />
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>{tr("EM measures how well the ground conducts electricity: massive sulphide, graphite, clay and salt water are conductors. Pick the kind of survey:")}</div>
-          {[
-            { label: tr("TEM line data: channels, decays, decay constant…"), text: tr("Time-domain EM along lines (SkyTEM, Workbench or Geosoft .xyz, a CSV with a column per gate): channels stacked, a station's decay, the decay constant mapped."), go: () => setGeoPane("tem"), help: "tem-lines" }, // #1986 step 1
+          {/* TASKS.csv #4070 part 2 (side 2) — one question; the intro and each kind's line cut short (the ? beside each opens its Help page) */}
+          <StepPane id="em" label={tr("EM")} steps={[{ key: "kind", label: tr("EM"), question: tr("Which kind of EM survey?"), body: [
+            { label: tr("TEM line data: channels, decays, decay constant…"), text: tr("Along lines (SkyTEM, Workbench, .xyz, a CSV per gate): decays and the decay constant."), go: () => setGeoPane("tem"), help: "tem-lines" }, // #1986 step 1
             { label: tr("Borehole EM…"), text: tr("Channels down a hole and the decay at a depth."), go: () => setGeoPane("bhem"), help: "borehole-em" }, // #4064
-            { label: tr("FDEM 1D: ground loop-loop (DUALEM, GEM-2)…"), text: tr("Frequency-domain readings along lines: conductivity against depth under each sounding, a 1D inversion."), go: () => setGeoPane("fdem"), help: "fdem-1d" },
-            { label: tr("TEM: one channel as points…"), text: tr("One channel already in a table (dB/dt, B-field or a decay constant) imported as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
+            { label: tr("FDEM 1D: ground loop-loop (DUALEM, GEM-2)…"), text: tr("Conductivity with depth under each sounding (1D)."), go: () => setGeoPane("fdem"), help: "fdem-1d" },
+            { label: tr("TEM: one channel as points…"), text: tr("One channel in a table, as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },
           ].map((o) => (
             <div key={o.help} style={{ padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8, background: "var(--color-bg)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -3334,7 +3341,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               </div>
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 5 }}>{o.text}</div>
             </div>
-          ))}
+          ))}]} />
         </>)}
         {geoPane === "mt" && (<Suspense fallback={null}><MtSoundingsPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={mtDrop} onPendingDone={() => setMtDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1989 */}
         {geoPane === "tem" && (<Suspense fallback={null}><TemPane setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} addRaster={addRaster} rasters={rasters} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 step 1 */}

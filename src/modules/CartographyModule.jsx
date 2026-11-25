@@ -16,6 +16,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Globe2, Layers, FileSpreadsheet, Loader2, CheckCircle2 } from "../components/icons.js";
 import { useStore } from "../lib/store.jsx";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx";
+import StepPane from "../components/StepPane.jsx"; // TASKS.csv #4070 part 2
+import MoreFold from "../components/MoreFold.jsx";
 import CrsPicker from "../components/CrsPicker.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -253,9 +255,11 @@ export default function CartographyModule({ embedded = false, forcePane = null }
         {pane === "crs" && (
           <>
             <TaskPaneHeader icon={Globe2} title="Project CRS" />
+            {/* TASKS.csv #4070 part 2 (side 2) — one question, the picker first; the mine grid beside a chosen CRS folds below (it came first, the change
+                itself was below the fold); with no CRS yet, keeping a local grid is a way in, so it stays on top */}
             {project.crsSet === false && <React.Suspense fallback={null}><LocalGridPanel /></React.Suspense>}{/* #2180 / #2288 — keep a local mine grid, tie it to a CRS */}
-            {project.crsSet !== false && project.epsg && <React.Suspense fallback={null}><MineGridPanel /></React.Suspense>}{/* #2586 — a mine grid beside the CRS */}
-            <div style={note}>{tr("Every file you import is reprojected into this CRS (its own")}{" "}<em>{tr("Source CRS")}</em>{" "}{tr("box says what the file is in). Current:")}{" "}<b>{project.crsSet === false ? tr("not chosen yet") : nameOf(project.epsg)}</b>.{project.crsSet === false ? tr(" Pick the CRS your coordinates are in — nothing is converted.") : ""}</div>
+            <StepPane id="crs" label={tr("Project CRS")} steps={[{ key: "crs", label: tr("Project CRS"), question: tr("Which coordinate system?"), body: (<>
+            <div style={note}>{tr("Imports are reprojected into it. Current:")}{" "}<b>{project.crsSet === false ? tr("not chosen yet") : nameOf(project.epsg)}</b>.{project.crsSet === false ? tr(" Pick the CRS your coordinates are in — nothing is converted.") : ""}</div>
             <div style={{ marginTop: 12 }}><CrsPicker label={tr("Change to")} value={newCrs || (project.crsSet === false ? null : project.epsg) /* #2289: the placeholder is not a current choice */} onChange={setNewCrs} /></div>
             {changing && isGeographic(newCrs) && (
               /* TASKS.csv #613 — a geographic CRS (WGS 84 lat/long, NAD83 geographic…) can't be the project CRS: the 3D
@@ -308,20 +312,23 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                     <input type="checkbox" checked={rotate} onChange={(e) => setRotate(e.target.checked)} style={{ marginTop: 3 }} />
                     <span>{tr("Turn azimuths and dip directions with grid north, so holes and structures keep pointing the same way on the ground (recommended).")}</span>
                   </label>
-                  <button className="gs-btn" disabled={busy} onClick={moveAll}>{busy ? <Loader2 size={14} className="spin" /> : <Globe2 size={14} />}{" "}{tr("Reproject all data to {v}", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) })}</button>
+                  <button className="gs-btn gs-btn--primary" disabled={busy} onClick={moveAll}>{busy ? <Loader2 size={14} className="spin" /> : <Globe2 size={14} />}{" "}{tr("Reproject all data to {v}", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) })}</button>
                   <button className="gs-btn" disabled={busy} onClick={setOnly} title={tr("Use this when the label was wrong: the coordinates already ARE in the new CRS")}>{tr("Only change the label (the data is already in it)")}</button>
                 </>
               ) : (
-                <button className="gs-btn" onClick={setOnly}><CheckCircle2 size={14} />{" "}{tr("Use {v}", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) })}</button>
+                <button className="gs-btn gs-btn--primary" /* gs-primary-alt: the other branch of Reproject all (no data to move) */ onClick={setOnly}><CheckCircle2 size={14} />{" "}{tr("Use {v}", { v: crsName(newCrs) || tr("EPSG:{newCrs}", { newCrs }) })}</button>
               )
             )}
+            </>) }]} />
+            {project.crsSet !== false && project.epsg && <MoreFold summary={tr("Mine grid beside this CRS…")} data-more-minegrid=""><React.Suspense fallback={null}><MineGridPanel /></React.Suspense></MoreFold>}{/* #2586 — a mine grid beside the CRS */}
           </>
         )}
 
         {pane === "layer" && (
           <>
             <TaskPaneHeader icon={Layers} title="Reproject a layer" />
-            <div style={note}>{tr("For something that landed in the wrong place because it was imported with the wrong CRS: pick it, say which CRS its coordinates are")}{" "}<em>{tr("really")}</em>{" "}{tr("in, and it is moved into the project CRS ({v}).", { v: nameOf(project.epsg) })}</div>
+            <StepPane id="layer" label={tr("Reproject a layer")} steps={[{ key: "layer", label: tr("Reproject a layer"), question: tr("Which layer, really in which CRS?"), body: (<>
+            <div style={note}>{tr("Imported in the wrong CRS? Pick it and the CRS it is really in: it moves into {v}.", { v: nameOf(project.epsg) })}</div>
             {project.crsSet === false ? ( /* TASKS.csv #2290 — a local-grid boundary was moved 10,700 km into the placeholder */
               <div style={box(true)}>{tr("The project's coordinate system is not chosen yet, so there is no CRS to reproject a layer into. Choose it under Project CRS first.")}</div>
             ) : inventory.length ? (
@@ -333,10 +340,11 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 {mineGridOf(project) /* #2826 — a project with a mine grid reads a layer on it too */
                   ? <div style={{ marginTop: 10 }}><SourceCrsField label={tr("Its coordinates are really in")} value={objFrom ?? ""} onChange={(c) => setObjFrom(c === "" ? null : isMineSource(c) ? MINE_SOURCE : Number(c))} mineGrid={fileGrid} defaultText={tr("Choose…")} title={tr("The CRS the layer's numbers are really in, or the project's local mine grid.")} /></div>
                   : <div style={{ marginTop: 10 }}><CrsPicker label={tr("Its coordinates are really in")} value={objFrom} onChange={setObjFrom} height={150} /></div>}
-                <button className="gs-btn" disabled={busy || !obj || !objFrom || (!isMineSource(objFrom) && Number(objFrom) === Number(project.epsg))} onClick={moveObject}>
+                <button className="gs-btn gs-btn--primary" /* gs-primary-alt: the A layer pane's, shown instead of Project CRS */ disabled={busy || !obj || !objFrom || (!isMineSource(objFrom) && Number(objFrom) === Number(project.epsg))} onClick={moveObject}>
                   {busy ? <Loader2 size={14} className="spin" /> : <Layers size={14} />}{" "}{tr("Reproject into the project CRS")}</button>
               </>
             ) : <div style={box(true)}>{tr("Nothing with map coordinates is loaded yet.")}</div>}
+            </>) }]} />
           </>
         )}
 

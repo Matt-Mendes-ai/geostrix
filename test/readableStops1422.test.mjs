@@ -44,5 +44,5 @@ test("#1433 the palette list shows short names, inputs may shrink, inversion ste
   const g = read("../src/modules/GeophysicsModule.jsx");
   assert.match(g, /<option key=\{key\} value=\{key\} title=\{p\.label\}>\{paletteShortName\(key\)\}<\/option>/); // #1859 — the short name now cut at ' (' too
   assert.match(g, /const numInput = \{ flex: 1, minWidth: 0 \/\* #1433 \*\//);
-  assert.match(read("../src/components/InversionPanel.jsx"), /margin: "8px 0 0", minWidth: 0 \/\* #1433/);
+  assert.match(read("../src/components/InversionPanel.jsx"), /<StepPane id="inversion"/); // #4070 part 2: the numbered fieldsets (#1433) are StepPane steps now, one on screen at a time
 });
