@@ -7,7 +7,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import { runChange, ACTIONS } from "../src/lib/mcpActions.js";
 import { runGuided, guidedCtx, toolForRock } from "../src/modules/viewer/guided/guidedRun.js";
-import { modelAction } from "../src/modules/viewer/useMcpModelActions.js";
+import { modelAction } from "../src/modules/viewer/mcpModelAction.js";
 import { BODIES, COVER, GRADE, ROCK_LAYERS } from "../src/modules/viewer/guided/guidedTools.js";
 
 const require = createRequire(import.meta.url);
@@ -170,7 +170,7 @@ test("#3932b StrixViewer: the hook answers from any tab, the guided card and the
   assert.match(vm, /const guidedApi = \{ runStackModel, runImplicitModel,/);
   assert.match(vm, /useMcpModelActions\(\(\) => \(\{ store: \{ layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain, sections, rasters \/\* #4053 \*\/ \}, api: guidedApi, removeSurfaces, notices, lastLithBlock, addLithBlockModel, removeVoxelModel, addVoxelModel, isSameProject \/\* #3932 batch 3 \*\/,\n\s*faults: \{ traces: \(\) => tracesRef\.current, surfaceStructures, mapLayers, addSurface: addWorldMeshSurface \} \/\* #4053 batch 4[^\n]*\}\)\);/);
   assert.match(vm, /<GuidedTool tool=\{guided\} setTool=\{setGuided\} api=\{guidedApi\} \/>/);
-  const hook = read("../src/modules/viewer/useMcpModelActions.js");
+  const hook = read("../src/modules/viewer/mcpModelAction.js");
   assert.match(hook, /load = \(\) => import\("\.\/guided\/guidedRun\.js"\)/, "loaded on first use");
   assert.doesNotMatch(hook, /^import .*guided/m);
   assert.doesNotMatch(hook, /if \(!enabled\) return;/, "no mode gate: the tab switch has not rendered when the request arrives");

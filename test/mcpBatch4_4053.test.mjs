@@ -209,7 +209,7 @@ test("#4053 wiring: the pane's own build and run are what the tools call; the pa
   assert.match(panel, /disabled: busy \|\| !groundAt \|\| order\.length < 2 \|\| noOrient,\s+attrs: \{ "data-mcp": "map-run" \}/); // the steps' action keeps the button's mark (#4070)
   assert.match(fs.readFileSync(new URL("../src/components/useMcpMapModel.js", import.meta.url), "utf8"), /requestStep\("mapmodel", "data"\); await settle\(g, sleep\);/, "the Build button is on the Data step: asked for first");
   assert.match(panel, /onClick: \(\) => onRun\(\{ layer: effLayer/, "the Build button still calls the run itself"); // the steps' action (#4070)
-  const hook = read("../src/modules/viewer/useMcpModelActions.js");
+  const hook = read("../src/modules/viewer/mcpModelAction.js");
   assert.match(hook, /if \(p\.op === "map_model"\) return viaMapPane\(c, p\);/); assert.match(hook, /if \(p\.op === "fault"\) return \(await import\("\.\/mcpFaultRun\.js"\)\)\.faultAction\(c\(\), p\);/);
   assert.match(hook, /api\?\.openPane\?\.\("mapmodel", true\)/);
   assert.match(read("../src/modules/viewer/FaultBuilder.jsx"), /buildFaultPlanes\(\{ faults, extent, marginM, gapM, other, dips, terrain, traces: tracesRef\?\.current \|\| \[\], addSurface: addWorldMeshSurface, msgs \}\)/);

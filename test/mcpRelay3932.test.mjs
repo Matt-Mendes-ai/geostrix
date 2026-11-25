@@ -18,7 +18,7 @@ const PLANNER_STANDINS = {
   set_planned_hole_status: async () => ({ ok: true, tracked: true, say: "marked PLAN-1 approved", data: { changed: "a planned hole's status", hole: "PLAN-1", status: "approved" } }),
 };
 import { runTool } from "../src/lib/mcpTools.js";
-import { viewAction } from "../src/modules/viewer/useMcpViewActions.js";
+import { viewAction } from "../src/modules/viewer/mcpViewAction.js";
 
 const require = createRequire(import.meta.url);
 const { createHost } = require("../electron/mcpHost.js");

@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { viewAction } from "../src/modules/viewer/useMcpViewActions.js";
+import { viewAction } from "../src/modules/viewer/mcpViewAction.js";
 import { runChange } from "../src/lib/mcpActions.js";
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
