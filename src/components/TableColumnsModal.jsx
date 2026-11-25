@@ -51,7 +51,7 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
     </details>
   );
   const steps = [
-    { key: "columns", label: tr("Columns"), primary: { label: tr("Next"), disabled: !keep.size }, render: () => (
+    { key: "columns", label: tr("Columns"), primary: { label: tr("Next: rows"), disabled: !keep.size }, render: () => (
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={note}>{tr("{name}: {rows} rows × {cols} columns, about {gb} GB whole.", { name, rows: preview.rows.toLocaleString(), cols: preview.cols, gb: gb(preview.bytes) })}</div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -69,7 +69,7 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
         {sizeLine}
       </div>
     ) },
-    { key: "rows", label: tr("Rows"), primary: { label: tr("Next"), disabled: (rowsBy !== "all" && !holeCol) || !compOk }, render: () => (
+    { key: "rows", label: tr("Rows"), primary: { label: tr("Next: size"), disabled: (rowsBy !== "all" && !holeCol) || !compOk }, render: () => (
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
           {projectIds.length > 0 && ( // #2321
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)" }}>
@@ -108,7 +108,7 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
             : tr("Pick the From, To and hole id columns and type a length to composite each hole (numbers length-weighted, text by most of the length); raw rows are not kept.")}</div>}
       </div>
     ) },
-    { key: "read", label: tr("Read"), primary: { label: tr("Read the {k} column(s)", { k: keep.size }), disabled: !keep.size || !fits || (rowsBy !== "all" && !holeCol) || !compOk, onClick: () => onDone({ keep: preview.headers.filter((h) => keep.has(h)), ...(ids && holeCol ? { holes: { col: holeCol, ids, label: rowsBy === "checked" ? tr("the checked holes") : tr("the holes in this project") } } : {}), ...(comp.on && compOk ? { composite: { hole: holeCol, from: comp.from, to: comp.to, lengthM: Number(comp.lengthM) } } : {}) /* #2345 */ }) }, render: () => (
+    { key: "read", label: tr("Size"), primary: { label: tr("Read the {k} column(s)", { k: keep.size }), disabled: !keep.size || !fits || (rowsBy !== "all" && !holeCol) || !compOk, onClick: () => onDone({ keep: preview.headers.filter((h) => keep.has(h)), ...(ids && holeCol ? { holes: { col: holeCol, ids, label: rowsBy === "checked" ? tr("the checked holes") : tr("the holes in this project") } } : {}), ...(comp.on && compOk ? { composite: { hole: holeCol, from: comp.from, to: comp.to, lengthM: Number(comp.lengthM) } } : {}) /* #2345 */ }) }, render: () => (
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
         {sizeLine}
         <div><button type="button" className="gs-btn" onClick={() => onDone(true)} title={tr("Every column: this can close GeoStrix on this computer.")}>{tr("Open it whole anyway")}</button></div>

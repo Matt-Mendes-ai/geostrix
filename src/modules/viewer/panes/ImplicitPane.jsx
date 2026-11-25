@@ -102,7 +102,7 @@ export default function ImplicitPane({ clusterNote, implicitSurfaces, collars, e
                   disabled={!ready}
                   title={!implicitTarget ? tr("Choose a unit above first") : (sensSigmaPos === "" || sensSigmaDeg === "") ? tr("Enter both sigmas — there is deliberately no default") : tr("Run the model, then the realizations")}
                   className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center", opacity: ready ? 1 : 0.5, cursor: ready ? "pointer" : "default" }}
-                >{tr("Run with sensitivity spread")}</button>
+                >{tr("Build with sensitivity spread")}</button>
               );
             })()}
           </div>

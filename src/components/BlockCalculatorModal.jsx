@@ -98,7 +98,7 @@ export default function BlockCalculatorModal({ onClose }) {
     </details>
   );
   const steps = [
-    { key: "models", label: tr("Models"), primary: { label: tr("Next"), disabled: !namesOk }, render: () => (
+    { key: "models", label: tr("Models"), primary: { label: tr("Next: formula"), disabled: !namesOk }, render: () => (
       <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)" }}>
         <div style={{ ...small, marginBottom: 6 }}>{tr("Block models in the formula")}</div>
         {picked.length > 0 && (

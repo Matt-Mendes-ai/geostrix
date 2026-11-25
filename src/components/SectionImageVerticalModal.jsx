@@ -116,7 +116,7 @@ export default function SectionImageVerticalModal({ image, terrain, onApply, onC
     )}
   </>);
   const steps = [
-    { key: "points", label: tr("Points"), primary: { label: tr("Next") }, render: () => (<>
+    { key: "points", label: tr("Points"), primary: { label: tr("Next: fit") }, render: () => (<>
       {picture()}
       <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: 8 }}>
         {image.name && <div style={{ ...note, fontWeight: 600 }}>{image.name}</div>}

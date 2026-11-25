@@ -93,7 +93,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
     </details>
   );
   const steps = [
-    { key: "markers", label: tr("Markers"), primary: { label: tr("Next") }, render: () => (
+    { key: "markers", label: tr("Markers"), primary: { label: tr("Next: classes") }, render: () => (
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
         {!local.breaks.length && (
           <label style={row}>

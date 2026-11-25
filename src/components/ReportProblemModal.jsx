@@ -68,7 +68,7 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
     </details>
   );
   const flow = [
-    { key: "describe", label: tr("Describe"), primary: { label: tr("Next"), disabled: !what.trim() }, hint: what.trim() ? "" : tr("Say briefly what went wrong first."), render: () => (
+    { key: "describe", label: tr("Problem"), primary: { label: tr("Next: contents"), disabled: !what.trim() }, hint: what.trim() ? "" : tr("Say briefly what went wrong first."), render: () => (
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ marginTop: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{crashed ? `${tr("GeoStrix didn't close normally last time. ")}` : ""}{tr("It goes into a .zip you attach to an email. Nothing is sent without you.")}</p>
             <label style={lbl} htmlFor="rp-what">{tr("What went wrong? *")}</label>
@@ -77,7 +77,7 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
             <textarea id="rp-steps" rows={3} value={steps} onChange={(e) => setSteps(e.target.value)} style={area} placeholder={tr("1. Imported collars.csv 2. Opened Grade shell 3. Clicked Generate…")} />
       </div>
     ) },
-    { key: "include", label: tr("Include"), primary: { label: busy ? tr("Making the report…") : tr("Create report & open email"), onClick: build, disabled: busy }, render: () => (
+    { key: "include", label: tr("Contents"), primary: { label: busy ? tr("Making the report…") : tr("Create report & open email"), onClick: build, disabled: busy }, render: () => (
       <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ marginTop: 12 }}>
               <div style={lbl}>{tr("Include")}</div>
@@ -107,7 +107,7 @@ export default function ReportProblemModal({ screenshot, crashed = false, onClos
               <a href={`https://github.com/Matt-Mendes-ai/geostrix/issues/new?title=${encodeURIComponent(what.trim().slice(0, 80))}&body=${encodeURIComponent(`${what.trim()}\n\n**What I was doing**\n${steps.trim()}\n\nGeoStrix ${version}`)}`} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 8, fontSize: "var(--font-size-sm)" }}>{tr("Or report it on GitHub (public)")}</a>
       </div>
     ) },
-    { key: "send", label: tr("Send"), primary: { label: tr("Done"), onClick: onClose }, render: () => (
+    { key: "send", label: tr("Email"), primary: { label: tr("Done"), onClick: onClose }, render: () => (
       <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", lineHeight: 1.5 }}>
         {done && (<>
             <p style={{ marginTop: 0 }}><strong>{tr("Saved {name}", { name: done.name })}</strong>{" "}{tr("({v}) in your Downloads folder, and your email app should have opened a message to {SUPPORT_EMAIL}.", { v: fmtMB(done.size), SUPPORT_EMAIL })}</p>

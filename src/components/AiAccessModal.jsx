@@ -35,7 +35,7 @@ export default function AiAccessModal({ onClose }) {
     </details>
   );
   const steps = [
-    { key: "access", label: tr("Access"), primary: { label: tr("Next: connect") }, render: () => (
+    { key: "access", label: tr("Access"), primary: { label: tr("Next: connection") }, render: () => (
       <div style={{ flex: 1, minWidth: 0 }}>
         {!isDesktop && <div role="status" style={{ ...small, color: "var(--color-warn-text)", marginBottom: 6 }}>{tr("AI App Access needs the desktop app.")}</div>}
         {/* the privacy line stays seen first (where what it reads goes); the whole notice is in the Help card */}
@@ -58,7 +58,7 @@ export default function AiAccessModal({ onClose }) {
         {msg && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 6 }}>{msg}</div>}
       </div>
     ) },
-    { key: "connect", label: tr("Connect"), primary: { label: tr("Next: activity") }, hint: on ? "" : tr("Switch access on first."), render: () => (
+    { key: "connect", label: tr("Connection"), primary: { label: tr("Next: activity") }, hint: on ? "" : tr("Switch access on first."), render: () => (
       <div style={{ flex: 1, minWidth: 0 }}>
         {on && (
           <>

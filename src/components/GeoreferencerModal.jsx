@@ -174,7 +174,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
         <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg,.tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
       </div>
     </>) },
-    { key: "points", label: tr("Points"), primary: { label: tr("Next: check"), disabled: !fit }, hint: points.length > 0 && usablePoints.length < 3 ? tr("Need at least 3 points with valid coordinates to fit a transform.") : "", render: () => (<>
+    { key: "points", label: tr("Points"), primary: { label: tr("Next: fit"), disabled: !fit }, hint: points.length > 0 && usablePoints.length < 3 ? tr("Need at least 3 points with valid coordinates to fit a transform.") : "", render: () => (<>
       {img && (
         <div role="button" tabIndex={0} onKeyDown={activateOnKey}
           onClick={onCanvasClick}
@@ -239,7 +239,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
         )}
       </div>
     </>) },
-    { key: "import", label: tr("Import"), primary: { label: busy ? tr("Georeferencing…") : tr("Import"), onClick: doImport, disabled: !fit || busy }, render: () => (
+    { key: "import", label: tr("Fit"), primary: { label: busy ? tr("Georeferencing…") : tr("Import"), onClick: doImport, disabled: !fit || busy }, render: () => (
       <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 8 }}>
         {fit && (
           <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{fitResiduals.length === 3 /* #1628 — an affine has 6 unknowns: three points fit it exactly, whatever they are */

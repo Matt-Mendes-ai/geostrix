@@ -116,7 +116,7 @@ export default function GradeShellPane({ addVoxelModel, assayElements, assays, c
               )}
                 </>) },
               ]}
-              action={{ label: numericBusy ? tr("Running…") : (sym ? tr("Generate {el} shell", { el: numSrc ? numSrc.label : sym }) : tr("Generate grade shell")), onClick: runNumericModel, disabled: !canRun, icon: <Shapes size={14} />,
+              action={{ label: numericBusy ? tr("Building…") : (sym ? tr("Build {el} shell", { el: numSrc ? numSrc.label : sym }) : tr("Build grade shell")), onClick: runNumericModel, disabled: !canRun, icon: <Shapes size={14} />,
                 title: symbols.length || numericSources.length ? (collars.length ? tr("Interpolate grades onto a grid and extract the cutoff iso-surface") : tr("Load collars first")) : tr("Import assays first") }}
               result={{ key: lastShell?.id ?? null, body: res && (<>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>{lastShell.name}</div>
@@ -132,8 +132,8 @@ export default function GradeShellPane({ addVoxelModel, assayElements, assays, c
                 fieldStyle={miniField} selectStyle={smallSel} buttonStyle={{ ...pBtn, marginBottom: 0 }} />{/* TASKS.csv #3673 phase 2 */}
               </>) }}
               fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="shell">
-        {/* TASKS.csv #3939 — the method and what it honours, behind a closed More */}
-        <MoreFold style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Interpolation onto a grid (by the method chosen below), then an iso-surface at the cutoff. Runs in-app, no Python engine.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
+        {/* TASKS.csv #3939 — the method and what it honours, behind a closed fold; #4073 consistency: named Details, not a second plain More */}
+        <MoreFold summary={tr("Details")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Interpolation onto a grid (by the method chosen below), then an iso-surface at the cutoff. Runs in-app, no Python engine.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
               shared search-ellipsoid/anisotropy/domain machinery. The domain and the anisotropy trend
               are now threaded through it (see runNumericModel); the search ellipsoid's minimum-neighbour
               filter deliberately still isn't, and the panel says so instead of leaving the difference
