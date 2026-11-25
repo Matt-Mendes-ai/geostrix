@@ -15463,5 +15463,11 @@
   "A control point has no elevation.": "Un punto de control no tiene elevación.",
   "Place at least 2 control points.": "Coloque al menos 2 puntos de control.",
   "No holes or saved sections yet: type the ends.": "Aún no hay sondajes ni secciones guardadas: escriba los extremos.",
-  "Fit error": "Error de ajuste"
+  "Fit error": "Error de ajuste",
+  "Next: search": "Siguiente: búsqueda",
+  "Search": "Búsqueda",
+  "Next: blocks": "Siguiente: bloques",
+  "Next: run": "Siguiente: ejecutar",
+  "Run again": "Ejecutar de nuevo",
+  "Cautions and details": "Precauciones y detalles"
 }

@@ -15463,5 +15463,11 @@
   "A control point has no elevation.": "نقطة تحكم بلا منسوب.",
   "Place at least 2 control points.": "ضع نقطتي تحكم على الأقل.",
   "No holes or saved sections yet: type the ends.": "لا توجد ثقوب أو مقاطع محفوظة بعد: اكتب الطرفين.",
-  "Fit error": "خطأ الملاءمة"
+  "Fit error": "خطأ الملاءمة",
+  "Next: search": "التالي: البحث",
+  "Search": "البحث",
+  "Next: blocks": "التالي: الكتل",
+  "Next: run": "التالي: التشغيل",
+  "Run again": "أعد التشغيل",
+  "Cautions and details": "تنبيهات وتفاصيل"
 }

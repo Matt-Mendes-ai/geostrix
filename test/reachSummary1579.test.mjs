@@ -57,7 +57,7 @@ test("the cap statistics: duplicates still dropped, the same numbers, and cached
 test("wired: the worker, the counting state, the remembered settings, the samples wording", () => {
   const m = read("src/components/GradeEstimationModal.jsx");
   assert.ok(m.includes('import { makeReachClient } from "../lib/blockReachClient.js";') && !m.includes("blockReach(reachPts"));
-  assert.ok(m.includes("disabled={!bounds || overLimit || reachPending || running || !symbol || !uns.ready /* #2417 */}"));
+  assert.ok(m.includes("!bounds || overLimit || reachPending || running || !symbol || !uns.ready /* #2417 */"));
   assert.ok(m.includes('tr(", counting the blocks within {r} m of the drilling…", { r: reachRadius })'));
   assert.ok(/reachSummary\(reachArgsWithSolid\((args|a)\)\)/.test(read("src/lib/blockReach.worker.js"))); // #2422: a restricting solid is clipped first; a: the kept traces put back, #3007
   assert.ok(m.includes("lastEstimateSettings.set(settingsKey, remember.current)") && m.includes('const [method, setMethod] = useState(() => keep("method", "idw2"));'));
