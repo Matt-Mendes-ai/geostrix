@@ -13977,7 +13977,7 @@
   "Reduce the offset or widen the radius: the patch went through the surface, so the volume and any tonnage are meaningless, though the mesh still reports watertight.": "قلل الإزاحة أو وسّع نصف القطر: عبرت الرقعة السطح، فلم يعد للحجم ولا لأي حمولة معنى، وإن ظلت الشبكة تُبلغ بأنها محكمة.",
   "Moving vertices keeps a watertight shell watertight and an open surface as open as it was. Undo lasts this session only: once saved, an edit is permanent (coordinates round to 1 cm). Deleting and pinning vertices or triangles is not available yet.": "تحريك الرؤوس يُبقي الغلاف المحكم محكمًا والسطح المفتوح مفتوحًا كما كان. التراجع لهذه الجلسة فقط: بعد الحفظ يصبح التحرير دائمًا (تُقرّب الإحداثيات إلى 1 سم). حذف الرؤوس أو المثلثات وتثبيتها غير متاح بعد.",
   "not closed ({n} open edges: the cut's seam is two loops on one curve), so a closure check says open; the volume is exact to the cut tolerance": "غير مغلق ({n} حافة مفتوحة: درز القطع حلقتان على منحنى واحد)، لذا يقول فحص الإغلاق مفتوح؛ والحجم دقيق ضمن تفاوت القطع",
-  "\"{name}\" is not closed ({n} open edges): it can be clipped, but not combined with another solid, and the clip has no volume to trust.": "\"{name}\" غير مغلق ({n} حافة مفتوحة): يمكن قصّه، لكن لا يمكن دمجه مع مجسم آخر، ولا حجم موثوق للقص.",
+  "\"{name}\" has {n} open edges: it can be clipped, not combined, and a clip's volume is unreliable.": "\"{name}\" له {n} حافة مفتوحة: يمكن قصّه لا دمجه، وحجم القص غير موثوق.",
   "Keep the part of the solid on one side of a surface: a body cut at the ground, or ore trimmed at a fault. The surface inside the solid becomes the cap.": "يُبقي جزء المجسم على جانب واحد من سطح: جسم مقطوع عند الأرض، أو خام مشذَّب عند صدع. ويصير السطح داخل المجسم غطاءً.",
   "Intersection (ore inside a stope shape), union (two lenses as one domain) or difference (a vein minus a dyke), each as a new solid with its volume. Both must be closed.": "التقاطع (خام داخل شكل غرفة استخراج)، أو الاتحاد (عدستان كنطاق واحد)، أو الفرق (عرق ناقص قاطع)، كلٌّ كمجسم جديد بحجمه. يجب أن يكون كلاهما مغلقًا.",
   "The model is rebuilt from this project's last model run as sent: relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.": "يُعاد بناء النموذج من آخر تشغيل للنموذج في هذا المشروع كما أُرسل: العلاقة (تعرية أو onlap)، والحزم المتوافقة، وإزاحات الصدوع، ومدى حقل الجهد، والدقة.",
@@ -15522,5 +15522,7 @@
   "Panel": "اللوحة",
   "Kept by the filters": "ما أبقته المرشحات",
   "Plotted": "المرسومة",
-  "Next: plot": "التالي: الرسم"
+  "Next: plot": "التالي: الرسم",
+  "in front of": "أمام",
+  "behind": "خلف"
 }

@@ -13977,7 +13977,7 @@
   "Reduce the offset or widen the radius: the patch went through the surface, so the volume and any tonnage are meaningless, though the mesh still reports watertight.": "Réduisez le décalage ou élargissez le rayon : la zone a traversé la surface, donc le volume et tout tonnage n'ont plus de sens, même si le maillage reste signalé comme étanche.",
   "Moving vertices keeps a watertight shell watertight and an open surface as open as it was. Undo lasts this session only: once saved, an edit is permanent (coordinates round to 1 cm). Deleting and pinning vertices or triangles is not available yet.": "Déplacer des sommets garde étanche une enveloppe étanche et aussi ouverte qu'avant une surface ouverte. L'annulation ne vaut que pour cette session : une fois enregistrée, une modification est permanente (les coordonnées sont arrondies au cm). Supprimer et épingler des sommets ou triangles n'est pas encore disponible.",
   "not closed ({n} open edges: the cut's seam is two loops on one curve), so a closure check says open; the volume is exact to the cut tolerance": "non fermé ({n} arêtes ouvertes : la couture de la coupe est deux boucles sur une même courbe), une vérification de fermeture dit donc ouvert ; le volume est exact à la tolérance de coupe",
-  "\"{name}\" is not closed ({n} open edges): it can be clipped, but not combined with another solid, and the clip has no volume to trust.": "« {name} » n'est pas fermé ({n} arêtes ouvertes) : il peut être coupé, mais pas combiné avec un autre solide, et la coupe n'a pas de volume fiable.",
+  "\"{name}\" has {n} open edges: it can be clipped, not combined, and a clip's volume is unreliable.": "« {name} » a {n} arêtes ouvertes : il peut être coupé, pas combiné, et le volume d'une coupe n'est pas fiable.",
   "Keep the part of the solid on one side of a surface: a body cut at the ground, or ore trimmed at a fault. The surface inside the solid becomes the cap.": "Garde la partie du solide d'un côté d'une surface : un corps coupé au sol, ou du minerai taillé à une faille. La surface à l'intérieur du solide devient le couvercle.",
   "Intersection (ore inside a stope shape), union (two lenses as one domain) or difference (a vein minus a dyke), each as a new solid with its volume. Both must be closed.": "Intersection (minerai dans la forme d'un chantier), union (deux lentilles en un domaine) ou différence (une veine moins un dyke), chacune comme nouveau solide avec son volume. Les deux doivent être fermés.",
   "The model is rebuilt from this project's last model run as sent: relation (erode or onlap), conformable packages, fault offsets, potential-field range and precision.": "Le modèle est reconstruit à partir de la dernière exécution du modèle de ce projet telle qu'envoyée : relation (érosion ou onlap), paquets concordants, rejets de failles, portée du champ de potentiel et précision.",
@@ -15522,5 +15522,7 @@
   "Panel": "Panneau",
   "Kept by the filters": "Gardées par les filtres",
   "Plotted": "Tracées",
-  "Next: plot": "Suivant : diagramme"
+  "Next: plot": "Suivant : diagramme",
+  "in front of": "devant",
+  "behind": "derrière"
 }
