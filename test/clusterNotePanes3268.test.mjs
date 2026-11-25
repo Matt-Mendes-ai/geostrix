@@ -14,6 +14,6 @@ test("#3268 the cluster note heads Model settings, Implicit surface and Strat. s
   // TASKS.csv #4070 — the stack as steps: the note heads the StepPane, above its step bar
   assert.match(src, /<StepPane id="stack" label=\{tr\("Stratigraphic stack"\)\}\n\s+top=\{<>\{clusterNote\(true\)/);
   const settings = src.slice(src.indexOf('toolPane === "settings"'), src.indexOf('toolPane === "settings"') + 8000);
-  assert.ok(settings.includes("{clusterNote()"), "still in Model settings");
+  assert.ok(settings.includes("{clusterNote("), "still in Model settings"); // one line there since #4070 (clusterNote(true))
   assert.match(src, /Model one cluster at a time:/);
 });

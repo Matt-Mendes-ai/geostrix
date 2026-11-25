@@ -9,17 +9,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 
+import { requestStep, takeStep, STEP_EVENT } from "../lib/stepRequest.js"; // a step asked for from outside the pane (lib/stepRequest.js)
+export { requestStep };
+
 const kept = new Map(); // pane id -> step index (this session)
-// a step asked for from outside the pane (the Guide's doors, #4033): requestStep("stack", "faults") opens that step, now or when the pane mounts
-const asked = new Map(), EVENT = "geostrix-step-request";
-export function requestStep(id, key) {
-  asked.set(id, key);
-  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(EVENT, { detail: { id } }));
-}
 
 const muted = { color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" };
 
-// steps: [{ key, label, question, body, hint }] (label and question already translated); action: { label, onClick, disabled, title, icon, step } (step: the index it sits on, default the last);
+// steps: [{ key, label, question, body, hint }] (label and question already translated); action: { label, onClick, disabled, title, icon, step, attrs } (step: the index it sits on, default the last; attrs: extra attributes, e.g. data-mcp);
 // result: { key, body } (key: what changes when a new result lands, null before any); fineTune: a node (a closed MoreFold); label: the pane's name (translated)
 export default function StepPane({ id, label, steps, action, result, fineTune, top }) {
   const resultLabel = tr("Result");
@@ -36,11 +33,11 @@ export default function StepPane({ id, label, steps, action, result, fineTune, t
   }, [result?.key]); // only a new result moves the pane
   const keys = all.map((s) => s.key).join("|");
   useEffect(() => {
-    const take = () => { if (!asked.has(id)) return; const i = keys.split("|").indexOf(asked.get(id)); asked.delete(id); if (i >= 0) setAt(i); };
+    const take = () => { const k = takeStep(id); const i = k == null ? -1 : keys.split("|").indexOf(k); if (i >= 0) setAt(i); };
     take();
     const on = (e) => { if (e.detail?.id === id) take(); };
-    window.addEventListener(EVENT, on);
-    return () => window.removeEventListener(EVENT, on);
+    window.addEventListener(STEP_EVENT, on);
+    return () => window.removeEventListener(STEP_EVENT, on);
   }, [id, keys]);
   const step = all[Math.min(at, last)];
   const onResult = result && at === last;
@@ -77,7 +74,7 @@ export default function StepPane({ id, label, steps, action, result, fineTune, t
         </div>
       ))}
       {action && at === actionAt && (
-        <button type="button" className="gs-btn gs-btn--primary gs-btn--block" onClick={action.onClick} disabled={action.disabled} title={action.title} style={{ marginTop: 8, justifyContent: "center" }}>
+        <button type="button" className="gs-btn gs-btn--primary gs-btn--block" {...(action.attrs || {})} onClick={action.onClick} disabled={action.disabled} title={action.title} style={{ marginTop: 8, justifyContent: "center" }}>
           {action.icon}{action.label}
         </button>
       )}

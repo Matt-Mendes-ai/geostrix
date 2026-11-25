@@ -15463,5 +15463,22 @@
   "Place at least 2 control points.": "ضع نقطتي تحكم على الأقل.",
   "No holes or saved sections yet: type the ends.": "لا توجد ثقوب أو مقاطع محفوظة بعد: اكتب الطرفين.",
   "Fit error": "خطأ الملاءمة",
-  "Place a section figure in 3D: load it, click labelled points, place.": "ضع شكل مقطع في 3D: حمّله، وانقر نقاطًا مُسمّاة، ثم ضعه."
+  "Place a section figure in 3D: load it, click labelled points, place.": "ضع شكل مقطع في 3D: حمّله، وانقر نقاطًا مُسمّاة، ثم ضعه.",
+  "Codes": "الرموز",
+  "Codes and roles, youngest first": "الرموز والأدوار، الأحدث أولًا",
+  "Re-code": "إعادة الترميز",
+  "Re-code intervals?": "إعادة ترميز الفواصل؟",
+  "Number": "الترقيم",
+  "Number alternating flows?": "ترقيم الطفوح المتناوبة؟",
+  "Body": "الجسم",
+  "A closed body of one code?": "جسم مغلق لرمز واحد؟",
+  "Which holes?": "أي الثقوب؟",
+  "How fine?": "ما مدى الدقة؟",
+  "A rock unit or a grade?": "وحدة صخرية أم محتوى؟",
+  "Rock unit": "وحدة صخرية",
+  "Which codes make up the unit?": "أي الرموز تكوّن الوحدة؟",
+  "Draw it how?": "كيف تُرسم؟",
+  "Shells and blocks": "الأغلفة والكتل",
+  "Which map?": "أي خريطة؟",
+  "What else goes in?": "ماذا يدخل أيضًا؟"
 }

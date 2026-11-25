@@ -15463,5 +15463,22 @@
   "Place at least 2 control points.": "Coloque al menos 2 puntos de control.",
   "No holes or saved sections yet: type the ends.": "Aún no hay sondajes ni secciones guardadas: escriba los extremos.",
   "Fit error": "Error de ajuste",
-  "Place a section figure in 3D: load it, click labelled points, place.": "Coloque una figura de sección en 3D: cárguela, haga clic en puntos rotulados y colóquela."
+  "Place a section figure in 3D: load it, click labelled points, place.": "Coloque una figura de sección en 3D: cárguela, haga clic en puntos rotulados y colóquela.",
+  "Codes": "Códigos",
+  "Codes and roles, youngest first": "Códigos y funciones, el más joven primero",
+  "Re-code": "Recodificar",
+  "Re-code intervals?": "¿Recodificar intervalos?",
+  "Number": "Numerar",
+  "Number alternating flows?": "¿Numerar coladas alternantes?",
+  "Body": "Cuerpo",
+  "A closed body of one code?": "¿Un cuerpo cerrado de un código?",
+  "Which holes?": "¿Qué sondajes?",
+  "How fine?": "¿Qué tan fino?",
+  "A rock unit or a grade?": "¿Una unidad de roca o una ley?",
+  "Rock unit": "Unidad de roca",
+  "Which codes make up the unit?": "¿Qué códigos forman la unidad?",
+  "Draw it how?": "¿Cómo dibujarla?",
+  "Shells and blocks": "Envolventes y bloques",
+  "Which map?": "¿Qué mapa?",
+  "What else goes in?": "¿Qué más entra?"
 }

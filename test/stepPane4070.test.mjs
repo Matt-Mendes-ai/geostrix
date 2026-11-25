@@ -56,7 +56,8 @@ test("the shared StepPane: one gold primary (the pane's action), a step bar, Bac
   assert.match(s, /role="tablist"/);
   assert.match(s, /tr\("Back"\)/); assert.match(s, /tr\("Next"\)/); assert.match(s, /tr\("Result"\)/);
   assert.match(s, /hidden=\{i !== at\}/, "a step's parts that set a value when they mount (ShellCapNote's automatic cap) run whichever step is open");
-  assert.match(s, /export function requestStep\(id, key\)/, "the Guide's doors open a step (#4033)");
+  assert.match(s, /export \{ requestStep \};/, "the Guide's doors open a step (#4033)");
+  assert.match(readFileSync(new URL("../src/lib/stepRequest.js", import.meta.url), "utf8"), /export function requestStep\(id, key\)/, "plain JS, so a non-React module can ask (#4053)");
 });
 
 test("the compact pane message: the first sentence, the whole text one click away", async () => {

@@ -8,7 +8,7 @@ import { elementCoverage, writeDomains, DOMAIN_ATTR } from "../lib/geochemDomain
 import { geochemDomainsAsync } from "../lib/geochemDomainsClient.js"; // TASKS.csv #1797 — in a worker
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps, sel, th, td, label, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
+import { overlay, backdropProps, sel, th, td, label, panel, header } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
@@ -65,7 +65,7 @@ export default function DomainsPanel({ onClose }) {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={ctl}>{tr("Samples")}<select value={medium} onChange={(e) => { setMedium(e.target.value); setChosen(null); setResult(null); }} style={{ ...sel, display: "block", marginTop: 4 }}><option value="all">{tr("All media together")}</option>{media.map((m) => <option key={m} value={m}>{tr(m)}</option>)}</select></label>
             <label style={ctl}>{tr("Clusters (k)")}<select value={k} onChange={(e) => setK(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4 }}>{[2, 3, 4, 5, 6, 7, 8].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-            <button type="button" style={btn(true)} onClick={run} disabled={busy || symbols.length < 2 || subset.length < 6}>{busy ? tr("Running…") : tr("Run")}</button>
+            <button type="button" className="gs-btn gs-btn--primary" onClick={run} disabled={busy || symbols.length < 2 || subset.length < 6}>{busy ? tr("Running…") : tr("Run")}</button>
           </div>
           <div>
             <div style={label}>{tr("Elements ({n} of {m}; those with a value in 90 % of the samples are ticked)", { n: symbols.length, m: surfaceElements.length })}</div>
@@ -99,11 +99,11 @@ export default function DomainsPanel({ onClose }) {
                 </table>
               </div>
               <div style={note}>{tr("Within-cluster scatter by k:")} {result.elbow.map((e) => `${e.k}: ${e.withinSS.toFixed(0)}`).join(" · ")}</div>
-              <button type="button" style={{ ...btn(true), alignSelf: "flex-start" }} onClick={write}>{tr("Write \"{attr}\" to the samples", { attr: DOMAIN_ATTR })}</button>
+              <button type="button" className="gs-btn" style={{ alignSelf: "flex-start" }} onClick={write}>{tr("Write \"{attr}\" to the samples", { attr: DOMAIN_ATTR })}</button>
             </>
           )}
         </div>
-        <div style={{ display: "flex", padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}><span style={{ flex: 1 }} /><button type="button" style={btn(false)} onClick={onClose}>{tr("Close")}</button></div>
+        <div style={{ display: "flex", padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}><span style={{ flex: 1 }} /><button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button></div>
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ export default function GeomlBlockSize({ size, plan, typed, onChange, extra, sma
         <span>{tr("Block size (m)")}</span>
         <input type="number" min={BLOCK_MIN_M} max={BLOCK_MAX_M} step={5} value={text} placeholder={String(size.defaultM)} aria-label={tr("Block size (m)")}
           onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit(); }} style={{ ...smallSel, width: 64 }} />
-        {typed != null && <button type="button" style={{ fontSize: "var(--font-size-xs)" }} onClick={() => onChange(null)}>{tr("Reset")}</button>}
+        {typed != null && <button type="button" className="gs-btn gs-btn--quiet gs-btn--sm" onClick={() => onChange(null)}>{tr("Reset")}</button>}
       </label>
       <div style={note}>{size.source === "user" ? tr("Yours; the default is {m} m.", { m: size.defaultM }) : size.source === "halved" ? tr("Default: {m} m, half the quality's {q} m (closed solids).", { m: size.defaultM, q: size.qualityM }) : tr("Default: {m} m, from the quality.", { m: size.defaultM })}</div>
       {plan && (plan.more > 0

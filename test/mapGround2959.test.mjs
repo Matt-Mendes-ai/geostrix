@@ -19,5 +19,5 @@ test("contact points between units of the order, and measurements, counted on an
 test("the pane says it before the Build button", () => {
   const p = readFileSync(new URL("../src/components/MapModelPanel.jsx", import.meta.url), "utf8");
   assert.match(p, /mapGroundCount\(\{ contacts: extractMapContacts\(layer, unitField\)\.contacts, order, groundAt, measurements: \[\.\.\.bedding, \.\.\.planes\] \}\)/);
-  assert.ok(p.indexOf('tr("Terrain under the inputs:') < p.indexOf("<button onClick={() => onRun({ layer: effLayer")); // #3936: the layer with merged units
+  assert.ok(p.indexOf('tr("Terrain under the inputs:') < p.indexOf("onClick: () => onRun({ layer: effLayer")); // #3936: the layer with merged units; #4070: the Build is the steps' action, after the Data step
 });

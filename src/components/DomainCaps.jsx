@@ -19,7 +19,6 @@ export default function DomainCaps({ assays, symbol, unit, elementUnits, domainR
   }, [assays, symbol, unit, elementUnits, domainRows]);
   if (!rows.length) return null;
   const set = (d, v) => setCaps((c) => ({ ...c, [d]: v }));
-  const btn = { background: "none", border: "1px solid var(--color-border)", borderRadius: 4, padding: "0 5px", cursor: "pointer", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px" }}>
       <div style={{ marginBottom: 4 }} title={tr("A cap here applies to the composites of that domain only; blank = the cap below. The percentiles are length-weighted over that domain's own samples.")}>{tr("Cap per domain ({unit})", { unit })}</div>
@@ -30,8 +29,8 @@ export default function DomainCaps({ assays, symbol, unit, elementUnits, domainR
           <div key={r.d} style={{ display: "flex", alignItems: "center", gap: 5, padding: "1px 0", flexWrap: "wrap" }}>
             <span style={{ width: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={r.d}>{r.d}</span>
             <span style={{ width: 52, color: "var(--color-text-muted)" }}>{tr("{n} smp", { n: r.n })}</span>
-            <button type="button" style={btn} disabled={r.p975 == null} onClick={() => set(r.d, String(+r.p975.toPrecision(4)))}>P97.5 {fmt(r.p975)}</button>
-            <button type="button" style={btn} disabled={r.p99 == null} onClick={() => set(r.d, String(+r.p99.toPrecision(4)))}>P99 {fmt(r.p99)}</button>
+            <button type="button" className="gs-btn gs-btn--sm" disabled={r.p975 == null} onClick={() => set(r.d, String(+r.p975.toPrecision(4)))}>P97.5 {fmt(r.p975)}</button>
+            <button type="button" className="gs-btn gs-btn--sm" disabled={r.p99 == null} onClick={() => set(r.d, String(+r.p99.toPrecision(4)))}>P99 {fmt(r.p99)}</button>
             <NumberInput allowEmpty min="0" value={caps[r.d] ?? ""} placeholder={tr("global")} onChange={(v) => set(r.d, v == null ? "" : String(v))} aria-label={tr("Cap for domain {d}", { d: r.d })} style={{ width: 62, fontSize: "var(--font-size-xs)" }} />
             {audit && <span style={{ color: audit.pctMetalRemoved > 20 ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{tr("{c} of {n} capped, {m}% of the metal", { c: audit.nCapped, n: audit.nSamples, m: audit.pctMetalRemoved.toFixed(1) })}</span>}
           </div>

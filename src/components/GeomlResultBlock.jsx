@@ -21,8 +21,8 @@ export default function GeomlResultBlock({ addSurface, addVoxelModel, removeSurf
       <div data-result-block="" data-geoml-result="" style={{ position: sticky ? "sticky" : "static", top: 0, zIndex: 4, margin: "0 0 8px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", boxShadow: "0 2px 6px rgba(0,0,0,0.12)", fontSize: "var(--font-size-sm)", maxHeight: "calc(100vh - 200px)", overflowY: "auto" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: open ? 6 : 0 }}>
           <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", ...(open ? null : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }) }}><b>{tr("Result")}</b>{" · "}{tr("geoML: {label}", { label: res.label })}</div>
-          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? tr("Fold the result block") : tr("Open the result block")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: 0, flexShrink: 0 }}>{open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>
-          <button type="button" onClick={clearResult} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: 0, flexShrink: 0 }}><X size={14} /></button>
+          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? tr("Fold the result block") : tr("Open the result block")} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0 }}>{open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>
+          <button type="button" onClick={clearResult} aria-label={tr("Close")} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0 }}><X size={14} /></button>
         </div>
         {open && (<>
           {res.lines.map((l, i) => <div key={i} style={{ fontSize: "var(--font-size-xs)", color: i === 0 ? "var(--color-text)" : "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 2 }}>{l}</div>)}
@@ -31,8 +31,8 @@ export default function GeomlResultBlock({ addSurface, addVoxelModel, removeSurf
               const done = !!res.added[g.key];
               return (
                 <div key={g.key} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-                  <button type="button" disabled={done} onClick={() => addGroup(g.key, { addSurface, addVoxelModel })} style={{ ...pBtn, marginBottom: 0, flex: 1, opacity: done ? 0.55 : 1, cursor: done ? "default" : "pointer" }}><Box size={14} />{" "}{groupLabel(g.kind)}</button>
-                  {done && <button type="button" onClick={() => undoGroup(g.key, { removeSurface, removeVoxelModel })} style={{ fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-info)", cursor: "pointer", flexShrink: 0 }}>{tr("Added")}{" · "}{tr("Undo")}</button>}
+                  <button type="button" disabled={done} onClick={() => addGroup(g.key, { addSurface, addVoxelModel })} className="gs-btn gs-btn--block" style={{ marginBottom: 0, flex: 1 }}><Box size={14} />{" "}{groupLabel(g.kind)}</button>
+                  {done && <button type="button" onClick={() => undoGroup(g.key, { removeSurface, removeVoxelModel })} className="gs-btn gs-btn--quiet gs-btn--sm" style={{ flexShrink: 0 }}>{tr("Added")}{" · "}{tr("Undo")}</button>}
                 </div>
               );
             })}

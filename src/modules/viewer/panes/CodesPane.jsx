@@ -9,7 +9,7 @@ import { Suspense } from "react";
 export default function CodesPane({ emptyPaneHint, litho_units, mcodesPane, paneHeader, toolPane }) {
   return (<>
 {toolPane === "mcodes" && (<>
-        {paneHeader("Modelling codes", Waypoints, "model")}
+        {paneHeader("Modelling codes", Waypoints, "model", true /* #4070: the run messages as one line */)}
         {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}
         <Suspense fallback={null}>        {mcodesPane(null)}</Suspense>
         </>)}

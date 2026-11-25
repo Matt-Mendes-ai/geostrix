@@ -23,6 +23,8 @@ import { errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #739
 import { percentileSorted } from "../lib/arrayStats.js"; // TASKS.csv #740
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
+import StepPane, { StepChoices } from "./StepPane.jsx"; // TASKS.csv #4070 — the panel as steps
+import MoreFold from "./MoreFold.jsx";
 
 // TASKS.csv #638 — the Predictive tab (Matt: "a predictive modelling tab that will also do all modelling, but with its own
 // geoML tools. That way I can compare both models in app"). It drives the optional geoML add-on (addons/geoml, GPL-3.0):
@@ -115,6 +117,9 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
   const unitBlocks = blockSizePlan(blockBox, unitSize), gradeBlocks = blockSizePlan(blockBox, gradeSize);
   // ---- grade ----
   const elements = (assayElements || []).map((e) => e.symbol);
+  // TASKS.csv #4070 — which model the steps are about: a rock unit when there is a lithology log, else a grade
+  const [kind, setKind] = useState(() => (lithoMetres.length || !elements.length ? "rock" : "grade"));
+  const rockEmpty = !collars.length || !lithoMetres.length, gradeEmpty = !collars.length || !elements.length;
   const [element, setElement] = useState("");
   useEffect(() => { if (!element && elements.length) setElement(elements.includes("Cu") ? "Cu" : elements.includes("Au") ? "Au" : elements[0]); }, [elements.join(",")]);
 
@@ -336,15 +341,11 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
   };
 
   const box = { background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: 10, marginBottom: 10, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
-  const btn = (primary, disabled) => ({ padding: "6px 12px", borderRadius: 6, border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border)", background: primary ? "var(--color-success-bg)" : "var(--color-bg)", color: primary ? "var(--color-success-text)" : "var(--color-text)", cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1, fontSize: "var(--font-size-base)" });
   const h = { fontWeight: 600, color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 6 };
   const ready = st?.installed && !job;
 
   return (
     <div>
-      <div className="ge-section-label">{tr("Predictive modelling (geoML)")}</div>
-      <div style={box}>{tr("Models with")}{" "}<strong>{tr("uncertainty")}</strong>{" "}{tr("from Gaussian processes (")}<a href="https://github.com/italo-goncalves/geoML" target="_blank" rel="noreferrer">{tr("geoML")}</a>{tr(", Ítalo Gonçalves). Results appear in the 3D view as \"geoML — …\" beside your other models. Everything runs on this computer.")}</div>
-
       {!st ? <div style={box}>{tr("Checking the add-on…")}</div> : !st.installed ? (
         <div style={box}>
           <div style={h}>{tr("Install the add-on")}</div>
@@ -370,7 +371,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                 {inst.phase === "download" && <button type="button" className="gs-btn gs-btn--sm" onClick={() => addonCancelInstall()}>{tr("Cancel")}</button>}
               </>
             ) : (
-              <button type="button" style={btn(modelableHoles > 0 /* #1845: not the primary action with nothing to model */, !st.url && !st.browser)} disabled={!st.url} onClick={() => setConfirmInstall(true)}>{tr("Install predictive modelling…")}</button>
+              <button type="button" className={`gs-btn gs-btn--block${modelableHoles > 0 ? " gs-btn--primary" : ""}`} /* gs-primary-alt: the Install step, before its confirmation (#688); #1845: not the primary action with nothing to model */ disabled={!st.url} onClick={() => setConfirmInstall(true)}>{tr("Install predictive modelling…")}</button>
             )}
           </div>
           {!st.url && !st.browser && <div style={{ marginTop: 6 }}>{tr("The add-on download isn't published for this version yet.")}</div>}
@@ -402,25 +403,45 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
               {inst?.error && <div style={{ marginTop: 6, color: "var(--color-danger-fg)" }}>{inst.error}</div>}
             </div>
           )}
-          <div style={box}>
+          {/* TASKS.csv #4070 (Matt's layout C) — the panel as steps: 1 Model (a rock unit or a grade, the quality), 2 What, 3 Shape -> Model, 4 Result (this
+              session's runs); the rarer options in Fine-tune. What geoML is: the first question's tooltip and Help. */}
+          <StepPane id="geoml" label={tr("geoML models")}
+            top={<>
+            {busyJob && (
+              <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6 }}>{tr("A model started earlier is still running in the add-on.")}{" "}
+                <button type="button" onClick={() => cancelJob(busyJob).then(() => { setBusyJob(null); setNotices((p) => [...p, notice("geoML: the earlier model was cancelled.")]); }, (e) => setNotices((p) => [...p, errorNotice(tr("geoML: could not cancel it ({message}).", { message: e.message }))]))} className="gs-btn gs-btn--sm" style={{ padding: "1px 7px" }}>{tr("Cancel it")}</button>
+              </div>
+            )}
+          {job && (
+            <div style={{ ...box, borderColor: "var(--color-accent)" }}>
+              <div style={h}>{job.label}</div>
+              <div style={{ height: 6, background: "var(--color-border)", borderRadius: 3, overflow: "hidden", margin: "4px 0 6px" }}>
+                <div style={{ width: `${Math.round((job.progress || 0) * 100)}%`, height: "100%", background: "var(--color-accent)" }} />
+              </div>
+              <div>{job.message}{job.elapsed ? ` · ${formatElapsed(job.elapsed)}` : ""}</div>
+              {/* #1142 — the add-on's block prediction says nothing until it ends: a still bar is not a frozen app */}
+              {!job.cancelling && quietFor(job) >= 60 && <div style={{ marginTop: 4, color: "var(--color-text-muted)" }}>{tr("No progress reported for {t}. This step can run a long time on a large project. Cancel stops it safely and gives the memory back.", { t: formatElapsed(quietFor(job)) })}</div>}
+              <button type="button" disabled={!!job.cancelling} className="gs-btn gs-btn--sm" style={{ marginTop: 6 }} onClick={() => cancelRun(tr("Cancelling…"))}>{tr("Cancel")}</button>
+            </div>
+          )}
+            </>}
+            steps={[
+              { key: "kind", label: tr("Model"), question: tr("A rock unit or a grade?"), hint: `${tr("Models with")} ${tr("uncertainty")} ${tr("from Gaussian processes (")}geoML${tr(", Ítalo Gonçalves). Results appear in the 3D view as \"geoML — …\" beside your other models. Everything runs on this computer.")}`, body: (<>
+                <StepChoices label={tr("Model")} columns={2} value={kind} onChange={setKind} options={[
+                  { value: "rock", label: tr("Rock unit"), title: rockEmpty ? tr("Load drillholes with a lithology log first.") : undefined },
+                  { value: "grade", label: tr("Grade"), title: gradeEmpty ? tr("Load assays (Geochem tab) first.") : undefined },
+                ]} />
+                <div style={{ marginTop: 8 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <span style={{ flex: 1 }}>{tr("Quality")}</span>
               <select value={quality} onChange={(e) => setQuality(e.target.value)} aria-label={tr("Model quality")} style={{ ...smallSel, flex: 2 }}>
                 {Object.entries(QUALITY).map(([k, q]) => <option key={k} value={k}>{tr(q.label)}</option>)}
               </select>
             </div>{tr("Time grows with holes and quality: start with Fast. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
-          </div>
-
-          <div style={box}>
-            {busyJob && (
-              <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6 }}>{tr("A model started earlier is still running in the add-on.")}{" "}
-                <button type="button" onClick={() => cancelJob(busyJob).then(() => { setBusyJob(null); setNotices((p) => [...p, notice("geoML: the earlier model was cancelled.")]); }, (e) => setNotices((p) => [...p, errorNotice(tr("geoML: could not cancel it ({message}).", { message: e.message }))]))} style={{ ...btn(false, false), padding: "1px 7px" }}>{tr("Cancel it")}</button>
-              </div>
-            )}
-            <div style={h}>{tr("Model a rock unit")}</div>
-            {!collars.length || !lithoMetres.length ? tr("Load drillholes with a lithology log first.") : (
-              <>
-                <div style={{ marginBottom: 4 }}>{tr("Codes that make up the unit:")}</div>
+                </div>
+              </>) },
+              { key: "what", label: kind === "rock" ? tr("Codes") : tr("Element"), question: kind === "rock" ? tr("Which codes make up the unit?") : tr("Which element?"), body: kind === "rock" ? (
+                rockEmpty ? tr("Load drillholes with a lithology log first.") : (<>
                 <div style={{ maxHeight: 150, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 5, padding: 4, background: "var(--color-bg)" }}>
                   {lithoMetres.map(([code, m]) => (
                     // TASKS.csv #687 — the "use / left out" toggle was a span INSIDE the checkbox's <label>, so one click flipped
@@ -442,11 +463,64 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                           setLeaveOut((s) => { const n = new Set(s); leaving ? n.add(code) : n.delete(code); return n; });
                           if (leaving) setUnit((u) => { if (!u.has(code)) return u; const n = new Set(u); n.delete(code); return n; });
                         }}
-                        style={{ fontSize: "var(--font-size-xs)", color: leaveOut.has(code) ? "var(--color-warn-text)" : "var(--color-text-muted)", cursor: "pointer", background: "none", border: "none", padding: "0 2px", fontFamily: "inherit" }}>{leaveOut.has(code) ? tr("left out") : "use"}</button>
+                        className="gs-btn gs-btn--quiet gs-btn--sm" style={{ padding: "0 2px", ...(leaveOut.has(code) ? { color: "var(--color-warn-text)" } : {}) }}>{leaveOut.has(code) ? tr("left out") : "use"}</button>
                     </div>
                   ))}
                 </div>
                 <input value={unitName} onChange={(e) => setUnitName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Unit name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box", marginTop: 6 }} />
+                {mix?.mixed && ( /* TASKS.csv #4019 — before the run: one unit (or one package) per run models best */
+                  <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginTop: 6, lineHeight: 1.4 }}>
+                    {mixText(mix)}{" "}<button type="button" className="gs-btn gs-btn--sm" onClick={() => setUnit(new Set([mix.largest]))}>{tr("Model {u} alone", { u: mix.largest })}</button>
+                  </div>
+                )}
+                </>)) : (<>
+                  {/* TASKS.csv #677 — the one grade-estimation tool that said nothing about what its output is not: one line now (#4070), the rest in its tooltip */}
+                  <div role="note" title={tr("A targeting aid with uncertainty: no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC.")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6 }}><strong>{tr("Not a resource estimate.")}</strong></div>
+                  {gradeEmpty ? tr("Load assays (Geochem tab) first.") : (
+                <select value={element} onChange={(e) => setElement(e.target.value)} aria-label={tr("Element")} style={{ ...smallSel, width: "100%" }}>
+                  {elements.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                  )}
+                </>) },
+              { key: "shape", label: tr("Shape"), question: kind === "rock" ? tr("Draw it how?") : tr("Shells and blocks"), body: kind === "rock" ? (<>
+                {unit.size > 0 && (
+                  <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
+                    <div style={{ marginBottom: 2 }}>{tr("Draw the unit as")}</div>
+                    {[["bodies", tr("Enclosed bodies (closed solids)")], ["layers", tr("Layers (open contact)")]].map(([k, text]) => (
+                      <label key={k} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 2 }}>
+                        <input type="radio" name="geoml-shape" checked={shape === k} onChange={() => setShapePick(k)} />{" "}<span>{text}{suggestion?.shape === k && !shapePick ? ` (${tr("suggested")})` : ""}</span></label>
+                    ))}
+                    {suggestion && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{shapeWhy(suggestion)}</div>}
+                    {shape === "bodies" && (
+                      <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+                        <span>{tr("Body level (probability, %)")}</span><input type="number" min={5} max={95} step={5} value={bodyPct} onChange={(e) => setBodyPct(Math.max(5, Math.min(95, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} /></label>
+                    )}
+                    <GeomlBlockSize size={unitSize} plan={unitBlocks} typed={blockSizes.unit} onChange={blockSizes.setUnit} extra={unitBlocks ? extraTime(bodiesExtraSeconds(unitBlocks.blocks, unitBlocks.baseBlocks)) : ""} smallSel={smallSel} />{/* TASKS.csv #4054 */}
+                  </div>
+                )}
+              </>) : (gradeEmpty ? null : <>
+                <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
+                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={shellsOn} onChange={(e) => setShellsOn(e.target.checked)} />{tr("Also draw grade shells")}</label>
+                  {shellsOn && (() => { const cs = gradePlan?.cutSuggestion, u = (assayElements || []).find((e) => e.symbol === element)?.unit || ""; return (
+                    <>
+                      <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+                        <span>{tr("Cut-offs ({unit})", { unit: u })}</span><input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} placeholder={cs?.first != null ? String(cs.first) : ""} style={{ ...smallSel, width: 110 }} /></label>
+                      {cs?.first != null && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Median {m}, Q3 {q}, P90 {p}", { m: cs.median, q: cs.q3, p: cs.p90 })}</div>}
+                      <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}><input type="checkbox" checked={bandsOn} onChange={(e) => setBandsOn(e.target.checked)} />{tr("Also the P10 and P90 shells")}</label>
+                    </>); })()}
+                </div>
+                <GeomlBlockSize size={gradeSize} plan={gradeBlocks} typed={blockSizes.grade} onChange={blockSizes.setGrade} extra={gradeBlocks ? extraTime(gradeExtraSeconds(gradeBlocks.blocks, gradeBlocks.baseBlocks)) : ""} smallSel={smallSel} />{/* TASKS.csv #4054 */}
+              </>) },
+            ]}
+            action={kind === "rock" ? { label: tr("Model {v}", { v: unit.size ? (unitName.trim() || [...unit].join(" + ")) : tr("the unit") }), onClick: runUnit, disabled: !ready || !unit.size || rockEmpty } : { label: tr("Model {v}", { v: element || tr("a grade") }), onClick: runGrade, disabled: !ready || !element || gradeEmpty }}
+            result={{ key: runs.length ? runs.length : null, body: (
+            <div style={box}>
+              <div style={h}>{tr("This session")}</div>
+              {runs.map((r, i) => <div key={i} style={{ marginBottom: 4 }}><strong>{r.label}</strong> · {r.secs} s · {r.at}<br />{r.note}<GeomlRunAdvice advice={r.advice} mix={r.mix} blockM={r.blockM} onFix={applyFix} /* #4019 */ /><GeomlMissedIntercepts result={r.intercepts} label={r.label} /></div>)}
+            </div>
+            ) }}
+            fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="geoml">
+              {kind === "rock" && !rockEmpty && (<>
                 <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }} title={tr("geoML's deep model (GPWalk): a vector field bends the space so the contact can follow folds. Slower.")}>
                   <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} />{" "}{tr("Follow folds (deep model, slower)")}</label>
                 {hiddenCount > 0 && (
@@ -470,84 +544,19 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                     {unitPlan.capped && <div style={{ color: "var(--color-text-muted)" }}>{tr("{c} contacts need {n} inducing points; an up-to-date add-on keeps {cap} along the holes, so the model will be coarse. Check its fit to the logs.", { c: unitPlan.contacts.toLocaleString(), n: unitPlan.inducingBuilt.toLocaleString(), cap: INDUCING_CAP })}</div>}
                   </div>
                 )}
-                {mix?.mixed && ( /* TASKS.csv #4019 — before the run: one unit (or one package) per run models best */
-                  <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginTop: 6, lineHeight: 1.4 }}>
-                    {mixText(mix)}{" "}<button type="button" style={{ fontSize: "var(--font-size-xs)" }} onClick={() => setUnit(new Set([mix.largest]))}>{tr("Model {u} alone", { u: mix.largest })}</button>
-                  </div>
-                )}
-                {unit.size > 0 && (
-                  <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
-                    <div style={{ marginBottom: 2 }}>{tr("Draw the unit as")}</div>
-                    {[["bodies", tr("Enclosed bodies (closed solids)")], ["layers", tr("Layers (open contact)")]].map(([k, text]) => (
-                      <label key={k} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 2 }}>
-                        <input type="radio" name="geoml-shape" checked={shape === k} onChange={() => setShapePick(k)} />{" "}<span>{text}{suggestion?.shape === k && !shapePick ? ` (${tr("suggested")})` : ""}</span></label>
-                    ))}
-                    {suggestion && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{shapeWhy(suggestion)}</div>}
-                    {shape === "bodies" && (
-                      <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
-                        <span>{tr("Body level (probability, %)")}</span><input type="number" min={5} max={95} step={5} value={bodyPct} onChange={(e) => setBodyPct(Math.max(5, Math.min(95, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} /></label>
-                    )}
-                    <GeomlBlockSize size={unitSize} plan={unitBlocks} typed={blockSizes.unit} onChange={blockSizes.setUnit} extra={unitBlocks ? extraTime(bodiesExtraSeconds(unitBlocks.blocks, unitBlocks.baseBlocks)) : ""} smallSel={smallSel} />{/* TASKS.csv #4054 */}
-                  </div>
-                )}
-                <button type="button" style={{ ...btn(true, !ready || !unit.size), marginTop: 8, width: "100%" }} disabled={!ready || !unit.size} onClick={runUnit}>{tr("Model {v}", { v: unit.size ? (unitName.trim() || [...unit].join(" + ")) : tr("the unit") })}</button>
-              </>
-            )}
-          </div>
-
-          <div style={box}>
-            <div style={h}>{tr("Model a grade")}</div>
-            {/* TASKS.csv #677 — the one grade-estimation tool that said nothing about what its output is not */}
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6, lineHeight: 1.4 }}>
-              <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("A targeting aid with uncertainty: no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC.")}</div>
-            {!collars.length || !elements.length ? tr("Load assays (Geochem tab) first.") : (
-              <>
-                <select value={element} onChange={(e) => setElement(e.target.value)} aria-label={tr("Element")} style={{ ...smallSel, width: "100%" }}>
-                  {elements.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+              </>)}
+              {kind === "grade" && !gradeEmpty && (<>
                 {gradePlan && (
                   <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
                     {gradePlan.factor > 1 && <div style={{ color: "var(--color-warn-text)" }}>{tr("{n} composites would be {t} of training, more than a computer can hold, so composites are {c} m here instead of {base} m.", { n: gradePlan.wanted.composites.toLocaleString(), t: roughTime(gradePlan.wanted.seconds), c: gradePlan.composite, base: QUALITY[quality].grade.composite })}</div>}
                     <div style={{ color: "var(--color-text-muted)" }}>{tr("This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.", { n: gradePlan.composites.toLocaleString(), t: roughTime(gradePlan.seconds) })}</div>
                   </div>
                 )}
-                <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
-                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={shellsOn} onChange={(e) => setShellsOn(e.target.checked)} />{tr("Also draw grade shells")}</label>
-                  {shellsOn && (() => { const cs = gradePlan?.cutSuggestion, u = (assayElements || []).find((e) => e.symbol === element)?.unit || ""; return (
-                    <>
-                      <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
-                        <span>{tr("Cut-offs ({unit})", { unit: u })}</span><input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} placeholder={cs?.first != null ? String(cs.first) : ""} style={{ ...smallSel, width: 110 }} /></label>
-                      {cs?.first != null && <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Median {m}, Q3 {q}, P90 {p}", { m: cs.median, q: cs.q3, p: cs.p90 })}</div>}
-                      <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}><input type="checkbox" checked={bandsOn} onChange={(e) => setBandsOn(e.target.checked)} />{tr("Also the P10 and P90 shells")}</label>
-                    </>); })()}
-                </div>
-                <GeomlBlockSize size={gradeSize} plan={gradeBlocks} typed={blockSizes.grade} onChange={blockSizes.setGrade} extra={gradeBlocks ? extraTime(gradeExtraSeconds(gradeBlocks.blocks, gradeBlocks.baseBlocks)) : ""} smallSel={smallSel} />{/* TASKS.csv #4054 */}
-                <button type="button" style={{ ...btn(true, !ready || !element), marginTop: 8, width: "100%" }} disabled={!ready || !element} onClick={runGrade}>{tr("Model {v}", { v: element || tr("a grade") })}</button>
-              </>
-            )}
-          </div>
-
-          {job && (
-            <div style={{ ...box, borderColor: "var(--color-accent)" }}>
-              <div style={h}>{job.label}</div>
-              <div style={{ height: 6, background: "var(--color-border)", borderRadius: 3, overflow: "hidden", margin: "4px 0 6px" }}>
-                <div style={{ width: `${Math.round((job.progress || 0) * 100)}%`, height: "100%", background: "var(--color-accent)" }} />
+              </>)}
+              <div style={{ marginTop: 8 }}>
+          {!st.dev && <button type="button" className="gs-btn gs-btn--danger gs-btn--sm" disabled={!!job} onClick={async () => { if (await askConfirm(tr("Remove the predictive-modelling add-on from this computer? Models already in your project stay."))) { await addonUninstall(); refresh(); } }}>{tr("Remove the add-on")}</button>}
               </div>
-              <div>{job.message}{job.elapsed ? ` · ${formatElapsed(job.elapsed)}` : ""}</div>
-              {/* #1142 — the add-on's block prediction says nothing until it ends: a still bar is not a frozen app */}
-              {!job.cancelling && quietFor(job) >= 60 && <div style={{ marginTop: 4, color: "var(--color-text-muted)" }}>{tr("No progress reported for {t}. This step can run a long time on a large project. Cancel stops it safely and gives the memory back.", { t: formatElapsed(quietFor(job)) })}</div>}
-              <button type="button" disabled={!!job.cancelling} style={{ ...btn(false), marginTop: 6 }} onClick={() => cancelRun(tr("Cancelling…"))}>{tr("Cancel")}</button>
-            </div>
-          )}
-
-          {runs.length > 0 && (
-            <div style={box}>
-              <div style={h}>{tr("This session")}</div>
-              {runs.map((r, i) => <div key={i} style={{ marginBottom: 4 }}><strong>{r.label}</strong> · {r.secs} s · {r.at}<br />{r.note}<GeomlRunAdvice advice={r.advice} mix={r.mix} blockM={r.blockM} onFix={applyFix} /* #4019 */ /><GeomlMissedIntercepts result={r.intercepts} label={r.label} /></div>)}
-            </div>
-          )}
-
-          {!st.dev && <button type="button" style={{ ...btn(false, !!job), fontSize: "var(--font-size-sm)" }} disabled={!!job} onClick={async () => { if (await askConfirm(tr("Remove the predictive-modelling add-on from this computer? Models already in your project stay."))) { await addonUninstall(); refresh(); } }}>{tr("Remove the add-on")}</button>}
+            </MoreFold>} />
         </>
       )}
     </div>

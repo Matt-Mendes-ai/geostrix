@@ -507,6 +507,7 @@ export default function ModellingPanes(props) {
       if (s.holes) { setVisibleHoles(onlyTheseHoles(collars, s.holes)); setHoleFilter?.(""); }
       if (s.area) setModelArea(s.area);
       if (s.resolution) setModelResolution(s.resolution);
+      requestStep("settings", s.resolution && !s.area && !s.holes ? "detail" : "area"); // #4070 — the step the Guide's door is about
       return;
     }
     const s = stackIntent(it);
