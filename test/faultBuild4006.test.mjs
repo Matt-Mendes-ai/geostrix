@@ -72,7 +72,7 @@ test("#4006 wiring: the run, the cut to the extent, the provenance, the stack", 
   assert.match(b, /runStructuralModel\?\.\(null, \{ faultSpecs: specs \}\)/);
   assert.match(b, /setStackFaults\?\.\(\(p\) => \(p\.includes\(k\) \|\| p\.length >= 6 \? p : \[\.\.\.p, k\]\)\)/);
   assert.doesNotMatch(b, /fault: true/, "solved on its own, not as a stack's fault group");
-  assert.match(read("../src/modules/viewer/FaultsPanel.jsx"), /<FaultBuilder key=\{activeTabId\} \{\.\.\.props\} \/>/); // a project tab's own choices
+  assert.match(read("../src/modules/viewer/FaultsPanel.jsx"), /<FaultBuilder key=\{activeTabId\} \{\.\.\.props\} fineTune=\{other\} \/>/); // a project tab's own choices
   // sheeted planes: no solver; each sheet registered as a fault surface through the world-mesh route, with its inputs for the stack
   assert.match(b, /const \[shape, setShape\] = useState\("planes"\);/);
   assert.match(b, /if \(shape === "planes"\) \{ buildPlanes\(other, msgs\); setSaid\(msgs\); return; \}/);

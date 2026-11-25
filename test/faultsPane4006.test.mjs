@@ -34,21 +34,33 @@ test("#4006 fault evidence counted by kind, with made-up data", () => {
   assert.deepEqual(faultInventory(), { picks: 0, pickTypes: 0, outcrop: 0, logged: 0, mapped: 0, drawn: 0, sectionStrings: 0, surfaces: 0, inStack: 0 });
 });
 
-test("#4006 the pane: every fault tool is a row that opens it where it lives", () => {
+test("#4006 / #4070 the pane: the builder as steps; the tools the ribbon has are named, the two it has not are buttons; every fault tool is still reachable", () => {
   const p = read("../src/modules/viewer/FaultsPanel.jsx");
   const ids = [...p.matchAll(/\{ id: "([a-z]+)", name:/g)].map((m) => m[1]);
-  assert.deepEqual(ids, ["guided", "structural", "mapmodel", "stack", "explicit", "domains", "interpret", "section", "stereonet", "tadpole", "coreorient"]);
+  assert.deepEqual(ids, ["guided", "interpret"], "the rows the ribbon has not");
   assert.match(p, /requestModuleAction\("guided-open", \{ tool: "faults" \}\)/);
-  for (const pane of ["structural", "mapmodel", "stack", "explicit"]) assert.match(p, new RegExp(`requestModuleAction\\("open-pane", \\{ pane: "${pane}" \\}\\)`));
   assert.match(p, /requestModuleAction\("interpret-lines", \{\}\)/);
-  for (const s of ["setStereonetOpen", "setTadpoleOpen", "setCoreOrientOpen"]) assert.match(p, new RegExp(`c\\.${s}\\?\\.\\(true\\)`));
+  // the reachable set: the seven the ribbon has are named in the fold AND still on the ribbon; Domains and the Section window are said in a line each
+  const named = [...p.matchAll(/RIBBON_FAULT_TOOLS = \[([^\]]*)\]/g)][0][1].split(",").map((x) => x.trim().replace(/^"|"$/g, ""));
+  assert.deepEqual(named, ["Strat. stack", "Explicit surface", "Structures", "Model from map", "Stereonet", "Downhole plot", "Core orient."]);
+  const ribbon = read("../src/modules/viewer/ModeRibbons.jsx");
+  for (const n of named) assert.ok(ribbon.includes(`label="${n}"`), `the 3D Modelling ribbon still has ${n}`);
+  assert.match(p, /Domains: fault blocks; choose the fault surface in the Domains list, below the panes\./);
+  assert.match(p, /Section window: open a section, then Draw fault; the builder above uses the strings\./);
+  assert.match(p, /<MoreFold summary=\{tr\("Other fault tools…"\)\} data-fine-tune="faults">/);
   assert.match(p, /A fault surface from a few points is a guess, and beyond its evidence it is extrapolated, not observed\./); // the protective line
+  // the steps
+  const b = read("../src/modules/viewer/FaultBuilder.jsx");
+  assert.match(b, /<StepPane id="faults" label=\{tr\("Faults"\)\}/);
+  for (const k of ['key: "evidence"', 'key: "faults"', 'key: "shape"']) assert.ok(b.includes(k), k);
+  for (const k of ["setOff(", "setAssign(", "setNames(", "setDips(", "setShape(", "setGapM(", "setExtent(", "setMarginM(", "setUntil(", "check(s)", "addToStack(s)", "setCheckN("]) assert.ok(b.includes(k), k);
+  assert.match(b, /onClick: build/);
   // the guided card's tool id is the one opened
   assert.match(read("../src/modules/viewer/guided/guidedTools.js"), /id: "faults"/);
   // wiring: a lazy chunk of ModellingPanes; ViewerModule only knows the pane id and the opener
   const mp = modellingPanesSource();
   assert.match(mp, /const FaultsPanel = lazy\(\(\) => import\("\.\.\/FaultsPanel\.jsx"\)\);/); // #4070 — in panes/FaultsPane.jsx
-  assert.match(mp, /\{toolPane === "faults" && \(<>[^\n]*\n\s*\{paneHeader\("Faults", SquareSplitVertical, "model"\)\}\n\s*<Suspense fallback=\{null\}><FaultsPanel \{\.\.\.props\} pBtn=\{pBtn\} \/><\/Suspense>/);
+  assert.match(mp, /\{toolPane === "faults" && \(<>[^\n]*\n\s*\{paneHeader\("Faults", SquareSplitVertical, "model", true[^\n]*\n\s*<Suspense fallback=\{null\}><FaultsPanel \{\.\.\.props\} pBtn=\{pBtn\} \/><\/Suspense>/);
   const vm = read("../src/modules/ViewerModule.jsx");
   assert.doesNotMatch(vm, /FaultsPanel/);
   assert.match(vm, /const MODELLING_PANES = new Set\(\[[^\n]*"faults" \/\* #4006 \*\/\]\);/);

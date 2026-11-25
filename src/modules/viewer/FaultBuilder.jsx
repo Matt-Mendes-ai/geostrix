@@ -9,7 +9,7 @@ import { requestModuleAction } from "../../lib/menuRequests.js";
 import { useStore } from "../../lib/store.jsx";
 import { smallSel } from "../../lib/sidebarStyles.js";
 import NumberInput from "../../components/NumberInput.jsx";
-import MoreFold from "../../components/MoreFold.jsx"; // the explanations, behind More (Matt: less text first)
+import StepPane from "../../components/StepPane.jsx"; // TASKS.csv #4070 — the builder as steps
 import { faultSpec } from "../../lib/faultEvidence.js";
 import { gatherFaultEvidence, keepInsideWorld, downDipReach } from "./faultGather.js";
 import { planeOf, buildFaultPlanes, FAULT_CHECK_M } from "./faultRun.js"; // TASKS.csv #4053 — the sheeted-planes build, shared with an AI app's build_fault
@@ -30,7 +30,7 @@ const count = (n, what) => ({
 })[what];
 
 export default function FaultBuilder(props) {
-  const { tracesRef, tracesSeq, mapLayers, sections, terrain, surfaceStructures, originRef, implicitSurfaces, runStructuralModel, implicitBusy, setStackFaults, stackFaults, addWorldMeshSurface } = props;
+  const { tracesRef, tracesSeq, mapLayers, sections, terrain, surfaceStructures, originRef, implicitSurfaces, runStructuralModel, implicitBusy, setStackFaults, stackFaults, addWorldMeshSurface, fineTune } = props;
   const { layers = {}, generatedSurfaces = [] } = useStore() || {};
   const items = useMemo(() => gatherFaultEvidence({ traces: tracesRef?.current || [], layers, surfaceStructures, mapLayers, sections, terrain }), [tracesSeq, tracesRef, layers, surfaceStructures, mapLayers, sections, terrain]); // tracesSeq: the traces' version (tracesRef is a ref)
   const [off, setOff] = useState({}); // kind -> true: not used
@@ -105,96 +105,98 @@ export default function FaultBuilder(props) {
   };
 
   const nOk = faults.filter((f) => f.spec?.ok).length;
-  return (
-    <div data-fault-builder="" style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", marginTop: 8 }}>
-      <div style={{ fontWeight: 600 }}>{tr("Build from all the evidence")}</div>
-      {!items.length && <div style={{ ...note, marginTop: 4 }}>{tr("No fault evidence yet.")}</div>}
-      {KINDS.filter((k) => byKind[k].length).map((k) => (
-        <div key={k} data-fault-kind={k} style={{ marginTop: 6 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 500 }}>
-            <input type="checkbox" checked={!off[k]} onChange={(e) => setOff((p) => ({ ...p, [k]: !e.target.checked }))} />
-            {kindName(k)} <span style={note}>{byKind[k].length}</span>
-          </label>
-          {!off[k] && LINE_KINDS.has(k) && byKind[k].length > 1 && <div style={{ ...note, paddingLeft: 18 }}>{tr("Each line starts left out: give it its fault.")}</div>}
-          {!off[k] && <div style={{ maxHeight: 140, overflowY: "auto", paddingLeft: 18 }}>
-            {byKind[k].map((it) => (
-              <div key={it.id} data-fault-item={it.id} style={{ display: "flex", alignItems: "center", gap: 6, ...note, color: "var(--color-text-secondary)" }}>
-                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.name}>
-                  {it.name} · {it.points.length === 1 ? tr("{n} point", { n: 1 }) : tr("{n} points", { n: it.points.length })}{it.orientations.length ? ` · ${tr("{n} with a dip", { n: it.orientations.length })}` : ""}{it.dipSource === "default" ? ` · ${tr("default dip {d}°", { d: it.orientations[0]?.dip })}` : ""}{it.level != null ? ` · ${tr("RL {z} m", { z: it.level })}` : ""}
-                </span>
-                <select value={faultOf(it)} onChange={(e) => { const v = Number(e.target.value); if (v === names.length) setNames((p) => [...p, tr("Fault {n}", { n: p.length + 1 })]); setAssign((p) => ({ ...p, [it.id]: v })); }} style={{ ...smallSel, flex: "0 0 auto", maxWidth: 110 }} aria-label={tr("The fault {item} belongs to", { item: it.name })}>
-                  {names.map((n, i) => <option key={i} value={i}>{n}</option>)}
-                  {names.length < MAX_FAULTS && <option value={names.length}>{tr("New fault")}</option>}
-                  <option value={-1}>{tr("Leave out")}</option>
-                </select>
-              </div>
-            ))}
-          </div>}
-        </div>
-      ))}
-      {items.length > 0 && faults.filter((f) => f.items.length).map((f) => (
-        <div key={f.i} data-fault={f.i} style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid var(--color-divider)" }}>
-          <input value={f.name} onChange={(e) => setNames((p) => p.map((x, i) => (i === f.i ? e.target.value : x)))} aria-label={tr("Fault name")} style={{ ...smallSel, width: "100%", fontWeight: 500 }} />
-          {f.spec?.ok && <div style={note}>{tr("{points} and {orientations} from {items}.", { points: count(f.spec.points.length, "point"), orientations: count(f.spec.orientations.length, "orientation"), items: count(f.items.length, "item") })}{f.spec.said.some((x) => x.key === "fitted") ? ` ${tr("Fitted plane {dip}° → {dir}°.", { dip: Math.round(f.spec.plane.dip), dir: Math.round(f.spec.plane.dipDir) })}` : ""}</div>}
-          {f.spec && !f.spec.ok && f.spec.why === "no-orientation" && <div style={warn}>{tr("Points on one line: give a dip and dip direction.")}</div>}
-          {f.spec && (!f.spec.ok || f.spec.said.some((x) => x.key === "user-dip")) && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, ...note }}>
-              {tr("Dip")} <NumberInput value={dips[f.i]?.dip ?? null} allowEmpty min={0} max={90} onChange={(v) => setDips((p) => ({ ...p, [f.i]: { ...(p[f.i] || {}), dip: v } }))} aria-label={tr("Dip")} style={{ width: 48 }} />
-              {tr("towards")} <NumberInput value={dips[f.i]?.dipDir ?? null} allowEmpty min={0} max={360} onChange={(v) => setDips((p) => ({ ...p, [f.i]: { ...(p[f.i] || {}), dipDir: v } }))} aria-label={tr("Dip direction")} style={{ width: 52 }} />°
+  const kindRows = (<>
+    {!items.length && <div style={note}>{tr("No fault evidence yet.")}</div>}
+    {KINDS.filter((k) => byKind[k].length).map((k) => (
+      <div key={k} data-fault-kind={k} style={{ marginTop: 4 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 500 }} title={!off[k] && LINE_KINDS.has(k) && byKind[k].length > 1 ? tr("Each line starts left out: give it its fault.") : undefined}>
+          <input type="checkbox" checked={!off[k]} onChange={(e) => setOff((p) => ({ ...p, [k]: !e.target.checked }))} />
+          {kindName(k)} <span style={note}>{byKind[k].length}</span>
+        </label>
+        {!off[k] && <div style={{ maxHeight: 140, overflowY: "auto", paddingLeft: 18 }}>
+          {byKind[k].map((it) => (
+            <div key={it.id} data-fault-item={it.id} style={{ display: "flex", alignItems: "center", gap: 6, ...note, color: "var(--color-text-secondary)" }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.name}>
+                {it.name} · {it.points.length === 1 ? tr("{n} point", { n: 1 }) : tr("{n} points", { n: it.points.length })}{it.orientations.length ? ` · ${tr("{n} with a dip", { n: it.orientations.length })}` : ""}{it.dipSource === "default" ? ` · ${tr("default dip {d}°", { d: it.orientations[0]?.dip })}` : ""}{it.level != null ? ` · ${tr("RL {z} m", { z: it.level })}` : ""}
+              </span>
+              <select value={faultOf(it)} onChange={(e) => { const v = Number(e.target.value); if (v === names.length) setNames((p) => [...p, tr("Fault {n}", { n: p.length + 1 })]); setAssign((p) => ({ ...p, [it.id]: v })); }} style={{ ...smallSel, flex: "0 0 auto", maxWidth: 110 }} aria-label={tr("The fault {item} belongs to", { item: it.name })}>
+                {names.map((n, i) => <option key={i} value={i}>{n}</option>)}
+                {names.length < MAX_FAULTS && <option value={names.length}>{tr("New fault")}</option>}
+                <option value={-1}>{tr("Leave out")}</option>
+              </select>
             </div>
-          )}
-          {f.spec?.guess && <div style={warn}>{tr("A guess: few points or one hole. Check it against the logs.")}</div>}
-        </div>
-      ))}
-      {nOk > 0 && <>
-        <label style={{ display: "block", marginTop: 8, ...note }}>{tr("Shape")}
-          <select value={shape} onChange={(e) => setShape(e.target.value)} style={{ ...smallSel, display: "block", width: "100%", marginTop: 2 }} aria-label={tr("Shape")}>
-            <option value="planes">{tr("Sheeted planes")}</option>
-            <option value="curved">{tr("One curved surface (GemPy)")}</option>
-          </select>
-        </label>
-        {shape === "planes" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, ...note }}>{tr("One sheet when closer than")} <NumberInput value={gapM} min={1} onChange={(v) => setGapM(v ?? 25)} aria-label={tr("Sheet spacing (m)")} style={{ width: 48 }} /> m</div>}
-        <label style={{ display: "block", marginTop: 8, ...note }}>{tr("Extent")}
-          <select value={extent} onChange={(e) => setExtent(e.target.value)} style={{ ...smallSel, display: "block", width: "100%", marginTop: 2 }} aria-label={tr("Extent")}>
-            <option value="box">{tr("Through the model box")}</option>
-            <option value="finite">{tr("Finite: evidence plus a margin")}</option>
-            <option value="until" disabled={!faultSurfaces.length}>{tr("Until another fault")}</option>
-          </select>
-        </label>
-        {extent === "finite" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, ...note }}>{tr("Margin")} <NumberInput value={marginM} min={0} onChange={(v) => setMarginM(v ?? 0)} aria-label={tr("Margin (m)")} style={{ width: 60 }} /> m</div>}
-        {extent === "until" && <select value={until} onChange={(e) => setUntil(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label={tr("The fault it ends at")}>
-          <option value="">{tr("Choose a fault surface…")}</option>
-          {faultSurfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>}
-        <button type="button" className="gs-btn gs-btn--block" style={{ marginTop: 6 }} disabled={implicitBusy && shape === "curved"} onClick={build}>{nOk === 1 ? tr("Build") : tr("Build {n} faults", { n: nOk })}</button>
-        <MoreFold style={{ ...note, marginTop: 4, marginBottom: 0 }}>
-          <div>{tr("Every kind of fault evidence at once; each item goes to a fault you name, or is left out.")}</div>
-          <div>{tr("Sheeted planes: each fault is one or more flat planes, its dips grouped into sets and each set into parallel sheets; no solver. One curved surface: GemPy, for a folded fault.")}</div>
-          <div>{tr("Through the box, a fault runs past its evidence: there it is extrapolated, not observed. A finite fault stops at an ellipse around its evidence plus the margin, reaching down dip at least half its length along strike. Until another fault: it stops at that fault, on its evidence's side.")}</div>
-          <div>{tr("Check counts the points farther than the distance from the surface. Use in the stack: the units are offset across it; in the stack a fault runs through the whole box.")}</div>
-        </MoreFold>
-      </>}
-      {said.map((m) => <div key={m} style={warn}>{m}</div>)}
-      {built.length > 0 && (
-        <div data-fault-built="" style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid var(--color-divider)" }}>
-          <div style={{ fontWeight: 500 }}>{tr("Built here")}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, ...note }}>{tr("Check: points missed by more than")} <NumberInput value={checkN} min={0} onChange={(v) => setCheckN(v ?? 10)} aria-label={tr("Distance (m)")} style={{ width: 48 }} /> m</div>
-          {built.map((s) => {
-            const fit = s.params?.contactFit, c = checks[s.id], inStack = (stackFaults || []).includes(`surf|${s.id}`);
-            return (
-              <div key={s.id} data-fault-surface={s.id} style={{ padding: "3px 0" }}>
-                <div style={{ fontWeight: 500 }}>{s.name}{s.params.faultEvidence.guess ? <span style={{ ...warn, marginLeft: 6 }}>{tr("a guess")}</span> : null}</div>
-                {fit && <div style={note}>{tr("Miss {t} m typical, {w} m worst ({points}).", { points: count(fit.points, "point"), t: fit.typicalMissM, w: fit.worstMissM })}</div>}
-                {c && <div style={c.over ? warn : note}>{tr("{over} of {points} over {m} m off.", { over: c.over, points: count(c.n, "point"), m: c.at })}</div>}
-                <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
-                  <button type="button" className="gs-btn gs-btn--sm" onClick={() => check(s)}>{tr("Check")}</button>
-                  <button type="button" className="gs-btn gs-btn--sm" disabled={inStack} onClick={() => addToStack(s)}>{inStack ? tr("In the stack") : tr("Use in the stack")}</button>
-                </div>
-              </div>
-            );
-          })}
+          ))}
+        </div>}
+      </div>
+    ))}
+  </>);
+  const faultCards = faults.filter((f) => f.items.length).map((f) => (
+    <div key={f.i} data-fault={f.i} style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--color-divider)" }}>
+      <input value={f.name} onChange={(e) => setNames((p) => p.map((x, i) => (i === f.i ? e.target.value : x)))} aria-label={tr("Fault name")} style={{ ...smallSel, width: "100%", fontWeight: 500 }} />
+      {f.spec?.ok && <div style={note}>{tr("{points} and {orientations} from {items}.", { points: count(f.spec.points.length, "point"), orientations: count(f.spec.orientations.length, "orientation"), items: count(f.items.length, "item") })}{f.spec.said.some((x) => x.key === "fitted") ? ` ${tr("Fitted plane {dip}° → {dir}°.", { dip: Math.round(f.spec.plane.dip), dir: Math.round(f.spec.plane.dipDir) })}` : ""}</div>}
+      {f.spec && !f.spec.ok && f.spec.why === "no-orientation" && <div style={warn}>{tr("Points on one line: give a dip and dip direction.")}</div>}
+      {f.spec && (!f.spec.ok || f.spec.said.some((x) => x.key === "user-dip")) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, ...note }}>
+          {tr("Dip")} <NumberInput value={dips[f.i]?.dip ?? null} allowEmpty min={0} max={90} onChange={(v) => setDips((p) => ({ ...p, [f.i]: { ...(p[f.i] || {}), dip: v } }))} aria-label={tr("Dip")} style={{ width: 48 }} />
+          {tr("towards")} <NumberInput value={dips[f.i]?.dipDir ?? null} allowEmpty min={0} max={360} onChange={(v) => setDips((p) => ({ ...p, [f.i]: { ...(p[f.i] || {}), dipDir: v } }))} aria-label={tr("Dip direction")} style={{ width: 52 }} />°
         </div>
       )}
+      {f.spec?.guess && <div style={warn}>{tr("A guess: few points or one hole. Check it against the logs.")}</div>}
+    </div>
+  ));
+  const shapeBody = nOk > 0 ? (<>
+    <label style={{ display: "block", ...note }}>{tr("Shape")}
+      <select value={shape} onChange={(e) => setShape(e.target.value)} style={{ ...smallSel, display: "block", width: "100%", marginTop: 2 }} aria-label={tr("Shape")}>
+        <option value="planes">{tr("Sheeted planes")}</option>
+        <option value="curved">{tr("One curved surface (GemPy)")}</option>
+      </select>
+    </label>
+    {shape === "planes" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, ...note }}>{tr("One sheet when closer than")} <NumberInput value={gapM} min={1} onChange={(v) => setGapM(v ?? 25)} aria-label={tr("Sheet spacing (m)")} style={{ width: 48 }} /> m</div>}
+    <label style={{ display: "block", marginTop: 8, ...note }}>{tr("Extent")}
+      <select value={extent} onChange={(e) => setExtent(e.target.value)} style={{ ...smallSel, display: "block", width: "100%", marginTop: 2 }} aria-label={tr("Extent")}>
+        <option value="box">{tr("Through the model box")}</option>
+        <option value="finite">{tr("Finite: evidence plus a margin")}</option>
+        <option value="until" disabled={!faultSurfaces.length}>{tr("Until another fault")}</option>
+      </select>
+    </label>
+    {extent === "finite" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, ...note }}>{tr("Margin")} <NumberInput value={marginM} min={0} onChange={(v) => setMarginM(v ?? 0)} aria-label={tr("Margin (m)")} style={{ width: 60 }} /> m</div>}
+    {extent === "until" && <select value={until} onChange={(e) => setUntil(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label={tr("The fault it ends at")}>
+      <option value="">{tr("Choose a fault surface…")}</option>
+      {faultSurfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+    </select>}
+  </>) : null; // nothing placed in a fault yet: nothing to shape, and Build stays off
+  const resultBody = built.length > 0 ? (
+    <div data-fault-built="">
+      <div style={{ display: "flex", alignItems: "center", gap: 6, ...note }}>{tr("Check: points missed by more than")} <NumberInput value={checkN} min={0} onChange={(v) => setCheckN(v ?? 10)} aria-label={tr("Distance (m)")} style={{ width: 48 }} /> m</div>
+      {built.map((s) => {
+        const fit = s.params?.contactFit, c = checks[s.id], inStack = (stackFaults || []).includes(`surf|${s.id}`);
+        return (
+          <div key={s.id} data-fault-surface={s.id} style={{ padding: "3px 0" }}>
+            <div style={{ fontWeight: 500 }}>{s.name}{s.params.faultEvidence.guess ? <span style={{ ...warn, marginLeft: 6 }}>{tr("a guess")}</span> : null}</div>
+            {fit && <div style={note}>{tr("Miss {t} m typical, {w} m worst ({points}).", { points: count(fit.points, "point"), t: fit.typicalMissM, w: fit.worstMissM })}</div>}
+            {c && <div style={c.over ? warn : note}>{tr("{over} of {points} over {m} m off.", { over: c.over, points: count(c.n, "point"), m: c.at })}</div>}
+            <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
+              <button type="button" className="gs-btn gs-btn--sm" onClick={() => check(s)}>{tr("Check")}</button>
+              <button type="button" className="gs-btn gs-btn--sm" disabled={inStack} onClick={() => addToStack(s)}>{inStack ? tr("In the stack") : tr("Use in the stack")}</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+  // TASKS.csv #4070 (Matt's layout C): the builder as steps. 1 Evidence (the kinds, ticked and counted, each item given its fault), 2 Faults (a card each: name, dip), 3 Shape -> Build, then the built
+  // surfaces (Check, Use in the stack) as the Result. A pane with no evidence is one step. The tool rows that repeated the ribbon went (FaultsPanel keeps the ones the ribbon has not, in its fold).
+  return (
+    <div data-fault-builder="">
+      <StepPane id="faults" label={tr("Faults")}
+        steps={items.length ? [
+          { key: "evidence", label: tr("Evidence"), question: tr("Which evidence?"), body: kindRows },
+          { key: "faults", label: tr("Faults"), question: tr("Which faults?"), body: <>{faultCards}</> },
+          { key: "shape", label: tr("Shape"), question: tr("How far does each run?"), body: <>{shapeBody}{said.map((m) => <div key={m} style={warn}>{m}</div>)}</> },
+        ] : [{ key: "evidence", label: tr("Evidence"), question: tr("Which evidence?"), body: kindRows }]}
+        action={items.length ? { label: nOk <= 1 ? tr("Build") : tr("Build {n} faults", { n: nOk }), onClick: build, disabled: nOk === 0 || (implicitBusy && shape === "curved") } : null}
+        result={items.length || built.length ? { key: built.length ? `${built.length}|${built[built.length - 1].id}` : null, body: resultBody } : null}
+        fineTune={fineTune} />
     </div>
   );
 }
