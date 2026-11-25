@@ -1642,7 +1642,7 @@
   "Another program answered on port {port} instead of GeoStrix's predictive-modelling add-on, so no data was sent. Close other copies of GeoStrix and try again.": "Un autre programme a répondu sur le port {port} au lieu du module de modélisation prédictive de GeoStrix, donc aucune donnée n'a été envoyée. Fermez les autres copies de GeoStrix et réessayez.",
   "The predictive-modelling add-on didn't start within two minutes. Its log is in GeoStrix's settings folder (addons/geoml/addon.log).": "Le module de modélisation prédictive n'a pas démarré en deux minutes. Son journal est dans le dossier des paramètres de GeoStrix (addons/geoml/addon.log).",
   "A predictive model is already running in the add-on (started earlier). Cancel it, then run this again.": "Un modèle prédictif est déjà en cours dans le module (lancé plus tôt). Annulez-le, puis relancez.",
-  "The add-on stopped while the model was running (it was restarted, so the job is gone). Its log is in GeoStrix's settings folder (addons/geoml/addon.log).": "Le module s'est arrêté pendant l'exécution du modèle (il a été redémarré, la tâche est donc perdue). Son journal est dans le dossier des paramètres de GeoStrix (addons/geoml/addon.log).",
+  "The add-on stopped during the run, so the model is lost. Its log: GeoStrix's settings folder, addons/geoml/addon.log.": "L'extension s'est arrêtée pendant l'exécution, le modèle est donc perdu. Son journal : dossier des paramètres de GeoStrix, addons/geoml/addon.log.",
   "Lost contact with the add-on ({MAX_MISSES} status checks in a row failed: {message}). The model was cancelled.": "Contact perdu avec le module ({MAX_MISSES} vérifications d'état d'affilée ont échoué : {message}). Le modèle a été annulé.",
   "The model failed.": "Le modèle a échoué.",
   "the add-on returned blocks this GeoStrix cannot read (needs cell, x, y, z, {fields} of equal length) — update GeoStrix or the add-on.": "le module a renvoyé des blocs que ce GeoStrix ne peut pas lire (il faut cell, x, y, z, {fields} de même longueur) — mettez à jour GeoStrix ou le module.",
@@ -15935,5 +15935,6 @@
   "Starting the add-on ({s} s; slower the first time)": "Démarrage de l'extension ({s} s ; plus lent la première fois)",
   " — the trend \"{name}\" was NOT applied: add-on {v} predates trends": " — la tendance « {name} » n'a PAS été appliquée : l'extension {v} est antérieure aux tendances",
   "{c} contacts need {n} inducing points, more than add-on {v} holds: update it, merge thin codes or choose fewer holes.": "{c} contacts demandent {n} points inducteurs, plus que l'extension {v} n'en garde : mettez-la à jour, fusionnez les codes minces ou choisissez moins de sondages.",
-  "Training skipped: same as the last run.": "Entraînement sauté : identique à l'exécution précédente."
+  "Training skipped: same as the last run.": "Entraînement sauté : identique à l'exécution précédente.",
+  "Trained again: the add-on had been freed.": "Réentraîné : l'extension avait été libérée."
 }

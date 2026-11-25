@@ -1642,7 +1642,7 @@
   "Another program answered on port {port} instead of GeoStrix's predictive-modelling add-on, so no data was sent. Close other copies of GeoStrix and try again.": "Otro programa respondió en el puerto {port} en lugar del complemento de modelado predictivo de GeoStrix, así que no se envió ningún dato. Cierre otras copias de GeoStrix y vuelva a intentar.",
   "The predictive-modelling add-on didn't start within two minutes. Its log is in GeoStrix's settings folder (addons/geoml/addon.log).": "El complemento de modelado predictivo no se inició en dos minutos. Su registro está en la carpeta de configuración de GeoStrix (addons/geoml/addon.log).",
   "A predictive model is already running in the add-on (started earlier). Cancel it, then run this again.": "Ya hay un modelo predictivo corriendo en el complemento (iniciado antes). Cancélelo y vuelva a correr esto.",
-  "The add-on stopped while the model was running (it was restarted, so the job is gone). Its log is in GeoStrix's settings folder (addons/geoml/addon.log).": "El complemento se detuvo mientras corría el modelo (se reinició, así que el trabajo se perdió). Su registro está en la carpeta de configuración de GeoStrix (addons/geoml/addon.log).",
+  "The add-on stopped during the run, so the model is lost. Its log: GeoStrix's settings folder, addons/geoml/addon.log.": "El complemento se detuvo durante la ejecución, así que el modelo se perdió. Su registro: carpeta de configuración de GeoStrix, addons/geoml/addon.log.",
   "Lost contact with the add-on ({MAX_MISSES} status checks in a row failed: {message}). The model was cancelled.": "Se perdió el contacto con el complemento ({MAX_MISSES} consultas de estado seguidas fallaron: {message}). Se canceló el modelo.",
   "The model failed.": "El modelo falló.",
   "the add-on returned blocks this GeoStrix cannot read (needs cell, x, y, z, {fields} of equal length) — update GeoStrix or the add-on.": "el complemento devolvió bloques que este GeoStrix no puede leer (necesita cell, x, y, z, {fields} del mismo largo) — actualice GeoStrix o el complemento.",
@@ -15935,5 +15935,6 @@
   "Starting the add-on ({s} s; slower the first time)": "Iniciando el complemento ({s} s; más lento la primera vez)",
   " — the trend \"{name}\" was NOT applied: add-on {v} predates trends": " — la tendencia \"{name}\" NO se aplicó: el complemento {v} es anterior a las tendencias",
   "{c} contacts need {n} inducing points, more than add-on {v} holds: update it, merge thin codes or choose fewer holes.": "{c} contactos requieren {n} puntos inductores, más de lo que mantiene el complemento {v}: actualícelo, fusione los códigos delgados o elija menos sondajes.",
-  "Training skipped: same as the last run.": "Entrenamiento omitido: igual que la corrida anterior."
+  "Training skipped: same as the last run.": "Entrenamiento omitido: igual que la corrida anterior.",
+  "Trained again: the add-on had been freed.": "Entrenado de nuevo: el complemento se había liberado."
 }

@@ -1642,7 +1642,7 @@
   "Another program answered on port {port} instead of GeoStrix's predictive-modelling add-on, so no data was sent. Close other copies of GeoStrix and try again.": "أجاب برنامج آخر على المنفذ {port} بدلًا من إضافة النمذجة التنبؤية في GeoStrix، فلم تُرسل أي بيانات. أغلق نسخ GeoStrix الأخرى وحاول مجددًا.",
   "The predictive-modelling add-on didn't start within two minutes. Its log is in GeoStrix's settings folder (addons/geoml/addon.log).": "لم تبدأ إضافة النمذجة التنبؤية خلال دقيقتين. سجلها في مجلد إعدادات GeoStrix ‏(addons/geoml/addon.log).",
   "A predictive model is already running in the add-on (started earlier). Cancel it, then run this again.": "نموذج تنبؤي يعمل بالفعل في الإضافة (بدأ سابقًا). ألغه ثم أعد التشغيل.",
-  "The add-on stopped while the model was running (it was restarted, so the job is gone). Its log is in GeoStrix's settings folder (addons/geoml/addon.log).": "توقفت الإضافة أثناء تشغيل النموذج (أعيد تشغيلها فضاعت المهمة). سجلها في مجلد إعدادات GeoStrix ‏(addons/geoml/addon.log).",
+  "The add-on stopped during the run, so the model is lost. Its log: GeoStrix's settings folder, addons/geoml/addon.log.": "توقفت الإضافة أثناء التشغيل، لذا فُقد النموذج. سجلّها: مجلد إعدادات GeoStrix، addons/geoml/addon.log.",
   "Lost contact with the add-on ({MAX_MISSES} status checks in a row failed: {message}). The model was cancelled.": "انقطع الاتصال بالإضافة (فشل {MAX_MISSES} فحص حالة متتاليًا: {message}). أُلغي النموذج.",
   "The model failed.": "فشل النموذج.",
   "the add-on returned blocks this GeoStrix cannot read (needs cell, x, y, z, {fields} of equal length) — update GeoStrix or the add-on.": "أرجعت الإضافة كتلًا لا يستطيع إصدار GeoStrix هذا قراءتها (يلزم cell وx وy وz و{fields} بالطول نفسه) — حدّث GeoStrix أو الإضافة.",
@@ -15935,5 +15935,6 @@
   "Starting the add-on ({s} s; slower the first time)": "جارٍ تشغيل الإضافة ({s} ث؛ أبطأ في المرة الأولى)",
   " — the trend \"{name}\" was NOT applied: add-on {v} predates trends": " — لم يُطبق الاتجاه «{name}»: الإضافة {v} أقدم من الاتجاهات",
   "{c} contacts need {n} inducing points, more than add-on {v} holds: update it, merge thin codes or choose fewer holes.": "يتطلب {c} تماسًا {n} نقطة استقراء، أكثر مما تحتفظ به الإضافة {v}: حدّثها أو ادمج الرموز الرقيقة أو اختر ثقوبًا أقل.",
-  "Training skipped: same as the last run.": "تُخطّي التدريب: مطابق للتشغيل السابق."
+  "Training skipped: same as the last run.": "تُخطّي التدريب: مطابق للتشغيل السابق.",
+  "Trained again: the add-on had been freed.": "أُعيد التدريب: كانت الإضافة قد حُرّرت."
 }

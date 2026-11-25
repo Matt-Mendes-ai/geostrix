@@ -46,7 +46,7 @@ test("a job that vanished (add-on restarted) is reported as such, not as a bare 
     if (p === "/v1/jobs/j3") return { status: 404, body: { detail: "No such job." } };
     return ok({});
   });
-  await assert.rejects(runJob("grade", {}, null, null, { pollMs: 1 }), /add-on stopped while the model was running/);
+  await assert.rejects(runJob("grade", {}, null, null, { pollMs: 1 }), /add-on stopped during the run/);
 });
 
 test("a 409 from a model already running carries that job's id", async () => {

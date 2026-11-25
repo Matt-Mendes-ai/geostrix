@@ -102,6 +102,33 @@ export function addonWarm() {
   }
   return warming;
 }
+// TASKS.csv #4055 (Matt, 2026-11-24: "free on leaving the tab") — the worker (TensorFlow: about 0.6 GB warm, 1.6-1.9 GB after a run, with its kept
+// models) stays while the geoML panel is open and is freed RELEASE_AFTER_MS after the panel goes (closed, another pane, another tab): the add-on is
+// stopped, which ends its worker and drops the kept models. Coming back within that time cancels it. A model still running is never stopped: the
+// stop waits for it. The worker's own 10-minute idle exit (server.py IDLE_EXIT_S) stays the backstop.
+export const RELEASE_AFTER_MS = 180000;
+let releaseTimer = null, ranSinceRelease = false, freedAfterRun = false;
+export function addonHold() { if (releaseTimer) { clearTimeout(releaseTimer); releaseTimer = null; } }
+export function addonRelease(ms = RELEASE_AFTER_MS) {
+  if (!d?.addonStop) return;
+  addonHold();
+  releaseTimer = setTimeout(async () => {
+    releaseTimer = null;
+    const st = await Promise.resolve(d.addonStatus?.(ID)).catch(() => null);
+    if (!st?.running) return;
+    const c = conn;
+    if (c) {
+      try { const r = await fetch(`http://127.0.0.1:${c.port}/health`, { signal: AbortSignal.timeout(2000) }); if ((await r.json())?.busy) { addonRelease(60000); return; } }
+      catch { /* not answering: stopped all the same */ }
+    }
+    await d.addonStop(ID);
+    conn = null; warming = null;
+    if (ranSinceRelease) freedAfterRun = true;
+    ranSinceRelease = false;
+  }, ms);
+}
+// after a run: true once when the add-on was freed since the run before it (its kept model gone, so this one trained again)
+export function takeFreedNote() { const f = freedAfterRun; freedAfterRun = false; return f; }
 const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 
 export const startJob = (kind, params) => call("/v1/jobs", { method: "POST", body: { kind, params }, timeoutMs: 60000 });
@@ -131,13 +158,13 @@ export async function runJob(kind, params, onProgress, signal, { pollMs = 1000 }
     let s;
     try { s = await jobStatus(job.id); misses = 0; }
     catch (e) {
-      if (e.status === 404) return giveUp(new Error(tr("The add-on stopped while the model was running (it was restarted, so the job is gone). Its log is in GeoStrix's settings folder (addons/geoml/addon.log).")));
+      if (e.status === 404) return giveUp(new Error(tr("The add-on stopped during the run, so the model is lost. Its log: GeoStrix's settings folder, addons/geoml/addon.log.")));
       misses++; lastErr = e;
       if (misses >= MAX_MISSES) return giveUp(new Error(tr("Lost contact with the add-on ({MAX_MISSES} status checks in a row failed: {message}). The model was cancelled.", { MAX_MISSES, message: lastErr.message })));
       continue;
     }
     onProgress?.(s);
-    if (s.state === "done") return jobResult(job.id);
+    if (s.state === "done") { const r = await jobResult(job.id); ranSinceRelease = true; return r; } // #4055: a model to say was dropped if the add-on is freed
     if (s.state === "error" || s.state === "failed") throw new Error(s.error || tr("The model failed."));
     if (s.state === "cancelled") throw new Error("Cancelled.");
   }

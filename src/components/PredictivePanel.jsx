@@ -12,7 +12,7 @@ import { newResult, setResult } from "../lib/geomlResult.js"; // TASKS.csv #4028
 import { planDomain, planGrade, roughTime, INDUCING_CAP, INDUCING_LIMIT_NO_CAP, FOCUS_SPACING, FOCUS_OTHER } from "../lib/geomlPlan.js"; // TASKS.csv #1146; #1312
 import { useSetTaskProgress, useStartProjectJob } from "../lib/store.jsx"; // useStartProjectJob: TASKS.csv #3953 (stable, like the progress setter)
 import { noJob, isProjectGone } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a geoML model lands only in the project it was run for
-import { addonStatus, addonCpuCheck, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob, addonHas, addonWarm } from "../lib/geomlAddon.js";
+import { addonStatus, addonCpuCheck, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob, addonHas, addonWarm, addonHold, addonRelease, takeFreedNote } from "../lib/geomlAddon.js";
 import { gradeStops, labStopsAt, sequentialStops } from "../lib/inversion.js";
 import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
 import { smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704
@@ -63,6 +63,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
   const [cpu, setCpu] = useState(null); // TASKS.csv #689 — { avx: true | false | null }, asked once the add-on is known to be missing
   useEffect(() => { if (st && st.available !== false && !st.installed && !cpu) addonCpuCheck().then(setCpu); }, [st, cpu]);
   const refresh = () => addonStatus().then(setSt).catch(() => setSt({ available: false }));
+  useEffect(() => { addonHold(); return () => addonRelease(); }, []); // TASKS.csv #4055 — the add-on is freed 3 minutes after the panel goes; back sooner, kept
   useEffect(() => { if (st?.installed && !job && modelableHoles > 0) addonWarm(); }, [st?.installed, modelableHoles > 0]); // TASKS.csv #4055 — TensorFlow loads while the codes are picked
   useEffect(() => { refresh(); return onAddonEvent((ev) => { if (ev.phase === "download" || ev.phase === "unpack") setInst(ev); if (ev.phase === "done") { setInst(null); refresh(); } if (ev.phase === "stopped") refresh(); }); }, []);
 
@@ -184,7 +185,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
       }
       if (trend) params = { ...params, trend: trendToGeoml(trend) };
       const res = await runJob(kind, params, (s) => { if (!getRun()?.cancelling) updateRun({ progress: s.progress, message: s.message, elapsed: s.elapsed }); toBar(s.progress); }, ctrl.signal);
-      const note = `${await onResult(res, pj)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: add-on {v} predates trends", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""}${res.reused_training ? ` ${tr("Training skipped: same as the last run.")}` : ""} ${tr("Nothing is added yet: use the Result block.")}`; // TASKS.csv #4055 — the model kept from the last run
+      const note = `${await onResult(res, pj)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: add-on {v} predates trends", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""}${res.reused_training ? ` ${tr("Training skipped: same as the last run.")}` : takeFreedNote() ? ` ${tr("Trained again: the add-on had been freed.")}` : ""} ${tr("Nothing is added yet: use the Result block.")}`; // TASKS.csv #4055 — the model kept from the last run
       const secs = Math.round((Date.now() - t0) / 1000);
       record = { label, note, secs, at: new Date().toLocaleTimeString(), intercepts: res.intercepts || null, advice: res.advice || null, mix: res.mix || null, blockM: res.blocks?.cell ?? null }; // advice, mix, blockM: #4019
       setNotices((p) => [...p, notice("geoML — {label}: {note} ({secs} s).", { label, note, secs })]);
