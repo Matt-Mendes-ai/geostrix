@@ -326,6 +326,14 @@ export function guessColumn(headers, aliases) {
 // TASKS.csv #1345 (ARIS 42807Z) — "val" matched inside "GEO_INTERVAL_D" (inter-VAL), so an acQuire alteration log was coloured by
 // each interval's length. A last-resort alias that is a fragment of common words matches a whole header only.
 const WHOLE_ONLY = new Set(["val", "mto", "dto", "dfrom", "event", "boundary"]); // event / boundary: #2317 (not inside "event_depth") // mto / dto / dfrom: #2149 (fragments: "comMTOtal", "oDTOp")
+// TASKS.csv #4080 — the column that names the hole in a collar table: the collar schema's own Hole ID guess (HoleID, BHID, DHID, DDH, Hole_Name, SiteID ...), or a header that is one of the
+// words a drilling table names its holes by (a plain Name, Label, ID, Station or Sample is not: those are IP stations, model cells and samples too). "" when there is none.
+const HOLE_WORDS = /^(dh|bh|ddh|rc|hole|drill|drillhole|borehole|bore|well|trench|collar|pit|boreh?ole)(_?(id|no|num|number|name|code|ref|label))?$|(^|_)(hole|drillhole|borehole|bhid|dhid|ddh)(_|$)/;
+export function holeIdColumn(headers) {
+  const g = guessMapping("collars", headers).hole_id;
+  if (g) return g;
+  return (headers || []).find((h) => HOLE_WORDS.test(normHeader(h)) && !HOLE_ID_VETO.test(normHeader(h))) || ""; // not Hole_Type, Hole_Depth ... (the veto of guessMapping)
+}
 export function guessTarget(headers) {
   // #600 (40958Z): the normalised forms too ("Mag Avg" -> mag_avg, "Specific Gravity" -> specific_gravity)
   const lower = [...new Set(headers.flatMap((h) => [h.toLowerCase(), normHeader(h)]))];
@@ -347,9 +355,13 @@ export function guessTarget(headers) {
   const hasEast = has("easting") || hasCol("x") || hasCol("utm_e") || hasCol("utme") || hasCol("east");
   const hasNorth = has("northing") || hasCol("y") || hasCol("utm_n") || hasCol("utmn") || hasCol("north");
   const hasElev = has("elevation") || hasCol("z") || hasCol("rl") || hasCol("elev") || hasCol("utm_z") || lower.some((h) => /^(rl|elev|height)[\s_]*(\(?m(sl)?\)?)?$/.test(h.trim())); // #4067 — 'Rl m', 'Height (MSL)'
-  if (!has("from") && hasEast && hasNorth && hasElev) return "collars";
+  // TASKS.csv #4080 — and a column that names the HOLE: an east / north / elevation trio alone is also an IP line's coordinates, an inversion model's cells, a topography
+  // profile, a soil or geochem sample's position (side 1's harvest: 43 of 44 tables read as collars had no hole id). Such a table goes on down this list (a custom layer, which asks);
+  // choosing Collars by hand in the import dialog still works. The name hints (a file called collars / coordinates) do not come through here.
+  const hole = holeIdColumn(headers);
+  if (!has("from") && hole && hasEast && hasNorth && hasElev) return "collars";
   // TASKS.csv #2151 — MGA_East / MGA_North / MGA_RL, GDA94_E / GDA94_N, GBMG_East / GBMG_North + Orig_RL: a grid pair and an elevation
-  if (!has("from") && !has("depth_from") && gridCoordinateColumns(headers).length && (hasElev || gridElevation(headers))) return "collars";
+  if (hole && !has("from") && !has("depth_from") && gridCoordinateColumns(headers).length && (hasElev || gridElevation(headers))) return "collars"; // #4080: a hole id too
   // Structure picks checked before survey: real bug found here — a structure CSV with columns
   // like depth_m/inferred_dip_deg/assumed_dip_azimuth satisfies the survey check below (it has
   // "azimuth", "depth", and no "from"), AND guessColumn's substring matching resolves survey's
