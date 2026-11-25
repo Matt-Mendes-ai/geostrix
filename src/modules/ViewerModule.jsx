@@ -14,6 +14,10 @@ import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../li
 const FenceOptions = lazyPart(() => import("./viewer/FenceOptions.jsx")); // TASKS.csv #3961: lazy (the slice-series pane)
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, Suspense } from "react";
+import StepPane from "../components/StepPane.jsx"; // TASKS.csv #4070 part 5
+import NoticeLine from "./viewer/NoticeLine.jsx";
+import ContextGroup from "./viewer/ContextGroup.jsx";
+import MoreFold from "../components/MoreFold.jsx";
 import { useDataGeneration, generationTables, useCallbackGen as useCallback, useMemoGen as useMemo } from "./viewer/dataGeneration.js"; // TASKS.csv #3483 — the memos made again when a big table is replaced (a leak of every earlier generation)
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
 import { shareFenceAzimuth } from "../lib/fenceShare.js"; // TASKS.csv #4004
@@ -5806,17 +5810,21 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {/* TASKS.csv #458 — tool panes opened from the ribbon, above the data */}
         {interpretPane}
         {toolPane === "sectionCoords" && (<>
-        {paneHeader("Section by coordinates", Crosshair, "section")}
-        {/* TASKS.csv #393 — a section typed as numbers (blank centre = centre of the drilling) */}
+        {paneHeader("Section by coordinates", Crosshair, "section", true /* #4070 part 5 */)}
+        {/* TASKS.csv #393 — a section typed as numbers (blank centre = centre of the drilling); #4070 part 5: one question, Open section as the one gold primary, the buffer note in Fine-tune */}
+        <StepPane id="sectionCoords" label={tr("Section by coordinates")}
+          steps={[{ key: "section", label: tr("Section"), question: tr("Where is the section?"), body: (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre E")}<input value={typedSection.e} placeholder={tr("view centre") /* #3574 */} onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre easting")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre N")}<input value={typedSection.n} placeholder={tr("view centre") /* #3574 */} onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre northing")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<NumberInput allowEmpty min={0} max={360} value={typedSection.azimuth === "" ? null : typedSection.azimuth} onChange={(v) => setTypedSection((s) => ({ ...s, azimuth: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<NumberInput allowEmpty min={10} step={50} value={typedSection.length === "" ? null : typedSection.length} onChange={(v) => setTypedSection((s) => ({ ...s, length: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
         </div>
-        <button onClick={openTypedSection} className="gs-btn gs-btn--block" style={{ marginBottom: 4 }} title={tr("Open a vertical section along the azimuth, centred on the point, with the section Buffer ({sectionCorridor} m). The scissors in the Holes list cut one through a hole.", { sectionCorridor })}><Scissors size={14} />{" "}{tr("Open section")}</button>
+          ) }]}
+          action={{ label: tr("Open section"), onClick: openTypedSection, icon: <Scissors size={14} />, title: tr("Open a vertical section along the azimuth, centred on the point, with the section Buffer ({sectionCorridor} m). The scissors in the Holes list cut one through a hole.", { sectionCorridor }) }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="sectionCoords">
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.", { sectionCorridor })}</div>
-
+          </MoreFold>} />
         </>)}
         {toolPane === "slice3d" && (<>
         {paneHeader("3D slice", SquareSplitVertical, "section")}
@@ -5849,17 +5857,22 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         </>)}
         {toolPane === "fence" && (<>
-        {paneHeader("Slice series (fence sections)", Rows3, "section")}{lineNote && <div style={miniField}>{lineNote}</div>}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Cut the drilling into equal-width parallel sections at a fixed azimuth, each added to the list below (the visible block models too when \"Also cover the visible block models\" is ticked, or when there are no drillholes).")}</div>
+        {paneHeader("Slice series (fence sections)", Rows3, "section", true /* #4070 part 5 */)}{lineNote && <div style={miniField}>{lineNote}</div>}
+        {/* #4070 part 5 (Matt's layout C): the azimuth, the width and the area as the one question, Generate as the one gold primary, the explanation in Fine-tune */}
+        <StepPane id="fence" label={tr("Slice series (fence sections)")}
+          steps={[{ key: "fence", label: tr("Sections"), question: tr("Which sections?"), body: (<>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{/* #1258 */}
           <label style={{ ...miniField, flex: 1 }}>{tr("Azimuth (°)")}<NumberInput step={1} value={sliceSeriesAzimuth} onChange={(v) => setSliceSeriesAzimuth((v % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
           <label style={{ ...miniField, flex: 1 }}>{tr("Width (m)")}<NumberInput min={1} step={10} value={sliceSeriesWidth} onChange={(v) => setSliceSeriesWidth(v)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
-          <button onClick={generateSliceSeries} className="gs-btn gs-btn--block" style={{ width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
-
-        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} area={fenceArea} setArea={setFenceArea} boundaries={boundaries} topView={() => sectionTopView(camState.current, cameraRef.current, null) /* #4004: not "Draw section: click the two ends"; the pane says drag */} view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} /* #3971 */ />
+        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={{ ...miniField, flexDirection: "row" } /* #4070 part 5: Area and the cover tick on one line each */} area={fenceArea} setArea={setFenceArea} boundaries={boundaries} topView={() => sectionTopView(camState.current, cameraRef.current, null) /* #4004: not "Draw section: click the two ends"; the pane says drag */} view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} /* #3971 */ />
+          </>) }]}
+          action={{ label: tr("Generate"), onClick: generateSliceSeries, icon: <Scissors size={14} />, title: tr("Generate the slice series") }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="fence">
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Cut the drilling into equal-width parallel sections at a fixed azimuth, each added to the list below (the visible block models too when \"Also cover the visible block models\" is ticked, or when there are no drillholes).")}</div>
+          </MoreFold>} />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         <RastersTerrainSection {...{ rasters, terrain, updateTerrain, updateRaster, removeRaster, openRowMenu, zoomToObject, terrainMeshRef, rasterMeshesRef, goToModule, lodTiles }} />{/* #3891: first */}
@@ -6933,9 +6946,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {notices.length > 0 && (
           <div role="region" aria-label={tr("Recent messages")} style={{ marginTop: 14, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: allNotices ? 360 : 140, overflowY: "auto" }}>
             {notices.length > 6 && <div style={{ display: "flex", gap: 10, marginBottom: 4 }}><span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllNotices((a) => !a)} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{allNotices ? tr("Show the last 6") : tr("Show all {n}", { n: notices.length })}</span><span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => copyText(notices.map(noticeText).join("\n"))} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{tr("Copy")}</span></div>}{/* #1542 */}
-            {notices.slice(allNotices ? -500 : -6).map((n, i) => (noticeLevel(n) === "error"
-              ? <div key={i} style={{ marginBottom: 4, color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start" }}><AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span>{noticeText(n)}</span></div>
-              : <div key={i} style={{ marginBottom: 4 }}>{noticeText(n)}</div>))}
+            {notices.slice(allNotices ? -500 : -6).map((n, i) => <NoticeLine key={i} text={noticeText(n)} error={noticeLevel(n) === "error"} />)}{/* #4070 part 5 — a long one as two lines, the rest on a click */}
           </div>
         )}
       </div>
@@ -7182,12 +7193,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             </>}
             {/* TASKS.csv — export/inspect, the same for real layers and the collars/survey sentinels. */}
             <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
+            <ContextGroup label={tr("Export")}>{/* #4070 part 5 — the exports in one closed group */}
             <ContextItem label={tr("Export Shapefile (.zip)…")} onClick={() => { exportVectorShapefile(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export GeoPackage (.gpkg)…")} onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export DXF (.dxf)…")} onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export GOCAD (.vs / .pl)…")} onClick={() => { exportVectorGocad(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} /> {/* #2631 */}
             {layerContextMenu.key !== "geophys_pts" && <ContextItem label={tr("Export CSV table (imports back)…")} onClick={() => { exportDrillholeTables(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
             <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("One CSV per table (collars, survey, every layer, assays) in a .zip, for Leapfrog, Micromine or any database (Postgres COPY, MySQL LOAD DATA)")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
+            </ContextGroup>
             <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
             {layerContextMenu.key === "__collars__" && <ContextItem label={tr("Collar elevations from the terrain…")} onClick={() => { requestCollarZFromTerrain(); setLayerContextMenu(null); }} />}{/* #3955 */}
             {!isVector && <>
