@@ -2,10 +2,8 @@ import React, { useMemo, useState } from "react";
 import { isNumericLayer } from "../lib/domainLayers.js"; // TASKS.csv #2477
 import { collarAttrChoices, collarsMatchingList, pickTerm } from "../lib/holeFilter.js"; // TASKS.csv #2607; pickTerm: #2960
 import { assayTrackRange } from "../lib/striplogSvg.js"; // TASKS.csv #2605
-import { X, LayoutGrid, Loader2 } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, panel, header, label as labelStyle, sel } from "../lib/modalStyles.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
+import { label as labelStyle, sel } from "../lib/modalStyles.js";
 import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS, atlasRecaptureItems, hasAtlasTokens, tracedCollar, isStripLogImage } from "../lib/atlas.js"; // hasAtlasTokens: #1777; tracedCollar / isStripLogImage: #2136
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1644
 import { utmGridReady } from "../lib/layoutGeometry.js"; // TASKS.csv #1644
@@ -21,8 +19,6 @@ const ITEM_ROW_H = 24; // TASKS.csv #3180 — one hole / section row (fixed: the
 // new Layout page is created per item, with an optional per-hole strip-log image; a top-down map is then
 // re-captured centred on each page's hole (TASKS.csv #1644, see src/lib/atlas.js's header).
 export default function GenerateAtlasModal({ onClose, templateElements, collars, layers, legendOverride = null, sections, addLayoutPages, page = null, assays = [], assayElements = [] }) { // legendOverride: #1092; page: #1478; assays: #1480
-  useEscapeKey(onClose);
-  useFocusTrap(); // TASKS.csv #238
   const [mode, setMode] = useState("hole"); // "hole" | "section"
   // TASKS.csv #1644 — a large project opens with nothing ticked (446 holes opened as 'Generate 446 pages')
   const [selectedIds, setSelectedIds] = useState(() => { const t = collars.filter(tracedCollar); return new Set(t.length > 50 ? [] : t.map((c) => c.hole_id)); }); // traced: #2136
@@ -131,27 +127,72 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
 
   const tokens = mode === "hole" ? HOLE_TOKENS : SECTION_TOKENS;
 
-  return (
-    <div style={overlay} role="dialog" aria-modal="true" onClick={onClose}>
-      <div style={panel({ width: 480, maxHeight: "85vh" })} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600 }}><LayoutGrid size={14} />{" "}{tr("Generate atlas")}</div>
-          <button data-btn-own="" onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
-        </div>
-        <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Make one Layout page per item below from the CURRENT page; each {v} in a text or title is filled in per item. Tokens here: {v2}.", { v: "{token}", v2: tokens.map((t) => `{${t}}`).join(", ") })}{" "}{tr("The page's own placeholders ({project}, {date}, {scale}, {crs}...) are filled on every generated page as well; the older double-brace form still works.")}</div>{/* #1777 — one syntax: single braces */}
-          {mode === "hole" && untraced > 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("{n} collar(s) with no depth (no trace) are left out of the list: their pages would show a point and an empty log.", { n: untraced })}</div>}{/* #2136 */}
-          {mode === "hole" && includeStripLog && templateElements.some(isStripLogImage) && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("The template's own strip log is left off the generated pages: each page gets its own hole's.")}</div>}{/* #2136 */}
-          {mode === "section" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("To put a section's drawing on a page, use 'Snapshot to Layout' in its window: a section page only takes the section's name.")}</div>}{/* TASKS.csv #3862 (Scottie Gold review) — 'Generated 1 page(s).' gave a sheet named for the section with no picture of it */}
-          {!hasPlaceholders && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr("Add a text with e.g. {v3} for per-item text: the current page has no {v} placeholders, so the pages differ only by name{v2}.", { v: "{token}", v2: mode === "hole" && includeStripLog ? tr(" (and its strip log image)") : "", v3: mode === "hole" ? "{hole_id}" : "{name}" })}</div>
-          )}
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — steps: 1 Pages (one per hole or per section), 2 Items, 3 Content (holes only) -> Generate; how
+  // the {token} texts work in the Help card, the warnings kept where they matter
+  const [at, setAt] = useState(0);
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{tr("Generate atlas")}</summary>
+      <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4 }}>{tr("Make one Layout page per item below from the CURRENT page; each {v} in a text or title is filled in per item. Tokens here: {v2}.", { v: "{token}", v2: tokens.map((t) => `{${t}}`).join(", ") })}{" "}{tr("The page's own placeholders ({project}, {date}, {scale}, {crs}...) are filled on every generated page as well; the older double-brace form still works.")}</div>{/* #1777 — one syntax: single braces */}
+    </details>
+  );
+  const generateStep = { label: busy ? (progress ? tr("Generating {done}/{total}…", { done: progress.done, total: progress.total }) : tr("Generating…")) : tr(selectedCount === 1 ? "Generate {selectedCount} page" : "Generate {selectedCount} pages", { selectedCount }), onClick: generate, disabled: busy || !selectedCount || ranOn === selectedIds /* #3180 — the same selection was just generated */ };
+  const runBody = (<>
+          {result && <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><div style={{ flex: 1, fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>{ranOn && <button onClick={onClose} className="gs-btn" style={{ flex: "none" }}>{tr("Close")}</button>}</div>}{/* Close: #3180 */}
+          {!busy && lastMsPerPage && lastMsPerPage * selectedCount >= 30000 && <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.75 }}>{tr("About {m} min for {n} pages, at the last run's {s} s a page on this computer.", { m: Math.max(1, Math.round((lastMsPerPage * selectedCount) / 60000)), n: selectedCount, s: (lastMsPerPage / 1000).toFixed(1) })}</div>}{/* #2607 */}
+  </>);
+  const flow = [
+    { key: "pages", label: tr("Pages"), primary: { label: tr("Next") }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 8 }}>
             <select value={mode} onChange={(e) => switchMode(e.target.value)} style={{ ...sel, flex: 1 }}>
               <option value="hole">{tr("One page per drillhole ({holeIds})", { holeIds: holeIds.length })}</option>{/* traced holes only: #2136 */}
               <option value="section">{tr("One page per section ({sections}): its name only, no drawing", { sections: sections.length })}</option>{/* TASKS.csv #3862 — named for what it does */}
             </select>
           </div>
+          {mode === "hole" && untraced > 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("{n} collar(s) with no depth (no trace) are left out of the list: their pages would show a point and an empty log.", { n: untraced })}</div>}{/* #2136 */}
+          {mode === "hole" && includeStripLog && templateElements.some(isStripLogImage) && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("The template's own strip log is left off the generated pages: each page gets its own hole's.")}</div>}{/* #2136 */}
+          {mode === "section" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("To put a section's drawing on a page, use 'Snapshot to Layout' in its window: a section page only takes the section's name.")}</div>}{/* TASKS.csv #3862 (Scottie Gold review) — 'Generated 1 page(s).' gave a sheet named for the section with no picture of it */}
+          {!hasPlaceholders && (
+            <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr("Add a text with e.g. {v3} for per-item text: the current page has no {v} placeholders, so the pages differ only by name{v2}.", { v: "{token}", v2: mode === "hole" && includeStripLog ? tr(" (and its strip log image)") : "", v3: mode === "hole" ? "{hole_id}" : "{name}" })}</div>
+          )}
+      </div>
+    ) },
+    { key: "items", label: tr("Items"), primary: mode === "hole" ? { label: tr("Next"), disabled: !selectedCount } : generateStep, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <div style={{ ...labelStyle, display: "flex", justifyContent: "space-between" }}>
+              <span>{mode === "hole" && holeFilter.trim() ? tr("{selectedCount} selected; {n} of {all} holes listed", { selectedCount, n: items.length, all: holeIds.length }) : tr("{selectedCount} of {items} selected", { selectedCount, items: items.length })}</span>
+              <span style={{ display: "flex", gap: 8 }}>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set(items.map(itemKey)))}>{tr("All")}</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set())}>{tr("None")}</span>
+              </span>
+            </div>
+            {mode === "hole" && <div style={{ display: "flex", gap: 6, marginBottom: 5 }}>{/* #2607 */}
+              <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder={tr("Filter: hole id, or field=value")} aria-label={tr("Filter the holes")} style={{ ...sel, flex: 1, minWidth: 0 }} />
+              {attrChoices.length > 0 && <select value="" onChange={(e) => e.target.value && setHoleFilter(e.target.value)} aria-label={tr("By a collar field")} style={{ ...sel, flex: "none", width: "auto" }}>
+                <option value="">{tr("By a collar field…")}</option>{attrChoices.flatMap((ch) => ch.values.map((v) => <option key={`${ch.key}=${v}`} value={pickTerm(ch.key, v) /* #2960 — the typed filter splits on spaces */}>{`${ch.key} = ${v}`}</option>))}</select>}
+            </div>}
+            <div ref={scrollRef} onScroll={onScroll} style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>{/* windowed: #3180 */}
+              {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{/* #1873 — say why a mode is empty and what fills it (a geophysics-only project has neither) */}{mode === "hole" ? (holeFilter.trim() && holeIds.length ? tr("No hole matches the filter.") : collars.length ? tr("No collar has a depth, so no hole has a trace to make a page from.") : tr("No holes have collars, so there is no page per hole: import collars, or use one page per section.")) : tr("No sections drawn yet: draw one with Draw section in StrixViewer, then make one page per section here.")}</div>}
+              {topPad > 0 && <div style={{ height: topPad }} />}
+              {items.slice(startIndex, endIndex).map((it) => {
+                const key = itemKey(it);
+                return (
+                  <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", padding: "0 4px", height: ITEM_ROW_H, boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", cursor: "pointer" }}>
+                    <input type="checkbox" checked={selectedIds.has(key)} onChange={() => toggle(key)} />
+                    {itemLabel(it)}
+                  </label>
+                );
+              })}
+              {bottomPad > 0 && <div style={{ height: bottomPad }} />}
+            </div>
+          </div>
+        {mode !== "hole" && runBody}
+      </div>
+    ) },
+    ...(mode === "hole" ? [{ key: "content", label: tr("Content"), primary: generateStep, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }} title={ranOn === selectedIds ? tr("These pages were just generated. Change the selection to make others.") : undefined}>
           {mode === "hole" && hasPlanMap && ( /* TASKS.csv #1644 */
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={tr("Redraw each page's map centred on its hole at the template's scale (about a second a page). Off: every page shows the template's map, its hole marked.")}>
               <input type="checkbox" checked={centreMaps} onChange={(e) => setCentreMaps(e.target.checked)} />{tr("Centre each page's map on its hole")}</label>
@@ -187,42 +228,10 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
             </div>
           )}
           {mode === "hole" && includeStripLog && !assayTracks && (() => { const n = [...selectedIds].filter((h) => !holesWithLogs.has(h)).length; return n > 0 ? <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr(n === 1 ? "Choose an assay track above: {n} of the selected holes has no logs or density, so its page would have no strip log." : "Choose an assay track above: {n} of the selected holes have no logs or density, so their pages would have no strip log.", { n })}</div> : null; })()}{/* TASKS.csv #3710 — said before it runs */}
-          <div>
-            <div style={{ ...labelStyle, display: "flex", justifyContent: "space-between" }}>
-              <span>{mode === "hole" && holeFilter.trim() ? tr("{selectedCount} selected; {n} of {all} holes listed", { selectedCount, n: items.length, all: holeIds.length }) : tr("{selectedCount} of {items} selected", { selectedCount, items: items.length })}</span>
-              <span style={{ display: "flex", gap: 8 }}>
-                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set(items.map(itemKey)))}>{tr("All")}</span>
-                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set())}>{tr("None")}</span>
-              </span>
-            </div>
-            {mode === "hole" && <div style={{ display: "flex", gap: 6, marginBottom: 5 }}>{/* #2607 */}
-              <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder={tr("Filter: hole id, or field=value")} aria-label={tr("Filter the holes")} style={{ ...sel, flex: 1, minWidth: 0 }} />
-              {attrChoices.length > 0 && <select value="" onChange={(e) => e.target.value && setHoleFilter(e.target.value)} aria-label={tr("By a collar field")} style={{ ...sel, flex: "none", width: "auto" }}>
-                <option value="">{tr("By a collar field…")}</option>{attrChoices.flatMap((ch) => ch.values.map((v) => <option key={`${ch.key}=${v}`} value={pickTerm(ch.key, v) /* #2960 — the typed filter splits on spaces */}>{`${ch.key} = ${v}`}</option>))}</select>}
-            </div>}
-            <div ref={scrollRef} onScroll={onScroll} style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>{/* windowed: #3180 */}
-              {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{/* #1873 — say why a mode is empty and what fills it (a geophysics-only project has neither) */}{mode === "hole" ? (holeFilter.trim() && holeIds.length ? tr("No hole matches the filter.") : collars.length ? tr("No collar has a depth, so no hole has a trace to make a page from.") : tr("No holes have collars, so there is no page per hole: import collars, or use one page per section.")) : tr("No sections drawn yet: draw one with Draw section in StrixViewer, then make one page per section here.")}</div>}
-              {topPad > 0 && <div style={{ height: topPad }} />}
-              {items.slice(startIndex, endIndex).map((it) => {
-                const key = itemKey(it);
-                return (
-                  <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", padding: "0 4px", height: ITEM_ROW_H, boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", cursor: "pointer" }}>
-                    <input type="checkbox" checked={selectedIds.has(key)} onChange={() => toggle(key)} />
-                    {itemLabel(it)}
-                  </label>
-                );
-              })}
-              {bottomPad > 0 && <div style={{ height: bottomPad }} />}
-            </div>
-          </div>
-          {result && <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><div style={{ flex: 1, fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>{ranOn && <button onClick={onClose} className="gs-btn" style={{ flex: "none" }}>{tr("Close")}</button>}</div>}{/* Close: #3180 */}
-          <button onClick={generate} disabled={busy || !selectedCount || ranOn === selectedIds /* #3180 — the same selection was just generated */} title={ranOn === selectedIds ? tr("These pages were just generated. Change the selection to make others.") : undefined} className="gs-btn gs-btn--primary" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy || !selectedCount || ranOn === selectedIds ? 0.6 : 1 }}>
-            {busy ? <Loader2 size={14} className="spin" /> : <LayoutGrid size={14} />}
-            {busy ? (progress ? tr("Generating {done}/{total}…", { done: progress.done, total: progress.total }) : tr("Generating…")) : tr(selectedCount === 1 ? "Generate {selectedCount} page" : "Generate {selectedCount} pages", { selectedCount })}
-          </button>
-          {!busy && lastMsPerPage && lastMsPerPage * selectedCount >= 30000 && <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.75 }}>{tr("About {m} min for {n} pages, at the last run's {s} s a page on this computer.", { m: Math.max(1, Math.round((lastMsPerPage * selectedCount) / 60000)), n: selectedCount, s: (lastMsPerPage / 1000).toFixed(1) })}</div>}{/* #2607 */}
-        </div>
+        {runBody}
       </div>
-    </div>
-  );
+    ) }] : []),
+  ];
+  const heading = tr("Generate atlas"); // the dialog's name, seen (not a tooltip)
+  return <StepDialog title={heading} onClose={onClose} steps={flow} at={Math.min(at, flow.length - 1)} onAt={setAt} help={help} width="min(520px, 94vw)" />;
 }

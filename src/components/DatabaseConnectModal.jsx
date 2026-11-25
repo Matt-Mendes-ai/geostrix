@@ -2,14 +2,12 @@ import React, { useEffect, useState } from "react";
 import { useTablePull, ROW_WARN_THRESHOLD } from "../lib/useTablePull.js"; // TASKS.csv #921 / #925
 import { profileProblem } from "../lib/dbProfiles.js"; // TASKS.csv #1267
 import TablePullConfirm from "./TablePullConfirm.jsx";
-import { X, Database, Play, Loader2, Save, Trash2 } from "./icons.js";
+import { Play, Loader2, Save, Trash2 } from "./icons.js";
 import { dbLiveQuery, dbLiveListTables, dbPasswordStatus, dbForgetPassword } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import { useSavedQueries } from "../lib/useSavedQueries.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import PromptModal from "./PromptModal.jsx";
-import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
@@ -21,8 +19,6 @@ const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) 
 // query box, and since #917 hands assay tables to Geochem, those 500 rows reached the assay dialog unannounced (review
 // #918); Geochem's variant dropped the LIMIT and pulled everything in one query. `initialSql`: the query box's start.
 export default function DatabaseConnectModal({ onCancel, onResults, initialSql = "SELECT * FROM lithology LIMIT 500;" }) {
-  useEscapeKey(onCancel); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
   const { dbConnections, setDbConnections, liveDbConnections, connectDb } = useStore();
   // TASKS.csv #177 — engine picker, MySQL/MariaDB added alongside the original Postgres-only path
   // (Matt confirmed MySQL as the priority engine over SQL Server/Oracle/SQLite). "postgres" stays the
@@ -102,20 +98,19 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
     onResults({ headers: result.fields, rows: result.rows, sourceName: `db:${config.database} (query)` }); // #953 — not a table's name
   };
 
-  return (
-    <div style={overlay}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Database size={18} color="#55606e" />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Connect to database")}</div>
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
-        </div>
-
-        <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Connects to the database directly, not through DBeaver. The password is used for this session only unless you tick \"Remember the password\" (then it is kept encrypted on this computer, never in the project file). Once connected, it stays open in the Browser panel for the session, so you are not asked again until you disconnect.")}</div>
-
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — steps: 1 Connect, 2 Data (a table, or a query), 3 Preview -> Import; the password and certificate
+  // wording (#621, #348) kept where it is chosen, the read-only caution (#477) in one line, the rest in the Help card
+  const [at, setAt] = useState(0);
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{tr("Connect to database")}</summary>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Connects to the database directly, not through DBeaver. The password is used for this session only unless you tick \"Remember the password\" (then it is kept encrypted on this computer, never in the project file). Once connected, it stays open in the Browser panel for the session, so you are not asked again until you disconnect.")}</div>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginTop: 6 }}>{tr("GeoStrix opens the database read-only, one statement at a time, and stops any query after 2 minutes. This guards against accidental changes but is not a security boundary: for a real guarantee, connect as a database user with read permission only.")}</div>
+    </details>
+  );
+  const flow = [
+    { key: "connect", label: tr("Connect"), primary: { label: tr("Next: data"), disabled: !(status?.ok || liveEntry) }, hint: status?.ok || liveEntry ? "" : tr("Test the connection first."), render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
           {dbConnections.length > 0 && (
             <select onChange={(e) => loadSaved(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>
               <option value="">{tr("— saved connections —")}</option>
@@ -175,9 +170,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
               <span>{tr("Trust a self-signed / unverified certificate (insecure: on a shared network, someone else could pose as this server and capture the password)")}</span>
             </label>
           )}
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 10 }}>
-            {/* TASKS.csv #477 — honest wording: the read-only session is a guard, not a guarantee */}{tr("GeoStrix opens the database read-only, one statement at a time, and stops any query after 2 minutes. This guards against accidental changes but is not a security boundary: for a real guarantee, connect as a database user with read permission only.")}</div>
-
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 10 }}>{/* TASKS.csv #477 — honest wording: the read-only session is a guard, not a guarantee */}{tr("Read-only guard, not a security boundary: connect as a read-only user for a guarantee.")}</div>
           <button className="gs-btn" style={{ width: "100%" }} onClick={test} disabled={testing}>
             {testing ? <Loader2 size={14} className="spin" /> : liveEntry ? tr("Reconnect") : tr("Test connection")}
           </button>
@@ -190,7 +183,10 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
               {status.ok ? tr("Connected — {v} as {v2}{v3}", { v: status.info?.db, v2: status.info?.usr, v3: status.reused ? tr(" (reused existing connection)") : tr(" — stays open for the rest of this session") }) : status.error}
             </div>
           )}
-
+      </div>
+    ) },
+    { key: "data", label: tr("Data"), primary: { label: tr("Next: preview"), disabled: !result }, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
           {tables && (
             <div style={{ marginTop: 12 }}>
               <div style={label}>{tr("Tables & views ({tables})", { tables: tables.length })}</div>
@@ -256,7 +252,10 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
               onConfirm={(name) => { if (name && name.trim()) saveQuery(name.trim(), sql); setSavePromptOpen(false); }}
             />
           )}
-
+      </div>
+    ) },
+    { key: "preview", label: tr("Preview"), primary: { label: tr("Import these {v} rows…", { v: result?.rowCount || 0 }), onClick: useResults, disabled: !result || !result.rows.length }, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
           {result && (
             <div style={{ marginTop: 12 }}>
               <div style={label}>{tr("Preview ({rowCount} rows)", { rowCount: result.rowCount })}</div>
@@ -272,23 +271,17 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
               </div>
             </div>
           )}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button className="gs-btn" style={{ flex: 1 }} onClick={onCancel}>{tr("Close")}</button>
-          <button className="gs-btn gs-btn--primary" style={{ flex: 2 }} onClick={useResults} disabled={!result || !result.rows.length}>{tr("Import these {v} rows…", { v: result?.rowCount || 0 })}</button>
-        </div>
       </div>
-    </div>
-  );
+    ) },
+  ];
+  const heading = tr("Connect to database"); // the dialog's name, seen (not a tooltip)
+  return <StepDialog title={heading} onClose={onCancel} steps={flow} at={at} onAt={setAt} help={help} width="min(600px, 92vw)" />;
 }
 
 function Field({ label: l, children }) {
   return <div><div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 3 }}>{l}</div>{children}</div>;
 }
 
-const panel = { width: "min(600px, 92vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const inp = { width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
