@@ -268,7 +268,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
       } catch (e) { problems.push(`${f.name}: ${e.message}`); }
     }
     setMsg({ ok: !problems.length, text: [
-      tr("Kept {kept} lines in the project ({readings} readings). Choose one from the list above to invert it.", { kept, readings: readings.toLocaleString() }),
+      tr("Kept {kept} lines in the project ({readings} readings). Choose one in the Line step to invert it.", { kept, readings: readings.toLocaleString() }),
       unplaced.length ? tr("No stations found for: {names}. Place those lines before inverting.", { names: unplaced.join(", ") }) : "",
       unplaced.length && files.length ? tr("The station file(s) name these lines: {lines}.", { lines: [...new Set(files.flatMap((x) => Object.keys(x.lines || {}).filter(Boolean)))].slice(0, 12).join(", ") || "—" }) : "", // #2020 — what could be matched
       problems.length ? tr("Problems: {failed}", { failed: problems.join("; ") }) : "",

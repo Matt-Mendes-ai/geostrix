@@ -7933,7 +7933,6 @@
   "Choose a deposit type…": "Choisissez un type de gisement…",
   "no electrode and apparent-resistivity columns found.": "aucune colonne d'électrodes et de résistivité apparente trouvée.",
   "no usable readings.": "aucune lecture utilisable.",
-  "Kept {kept} lines in the project ({readings} readings). Choose one from the list above to invert it.": "{kept} lignes gardées dans le projet ({readings} lectures). Choisissez-en une dans la liste ci-dessus pour l'inverser.",
   "Kept in the project as \"{name}\" (place it on the map before inverting).": "Conservée dans le projet sous « {name} » (placez-la sur la carte avant d'inverser).",
   "No stations found for: {names}. Place those lines before inverting.": "Aucune station trouvée pour : {names}. Placez ces lignes avant d'inverser.",
   "The station file(s) name these lines: {lines}.": "Le ou les fichiers de stations nomment ces lignes : {lines}.",
@@ -15733,5 +15732,8 @@
   "Build surfaces": "Construire les surfaces",
   "New group": "Nouveau groupe",
   "Building structures…": "Construction des structures…",
-  "Build structures": "Construire les structures"
+  "Build structures": "Construire les structures",
+  "Kept {kept} lines in the project ({readings} readings). Choose one in the Line step to invert it.": "{kept} lignes gardées dans le projet ({readings} lectures). Choisissez-en une à l'étape Ligne pour l'inverser.",
+  "Build the ternary image": "Construire l'image ternaire",
+  "Compute the filtered grid": "Calculer la grille filtrée"
 }
