@@ -1,0 +1,2 @@
+# shell scripts run in Git Bash, which cannot run a script checked out with CRLF line ends: keep them LF on every checkout (scripts/heavy-lock.sh)
+*.sh text eol=lf
