@@ -2,21 +2,20 @@
 // the drill assays (lab rows: no QC inserts, no pXRF) or of the surface samples (one medium, or all), on elements read from the data
 // (defaultMcdElements) that the user can change. Written like a Calc. element, so the plan map, the 3D View, thresholds and grade stats
 // take it. The panel says what the score is: a ranking of how unusual each sample's whole composition is, not a probability.
+// TASKS.csv #4070 (Geochem panes) — on the shared step shell (StepDialog): Elements (the samples, the elements; Score, the gold primary) and Result (the
+// most unusual, the column name; Write the score, the gold primary). What the score is and how the defaults are read moved into the Help card.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
+import { backdropProps } from "../lib/modalStyles.js";
 import { defaultMcdElements } from "../lib/mcd.js";
 import { floorElements } from "../lib/floorShare.js"; // TASKS.csv #3748
 import { runMcdScores } from "../lib/mcdClient.js"; // TASKS.csv #3030 — in a worker for a large table
 import { classifyQAQCRow, isPxrfRow } from "../lib/qaqc.js";
 import { notice } from "../lib/notices.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap)
 
 const ALL = "\u0000all";
 export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples, surfaceElements, setAssays, setAssayElements, setSurfaceSamples, setSurfaceElements, onNotice, onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
   const [source, setSource] = useState(() => (assays.length ? "assays" : "surface"));
   const media = useMemo(() => [...new Set(surfaceSamples.map((s) => s.medium || ""))].filter(Boolean).sort(), [surfaceSamples]);
   const [medium, setMedium] = useState(() => (media.length > 1 ? media[0] : ALL));
@@ -33,6 +32,7 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
   const chosen = picked || defaults;
   const [name, setName] = useState("MCD_score");
   const [res, setRes] = useState(null), [err, setErr] = useState(null), [busy, setBusy] = useState(false);
+  const [at, setAt] = useState(0);
   const reset = () => { setRes(null); setErr(null); };
   // TASKS.csv #3030 — the fit runs in a worker from MCD_WORKER_FROM samples (10^5 froze the window about 10 s); closing the dialog or a new
   // run drops the one in flight
@@ -43,7 +43,7 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
     job.current?.cancel();
     const j = runMcdScores(pool, chosen);
     job.current = j;
-    j.promise.then((r) => { if (job.current === j) { setRes(r); setBusy(false); } }, (e) => { if (job.current === j) { setErr(e.message); setBusy(false); } });
+    j.promise.then((r) => { if (job.current === j) { setRes(r); setBusy(false); setAt(1); } }, (e) => { if (job.current === j) { setErr(e.message); setBusy(false); } });
   };
   const exists = elements.some((e) => e.symbol === name);
   const validName = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !exists;
@@ -61,11 +61,17 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
   const where = (r) => (r.hole_id != null && r.from != null ? `${r.hole_id} ${r.from}–${r.to} m` : r.sample_id || r.id || "");
   const lbl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
   const sel = { background: "var(--color-bg)", color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 6px", fontSize: "var(--font-size-sm)", fontFamily: "inherit" };
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div role="dialog" aria-modal="true" aria-label={tr("Multivariate anomaly score")} onClick={(e) => e.stopPropagation()} style={{ width: "min(640px, 94vw)", maxHeight: "88vh", overflow: "auto", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}>{tr("Multivariate anomaly score")}</div>
-        <div style={{ ...lbl, lineHeight: 1.45 }}>{tr("Ranks how far each sample's composition lies from the bulk (robust Mahalanobis distance on log ratios, Filzmoser 2005): a ranking, not a probability of mineralization.")}</div>
+
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{tr("Multivariate anomaly score")}</summary>
+      <div style={{ ...lbl, lineHeight: 1.45 }}>{tr("Ranks how far each sample's composition lies from the bulk (robust Mahalanobis distance on log ratios, Filzmoser 2005): a ranking, not a probability of mineralization.")}</div>
+      <div style={{ ...lbl, lineHeight: 1.45, marginTop: 6 }}>{tr("Ticked first: the elements with a value on 90 % of the samples and few below detection or on the detection floor.")}</div>
+    </details>
+  );
+  const steps = [
+    { key: "elements", label: tr("Elements"), primary: { label: busy ? tr("Scoring…") : tr("Score"), onClick: run, disabled: busy || chosen.length < 3 }, hint: chosen.length < 3 ? tr("Choose at least three elements.") : "", render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label style={lbl}>{tr("Samples")}<select value={source} onChange={(e) => { setSource(e.target.value); setPicked(null); reset(); }} style={{ ...sel, display: "block", marginTop: 3 }}>
             {assays.length > 0 && <option value="assays">{tr("Drill assays (lab rows)")}</option>}
@@ -77,7 +83,7 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
           </select></label>}
           <span style={lbl}>{tr("{n} sample(s)", { n: pool.length.toLocaleString() })}</span>
         </div>
-        <div style={lbl}>{tr("Elements (at least three; the defaults are those with a value on 90 % of the samples and few below detection or on the detection floor):")}
+        <div style={lbl}>{tr("Elements (at least three)")}
           {leftOut.length > 0 && <div style={{ marginTop: 3 }}>{tr("Left out of the defaults, mostly on the file's detection floor: {list}.", { list: leftOut.slice(0, 8).map((f) => `${f.symbol} ${Math.round(f.share * 100)} %`).join(", ") + (leftOut.length > 8 ? ", …" : "") })}</div>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 4 }}>
             {elements.filter((e) => !e.calculated).map((e) => (
@@ -87,25 +93,21 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
             ))}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button type="button" className="gs-btn" disabled={busy || chosen.length < 3} onClick={run}>{busy ? tr("Scoring…") : tr("Score")}</button>
-          {chosen.length < 3 && <span style={lbl}>{tr("Choose at least three elements.")}</span>}
-        </div>
-        {err && <div role="alert" style={{ ...lbl, color: "var(--color-danger-text)" }}>{err}</div>}
+      </div>
+    ) },
+    { key: "result", label: tr("Result"), primary: { label: tr("Write the score"), onClick: write, disabled: !res || !validName }, hint: !res ? tr("Score the samples first.") : exists ? tr("\"{n}\" already exists — pick another name.", { n: name }) : "", render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
         {res && (<>
           <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>{tr("{used} of {n} sample(s) scored on {d} elements ({p} log-ratio coordinates). {k} lie above the 97.5 % chi-square line ({cut}); with no anomalies, about 2.5 % would.", { used: res.used.toLocaleString(), n: pool.length.toLocaleString(), d: chosen.length, p: res.p, k: res.flagged.toLocaleString(), cut: res.cutoff.toFixed(2) })}</div>
           {top.length > 0 && <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", alignSelf: "flex-start" }}>
             <thead><tr><th style={{ textAlign: "start", padding: "2px 8px" }}>{tr("Most unusual")}</th><th style={{ textAlign: "end", padding: "2px 8px" }}>{tr("Score")}</th></tr></thead>
             <tbody>{top.map(([r, v], i) => <tr key={i}><td style={{ padding: "2px 8px" }}>{where(r)}</td><td style={{ textAlign: "end", padding: "2px 8px", fontVariantNumeric: "tabular-nums" }}>{v.toFixed(2)}</td></tr>)}</tbody>
           </table>}
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <label style={lbl}>{tr("Column name")}<input value={name} onChange={(e) => setName(e.target.value.trim())} style={{ ...sel, display: "block", marginTop: 3, width: 150 }} /></label>
-            <button type="button" className="gs-btn gs-btn--primary" disabled={!validName} onClick={write}>{tr("Write the score")}</button>
-            {exists && <span style={{ ...lbl, color: "var(--color-warn-text)" }}>{tr("\"{n}\" already exists — pick another name.", { n: name })}</span>}
-          </div>
+          <label style={lbl}>{tr("Column name")}<input value={name} onChange={(e) => setName(e.target.value.trim())} style={{ ...sel, display: "block", marginTop: 3, width: 150 }} /></label>
         </>)}
-        <div style={{ display: "flex", justifyContent: "flex-end" }}><button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button></div>
       </div>
-    </div>
-  );
+    ) },
+  ];
+  const heading = tr("Multivariate anomaly score"); // the dialog's name, seen (not a tooltip)
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} error={err} width="min(640px, 94vw)" overlayProps={backdropProps(onClose)} />;
 }
