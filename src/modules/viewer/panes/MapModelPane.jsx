@@ -11,7 +11,7 @@ import { Suspense } from "react";
 export default function MapModelPane({ MapModelPanel, collars, desurveyMethod, implicitBusy, implicitGroupRef, implicitMeshesRef, layers, leftOutNote, mapLayers, originRef, paneHeader, runMapModel, setImplicitSurfaces, setNotices, surfaceStructures, survey, terrain, toolPane }) {
   return (<>
 {toolPane === "mapmodel" && (<>
-        {paneHeader("Model from map", Mountain, "model")}
+        {paneHeader("Model from map", Mountain, "model", true /* #4070 */)}
         <Suspense fallback={null}>
           <MapModelPanel mapLayers={mapLayers} surfaceStructures={surfaceStructures} terrain={terrain} busy={implicitBusy} onRun={runMapModel} pBtn={pBtn} smallSel={smallSel} holeCount={collars.length} lithoRows={layers.litho} /* #1718 */
             onBuildBodies={(p) => import("../intrusionRun.js").then((m) => m.buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, originRef, setImplicitSurfaces, setNotices, terrain, collars, survey, desurveyMethod /* #2663 */ })).catch((e) => setNotices((q) => [...q, errorNotice(tr("Intrusion bodies could not be built: {v}", { v: e?.message || String(e) }))]))} /* #992 — a failed load or throw is said, not swallowed */ /* #821, loaded on use */ />

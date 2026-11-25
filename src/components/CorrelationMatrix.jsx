@@ -191,9 +191,9 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
           <div>
             <div style={{ ...label, display: "flex", alignItems: "center", gap: 8 }}>{tr("Elements ({symbols} of {allSymbols} selected)", { symbols: symbols.length, allSymbols: allSymbols.length })}
               {/* #2508 — one click instead of 30 ticks */}
-              <button type="button" onClick={() => setSelected(new Set(allSymbols))} style={miniBtn}>{tr("All")}</button>
-              <button type="button" onClick={() => setSelected(new Set())} style={miniBtn}>{tr("None")}</button>
-              <button type="button" onClick={() => setSelected(new Set(defaultsFor(assays, allSymbols)))} style={miniBtn} title={tr("The commodity and alteration elements first, up to 12")}>{tr("Suggested suite")}</button>
+              <button type="button" onClick={() => setSelected(new Set(allSymbols))} className="gs-btn gs-btn--sm">{tr("All")}</button>
+              <button type="button" onClick={() => setSelected(new Set())} className="gs-btn gs-btn--sm">{tr("None")}</button>
+              <button type="button" onClick={() => setSelected(new Set(defaultsFor(assays, allSymbols)))} className="gs-btn gs-btn--sm" title={tr("The commodity and alteration elements first, up to 12")}>{tr("Suggested suite")}</button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {allSymbols.map((s) => (
@@ -239,12 +239,12 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
           )}
 
           {progress && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Computing the correlations: {done} of {total} pairs…", { done: progress.done, total: progress.total })}</div>}{/* #3032 */}
-          <button onClick={exportCSV} disabled={symbols.length < 2 || !matrix} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: symbols.length < 2 || !matrix ? 0.5 : 1 }}>
+          <button onClick={exportCSV} disabled={symbols.length < 2 || !matrix} className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start" }}>
             <Download size={14} />{" "}{tr("Export matrix (CSV)")}</button>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
+          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -254,7 +254,6 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
 const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
 const cornerCell = { width: 40, background: "var(--color-bg)" };
 const headCell = { padding: "4px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "center", background: "var(--color-bg)", position: "sticky", top: 0 };
 const rowHead = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", background: "var(--color-bg)", position: "sticky", left: 0 };
@@ -263,4 +262,3 @@ const rowHead = { padding: "4px 8px", color: "var(--color-text-secondary)", font
 // all of these, most acutely the null/near-zero-correlation cells. Dark text reads fine across the
 // whole range since nothing cellColor returns is actually dark.
 const cell = { width: 34, height: 24, textAlign: "center", color: "var(--color-text)", fontFamily: "'Exo 2', system-ui, sans-serif", fontWeight: 600 };
-const miniBtn = { padding: "1px 8px", fontSize: "var(--font-size-xs)", borderRadius: 4, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer" }; // #2508

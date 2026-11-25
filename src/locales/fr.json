@@ -15478,5 +15478,22 @@
   "A control point has no elevation.": "Un point de contrôle n'a pas d'altitude.",
   "Place at least 2 control points.": "Placez au moins 2 points de contrôle.",
   "No holes or saved sections yet: type the ends.": "Pas encore de sondages ni de coupes enregistrées : saisissez les extrémités.",
-  "Fit error": "Erreur d'ajustement"
+  "Fit error": "Erreur d'ajustement",
+  "Codes": "Codes",
+  "Codes and roles, youngest first": "Codes et rôles, le plus jeune d'abord",
+  "Re-code": "Recoder",
+  "Re-code intervals?": "Recoder des intervalles ?",
+  "Number": "Numéroter",
+  "Number alternating flows?": "Numéroter les coulées alternées ?",
+  "Body": "Corps",
+  "A closed body of one code?": "Un corps fermé d'un code ?",
+  "Which holes?": "Quels sondages ?",
+  "How fine?": "Quelle finesse ?",
+  "A rock unit or a grade?": "Une unité de roche ou une teneur ?",
+  "Rock unit": "Unité de roche",
+  "Which codes make up the unit?": "Quels codes forment l'unité ?",
+  "Draw it how?": "La dessiner comment ?",
+  "Shells and blocks": "Enveloppes et blocs",
+  "Which map?": "Quelle carte ?",
+  "What else goes in?": "Quoi d'autre entre ?"
 }

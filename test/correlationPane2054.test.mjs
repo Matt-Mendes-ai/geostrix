@@ -20,14 +20,14 @@ test("the Correlation pane shows the correlation tools beside the fence launcher
 
 test("focus 'correlate' leaves out the codes list and closed bodies, and keeps pick / connect, auto-number and sheets", () => {
   assert.match(pane, /export default function ModellingCodesPane\(\{ focus = null, /);
-  assert.match(pane, /\{focus !== "correlate" && onBuildBody && unitBody && \(<>/);
-  assert.match(pane, /\{focus !== "correlate" && \(<>\{\/\* #2054 \*\/\}\r?\n\s*<div className="ge-section-label" style=\{\{ marginTop: 12 \}\}>\{tr\("Codes \(youngest at the top\)"\)\}/);
-  for (const kept of ["Pick intervals in the 3D view", "Auto-number alternations (optional)", "Correlate sheets between holes (optional)"]) {
-    const at = pane.indexOf(`tr("${kept}")`);
-    assert.ok(at > 0, kept);
-    const before = pane.slice(0, at);
-    const opened = (before.match(/focus !== "correlate" && /g) || []).length, closedCodes = before.includes("Codes (youngest at the top)") ? 1 : 0, closedBody = before.includes("Closed body of a unit") ? 1 : 0;
-    assert.equal(opened, closedCodes + closedBody, `${kept} is outside the hidden sections`);
-  }
-  assert.ok(pane.includes('focus === "correlate" ? <div style={{ ...small, marginBottom: 8 }}>{tr("Hole-to-hole correlation: connect intervals of one unit'));
+  // TASKS.csv #4070 — the sections are built once (pickSection, numberSection with the sheets, footer); Modelling codes shows them as steps with the codes
+  // list and the closed body, the correlate focus returns early with only the hole-to-hole ones
+  const at = pane.indexOf('if (focus === "correlate") return (');
+  assert.ok(at > 0);
+  const correlate = pane.slice(at, pane.indexOf("const hasBody", at));
+  for (const kept of ["{pickSection}", "{numberSection}", "{footer}", 'tr("Pick intervals in the 3D view")', 'tr("Auto-number alternations (optional)")', 'tr("Hole-to-hole correlation: connect intervals of one unit']) assert.ok(correlate.includes(kept), kept);
+  for (const left of ["Codes and roles", "onBuildBody", "codes.map((c, i)"]) assert.ok(!correlate.includes(left), `${left} stays out of the Correlation pane`);
+  const numberSection = pane.slice(pane.indexOf("const numberSection = ("), pane.indexOf("const footer = ("));
+  assert.ok(numberSection.includes('tr("Correlate sheets between holes (optional)")'), "the sheets go with auto-number");
+  assert.match(pane, /\.\.\.\(hasBody \? \[\{ key: "body"/, "the closed body: Modelling codes only, when it can be built");
 });

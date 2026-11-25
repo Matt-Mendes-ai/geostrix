@@ -21,6 +21,8 @@ import { combineSelection, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, r
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 — the pane as steps
+import MoreFold from "./MoreFold.jsx";
 
 const ROLE_HELP = {
   stratigraphic: "a layer in the pile: its top is a contact where it sits below a younger layer",
@@ -304,13 +306,9 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           }
           return { rows, assign, msgs, preview };
   };
-  return (
-    <div style={{ fontSize: "var(--font-size-sm)" }}>
-      {focus === "correlate" ? <div style={{ ...small, marginBottom: 8 }}>{tr("Hole-to-hole correlation: connect intervals of one unit, number alternating flows, or match sheet swarms. Codes, roles and closed bodies are in Modelling codes.")}</div> /* TASKS.csv #2054 */ : (
-        <div style={{ ...small, marginBottom: 8 }}>{tr("Each logged interval has a")}{" "}<b>{tr("modelling code")}</b>{tr(": its logged code (or lithology group) unless you change it. Give alternating flows their own codes (DAC1, AND1, DAC2…). A contact is taken where the code changes down-hole below a younger stratigraphic unit, never at a hole start or below casing, an intrusion or a gap. New codes appear in the Implicit surface and Strat. stack pickers.")}</div>
-      )}
-
-      <div className="ge-section-label">{tr("Pick intervals in the 3D view")}</div>
+  // TASKS.csv #4070 (Matt's layout C) — the sections, built once: the Modelling codes pane shows them as steps, the Correlation pane (focus "correlate",
+  // #2054) as they were
+  const pickSection = (<>
       <button data-btn-own="" onClick={() => { setBoxOn(false); setPickMode(!pickMode); setConnectFrom(null); }} aria-pressed={pickMode} style={{ ...pBtn, marginTop: 4, background: pickMode ? "var(--color-selected-bg)" : undefined }}>
         <Crosshair size={14} /> {pickMode ? tr("Picking: click an interval on a hole (click again to stop)") : tr("Pick an interval")}
       </button>
@@ -381,79 +379,8 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           </button>
         </div>
       )}
-
-      {/* TASKS.csv #1340 — a rock unit's body is built here, with its own settings, not from the Alteration pane. #1339 — the threshold, not the search, joins bodies. */}
-      {focus !== "correlate" && onBuildBody && unitBody && (<>
-        <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Closed body of a unit")}</div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
-          <select value={bodyCode} onChange={(e) => setBodyCode(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 0 }} aria-label={tr("Modelling code of the closed body")}>
-            <option value="">{tr("Choose a code…")}</option>
-            {codes.filter((c) => !c.leftOut).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-          </select>
-          <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("How much nearby-sample weight must be in the unit for a point to count as inside. 0.5 stops about halfway to the next interval; lower values join bodies and grow the volume past the logs.")}>{tr("Inside at")}
-            <select value={unitBody.iso} onChange={(e) => setUnitBody((b) => ({ ...b, iso: Number(e.target.value) }))} style={inputStyle} aria-label={tr("Threshold of the closed body")}>
-              {[0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1].map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </label>
-        </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Search (m)")}<NumberInput min={0} step={50} allowEmpty value={unitBody.search || null} placeholder={tr("auto")} onChange={(n) => setUnitBody((b) => ({ ...b, search: n ?? 0 }))} style={{ ...inputStyle, width: 64 }} /></label>
-          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Cell size (m)")}<NumberInput min={0} step={5} allowEmpty value={unitBody.cell || null} placeholder={tr("auto")} onChange={(n) => setUnitBody((b) => ({ ...b, cell: n ?? 0 }))} style={{ ...inputStyle, width: 64 }} /></label>
-          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={unitBody.largest} onChange={(e) => setUnitBody((b) => ({ ...b, largest: e.target.checked }))} />{tr("Keep only the largest body")}</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Drilled metres with no rock code (and unlogged holes) count as outside the unit, not unknown: for grade-control holes logged only where the unit is")}><input type="checkbox" checked={!!unitBody.unloggedOutside} onChange={(e) => setUnitBody((b) => ({ ...b, unloggedOutside: e.target.checked }))} />{tr("Treat unlogged metres as outside")}</label>{/* #2531 */}
-        </div>
-        {assayElements.length > 0 && ( /* TASKS.csv #2634 — where the log is blank, an assay cut-off decides (no default cut-off: the user types it) */
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }} title={tr("Where the log is blank, an assay at or above the cut-off is inside the unit, below it outside; unassayed blank metres follow the box above. Leave the element empty to use the log only.")}>
-            <span>{tr("Blank log read from an assay")}</span>
-            <select value={unitBody.assaySymbol || ""} onChange={(e) => setUnitBody((b) => ({ ...b, assaySymbol: e.target.value }))} style={inputStyle} aria-label={tr("Element that decides where the log is blank")}>
-              <option value="">{tr("none")}</option>
-              {assayElements.map((el) => <option key={el.symbol} value={el.symbol}>{el.symbol}</option>)}
-            </select>
-            {unitBody.assaySymbol && (<label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("at or above ({unit})", { unit: gradeUnitLabel(unitBody.assaySymbol, (assayElements.find((el) => el.symbol === unitBody.assaySymbol) || {}).unit) })}
-              <NumberInput min={0} allowEmpty value={unitBody.assayCutoff === "" || unitBody.assayCutoff == null ? null : unitBody.assayCutoff} placeholder={tr("cut-off")} onChange={(n) => setUnitBody((b) => ({ ...b, assayCutoff: n == null ? "" : n }))} style={{ ...inputStyle, width: 70 }} aria-label={tr("Cut-off where the log is blank")} /></label>)}
-          </div>
-        )}
-        <div style={{ ...small, marginTop: 3 }}>{tr("Inside: the code's intervals. Outside: all other logged lithology (and, if ticked, unlogged metres). Follows the geology trend in Model settings. A lower Inside at joins bodies; a larger search rarely does.")}</div>
-        {leftOutList.length > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("Left out of the model: {codes}.", { codes: leftOutList.join(", ") })}</div>}
-        <button onClick={() => onBuildBody(bodyCode)} disabled={!bodyCode} className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0, opacity: bodyCode ? 1 : 0.5 }}><Layers3 size={14} /> {bodyCode ? tr("Build a closed body from {code}", { code: bodyCode }) : tr("Build a closed body")}</button>
-      </>)}
-
-      {focus !== "correlate" && (<>{/* #2054 */}
-      <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Codes (youngest at the top)")}</div>
-      <div style={small}>{tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")}</div>
-      {codes.length > 1 && <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>{/* #2926 */}
-        <button type="button" onClick={applyHolesOrder} title={tr("In each hole the unit that starts higher is younger, counted pair by pair over the holes that log both (the Strat. stack's check).")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
-        {holesNote && <span role="status" style={small}>{holesNote}</span>}
-        {overrideCount.size > 0 && <button type="button" onClick={() => deleteCodesNamed([...overrideCount.keys()])} title={tr("Delete every code made by re-coding intervals")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Delete all")}</button>}
-      </div>}
-      {pickedNames.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginTop: 4, background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, fontSize: "var(--font-size-xs)" }}>
-          <span style={{ flex: 1, color: "var(--color-text)" }}>{tr("{n} picked", { n: pickedNames.length })}</span>
-          {pickedNames.some((n) => !leftOutList.includes(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => leaveOut(pickedNames, true)} title={tr("Leave out of the model")} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Leave out")}</span>}
-          {pickedNames.some((n) => leftOutList.includes(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => leaveOut(pickedNames, false)} title={tr("Put back in the model")} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Put back")}</span>}
-          {pickedNames.some((n) => overrideCount.has(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => deleteCodesNamed(pickedNames)} style={{ cursor: "pointer", color: "var(--color-danger-icon)" }}>{tr("Delete")}</span>}
-          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { setPickedCodes(new Set()); codeAnchor.current = null; }} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Clear")}</span>
-        </div>
-      )}
-      <div style={small}>{tr("Roles are suggested from code names and, when imported, the intervals' notes (dyke, lost core, monzonite ...). An unrecognized code is assumed stratigraphic: check the roles before modelling.")}{" "}{tr("A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.")}</div>{/* #2046; cover: #3147 */}
-      {codes.map((c, i) => (
-        <div key={c.name} onClick={(e) => clickCodeRow(e, c.name)} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, ...(pickedCodes.has(c.name) ? { background: "var(--color-selected-bg)", borderRadius: 4 } : {}) }}>
-          <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}><span style={c.leftOut ? { textDecoration: "line-through", color: "var(--color-text-muted)" } : undefined}>{c.name}</span> <span style={small}>({counts.get(c.name) || 0})</span></span>
-          <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 4px" }}><Square size={11} /></button>
-          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={assumedRole(c.name) ? tr("Not recognized: assumed stratigraphic. Check it before modelling.") : coverWhy(c) || meaningWhy(c) || tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none", ...(assumedRole(c.name) ? { color: "var(--color-text-muted)", fontStyle: "italic" } : {}) }}>{/* #2537 — an assumed role looks assumed */}
-            {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
-          </select>
-          <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>
-          <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 5px" }}>▼</button>
-          <button data-btn-own="" onClick={() => leaveOut([c.name], !c.leftOut)} aria-pressed={!!c.leftOut} title={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} aria-label={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", ...(c.leftOut ? { background: "var(--color-selected-bg)" } : {}) }}><EyeOff size={11} /></button>
-          {overrideCount.has(c.name) && <button onClick={() => deleteCodesNamed([c.name])} title={tr("Delete the code {name}", { name: c.name })} aria-label={tr("Delete the code {name}", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 4px", color: "var(--color-danger-icon)" }}><X size={11} /></button>}
-        </div>
-      ))}
-      </>)}
-
-      <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Auto-number alternations (optional)")}</div>
-      <div style={small}>{tr("Numbers each repeated unit top-down in every hole (DAC → DAC1, DAC2…) as a start. Numbers are per hole: fix a flow that pinches out by connecting intervals.")}</div>
+  </>);
+  const numberSection = (<>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
         {loggedCodes.map((c) => (
           <label key={c} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}>
@@ -503,10 +430,100 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         {sheetPreview && sheetPreview.length > 0 && <div style={{ ...small, display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>{[...new Map(sheetPreview.map((q) => [`${q.code}${q.sheet}`, q])).values()].map((q) => <span key={`${q.code}${q.sheet}`} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: sheetColour(q.sheet) }} />{`${q.code}${q.sheet}`}</span>)}</div>}
         {sheetMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{sheetMsg}</div>}
       </>)}
-
+  </>);
+  const footer = (
       <div style={{ ...small, marginTop: 10 }}>
         {tr("{overrides} interval(s) with a code you set · {n} connection(s) drawn.", { overrides, n: (mc.ties || []).length })}{overrides > 0 && <> <span style={{ textDecoration: "underline", cursor: "pointer" }} {...iconAction(async () => { if (await askConfirm(tr("Reset all {overrides} interval code(s) to their logged codes and remove the connections? (Undo can bring them back.)", { overrides }))) setModellingCodes((p) => ({ ...(p || mc), assign: {}, ties: [] })); }, tr("Reset all interval codes"))}>{tr("Reset all")}</span></>}
       </div>
+  );
+  if (focus === "correlate") return (
+    <div style={{ fontSize: "var(--font-size-sm)" }}>
+      <div style={{ ...small, marginBottom: 8 }}>{tr("Hole-to-hole correlation: connect intervals of one unit, number alternating flows, or match sheet swarms. Codes, roles and closed bodies are in Modelling codes.")}</div>{/* TASKS.csv #2054 */}
+      <div className="ge-section-label">{tr("Pick intervals in the 3D view")}</div>
+      {pickSection}
+      <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Auto-number alternations (optional)")}</div>
+      <div style={small}>{tr("Numbers each repeated unit top-down in every hole (DAC → DAC1, DAC2…) as a start. Numbers are per hole: fix a flow that pinches out by connecting intervals.")}</div>
+      {numberSection}
+      {footer}
+    </div>
+  );
+  const hasBody = !!(onBuildBody && unitBody);
+  return (
+    <div style={{ fontSize: "var(--font-size-sm)" }}>
+      <StepPane id="mcodes" label={tr("Modelling codes")}
+        steps={[
+          { key: "codes", label: tr("Codes"), question: tr("Codes and roles, youngest first"),
+            hint: `${tr("Each logged interval has a")} ${tr("modelling code")}${tr(": its logged code (or lithology group) unless you change it. Give alternating flows their own codes (DAC1, AND1, DAC2…). A contact is taken where the code changes down-hole below a younger stratigraphic unit, never at a hole start or below casing, an intrusion or a gap. New codes appear in the Implicit surface and Strat. stack pickers.")} ${tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")} ${tr("Roles are suggested from code names and, when imported, the intervals' notes (dyke, lost core, monzonite ...). An unrecognized code is assumed stratigraphic: check the roles before modelling.")} ${tr("A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.")}` /* #2046; cover: #3147 */, body: (<>
+      {codes.length > 1 && <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>{/* #2926 */}
+        <button type="button" onClick={applyHolesOrder} title={tr("In each hole the unit that starts higher is younger, counted pair by pair over the holes that log both (the Strat. stack's check).")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
+        {holesNote && <span role="status" style={small}>{holesNote}</span>}
+        {overrideCount.size > 0 && <button type="button" onClick={() => deleteCodesNamed([...overrideCount.keys()])} title={tr("Delete every code made by re-coding intervals")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Delete all")}</button>}
+      </div>}
+      {pickedNames.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginTop: 4, background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, fontSize: "var(--font-size-xs)" }}>
+          <span style={{ flex: 1, color: "var(--color-text)" }}>{tr("{n} picked", { n: pickedNames.length })}</span>
+          {pickedNames.some((n) => !leftOutList.includes(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => leaveOut(pickedNames, true)} title={tr("Leave out of the model")} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Leave out")}</span>}
+          {pickedNames.some((n) => leftOutList.includes(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => leaveOut(pickedNames, false)} title={tr("Put back in the model")} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Put back")}</span>}
+          {pickedNames.some((n) => overrideCount.has(n)) && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => deleteCodesNamed(pickedNames)} style={{ cursor: "pointer", color: "var(--color-danger-icon)" }}>{tr("Delete")}</span>}
+          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { setPickedCodes(new Set()); codeAnchor.current = null; }} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Clear")}</span>
+        </div>
+      )}
+      {codes.map((c, i) => (
+        <div key={c.name} onClick={(e) => clickCodeRow(e, c.name)} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, ...(pickedCodes.has(c.name) ? { background: "var(--color-selected-bg)", borderRadius: 4 } : {}) }}>
+          <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}><span style={c.leftOut ? { textDecoration: "line-through", color: "var(--color-text-muted)" } : undefined}>{c.name}</span> <span style={small}>({counts.get(c.name) || 0})</span></span>
+          <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 4px" }}><Square size={11} /></button>
+          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={assumedRole(c.name) ? tr("Not recognized: assumed stratigraphic. Check it before modelling.") : coverWhy(c) || meaningWhy(c) || tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none", ...(assumedRole(c.name) ? { color: "var(--color-text-muted)", fontStyle: "italic" } : {}) }}>{/* #2537 — an assumed role looks assumed */}
+            {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
+          </select>
+          <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>
+          <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 5px" }}>▼</button>
+          <button data-btn-own="" onClick={() => leaveOut([c.name], !c.leftOut)} aria-pressed={!!c.leftOut} title={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} aria-label={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", ...(c.leftOut ? { background: "var(--color-selected-bg)" } : {}) }}><EyeOff size={11} /></button>
+          {overrideCount.has(c.name) && <button onClick={() => deleteCodesNamed([c.name])} title={tr("Delete the code {name}", { name: c.name })} aria-label={tr("Delete the code {name}", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 4px", color: "var(--color-danger-icon)" }}><X size={11} /></button>}
+        </div>
+      ))}
+          </>) },
+          { key: "recode", label: tr("Re-code"), question: tr("Re-code intervals?"), body: (<>
+            {pickSection}
+            {footer}
+          </>) },
+          { key: "number", label: tr("Number"), question: tr("Number alternating flows?"), hint: tr("Numbers each repeated unit top-down in every hole (DAC → DAC1, DAC2…) as a start. Numbers are per hole: fix a flow that pinches out by connecting intervals."), body: numberSection },
+          ...(hasBody ? [{ key: "body", label: tr("Body"), question: tr("A closed body of one code?"), body: (<>{/* TASKS.csv #1340 — a rock unit's body is built here, with its own settings. #1339 — the threshold, not the search, joins bodies. */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+          <select value={bodyCode} onChange={(e) => setBodyCode(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 0 }} aria-label={tr("Modelling code of the closed body")}>
+            <option value="">{tr("Choose a code…")}</option>
+            {codes.filter((c) => !c.leftOut).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("How much nearby-sample weight must be in the unit for a point to count as inside. 0.5 stops about halfway to the next interval; lower values join bodies and grow the volume past the logs.")}>{tr("Inside at")}
+            <select value={unitBody.iso} onChange={(e) => setUnitBody((b) => ({ ...b, iso: Number(e.target.value) }))} style={inputStyle} aria-label={tr("Threshold of the closed body")}>
+              {[0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1].map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </label>
+        </div>
+        {leftOutList.length > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("Left out of the model: {codes}.", { codes: leftOutList.join(", ") })}</div>}
+          </>) }] : []),
+        ]}
+        action={hasBody ? { label: bodyCode ? tr("Build a closed body from {code}", { code: bodyCode }) : tr("Build a closed body"), onClick: () => onBuildBody(bodyCode), disabled: !bodyCode, icon: <Layers3 size={14} /> } : null}
+        fineTune={hasBody ? <MoreFold summary={tr("Fine-tune…")} data-fine-tune="mcodes">
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Search (m)")}<NumberInput min={0} step={50} allowEmpty value={unitBody.search || null} placeholder={tr("auto")} onChange={(n) => setUnitBody((b) => ({ ...b, search: n ?? 0 }))} style={{ ...inputStyle, width: 64 }} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Cell size (m)")}<NumberInput min={0} step={5} allowEmpty value={unitBody.cell || null} placeholder={tr("auto")} onChange={(n) => setUnitBody((b) => ({ ...b, cell: n ?? 0 }))} style={{ ...inputStyle, width: 64 }} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={unitBody.largest} onChange={(e) => setUnitBody((b) => ({ ...b, largest: e.target.checked }))} />{tr("Keep only the largest body")}</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }} title={tr("Drilled metres with no rock code (and unlogged holes) count as outside the unit, not unknown: for grade-control holes logged only where the unit is")}><input type="checkbox" checked={!!unitBody.unloggedOutside} onChange={(e) => setUnitBody((b) => ({ ...b, unloggedOutside: e.target.checked }))} />{tr("Treat unlogged metres as outside")}</label>{/* #2531 */}
+        </div>
+        {assayElements.length > 0 && ( /* TASKS.csv #2634 — where the log is blank, an assay cut-off decides (no default cut-off: the user types it) */
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }} title={tr("Where the log is blank, an assay at or above the cut-off is inside the unit, below it outside; unassayed blank metres follow the box above. Leave the element empty to use the log only.")}>
+            <span>{tr("Blank log read from an assay")}</span>
+            <select value={unitBody.assaySymbol || ""} onChange={(e) => setUnitBody((b) => ({ ...b, assaySymbol: e.target.value }))} style={inputStyle} aria-label={tr("Element that decides where the log is blank")}>
+              <option value="">{tr("none")}</option>
+              {assayElements.map((el) => <option key={el.symbol} value={el.symbol}>{el.symbol}</option>)}
+            </select>
+            {unitBody.assaySymbol && (<label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("at or above ({unit})", { unit: gradeUnitLabel(unitBody.assaySymbol, (assayElements.find((el) => el.symbol === unitBody.assaySymbol) || {}).unit) })}
+              <NumberInput min={0} allowEmpty value={unitBody.assayCutoff === "" || unitBody.assayCutoff == null ? null : unitBody.assayCutoff} placeholder={tr("cut-off")} onChange={(n) => setUnitBody((b) => ({ ...b, assayCutoff: n == null ? "" : n }))} style={{ ...inputStyle, width: 70 }} aria-label={tr("Cut-off where the log is blank")} /></label>)}
+          </div>
+        )}
+        <div style={{ ...small, marginTop: 3 }}>{tr("Inside: the code's intervals. Outside: all other logged lithology (and, if ticked, unlogged metres). Follows the geology trend in Model settings. A lower Inside at joins bodies; a larger search rarely does.")}</div>
+        </MoreFold> : null} />
     </div>
   );
 }

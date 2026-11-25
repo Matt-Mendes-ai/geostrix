@@ -12,6 +12,8 @@ import { mapGroundCount, contactsInArea } from "../lib/mapGroundCount.js"; // TA
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2724 — the collars and survey the logged intercepts are placed on
 import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 — the pane as steps
+import MoreFold from "./MoreFold.jsx";
 import { suggestPileOrder, mapRoleFromLog } from "../lib/pileOrder.js"; // mapRoleFromLog: #3369
 import { roleWithCodes } from "../lib/collarSubcrop.js"; // TASKS.csv #3369 — the logs' role of a code (Modelling codes first)
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
@@ -253,53 +255,34 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
       {holeCount > 0 && !codes.length && holesNote}
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-        {tr("Builds a stratigraphic model from the geological map and outcrop measurements alone: contacts become unit tops, bedding and contact dips become orientations. Check the suggested order below.")}
-      </div>
+      {/* TASKS.csv #4070 (Matt's layout C) — the pane as steps: 1 Map, 2 Order, 3 Data -> Build, 4 Result (the fit card); the rarer settings and the
+          intrusion bodies in Fine-tune. What it does: the first question's tooltip and Help. */}
+      <StepPane id="mapmodel" label={tr("Model from map")}
+        steps={[
+          { key: "map", label: tr("Map"), question: tr("Which map?"), hint: tr("Builds a stratigraphic model from the geological map and outcrop measurements alone: contacts become unit tops, bedding and contact dips become orientations. Check the suggested order below."), body: (<>
       <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Map")}</span>
         <select value={layer?.id || ""} onChange={(e) => setLayerId(e.target.value)} style={sel} aria-label={tr("Geological map")}>{polys.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
       {nearestHole && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("This map is the nearest-hole subcrop: its borders lie half-way between holes, so they say nothing of order. Intrusive and cross-cutting codes start out of the pile. Set the order by hand, check it against the logged contacts below, or choose a mapped layer.")}</div>}
       <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Unit field")}</span>
         <select value={unitField} onChange={(e) => setField(e.target.value)} style={sel} aria-label={tr("Unit field")}>{fieldsOf(layer).map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
-      <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Description")}</span>
-        <select value={desc} onChange={(e) => setDescField(e.target.value)} style={sel} aria-label={tr("Description field")}><option value="">{tr("(none)")}</option>{fieldsOf(layer).filter((f) => f !== unitField).map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
-      <div style={{ marginBottom: 6 }}>
-        <div style={{ marginBottom: 3 }}>{tr("Orientations from")}</div>
-        {classCounts.length ? classCounts.map(([c, n]) => (
-          <label key={c} style={{ marginRight: 8, cursor: "pointer", whiteSpace: "nowrap" }}><input type="checkbox" checked={classes.includes(c)} onChange={(e) => setClasses((p) => (e.target.checked ? [...p, c] : p.filter((x) => x !== c)))} /> {c} ({n})</label>
-        )) : <span style={{ fontSize: "var(--font-size-xs)", color: noOrient ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{orientCount ? tr("no outcrop measurements imported — the contacts' own dips are used: {n} fitted from the map traces on this terrain", { n: orientCount.planes }) : tr("no outcrop measurements imported — the contacts' own dips are used")}</span>}{/* #1604 */}
-      </div>
-      <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Faults")}</span>
-        <select value={faultLayer?.id || ""} onChange={(e) => setFaultLayerId(e.target.value)} style={sel} aria-label={tr("Fault lines")}><option value="">{tr("(none)")}</option>{lines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
-      {faults.map((f) => (
-        <div key={f.i} style={{ ...row, fontSize: "var(--font-size-xs)" }}>
-          <input type="checkbox" checked={f.on} onChange={(e) => setFault(f.i, { on: e.target.checked })} aria-label={f.name} />
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.name}\n${f.measured ? tr("dip and side from the nearest measured fault") : tr("no measured fault nearby: set the dip")}${faultWhy[f.i] ? `\n${faultWhy[f.i]}` : ""}`}>{tr(FAULT_TYPE_LABEL[f.type])} · {fmtLen(f.lengthM)}{faultWhy[f.i] ? <span style={{ color: "var(--color-text-muted)" }}> · {faultWhy[f.i]}</span> : null}</span>{/* #3985 — type and length; the pick's reason */}
-          {f.dipIsDefault && <span style={{ color: "var(--color-text-muted)" }} title={tr("From the line type: set the dip if you know it")}>{tr("default")}</span>}
-          <NumberInput min={1} max={90} value={f.dip} onChange={(v) => setFault(f.i, { dip: v })} style={{ ...smallSel, width: 46 }} aria-label={tr("Dip")} />°
-          <select value={Math.round(f.dipDir)} onChange={(e) => setFault(f.i, { dipDir: Number(e.target.value) })} style={{ ...smallSel, width: 62 }} aria-label={tr("Dips towards")}>
-            {f.perp.map((a) => <option key={a} value={Math.round(a)}>{tr("to {a}°", { a: Math.round(a) })}</option>)}
-          </select>
-        </div>
-      ))}
-      {faultPlan && <FaultPickOffer plan={faultPlan} names={Object.fromEntries(faults.map((f) => [f.i, `${tr(FAULT_TYPE_LABEL[f.type])} · ${fmtLen(f.lengthM)}`]))} reason={reasonOf} onTake={takeFaults} /> /* TASKS.csv #3985 */}
-      {faultPick && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Picked {k} of {n} faults for GemPy; the rest are unticked.", { k: faultPick.keep, n: faultPick.before })} <button type="button" onClick={undoFaults} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", cursor: "pointer" }}>{tr("Undo")}</button></div>}
+          </>) },
+          { key: "order", label: tr("Order"), question: tr("Stratigraphic order (youngest at the top)"), body: (<>
+            <div ref={roleListRef} />{/* the cut offer's "change the roles" scrolls here (#3936) */}
       {plan && <CutOffer plan={plan} onTake={() => takeCut(false)} onChange={() => takeCut(true)} />}
-      {cut && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Cut down for GemPy: {m} merged, {o} left out (listed under the order). Their roles can be changed there.", { m: Object.keys(cut.merge).length, o: cut.out.length })}{" "}<button type="button" onClick={() => { setCut(null); setOrderByHand(false); }} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "inherit" }}>{tr("Undo the cut")}</button></div>}
-      <div ref={roleListRef} style={{ margin: "8px 0 4px", color: "var(--color-text)" }}>{tr("Stratigraphic order (youngest at the top)")}</div>
-      {ageSug?.use && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{byAge ? tr("By the map's ages ({n} of {m} units).", { n: ageSug.dated, m: ageSug.total }) : tr("By bedding younging.")}{" "}<button type="button" onClick={() => { setOrderFrom(byAge ? "bedding" : "age"); setOrderByHand(false); }} style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0, fontSize: "inherit" }}>{byAge ? tr("Use the bedding order") : tr("Use the map's ages")}</button></div> /* #4001 */}
+      {cut && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Cut down for GemPy: {m} merged, {o} left out (listed under the order). Their roles can be changed there.", { m: Object.keys(cut.merge).length, o: cut.out.length })}{" "}<button type="button" onClick={() => { setCut(null); setOrderByHand(false); }} className="gs-btn gs-btn--quiet gs-btn--sm" style={{ padding: "0 4px" }}>{tr("Undo the cut")}</button></div>}
+      {ageSug?.use && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{byAge ? tr("By the map's ages ({n} of {m} units).", { n: ageSug.dated, m: ageSug.total }) : tr("By bedding younging.")}{" "}<button type="button" onClick={() => { setOrderFrom(byAge ? "bedding" : "age"); setOrderByHand(false); }} className="gs-btn gs-btn--quiet gs-btn--sm" style={{ padding: "0 4px" }}>{byAge ? tr("Use the bedding order") : tr("Use the map's ages")}</button></div> /* #4001 */}
       {!groundAt && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{noTerrainMsg}</div>}
       {order.map((u, i) => (
         <React.Fragment key={u}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, marginBottom: 3, fontSize: "var(--font-size-xs)" }}>
-          <button onClick={() => move(i, -1)} disabled={!i} aria-label={tr("Move up")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i ? 1 : 0.3 }}><ChevronUp size={13} /></button>
-          <button onClick={() => move(i, 1)} disabled={i === order.length - 1} aria-label={tr("Move down")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i < order.length - 1 ? 1 : 0.3 }}><ChevronDown size={13} /></button>
+          <button data-btn-own="" onClick={() => move(i, -1)} disabled={!i} aria-label={tr("Move up")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i ? 1 : 0.3 }}><ChevronUp size={13} /></button>
+          <button data-btn-own="" onClick={() => move(i, 1)} disabled={i === order.length - 1} aria-label={tr("Move down")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i < order.length - 1 ? 1 : 0.3 }}><ChevronDown size={13} /></button>
           <span style={{ fontWeight: 600 }}>{plainLith(u)}</span>
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-muted)" }} title={plainLith(unitInfo.get(u)?.description || "")}>{plainLith(unitInfo.get(u)?.description || "")} · {why(u)}</span>
           <select value={roles[u] || "stratigraphic"} onChange={(e) => setRole(u, e.target.value)} style={{ ...smallSel, width: 96 }} aria-label={tr("Role of {u}", { u })}>{ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select>
         </div>
         {i < order.length - 1 && (
-          <button type="button" aria-pressed={breaks.includes(u)} onClick={() => setBreaks((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]))}
+          <button data-btn-own="" type="button" aria-pressed={breaks.includes(u)} onClick={() => setBreaks((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]))}
             title={tr("Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.")}
             style={{ display: "block", width: "100%", background: "none", border: "none", borderTop: breaks.includes(u) ? "2px dashed var(--color-accent)" : "none", padding: "0 0 2px", marginBottom: 3, cursor: "pointer", textAlign: "center", fontSize: "var(--font-size-xs)", color: breaks.includes(u) ? "var(--color-accent-dark)" : "var(--color-text-muted)" }}>
             {breaks.includes(u) ? tr("Unconformity here (click to remove)") : tr("Mark an unconformity here")}
@@ -328,6 +311,29 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         <select value={relation} onChange={(e) => setRelation(e.target.value)} style={sel} aria-label={tr("Contact relation")}>
           <option value="onlap">{tr("Conformable (one shared field: units cannot pinch out)")}</option><option value="erode">{tr("Erosional (each unit truncates those below)")}</option>
         </select></div>}
+          </>) },
+          { key: "data", label: tr("Data"), question: tr("What else goes in?"), body: (<>
+      <div style={{ marginBottom: 6 }}>
+        <div style={{ marginBottom: 3 }}>{tr("Orientations from")}</div>
+        {classCounts.length ? classCounts.map(([c, n]) => (
+          <label key={c} style={{ marginRight: 8, cursor: "pointer", whiteSpace: "nowrap" }}><input type="checkbox" checked={classes.includes(c)} onChange={(e) => setClasses((p) => (e.target.checked ? [...p, c] : p.filter((x) => x !== c)))} /> {c} ({n})</label>
+        )) : <span style={{ fontSize: "var(--font-size-xs)", color: noOrient ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{orientCount ? tr("no outcrop measurements imported — the contacts' own dips are used: {n} fitted from the map traces on this terrain", { n: orientCount.planes }) : tr("no outcrop measurements imported — the contacts' own dips are used")}</span>}{/* #1604 */}
+      </div>
+      <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Faults")}</span>
+        <select value={faultLayer?.id || ""} onChange={(e) => setFaultLayerId(e.target.value)} style={sel} aria-label={tr("Fault lines")}><option value="">{tr("(none)")}</option>{lines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
+      {faults.map((f) => (
+        <div key={f.i} style={{ ...row, fontSize: "var(--font-size-xs)" }}>
+          <input type="checkbox" checked={f.on} onChange={(e) => setFault(f.i, { on: e.target.checked })} aria-label={f.name} />
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${f.name}\n${f.measured ? tr("dip and side from the nearest measured fault") : tr("no measured fault nearby: set the dip")}${faultWhy[f.i] ? `\n${faultWhy[f.i]}` : ""}`}>{tr(FAULT_TYPE_LABEL[f.type])} · {fmtLen(f.lengthM)}{faultWhy[f.i] ? <span style={{ color: "var(--color-text-muted)" }}> · {faultWhy[f.i]}</span> : null}</span>{/* #3985 — type and length; the pick's reason */}
+          {f.dipIsDefault && <span style={{ color: "var(--color-text-muted)" }} title={tr("From the line type: set the dip if you know it")}>{tr("default")}</span>}
+          <NumberInput min={1} max={90} value={f.dip} onChange={(v) => setFault(f.i, { dip: v })} style={{ ...smallSel, width: 46 }} aria-label={tr("Dip")} />°
+          <select value={Math.round(f.dipDir)} onChange={(e) => setFault(f.i, { dipDir: Number(e.target.value) })} style={{ ...smallSel, width: 62 }} aria-label={tr("Dips towards")}>
+            {f.perp.map((a) => <option key={a} value={Math.round(a)}>{tr("to {a}°", { a: Math.round(a) })}</option>)}
+          </select>
+        </div>
+      ))}
+      {faultPlan && <FaultPickOffer plan={faultPlan} names={Object.fromEntries(faults.map((f) => [f.i, `${tr(FAULT_TYPE_LABEL[f.type])} · ${fmtLen(f.lengthM)}`]))} reason={reasonOf} onTake={takeFaults} /> /* TASKS.csv #3985 */}
+      {faultPick && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0 4px", lineHeight: 1.4 }}>{tr("Picked {k} of {n} faults for GemPy; the rest are unticked.", { k: faultPick.keep, n: faultPick.before })} <button type="button" onClick={undoFaults} className="gs-btn gs-btn--quiet gs-btn--sm">{tr("Undo")}</button></div>}
       {holeCount > 0 && codes.length > 0 && ( /* TASKS.csv #1718 */
         <div style={{ margin: "8px 0", padding: 6, border: "1px solid var(--color-border)", borderRadius: 6 }} aria-label={tr("Drillhole contacts")}>
           <label style={{ ...row, cursor: "pointer", color: "var(--color-text)" }}><input type="checkbox" checked={useHoles} onChange={(e) => setUseHoles(e.target.checked)} />{loggedHoles < holeCount ? tr("Use the drillholes' logged contacts ({n} of the {m} holes have a lithology log)", { n: loggedHoles, m: holeCount }) : tr("Use the drillholes' logged contacts ({n} holes)", { n: loggedHoles })}</label>
@@ -357,23 +363,26 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           </div>}
         </div>
       )}
-      <label style={{ ...row, cursor: "pointer", fontSize: "var(--font-size-xs)", lineHeight: 1.4, alignItems: "flex-start" }} title={tr("A large map is thinned to keep the run to a few minutes. Ticked, every contact point and orientation goes to GemPy: it can take many times longer, the 15-minute stop is off, and Cancel on the status bar stops it.")}>
-        <input type="checkbox" checked={fullDetail} onChange={(e) => setFullDetail(e.target.checked)} style={{ marginTop: 2 }} />{tr("Full detail: send all the sampled contacts (can take much longer)")}
-      </label>{/* TASKS.csv #3162 follow-up */}
       {groundCount && (groundCount.pointsOnGround < groundCount.points || groundCount.measurementsOnGround < groundCount.measurements) && ( /* TASKS.csv #2959 */
         <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>
           {tr("Terrain under {a} of {n} contact point(s) and {b} of {m} measurement(s). The rest sit at the map layer's elevation{z}, where the surfaces are cut; a terrain over the whole map (Maps > Terrain) fixes that.", { a: groundCount.pointsOnGround, n: groundCount.points, b: groundCount.measurementsOnGround, m: groundCount.measurements, z: Number.isFinite(Number(layer?.elevation)) ? tr(" (RL {z})", { z: Math.round(Number(layer.elevation)) }) : "" })}
         </div>
       )}
-      <button onClick={() => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks: runBreaks /* #4001 */, facies: runFacies, bedding, planes, faults: runFaults /* #3985 — merged pieces as one trace */, relation, leftOut, onFit: setFit /* #3989 */, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail })}
-        data-mcp="map-run" disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
-        {busy ? tr("Running…") : tr("Build the model (GemPy)")}
-      </button>
-      {fit && !busy && <MapFitCard fit={fit} shown={showDiff} onShow={(on) => { setShowDiff(on); fit.show(on); }} />}
       {groundAt && order.length < 2 && !busy && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{fewUnitsMsg}</div>}{/* TASKS.csv #2086 — Build was disabled with no word */}
       {holeFit && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("No outcrop orientation: each top will get one fitted from its logged contacts ({n} in use), a least-squares plane through its contact points.", { n: holePreview.contacts.length.toLocaleString() })}</div>}{/* #2409 */}
       {noOrient && lithoRows?.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("From drillholes alone: 3D Modelling > Stratigraphic stack or Implicit surface; or tick 'Use the drillholes' logged contacts' above with each code's unit.")}</div>}{/* #2409 */}
       {noOrient && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{noOrientMsg}</div>}{/* #1604 */}
+          </>) },
+        ]}
+        action={{ label: busy ? tr("Running…") : tr("Build the model (GemPy)"), onClick: () => onRun({ layer: effLayer /* #3936: merged units, if the cut was taken */, field: unitField, order, breaks: runBreaks /* #4001 */, facies: runFacies, bedding, planes, faults: runFaults /* #3985 — merged pieces as one trace */, relation, leftOut, onFit: setFit /* #3989 */, holeCodes: useHoles && holeCount > 0 ? codeUnit : null, fullDetail }), disabled: busy || !groundAt || order.length < 2 || noOrient,
+          attrs: { "data-mcp": "map-run" } /* #4053 — the AI app's model_from_map presses it (useMcpMapModel asks for this step first) */ }}
+        result={{ key: fit && !busy ? fit : null, body: fit && !busy ? <MapFitCard fit={fit} shown={showDiff} onShow={(on) => { setShowDiff(on); fit.show(on); }} /> : null }}
+        fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="mapmodel">
+      <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Description")}</span>
+        <select value={desc} onChange={(e) => setDescField(e.target.value)} style={sel} aria-label={tr("Description field")}><option value="">{tr("(none)")}</option>{fieldsOf(layer).filter((f) => f !== unitField).map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
+      <label style={{ ...row, cursor: "pointer", fontSize: "var(--font-size-xs)", lineHeight: 1.4, alignItems: "flex-start" }} title={tr("A large map is thinned to keep the run to a few minutes. Ticked, every contact point and orientation goes to GemPy: it can take many times longer, the 15-minute stop is off, and Cancel on the status bar stops it.")}>
+        <input type="checkbox" checked={fullDetail} onChange={(e) => setFullDetail(e.target.checked)} style={{ marginTop: 2 }} />{tr("Full detail: send all the sampled contacts (can take much longer)")}
+      </label>{/* TASKS.csv #3162 follow-up */}
       {/* TASKS.csv #821 — intrusions as bodies */}
       <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginTop: 6 }}>
         <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Intrusions as bodies")}</div>
@@ -392,7 +401,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           </div>
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Depth below outcrop")}</span>
             <NumberInput allowEmpty min={10} step={50} value={bodyDepth === "" ? null : bodyDepth} placeholder={tr("required")} onChange={(v) => setBodyDepth(v == null ? "" : v)} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Depth below outcrop")} /><span>m</span>
-            {deepestLogged && bodyDepth === "" && <button type="button" onClick={() => setBodyDepth(Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10))} style={{ ...sel, width: "auto", flex: "none", cursor: "pointer" }} title={tr("The deepest logged {unit} ends {d} m down hole {hole}: a body to that depth reaches every logged intercept.", { unit: deepestLogged.unit, d: Math.round(deepestLogged.depth), hole: deepestLogged.hole })}>{tr("Use {d} m (deepest logged)", { d: Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10) })}</button>}{/* #2568 */}</div>
+            {deepestLogged && bodyDepth === "" && <button type="button" onClick={() => setBodyDepth(Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10))} className="gs-btn gs-btn--sm" style={{ flex: "none" }} title={tr("The deepest logged {unit} ends {d} m down hole {hole}: a body to that depth reaches every logged intercept.", { unit: deepestLogged.unit, d: Math.round(deepestLogged.depth), hole: deepestLogged.hole })}>{tr("Use {d} m (deepest logged)", { d: Math.max(10, Math.ceil(deepestLogged.depth / 10) * 10) })}</button>}{/* #2568 */}</div>
           <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Shape")}</span>{/* TASKS.csv #2642 */}
             <select value={bodyShape} onChange={(e) => setBodyShape(e.target.value)} style={sel} aria-label={tr("Body shape")}>
               <option value="plug">{tr("plug or stock (walls all round)")}</option><option value="sheet">{tr("sheet or dyke (both walls dip one way)")}</option>
@@ -402,8 +411,8 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
               <NumberInput allowEmpty min={10} max={90} step={1} value={sheetDip === "" ? null : sheetDip} placeholder={tr("required")} onChange={(v) => setSheetDip(v == null ? "" : String(v))} style={{ ...sel, width: 60, flex: "none" }} aria-label={tr("Sheet dip")} /><span>°</span>
               <span style={{ flexShrink: 0 }}>{tr("toward")}</span>
               <NumberInput allowEmpty min={0} max={359} step={1} value={sheetDipDir === "" ? null : sheetDipDir} placeholder={tr("required")} onChange={(v) => setSheetDipDir(v == null ? "" : String(v))} style={{ ...sel, width: 60, flex: "none" }} aria-label={tr("Sheet dip direction")} /><span>°</span></div>
-            {contactOffer && (sheetDip === "" || sheetDipDir === "") && <button type="button" onClick={() => { setSheetDip(String(contactOffer.dip)); setSheetDipDir(String(contactOffer.dipDir)); }} style={{ ...sel, width: "auto", cursor: "pointer", marginBottom: 6 }} title={tr("The mean of the {n} contact readings within {m} m of the ticked units' polygons.", { n: contactOffer.n, m: contactOffer.maxM })}>{tr("Use {dip}° toward {dir}° ({n} contact readings)", { dip: contactOffer.dip, dir: contactOffer.dipDir, n: contactOffer.n })}</button>}
-            {fitUnit && lithoRows?.length > 0 && Object.values(codeUnit).includes(fitUnit) /* codeUnit is declared below the hooks above */ && <button type="button" onClick={fitToLogs} disabled={!groundAt} style={{ ...sel, width: "auto", cursor: "pointer", marginBottom: 6 }} /* TASKS.csv #2724 */
+            {contactOffer && (sheetDip === "" || sheetDipDir === "") && <button type="button" onClick={() => { setSheetDip(String(contactOffer.dip)); setSheetDipDir(String(contactOffer.dipDir)); }} className="gs-btn gs-btn--sm" style={{ marginBottom: 6 }} title={tr("The mean of the {n} contact readings within {m} m of the ticked units' polygons.", { n: contactOffer.n, m: contactOffer.maxM })}>{tr("Use {dip}° toward {dir}° ({n} contact readings)", { dip: contactOffer.dip, dir: contactOffer.dipDir, n: contactOffer.n })}</button>}
+            {fitUnit && lithoRows?.length > 0 && Object.values(codeUnit).includes(fitUnit) /* codeUnit is declared below the hooks above */ && <button type="button" onClick={fitToLogs} disabled={!groundAt} className="gs-btn gs-btn--sm" style={{ marginBottom: 6 }} /* TASKS.csv #2724 */
               title={tr("Strike from the unit's map outline, dip from where its logged intercepts lie below the ground beside that trace (least squares); fills the two boxes.")}>{tr("Fit to the logged intercepts")}</button>}
             {sheetFit && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: sheetFit.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4, marginBottom: 6 }}>{sheetFit.text}</div>}
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 6 }}>{tr("The base is the outline moved down-dip, so both walls dip the same way; the thickness is the map width across the dip, said when built.")}</div>
@@ -416,7 +425,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           )}
           <button onClick={() => { setBodyMsg(null); Promise.resolve(onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: Number(bodyDepth), wallDip: bodyShape === "sheet" ? 90 : bodyDip, flare: bodyFlare, sheet: bodyShape === "sheet" ? { dip: Number(sheetDip), dipDir: Number(sheetDipDir) } : null /* #2642 */, logs: lithoRows?.length ? { codeUnit, litho: lithoRows } : null /* #2663; plugs and stocks too: #2819 */ })).then((r) => r && setBodyMsg(r)).catch(() => {}); }}
             disabled={!groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10) || !sheetOk} title={groundAt ? "" : tr("Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.")}
-            style={{ ...pBtn, justifyContent: "center", opacity: !groundAt || !bodyUnits.length || !(Number(bodyDepth) >= 10) || !sheetOk ? 0.5 : 1 }}>
+            className="gs-btn gs-btn--block" style={{ justifyContent: "center" }}>
             {tr("Build intrusion bodies")}
           </button>
           {bodyMsg && (bodyMsg.failed.length > 0 || bodyMsg.gapFilled) && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginTop: 4, color: bodyMsg.failed.length ? "var(--color-danger-fg)" : "var(--color-text-muted)" }}>{/* #2569 — kept in the pane */}
@@ -425,6 +434,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
           </div>}
         </>)}
       </div>
+        </MoreFold>} />
     </div>
   );
 }
@@ -458,7 +468,7 @@ function FaultPickOffer({ plan, names, reason, onTake }) {
       <div style={{ ...line, fontWeight: 600 }}>{tr("GemPy takes at most {max} faults in one model, and {n} are ticked. GeoStrix can pick the {max} that matter:", { max: GEMPY_MAX_FAULTS, n: plan.before })}</div>
       {plan.keep.map((e) => <div key={e.ids.join(",")} style={line}>✓ {label(e)} <span style={{ color: "var(--color-text-muted)" }}>({reason(e)})</span></div>)}
       {plan.drop.map((e) => <div key={e.ids.join(",")} style={{ ...line, color: "var(--color-text-muted)" }}>– {label(e)} ({reason(e)})</div>)}
-      <button type="button" onClick={onTake} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", cursor: "pointer", marginTop: 4 }}>{tr("Pick the {max} for me", { max: GEMPY_MAX_FAULTS })}</button>
+      <button type="button" onClick={onTake} className="gs-btn gs-btn--sm" style={{ marginTop: 4 }}>{tr("Pick the {max} for me", { max: GEMPY_MAX_FAULTS })}</button>
     </div>
   );
 }
@@ -475,8 +485,8 @@ function CutOffer({ plan, onTake, onChange }) {
       {ranked.length > 0 && <div style={line}>{tr("Left out, with the least mapped area in the drilled area and the shortest contacts with other units: {list}.", { list: ranked.map((x) => tr("{unit} ({a} km², {c} km of contact)", { unit: plainLith(x.unit), a: x.areaKm2 >= 0.01 ? x.areaKm2 : "< 0.01", c: x.contactKm })).join(", ") })}</div>}
       <div style={{ ...line, color: "var(--color-text-muted)" }}>{tr("Left-out units are kept on the map as 'other (left out)'; nothing is deleted.")}</div>
       <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-        <button type="button" onClick={onTake} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", cursor: "pointer" }}>{tr("Cut the order down for me")}</button>
-        <button type="button" onClick={onChange} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", cursor: "pointer" }} title={tr("Take the cut and go to the order and roles to change it")}>{tr("Change these")}</button>
+        <button type="button" onClick={onTake} className="gs-btn gs-btn--sm">{tr("Cut the order down for me")}</button>
+        <button type="button" onClick={onChange} className="gs-btn gs-btn--quiet gs-btn--sm" title={tr("Take the cut and go to the order and roles to change it")}>{tr("Change these")}</button>
       </div>
     </div>
   );

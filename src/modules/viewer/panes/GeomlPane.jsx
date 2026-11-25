@@ -9,7 +9,7 @@ export default function GeomlPane({ PredictivePanel, assayElements, assays, clip
   return (<>
 {toolPane === "geoml" && (<>
         {/* TASKS.csv #750 — the former Predictive tab, as a 3D Modelling tool */}
-        {paneHeader("geoML models", Sparkles, "model")}
+        {paneHeader("geoML models", Sparkles, "model", true /* #4070 */)}
         <Suspense fallback={null}>
           <PredictivePanel visibleHoles={visibleHoles} collars={collars} survey={survey} litho={layers.litho || []} lithoGroups={lithoGroups} modellingCodes={modellingCodes} /* #4019 */ assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
             setNotices={setNotices} clipToTopo={clipToTopo} /* TASKS.csv #4017 — the Grade shell's setting */ />

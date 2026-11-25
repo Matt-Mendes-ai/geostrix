@@ -15478,5 +15478,22 @@
   "A control point has no elevation.": "Um ponto de controle não tem elevação.",
   "Place at least 2 control points.": "Coloque pelo menos 2 pontos de controle.",
   "No holes or saved sections yet: type the ends.": "Ainda não há furos nem seções salvas: digite as extremidades.",
-  "Fit error": "Erro de ajuste"
+  "Fit error": "Erro de ajuste",
+  "Codes": "Códigos",
+  "Codes and roles, youngest first": "Códigos e funções, o mais jovem primeiro",
+  "Re-code": "Recodificar",
+  "Re-code intervals?": "Recodificar intervalos?",
+  "Number": "Numerar",
+  "Number alternating flows?": "Numerar derrames alternados?",
+  "Body": "Corpo",
+  "A closed body of one code?": "Um corpo fechado de um código?",
+  "Which holes?": "Quais furos?",
+  "How fine?": "Quão fino?",
+  "A rock unit or a grade?": "Uma unidade de rocha ou um teor?",
+  "Rock unit": "Unidade de rocha",
+  "Which codes make up the unit?": "Quais códigos formam a unidade?",
+  "Draw it how?": "Desenhar como?",
+  "Shells and blocks": "Envoltórios e blocos",
+  "Which map?": "Qual mapa?",
+  "What else goes in?": "O que mais entra?"
 }

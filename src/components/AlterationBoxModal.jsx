@@ -108,8 +108,8 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], m
         {!valid && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Each box needs min below max.")}</div>}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
-          <button onClick={onCancel} style={{ padding: "5px 12px" }}>{tr("Cancel")}</button>
-          <button disabled={!valid || (fittedMode && !fitCodes.length)} onClick={() => onRun({ boxes, map, source, fitCodes, trendRoles })} style={{ padding: "5px 12px", fontWeight: 600, opacity: valid && !(fittedMode && !fitCodes.length) ? 1 : 0.5 }}>{tr("Classify")}</button>
+          <button onClick={onCancel} className="gs-btn">{tr("Cancel")}</button>
+          <button disabled={!valid || (fittedMode && !fitCodes.length)} onClick={() => onRun({ boxes, map, source, fitCodes, trendRoles })} className="gs-btn gs-btn--primary">{tr("Classify")}</button>
         </div>
       </div>
     </div>

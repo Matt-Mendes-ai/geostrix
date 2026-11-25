@@ -12,5 +12,6 @@ test("the holes geoML could model: a collar placed and a log or assays", () => {
 
 test("with none, a note before the offer and a secondary install button", () => {
   assert.match(src, /\{modelableHoles === 0 && <div role="note"[^>]*>\{tr\("Load drillholes first: geoML needs a hole with a collar and a lithology log or assays; this project has none\./);
-  assert.match(src, /style=\{btn\(modelableHoles > 0 \/\* #1845[^*]*\*\/, !st\.url && !st\.browser\)\}/);
+  // the gold primary only with holes to model (#4069's roles, #4070)
+  assert.match(src, /className=\{`gs-btn gs-btn--block\$\{modelableHoles > 0 \? " gs-btn--primary" : ""\}`\} \/\* gs-primary-alt: [^*]*#1845: not the primary action with nothing to model \*\//);
 });

@@ -14,5 +14,5 @@ test("the logged-contacts tick counts the holes with a lithology log, and says o
 test("a disabled Build says why when fewer than two units are stratigraphic", () => {
   assert.match(m, /\{groundAt && order\.length < 2 && !busy && <div role="status"/);
   assert.match(m, /Only one unit \(\{unit\}\) is in the stratigraphic role/);
-  assert.match(m, /disabled=\{busy \|\| !groundAt \|\| order\.length < 2 \|\| noOrient\}/); // the condition the note explains
+  assert.match(m, /disabled: busy \|\| !groundAt \|\| order\.length < 2 \|\| noOrient,/); // the condition the note explains (the steps' action, #4070)
 });

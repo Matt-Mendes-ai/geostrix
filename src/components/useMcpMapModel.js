@@ -7,6 +7,7 @@
 import { useRef } from "react";
 import { useModuleAction } from "../lib/menuRequests.js";
 import { GEMPY_MAX_SURFACES } from "../lib/gempyLimits.js";
+import { requestStep } from "../lib/stepRequest.js"; // TASKS.csv #4070
 
 const fail = (error) => ({ ok: false, error });
 const realSleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -79,6 +80,7 @@ export async function mapModelAction(g, p, { sleep = realSleep, runMs = 9 * 6000
   if (s.order.length < 2) return fail(s.fewUnitsMsg);
   if (s.noOrient) return fail(s.noOrientMsg);
   if (s.plan) return fail(`The map's order has ${s.order.length} units and GemPy takes at most ${GEMPY_MAX_SURFACES}. Model from map is open in GeoStrix with its offer to merge and leave out units (it says why for each): take it there, or change the roles, then ask again.`);
+  requestStep("mapmodel", "data"); await settle(g, sleep); // TASKS.csv #4070 — the pane is steps: its Build button is on the Data step
   const button = doc?.querySelector('[data-mcp="map-run"]');
   if (!button || button.disabled) return fail("Model from map would not start with these settings: its Build button is not available. Its messages are in the pane open in GeoStrix.");
   const order = s.order.slice(), relation = s.relation, byAge = !!s.byAge, usedFaults = (s.faults || []).filter((f) => f.on).map((f) => f.name);

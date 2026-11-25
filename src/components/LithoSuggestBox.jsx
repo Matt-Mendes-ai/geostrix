@@ -42,7 +42,7 @@ export default function LithoSuggestBox({ pBtn }) {
   if (!open) {
     return (
       <div style={{ marginBottom: 8 }}>
-        <button type="button" onClick={() => { setOpen(true); setDone(null); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }} title={tr("Propose groups for the ungrouped codes that name the same rock (BAS, Bslt and Basalt), from what each code means. Nothing changes until you apply it.")}>{tr("Suggest groups from the rock names…")}</button>
+        <button type="button" onClick={() => { setOpen(true); setDone(null); }} className="gs-btn gs-btn--sm" title={tr("Propose groups for the ungrouped codes that name the same rock (BAS, Bslt and Basalt), from what each code means. Nothing changes until you apply it.")}>{tr("Suggest groups from the rock names…")}</button>
         {done && <div role="status" style={{ ...box, marginTop: 6, marginBottom: 0 }}>{tr("Grouped {n} codes: {adds} new group(s), {ext} existing group(s) extended.", { n: done.codes.toLocaleString(), adds: done.adds, ext: done.ext })}</div>}
       </div>
     );
@@ -69,8 +69,8 @@ export default function LithoSuggestBox({ pBtn }) {
       {byGroup.length > SHOWN_GROUPS && <div>{tr("({n} more not listed)", { n: byGroup.length - SHOWN_GROUPS })}</div>}
       {sug.unrecognized.length > 0 && <div style={{ marginBottom: 6 }}>{tr("{n} code(s) were not recognized and are left alone: {codes}", { n: sug.unrecognized.length, codes: sug.unrecognized.slice(0, 12).map((u) => u.code).join(", ") + (sug.unrecognized.length > 12 ? ", …" : "") })}</div>}
       <div style={{ display: "flex", gap: 6 }}>
-        <button type="button" onClick={apply} disabled={!picks.length} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px", opacity: picks.length ? 1 : 0.5 }}>{tr("Apply {n} ticked", { n: picks.length.toLocaleString() })}</button>
-        <button type="button" onClick={() => { setOpen(false); setOff({}); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }}>{tr("Close")}</button>
+        <button type="button" onClick={apply} disabled={!picks.length} className="gs-btn gs-btn--primary gs-btn--sm">{tr("Apply {n} ticked", { n: picks.length.toLocaleString() })}</button>
+        <button type="button" onClick={() => { setOpen(false); setOff({}); }} className="gs-btn gs-btn--sm">{tr("Close")}</button>
       </div>
     </div>
   );

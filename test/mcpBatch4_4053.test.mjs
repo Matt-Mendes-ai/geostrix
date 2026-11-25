@@ -206,8 +206,9 @@ test("#4053 wiring: the pane's own build and run are what the tools call; the pa
   const panel = read("../src/components/MapModelPanel.jsx");
   assert.match(panel, /useMcpMapModel\(\(\) => \(\{ polys, lines, layer, unitField, setLayerId, setFaultLayerId, faultLayer, faults, faultPlan, faultPick, takeFaults, plan, ageSug, byAge, orderFrom, setOrderFrom, order, relation, setRelation, groundAt: !!groundAt, noOrient: !!noOrient, busy, fit, noMapMsg, noTerrainMsg, fewUnitsMsg, noOrientMsg \}\)\);/);
   for (const k of ["noMapMsg", "noTerrainMsg", "fewUnitsMsg", "noOrientMsg"]) assert.match(panel, new RegExp(`\\{${k}\\}</div>`), `${k} is what the pane shows`);
-  assert.match(panel, /data-mcp="map-run" disabled=\{busy \|\| !groundAt \|\| order\.length < 2 \|\| noOrient\}/);
-  assert.match(panel, /<button onClick=\{\(\) => onRun\(\{ layer: effLayer/, "the Build button still calls the run itself");
+  assert.match(panel, /disabled: busy \|\| !groundAt \|\| order\.length < 2 \|\| noOrient,\s+attrs: \{ "data-mcp": "map-run" \}/); // the steps' action keeps the button's mark (#4070)
+  assert.match(fs.readFileSync(new URL("../src/components/useMcpMapModel.js", import.meta.url), "utf8"), /requestStep\("mapmodel", "data"\); await settle\(g, sleep\);/, "the Build button is on the Data step: asked for first");
+  assert.match(panel, /onClick: \(\) => onRun\(\{ layer: effLayer/, "the Build button still calls the run itself"); // the steps' action (#4070)
   const hook = read("../src/modules/viewer/useMcpModelActions.js");
   assert.match(hook, /if \(p\.op === "map_model"\) return viaMapPane\(c, p\);/); assert.match(hook, /if \(p\.op === "fault"\) return \(await import\("\.\/mcpFaultRun\.js"\)\)\.faultAction\(c\(\), p\);/);
   assert.match(hook, /api\?\.openPane\?\.\("mapmodel", true\)/);

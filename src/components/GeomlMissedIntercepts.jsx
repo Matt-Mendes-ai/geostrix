@@ -31,7 +31,7 @@ export default function GeomlMissedIntercepts({ result, label }) {
           </tbody>
         </table>
       </div>
-      <button type="button" style={{ marginTop: 4 }} onClick={() => saveFile({ suggestedName: `${safeFileName(`missed intercepts ${label}`)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: missedInterceptsCsv(result.missed, blockM) })}>{tr("Save the list as CSV")}</button>
+      <button type="button" className="gs-btn gs-btn--sm" style={{ marginTop: 4 }} onClick={() => saveFile({ suggestedName: `${safeFileName(`missed intercepts ${label}`)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: missedInterceptsCsv(result.missed, blockM) })}>{tr("Save the list as CSV")}</button>
     </details>
   );
 }
@@ -39,7 +39,6 @@ export default function GeomlMissedIntercepts({ result, label }) {
 // TASKS.csv #4019 — after a run: a weak fit said plainly with the causes this run shows, and the fixes one click away (they change the panel's
 // settings; Model runs it). advice: lib/geomlIntercepts.js runAdvice; onFix({ key, ... })
 const warn = { fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginTop: 4, lineHeight: 1.4 };
-const fixBtn = { fontSize: "var(--font-size-xs)", padding: "2px 6px", marginTop: 4, marginInlineEnd: 4, cursor: "pointer" };
 export function GeomlRunAdvice({ advice, mix, blockM, onFix }) {
   if (!advice || (!advice.weak && !advice.causes.length)) return null;
   const c = advice.counts, causes = advice.causes.map((k) => (
@@ -54,7 +53,7 @@ export function GeomlRunAdvice({ advice, mix, blockM, onFix }) {
       {causes.map((t, i) => <div key={i}>{t}</div>)}
       <div>
         {advice.fixes.map((f) => (
-          <button key={f.key} type="button" style={fixBtn} onClick={() => onFix?.(f)}>
+          <button key={f.key} type="button" className="gs-btn gs-btn--sm" style={{ marginTop: 4, marginInlineEnd: 4 }} onClick={() => onFix?.(f)}>
             {f.key === "oneUnit" ? tr("Model {u} alone", { u: f.unit })
               : f.key === "smaller" ? (f.secs ? tr("Blocks of {b} m (up to {t})", /* roughTime says "about" */ { b: f.blockM, t: roughTime(f.secs) }) : tr("Blocks of {b} m", { b: f.blockM }))
                 : f.key === "standard" ? tr("Standard quality")
