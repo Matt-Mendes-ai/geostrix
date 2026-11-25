@@ -154,3 +154,11 @@ test("MIMDAS 2D lines with x positions only (eastings): placed from the line's n
   assert.equal(placedFromName({ headers: ["F1", "F2", "M1", "M2", "RES", "Mx"], rows: [{ F1: 39900, F2: 40000, M1: 39500, M2: 39600, RES: 70, Mx: 5 }, { F1: 39800, F2: 39900, M1: 39500, M2: 39600, RES: 70, Mx: 5 }] }, "x", "37000N"), null, "a chainage under 100,000 is not a map position");
   assert.equal(placedFromName(t, "x", null), null); assert.equal(placedFromName(t, "x", "NoNumbers"), null);
 });
+
+test("the picker offers .xyz and .dc; a line placed by its electrodes or its name is kept placed, and is not told to place it (found in the #4065 live check)", () => {
+  const src = read("../src/components/DcipPanel.jsx");
+  assert.match(src, /accept="\.csv,\.txt,\.dat,\.ipg,\.arw,\.gpx,\.wpt,\.xyz,\.dc"/);
+  assert.match(src, /const placedNow = placedPts \? placementOf\(placedPts\) : null;/);
+  assert.match(src, /line: placedNow \|\| \{ x0: "", y0: ""/);
+  assert.match(src, /\(newlyKept && !placedNow \? " " \+ tr\("Kept in the project as/);
+});
