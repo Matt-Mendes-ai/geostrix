@@ -26,8 +26,6 @@ const GuideSteps = React.lazy(() => import("./GuideSteps.jsx"));
 
 const card = { position: "absolute", top: 12, left: 12, width: 360, maxHeight: "calc(100% - 24px)", overflowY: "auto", zIndex: 30, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.14)", padding: 14, color: "var(--color-text)", fontSize: "var(--font-size-base)", lineHeight: 1.45 };
 const head = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6, fontSize: "var(--font-size-lg)", fontWeight: "var(--font-weight-title)" };
-const bigBtn = { width: "100%", padding: "8px 10px", border: "1px solid var(--color-tier-basic)", background: "var(--color-tier-basic)", color: "var(--color-bg)", borderRadius: 6, fontWeight: 600, cursor: "pointer", fontSize: "var(--font-size-base)" };
-const smallBtn = { padding: "4px 10px", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-sm)" };
 const muted = { color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" };
 
 // api (from ViewerModule.jsx, one line): { runStackModel, runImplicitModel, runVeinModel, computeIntercepts, modelResolution, setModelResolution,
@@ -80,7 +78,7 @@ export default function GuidedTool({ tool: toolId, setTool, api }) {
 }
 
 function Header({ title, close }) {
-  return <div style={head}><span>{tr(title)}</span><button type="button" onClick={close} aria-label={tr("Close")} title={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={14} /></button></div>;
+  return <div style={head}><span>{tr(title)}</span><button data-btn-own="" type="button" onClick={close} aria-label={tr("Close")} title={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={14} /></button></div>;
 }
 
 function Tool({ tool, ctx, api, close, back, preset = null }) {
@@ -157,7 +155,7 @@ function Tool({ tool, ctx, api, close, back, preset = null }) {
           {modes.map((m) => <label key={m.key} style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 4 }}><input type="radio" name="guided-mode" checked={mode === m.key} onChange={() => setMode(m.key)} disabled={phase === "running" || phase === "waiting"} /><span>{m.label}</span></label>)}
           <div style={{ marginBottom: 10 }} />
         </>)}
-        <button type="button" style={{ ...bigBtn, opacity: api.busy || phase === "running" || phase === "waiting" ? 0.6 : 1 }} disabled={api.busy || phase === "running" || phase === "waiting"} onClick={build}>
+        <button type="button" className="gs-btn gs-btn--primary" style={{ width: "100%", opacity: api.busy || phase === "running" || phase === "waiting" ? 0.6 : 1 }} disabled={api.busy || phase === "running" || phase === "waiting"} onClick={build}>
           {phase === "running" || phase === "waiting" ? tr("Building… (progress and Cancel in the status bar)") : tr("Build it for me")}
         </button>
         {api.busy && phase !== "running" && <div style={{ ...muted, marginTop: 4 }}>{tr("Another model is running: one at a time.")}</div>}
@@ -178,10 +176,10 @@ function Tool({ tool, ctx, api, close, back, preset = null }) {
         </div>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
-        {!feedWhy && <button type="button" style={smallBtn} onClick={change} title={tr("Open the full form, filled in with these choices")}>{tr("Change these")}</button>}
-        {(tool.actions || []).map((a) => <button key={a.label} type="button" style={smallBtn} onClick={() => a.run(api)}>{tr(a.label)}</button>)}
-        <button type="button" style={smallBtn} onClick={() => openHelp(tool.help)}>{tr("Help")}</button>
-        <button type="button" style={smallBtn} onClick={back}>{tr("Start here")}</button>
+        {!feedWhy && <button type="button" className="gs-btn gs-btn--sm" onClick={change} title={tr("Open the full form, filled in with these choices")}>{tr("Change these")}</button>}
+        {(tool.actions || []).map((a) => <button key={a.label} type="button" className="gs-btn gs-btn--sm" onClick={() => a.run(api)}>{tr(a.label)}</button>)}
+        <button type="button" className="gs-btn gs-btn--sm" onClick={() => openHelp(tool.help)}>{tr("Help")}</button>
+        <button type="button" className="gs-btn gs-btn--sm" onClick={back}>{tr("Start here")}</button>
       </div>
     </div>
   );

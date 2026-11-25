@@ -538,7 +538,7 @@ export default function ModellingPanes(props) {
   const clusterNote = () => (areaClusters && areaClusters.clusters.length > 1 ? (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
           {(layers.litho || []).length ? tr("The {n} logged holes in the model area lie in {k} clusters over {g} m apart: one model would span the gaps between them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) : tr("The {n} holes in the model area lie in {k} clusters over {g} m apart: one model would span the gaps between them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) /* #3606: no lithology logged, so not "logged holes" */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{areaClusters.clusters.slice(0, 6).map((c) => (
-            <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); setHoleFilter?.(""); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Around E {e}, N {nn} ({first})" : "Around E {e}, N {nn}: {n} holes over {s} km", { first: c.ids[0], n: c.n, e: Math.round(c.cx / 100) * 100, nn: Math.round(c.cy / 100) * 100, s: Math.max(0.1, c.spanM / 1000).toFixed(1) }) /* #2928 (3): a place, not one hole id */}</button>))}</div>
+            <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); setHoleFilter?.(""); }} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Around E {e}, N {nn} ({first})" : "Around E {e}, N {nn}: {n} holes over {s} km", { first: c.ids[0], n: c.n, e: Math.round(c.cx / 100) * 100, nn: Math.round(c.cy / 100) * 100, s: Math.max(0.1, c.spanM / 1000).toFixed(1) }) /* #2928 (3): a place, not one hole id */}</button>))}</div>
         </div>) : null);
   // TASKS.csv #1844 (review #1646, Kodiak) — a disabled GemPy Run button said only 'Runs in GeoStrix's Python engine…' (the status bar read
   // 'Py: idle', ready): its title now says first what is missing, or that a model is running
@@ -636,7 +636,7 @@ export default function ModellingPanes(props) {
             {structureTypes.map((t) => {
               const on = orientTypes.includes(t);
               return (
-                <button key={t} aria-pressed={on} onClick={() => setOrientTypesSel(on ? orientTypes.filter((x) => x !== t) : [...orientTypes, t])}
+                <button data-btn-own="" key={t} aria-pressed={on} onClick={() => setOrientTypesSel(on ? orientTypes.filter((x) => x !== t) : [...orientTypes, t])}
                   style={{ padding: "2px 8px", borderRadius: 10, fontSize: "var(--font-size-sm)", cursor: "pointer", border: `1px solid ${on ? "var(--color-accent-dark)" : "var(--color-border)"}`, background: on ? "var(--color-selected-bg)" : "transparent", color: on ? "var(--color-text)" : "var(--color-text-muted)", fontWeight: on ? 600 : 400 }}>
                   {t}
                 </button>
@@ -766,17 +766,17 @@ export default function ModellingPanes(props) {
         {toolPane === "gradeEst" && (<>
         {paneHeader("Grade estimation", Calculator, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Fills a block model from composited assays by nearest neighbour, inverse distance, moving least squares or ordinary kriging: a separate workflow from the implicit surface tools.")}</div>
-        <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }}>
+        <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} className="gs-btn gs-btn--block" style={{ opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }}>
           <FileBarChart2 size={14} />{" "}{tr("Estimate grade into block model…")}</button>
         {/* TASKS.csv #2419 — grade × thickness per hole and its plan estimate: a thin flat body, lighter than a block model */}
-        <button onClick={() => setGtOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }} title={tr("Per hole, thickness and grade × thickness from the intercepts; graduated on a plan, estimated in 2D and contoured at a GT cut-off you choose")}>
+        <button onClick={() => setGtOpen(true)} disabled={!assayElements.length} className="gs-btn gs-btn--block" style={{ opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }} title={tr("Per hole, thickness and grade × thickness from the intercepts; graduated on a plan, estimated in 2D and contoured at a GT cut-off you choose")}>
           <FileBarChart2 size={14} />{" "}{tr("Grade × thickness, in plan or on a long section…") /* #3089 */}</button>
         {gtOpen && <Suspense fallback={null}><GradeThicknessModal assays={assays} assayElements={assayElements} collars={collars} survey={survey} layers={layers} inArea={modelArea === "checked" ? (id) => visibleHoles?.[id] !== false : null} /* #3016 */ onClose={() => setGtOpen(false)} /></Suspense>}
         {/* TASKS.csv #147 — deliberately sits directly under the estimation button, because it is the
             diagnostic you are supposed to run BEFORE choosing a search radius or an anisotropy ratio,
             not a separate curiosity. It does NOT feed the estimator (GeoStrix still does not krige) —
             the modal itself says so up front; see VariogramModal.jsx's header. */}
-        <button onClick={() => setVariogramOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 16 }}>
+        <button onClick={() => setVariogramOpen(true)} disabled={!assayElements.length} className="gs-btn gs-btn--block" style={{ opacity: assayElements.length ? 1 : 0.5, marginBottom: 16 }}>
           <Activity size={14} />{" "}{tr("Variogram / spatial continuity…")}</button>
         <GradeTonnageLauncher />{/* TASKS.csv #1577 */}
         <BlockCalculatorLauncher />{/* TASKS.csv #3164 */}
@@ -826,8 +826,8 @@ export default function ModellingPanes(props) {
           const add = (s) => addLithoGroup({ name: s.name, codes: s.codes });
           return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr(sug.length === 1 ? "One code is logged in several spellings that differ only by case or spaces:" : "{n} codes are logged in several spellings that differ only by case or spaces:", { n: sug.length })}</div>
-            {sug.slice(0, 8).map((s) => <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ flex: 1, minWidth: 0 }}>{tr("{codes} = {n} intervals", { codes: s.codes.map((c) => `${c} (${s.counts[c].toLocaleString()})`).join(" + "), n: s.total.toLocaleString() })}</span><button type="button" onClick={() => add(s)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Group them")}</button></div>)}
-            {sug.length > 1 && <button type="button" onClick={() => sug.forEach(add)} style={{ ...pBtn, width: "auto", marginBottom: 0, marginTop: 4, padding: "3px 8px" }}>{tr("Group all {n}", { n: sug.length })}</button>}
+            {sug.slice(0, 8).map((s) => <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ flex: 1, minWidth: 0 }}>{tr("{codes} = {n} intervals", { codes: s.codes.map((c) => `${c} (${s.counts[c].toLocaleString()})`).join(" + "), n: s.total.toLocaleString() })}</span><button type="button" onClick={() => add(s)} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Group them")}</button></div>)}
+            {sug.length > 1 && <button type="button" onClick={() => sug.forEach(add)} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, marginTop: 4, padding: "3px 8px" }}>{tr("Group all {n}", { n: sug.length })}</button>}
             {sug.length > 8 && <span style={{ marginLeft: 6 }}>{tr("({n} more not listed)", { n: sug.length - 8 })}</span>}
           </div>;
         })()}
@@ -838,7 +838,7 @@ export default function ModellingPanes(props) {
           return <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr(sug.length === 1 ? "One unit is logged in sub-divided parts (a part suffix such as _U, _M, _L):" : "{n} units are logged in sub-divided parts (a part suffix such as _U, _M, _L):", { n: sug.length })}</div>
             {sug.slice(0, 8).map((s) => <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ flex: 1, minWidth: 0 }}>{tr("{codes} = {n} intervals", { codes: s.codes.map((c) => `${c} (${s.counts[c].toLocaleString()})`).join(" + "), n: s.total.toLocaleString() })}</span>
-              <button type="button" onClick={() => add(s)} title={tr("Model the parts as one unit, \"{name}\". Leave them apart when the parts are units of their own.", { name: s.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Group as {name}", { name: s.name })}</button></div>)}
+              <button type="button" onClick={() => add(s)} title={tr("Model the parts as one unit, \"{name}\". Leave them apart when the parts are units of their own.", { name: s.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Group as {name}", { name: s.name })}</button></div>)}
             {sug.length > 8 && <span>{tr("({n} more not listed)", { n: sug.length - 8 })}</span>}
           </div>;
         })()}
@@ -905,7 +905,7 @@ export default function ModellingPanes(props) {
         <button
           onClick={() => setFenceOpen(true)}
           disabled={!collars.length}
-          style={{ ...pBtn, marginBottom: 8, opacity: collars.length ? 1 : 0.5, cursor: collars.length ? "pointer" : "default" }}
+          className="gs-btn gs-btn--block" style={{ marginBottom: 8, opacity: collars.length ? 1 : 0.5, cursor: collars.length ? "pointer" : "default" }}
           title={collars.length ? tr("Fence / panel diagram — correlate lithology hole to hole on a vertical panel along the drill line, with each hole's offset from the section") : tr("No holes with collars yet: import collars first.") /* #1844 */}
         ><Layers3 size={14} />{" "}{tr("Fence / panel diagram…")}</button>
 
@@ -968,7 +968,7 @@ export default function ModellingPanes(props) {
             disabled={!implicitTarget || implicitBusy}
             aria-label={tr("Run the implicit model (GemPy)")}
             title={gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : !implicitTarget ? tr("Choose a unit first.") : null)}
-            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
+            className="gs-btn gs-btn--block" style={{ width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
           >{implicitBusy ? tr("Running…") : <><Layers3 size={14} aria-hidden="true" />{" "}{tr("Run")}</>}</button>{/* #572 — was an unlabeled icon */}
         </div>
         {leftOutNote}
@@ -1006,7 +1006,7 @@ export default function ModellingPanes(props) {
                   onClick={() => runImplicitModel(implicitTarget, { ensemble: { n: Math.min(50, Math.max(3, Number(sensN) || 8)), sigmaPos: sp, sigmaDeg: sd, budgetS: Math.max(10, Number(sensBudget) || 300) } })}
                   disabled={!ready}
                   title={!implicitTarget ? tr("Choose a unit above first") : (sensSigmaPos === "" || sensSigmaDeg === "") ? tr("Enter both sigmas — there is deliberately no default") : tr("Run the model, then the realizations")}
-                  style={{ ...pBtn, marginBottom: 0, justifyContent: "center", opacity: ready ? 1 : 0.5, cursor: ready ? "pointer" : "default" }}
+                  className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center", opacity: ready ? 1 : 0.5, cursor: ready ? "pointer" : "default" }}
                 >{tr("Run with sensitivity spread")}</button>
               );
             })()}
@@ -1053,7 +1053,7 @@ export default function ModellingPanes(props) {
               </optgroup>
             )}
           </select>
-          <button type="button" aria-expanded={addAllOpen} onClick={() => setAddAllOpen((v) => !v)} style={{ ...pBtn, width: "auto", marginBottom: 0, flex: "0 0 auto" }} title={tr("Add every modelling code, every logged code or the codes with enough logged metres, already in the order the holes give. You see the order before anything changes.")}>{tr("Add all…")}</button>{/* #3999 */}
+          <button type="button" aria-expanded={addAllOpen} onClick={() => setAddAllOpen((v) => !v)} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, flex: "0 0 auto" }} title={tr("Add every modelling code, every logged code or the codes with enough logged metres, already in the order the holes give. You see the order before anything changes.")}>{tr("Add all…")}</button>{/* #3999 */}
           <RemoveAllUnits stackUnits={stackUnits} setStackUnits={setStackUnits} setStackBreaks={setStackBreaks} pBtn={pBtn} />{/* #4022 */}
         </div>
         {stackUnits.length === 0 && (
@@ -1065,7 +1065,7 @@ export default function ModellingPanes(props) {
           <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
             {tr("The holes give the order {order} (youngest first): {list}.", { order: (holesPlan?.order || stackHoles.order).map((u) => (isLithoGroupKey(u) ? resolveLithoTarget(u)?.name || u : isMcodeKey(u) ? u.slice(6) : u)).join(", "),
               list: stackHoles.conflicts.slice(0, 3).map((q) => tr("{older} is logged above {younger} in {against} of {of} holes that have both", { older: stackUnits[q.older].replace(/^mcode:/, ""), younger: stackUnits[q.younger].replace(/^mcode:/, ""), against: q.against, of: q.of })).join("; ") })}{" "}
-            <button type="button" onClick={() => setStackUnits([...(holesPlan?.order || stackHoles.order)])} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
+            <button type="button" onClick={() => setStackUnits([...(holesPlan?.order || stackHoles.order)])} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
           </div>
         )}
         {stackUnits.map((u, i) => {
@@ -1091,7 +1091,7 @@ export default function ModellingPanes(props) {
             <div style={{ textAlign: "center", fontSize: "var(--font-size-xs)", color: "var(--color-text-faint)", padding: "1px 0 3px", marginBottom: 4 }} title={tr("Model the last unit's top on its own (Implicit surface, or an Explicit surface from its logged tops): with nothing under it, no package starts there.")}>{tr("No unconformity above the last unit")}</div>
           )}
           {i < stackUnits.length - 1 && (i < stackUnits.length - 2 || hasBreak) && (
-            <button type="button" aria-pressed={hasBreak} onClick={() => setStackBreaks((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]))}
+            <button data-btn-own="" type="button" aria-pressed={hasBreak} onClick={() => setStackBreaks((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]))}
               title={tr("Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.")}
               style={{ display: "block", width: "100%", background: "none", border: "none", borderTop: hasBreak ? "2px dashed var(--color-accent)" : "none", padding: "1px 0 3px", marginBottom: 4, cursor: "pointer", textAlign: "center", fontSize: "var(--font-size-xs)", color: hasBreak ? "var(--color-accent-dark)" : "var(--color-text-muted)" }}>
               {hasBreak ? tr("Unconformity here (click to remove)") : tr("Mark an unconformity here")}
@@ -1167,7 +1167,7 @@ export default function ModellingPanes(props) {
           onClick={() => runStackModel(stackUnits, { method: stackMethod })}
           disabled={stackUnits.length < 2 || implicitBusy}
           title={gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : stackUnits.length < 2 ? tr("Choose at least two units for the stack first.") : null)}
-          style={{ ...pBtn, marginTop: 4, opacity: stackUnits.length >= 2 && !implicitBusy ? 1 : 0.5, cursor: stackUnits.length >= 2 && !implicitBusy ? "pointer" : "default" }}
+          className="gs-btn gs-btn--block" style={{ marginTop: 4, opacity: stackUnits.length >= 2 && !implicitBusy ? 1 : 0.5, cursor: stackUnits.length >= 2 && !implicitBusy ? "pointer" : "default" }}
         ><Layers3 size={14} /> {implicitBusy ? tr("Running…") : tr(stackUnits.length === 1 ? "Run stack ({n} unit)" : "Run stack ({n} units)", { n: stackUnits.length })}</button>
 
 
@@ -1185,7 +1185,7 @@ export default function ModellingPanes(props) {
             orientation here, then feed it (or the whole layer) into that QC/trend-checking tool. */}
         <button
           onClick={() => setCoreOrientOpen(true)}
-          style={{ ...pBtn, marginBottom: 8 }}
+          className="gs-btn gs-btn--block" style={{ marginBottom: 8 }}
           title={tr("Recover a non-oriented core pick's true dip/dip-direction by calibrating against a known field/outcrop structural reading")}
         ><Compass size={14} />{" "}{tr("Core orientation calculator")}</button>
         {/* TASKS.csv #141 — check the structure picks' own orientation trend/scatter BEFORE feeding them
@@ -1193,7 +1193,7 @@ export default function ModellingPanes(props) {
         <button
           onClick={() => setStereonetOpen(true)}
           disabled={!(layers.structure || []).some((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth)) && !(surfaceStructures || []).some((st) => (st.rows || []).length)} // #428: outcrop data alone is enough
-          style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length || (surfaceStructures || []).length ? 1 : 0.5, cursor: (layers.structure || []).length || (surfaceStructures || []).length ? "pointer" : "default" }}
+          className="gs-btn gs-btn--block" style={{ marginBottom: 8, opacity: (layers.structure || []).length || (surfaceStructures || []).length ? 1 : 0.5, cursor: (layers.structure || []).length || (surfaceStructures || []).length ? "pointer" : "default" }}
           title={tr("Pole-plot / great-circle stereonet of the Structure layer's downhole picks and/or outcrop measurements")}
         ><Milestone size={14} />{" "}{tr("Stereonet (QC picks)")}</button>
         {/* TASKS.csv #277 — the downhole (tadpole) view, sitting next to the Stereonet because the two
@@ -1203,7 +1203,7 @@ export default function ModellingPanes(props) {
         <button
           onClick={() => setTadpoleOpen(true)}
           disabled={!(layers.structure || []).some((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth))}
-          style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length ? 1 : 0.5, cursor: (layers.structure || []).length ? "pointer" : "default" }}
+          className="gs-btn gs-btn--block" style={{ marginBottom: 8, opacity: (layers.structure || []).length ? 1 : 0.5, cursor: (layers.structure || []).length ? "pointer" : "default" }}
           title={tr("Downhole tadpole plot — depth vs alpha/dip with an azimuth tail, plus lithology and structure-frequency tracks, per hole")}
         ><Milestone size={14} />{" "}{tr("Downhole structure (tadpole)")}</button>
         {(() => { const b = betaReferenceCounts(layers.structure || []); return b.top + b.bottom > 0 ? <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.4 }}>{[b.bottom && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: b.bottom.toLocaleString(), ref: tr("bottom") }), b.top && tr("{n} of these picks were oriented from alpha / beta with beta measured from the {ref}-of-hole line, as chosen when they were imported (a structure file does not say). Had the core been marked on the other line, each would plot elsewhere, by tens of degrees for some.", { n: b.top.toLocaleString(), ref: tr("top") })].filter(Boolean).join(" ")}</div> : null; })()}{/* #2055 */}
@@ -1218,7 +1218,7 @@ export default function ModellingPanes(props) {
             disabled={!structuralTarget || implicitBusy}
             aria-label={tr("Run the structural model (GemPy)")}
             title={gempyTitle(!struct_types.length ? tr("No structure picks with an orientation yet.") : !structuralTarget ? tr("Choose a structure type first.") : null)}
-            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: structuralTarget && !implicitBusy ? 1 : 0.5, cursor: structuralTarget && !implicitBusy ? "pointer" : "default" }}
+            className="gs-btn gs-btn--block" style={{ width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: structuralTarget && !implicitBusy ? 1 : 0.5, cursor: structuralTarget && !implicitBusy ? "pointer" : "default" }}
           >{implicitBusy ? tr("Running…") : <><Layers3 size={14} aria-hidden="true" />{" "}{tr("Run")}</>}</button>{/* #572 */}
         </div>
 
@@ -1276,7 +1276,7 @@ export default function ModellingPanes(props) {
             disabled={!alterationTarget || alterationBusy}
             title={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
             aria-label={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
-            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", gap: 5, opacity: alterationTarget && !alterationBusy ? 1 : 0.5, cursor: alterationTarget && !alterationBusy ? "pointer" : "default" }}
+            className="gs-btn gs-btn--block" style={{ width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", gap: 5, opacity: alterationTarget && !alterationBusy ? 1 : 0.5, cursor: alterationTarget && !alterationBusy ? "pointer" : "default" }}
           >{alterationBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <><Layers3 size={14} />{tr("Build halo")}</>}</button>{/* #1421 — the only run control was an unlabelled icon */}
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
@@ -1307,7 +1307,7 @@ export default function ModellingPanes(props) {
             disabled={!veinTarget || veinBusy}
             title={tr("Build paired hangingwall/footwall surfaces (and a closed solid when they do not cross) from the logged vein intervals (runs in-app)")}
             aria-label={tr("Build paired hangingwall/footwall surfaces (and a closed solid when they do not cross) from the logged vein intervals (runs in-app)")}
-            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: veinTarget && !veinBusy ? 1 : 0.5, cursor: veinTarget && !veinBusy ? "pointer" : "default" }}
+            className="gs-btn gs-btn--block" style={{ width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: veinTarget && !veinBusy ? 1 : 0.5, cursor: veinTarget && !veinBusy ? "pointer" : "default" }}
           >{veinBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <><Layers3 size={14} />{" "}{tr("Build vein")}</>}</button>{/* #2540 (1): a worded button, as every other tool */}
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
@@ -1380,7 +1380,7 @@ export default function ModellingPanes(props) {
               {!numSrc && (() => { const offers = drillThresholdOffers(geochemThresholds, sym, unit).slice(0, 4); return offers.length ? ( /* TASKS.csv #2689 (#2675 part 2) — saved drill thresholds offered as shell levels, never applied */
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center", marginBottom: 6 }}>
                   <span>{tr("Saved threshold:")}</span>
-                  {offers.map((o) => <button key={o.key} type="button" onClick={() => setNumericCutoff(o.value)} style={{ ...smallSel, cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the shell level.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
+                  {offers.map((o) => <button key={o.key} type="button" onClick={() => setNumericCutoff(o.value)} className="gs-btn gs-btn--sm" style={{ cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the shell level.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
                 </div>) : null; })()}
               {numSrc && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{numSrc.logScale ? tr("{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.", { label: numSrc.label, n: numSrc.n.toLocaleString() }) : tr("{label}: {n} readings, values as logged; the cutoff is in the same units.", { label: numSrc.label, n: numSrc.n.toLocaleString() })}</div>}{/* #1741 */}
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
@@ -1429,7 +1429,7 @@ export default function ModellingPanes(props) {
                     </label>
                   </div>
                   {!gt && reach > 0 && !flat && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6 }}>{numericSearchRadius > 0 ? tr("Less than the search radius, or it is a sphere.") : tr("A flat search needs a search radius.")}</div>}
-                  {!gt && (() => { const an = anisotropyFor(storeProject, numericSymbol); return an && an.flat && !(flat && Math.round(an.acrossM) === Number(numericSearchRadius) && Math.round(an.downholeM) === reach) ? <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{/* TASKS.csv #3499 — the Variogram tool's anisotropy, offered, never applied by itself */}{tr("The Variogram tool found {b} m of continuity across the holes and {a} m down them: a flat search fits.", { a: Math.round(an.downholeM), b: Math.round(an.acrossM) })}{" "}{tr("A cell height of {h} m (a quarter of the downhole range) goes with it.", { h: cellHeightFromRange(an.downholeM) })}{" "}<button type="button" onClick={() => { setNumericSearchRadius(Math.round(an.acrossM)); setNumericFlatReach(Math.round(an.downholeM)); setNumericCellHeight(cellHeightFromRange(an.downholeM)); /* TASKS.csv #3508 */ }} style={{ fontSize: "var(--font-size-xs)" }}>{tr("Use it as the flat search")}</button></div> : null; })()}
+                  {!gt && (() => { const an = anisotropyFor(storeProject, numericSymbol); return an && an.flat && !(flat && Math.round(an.acrossM) === Number(numericSearchRadius) && Math.round(an.downholeM) === reach) ? <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{/* TASKS.csv #3499 — the Variogram tool's anisotropy, offered, never applied by itself */}{tr("The Variogram tool found {b} m of continuity across the holes and {a} m down them: a flat search fits.", { a: Math.round(an.downholeM), b: Math.round(an.acrossM) })}{" "}{tr("A cell height of {h} m (a quarter of the downhole range) goes with it.", { h: cellHeightFromRange(an.downholeM) })}{" "}<button type="button" onClick={() => { setNumericSearchRadius(Math.round(an.acrossM)); setNumericFlatReach(Math.round(an.downholeM)); setNumericCellHeight(cellHeightFromRange(an.downholeM)); /* TASKS.csv #3508 */ }} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)" }}>{tr("Use it as the flat search")}</button></div> : null; })()}
                   {flat && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A flat search: {r} m across and {v} m up and down from each cell.", { r: numericSearchRadius, v: reach })}</div>}
                 </>;
               })()}
@@ -1523,15 +1523,15 @@ export default function ModellingPanes(props) {
               {/* TASKS.csv #2882 — after a refitted run: the budget that keeps the default cell, one click away */}
               {numericBudgetHint?.advice && (
                 <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("A {b}-block budget ({cost}) keeps the default {cs} m cells here.", { b: numericBudgetHint.budget.toLocaleString(), cost: tr(gradeShellBudgetNote(numericBudgetHint.budget)), cs: numericBudgetHint.cell })}<div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => { setNumericMaxBlocks(numericBudgetHint.budget); setNumericCellSize(numericBudgetHint.cell); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Use {b} blocks", { b: numericBudgetHint.budget.toLocaleString() })}</button>
+                    <button type="button" onClick={() => { setNumericMaxBlocks(numericBudgetHint.budget); setNumericCellSize(numericBudgetHint.cell); setNumericBudgetHint(null); }} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Use {b} blocks", { b: numericBudgetHint.budget.toLocaleString() })}</button>
                   </div>
                 </div>
               )}
               {numericBudgetHint && !numericBudgetHint.advice && numericBudgetHint.needed > 0 && ( /* #3651 — not a 'ran at' note */
                 <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("At {cell} m cells this extent needs {needed} blocks — over the {budget}-block budget.", { cell: numericBudgetHint.cell, needed: numericBudgetHint.needed.toLocaleString(), budget: numericBudgetHint.budget.toLocaleString() })}<div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Use {n} m cells", { n: numericBudgetHint.fit })}</button>
+                    <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Use {n} m cells", { n: numericBudgetHint.fit })}</button>
                     {numericBudgetHint.budget < (numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) && (
-                      <button type="button" onClick={() => { setNumericMaxBlocks(numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) /* #3581: the largest this computer allows */; setNumericCellSize(numericBudgetHint.fitMax); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Largest budget + {n} m cells", { n: numericBudgetHint.fitMax })}</button>
+                      <button type="button" onClick={() => { setNumericMaxBlocks(numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) /* #3581: the largest this computer allows */; setNumericCellSize(numericBudgetHint.fitMax); setNumericBudgetHint(null); }} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Largest budget + {n} m cells", { n: numericBudgetHint.fitMax })}</button>
                     )}
                   </div>
                 </div>
@@ -1544,7 +1544,7 @@ export default function ModellingPanes(props) {
                 onClick={runNumericModel}
                 disabled={!canRun}
                 title={symbols.length || numericSources.length ? (collars.length ? tr("Interpolate grades onto a grid and extract the cutoff iso-surface") : tr("Load collars first")) : tr("Import assays first")}
-                style={{ ...pBtn, marginBottom: 8, opacity: canRun ? 1 : 0.5, cursor: canRun ? "pointer" : "default" }}
+                className="gs-btn gs-btn--block" style={{ marginBottom: 8, opacity: canRun ? 1 : 0.5, cursor: canRun ? "pointer" : "default" }}
               ><Shapes size={14} /> {numericBusy ? tr("Running…") : (sym ? tr("Generate {el} shell", { el: numSrc ? numSrc.label : sym }) : tr("Generate grade shell"))}</button>
               <DomainUpdateSection ctx={{ implicitSurfaces, implicitMeshesRef, implicitGroupRef, originRef, setImplicitSurfaces, setNotices, assays, assayElements, collars, survey, desurveyMethod, numericIncludeQAQC, numericCompositeLength, numericMinCoverage, numericCellSize, numericMaxBlocks }}
                 symbol={sym} cutoff={numericCutoff} iso={shellEnvIso} isAssay={!numSrc && symbols.includes(sym)} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4, marginBottom: 8, fontSize: "var(--font-size-sm)" }}

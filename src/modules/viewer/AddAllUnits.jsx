@@ -21,7 +21,6 @@ export default function AddAllUnits({ open, setOpen, stackUnits, setStackUnits, 
     setMode(start.mode === "modelling" && !hasModelling ? "share" : start.mode);
     if (start.minPct != null) setMinPct(start.minPct);
   }, [start]);
-  const small = { ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 8px" };
   const m = mode || (hasModelling ? "modelling" : "share");
   const choice = candidates ? chooseUnits(candidates, m, minPct) : { add: [], rare: [] };
   const plan = candidates ? planAddAll(rows, stackUnits, choice.add, codesOf) : null;
@@ -53,8 +52,8 @@ export default function AddAllUnits({ open, setOpen, stackUnits, setStackUnits, 
               )}
             </>}
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-            {choice.add.length > 0 && <button type="button" style={{ ...small, fontWeight: 600 }} onClick={apply}>{tr("Add {n} units", { n: final.added.length })}</button>}
-            <button type="button" style={small} onClick={() => setOpen(false)}>{tr("Cancel")}</button>
+            {choice.add.length > 0 && <button type="button" className="gs-btn gs-btn--sm" style={{ fontWeight: 600 }} onClick={apply}>{tr("Add {n} units", { n: final.added.length })}</button>}
+            <button type="button" className="gs-btn gs-btn--sm" onClick={() => setOpen(false)}>{tr("Cancel")}</button>
           </div>
         </div>
       )}

@@ -311,10 +311,10 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
       )}
 
       <div className="ge-section-label">{tr("Pick intervals in the 3D view")}</div>
-      <button onClick={() => { setBoxOn(false); setPickMode(!pickMode); setConnectFrom(null); }} aria-pressed={pickMode} style={{ ...pBtn, marginTop: 4, background: pickMode ? "var(--color-selected-bg)" : undefined }}>
+      <button data-btn-own="" onClick={() => { setBoxOn(false); setPickMode(!pickMode); setConnectFrom(null); }} aria-pressed={pickMode} style={{ ...pBtn, marginTop: 4, background: pickMode ? "var(--color-selected-bg)" : undefined }}>
         <Crosshair size={14} /> {pickMode ? tr("Picking: click an interval on a hole (click again to stop)") : tr("Pick an interval")}
       </button>
-      <button onClick={() => { setPickMode(false); setConnectFrom(null); setBoxOn(!boxOn); }} aria-pressed={boxOn} style={{ ...pBtn, marginTop: 4, background: boxOn ? "var(--color-selected-bg)" : undefined }}>
+      <button data-btn-own="" onClick={() => { setPickMode(false); setConnectFrom(null); setBoxOn(!boxOn); }} aria-pressed={boxOn} style={{ ...pBtn, marginTop: 4, background: boxOn ? "var(--color-selected-bg)" : undefined }}>
         <Square size={14} /> {boxOn ? tr("Drag a box in the 3D view. Shift adds, Ctrl removes (click here to stop)") : tr("Select intervals with a box")}
       </button>
       {boxOn && !boxRows.length && !boxResult && <div style={{ ...small, marginTop: 4 }}>{tr("Selects every drawn interval the box touches, at any depth; hide units in the legend first to leave them out. Right-drag still moves the view.")}</div>}
@@ -342,8 +342,8 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
             <div style={{ ...small, marginTop: 5 }}>
               {tr("{code} already holds {others} other interval(s) in {holes} hole(s).", boxConflict)}
               <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                <button onClick={() => codeBoxRows(boxConflict.code, true)} style={{ ...pBtn, marginBottom: 0 }}>{tr("Replace them")}</button>
-                <button onClick={() => codeBoxRows(boxConflict.code)} style={{ ...pBtn, marginBottom: 0 }}>{tr("Add to them")}</button>
+                <button onClick={() => codeBoxRows(boxConflict.code, true)} className="gs-btn gs-btn--block" style={{ marginBottom: 0 }}>{tr("Replace them")}</button>
+                <button onClick={() => codeBoxRows(boxConflict.code)} className="gs-btn gs-btn--block" style={{ marginBottom: 0 }}>{tr("Add to them")}</button>
               </div>
             </div>
           )}
@@ -359,7 +359,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           <b>{tr("{n} interval(s) in {holes} hole(s) are now {code}.", boxResult)}</b>
           {boxResult.total > boxResult.n && <div style={{ ...small, marginTop: 3 }}>{tr("{code} now holds {total} interval(s) in {totalHoles} hole(s) in all.", boxResult)}</div>}
           {boxResult.repeats > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("{repeats} hole(s) have {code} in more than one run: a closed body treats them as one unit, an implicit surface uses the top of every run.", boxResult)}</div>}
-          {onBuildBody && <button onClick={() => onBuildBody(boxResult.code)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }}><Layers3 size={14} /> {tr("Build a closed body from {code}", boxResult)}</button>}
+          {onBuildBody && <button onClick={() => onBuildBody(boxResult.code)} className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0 }}><Layers3 size={14} /> {tr("Build a closed body from {code}", boxResult)}</button>}
         </div>
       )}
       {selected && (
@@ -374,9 +374,9 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
               {codes.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
               <option value="__new">{tr("New code…")}</option>
             </select>
-            <button onClick={() => assignSelected(null)} title={tr("Back to the logged code (or its group)")} aria-label={tr("Reset to the logged code")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }}><RotateCcw size={12} /></button>
+            <button onClick={() => assignSelected(null)} title={tr("Back to the logged code (or its group)")} aria-label={tr("Reset to the logged code")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 6px" }}><RotateCcw size={12} /></button>
           </div>
-          <button onClick={() => { setBoxOn(false); setConnectFrom(connectFrom ? null : selected); setPickMode(true); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0, background: connectFrom ? "var(--color-selected-bg)" : undefined }}>
+          <button onClick={() => { setBoxOn(false); setConnectFrom(connectFrom ? null : selected); setPickMode(true); }} className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0, background: connectFrom ? "var(--color-selected-bg)" : undefined }}>
             <Waypoints size={14} /> {connectFrom ? tr("Click the matching interval in another hole (gets {selCode})…", { selCode }) : tr("Connect to an interval in another hole")}
           </button>
         </div>
@@ -415,16 +415,16 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         )}
         <div style={{ ...small, marginTop: 3 }}>{tr("Inside: the code's intervals. Outside: all other logged lithology (and, if ticked, unlogged metres). Follows the geology trend in Model settings. A lower Inside at joins bodies; a larger search rarely does.")}</div>
         {leftOutList.length > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("Left out of the model: {codes}.", { codes: leftOutList.join(", ") })}</div>}
-        <button onClick={() => onBuildBody(bodyCode)} disabled={!bodyCode} style={{ ...pBtn, marginTop: 5, marginBottom: 0, opacity: bodyCode ? 1 : 0.5 }}><Layers3 size={14} /> {bodyCode ? tr("Build a closed body from {code}", { code: bodyCode }) : tr("Build a closed body")}</button>
+        <button onClick={() => onBuildBody(bodyCode)} disabled={!bodyCode} className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0, opacity: bodyCode ? 1 : 0.5 }}><Layers3 size={14} /> {bodyCode ? tr("Build a closed body from {code}", { code: bodyCode }) : tr("Build a closed body")}</button>
       </>)}
 
       {focus !== "correlate" && (<>{/* #2054 */}
       <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Codes (youngest at the top)")}</div>
       <div style={small}>{tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")}</div>
       {codes.length > 1 && <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>{/* #2926 */}
-        <button type="button" onClick={applyHolesOrder} title={tr("In each hole the unit that starts higher is younger, counted pair by pair over the holes that log both (the Strat. stack's check).")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
+        <button type="button" onClick={applyHolesOrder} title={tr("In each hole the unit that starts higher is younger, counted pair by pair over the holes that log both (the Strat. stack's check).")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
         {holesNote && <span role="status" style={small}>{holesNote}</span>}
-        {overrideCount.size > 0 && <button type="button" onClick={() => deleteCodesNamed([...overrideCount.keys()])} title={tr("Delete every code made by re-coding intervals")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Delete all")}</button>}
+        {overrideCount.size > 0 && <button type="button" onClick={() => deleteCodesNamed([...overrideCount.keys()])} title={tr("Delete every code made by re-coding intervals")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Delete all")}</button>}
       </div>}
       {pickedNames.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginTop: 4, background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, fontSize: "var(--font-size-xs)" }}>
@@ -440,14 +440,14 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         <div key={c.name} onClick={(e) => clickCodeRow(e, c.name)} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, ...(pickedCodes.has(c.name) ? { background: "var(--color-selected-bg)", borderRadius: 4 } : {}) }}>
           <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}><span style={c.leftOut ? { textDecoration: "line-through", color: "var(--color-text-muted)" } : undefined}>{c.name}</span> <span style={small}>({counts.get(c.name) || 0})</span></span>
-          <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 4px" }}><Square size={11} /></button>
+          <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 4px" }}><Square size={11} /></button>
           <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={assumedRole(c.name) ? tr("Not recognized: assumed stratigraphic. Check it before modelling.") : coverWhy(c) || meaningWhy(c) || tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none", ...(assumedRole(c.name) ? { color: "var(--color-text-muted)", fontStyle: "italic" } : {}) }}>{/* #2537 — an assumed role looks assumed */}
             {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
           </select>
-          <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>
-          <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▼</button>
-          <button onClick={() => leaveOut([c.name], !c.leftOut)} aria-pressed={!!c.leftOut} title={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} aria-label={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", ...(c.leftOut ? { background: "var(--color-selected-bg)" } : {}) }}><EyeOff size={11} /></button>
-          {overrideCount.has(c.name) && <button onClick={() => deleteCodesNamed([c.name])} title={tr("Delete the code {name}", { name: c.name })} aria-label={tr("Delete the code {name}", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", color: "var(--color-danger-icon)" }}><X size={11} /></button>}
+          <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>
+          <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 5px" }}>▼</button>
+          <button data-btn-own="" onClick={() => leaveOut([c.name], !c.leftOut)} aria-pressed={!!c.leftOut} title={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} aria-label={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", ...(c.leftOut ? { background: "var(--color-selected-bg)" } : {}) }}><EyeOff size={11} /></button>
+          {overrideCount.has(c.name) && <button onClick={() => deleteCodesNamed([c.name])} title={tr("Delete the code {name}", { name: c.name })} aria-label={tr("Delete the code {name}", { name: c.name })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 4px", color: "var(--color-danger-icon)" }}><X size={11} /></button>}
         </div>
       ))}
       </>)}
@@ -471,7 +471,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         if (touched && !await askConfirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
         go();
         setNumberMsg(tr("Numbered {n} interval(s) of {codes} in {h} hole(s){area}.", { n: keys.size.toLocaleString(), codes: numberCodes.join(", "), h: new Set(rows.filter((r) => keys.has(rowKey(r))).map((r) => r.hole_id)).size.toLocaleString(), area: inArea ? tr(" (the holes checked: Model area)") : "" })); // #2533
-      }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Auto-number {v}", { v: numberCodes.join(", ") || "…" })}</button>
+      }} className="gs-btn gs-btn--block" style={{ marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Auto-number {v}", { v: numberCodes.join(", ") || "…" })}</button>
       {numberMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{numberMsg}</div>}{/* #2533 */}
       {positionAt && (<>{/* TASKS.csv #2625 / #2635 — a sheet swarm: the runs matched between holes along an attitude, not counted per hole */}
         <div className="ge-section-label" style={{ marginTop: 10 }}>{tr("Correlate sheets between holes (optional)")}</div>
@@ -493,8 +493,8 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           if (touched && !await askConfirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
           setModellingCodes((p) => { const base = p || mc; return { ...base, assign, codes: inheritNumberedRoles(base, assign, numberCodes) }; });
           setSheetMsg(msgs.join(" ")); setSheetPreview(null);
-        }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Correlate {v} into sheets", { v: numberCodes.join(", ") || "…" })}</button>
-        {view && <button aria-pressed={!!sheetPreview} disabled={!numberCodes.length || (sheetAtt.mode === "typed" && !(sheetAtt.dip !== "" && sheetAtt.dipDir !== ""))} onClick={() => {
+        }} className="gs-btn gs-btn--block" style={{ marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Correlate {v} into sheets", { v: numberCodes.join(", ") || "…" })}</button>
+        {view && <button data-btn-own="" aria-pressed={!!sheetPreview} disabled={!numberCodes.length || (sheetAtt.mode === "typed" && !(sheetAtt.dip !== "" && sheetAtt.dipDir !== ""))} onClick={() => {
           if (sheetPreview) { setSheetPreview(null); return; }
           const r = computeSheets();
           setSheetPreview(r.preview); setSheetMsg(r.msgs.join(" "));

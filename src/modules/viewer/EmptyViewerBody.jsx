@@ -23,8 +23,8 @@ export default function EmptyViewerBody({ mode }) {
   return (
     <>
       {/* TASKS.csv #3888 (redesign P5) — the two start dialogs, from here too (as Matt agreed) */}
-      <button type="button" className="ge-tool-btn" data-start-open="" onClick={() => requestModuleAction("open-start-dialog")} style={{ marginBottom: 10, fontWeight: 600 }}>{tr("Let's begin a project!")}</button>
-      {" "}<button type="button" className="ge-tool-btn" data-first-steps-open="" onClick={() => openHelp("first-steps")} style={{ marginBottom: 10 }}>{tr("First steps")}</button>{/* TASKS.csv #3887 — the guide, in Help */}
+      <button data-btn-own="" type="button" className="ge-tool-btn" data-start-open="" onClick={() => requestModuleAction("open-start-dialog")} style={{ marginBottom: 10, fontWeight: 600 }}>{tr("Let's begin a project!")}</button>
+      {" "}<button data-btn-own="" type="button" className="ge-tool-btn" data-first-steps-open="" onClick={() => openHelp("first-steps")} style={{ marginBottom: 10 }}>{tr("First steps")}</button>{/* TASKS.csv #3887 — the guide, in Help */}
       <DropDiagram picture="holes" data-empty-diagram="holes" drop={tr("Drop your collar file here")} viewLabel={tr("Ground")} caption={tr("Your file needs these four columns")} cells={[tr("Hole ID"), "x", "y", "z"]}
         label={tr("A collar file dropped on the 3D view becomes drill hole traces. The file needs four columns: hole ID, x, y and z.")} tooltip={tr("Drag your collar file here to start.")} />
       <div style={{ marginBottom: 6 }}>{tx("Drag a collar file onto this view, or click {collars} in the left panel.", { collars: <b>{tr("Collars")}</b> })}</div>

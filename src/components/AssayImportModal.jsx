@@ -131,7 +131,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             {(() => { const none = modal.format === "long" ? [] : modal.elements.filter((e) => e.n === 0); return none.length ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Empty on every row, so left unticked: {list} ({n} columns).", { list: none.map((e) => e.symbol).join(", "), n: none.length })}</div> : null; })()}{/* TASKS.csv #1679 */}
             {labLike?.looksLikeLab && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{tr("Use Import assays for lab results: this file looks like lab assays ({cols}), and here it would be pXRF screening, kept out of grades.", { cols: labLike.lab.join(", ") })}</div>}{/* TASKS.csv #2198 */}
           </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("import-assays")} aria-label={tr("Help: {name}", { name: tr("Import assays") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("import-assays")} aria-label={tr("Help: {name}", { name: tr("Import assays") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
         </div>
 
         <div style={{ padding: 16, overflowY: "auto" }}>
@@ -150,7 +150,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           {modal.isPxrf && pts.allPoints && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginTop: -2, marginBottom: 10 }}>
               {tr("Every reading has From = To ({n} rows): they are points on core, and import as points (Data QC treats pXRF readings as screening points).", { n: pts.n.toLocaleString() })}
-              {pts.candidate && <>{" "}{tr("{col} looks like a To depth for each reading:", { col: pts.candidate })}{" "}<button type="button" onClick={() => setMapping("to", pts.candidate)} style={{ padding: "1px 8px", cursor: "pointer" }}>{tr("Use {col} as To", { col: pts.candidate })}</button></>}
+              {pts.candidate && <>{" "}{tr("{col} looks like a To depth for each reading:", { col: pts.candidate })}{" "}<button type="button" onClick={() => setMapping("to", pts.candidate)} className="gs-btn gs-btn--sm" style={{ padding: "1px 8px", cursor: "pointer" }}>{tr("Use {col} as To", { col: pts.candidate })}</button></>}
             </div>
           )}
           {/* TASKS.csv #1184 — the columns QAQC runs on, where they can be seen and changed */}
@@ -218,13 +218,13 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           {ppmAsPpb.length > 0 && ( /* TASKS.csv #3294 — a ppm column holding ppb, against the crust's average */
             <div role="note" style={{ padding: "6px 16px", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>
               {tr("Pick ppb below if right: these columns read in ppm sit thousands of times above the element's crustal average ({list}). Or:", { list: ppmAsPpb.map((o) => tr("{header} (median {median} ppm; the crust averages about {crust} ppm)", { header: o.header, median: +o.median.toPrecision(3), crust: o.crust })).join("; ") })}{" "}
-              <button type="button" onClick={() => setUnits(ppmAsPpb.map((o) => o.symbol), "ppb")} style={{ ...sel, cursor: "pointer", padding: "1px 8px" }}>{ppmAsPpb.length > 1 ? tr("Read these {n} as ppb", { n: ppmAsPpb.length }) : tr("Read {header} as ppb", { header: ppmAsPpb[0].header })}</button>
+              <button type="button" onClick={() => setUnits(ppmAsPpb.map((o) => o.symbol), "ppb")} className="gs-btn gs-btn--sm" style={{ cursor: "pointer", padding: "1px 8px" }}>{ppmAsPpb.length > 1 ? tr("Read these {n} as ppb", { n: ppmAsPpb.length }) : tr("Read {header} as ppb", { header: ppmAsPpb[0].header })}</button>
             </div>
           )}
           {pctAsPpm.length > 0 && (
             <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0", lineHeight: 1.45 }}>
               {tr("Pick ppm below if right: these columns read in per cent run far past 100 % ({list}). Or:", { list: pctAsPpm.map((o) => tr("{header} (median {median} %, up to {max} %)", { header: o.header, median: Math.round(o.median).toLocaleString(), max: Math.round(o.max).toLocaleString() })).join(", ") })}{" "}
-              <button type="button" onClick={() => setUnits(pctAsPpm.map((o) => o.symbol), "ppm")} style={{ ...sel, cursor: "pointer", padding: "1px 8px" }}>{pctAsPpm.length > 1 ? tr("Read these {n} as ppm", { n: pctAsPpm.length }) : tr("Read {header} as ppm", { header: pctAsPpm[0].header })}</button>
+              <button type="button" onClick={() => setUnits(pctAsPpm.map((o) => o.symbol), "ppm")} className="gs-btn gs-btn--sm" style={{ cursor: "pointer", padding: "1px 8px" }}>{pctAsPpm.length > 1 ? tr("Read these {n} as ppm", { n: pctAsPpm.length }) : tr("Read {header} as ppm", { header: pctAsPpm[0].header })}</button>
             </div>
           )}
           {over100.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0", lineHeight: 1.45 }}>{over100.map((o) => tr("{header} has {n} value(s) over 100 % (impossible as wt%): {hole} {from}-{to} m = {value}. Check those samples; the column stays in per cent.", { header: o.header, n: o.n, hole: o.example.hole ?? "?", from: o.example.from ?? "?", to: o.example.to ?? "?", value: o.example.value })).join(" ")}</div>}{/* TASKS.csv #2490 */}
@@ -276,7 +276,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               {modal.elements.length === 0 && (<>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "6px 4px" }}>{tr("No element columns recognized — add one manually below.")}</div>
                 {(modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "0 4px 6px", lineHeight: 1.45 }}>{tr("Import the check samples' results instead: this table links them to their originals ({cols}) but holds no results.", { cols: [modal.qc.sample_id, modal.qc.parent_id, modal.qc.sample_type].filter(Boolean).join(", ") })}</div>}{/* TASKS.csv #2340 */}
-                {onQcLinks && (modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div style={{ padding: "0 4px 8px" }}><button type="button" onClick={onQcLinks} style={{ ...btn(true), padding: "6px 14px" }} title={tr("Matches these sample ids to the project's assays and fills their QC category and parent; assays imported later pair up too.")}>{tr("Import as QC links ({n} rows)", { n: (modal.allRows || []).length.toLocaleString() })}</button></div>}</>
+                {onQcLinks && (modal.qc?.parent_id || modal.qc?.sample_type) && modal.qc?.sample_id && <div style={{ padding: "0 4px 8px" }}><button type="button" onClick={onQcLinks} className="gs-btn gs-btn--sm" style={{ padding: "6px 14px" }} title={tr("Matches these sample ids to the project's assays and fills their QC category and parent; assays imported later pair up too.")}>{tr("Import as QC links ({n} rows)", { n: (modal.allRows || []).length.toLocaleString() })}</button></div>}</>
               )}
             </div>
           ) : (
@@ -303,7 +303,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               </div>
               {othersOpen && (<>
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, margin: "4px 0 6px" }}>{tr("Not chemical elements: add one to import it as its own assay, named as in the file. Equivalents and totals (AuEq, TREO) are kept as supplied, not recalculated.")}{" "}{tr("None is added for you: add the ones that are grades, such as AuEq or TREO, and leave out sample weight or recovery.")}</div>
-                {others.some((c) => c.kind) && <button type="button" onClick={() => addOthers(others.filter((c) => c.kind))} style={{ ...btn(true), width: "auto", padding: "4px 10px", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Add the equivalents and totals ({n})", { n: others.filter((c) => c.kind).length })}</button>}
+                {others.some((c) => c.kind) && <button type="button" onClick={() => addOthers(others.filter((c) => c.kind))} className="gs-btn gs-btn--sm" style={{ width: "auto", padding: "4px 10px", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Add the equivalents and totals ({n})", { n: others.filter((c) => c.kind).length })}</button>}
                 <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 180, overflowY: "auto" }}>
                   {others.map((c) => (
                     <div key={c.header} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)" }}>
@@ -311,7 +311,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                       <span style={{ flex: 1, minWidth: 0, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.header}>{c.header}</span>
                       {c.kind && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent-dark)" }}>{c.kind === "equivalent" ? tr("equivalent") : tr("total")}</span>}
                       <span style={{ fontSize: "var(--font-size-xs)", color: c.assumed ? "var(--color-warn-text)" : "var(--color-text-secondary)" }} title={c.assumed ? tr("The column name does not say its unit: ppm is assumed. Set it after adding.") : undefined}>{c.unitLabel || c.unit}{c.assumed ? "?" : ""}</span>
-                      <button type="button" onClick={() => addOthers([c])} style={{ ...btn(false), width: "auto", padding: "2px 8px", fontSize: "var(--font-size-xs)" }} aria-label={tr("Add the column {header} as an assay", { header: c.header })}>{tr("Add")}</button>
+                      <button type="button" onClick={() => addOthers([c])} className="gs-btn" style={{ width: "auto", padding: "2px 8px", fontSize: "var(--font-size-xs)" }} aria-label={tr("Add the column {header} as an assay", { header: c.header })}>{tr("Add")}</button>
                     </div>
                   ))}
                 </div>
@@ -339,7 +339,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               <button
                 onClick={addElement}
                 disabled={!addSymbol.trim() || !addHeader}
-                style={{ ...btn(true), width: "auto", padding: "6px 10px", fontSize: "var(--font-size-sm)", opacity: (addSymbol.trim() && addHeader) ? 1 : 0.5 }}
+                className="gs-btn gs-btn--sm" style={{ width: "auto", padding: "6px 10px", fontSize: "var(--font-size-sm)", opacity: (addSymbol.trim() && addHeader) ? 1 : 0.5 }}
               >{tr("Add")}</button>
             </div>
           )}
@@ -402,13 +402,13 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             {tr("{header} looks like a repeat of {symbol}: {n} samples have both, median ratio {r}. Keep it as QC duplicates", { header: c.header, symbol: c.symbol, n: c.n.toLocaleString(), r: c.medianRatio.toFixed(2) })}
           </label>))}
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
+          <button onClick={onCancel} className="gs-btn" style={{ flex: 1 }}>{tr("Cancel")}</button>
           {/* TASKS.csv #2183 (review #2174) — 'Import 0 elements' committed 10,422 intervals with no values */}
           {/* TASKS.csv #2037 (review #2013) — a file with no hole / from / to (an IP .dat on the pXRF button) could be 'imported': the button waits for
               them, and the reason is said here, not in the panel behind the dialog */}
           {unmapped.length > 0 && !modal.busy && scan && <div role="note" style={{ alignSelf: "center", flex: 2, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Map the {cols} column(s) to import.", { cols: unmapped.join(", ") })}</div>}
           {checkedCount === 0 && unmapped.length === 0 && !modal.busy && scan && <div role="note" style={{ alignSelf: "center", flex: 2, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Tick or add at least one element to import.")}</div>}
-          <button onClick={onCommit} data-autofocus /* TASKS.csv #3533 */ disabled={!!modal.busy || !scan || checkedCount === 0 || unmapped.length > 0} /* !scan: #2164; 0 elements: #2183; unmapped: #2037 */ aria-busy={!scan || !!modal.busy} title={!scan ? tr("The values are being checked for negatives, zeros and empty cells: the questions below depend on them.") : undefined} /* #3072 */ style={{ ...btn(true), flex: 2, opacity: modal.busy || !scan || checkedCount === 0 || unmapped.length > 0 ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : !scan && (modal.allRows || []).length > 0 ? tr("Checking the values… {pct}%", { pct: Math.round(scanPct * 100) }) /* TASKS.csv #3072 — why the button waits, on the button: the status line above can be scrolled out of view */ : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
+          <button onClick={onCommit} data-autofocus /* TASKS.csv #3533 */ disabled={!!modal.busy || !scan || checkedCount === 0 || unmapped.length > 0} /* !scan: #2164; 0 elements: #2183; unmapped: #2037 */ aria-busy={!scan || !!modal.busy} title={!scan ? tr("The values are being checked for negatives, zeros and empty cells: the questions below depend on them.") : undefined} /* #3072 */ className="gs-btn gs-btn--primary" style={{ flex: 2, opacity: modal.busy || !scan || checkedCount === 0 || unmapped.length > 0 ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : !scan && (modal.allRows || []).length > 0 ? tr("Checking the values… {pct}%", { pct: Math.round(scanPct * 100) }) /* TASKS.csv #3072 — why the button waits, on the button: the status line above can be scrolled out of view */ : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
         </div>
       </div>
     </div>
@@ -419,4 +419,3 @@ const panel = { width: "min(680px, 92vw)", maxHeight: "86vh", background: "var(-
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });

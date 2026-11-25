@@ -8,7 +8,7 @@ import { copcLevelsWithin, COPC_POINT_BUDGET } from "../lib/lidar.js";
 
 export const CLOUD_TARGETS = [25000, 50000, 100000, 200000];
 
-export default function LidarImportBox({ pending, projectEpsg, busy, onImport, onCancel, btn }) {
+export default function LidarImportBox({ pending, projectEpsg, busy, onImport, onCancel }) {
   const { file, info } = pending, h = info.header;
   const [wantTerrain, setWantTerrain] = useState(true);
   const [wantCloud, setWantCloud] = useState(true);
@@ -59,10 +59,10 @@ export default function LidarImportBox({ pending, projectEpsg, busy, onImport, o
         </div>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        <button type="button" style={{ ...btn, flex: 1, marginTop: 0 }} disabled={busy || (!wantTerrain && !wantCloud)} onClick={() => onImport({ wantTerrain, wantCloud, target, cloudClasses, colourBy })}>
+        <button type="button" className="gs-btn gs-btn--primary" style={{ flex: 1, marginTop: 0 }} disabled={busy || (!wantTerrain && !wantCloud)} onClick={() => onImport({ wantTerrain, wantCloud, target, cloudClasses, colourBy })}>
           {busy ? <Loader2 size={14} className="spin" /> : null} {busy ? tr("Reading…") : tr("Import")}
         </button>
-        <button type="button" style={{ ...btn, marginTop: 0 }} disabled={busy} onClick={onCancel}>{tr("Cancel")}</button>
+        <button type="button" className="gs-btn" style={{ marginTop: 0 }} disabled={busy} onClick={onCancel}>{tr("Cancel")}</button>
       </div>
     </div>
   );

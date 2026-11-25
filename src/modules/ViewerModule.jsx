@@ -141,7 +141,7 @@ const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPa
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
 const StopeRunRows = lazyPart(() => import("./viewer/StopeRunRows.jsx")); // TASKS.csv #1968; #3961: lazy (mine design only)
-import { collarGround } from "../lib/collarGround.js"; // TASKS.csv #1616 — the estimate's ground without a terrain; #3159: not pitShell.js, which put the pit solver in startup
+import { collarGround } from "../lib/collarGround.js"; // TASKS.csv #1616 — the estimate's ground without a terrain; #3159
 import { useSurfacePlacement } from "./viewer/useSurfacePlacement.js"; import SurfacePlacementNotices from "./viewer/SurfacePlacementNotices.jsx"; // TASKS.csv #2485
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 import { customColour, customLegendGroups, customFields } from "../lib/customColour.js"; // TASKS.csv #1697
@@ -197,17 +197,17 @@ const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
 import { PRECIOUS_METALS, gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 const ClosureNote = lazyPart(() => import("./viewer/ClosureNote.jsx")); // TASKS.csv #1689; #3961: lazy (an artificially closed surface's card)
-const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); // TASKS.csv #1690; #3159: lazy (shown only for an expanded closed surface), it brought gradeTonnage.js into startup
+const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); // TASKS.csv #1690; #3159: lazy, it brought gradeTonnage.js into startup
 // TASKS.csv #1136 — off the startup chunk: the Targeting tab's planned-hole parts, the measure readout and the numeric
 // symbology editor load the first time they are shown
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
 const PlannedHoleAddForm = plannedPart("PlannedHoleAddForm"), PlannedHoleRow = plannedPart("PlannedHoleRow"), PlannedHoleChecks = plannedPart("PlannedHoleChecks");
 import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, LayerRow, LayerQuickPanel, VoxelRangeRow, miniBtn, iconBtn, miniField, typedSectionInput } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1084 — moved out at the size cap
-import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524; #3159: plannedTrace.js, not holePlanning.js (the targeting solvers)
+import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - shared target math; plannedTrace: #524; #3159
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice, notice, appendNotice, replaceNotices } from "../lib/notices.js"; // TASKS.csv #390; replaceNotices: #3114
-let geophysPtsLib = null; // TASKS.csv #3309 — lib/viewer/geophysPts.js (the survey points per survey; makeSurveyColorer #451 inside), loaded on the first survey drawn
+let geophysPtsLib = null; // TASKS.csv #3309 — lib/viewer/geophysPts.js (survey points; makeSurveyColorer #451), loaded on the first survey drawn
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
 import { objectVisibilityBundle, applyObjectVisibility } from "../lib/viewer/themeObjects.js"; // TASKS.csv #1535
@@ -322,7 +322,7 @@ const CATEGORY_LAYER_KEYS = LEGEND_CATEGORY_KEYS; // TASKS.csv #725 — one list
 const CAPTURE_LONG_PX = 3000;
 // TASKS.csv #906 — outW x outH (CSS px): the size the capture is drawn at, when it is not the canvas's own (a Layout
 // frame's aspect); the renderer goes back to cssW x cssH afterwards.
-const tickedShown = (collars, f, holeSets) => holesWithoutField(collars, f) ?? holesForFilter(collars, f, { holeSets }).holes; // holeSets: #3554 // holesWithoutField: #3074 // #1504 — by id parts, or field=value; #1703 — else text in a collar field
+const tickedShown = (collars, f, holeSets) => holesWithoutField(collars, f) ?? holesForFilter(collars, f, { holeSets }).holes; // holeSets: #3554 // holesWithoutField: #3074 // #1504; #1703
 function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH, longPx = CAPTURE_LONG_PX) {
   const gl = renderer.getContext();
   const maxRb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 4096;
@@ -767,7 +767,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv — right-click on a sidebar layer row for a small extensible menu ("for now" per the
   // user's request, just Zoom to layer — the icon-row already offers that as a left-click too, but a
   // right-click menu is the more discoverable/extensible home for "a few options" as more get added).
-  const [layerContextMenu, setLayerContextMenu] = useState(null); // { key, label, x, y } | null — key can be a real LAYER_META key, or the sentinels "__collars__"/"__survey__" (see renderVectorContextItems)
+  const [layerContextMenu, setLayerContextMenu] = useState(null); // { key, label, x, y } | null — key: a LAYER_META key or "__collars__" / "__survey__" (renderVectorContextItems)
   const [attrTableTarget, setAttrTableTarget] = useState(null); // { kind: "collars"|"survey"|"layer", key, label } | null
   const [dragOver, setDragOver] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
@@ -793,7 +793,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const interpretRef = useRef(interpret); useEffect(() => { interpretRef.current = interpret; }, [interpret]);
   const interpretGroupRef = useRef(null);
   const stopInterpret = () => setInterpret((s) => ({ ...s, on: false, points: [] }));
-  const pickHoleModeRef = useRef(false); // mirrors pickHoleMode for the mount-once pointer-event effect below, same reason rectZoomRef mirrors rectZoomMode
+  const pickHoleModeRef = useRef(false); // mirrors pickHoleMode for the mount-once pointer-event effect below
   useEffect(() => { pickHoleModeRef.current = pickHoleMode; }, [pickHoleMode]);
   // TASKS.csv #599 — modelling codes: pick an interval in the 3D view (Modelling tab), connect it to another hole
   const [mcPickMode, setMcPickMode] = useState(false);
@@ -1068,7 +1068,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #356 — the last implicit run's lithology block (session only), offered as a block model and as
   // a "modelled unit" interval layer. { block, units: [{name,label,color}], origin, when, title }
   const [lastLithBlock, setLastLithBlockRaw] = useState(null);
-  useEffect(() => setLastLithBlockRaw(null), [viewerUiStateSeq]); // TASKS.csv #4036 - the last model belongs to its project: its Add buttons put it in the one shown, so a New / Open / tab switch drops it (found walking the guide: WA lode gold's model offered in the Mount Raymond tab)
+  useEffect(() => setLastLithBlockRaw(null), [viewerUiStateSeq]); // TASKS.csv #4036 - the last model belongs to its project: a New / Open / tab switch drops it
   // TASKS.csv #2388 — the last model and the generated surfaces keep a stamp of the lithology log they read (lib/layerStamp.js): stale when it changes
   const setLastLithBlock = (lb) => setLastLithBlockRaw(lb && { ...lb, lithoStamp: layerStamp(layers.litho) }); // `layers` of the render the run started from
   const lithoNow = useMemo(() => layerStamp(layers.litho), [layers.litho]);
@@ -1549,7 +1549,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const lastHydratedSeq = useRef(-1);
   const [hydratedFor, setHydratedFor] = useState(-1); // #1656 — the project the local UI state below was read from
   const baselineFor = useRef(-1);
-  const [savedCamera, setSavedCamera] = useState(null); // #3624 — the camera as saved with the project; useSavedCamera keeps it current, the one writer below puts it in viewerUiState
+  const [savedCamera, setSavedCamera] = useState(null); // #3624 — the camera as saved with the project; useSavedCamera keeps it current
   useSavedCamera(camState, hydratedFor === viewerUiStateSeq, setSavedCamera);
   useEffect(() => {
     if (viewerUiStateSeq === lastHydratedSeq.current) return;
@@ -2082,7 +2082,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       const w = mount.clientWidth, h = mount.clientHeight;
       if (!w || !h) return;
       camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); lastActivityRef.current = Date.now();
-      figureOverlaySignalRef.current?.(true); // TASKS.csv #311 — metres-per-pixel depends on the canvas pixel height, so a resize changes the bar even when the camera didn't move. The `true` invalidates the overlay's cached height; this is its ONLY invalidation point, which is why it must stay in resize()
+      figureOverlaySignalRef.current?.(true); // TASKS.csv #311 — metres-per-pixel depends on the canvas height: the `true` invalidates the overlay's cached height (its only invalidation point)
     };
     resize(); const ro = new ResizeObserver(resize); ro.observe(mount);
 
@@ -2336,7 +2336,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
         for (const name of ["outcrop_labels", "sample_labels"]) { const lg = layerGroupsRef.current?.[name]; if (lg?.visible && lg.children.length) { fitScreenLabels(lg, camera, mount.clientHeight); declutterHoleLabels(lg, camera, mount.clientWidth, mount.clientHeight); } } // #1443
         { const ag = layerGroupsRef.current?.assay; if (ag?.visible && ag.children.length) assayLodTick(ag, assayKeptRef.current, metresPerPixel(camera, camState.current?.radius, mount.clientHeight)); } // #3144
         for (const k in layerGroupsRef.current) { const g = layerGroupsRef.current[k]; if (g?.visible && g.userData.logLod) logLodTick(g, metresPerPixel(camera, camState.current?.radius, mount.clientHeight), tracesRef.current, visibleHolesRef.current); } // #2802
-        { // TASKS.csv #1597 — surface-sample symbols are sized for the zoom they were built at: once the camera has settled (400 ms) a
+        { // TASKS.csv #1597 — surface-sample symbols are sized for the zoom they were built at
           // factor of two away from it, they are rebuilt at the new size (never per frame, never mid-orbit)
           // TASKS.csv #2849 — and the survey points, where their floor matters (a regional survey; a 2 km grid keeps its 1.4-4.2 m symbols)
           for (const [name, builtRef, zoomRef, buildRef, floored] of [["surface_samples", surfaceSymbolMppRef, surfaceZoomRef, buildSurfaceSamplesRef, () => true],
@@ -2580,7 +2580,7 @@ ${describeTrend(t)}` };
       layerVisible, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource /* #1695 */,
       categoryFilter: Object.fromEntries(Object.entries(categoryFilter).map(([k, v]) => [k, Array.from(v)])),
       gridConfig,
-      bgColor, holeLabelMode, figureOverlay, layerStyles, // TASKS.csv #1288 — these used to stay whatever was live, so one theme rendered differently from one refresh to the next
+      bgColor, holeLabelMode, figureOverlay, layerStyles, // TASKS.csv #1288 — these used to stay whatever was live
       ...surfaceVisibilityBundle(),
       camState: { theta: cs.theta, phi: cs.phi, radius: cs.radius, target: { x: cs.target.x, y: cs.target.y, z: cs.target.z } },
     };
@@ -2747,7 +2747,7 @@ ${describeTrend(t)}` };
     }
     if (req.trueScale) {
       const aspect = outW / outH;
-      let halfH = cs.radius * Math.tan(fovRad / 2); // same half-height the perspective camera frames AT the target distance — reused so the orthographic capture shows "the same amount of world" as what was already framed, just without the depth-dependent scale drift
+      let halfH = cs.radius * Math.tan(fovRad / 2); // the perspective camera's half-height at the target distance, so the orthographic capture shows the same amount of world
       // TASKS.csv #398 — fixed plot scale: the Layout frame (elementW page px at 96 dpi) must show
       // N x its printed width of world, centred where the camera looks. #906: drawn at the frame's own aspect, so
       // its height shows N x the printed height too - the frame's size on the paper IS the ground it shows.
@@ -2781,7 +2781,7 @@ ${describeTrend(t)}` };
         fitContourLabels(boundaryGroupRef.current, renderCamera, outW, outH, false, LABEL_PX); // #1466 — sized for the capture; the live declutter kept
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — the figure shows the slice you see
         // TASKS.csv #1770 — a drill plan labels every hole: the live view's declutter (#1294) must not hide one in the capture
-        labelsOverlapping = withEveryLabel(hl, renderCamera, outW, outH, () => withMarkerViewport(outH, () => renderer.render(scene, renderCamera)) /* #3855 */, LABEL_PX); // outW x outH: the frame fitScreenLabels sized the labels against (the canvas is that times the print pixel ratio)
+        labelsOverlapping = withEveryLabel(hl, renderCamera, outW, outH, () => withMarkerViewport(outH, () => renderer.render(scene, renderCamera)) /* #3855 */, LABEL_PX); // outW x outH: the frame fitScreenLabels sized the labels against
         renderer.clippingPlanes = [];
       }, outW, outH, captureLongPx(req.elementW, req.elementH, CAPTURE_LONG_PX, req.dpi || undefined)); // #906 — at the frame's aspect; #1479: 300 dpi of the frame; #2303: the request's dpi
       encoded = shot.encoded; shotW = shot.width; shotH = shot.height;
@@ -3926,7 +3926,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       setNotices((p) => [...p, notice("This surface's geometry looks degenerate (empty or non-finite bounds) — nothing to zoom to. Try regenerating it with more/better-spread points.")]);
       return;
     }
-    fitBox(box, 1.6); // extra padding vs. the default — a thin/near-flat implicit surface can be easy to clip right at the edge of frame otherwise
+    fitBox(box, 1.6); // extra padding: a thin / near-flat surface is easy to clip at the edge of the frame
   }, [fitBox]);
 
   // TASKS.csv #143 — export a generated surface's mesh to a standard format for downstream software
@@ -4140,7 +4140,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const cl = an ? (j >= 0 ? an.classOf[j] : -1) : -2;
         const color = an ? (cl >= 0 ? an.classes[cl].color : an.noDataColor) : (st.color || colorForMedium(row.medium));
         const mesh = new PickStandIn(proto, { color, transparent: true, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1500; transparent: #3046 (5)
-        mesh.renderOrder = 7; // TASKS.csv #3046 (5) — DRAW_ORDER.lines (#2776): after a flat map drape (no depth write), so a sample under it is not dimmed
+        mesh.renderOrder = 7; // TASKS.csv #3046 (5) — DRAW_ORDER.lines (#2776): after a flat map drape
         mesh.scale.setScalar(cappedRadiusM(radiusOf(row.medium), minR) * st.size * (an?.isolated[j] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size; minR: #1597
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
         const mapped = mappedOfSample(an, layerStyles.surface_anomaly, j, surfaceElementUnits); // #1821
@@ -4582,7 +4582,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       voxelMeshesRef.current[model.id] = mesh;
     });
   }, [voxelModels, collars, slice3d.on, deferRound]); // slice3d.on: #793; deferRound: #1980
-  const sliceFaceReduce = useSliceModelFace({ voxelMeshesRef, slicePlanesRef, originRef, activityRef: lastActivityRef, slice3d, voxelModels, refresh: [collars, deferRound] }); // #4020: a filled face, and what a thick slab shows // #3765 — a sliced block model is its back wall only: the slab's holes stand in front
+  const sliceFaceReduce = useSliceModelFace({ voxelMeshesRef, slicePlanesRef, originRef, activityRef: lastActivityRef, slice3d, voxelModels, refresh: [collars, deferRound] }); // #4020: a filled face, and what a thick slab shows // #3765 — a sliced block model is its back wall only
 
   // TASKS.csv #188 — planned drillholes (drillhole planning/targeting module). A planned hole has no
   // downhole survey (it hasn't been drilled yet) — just a collar plus a single design azimuth/dip/
@@ -4816,7 +4816,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!anyHidden && !holesHiddenRef.current) return;
     holesHiddenRef.current = anyHidden;
     Object.values(groups).forEach((g) => {
-      eachLayerMember(g, (child) => { // TASKS.csv #312 — an InstancedMesh batch has no tip of its own; its members are handled individually and mirrored by the sync below; #1540: reached through the batch
+      eachLayerMember(g, (child) => { // TASKS.csv #312 — an InstancedMesh batch has no tip of its own; its members are handled individually; #1540: reached through the batch
         if (child.userData?.traceChunk) { hideTraceHoles(child, visibleHoles); return; } // #2176 — merged traces: per hole, in place
         const holeId = child.userData?.holeId ?? (child.userData?.tip || "").split("\n")[0]; // holeId: #1500
         child.visible = !(holeId && visibleHoles[holeId] === false);
@@ -5761,7 +5761,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #3908 — the api the guided card (Model > Start here) gets; #3932 batch 2: an AI app's build_surface / build_grade_shell use it
   const guidedApi = { runStackModel, runImplicitModel, runVeinModel, runStructuralModel, runNumericModel, runAlterationModel /* #3932 batch 3 */, meshOf: (id) => implicitMeshesRef.current[id], numeric: { now: [numericSymbol, numericCutoff, numericCellSize, numericCellHeight, numericSearchRadius, numericMinHoles], set: [setNumericSymbol, setNumericCutoff, setNumericCellSize, setNumericCellHeight, setNumericSearchRadius, setNumericMinHoles] }, computeIntercepts, modelResolution, setModelResolution, busy: implicitBusy || veinBusy || numericBusy || alterationBusy, surfaces: implicitSurfaces, setStackUnits, setImplicitTarget, setVeinTarget, setAlterationTarget /* #4011 */, setStructuralTarget, openPane: (p, keep) => { if (!keep) setGuided(null); if (mode === "modelling") setToolPane(p); else { pendingPaneRef.current = p; goToModule("modelling"); } }, notices, openQc: () => setQcModalOpen(true), showResult: () => setSurfaceSolidsOpen(true), lastFit: lastLithBlock?.matchedPct ?? null }; // keep, notices, openQc, showResult: #4035, the guide; lastFit: #4037, its step 7
   useMcpModelActions(() => ({ store: { layers, modellingCodes, assays, survey, assayElements, structuralTrends, collars, terrain, sections, rasters /* #4053 */ }, api: guidedApi, removeSurfaces, notices, lastLithBlock, addLithBlockModel, removeVoxelModel, addVoxelModel, isSameProject /* #3932 batch 3 */,
-    faults: { traces: () => tracesRef.current, surfaceStructures, mapLayers, addSurface: addWorldMeshSurface } /* #4053 batch 4: build_fault, the Faults pane's own build */ })); // no mode gate: a call from the 3D Modelling tab arrives before the tab switch has rendered, and this is one component for every tab
+    faults: { traces: () => tracesRef.current, surfaceStructures, mapLayers, addSurface: addWorldMeshSurface } /* #4053 batch 4: build_fault, the Faults pane's own build */ })); // no mode gate: a call from the 3D Modelling tab arrives before the tab switch has rendered
   // TASKS.csv #3932 batch 3 — build_grade_estimate runs the Grade estimation dialog (components/useMcpEstimate.js): opened here, and the request
   // passed on to it (a request waits for the dialog to load)
   useModuleAction(["mcp-estimate-open"], (_a, p) => { setGradeEstOpen(true); requestModuleAction("mcp-estimate", p); });
@@ -5814,7 +5814,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<NumberInput allowEmpty min={0} max={360} value={typedSection.azimuth === "" ? null : typedSection.azimuth} onChange={(v) => setTypedSection((s) => ({ ...s, azimuth: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<NumberInput allowEmpty min={10} step={50} value={typedSection.length === "" ? null : typedSection.length} onChange={(v) => setTypedSection((s) => ({ ...s, length: v == null ? "" : String(v) }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
         </div>
-        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={tr("Open a vertical section along the azimuth, centred on the point, with the section Buffer ({sectionCorridor} m). The scissors in the Holes list cut one through a hole.", { sectionCorridor })}><Scissors size={14} />{" "}{tr("Open section")}</button>
+        <button onClick={openTypedSection} className="gs-btn gs-btn--block" style={{ marginBottom: 4 }} title={tr("Open a vertical section along the azimuth, centred on the point, with the section Buffer ({sectionCorridor} m). The scissors in the Holes list cut one through a hole.", { sectionCorridor })}><Scissors size={14} />{" "}{tr("Open section")}</button>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.", { sectionCorridor })}</div>
 
         </>)}
@@ -5856,7 +5856,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </label>
           <label style={{ ...miniField, flex: 1 }}>{tr("Width (m)")}<NumberInput min={1} step={10} value={sliceSeriesWidth} onChange={(v) => setSliceSeriesWidth(v)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
-          <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
+          <button onClick={generateSliceSeries} className="gs-btn gs-btn--block" style={{ width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
 
         <FenceOptions {...{ voxelModels, tracesRef, tracesSeq, visibleHoles }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} area={fenceArea} setArea={setFenceArea} boundaries={boundaries} topView={() => sectionTopView(camState.current, cameraRef.current, null) /* #4004: not "Draw section: click the two ends"; the pane says drag */} view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} /* #3971 */ />
@@ -5865,12 +5865,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <RastersTerrainSection {...{ rasters, terrain, updateTerrain, updateRaster, removeRaster, openRowMenu, zoomToObject, terrainMeshRef, rasterMeshesRef, goToModule, lodTiles }} />{/* #3891: first */}
         <div className="ge-section-label" style={rasters.length || terrain ? { marginTop: 16 } : null}>{tr("Geometry")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: tr("Collars"), x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Collars {v}", { v: collars.length ? `(${collars.length})` : "" })}</button>
+          <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: tr("Collars"), x: e.clientX, y: e.clientY }); }} className="gs-btn gs-btn--block" style={{ marginBottom: 0, flex: 1 }} title={tr("Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Collars {v}", { v: collars.length ? `(${collars.length})` : "" })}</button>
           {collars.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearCollars} style={iconBtn} title={tr("Remove all collars")}><Trash2 size={14} /></div>}
         </div>
         <input ref={setInputRef("collar")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: tr("Survey"), x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect") + azimuthNorthText(store.project) /* #3588 (6) */}><Upload size={14} />{" "}{tr("Survey {v}", { v: survey.length ? `(${survey.length})` : "" })}</button>
+          <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: tr("Survey"), x: e.clientX, y: e.clientY }); }} className="gs-btn gs-btn--block" style={{ marginBottom: 0, flex: 1 }} title={tr("Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect") + azimuthNorthText(store.project) /* #3588 (6) */}><Upload size={14} />{" "}{tr("Survey {v}", { v: survey.length ? `(${survey.length})` : "" })}</button>
           {survey.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearSurvey} style={iconBtn} title={tr("Remove all survey stations")}><Trash2 size={14} /></div>}
         </div>
         <input ref={setInputRef("survey")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
@@ -5918,8 +5918,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {parts.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>); })()}
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => selectByLocation("isolate")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Show only collars inside this boundary, hide every other hole")}>{tr("Isolate inside")}</button>
-              <button onClick={() => selectByLocation("hide")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Hide collars inside this boundary, leave every other hole as-is")}>{tr("Hide inside")}</button>
+              <button onClick={() => selectByLocation("isolate")} disabled={!selectByLocationBoundaryId} className="gs-btn gs-btn--block" style={{ flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Show only collars inside this boundary, hide every other hole")}>{tr("Isolate inside")}</button>
+              <button onClick={() => selectByLocation("hide")} disabled={!selectByLocationBoundaryId} className="gs-btn gs-btn--block" style={{ flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Hide collars inside this boundary, leave every other hole as-is")}>{tr("Hide inside")}</button>
             </div>
           </div>
         )}
@@ -6380,7 +6380,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <button
           onClick={() => setSurfaceQueryOpen(true)}
           disabled={!implicitSurfaces.length}
-          style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
+          className="gs-btn gs-btn--block" style={{ marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
           title={tr("Distance-to-surface / point-in-domain report — closest approach and pierce depths for every hole, downhole metres inside a closed shell, and a single-point distance/inside query")}
         ><Ruler size={14} />{" "}{tr("Distance / inside query…")}</button>
         {/* TASKS.csv #148 — overlay an imported solid (pit shell, stope design, someone else's
@@ -6389,7 +6389,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             it gets the same show/hide, remove, query and export controls with no parallel code path. */}
         <button
           onClick={() => importSolidRef.current?.click()}
-          style={{ ...pBtn, marginBottom: 8 }}
+          className="gs-btn gs-btn--block" style={{ marginBottom: 8 }}
           title={tr("Import a DXF (3DFACE / polyface mesh), OBJ or Leapfrog .msh solid (pit shell, stope, wireframe) over the drillholes, its coordinates as-is in the project CRS.")}
         ><Box size={14} />{" "}{tr("Import solid (DXF / OBJ / MSH)…")}</button>
         {/* TASKS.csv #802 — solid blocks (unit volumes / a block model) from the surfaces in this list */}
@@ -6397,7 +6397,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onClick={() => setSurfaceSolidsOpen((v) => !v)}
           disabled={!implicitSurfaces.length}
           aria-expanded={surfaceSolidsOpen}
-          style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
+          className="gs-btn gs-btn--block" style={{ marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
           title={implicitSurfaces.length ? tr("Fill a grid of blocks with the units these surfaces bound (open: unit tops; closed: solids), then add them as closed solids or a block model") : tr("Build or import a surface first: an explicit surface, an implicit model or an imported solid.") /* TASKS.csv #863 */}
         ><Box size={14} />{" "}{tr("Solid blocks from surfaces…")}</button>
         {/* TASKS.csv #570 — explicit wireframe from outlines drawn on sections */}
@@ -6409,7 +6409,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <select value={wireframeEnds} onChange={(e) => setWireframeEnds(e.target.value)} style={{ ...smallSel, width: 92, flexShrink: 0 }} aria-label={tr("Ends of the solid")} title={tr("How the solid ends past the first and last outline: flat, extended half a section spacing, or pinched out half a spacing beyond")}>{/* TASKS.csv #894 */}
             <option value="flat">{tr("Flat ends")}</option><option value="extend">{tr("Extend ½ spacing")}</option><option value="pinch">{tr("Pinch out")}</option>
           </select>
-          <button onClick={() => linkWireframe(wireframeName)} disabled={!linkableOutline(outlineNames, wireframeName)} title={linkDisabledReason(outlineNames, wireframeName) || undefined} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: linkableOutline(outlineNames, wireframeName) ? 1 : 0.5 }}>{tr("Link into a solid")}</button>
+          <button onClick={() => linkWireframe(wireframeName)} disabled={!linkableOutline(outlineNames, wireframeName)} title={linkDisabledReason(outlineNames, wireframeName) || undefined} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px", opacity: linkableOutline(outlineNames, wireframeName) ? 1 : 0.5 }}>{tr("Link into a solid")}</button>
         </div>
         {/* TASKS.csv #859 — vein solid from two surfaces */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center", flexWrap: "wrap" }} title={tr("A vein or dyke as a closed solid between its hangingwall and footwall surfaces (any dip, vertical included), with its true thickness")}>
@@ -6420,7 +6420,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               {implicitSurfaces.filter((x) => (!SOLID_SURFACE_TYPES.has(x.type) && x.type !== "stope") || x.type === "imported").map((x) => <option key={x.id} value={x.id}>{surfaceLabels.get(x.id) ?? x.name}</option>)}{/* imported: a wall from another package */}
             </select>
           ))}
-          <button onClick={buildVeinSolid} disabled={!veinHw || !veinFw || veinHw === veinFw} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: veinHw && veinFw && veinHw !== veinFw ? 1 : 0.5 }}>{tr("Make the solid")}</button>
+          <button onClick={buildVeinSolid} disabled={!veinHw || !veinFw || veinHw === veinFw} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px", opacity: veinHw && veinFw && veinHw !== veinFw ? 1 : 0.5 }}>{tr("Make the solid")}</button>
         </div>
         <input
           ref={importSolidRef}
@@ -6438,7 +6438,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <button
           onClick={runTopologyCheck}
           disabled={!implicitSurfaces.length || topologyBusy}
-          style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length && !topologyBusy ? 1 : 0.5, cursor: implicitSurfaces.length && !topologyBusy ? "pointer" : "default" }}
+          className="gs-btn gs-btn--block" style={{ marginBottom: 8, opacity: implicitSurfaces.length && !topologyBusy ? 1 : 0.5, cursor: implicitSurfaces.length && !topologyBusy ? "pointer" : "default" }}
           title={tr("Check the generated surfaces against their declared relationships (expand a row to declare one): wrong crossings, the wrong side of a surface, contacts folding over themselves.")}
         ><ShieldAlert size={14} /> {topologyBusy ? tr("Checking relationships…") : tr("Check relationships")}</button>
         {implicitSurfaces.length === 0 && (
@@ -6489,7 +6489,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {/* TASKS.csv #91/#92 — data-support display for surfaces that carry a classification. */}
                   {s.surfaceSupportCounts && (
                     <div style={{ marginBottom: 8 }}>
-                      <button
+                      <button data-btn-own=""
                         onClick={() => toggleSurfaceSupportColors(s.id)}
                         style={{ width: "100%", padding: "5px 0", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border-light)", background: s.supportColored ? "#eef3ee" : "transparent", color: "var(--color-text-secondary)" }}
                       >
@@ -6541,7 +6541,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       </select>
                       <button
                         onClick={() => { if (relationDraft.targetId) { addSurfaceRelationship(s.id, relationDraft.relation, relationDraft.targetId); setRelationDraft((p) => ({ ...p, targetId: "" })); } }}
-                        style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "4px 8px" }}
+                        className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "4px 8px" }}
                       >+</button>
                     </div>
                   ) : (
@@ -6562,7 +6562,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <button
                           disabled={!cutterDraft || crossCutBusy}
                           onClick={() => runCrossCut(s.id, cutterDraft)}
-                          style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "4px 8px", opacity: !cutterDraft || crossCutBusy ? 0.5 : 1, cursor: !cutterDraft || crossCutBusy ? "default" : "pointer" }}
+                          className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "4px 8px", opacity: !cutterDraft || crossCutBusy ? 0.5 : 1, cursor: !cutterDraft || crossCutBusy ? "default" : "pointer" }}
                         >{crossCutBusy ? tr("Cutting…") : tr("Apply")}</button>
                       </div>
                       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("A closed body (vein or dyke solid, shell) removes the part of this surface inside it; an open one (a fault) splits it into two fault blocks, with no displacement. Regenerating either undoes the cut.")}</div>
@@ -6678,7 +6678,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       <select value={offsetIn[s.id]?.mode || "normal"} onChange={(e) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], mode: e.target.value } }))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Offset direction")}>
                         <option value="normal">{tr("along its normal")}</option><option value="vertical">{tr("vertically")}</option>
                       </select>
-                      <button onClick={() => makeOffsetSurface(s)} disabled={!(Number(offsetIn[s.id]?.d) !== 0 && Number.isFinite(Number(offsetIn[s.id]?.d)))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px" }}>{tr("Make")}</button>
+                      <button onClick={() => makeOffsetSurface(s)} disabled={!(Number(offsetIn[s.id]?.d) !== 0 && Number.isFinite(Number(offsetIn[s.id]?.d)))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 7px" }}>{tr("Make")}</button>
                     </div>
                   )}
                   {(boundaries || []).length > 0 && ( // TASKS.csv #895 — a copy cut to a project boundary
@@ -6688,7 +6688,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <option value="">{tr("Boundary…")}</option>
                         {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
-                      <button onClick={() => makeClippedSurface(s)} disabled={!clipIn[s.id]} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px" }}>{tr("Make")}</button>
+                      <button onClick={() => makeClippedSurface(s)} disabled={!clipIn[s.id]} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 7px" }}>{tr("Make")}</button>
                     </div>
                   )}
 
@@ -6722,12 +6722,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           <button
                             onClick={() => setCompareVersionsFor(s.id)}
                             disabled={chain.length < 2}
-                            style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)", opacity: chain.length < 2 ? 0.5 : 1, cursor: chain.length < 2 ? "default" : "pointer" }}
+                            className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)", opacity: chain.length < 2 ? 0.5 : 1, cursor: chain.length < 2 ? "default" : "pointer" }}
                             title={chain.length < 2 ? tr("Link this surface to an earlier run first") : tr("Compare this version against another run of the same surface: volume delta, how far the surface moved, and which parameters changed")}
                           ><GitCompare size={12} />{" "}{tr("Compare versions…")}</button>
                           <button
                             onClick={() => acceptSurfaceVersion(s.id)}
-                            style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }}
+                            className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }}
                             title={tr("Mark this run as the version you work from. The other versions are hidden, not deleted; it is not a check that this run is correct.")}
                           ><Check size={12} /> {s.accepted ? tr("Accepted") : tr("Accept this version")}</button>
                         </div>
@@ -6742,15 +6742,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       (not GeoStrix's internal scene-space), for handoff to other software. */}
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>{tr("Export mesh")}</div>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={() => exportImplicitSurface(s.id, "obj")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("Wavefront OBJ — universal, human-readable")}>{tr("OBJ")}</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "dxf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("AutoCAD DXF (3DFACE) — Vulcan/Surpac/Datamine and most mining software read this")}>{tr("DXF")}</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "glb")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("glTF Binary — modern standard, keeps normals, good for Blender/web viewers")}>{tr("glTF")}</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "vtk")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("VTK (legacy) — opens in ParaView and PyVista")}>{tr("VTK")}</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it")}>{tr("OMF")}</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "ts")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("GOCAD TSurf (.ts) — Leapfrog, SKUA-GOCAD and most 3D geology software import it")}>{tr("TSurf")}</button>{/* #3149 */}
+                    <button onClick={() => exportImplicitSurface(s.id, "obj")} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("Wavefront OBJ — universal, human-readable")}>{tr("OBJ")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "dxf")} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("AutoCAD DXF (3DFACE) — Vulcan/Surpac/Datamine and most mining software read this")}>{tr("DXF")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "glb")} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("glTF Binary — modern standard, keeps normals, good for Blender/web viewers")}>{tr("glTF")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "vtk")} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("VTK (legacy) — opens in ParaView and PyVista")}>{tr("VTK")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "omf")} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it")}>{tr("OMF")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "ts")} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("GOCAD TSurf (.ts) — Leapfrog, SKUA-GOCAD and most 3D geology software import it")}>{tr("TSurf")}</button>{/* #3149 */}
                   </div>
                   {s.params?.inputs && ( /* TASKS.csv #1101 */
-                    <button onClick={() => exportImplicitSurface(s.id, "inputs")} style={{ ...pBtn, marginTop: 4, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("This GemPy run's interface points and orientations, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog")}>{tr("Model inputs (GemPy CSV)")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "inputs")} className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("This GemPy run's interface points and orientations, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog")}>{tr("Model inputs (GemPy CSV)")}</button>
                   )}
                 </div>
               )}
@@ -6789,7 +6789,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {fault ? fault.name : tr("(deleted fault)")} <span style={{ color: "var(--color-text-secondary)" }}>{tr("— side {v}", { v: c.side === 1 ? "A" : "B" })}</span>
                         </div>
-                        <button onClick={() => flipDomainConstraint(d.id, i)} title={tr("Flip side")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("Flip")}</button>
+                        <button onClick={() => flipDomainConstraint(d.id, i)} title={tr("Flip side")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("Flip")}</button>
                         <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeDomainConstraint(d.id, i), tr("Remove this fault constraint from domain \"{name}\"", { name: d.name }))} />
                       </div>
                     );
@@ -6806,7 +6806,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       </select>
                       <button
                         onClick={() => { if (domainConstraintDraft.faultId) { addDomainConstraint(d.id, domainConstraintDraft.faultId, domainConstraintDraft.side); setDomainConstraintDraft((p) => ({ ...p, faultId: "" })); } }}
-                        style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "4px 8px" }}
+                        className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "4px 8px" }}
                       >+</button>
                     </div>
                   ) : (
@@ -6908,11 +6908,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </div>
         )}
         {plannedHoles.length > 0 && (<>
-          <button onClick={() => exportPlannedHoles("csv")} style={{ ...pBtn, marginTop: 8 }} title={tr("Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north (today's declination)")}><FileBarChart2 size={14} />{" "}{tr(plannedHoles.length === 1 ? "Export {n} planned hole to CSV" : "Export {n} planned holes to CSV", { n: plannedHoles.length })}</button>
+          <button onClick={() => exportPlannedHoles("csv")} className="gs-btn gs-btn--block" style={{ marginTop: 8 }} title={tr("Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north (today's declination)")}><FileBarChart2 size={14} />{" "}{tr(plannedHoles.length === 1 ? "Export {n} planned hole to CSV" : "Export {n} planned holes to CSV", { n: plannedHoles.length })}</button>
           {/* TASKS.csv #397 */}
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => exportPlannedHoles("kml")} style={{ ...pBtn, flex: 1, justifyContent: "center" }} title={tr("Google Earth / phone maps: collars and collar-to-toe lines")}>{tr("KML")}</button>
-            <button onClick={() => exportPlannedHoles("gpx")} style={{ ...pBtn, flex: 1, justifyContent: "center" }} title={tr("Handheld GPS: collar waypoints")}>{tr("GPX")}</button>
+            <button onClick={() => exportPlannedHoles("kml")} className="gs-btn gs-btn--block" style={{ flex: 1, justifyContent: "center" }} title={tr("Google Earth / phone maps: collars and collar-to-toe lines")}>{tr("KML")}</button>
+            <button onClick={() => exportPlannedHoles("gpx")} className="gs-btn gs-btn--block" style={{ flex: 1, justifyContent: "center" }} title={tr("Handheld GPS: collar waypoints")}>{tr("GPX")}</button>
           </div>
         </>)}
         {plannedHoles.length > 0 && (
@@ -7013,9 +7013,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </EmptyState>
         )}
         <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6 }}>
-          <button onClick={() => setShowLocator((v) => !v)} title={tr("Toggle locator map (shows your project's real-world location)")} style={{ ...iconBtn, ...(showLocator ? { background: "var(--color-divider)", borderColor: "var(--color-selected-border)" } : {}) }}><MapIcon size={14} /></button>
-          <button onClick={() => { setRebuildSeq((n) => n + 1); setNotices((p) => [...p, notice("View refreshed — geometry rebuilt from current data")]); }} title={tr("Refresh view (force full geometry rebuild)")} style={iconBtn}><RefreshCw size={14} /></button>
-          <button onClick={resetView} title={tr("Reset orientation")} style={iconBtn}><RotateCcw size={14} /></button>
+          <button data-btn-own="" onClick={() => setShowLocator((v) => !v)} title={tr("Toggle locator map (shows your project's real-world location)")} style={{ ...iconBtn, ...(showLocator ? { background: "var(--color-divider)", borderColor: "var(--color-selected-border)" } : {}) }}><MapIcon size={14} /></button>
+          <button data-btn-own="" onClick={() => { setRebuildSeq((n) => n + 1); setNotices((p) => [...p, notice("View refreshed — geometry rebuilt from current data")]); }} title={tr("Refresh view (force full geometry rebuild)")} style={iconBtn}><RefreshCw size={14} /></button>
+          <button data-btn-own="" onClick={resetView} title={tr("Reset orientation")} style={iconBtn}><RotateCcw size={14} /></button>
         </div>
         {showLocator && (
           <div style={{ position: "absolute", bottom: 12, right: 12 }}>
@@ -7040,9 +7040,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {identify.on && <Suspense fallback={null}><IdentifyPanel result={identify.result} onShow={identify.show} onClose={identify.stop} onZoom={(pt) => zoomToPoint(pt)} onStripLog={setStripLogHoleId} /></Suspense>}
         {guided && (mode === "view" || mode === "modelling") && <Suspense fallback={null}><GuidedTool tool={guided} setTool={setGuided} api={guidedApi} /></Suspense>}{/* TASKS.csv #3908; #4035: 3D Modelling too */}
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
-          <button onClick={() => { applyViewDirection(camState.current, "t"); cameraRef.current.__update(); }} style={miniBtn} title={tr("Top view, north up (T). Also B: bottom; N, S, E, W: level, from that side")}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
-          <button onClick={() => { applyViewDirection(camState.current, "b"); cameraRef.current.__update(); }} style={miniBtn} title={tr("Bottom view (B)")}>{tr("Bottom")}</button>
-          <button onClick={fitButton} style={miniBtn} title={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)")} aria-label={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
+          <button data-btn-own="" onClick={() => { applyViewDirection(camState.current, "t"); cameraRef.current.__update(); }} style={miniBtn} title={tr("Top view, north up (T). Also B: bottom; N, S, E, W: level, from that side")}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
+          <button data-btn-own="" onClick={() => { applyViewDirection(camState.current, "b"); cameraRef.current.__update(); }} style={miniBtn} title={tr("Bottom view (B)")}>{tr("Bottom")}</button>
+          <button data-btn-own="" onClick={fitButton} style={miniBtn} title={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)")} aria-label={mode === "surface" ? tr("Zoom to fit all") : tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
           <ViewVeSelect figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} />
         </div>
         {/* TASKS.csv #189 — the old "■ East ■ Elevation ■ North" text legend used to render here;
@@ -7073,14 +7073,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <div key={toast.key} role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: "var(--color-danger-text)", background: "var(--color-danger-bg)", padding: "8px 10px 8px 12px", borderRadius: 7, border: "1px solid var(--color-danger-border-strong)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto" }}>
               <AlertTriangle size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "var(--color-danger-icon)" }} />
               <span style={{ flex: 1 }}>{toast.text}</span>
-              <button type="button" aria-label={tr("Dismiss message")} title={tr("Dismiss")} onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger-text)", display: "flex" }}><X size={14} /></button>
+              <button data-btn-own="" type="button" aria-label={tr("Dismiss message")} title={tr("Dismiss")} onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger-text)", display: "flex" }}><X size={14} /></button>
             </div>
           )}
           {toast && toast.level !== "error" && (
             // #690 — hovering keeps it up; a Dismiss button as errors have
             <div key={toast.key} onMouseEnter={holdToast} onMouseLeave={releaseToast} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 10px 8px 14px", borderRadius: 7, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto" }}>
               <span style={{ flex: 1 }}>{toast.text}</span>
-              <button type="button" aria-label={tr("Dismiss message")} title={tr("Dismiss")} onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-text-secondary)", display: "flex" }}><X size={14} /></button>
+              <button data-btn-own="" type="button" aria-label={tr("Dismiss message")} title={tr("Dismiss")} onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-text-secondary)", display: "flex" }}><X size={14} /></button>
             </div>
           )}
         </div>
@@ -7092,8 +7092,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {interactiveViewportSession && (
           <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 10, fontSize: "var(--font-size-base)", color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", zIndex: 20 }}>
             <span>{tr("Editing Layout viewport — drag to orbit, scroll to zoom")}</span>
-            <button onClick={doExitInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: "var(--font-size-base)" }}>{tr("Update Viewport & Return to Layout")}</button>
-            <button onClick={doCancelInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: "var(--font-size-base)", background: "transparent", border: "1px solid var(--color-border-light)", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
+            <button onClick={doExitInteractiveViewport} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: "var(--font-size-base)" }}>{tr("Update Viewport & Return to Layout")}</button>
+            <button onClick={doCancelInteractiveViewport} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: "var(--font-size-base)", background: "transparent", border: "1px solid var(--color-border-light)", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
           </div>
         )}
         {rectZoomMode && !rectVisual && (
@@ -7400,7 +7400,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <StereonetModal
           picks={structurePicksWithHoleAttitude}
           customLayers={storeCustomLayers || []} /* TASKS.csv #1545 — the orientation-line quality table */
-          surfaceSets={surfaceStructures || []} // TASKS.csv #428; the file's type: #1440; class and area: #3843 (the modal builds the picks, lib/stereonetGroups.js)
+          surfaceSets={surfaceStructures || []} // TASKS.csv #428; the file's type: #1440; class and area: #3843
           domains={domains}
           domainFilter={domainStereonetFilter}
           locate={stereonetLocate()} /* TASKS.csv #3843 — in the window / inside a boundary */

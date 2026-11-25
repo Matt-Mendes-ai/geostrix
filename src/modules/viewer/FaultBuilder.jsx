@@ -30,7 +30,7 @@ const count = (n, what) => ({
 })[what];
 
 export default function FaultBuilder(props) {
-  const { pBtn, tracesRef, tracesSeq, mapLayers, sections, terrain, surfaceStructures, originRef, implicitSurfaces, runStructuralModel, implicitBusy, setStackFaults, stackFaults, addWorldMeshSurface } = props;
+  const { tracesRef, tracesSeq, mapLayers, sections, terrain, surfaceStructures, originRef, implicitSurfaces, runStructuralModel, implicitBusy, setStackFaults, stackFaults, addWorldMeshSurface } = props;
   const { layers = {}, generatedSurfaces = [] } = useStore() || {};
   const items = useMemo(() => gatherFaultEvidence({ traces: tracesRef?.current || [], layers, surfaceStructures, mapLayers, sections, terrain }), [tracesSeq, tracesRef, layers, surfaceStructures, mapLayers, sections, terrain]); // tracesSeq: the traces' version (tracesRef is a ref)
   const [off, setOff] = useState({}); // kind -> true: not used
@@ -104,7 +104,6 @@ export default function FaultBuilder(props) {
     requestModuleAction("open-pane", { pane: "stack" });
   };
 
-  const small = { ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 8px" };
   const nOk = faults.filter((f) => f.spec?.ok).length;
   return (
     <div data-fault-builder="" style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", marginTop: 8 }}>
@@ -167,7 +166,7 @@ export default function FaultBuilder(props) {
           <option value="">{tr("Choose a fault surface…")}</option>
           {faultSurfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>}
-        <button type="button" style={{ ...pBtn, marginTop: 6 }} disabled={implicitBusy && shape === "curved"} onClick={build}>{nOk === 1 ? tr("Build") : tr("Build {n} faults", { n: nOk })}</button>
+        <button type="button" className="gs-btn gs-btn--block" style={{ marginTop: 6 }} disabled={implicitBusy && shape === "curved"} onClick={build}>{nOk === 1 ? tr("Build") : tr("Build {n} faults", { n: nOk })}</button>
         <MoreFold style={{ ...note, marginTop: 4, marginBottom: 0 }}>
           <div>{tr("Every kind of fault evidence at once; each item goes to a fault you name, or is left out.")}</div>
           <div>{tr("Sheeted planes: each fault is one or more flat planes, its dips grouped into sets and each set into parallel sheets; no solver. One curved surface: GemPy, for a folded fault.")}</div>
@@ -188,8 +187,8 @@ export default function FaultBuilder(props) {
                 {fit && <div style={note}>{tr("Miss {t} m typical, {w} m worst ({points}).", { points: count(fit.points, "point"), t: fit.typicalMissM, w: fit.worstMissM })}</div>}
                 {c && <div style={c.over ? warn : note}>{tr("{over} of {points} over {m} m off.", { over: c.over, points: count(c.n, "point"), m: c.at })}</div>}
                 <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
-                  <button type="button" style={small} onClick={() => check(s)}>{tr("Check")}</button>
-                  <button type="button" style={small} disabled={inStack} onClick={() => addToStack(s)}>{inStack ? tr("In the stack") : tr("Use in the stack")}</button>
+                  <button type="button" className="gs-btn gs-btn--sm" onClick={() => check(s)}>{tr("Check")}</button>
+                  <button type="button" className="gs-btn gs-btn--sm" disabled={inStack} onClick={() => addToStack(s)}>{inStack ? tr("In the stack") : tr("Use in the stack")}</button>
                 </div>
               </div>
             );

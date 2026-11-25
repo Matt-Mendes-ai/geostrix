@@ -1494,7 +1494,7 @@ export default function LayoutModule() {
         </Ribbon>
         {addMenu && ( /* TASKS.csv #3912 — the Add button's menu (outside the ribbon, so the ribbon's buttons stay one tag each) */
           <RibbonMenu data-add-menu="" label={tr("Add")} onClose={() => setAddMenu(null)} style={{ position: "fixed", left: addMenu.x, top: addMenu.y, zIndex: 50, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, boxShadow: "0 4px 14px rgba(0,0,0,0.15)", padding: 4, display: "flex", flexDirection: "column", minWidth: 160 }}>
-            {addItems.map(([type, label]) => <button key={type} type="button" role="menuitem" className="ge-menu-item" style={{ textAlign: "start", padding: "6px 10px", background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)" }} onClick={() => { setAddMenu(null); addElement(type); }}>{tr(label)}</button>)}
+            {addItems.map(([type, label]) => <button data-btn-own="" key={type} type="button" role="menuitem" className="ge-menu-item" style={{ textAlign: "start", padding: "6px 10px", background: "none", border: "none", cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text)" }} onClick={() => { setAddMenu(null); addElement(type); }}>{tr(label)}</button>)}
             {/* #3928: focus in, arrows, Escape back to Add */}
           </RibbonMenu>
         )}
@@ -1505,7 +1505,7 @@ export default function LayoutModule() {
               viewportBatchDone.cancelled ? tr("Cancelled: the other pages keep the template's map, with their hole marked.") : "",
               viewportBatchDone.failed ? tr("{n} page(s) could not be captured and keep the template's map.", { n: viewportBatchDone.failed }) : "",
             ].filter(Boolean).join(" ")}</span>
-            <button type="button" onClick={() => setViewportBatchDone(null)} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={14} /></button>
+            <button data-btn-own="" type="button" onClick={() => setViewportBatchDone(null)} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={14} /></button>
           </div>
         )}
         <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
@@ -1535,11 +1535,11 @@ export default function LayoutModule() {
             <div className="ge-section-label">{tr("{n} selected", { n: multiSelected.size })}</div>
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>
               {[["left", tr("Align left")], ["hcentre", tr("Align centre")], ["right", tr("Align right")], ["top", tr("Align top")], ["vcentre", tr("Align middle")], ["bottom", tr("Align bottom")]].map(([k, l]) => (
-                <button key={k} onClick={() => alignSelected(k)} style={smallBtn}>{l}</button>
+                <button key={k} onClick={() => alignSelected(k)} className="gs-btn gs-btn--sm">{l}</button>
               ))}
-              <button onClick={() => distributeSelected("h")} style={smallBtn} title={tr("Equal gaps left to right (3 or more elements)")}>{tr("Spread across")}</button>
-              <button onClick={() => distributeSelected("v")} style={smallBtn} title={tr("Equal gaps top to bottom (3 or more elements)")}>{tr("Spread down")}</button>
-              <button onClick={duplicateSelected} style={smallBtn}>{tr("Duplicate")}</button>
+              <button onClick={() => distributeSelected("h")} className="gs-btn gs-btn--sm" title={tr("Equal gaps left to right (3 or more elements)")}>{tr("Spread across")}</button>
+              <button onClick={() => distributeSelected("v")} className="gs-btn gs-btn--sm" title={tr("Equal gaps top to bottom (3 or more elements)")}>{tr("Spread down")}</button>
+              <button onClick={duplicateSelected} className="gs-btn gs-btn--sm">{tr("Duplicate")}</button>
             </div>
           </div>
         )}
@@ -1549,9 +1549,9 @@ export default function LayoutModule() {
             <PlaceControls sel={sel} updateSelected={(patch) => { updateSelected(patch); if (sel.type === "viewport" && ("w" in patch || "h" in patch)) askRecapture(sel.id, 700); }} />{/* TASKS.csv #906 — position and size in mm; #3965 */}
             {selPast.length > 0 && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr(selPast.includes("out") ? "This element lies wholly outside the sheet (past its {sides}): it is left out of the export. Move it back onto the sheet, or delete it." : "Part of this element reaches past the sheet's {sides}: that part is left out of the export, the rest prints. Move it, or make it smaller.", { sides: selPast.filter((sd) => sd !== "out").map((sd) => ({ left: tr("left edge"), top: tr("top edge"), right: tr("right edge"), bottom: tr("bottom edge") })[sd]).join(" / ") })}{/* #3703 — what is left out, plainly */}</div>}{/* #3612 (7) */}
             <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>{/* TASKS.csv #909 */}
-              <button onClick={() => reorderSelected("front")} title={tr("Bring to front")} style={smallBtn}>{tr("To front")}</button>
-              <button onClick={() => reorderSelected("back")} title={tr("Send to back")} style={smallBtn}>{tr("To back")}</button>
-              <button onClick={duplicateSelected} title={tr("Duplicate (Ctrl+D). Arrow keys move the selection 1 mm, with Shift 10 mm.")} style={smallBtn}>{tr("Duplicate")}</button>
+              <button onClick={() => reorderSelected("front")} title={tr("Bring to front")} className="gs-btn gs-btn--sm">{tr("To front")}</button>
+              <button onClick={() => reorderSelected("back")} title={tr("Send to back")} className="gs-btn gs-btn--sm">{tr("To back")}</button>
+              <button onClick={duplicateSelected} title={tr("Duplicate (Ctrl+D). Arrow keys move the selection 1 mm, with Shift 10 mm.")} className="gs-btn gs-btn--sm">{tr("Duplicate")}</button>
               {layoutPages.length > 1 && ( /* TASKS.csv #1484 — to another page */
                 <select value="" onChange={(e) => { const [how, id] = e.target.value.split(":"); if (!id) return; sendLayoutElement(sel.id, id, how === "move"); if (how === "move") setSelected(null); }} style={{ ...smallBtn, cursor: "pointer" }} aria-label={tr("Copy or move to another page")}>
                   <option value="">{tr("To another page…")}</option>
@@ -1567,7 +1567,7 @@ export default function LayoutModule() {
                     {LAYOUT_FONTS.map((f) => <option key={f.label} value={f.label} style={{ fontFamily: f.stack }}>{f.label}</option>)}
                   </select>
                 </label>
-                <button type="button" style={{ ...pBtn, marginBottom: 0 }} onClick={() => setElements((els) => withPageFont(els, LAYOUT_FONTS.some((f) => f.label === sel.fontFamily) ? sel.fontFamily : LAYOUT_DEFAULT_FONT))} title={tr("Every title, text, legend, table, title block, scale bar, north arrow and drill plan on this page takes this typeface.")}>{tr("Use on the whole page")}</button>
+                <button type="button" className="gs-btn gs-btn--block" style={{ marginBottom: 0 }} onClick={() => setElements((els) => withPageFont(els, LAYOUT_FONTS.some((f) => f.label === sel.fontFamily) ? sel.fontFamily : LAYOUT_DEFAULT_FONT))} title={tr("Every title, text, legend, table, title block, scale bar, north arrow and drill plan on this page takes this typeface.")}>{tr("Use on the whole page")}</button>
               </div>
             )}
             {"text" in sel && (sel.type === "text" /* #1868 — several lines (a title block, a note) */
@@ -1649,7 +1649,7 @@ export default function LayoutModule() {
                         ))}</div>
                       </div>
                     ); })()}
-                    {conts.length > 0 && <button onClick={() => addPagesOnPaper(addLayoutPages, setLayoutPageFormat, conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t], batch: `collars_${sel.id}` })), activePage?.format /* #3370 — the table's own paper */)} style={{ ...pBtn, marginBottom: 8 }}>{tr("Continue on {n} new page(s)", { n: conts.length })}</button>}
+                    {conts.length > 0 && <button onClick={() => addPagesOnPaper(addLayoutPages, setLayoutPageFormat, conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t], batch: `collars_${sel.id}` })), activePage?.format /* #3370 — the table's own paper */)} className="gs-btn gs-btn--block" style={{ marginBottom: 8 }}>{tr("Continue on {n} new page(s)", { n: conts.length })}</button>}
                   </>);
                 })()}
                 <FrameControls sel={sel} updateSelected={updateSelected} />
@@ -1711,9 +1711,9 @@ export default function LayoutModule() {
                 <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <input type="date" value={date} onChange={(e) => updateSelected({ declDate: e.target.value })} aria-label={tr("Declination date")} style={{ ...inp, width: 130 }} />
-                    <button onClick={compute} style={{ ...pBtn, marginBottom: 0 }}>{sel.decl ? tr("Update GN/TN/MN") : tr("Show grid / true / magnetic north")}</button>
+                    <button onClick={compute} className="gs-btn gs-btn--block" style={{ marginBottom: 0 }}>{sel.decl ? tr("Update GN/TN/MN") : tr("Show grid / true / magnetic north")}</button>
                   </div>
-                  {sel.decl && <button onClick={() => updateSelected({ decl: null })} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>{tr("Back to a plain north arrow")}</button>}
+                  {sel.decl && <button onClick={() => updateSelected({ decl: null })} className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0 }}>{tr("Back to a plain north arrow")}</button>}
                   {!sel.declDate && drill && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Date from the collars' {field} (the latest drilling). Change it for another date.", { field: drill.field })}</div>}{/* #1773 */}
                   {sel.declError && <div style={{ color: "var(--color-danger-fg)", marginTop: 4 }}>{sel.declError}</div>}
                 </div>
@@ -1746,14 +1746,14 @@ export default function LayoutModule() {
                         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: "1 1 100%" }}>{tr("Columns")}
                           <div role="group" aria-label={tr("Legend columns")} data-legend-cols-side="" style={{ display: "flex", gap: 2, marginTop: 4 }}>{/* TASKS.csv #3959 — 1 / 2 / 3 / 4 in view (was a select) */}
                             {[["auto", tr("Auto")], ...[1, 2, 3, 4].map((n) => [String(n), String(n)])].map(([v, lab]) => { const on = String(sel.legendCols ?? "auto") === v; return (
-                              <button key={v} type="button" aria-pressed={on} onClick={() => setLegendColsFor(sel, v === "auto" ? undefined : Number(v))} style={{ ...smallBtn, flex: v === "auto" ? 1.6 : 1, padding: "4px 0", textAlign: "center", justifyContent: "center", fontWeight: on ? 700 : 400, background: on ? "var(--color-selected-bg)" : undefined, borderColor: on ? "var(--color-selected-border)" : undefined }}>{lab}</button>); })}
+                              <button data-btn-own="" key={v} type="button" aria-pressed={on} onClick={() => setLegendColsFor(sel, v === "auto" ? undefined : Number(v))} style={{ ...smallBtn, flex: v === "auto" ? 1.6 : 1, padding: "4px 0", textAlign: "center", justifyContent: "center", fontWeight: on ? 700 : 400, background: on ? "var(--color-selected-bg)" : undefined, borderColor: on ? "var(--color-selected-border)" : undefined }}>{lab}</button>); })}
                           </div></label>
                       </div>
                       <div style={{ fontSize: "var(--font-size-xs)", color: fit.box && fit.left ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>
                         {fit.box && fit.left > 0 ? tr("{n} row(s) do not fit in this box: make it taller, add a column or widen it.", { n: fit.left })
                           : fit.box ? tr("The rows fill {c} column(s) top to bottom; drag the bottom edge for its height.", { c: fit.cols })
                           : tr("Give it a height or a number of columns to size it yourself; blank, it grows with its rows and flows into columns on the sheet.")}
-                        {Number(sel.h) > 0 && <>{" "}<button type="button" onClick={() => updateSelected({ h: undefined })} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit to its rows")}</button></>}
+                        {Number(sel.h) > 0 && <>{" "}<button type="button" onClick={() => updateSelected({ h: undefined })} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit to its rows")}</button></>}
                       </div>
                     </div>
                   );
@@ -1772,7 +1772,7 @@ export default function LayoutModule() {
                     ))}
                   </select>
                 </label>
-                <button onClick={() => syncLegendFromView(sel.id)} disabled={!sel.boundViewportId} style={{ ...pBtn, opacity: sel.boundViewportId ? 1 : 0.5 }}>
+                <button onClick={() => syncLegendFromView(sel.id)} disabled={!sel.boundViewportId} className="gs-btn gs-btn--block" style={{ opacity: sel.boundViewportId ? 1 : 0.5 }}>
                   <RefreshCw size={12} />{" "}{tr("Load from view / section")}</button>
                 {/* TASKS.csv #3021 — how many codes of each layer a view's legend lists (a section's legend carries its own rows) */}
                 {elements.some((e) => e.id === sel.boundViewportId && e.type !== "image") && (
@@ -1801,8 +1801,8 @@ export default function LayoutModule() {
                   return (
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", margin: "4px 0 8px", lineHeight: 1.4 }}>
                       <span>{tr("Code order set with the arrows for {groups}: every legend loaded from a view takes it.", { groups: groups.join(", ") })}</span>
-                      <button type="button" onClick={clear} style={smallBtn} title={tr("Forget the order on this page's legends; the rows stay as they are until the next Load from view")}>{tr("Clear the set order")}</button>
-                      {pagesHoldingOrder(layoutPages, activeLayoutPageId, groups).length > 0 && <button type="button" onClick={() => { undoCheckpoint?.(); mapLayoutPagesElements((els) => clearCodeOrders(els, groups)); setSyncNotice(tr("Cleared on every page's legends. Load from view lists the codes in their default order again.")); }} style={smallBtn} title={tr("Forget the order on the legends of every page of this project")}>{tr("Clear it on every page")}</button> /* #3331 */}
+                      <button type="button" onClick={clear} className="gs-btn gs-btn--sm" title={tr("Forget the order on this page's legends; the rows stay as they are until the next Load from view")}>{tr("Clear the set order")}</button>
+                      {pagesHoldingOrder(layoutPages, activeLayoutPageId, groups).length > 0 && <button type="button" onClick={() => { undoCheckpoint?.(); mapLayoutPagesElements((els) => clearCodeOrders(els, groups)); setSyncNotice(tr("Cleared on every page's legends. Load from view lists the codes in their default order again.")); }} className="gs-btn gs-btn--sm" title={tr("Forget the order on the legends of every page of this project")}>{tr("Clear it on every page")}</button> /* #3331 */}
                     </div>
                   );
                 })()}
@@ -1839,19 +1839,19 @@ export default function LayoutModule() {
                 ))}
                 {sel.type === "legend" && <div data-legend-drop-end="" onDragOver={(e) => { if (legendDrag.current == null) return; e.preventDefault(); if (legendDropAt !== sel.items.length) setLegendDropAt(sel.items.length); }} onDrop={(e) => { e.preventDefault(); const from = legendDrag.current; legendDrag.current = null; moveLegendRowOf(sel, from, sel.items.length); }}
                   style={{ height: 8, marginBottom: 4, ...(legendDropAt === sel.items.length ? { boxShadow: "0 -2px 0 var(--color-primary)" } : {}) }} />}{/* #3959 part C: drop here for the end */}
-                {sel.type === "legend" && hasColumnBreaks(sel.items) && <button type="button" onClick={() => updateSelected({ items: clearColumnBreaks(sel.items) })} style={{ ...smallBtn, marginBottom: 4 }}>{tr("Clear column breaks")}</button>}{/* #3959 */}
+                {sel.type === "legend" && hasColumnBreaks(sel.items) && <button type="button" onClick={() => updateSelected({ items: clearColumnBreaks(sel.items) })} className="gs-btn gs-btn--sm" style={{ marginBottom: 4 }}>{tr("Clear column breaks")}</button>}{/* #3959 */}
                 {sel.type === "legend" && (() => { /* TASKS.csv #3959 part B — split into one legend per group, and join them again */
                   const canSplit = legendGroupsOf(sel.items).length >= 2;
                   const kin = sel.boundViewportId ? elements.filter((e) => e.type === "legend" && e.boundViewportId === sel.boundViewportId).length : 0;
                   if (!canSplit && kin < 2) return null;
                   return (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-                      {canSplit && <button type="button" data-legend-split="" onClick={splitSelectedLegend} style={smallBtn} title={tr("Each group (Lithology, Alteration, ...) becomes a legend of its own, bound to the same view")}>{tr("Split into one legend per group")}</button>}
-                      {kin >= 2 && <button type="button" data-legend-join="" onClick={joinSelectedLegend} style={smallBtn} title={tr("The legends bound to this view on this page become one again")}>{tr("Join legends")}</button>}
+                      {canSplit && <button type="button" data-legend-split="" onClick={splitSelectedLegend} className="gs-btn gs-btn--sm" title={tr("Each group (Lithology, Alteration, ...) becomes a legend of its own, bound to the same view")}>{tr("Split into one legend per group")}</button>}
+                      {kin >= 2 && <button type="button" data-legend-join="" onClick={joinSelectedLegend} className="gs-btn gs-btn--sm" title={tr("The legends bound to this view on this page become one again")}>{tr("Join legends")}</button>}
                     </div>
                   );
                 })()}
-                <button onClick={() => updateSelected({ items: [...sel.items, ["Item", "#55606e"]] })} style={{ ...pBtn, marginTop: 2 }}>
+                <button onClick={() => updateSelected({ items: [...sel.items, ["Item", "#55606e"]] })} className="gs-btn gs-btn--block" style={{ marginTop: 2 }}>
                   <Plus size={12} />{" "}{tr("Add row")}</button>
               </div>
             )}
@@ -1906,7 +1906,7 @@ export default function LayoutModule() {
             {sel.type === "image" && sel.worldWidthAtCaptureM != null && (
               <>
                 <SectionScaleControls sel={sel} pageW={A4.w} pageH={A4.h} updateSelected={updateSelected} onResize={(next) => setElements((els) => followResize(els, sel.id, next))} />
-                <button onClick={() => syncScaleBarForElement(sel, sel.worldWidthAtCaptureM, sel.w)} style={{ ...pBtn, marginTop: 4 }}>
+                <button onClick={() => syncScaleBarForElement(sel, sel.worldWidthAtCaptureM, sel.w)} className="gs-btn gs-btn--block" style={{ marginTop: 4 }}>
                   <Ruler size={12} />{" "}{sel.planMap ? tr("Assign scale bar to this map") : tr("Assign scale bar to this section")}</button>
                 {sel.planView && ( /* TASKS.csv #3194 — a Maps snapshot is north up at a known scale: the viewports' labelled grid */
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", margin: "6px 0" }}>
@@ -1933,19 +1933,19 @@ export default function LayoutModule() {
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.")}>{/* TASKS.csv #3611 — a typed scale, as the section picture has */}
                   {tr("Typed scale 1 :")}<NumberInput min="1" step="100" value={Math.round(sel.scale) || ""} onChange={asEvent((e) => { const v = Number(e.target.value); if (v >= 1) updateSelected({ scale: v }); })} style={{ ...inp, marginBottom: 0, flex: 1, minWidth: 0 }} />
                 </label>
-                <button type="button" onClick={() => { updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM }); reorderSelected("back"); /* TASKS.csv #3707 — behind the page's title, north arrow, scale bar, title block and credit, which it covered */ }} title={tr("The frame fills the page inside 10 mm margins, behind the title, north arrow, scale bar, title block and credit.")} style={{ ...pBtn, width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
+                <button type="button" onClick={() => { updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM }); reorderSelected("back"); /* TASKS.csv #3707 — behind the page's title, north arrow, scale bar, title block and credit, which it covered */ }} title={tr("The frame fills the page inside 10 mm margins, behind the title, north arrow, scale bar, title block and credit.")} className="gs-btn gs-btn--block" style={{ width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<NumberInput allowEmpty min="0" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={asEvent((e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) }))} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<NumberInput value={Math.round(sel.centre?.x || 0)} onChange={asEvent((e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } }))} style={inp} /></label>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre N")}<NumberInput value={Math.round(sel.centre?.y || 0)} onChange={asEvent((e) => updateSelected({ centre: { ...sel.centre, y: Number(e.target.value) } }))} style={inp} /></label>
                 </div>
-                <button onClick={() => { const fit = fitDrillPlan(holesToFit(sel, tableCollars || [], plannedHoles) /* #2259 */, sel.w, sel.h, SCALE_PRESETS, traces /* #3367 */); if (fit) updateSelected(fit); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "6px 10px", marginBottom: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" }}><Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
+                <button onClick={() => { const fit = fitDrillPlan(holesToFit(sel, tableCollars || [], plannedHoles) /* #2259 */, sel.w, sel.h, SCALE_PRESETS, traces /* #3367 */); if (fit) updateSelected(fit); }} className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 8 }}><Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
                 {(() => { const t = turnedFrameFit(filterHoles(tableCollars || [], sel.holeFilter), sel.w, sel.h, SCALE_PRESETS, traces /* #3367 */); return t && sel.scale >= t.from ? ( /* TASKS.csv #2305 — the holes run the other way: offer the turned frame */
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The holes run the other way: this frame turned ({w} × {h} mm) fits them at 1 : {scale}.", { w: Math.round(t.w / PX_PER_MM), h: Math.round(t.h / PX_PER_MM), scale: t.scale.toLocaleString() })}{" "}
-                    <button type="button" onClick={() => updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre })} style={{ ...pBtn, display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame")}</button>
+                    <button type="button" onClick={() => updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre })} className="gs-btn gs-btn--block" style={{ display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame")}</button>
                     {(sel.x + t.w > A4.w - 10 || sel.y + t.h > A4.h - 10) && (A4.w > A4.h) === (t.w < t.h) && <>{" "}{/* TASKS.csv #3383 (2) — a 127 x 201 mm frame hung 28 mm off an A4 landscape sheet */}
                       {tr("Turned, it runs off this page: turn the page as well.")}{" "}
-                      <button type="button" onClick={() => { const P = { w: A4.h, h: A4.w }; changePageFormat({ ...pageFormat, orientation: pageFormat.orientation === "landscape" ? "portrait" : "landscape" }); updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre, ...(sel.x + t.w > P.w - 10 || sel.y + t.h > P.h - 10 ? { x: 40, y: 60 } : {}) }); }} style={{ ...pBtn, display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame and the page")}</button></>}
+                      <button type="button" onClick={() => { const P = { w: A4.h, h: A4.w }; changePageFormat({ ...pageFormat, orientation: pageFormat.orientation === "landscape" ? "portrait" : "landscape" }); updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre, ...(sel.x + t.w > P.w - 10 || sel.y + t.h > P.h - 10 ? { x: 40, y: 60 } : {}) }); }} className="gs-btn gs-btn--block" style={{ display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame and the page")}</button></>}
                   </div>) : null; })()}
                 {(sel.onlyChecked || hiddenIn(tableCollars, holeVisibilityNow()) > 0) && ( /* TASKS.csv #3605 */
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}><input type="checkbox" checked={!!sel.onlyChecked} onChange={(e) => updateSelected({ onlyChecked: e.target.checked })} />{tr("Only the {shown} of {total} holes checked in StrixViewer", { shown: ((tableCollars || []).length - hiddenIn(tableCollars, holeVisibilityNow())).toLocaleString(), total: (tableCollars || []).length.toLocaleString() })}</label>
@@ -1978,7 +1978,7 @@ export default function LayoutModule() {
                       {dd.keyOriginal.note && <input type="text" aria-label={tr("Key note")} value={ke.note || ""} placeholder={dd.keyOriginal.note} onChange={(e) => setEdit("note", e.target.value)} style={box} />}
                       {dd.keyOriginal.rows.slice(0, 14).map((orig) => <input key={orig} type="text" aria-label={orig} value={(ke.rows || {})[orig] || ""} placeholder={orig} onChange={(e) => setRow(orig, e.target.value)} style={box} />)}
                       {dd.keyOriginal.rows.length > 14 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("({n} more not listed)", { n: dd.keyOriginal.rows.length - 14 })}</div>}
-                      {edited && <button type="button" onClick={() => updateSelected({ keyEdits: null })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Back to the plan's own wording")}</button>}
+                      {edited && <button type="button" onClick={() => updateSelected({ keyEdits: null })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Back to the plan's own wording")}</button>}
                     </details>
                   );
                 })()}
@@ -2022,7 +2022,7 @@ export default function LayoutModule() {
                 </label>
               </>
             )}
-            <button onClick={removeSelected} style={{ ...pBtn, background: "#2a1a1a", border: "1px solid var(--color-danger-border-strong)", color: "var(--color-danger-text)", marginTop: 10 }}>{tr("Remove element")}</button>
+            <button onClick={removeSelected} className="gs-btn gs-btn--block" style={{ background: "#2a1a1a", border: "1px solid var(--color-danger-border-strong)", color: "var(--color-danger-text)", marginTop: 10 }}>{tr("Remove element")}</button>
           </>
         )}
 
@@ -2047,7 +2047,7 @@ export default function LayoutModule() {
           </div>
             <ComputerTemplates onLoad={loadTemplate} refreshKey={computerTplKey} onMessage={setTemplateMsg} />{/* #1487 */}
             <div style={{ display: "flex", gap: 6, alignItems: "center", borderTop: "1px solid var(--color-border)", marginTop: 4, paddingTop: 6 }}>
-              <button type="button" onClick={() => templateInput.current?.click()} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", padding: "3px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer" }}><Upload size={12} /> {tr("Import template…")}</button>
+              <button type="button" onClick={() => templateInput.current?.click()} className="gs-btn gs-btn--sm"><Upload size={12} /> {tr("Import template…")}</button>
             </div>
             {templateMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", padding: "4px 7px", lineHeight: 1.4 }}>{templateMsg}</div>}
           </div>
@@ -2134,7 +2134,7 @@ export default function LayoutModule() {
               </div>
             );
           })}
-          <button
+          <button data-btn-own=""
             onClick={() => { // TASKS.csv #3028 (5) — the current page's paper (an A3 project's second page was A4 landscape), its starter laid out for it
               const fmt = activePage?.format;
               if (!fmt) { addLayoutPage(); return; }
@@ -2155,7 +2155,7 @@ export default function LayoutModule() {
           )}
           {activePage?.batch && (() => { // #1636 — the generated pages of this one's run, in one action
             const ids = layoutPages.filter((p) => p.batch === activePage.batch).map((p) => p.id);
-            return ids.length > 1 ? <button onClick={async () => { if (await askConfirm(tr("Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)", { n: ids.length }))) deleteLayoutPage(ids); }}
+            return ids.length > 1 ? <button data-btn-own="" onClick={async () => { if (await askConfirm(tr("Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)", { n: ids.length }))) deleteLayoutPage(ids); }}
               style={{ height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", flexShrink: 0, background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>
               {tr("Remove these {n} generated pages", { n: ids.length })}</button> : null;
           })()}
@@ -2177,9 +2177,9 @@ export default function LayoutModule() {
             <option value="landscape">{tr("Landscape")}</option>
             <option value="portrait">{tr("Portrait")}</option>
           </select>
-          {formatNote && <span role="status" style={{ marginLeft: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", maxWidth: 360, lineHeight: 1.3 }}>{formatNote} <button type="button" onClick={() => setFormatNote("")} aria-label={tr("Dismiss")} style={{ border: "none", background: "none", cursor: "pointer", color: "inherit", padding: 0 }}>×</button></span>}{/* #2312 */}
+          {formatNote && <span role="status" style={{ marginLeft: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", maxWidth: 360, lineHeight: 1.3 }}>{formatNote} <button data-btn-own="" type="button" onClick={() => setFormatNote("")} aria-label={tr("Dismiss")} style={{ border: "none", background: "none", cursor: "pointer", color: "inherit", padding: 0 }}>×</button></span>}{/* #2312 */}
           {/* TASKS.csv #3603 — the Layout help page (F1 opens it too) */}
-          <button type="button" className="ge-pane-close ge-pane-help" style={{ marginInlineStart: 8 }} onClick={() => openHelp("layout")} aria-label={tr("Help: {name}", { name: tr("Layout") })} title={tr("Help for this tool (F1, works offline)")}>?</button>
+          <button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" style={{ marginInlineStart: 8 }} onClick={() => openHelp("layout")} aria-label={tr("Help: {name}", { name: tr("Layout") })} title={tr("Help for this tool (F1, works offline)")}>?</button>
           {/* TASKS.csv #909 — canvas zoom and the PNG export's resolution */}
           <select value={zoomChoice} onChange={(e) => setZoom(e.target.value)} aria-label={tr("Zoom")} title={tr("Zoom of the sheet on screen (the paper size does not change)")}
             style={{ height: 22, marginBottom: 2, marginLeft: 8, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>
@@ -2190,7 +2190,7 @@ export default function LayoutModule() {
             style={{ height: 22, marginBottom: 2, marginLeft: 4, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>
             {[150, 200, 300].map((d) => <option key={d} value={String(d)}>{tr("PNG {dpi} dpi", { dpi: d })}</option>)}
           </select>
-          <button
+          <button data-btn-own=""
             onClick={() => setAtlasModalOpen(true)}
             title={tr("Generate atlas — batch-create one page per drillhole/section from the current page as a template")}
             style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer" }} /* TASKS.csv #1776 — drawn like the page bar's selects beside it: grey on the dark bar read as disabled */
@@ -2405,7 +2405,6 @@ function TitleBlockControls({ sel, updateSelected }) {
   const setRow = (i, k, v) => updateSelected({ rows: rows.map((r, j) => (j === i ? (k === 0 ? [v, r[1]] : [r[0], v]) : r)) });
   const move = (i, d) => { const j = i + d; if (j < 0 || j >= rows.length) return; const n = rows.slice(); [n[i], n[j]] = [n[j], n[i]]; updateSelected({ rows: n }); };
   const small = { fontSize: "var(--font-size-sm)", padding: "2px 4px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)", minWidth: 0 };
-  const btn = { ...small, cursor: "pointer", padding: "0 5px", flexShrink: 0 };
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Label and value of each row. Values can use {project}, {date}, {page}, {pages}, {pagename}, {scale}, {crs}, {credits}, {north} and {convergence}; the first row prints bold.") /* #3383 (4) — the title's list */}</div>
@@ -2413,12 +2412,12 @@ function TitleBlockControls({ sel, updateSelected }) {
         <div key={i} style={{ display: "flex", gap: 3, marginBottom: 3 }}>
           <input value={r[0]} onChange={(e) => setRow(i, 0, e.target.value)} style={{ ...small, width: "36%" }} aria-label={tr("Label of row {n}", { n: i + 1 })} />
           <input value={r[1]} onChange={(e) => setRow(i, 1, e.target.value)} style={{ ...small, flex: 1 }} aria-label={tr("Value of row {n}", { n: i + 1 })} />
-          <button type="button" onClick={() => move(i, -1)} disabled={i === 0} style={btn} aria-label={tr("Move row {n} up", { n: i + 1 })}>↑</button>
-          <button type="button" onClick={() => updateSelected({ rows: rows.filter((_, j) => j !== i) })} style={btn} aria-label={tr("Remove row {n}", { n: i + 1 })}>×</button>
+          <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="gs-btn gs-btn--sm" style={{ padding: "0 5px", flexShrink: 0 }} aria-label={tr("Move row {n} up", { n: i + 1 })}>↑</button>
+          <button type="button" onClick={() => updateSelected({ rows: rows.filter((_, j) => j !== i) })} className="gs-btn gs-btn--sm" style={{ padding: "0 5px", flexShrink: 0 }} aria-label={tr("Remove row {n}", { n: i + 1 })}>×</button>
         </div>
       ))}
       <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
-        <button type="button" onClick={() => updateSelected({ rows: [...rows, ["Label", ""]] })} style={{ ...btn, padding: "2px 8px" }}>{tr("Add row")}</button>
+        <button type="button" onClick={() => updateSelected({ rows: [...rows, ["Label", ""]] })} className="gs-btn gs-btn--sm" style={{ flexShrink: 0, padding: "2px 8px" }}>{tr("Add row")}</button>
         <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>{tr("Size (pt)")}<NumberInput min="5" max="16" step="0.5" value={sel.fontPt || 8} onChange={asEvent((e) => updateSelected({ fontPt: Math.max(5, Math.min(16, Number(e.target.value) || 8)) }))} style={{ ...small, width: 52 }} /></label>
       </div>
     </div>
@@ -2434,7 +2433,7 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
     return (
       <div style={{ marginTop: 4, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>
         {tr("Page {i} of {n} of this strip log, {from}-{to} m, at 1 : {d}.", { i: s.page, n: s.of, from: f(s.from), to: f(s.to), d: Math.round(depthScaleDenom(sel) || 0).toLocaleString() })}
-        {s.page === 1 && onWhole && <> {" "}<button type="button" onClick={onWhole} title={tr("Put the whole log back on this page as one picture. The other pages stay: delete them from one of them, in one action.")} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Whole log again")}</button></>}
+        {s.page === 1 && onWhole && <> {" "}<button type="button" onClick={onWhole} title={tr("Put the whole log back on this page as one picture. The other pages stay: delete them from one of them, in one action.")} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Whole log again")}</button></>}
       </div>
     );
   }
@@ -2476,14 +2475,14 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
         );
         return sel.h > pageH ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Use a larger depth scale (1 : N, bigger N) or a taller page: at this scale the log is taller than the page.")}</div> : null;
       })()}
-      {(() => { const adv = d > 0 && !sel.slice && onRedraw ? redrawAdvice(sel, d) : null; return adv && adv.enlarge > 1.15 ? (<div style={{ marginTop: 4 }}>{/* TASKS.csv #3873 (a) */}<button type="button" onClick={() => onRedraw(adv.ppmNeeded)} title={tr("Open this strip log in StrixViewer as it was sent, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture.")} style={pBtn}>{tr("Draw it again at {need} px/m", { need: +adv.ppmNeeded.toPrecision(3) })}</button></div>) : null; })()}{/* TASKS.csv #3873 (a) — also when a split is offered: the enlarged picture prints its labels far over size */}
+      {(() => { const adv = d > 0 && !sel.slice && onRedraw ? redrawAdvice(sel, d) : null; return adv && adv.enlarge > 1.15 ? (<div style={{ marginTop: 4 }}>{/* TASKS.csv #3873 (a) */}<button type="button" onClick={() => onRedraw(adv.ppmNeeded)} title={tr("Open this strip log in StrixViewer as it was sent, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture.")} className="gs-btn gs-btn--block">{tr("Draw it again at {need} px/m", { need: +adv.ppmNeeded.toPrecision(3) })}</button></div>) : null; })()}{/* TASKS.csv #3873 (a) — also when a split is offered: the enlarged picture prints its labels far over size */}
       {split && !split.error && split.pages?.length > 1 && (split.wanted || split.small) && ( /* TASKS.csv #3372 — at the page's width */
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 4 }}>{split.wanted
           ? tr("At 1 : {want} the log is {mm} mm wide, wider than the page; at 1 : {d} it fits the page's width, with its labels at about {pt} pt.", { want: Math.round(split.wanted).toLocaleString(), mm: Math.round((split.wantedW * 25.4) / 96), d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })
           : tr("At 1 : {d}, the page's width, its labels print at about {pt} pt.", { d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })}</div>
       )}
       {split && !split.error && split.pages?.length > 1 && onSplit && ( /* TASKS.csv #3372 */
-        <button type="button" onClick={onSplit} title={tr("Lay the log out over new pages at this depth scale, each repeating the track headers and axis captions; the key stays on this page.")} style={{ ...pBtn, marginTop: 6 }}>
+        <button type="button" onClick={onSplit} title={tr("Lay the log out over new pages at this depth scale, each repeating the track headers and axis captions; the key stays on this page.")} className="gs-btn gs-btn--block" style={{ marginTop: 6 }}>
           {tr("Split over {n} pages at 1 : {d}", { n: split.pages.length, d: Math.round(split.denom).toLocaleString() })}</button>
       )}
       {split?.error === "too-wide" && !split.wanted && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginTop: 4 }}>{tr("At 1 : {d} the log is {mm} mm wide, wider than the page: a larger depth scale or a wider page fits it.", { d: Math.round(split.denom).toLocaleString(), mm: Math.round((split.w * 25.4) / 96) })}</div>}
@@ -2527,7 +2526,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
           <div style={{ fontSize: "var(--font-size-xs)", color: off ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>
             {off ? tr("Its smallest text prints at about {pt} pt at this width (the snapshot was drawn for about 7 pt).", { pt }) : tr("Its smallest text prints at about {pt} pt.", { pt })}
             {(off || sel.sectionTabId) && (sel.sectionTabId /* #2603 — offered on every section snapshot, not only when the text size is off */
-              ? <> <button type="button" onClick={() => { const ok = sendSectionResnap({ tabId: sel.sectionTabId, elementId: sel.id, textFactor: sectionTextFactor(sel) }); setResnapNote(ok ? tr("Asked the section window to snapshot again with the text at print size. If the section is closed, open it again and snapshot from there.") : tr("Could not reach the section window.")); }} style={{ ...inp, width: "auto", marginTop: 4, padding: "3px 8px", cursor: "pointer" }}>{tr("Re-snapshot with the text at print size")}</button></>
+              ? <> <button type="button" onClick={() => { const ok = sendSectionResnap({ tabId: sel.sectionTabId, elementId: sel.id, textFactor: sectionTextFactor(sel) }); setResnapNote(ok ? tr("Asked the section window to snapshot again with the text at print size. If the section is closed, open it again and snapshot from there.") : tr("Could not reach the section window.")); }} className="gs-btn gs-btn--sm" style={{ width: "auto", marginTop: 4 }}>{tr("Re-snapshot with the text at print size")}</button></>
               : <> {tr("Open the section again and snapshot it from there to get the text at print size.")}</>)}
             {resnapNote && <div style={{ marginTop: 3 }}>{resnapNote}</div>}
           </div>
@@ -2566,7 +2565,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       {scaleText && !sel.scaleCaption && others.some((o) => { const t = viewportScaleText(o); return t && t !== scaleText; }) && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>
           {tr("This page's maps are at different scales ({list}): tick this on each so every frame states its own.", { list: [...new Set([scaleText, ...others.map(viewportScaleText).filter(Boolean)])].join(", ") })}{" "}
-          <button type="button" onClick={() => updateSelected({ scaleCaption: true })} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Print it")}</button>
+          <button type="button" onClick={() => updateSelected({ scaleCaption: true })} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Print it")}</button>
         </div>
       )}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
@@ -2590,7 +2589,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
           {themes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </label>
-      <button onClick={onRefresh} disabled={sel.refreshing} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
+      <button onClick={onRefresh} disabled={sel.refreshing} className="gs-btn gs-btn--block" style={{ opacity: sel.refreshing ? 0.6 : 1 }}>
         <RefreshCw size={14} /> {sel.refreshing ? tr("Rendering…") : tr("Refresh from theme")}
       </button>
       {/* TASKS.csv #2471 — when the picture was taken: the 3D view may have changed since */}
@@ -2599,19 +2598,19 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
           this viewport's theme/camera live, ready for real orbit/pan/zoom, instead of an instant
           re-render. See startInteractiveViewportEdit above and ViewerModule's interactive-session
           banner for the other half of this flow. */}
-      <button onClick={onEnter} disabled={sel.refreshing} title={tr("Switch to the StrixViewer tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
+      <button onClick={onEnter} disabled={sel.refreshing} title={tr("Switch to the StrixViewer tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here")} className="gs-btn gs-btn--block" style={{ opacity: sel.refreshing ? 0.6 : 1 }}>
         <LogIn size={14} />{" "}{tr("Enter & adjust view…")}</button>
       {/* TASKS.csv #3145 — a view set here is kept by Refresh, Fit and a scale change; this goes back to the live 3D View */}
       {!sel.themeId && sel.viewState?.adjusted && onLiveView && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame keeps the view you set in 'Enter & adjust view': Refresh, Fit and a scale change use it.")}{" "}
-          <button style={{ ...smallBtn, marginTop: 4 }} onClick={onLiveView} disabled={sel.refreshing}>{tr("Use the live 3D view again")}</button>
+          <button className="gs-btn gs-btn--sm" style={{ marginTop: 4 }} onClick={onLiveView} disabled={sel.refreshing}>{tr("Use the live 3D view again")}</button>
         </div>
       )}
       {sel.fixedScale > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("Set Scale to \"free (as framed)\" to use the 3D view's zoom: at the fixed 1:{s} only where you centre it counts.", { s: Number(sel.fixedScale).toLocaleString() })}</div>}{/* TASKS.csv #1486 */}
       {/* TASKS.csv #1486 — what the zoom in 'Enter & adjust view' framed, when it was far from the fixed scale: one click uses it */}
       {sel.fixedScale > 0 && sel.adjustZoomScale > 0 && Math.abs(sel.adjustZoomScale / sel.fixedScale - 1) > 0.05 && (() => { const z = roundScale(sel.adjustZoomScale); return (
         <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Your zoom in the 3D view framed about 1:{z}; the frame kept 1:{s}.", { z: z.toLocaleString(), s: Number(sel.fixedScale).toLocaleString() })}{" "}
-          <button style={{ ...smallBtn, marginTop: 4 }} onClick={() => { updateSelected({ adjustZoomScale: null }); onRescale(z); }}>{tr("Use 1:{z}", { z: z.toLocaleString() })}</button>
+          <button className="gs-btn gs-btn--sm" style={{ marginTop: 4 }} onClick={() => { updateSelected({ adjustZoomScale: null }); onRescale(z); }}>{tr("Use 1:{z}", { z: z.toLocaleString() })}</button>
         </div>); })()}
       {/* TASKS.csv #69 — true-scale (orthographic) capture. Takes effect on the NEXT refresh, not
           retroactively on the image already captured — toggling it alone doesn't re-render. */}
@@ -2649,19 +2648,19 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       {sel.overviewOf && !overviewPolygon(sel, others.find((o) => o.id === sel.overviewOf)) && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>{tr("The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.")}</div>
       )}
-      <button onClick={onFit} disabled={sel.refreshing} title={hasHoles ? tr("Fit this view's drillholes (or surface samples / boundaries) to the frame at a round scale, centred, and refresh") : tr("Fit the visible block models (else surface samples, map layers or boundaries) to the frame at a round scale, centred, and refresh")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
+      <button onClick={onFit} disabled={sel.refreshing} title={hasHoles ? tr("Fit this view's drillholes (or surface samples / boundaries) to the frame at a round scale, centred, and refresh") : tr("Fit the visible block models (else surface samples, map layers or boundaries) to the frame at a round scale, centred, and refresh")} className="gs-btn gs-btn--block" style={{ opacity: sel.refreshing ? 0.6 : 1 }}>
         <Maximize2 size={14} />{" "}{hasHoles ? tr("Fit the holes at a round scale") : tr("Fit the data at a round scale")}</button>
       {sel.fitInfo && sel.fitInfo.scale === sel.fixedScale && ( /* TASKS.csv #2132 — what the fit framed */
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.fitInfo.drilledScale ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
           {sel.fitInfo.of > 0 /* #3371 — the holes the view shows */
             ? tr("Fitted the {n} hole(s) this view shows, of {all}, at 1:{scale}.", { n: sel.fitInfo.holes.toLocaleString(), all: sel.fitInfo.of.toLocaleString(), scale: sel.fitInfo.scale.toLocaleString() })
             : tr("Fitted {n} hole(s) at 1:{scale}.", { n: sel.fitInfo.holes.toLocaleString(), scale: sel.fitInfo.scale.toLocaleString() })}
-          {sel.fitInfo.of > 0 && onFitAll && <> <button type="button" onClick={onFitAll} disabled={sel.refreshing} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit all {n}", { n: sel.fitInfo.of.toLocaleString() })}</button></>}
+          {sel.fitInfo.of > 0 && onFitAll && <> <button type="button" onClick={onFitAll} disabled={sel.refreshing} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit all {n}", { n: sel.fitInfo.of.toLocaleString() })}</button></>}
           {sel.fitInfo.allHoles && sel.fitInfo.hidden > 0 && <> {tr("{k} of them are hidden in this view.", { k: sel.fitInfo.hidden.toLocaleString() })}{" "}
-            <button type="button" onClick={onFit} disabled={sel.refreshing} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit the {n} shown", { n: (sel.fitInfo.holes - sel.fitInfo.hidden).toLocaleString() })}</button></>}
+            <button type="button" onClick={onFit} disabled={sel.refreshing} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit the {n} shown", { n: (sel.fitInfo.holes - sel.fitInfo.hidden).toLocaleString() })}</button></>}
           {sel.fitInfo.drilledScale > 0 && " " + tr("Set the scale by hand, or remove those collars: {k} of them are assumed vertical (no survey or azimuth / dip) and widen the frame; the rest fit at 1:{s}.", { k: sel.fitInfo.assumed.toLocaleString(), s: sel.fitInfo.drilledScale.toLocaleString() })}{/* #2304 — only when they do */}
           {sel.fitInfo.turnedScale > 0 && sel.w !== sel.h && <> {tr("They run the other way: the frame turned ({w} × {h} mm) would show them at 1:{s}.", { w: Math.round(sel.h / PX_PER_MM), h: Math.round(sel.w / PX_PER_MM), s: sel.fitInfo.turnedScale.toLocaleString() })}{" "}
-            <button type="button" onClick={() => updateSelected({ w: sel.h, h: sel.w, fitInfo: null })} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Turn the frame")}</button></>}{/* #2737 — then Fit again */}
+            <button type="button" onClick={() => updateSelected({ w: sel.h, h: sel.w, fitInfo: null })} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Turn the frame")}</button></>}{/* #2737 — then Fit again */}
         </div>
       )}
       {steepHoles && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Use Insert > Drill plan for a collar map (coloured by a field or grade): every hole here is steeper than {d}°, so a top-down view shows points.", { d: STEEP_DIP })}</div>}{/* TASKS.csv #2473 */}
@@ -2675,7 +2674,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
       {noHoleInFrame && onCentre && ( /* TASKS.csv #3371 — 1:15,000 kept the centre of every collar: blank ground, and nothing said so */
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
           {tr("None of the holes this view shows is inside the frame at this scale.")}{" "}
-          <button type="button" onClick={onCentre} disabled={sel.refreshing} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Centre on the holes")}</button>
+          <button type="button" onClick={onCentre} disabled={sel.refreshing} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Centre on the holes")}</button>
         </div>
       )}
       {frameChanged && (
@@ -2705,12 +2704,12 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
             : tr("Check \"True scale\" above and refresh for an exact figure: this is estimated at the camera target and drifts nearer or farther in perspective.")}
         </span>
       </div>
-      <button onClick={onSyncScaleBar} disabled={!scaleText} style={{ ...pBtn, opacity: scaleText ? 1 : 0.5 }}>
+      <button onClick={onSyncScaleBar} disabled={!scaleText} className="gs-btn gs-btn--block" style={{ opacity: scaleText ? 1 : 0.5 }}>
         <Ruler size={14} />{" "}{tr("Assign scale bar to this view")}</button>
       {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
       {/* TASKS.csv #67 — cameraAzimuthDeg is computed in ViewerModule.jsx (see that comment for the
           worked-through, numerically-checked derivation of the CSS rotation angle). */}
-      <button onClick={onSyncNorth} disabled={sel.cameraAzimuthDeg == null} style={{ ...pBtn, opacity: sel.cameraAzimuthDeg == null ? 0.5 : 1 }}>
+      <button onClick={onSyncNorth} disabled={sel.cameraAzimuthDeg == null} className="gs-btn gs-btn--block" style={{ opacity: sel.cameraAzimuthDeg == null ? 0.5 : 1 }}>
         <Compass size={14} />{" "}{tr("Sync north arrow")}</button>
     </div>
   );
@@ -3092,7 +3091,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         {handles && onLegendCols && ( /* TASKS.csv #3959 — the columns, right on the selected legend */
           <div role="group" aria-label={tr("Legend columns")} data-legend-cols-sheet="" onMouseDown={(e) => e.stopPropagation()} style={{ position: "absolute", top: -28, left: 0, display: "flex", gap: 2, padding: 2, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, boxShadow: "0 1px 4px rgba(0,0,0,0.15)", zIndex: 5 }}>
             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", padding: "0 4px", alignSelf: "center" }}>{tr("Columns")}</span>
-            {[1, 2, 3, 4].map((n) => <button key={n} type="button" aria-pressed={Number(el.legendCols) === n} onClick={(e) => { e.stopPropagation(); onLegendCols(el, n); }} style={{ minWidth: 22, padding: "1px 4px", fontSize: "var(--font-size-sm)", fontWeight: Number(el.legendCols) === n ? 700 : 400, border: "1px solid var(--color-border)", borderRadius: 3, background: Number(el.legendCols) === n ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{n}</button>)}
+            {[1, 2, 3, 4].map((n) => <button data-btn-own="" key={n} type="button" aria-pressed={Number(el.legendCols) === n} onClick={(e) => { e.stopPropagation(); onLegendCols(el, n); }} style={{ minWidth: 22, padding: "1px 4px", fontSize: "var(--font-size-sm)", fontWeight: Number(el.legendCols) === n ? 700 : 400, border: "1px solid var(--color-border)", borderRadius: 3, background: Number(el.legendCols) === n ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{n}</button>)}
           </div>
         )}
         <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: FONT, flexShrink: 0 }}>{tr("Legend")}</div>
@@ -3286,14 +3285,13 @@ function FrameControls({ sel, updateSelected }) {
   );
 }
 
-const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };
 const smallBtn = { display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer" }; // TASKS.csv #909
 const inp = { width: "100%", marginTop: 4, marginBottom: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" };
 
 // TASKS.csv #65 — icon-only tool button, full name shown on hover via the native `title` attribute.
 function ToolIconBtn({ icon, title, onClick, disabled, active }) {
   return (
-    <button
+    <button data-btn-own=""
       onClick={onClick}
       disabled={disabled}
       title={title}

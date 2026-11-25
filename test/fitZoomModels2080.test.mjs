@@ -10,7 +10,7 @@ const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.ur
 
 test("#2092 Fit on the Surface Geology tab frames everything shown; the holes-only zoom stays as it was elsewhere", () => {
   assert.match(v, /const fitButton = \(\) => \(mode === "surface" \? zoomToFitAll\(\) : zoomToHoles\(\)\);/);
-  assert.match(v, /<button onClick=\{fitButton\} style=\{miniBtn\} title=\{mode === "surface" \? tr\("Zoom to fit all"\)/);
+  assert.match(v, /<button data-btn-own="" onClick=\{fitButton\} style=\{miniBtn\} title=\{mode === "surface" \? tr\("Zoom to fit all"\)/);
   // the right-click 'Zoom to the holes' still frames the holes only
   assert.equal((v.match(/label=\{tr\("Zoom to the holes"\)\} onClick=\{\(\) => \{ zoomToHoles\(\);/g) || []).length, 2);
 });

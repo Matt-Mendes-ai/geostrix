@@ -30,6 +30,8 @@ export function buttonTags(src) {
     for (; i < src.length; i++) {
       const c = src[i];
       if (q) { if (c === "\\") i++; else if (c === q) q = null; continue; }
+      if (depth > 0 && c === "/" && src[i + 1] === "/") { const j = src.indexOf("\n", i); i = j < 0 ? src.length : j; continue; } // a comment inside an expression (an apostrophe in it is no quote)
+      if (depth > 0 && c === "/" && src[i + 1] === "*") { const j = src.indexOf("*/", i + 2); i = j < 0 ? src.length : j + 1; continue; }
       if (c === '"' || c === "'" || (depth > 0 && c === "`")) { q = c; continue; }
       if (c === "{") depth++;
       else if (c === "}") depth--;
