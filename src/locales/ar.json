@@ -15733,5 +15733,8 @@
   "Build surfaces": "بناء الأسطح",
   "New group": "مجموعة جديدة",
   "Building structures…": "جارٍ بناء البنى…",
-  "Build structures": "بناء البنى"
+  "Build structures": "بناء البنى",
+  "Cautions ({n}): {worst}": "تنبيهات ({n}): {worst}",
+  "Details ({n})": "تفاصيل ({n})",
+  "Cautions": "تنبيهات"
 }

@@ -18,6 +18,7 @@ import { trendFromDirections, describeTrend, directionSpreadDeg, TREND_MIN_SPREA
 import { holeSpacingSummary } from "../lib/holeSpacing.js"; // TASKS.csv #2221
 import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
 import MoreFold from "./MoreFold.jsx";
+import CautionFold from "./CautionFold.jsx"; // TASKS.csv #4073 — the fold says how many cautions and the worst one
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { cleanTrend, trendBasis } from "../lib/trend.js"; // TASKS.csv #2424 — the block-estimation trend's plane
 import { surfaceElevation, flattenOnSurface } from "../lib/flattenOnSurface.js"; // TASKS.csv #2710 — pairs below a modelled contact
@@ -415,7 +416,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
           {error && <div style={noteBox("#fbf0f0", "#e0a9a9")}>{error}</div>}
           {result && plot && (
             <>
-              <MoreFold summary={tr("Cautions and details")}>
+              <CautionFold>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: !result.vg.subsampled ? "" : result.vg.holesTotal != null ? tr(" ({used} of {total} holes, whole holes, for the pair loop)", { used: result.vg.holesUsed.toLocaleString(), total: result.vg.holesTotal.toLocaleString() }) /* #1572 */ : result.vg.firstPairLag != null ? tr(" (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)", { nPoints: result.vg.nPoints.toLocaleString(), h: result.vg.firstPairLag.toFixed(1) }) : tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }), nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.planeLagFrom ? tr(" (the median hole spacing, {s} m, out to a third of the drilling's width)", { s: Math.round(result.planeLagFrom) }) /* #3015 */ : result.suggested != null ? (result.fromSites ? tr(" (suggested {suggested} m from the drill-site spacing)", { suggested: result.suggested.toFixed(1) }) : tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) })) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: +Number(result.capValue).toPrecision(4) /* #1420: was 2.7857037499998807 */ }) : "" })}
               </div>
@@ -495,7 +496,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
                   <b>{tr("High nugget ({v}% of the sill).", { v: (result.fit.nuggetRatio * 100).toFixed(0) })}</b>{" "}{tr("Over half the variability is short-scale noise no interpolation can recover: estimates will be smooth because the method smooths, not because the grade is continuous. Treat any shell from it with caution.")}</div>
               )}
-              </MoreFold>
+              </CautionFold>
               {/* flexShrink: 0 + an explicit aspectRatio are both load-bearing, not decoration. This
                   modal's body is a `display:flex; flexDirection:column` container, and an SVG with only
                   width="100%" and a viewBox has no intrinsic height a flex item can be sized from — it

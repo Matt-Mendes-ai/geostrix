@@ -15733,5 +15733,8 @@
   "Build surfaces": "Construire les surfaces",
   "New group": "Nouveau groupe",
   "Building structures…": "Construction des structures…",
-  "Build structures": "Construire les structures"
+  "Build structures": "Construire les structures",
+  "Cautions ({n}): {worst}": "Précautions ({n}) : {worst}",
+  "Details ({n})": "Détails ({n})",
+  "Cautions": "Précautions"
 }

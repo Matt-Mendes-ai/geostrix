@@ -9,7 +9,7 @@ const split = stepSplit(m, ["data", "model", "run"]);
 const WHERE = {
   data: ["setSymbol(", "setCompositeLength(", "setMinCoverage(", "setDomainKey(", "setDomainValue(", "setSamplesFrom(", "<UnsampledChoice"],
   model: ["setTransform(", "setEstimator(", "setLagDistance(", "setNLags(", "setLagTolerance(", "setHoleMode(", "setModel(", "setDirectional(", "setInPlane("],
-  run: ["onClick={runBoth}", "vgClient.current.cancel()", "<svg", "result.fit", "Cautions and details"],
+  run: ["onClick={runBoth}", "vgClient.current.cancel()", "<svg", "result.fit", "<CautionFold"],
 };
 
 test("#4073 every setting of the variogram dialog is in its step", () => assert.deepEqual(misplaced(split, WHERE), []));
@@ -25,7 +25,7 @@ test("#4073 a diagnostic, not an estimator: one line seen first, the reasons beh
   assert.match(m, /<b>\{tr\("This is a diagnostic, not an estimator\."\)\}<\/b>\{" "\}<MoreFold summary=\{tr\("Why"\)\}/);
   assert.ok(m.includes("It does") && m.includes("Fitting here changes no estimate already run."), "the whole wording is kept");
   const r = m.slice(m.indexOf("{result && plot && ("));
-  assert.ok(r.indexOf('<MoreFold summary={tr("Cautions and details")}>') < r.indexOf("<svg"), "the cautions fold, then the plot and the numbers");
+  assert.ok(r.indexOf('<CautionFold>') < r.indexOf("<svg"), "the cautions fold, then the plot and the numbers");
   const help = m.slice(m.indexOf("const helpCard"), m.indexOf("const steps = ["));
   assert.ok(help.includes("<details open>") && help.includes("Experimental variogram + fitted nugget / sill / range") && m.includes("help={helpCard}"));
 });

@@ -35,7 +35,7 @@ test("#4073 on the shared shell: four steps, Run then Add as the one primary, no
 
 test("#4073 the result in numbers first, every caution and detail in one fold; Not a resource estimate. one line seen first, its reasons behind Why", () => {
   const r = m.slice(m.indexOf('data-mcp="estimate-result"'));
-  const fold = r.indexOf('<MoreFold summary={tr("Cautions and details")}>');
+  const fold = r.indexOf('<CautionFold>');
   assert.ok(fold > 0);
   assert.ok(r.indexOf("{result.supportCounts && result.blocksEstimated > 0 && (() =>") < fold, "the support split before the fold");
   assert.ok(r.indexOf("{result.belowDrilling?.blocks > 0") > fold && r.indexOf("{result.dominatedCells > 0 && (") > fold && r.indexOf("{result.noCodeBlocks > 0") > fold, "the cautions inside it");
