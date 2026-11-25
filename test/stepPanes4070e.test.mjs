@@ -22,7 +22,7 @@ test("Fence series: the azimuth, width and area as the question, Generate as the
 });
 
 test("Best intercepts: the element, unit, cut-off, dilution and length first; the higher cut-off, top cut, weighting, metal equivalent, extra elements, true width, host unit and QC samples in one closed fold", () => {
-  const b = read("src/components/BestIntercepts.jsx"), f = b.indexOf('<MoreFold summary={tr("More settings…")} data-fine-tune="best-intercepts">');
+  const b = read("src/components/BestIntercepts.jsx"), f = b.indexOf('<MoreFold summary={tr("Fine-tune…")} data-fine-tune="best-intercepts">');
   assert.ok(f > 0, "the fold");
   for (const k of ['tr("Element")', 'tr("Cutoff ({unit})"', 'tr("Min length (m)")', "setMinLength("]) assert.ok(b.indexOf(k) > 0 && b.indexOf(k) < f, `${k} is first`);
   const fold = b.slice(f, b.indexOf('tr("Hole contains")'));
@@ -67,6 +67,6 @@ test("the empty card: the first sample and the shared empty-state button are the
 test("the new strings are in every language", () => {
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(read(`src/locales/${lang}.json`));
-    for (const k of ["More settings…", "Thresholds…", "Where is the section?", "Which sections?"]) assert.ok(d[k], `${lang}: ${k}`);
+    for (const k of ["Thresholds…", "Where is the section?", "Which sections?"]) assert.ok(d[k], `${lang}: ${k}`);
   }
 });
