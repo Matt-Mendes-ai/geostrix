@@ -60,18 +60,12 @@ export function sl3ToTable(text) {
       data.forEach((r) => { if (isStd(r)) { r[typeCol] = "Standard"; qc++; qcNames.add(r[sid]); } });
     }
   }
-  // the notes: what the header says about the coordinates, whether the azimuths are magnetic, how many standards
-  const note = [tr("Read as a Queensland SL3 table ({n} rows, {m} columns; the column names are on record H{h}{u}).", { n: data.length.toLocaleString(), m: names.length, h: best.num, u: unitRec || units ? tr(", the units too") : "" })];
+  // the notes: what the header says about the coordinates, how many standards
+  const note = [tr("SL3 table: {n} rows, {m} columns{u}.", { n: data.length.toLocaleString(), m: names.length, u: unitRec || units ? tr(", with units") : "" })];
   const val = (re) => { const h = heads.find((x) => re.test(String(x.f[1] || "").trim())); return h ? cells(h.f).find((x) => x !== "")?.replace(/^"|"$/g, "") || "" : ""; };
   const datum = val(/^geodetic_?datum$/i), zone = val(/^projection_?zone$/i);
-  if (datum || zone) note.push(tr("Coordinates: {v} (from the header block).", { v: [datum, zone ? tr("zone {z}", { z: zone }) : ""].filter(Boolean).join(", ") }));
-  const gcol = names.findIndex((n) => /^(survey_?)?(grid|azi(muth)?_?(ref|type|grid))$/i.test(n.replace(/[\s()]/g, "_").replace(/_+$/, "")));
-  if (gcol >= 0) {
-    const vs = data.map((r) => r[gcol]).filter((x) => x !== ""), mag = vs.filter((x) => /^mag/i.test(x)).length;
-    if (vs.length && mag >= vs.length / 2) note.push(tr("The azimuths are magnetic (column {c}): choose the declination when you map the survey.", { c: names[gcol] }));
-    else if (vs.length && vs.filter((x) => /^(grid|mga|amg|true)/i.test(x)).length >= vs.length / 2) note.push(tr("The azimuths are on the grid or true north (column {c}), not magnetic.", { c: names[gcol] }));
-  }
-  if (qc) note.push(tr("{n} inline certified reference standard(s) ({names}) are marked as standards, not samples.", { n: qc, names: [...qcNames].slice(0, 3).join(", ") + (qcNames.size > 3 ? ", …" : "") }));
+  if (datum || zone) note.push(tr("Coordinates: {v}.", { v: [datum, zone ? tr("zone {z}", { z: zone }) : ""].filter(Boolean).join(", ") }));
+  if (qc) note.push(tr("{n} reference standard(s) marked as QC ({names}).", { n: qc, names: [...qcNames].slice(0, 3).join(", ") + (qcNames.size > 3 ? ", …" : "") }));
   const cell = (x) => (/["\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x); // a quote inside a cell ('5" core') must not open a quoted field in the CSV reader
   return { text: [names.map(cell).join("\t"), ...data.map((r) => r.map(cell).join("\t"))].join("\n") + "\n", note: note.join(" "), qc, names, units: unitOf };
 }

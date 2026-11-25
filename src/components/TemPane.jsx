@@ -142,7 +142,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         tr("{name} ({src}): {n} stations on {l} line(s); channels {ch} ({m} gates).", { name: file.name, src: d.source, n: d.n.toLocaleString(), l: L.length, ch: d.groups[g].prefix, m: d.groups[g].cols.length }),
         t ? tr("Gate times read from the file: {a} to {b} ms.", { a: fmt(t[0]), b: fmt(t[t.length - 1]) }) : tr("The file does not state its gate times: type them below (ms, one per gate) to fit the decay constant."),
         ...(d.notes || []), // #4063
-        d.components ? tr("Components {c}: {first} is read first (its decay, tau and the 1D inversion); the others are kept as their own channel sets.", { c: d.components.join(", "), first: d.components[0] }) : "", // #4058
+        d.components ? tr("Components {c}: {first} first; the others are kept.", { c: d.components.join(", "), first: d.components[0] }) : "", // #4058
       ].filter(Boolean).join(" ") });
     } catch (err) { setMsg({ text: tr("Could not read the file: {v}", { v: err?.message || String(err) }) }); }
     setBusy(false);
@@ -222,7 +222,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
           {times ? <Decay times={times} vals={vals} fit={fit} /> : <div style={note}>{tr("Type the gate times to draw the decay.")}</div>}
           {times && <div style={{ ...note, marginTop: 3 }}>{fit ? tr("Decay constant tau = {tau} ms, from gates {a} to {b} ({t0} to {t1} ms, r² {r2}).", { tau: fmt(fit.tau), a: fit.from + 1, b: fit.to + 1, t0: fmt(times[fit.from]), t1: fmt(times[fit.to]), r2: fit.r2.toFixed(3) }) : tr("No decay constant here: fewer than three positive late readings, or they do not fall.")}{masked?.dropped ? " " + tr("{n} reading(s) in the noise were left out.", { n: masked.dropped }) : ""}</div>}
         </>)}
-        <button type="button" disabled={!times || needsTie} onClick={mapTau} title={needsTie ? tr("Tie the file's local grid to the map first.") : times ? undefined : tr("Type the gate times first")} style={{ ...pBtn, justifyContent: "center", marginTop: 8 }}>{tr("Map the decay constant (tau)")}</button>
+        <button type="button" disabled={!times || needsTie} onClick={mapTau} title={needsTie ? tr("Tie the grid first.") : times ? undefined : tr("Type the gate times first")} style={{ ...pBtn, justifyContent: "center", marginTop: 8 }}>{tr("Map the decay constant (tau)")}</button>
         <div style={rowS}>
           <select value={st.gate ?? ""} onChange={(e) => save({ ...st, gate: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Gate to add as a point survey")}>
             <option value="">{tr("Add one gate as a point survey…")}</option>

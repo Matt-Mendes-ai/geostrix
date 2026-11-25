@@ -31,9 +31,9 @@ export function tableRefusal(name, columns, rows, button = "point", headText = "
   if (button === "dcipLine") {
     // TASKS.csv #4065 — two tables the line reader used to meet in silence: a downhole log, and a table of positions with no electrodes
     const lc = cols.map((c) => String(c).trim().toLowerCase());
-    if (lc.includes("depth") && ["mx", "my", "mz"].every((k) => lc.includes(k))) return tr("\"{name}\" is a downhole survey table (depth, mx, my, mz: a magnetometer or orientation log), not a DC / IP line. {reads}", { name, reads });
+    if (lc.includes("depth") && ["mx", "my", "mz"].every((k) => lc.includes(k))) return tr("\"{name}\" is a downhole log (depth, mx, my, mz), not a DC / IP line.", { name, reads });
     if (lc.some((c) => /^(east|easting)$/.test(c)) && lc.some((c) => /^(north|northing)$/.test(c)) && lc.some((c) => /^(rho|res|rhoa)$/.test(c)) && !electrodeColumns(cols).length)
-      return tr("\"{name}\" gives each reading's position (east, north) but not its electrodes: a DC / IP line needs the positions of the current and potential electrodes (A, B, M, N), which this table does not hold. {reads}", { name, reads });
+      return tr("\"{name}\" has positions but no electrodes (A, B, M, N), so it is not a DC / IP line.", { name, reads });
     const el3 = electrodeColumns(cols).filter((c) => /east|north/i.test(String(c)));
     if (el3.length >= 4) return tr("\"{name}\" is a 3D DC / IP reading file (electrode positions in east / north: {cols}), not a line along a profile. GeoStrix has no reader for this electrode layout yet. {reads}", { name, cols: el3.slice(0, 4).join(", ") + (el3.length > 4 ? ", …" : ""), reads });
   }

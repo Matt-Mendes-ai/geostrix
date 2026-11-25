@@ -58,7 +58,7 @@ test("MIMDAS Geosoft text: the electrode columns, then one line along its axis p
   assert.deepEqual(L.pts, { s1: 0, x1: 437450, y1: 7601450, s2: 2000, x2: 439450, y2: 7601450 });
   const p = parseDcipRows(L.rows, guessDcipColumns(L.headers));
   assert.equal(p.readings.length, 18); assert.equal(p.ipKind, "chargeability"); assert.equal(p.array, "pole-dipole"); assert.equal(p.spacing, 200);
-  assert.match(L.note, /Electrode map coordinates read as one line: distances along its axis \(azimuth 90\.0°, 2,000 m long\), the line placed by its two ends/);
+  assert.match(L.note, /Electrodes read as one line \(azimuth 90\.0°, 2,000 m\)/);
 });
 
 test("MIMDAS: an oblique line is projected on its axis (the azimuth is found), the ends are on the line", () => {
@@ -106,7 +106,7 @@ test("MIMDAS UBC-2D observation file: potentials per unit current turned into ap
   assert.ok(Math.abs(L.rows[0]["Apparent resistivity"] - K * 0.0032496) / L.rows[0]["Apparent resistivity"] < 1e-4, `rho ${L.rows[0]["Apparent resistivity"]}`);
   assert.ok(Math.abs(L.rows[0]["Error (% of reading)"] - (0.0001728 / 0.0032496) * 100) < 0.01);
   assert.deepEqual(L.pts, { s1: 495500, x1: 495500, y1: 7511200, s2: 496200, x2: 496200, y2: 7511200 }); // 'Line10_7511200N': an east-west line at that northing
-  assert.match(L.note, /potentials per unit current \(V\/A\).*placed from its name \(Line10_7511200N\): an east-west line/);
+  assert.match(L.note, /V\/A values turned into apparent resistivity.*Placed from its name \(Line10_7511200N\)/);
   const p = parseDcipRows(L.rows, guessDcipColumns(L.headers));
   assert.equal(p.readings.length, 4); assert.equal(p.array, "pole-dipole");
 });
@@ -123,23 +123,22 @@ test("the other shapes: IPBASE F1 F2 M1 M2 Mx RES, a quoted header, a TAB table 
 
 test("refusals in words: a downhole log, a table of positions with no electrodes", () => {
   const a = tableRefusal("log.txt", ["depth", "seg", "time", "mx", "my", "mz", "mt"], [], "dcipLine");
-  assert.match(a, /is a downhole survey table \(depth, mx, my, mz: a magnetometer or orientation log\), not a DC \/ IP line/);
+  assert.match(a, /is a downhole log \(depth, mx, my, mz\), not a DC \/ IP line/);
   const b = tableRefusal("t.csv", ["East", "North", "Vp", "I", "Rho", "Mx"], [], "dcipLine");
-  assert.match(b, /gives each reading's position \(east, north\) but not its electrodes/);
+  assert.match(b, /has positions but no electrodes \(A, B, M, N\)/);
   assert.equal(tableRefusal("ok.csv", ["A", "B", "M", "N", "Rho"], [], "dcipLine"), null);
 });
 
 test("wired: the panel reads the electrode formats in both routes, keeps a file's lines, and says an SL3 index holds no readings; keys in every language", () => {
   const p = read("../src/components/DcipPanel.jsx");
   assert.match(p, /electrodeFile\(textAll, f\.name, t, \{ lineTag: lineTagOf\(textAll\) \}\)/); assert.match(p, /keepElectrodeLines\(f, el\.lines\)/);
-  assert.match(p, /for \(const p of await readLineFile\(f\)\)/); assert.match(p, /a Queensland SL3 file with a header block only/);
-  for (const k of ["Electrode map coordinates read as one line: distances along its axis (azimuth {az}°, {len} m long), the line placed by its two ends{v}.", "; {n} repeated readings stacked",
-    "A UBC-2D observation file: the values are potentials per unit current (V/A), and the apparent resistivity is computed from them with the electrodes' geometric factor.", "The line is placed from its name ({tag}): {v}.",
-    "an east-west line, the electrode positions being eastings", "a north-south line, the electrode positions being northings",
-    "{name}: {kept} lines placed by their own electrode coordinates and kept in the project ({readings} readings). Choose one from the list above to invert it.",
-    "\"{name}\" is a Queensland SL3 file with a header block only: it lists the survey's files and holds no readings. Open the data files it names.",
-    "\"{name}\" is a downhole survey table (depth, mx, my, mz: a magnetometer or orientation log), not a DC / IP line. {reads}",
-    "\"{name}\" gives each reading's position (east, north) but not its electrodes: a DC / IP line needs the positions of the current and potential electrodes (A, B, M, N), which this table does not hold. {reads}"])
+  assert.match(p, /for \(const p of await readLineFile\(f\)\)/); assert.match(p, /an SL3 header with no readings/);
+  for (const k of ["Electrodes read as one line (azimuth {az}°, {len} m){v}.", "; {n} repeats stacked",
+    "UBC-2D file: V/A values turned into apparent resistivity.", "Placed from its name ({tag}).",
+    "{name}: {kept} lines kept ({readings} readings). Pick one to invert.",
+    "\"{name}\" is an SL3 header with no readings: open the data files it lists.",
+    "\"{name}\" is a downhole log (depth, mx, my, mz), not a DC / IP line.",
+    "\"{name}\" has positions but no electrodes (A, B, M, N), so it is not a DC / IP line."])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
 });
 
@@ -150,7 +149,7 @@ test("MIMDAS 2D lines with x positions only (eastings): placed from the line's n
   const t = parseDcipWhitespaceText(text);
   const r = placedFromName(t, "line10", "Line10_7511200N").lines[0];
   assert.deepEqual(r.pts, { s1: 495500, x1: 495500, y1: 7511200, s2: 496400, x2: 496400, y2: 7511200 });
-  assert.match(r.note, /placed from its name \(Line10_7511200N\): an east-west line/);
+  assert.match(r.note, /Placed from its name \(Line10_7511200N\)/);
   assert.equal(electrodeFile(text, "line10.dat", t, { lineTag: "Line10_7511200N" }).lines[0].pts.y1, 7511200);
   assert.equal(placedFromName({ headers: ["F1", "F2", "M1", "M2", "RES", "Mx"], rows: [{ F1: 39900, F2: 40000, M1: 39500, M2: 39600, RES: 70, Mx: 5 }, { F1: 39800, F2: 39900, M1: 39500, M2: 39600, RES: 70, Mx: 5 }] }, "x", "37000N"), null, "a chainage under 100,000 is not a map position");
   assert.equal(placedFromName(t, "x", null), null); assert.equal(placedFromName(t, "x", "NoNumbers"), null);

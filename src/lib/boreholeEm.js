@@ -27,7 +27,7 @@ const HOLE_HEADER = /\b(BOREHOLE|[XYZ]COLLAR)\s*[:=]\s*\S/i;
 // that says downhole): the reason, in words, instead of the reader's own error. -> string | null
 export function boreholeHeaderRefusal(name, headText) {
   const clues = boreholeEmClues([], [], headText);
-  return clues.length ? tr("\"{name}\" is borehole EM ({clues}). TEM line data reads airborne and ground line surveys, not a hole: GeoStrix has no reader for borehole EM yet.", { name, clues: clues.join(", ") }) : null;
+  return clues.length ? tr("\"{name}\" is borehole EM ({clues}): no reader for it yet.", { name, clues: clues.join(", ") }) : null;
 }
 export const groundEmConfig = (headText) => { const m = String(headText || "").slice(0, 4000).match(/\bCONFIG\s*[:=]\s*(\S+)/i); return m && !DOWNHOLE_CONFIG.test(`CONFIG:${m[1]}`) ? m[1] : null; };
 
@@ -63,7 +63,7 @@ export function boreholeEmClues(columns, rows, headText = "") {
       const at = new Map();
       for (const r of rows) { if (r[x] == null || r[y] == null || r[z] == null) continue; const k = `${r[x]}|${r[y]}`; (at.get(k) || at.set(k, new Set()).get(k)).add(r[z]); }
       const top = [...at.values()].sort((p, q) => q.size - p.size)[0];
-      if (top && top.size >= 3 && arrMax([...top]) - arrMin([...top]) > 5) evidence.push(tr("readings at several elevations under one position ({col})", { col: z }));
+      if (top && top.size >= 3 && arrMax([...top]) - arrMin([...top]) > 5) evidence.push(tr("several elevations at one position ({col})", { col: z }));
     }
   }
   return evidence.length ? [...support, ...evidence] : [];

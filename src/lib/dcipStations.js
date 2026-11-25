@@ -99,7 +99,7 @@ export function parseStationFile(text, name = "This file") {
   let res = lines.some((l) => /^W\s/.test(l.trim())) ? parseGpsUtility(lines) : null;
   if (!res || !res.stations.length) res = parseTable(lines) || res;
   if (!res || !res.stations.length) res = parseHeaderless(lines, name) || res; // #4059
-  if (res?.local) throw new Error(tr("{name} gives the stations on a local grid, not in map coordinates: use the station file that is in map coordinates (Zonge's .utm.stn).", { name }));
+  if (res?.local) throw new Error(tr("{name}: stations are on a local grid. Use the .utm.stn file.", { name }));
   if (!res || !res.stations.length) throw new Error(tr("{name} has no line stations GeoStrix can read (expected GPS waypoints named \"<line> <station>\", or a table with station, X and Y columns).", { name }));
   const byLine = {};
   for (const st of res.stations) (byLine[st.line] ||= []).push(st);

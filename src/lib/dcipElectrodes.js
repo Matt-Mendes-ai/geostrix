@@ -96,7 +96,7 @@ export function electrodeLines(headers, rows, { lineCol = null, base = "line", t
       name, headers: ["A", "B", "M", "N", rhoCol, ...(ipCol ? [ipCol] : [])], rows: outRows,
       pts: { s1: 0, x1: p0[0], y1: p0[1], s2: span, x2: p1[0], y2: p1[1] },
       readings: E.length, stacked: E.length - outRows.length,
-      note: tr("Electrode map coordinates read as one line: distances along its axis (azimuth {az}°, {len} m long), the line placed by its two ends{v}.", { az: azimuth.toFixed(1), len: Math.round(span).toLocaleString(), v: E.length !== outRows.length ? tr("; {n} repeated readings stacked", { n: (E.length - outRows.length).toLocaleString() }) : "" }),
+      note: tr("Electrodes read as one line (azimuth {az}°, {len} m){v}.", { az: azimuth.toFixed(1), len: Math.round(span).toLocaleString(), v: E.length !== outRows.length ? tr("; {n} repeats stacked", { n: (E.length - outRows.length).toLocaleString() }) : "" }),
     });
   }
   return out.length ? { lines: out } : null;
@@ -147,7 +147,7 @@ export function parseUbc2dObs(text, base = "line") {
   const placed = tag ? placeLine(tag.replace(/^.*?_(?=\d{5,})/, ""), [lo, hi], null) : null; // 'Line10_7511200N' -> '7511200N'
   const pts = placed ? { s1: lo, x1: placed.points[0].x, y1: placed.points[0].y, s2: hi, x2: placed.points[1].x, y2: placed.points[1].y } : null;
   return { lines: [{ name: base, headers: ["A", "B", "M", "N", "Apparent resistivity", ...(rows.some((r) => "Error (% of reading)" in r) ? ["Error (% of reading)"] : [])], rows, pts, readings: rows.length, stacked: 0,
-    note: tr("A UBC-2D observation file: the values are potentials per unit current (V/A), and the apparent resistivity is computed from them with the electrodes' geometric factor.") + (placed ? " " + tr("The line is placed from its name ({tag}): {v}.", { tag, v: placed.axis === "x" ? tr("an east-west line, the electrode positions being eastings") : tr("a north-south line, the electrode positions being northings") }) : "") }] };
+    note: tr("UBC-2D file: V/A values turned into apparent resistivity.") + (placed ? " " + tr("Placed from its name ({tag}).", { tag }) : "") }] };
 }
 
 // the special readers, in one call: -> null | { error } | { lines }
@@ -175,5 +175,5 @@ export function placedFromName(t, base, tag) {
   if (!placed) return null;
   const pts = { s1: lo, x1: placed.points[0].x, y1: placed.points[0].y, s2: hi, x2: placed.points[1].x, y2: placed.points[1].y };
   return { lines: [{ name: base, headers: t.headers, rows: t.rows, pts, readings: t.rows.length, stacked: 0,
-    note: tr("The line is placed from its name ({tag}): {v}.", { tag, v: placed.axis === "x" ? tr("an east-west line, the electrode positions being eastings") : tr("a north-south line, the electrode positions being northings") }) }] };
+    note: tr("Placed from its name ({tag}).", { tag }) }] };
 }

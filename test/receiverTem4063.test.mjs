@@ -65,14 +65,14 @@ test("Crone: positions from the loop's corners (the line name's letter is not tr
   assert.deepEqual([...d.x], [460500, 460700, 460900, 461100]); assert.deepEqual([...d.y], [7554100, 7554100, 7554100, 7554100]); // the line number is inside the loop's north range
   assert.equal(d.gateTimes(d.groups[0]), null, "the times are in the channel file, which a surface survey does not always ship");
   assert.equal(d.localGrid, null);
-  assert.match(d.notes.join(" "), /no coordinates: each station is placed on its line, the line number taken as its northing and the station as its easting \(decided by the loop's corners\)/);
+  assert.match(d.notes.join(" "), /No coordinates in the file: stations placed along their line/);
 });
 
 test("Crone: a north-south line of the southern hemisphere, stations written as southings", () => {
   const t = crone({ line: "472400E", corners: [[472250, 7773140], [472250, 7773440], [472850, 7773440], [472850, 7773140]], stns: [-7773900, -7773875, -7773850, -7773825] });
   const d = readTemText(t, "b.tem");
   assert.deepEqual([...d.x], [472400, 472400, 472400, 472400]); assert.deepEqual([...d.y], [7773900, 7773875, 7773850, 7773825]); assert.equal(d.localGrid, null);
-  assert.match(d.notes.join(" "), /the line number taken as its easting and the station as its northing/);
+  assert.match(d.notes.join(" "), /No coordinates in the file: stations placed along their line/);
 });
 
 test("placing a line: the loop first, then the letter, then the size of the number; one decision for the line", () => {
@@ -91,7 +91,7 @@ test("SMARTem V: no coordinates (the line's number and the stations), the second
   const t = d.gateTimes(d.groups[0]); assert.equal(t.length, NG); assert.ok(Math.abs(t[0] - (0.1 + 0.4) / 2) < 1e-9, `first centre ${t[0]}`);
   const mat = channelMatrix(d, d.groups[0]); assert.ok(mat.v[0] > 90000, "ADC 1 (the signal) is read, not ADC 2's flat 4,500");
   assert.ok(Math.abs(mat.v[0] - (100000 + 10) ) < 1, `the three readings of a station are stacked: ${mat.v[0]}`); // mean of +0, +10, +20
-  assert.match(d.notes.join(" "), /9 reading\(s\) of a second ADC \(the same component at another gain\) are left out\./);
+  assert.match(d.notes.join(" "), /9 second-ADC reading\(s\) left out\./);
   assert.equal(parseTemReceiver(smartemV()).stations.length, 3);
 });
 
@@ -107,12 +107,12 @@ test("EMBASE: the processed rows only (not the \\RAW blocks), the gate times fro
   assert.equal(d.n, 3); assert.match(d.source, /^EMBASE TEM text \(inl\)$/); assert.deepEqual(d.components, ["Z"]);
   assert.equal(d.gateTimes(d.groups[0]).length, NG); assert.ok(d.localGrid, "line 49800 E with stations 43,600 up: a local grid");
   assert.deepEqual([...d.x], [49800, 49800, 49800]); assert.deepEqual([...d.y], [43600, 43650, 43700]);
-  assert.match(d.notes.join(" "), /The file does not name a component: Z is assumed\./);
+  assert.match(d.notes.join(" "), /Component not named: Z assumed\./);
 });
 
 test("a hole's files say they are a hole's: a downhole title or CONFIG, a collar in the header, a tool log with no decay channels", () => {
   assert.throws(() => readTemText(crone({ config: "DOWNHOLE", title: "Example Ltd - DOWNHOLE PEM SURVEY" }), "dh.tem"), /is borehole EM \(.*a header that says borehole, a downhole configuration \(CONFIG:DOWNHOLE\); decay channels CH1 … CH10, 10 gates\)/);
-  assert.throws(() => readTemText(atlantisLog, "log.tem"), /is borehole EM \(a hole in the header \(XCOLLAR\)\)\. TEM line data reads airborne and ground line surveys, not a hole/);
+  assert.throws(() => readTemText(atlantisLog, "log.tem"), /is borehole EM \(a hole in the header \(XCOLLAR\)\): no reader for it yet/);
   assert.equal(boreholeHeaderRefusal("x", "a plain header"), null);
   assert.equal(boreholeHeaderRefusal("x", "LINE:1 BOREHOLE:DH1").includes("BOREHOLE"), true);
   // a ground file whose title says SURFACE is not
@@ -122,9 +122,8 @@ test("a hole's files say they are a hole's: a downhole title or CONFIG, a collar
 test("wired: the pane shows the notes; keys in every language", () => {
   const p = read("../src/components/TemPane.jsx");
   assert.match(p, /\.\.\.\(d\.notes \|\| \[\]\)/);
-  for (const k of ["a hole in the header ({v})", "The file has no coordinates: each station is placed on its line, the line number taken as its northing and the station as its easting (decided by {how}).",
-    "The file has no coordinates: each station is placed on its line, the line number taken as its easting and the station as its northing (decided by {how}).", "the loop's corners", "the letter after the line number", "the size of the line number",
-    "The file does not name a component: Z is assumed.", "{n} reading(s) of a second ADC (the same component at another gain) are left out.",
-    "\"{name}\" is borehole EM ({clues}). TEM line data reads airborne and ground line surveys, not a hole: GeoStrix has no reader for borehole EM yet."])
+  for (const k of ["a hole in the header ({v})", "No coordinates in the file: stations placed along their line.",
+    "Component not named: Z assumed.", "{n} second-ADC reading(s) left out.",
+    "\"{name}\" is borehole EM ({clues}): no reader for it yet."])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
 });

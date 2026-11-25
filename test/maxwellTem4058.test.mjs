@@ -99,7 +99,7 @@ test("borehole evidence still refuses: a hole or depth column, a borehole header
   // the same positions down a hole
   const down = rep(18, (i) => ({ X: 531797.6, Y: 5531479.7, RL: 1245 - Math.floor(i / 3) * 20, COMPONENT: comps[i % 3] }));
   const c = boreholeEmClues(cols, down, "");
-  assert.ok(c.some((x) => /readings at several elevations under one position \(RL\)/.test(x)), c.join("|"));
+  assert.ok(c.some((x) => /several elevations at one position \(RL\)/.test(x)), c.join("|"));
   assert.ok(c.some((x) => /component column/.test(x)) && c.some((x) => /repeated for several components/.test(x)), "the supporting clues are still named");
   assert.equal(boreholeEmClues(["X", "Y", "HOLE", "COMPONENT"], ground, "").length > 0, true);
   assert.equal(boreholeEmClues(["X", "Y", "DEPTH"], [], "").length, 1);
@@ -123,6 +123,6 @@ test("wired: the pane takes .tem, keeps the components out of the two-moment joi
   assert.match(p, /accept="\.xyz,\.csv,\.txt,\.dat,\.tem"/);
   assert.match(p, /filter\(\(g\) => !g\.component && \(g\.role \?/);
   assert.match(p, /TemGridTie/);
-  for (const k of ["a downhole configuration (CONFIG:{v})", "readings at several elevations under one position ({col})"])
+  for (const k of ["a downhole configuration (CONFIG:{v})", "several elevations at one position ({col})"])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
 });

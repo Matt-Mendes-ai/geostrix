@@ -155,14 +155,9 @@ function readTemTextCore(text, name) {
 // TASKS.csv #4063 — what a receiver-text file did not give, said: no coordinates (placed on the line), no named component, a second ADC left out, no gate times
 function receiverNotes(m) {
   const out = [];
-  if (m.positions === "line" && m.positionNote) {
-    const how = m.positionNote.how[0] === "loop" ? tr("the loop's corners") : m.positionNote.how[0] === "suffix" ? tr("the letter after the line number") : tr("the size of the line number");
-    out.push(m.positionNote.axes[0] === "y"
-      ? tr("The file has no coordinates: each station is placed on its line, the line number taken as its easting and the station as its northing (decided by {how}).", { how })
-      : tr("The file has no coordinates: each station is placed on its line, the line number taken as its northing and the station as its easting (decided by {how}).", { how }));
-  }
-  if (m.assumedComponent) out.push(tr("The file does not name a component: Z is assumed."));
-  if (m.adcLeftOut) out.push(tr("{n} reading(s) of a second ADC (the same component at another gain) are left out.", { n: m.adcLeftOut.toLocaleString() }));
+  if (m.positions === "line" && m.positionNote) out.push(tr("No coordinates in the file: stations placed along their line."));
+  if (m.assumedComponent) out.push(tr("Component not named: Z assumed."));
+  if (m.adcLeftOut) out.push(tr("{n} second-ADC reading(s) left out.", { n: m.adcLeftOut.toLocaleString() }));
   return out;
 }
 
