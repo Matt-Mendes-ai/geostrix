@@ -7,6 +7,7 @@ import React, { useMemo, useState } from "react";
 import { Download } from "./icons.js";
 import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
 import MoreFold from "./MoreFold.jsx";
+import CautionFold from "./CautionFold.jsx"; // TASKS.csv #4073 — the fold says how many cautions and the worst one
 import { t as tr, fmtNum } from "../lib/i18n.js";
 import { saveFile } from "../lib/desktop.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3597
@@ -312,12 +313,12 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           {byBench && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Datum (m)")}<NumberInput allowEmpty value={benchDatum} onChange={(v) => setBenchDatum(v == null ? "" : String(v))} placeholder="0" style={{ ...inp, width: 80 }} aria-label={tr("Bench datum")} /></label>}
           {byBench && cutoffs.length > 1 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("at cutoff")}<select value={benchCut ?? ""} onChange={(e) => setBenchCutoff(e.target.value)} style={inp} aria-label={tr("Cutoff of the bench table")}>{cutoffs.map((c) => <option key={c} value={c}>{sig(c)}</option>)}</select></label>}
         </div>
-        <MoreFold summary={tr("Cautions and details")}>
+        <CautionFold>
         {solid && inside && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{insideMode === "share"
           ? tr("Inside \"{name}\": {a} block(s) wholly inside, {b} partly (counted by the share of each inside, from 2 × 2 × 2 sample points), {c} outside.", { name: solid.name, a: inside.inside, b: inside.partial, c: inside.outside })
           : tr("Inside \"{name}\": {a} block(s) counted whole by their centre, {c} outside; a block the surface cuts is wholly in or wholly out here.", { name: solid.name, a: inside.inside, c: inside.outside })}{closureNote(solid)}</div>}
         {byBench && !(Number(benchH) > 0) && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>{tr("Enter the bench height: the floors sit at the datum plus whole benches.")}</div>}
-        </MoreFold>
+        </CautionFold>
       </div>) },
     { key: "result", label: tr("Result"), primary: { label: <><Download size={14} /> {tr("Export CSV")}</>, onClick: exportCsv, disabled: !rows.length }, render: () => (
       <div style={col}>
@@ -384,7 +385,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
             <text x={W - R - 6} y={T + 10} fontSize="10" textAnchor="end" fill="#c0392b">{tr("mean grade")}</text>
           </svg>
         )}
-        <MoreFold summary={tr("Cautions and details")}>
+        <CautionFold>
         {modelUse && <div style={{ fontSize: "var(--font-size-sm)", color: modelUse.f && !rho ? "var(--color-warn-text)" : "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3012 */}{tr("Density from the block model \"{name}\" on the same blocks: {k} block(s) take its value (mean {m} t/m³), {f} take {d} (none there, or outside {lo}-{hi} t/m³).", { name: densityModel.name, k: fmtNum(modelUse.k), m: modelUse.mean == null ? "—" : modelUse.mean.toFixed(2), f: fmtNum(modelUse.f), d: rho ? tr("the Density field ({rho} t/m³)", { rho }) : tr("no density and are counted apart, in the No density column") /* #3270 */, lo: densityRange.min, hi: densityRange.max })}</div>}
         {untypedCodes.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3013 */}{(() => { const list = untypedCodes.slice(0, 12).map(([c, n]) => tr("{code} ({n} blocks)", { code: c, n: fmtNum(n) })).join(", ") + (untypedCodes.length > 12 ? ", …" : ""); return rho ? tr("No density typed for {list}: their blocks take the default ({rho} t/m³).", { list, rho }) : tr("No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.", { list }); })()}</div>}
         {densityUse && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #2550 */}{tr("Density by {layer}, the nearest logged interval within {r} m: {list}.", { layer: densityLayer === "weath" ? tr("Weathering") : densityLayer === "litho" ? tr("Lithology") : tr("Alteration"), r: Math.round(reachM), list: densityUse.map((d) => tr("{code} {rho} t/m³ ({n} blocks)", { code: d.code ?? tr("the default"), rho: d.rho ?? "—", n: d.n })).join("; ") })}{!tonnesOn ? " " + tr("Enter the default density to show the tonnes.") : ""}</div>}
@@ -420,7 +421,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           {tonnesOn && <>{tr("Tonnes and metal are shown to three significant figures (hover a figure for the exact sum; the CSV keeps it whole): they are conceptual.")}{" "}</>}{/* #3284 */}
           {perBlock && rows.some((r) => r.tonnes != null) ? tr("Mean grade is tonnage-weighted (volume times density) over blocks with a density at or above each cutoff; blocks with none are left out of the row.") : tr("Mean grade is volume-weighted over the blocks at or above each cutoff.")}{/* #3270 */}{means && means.some((r) => r.means.some((x) => x.covered != null && x.covered < 0.9995)) ? ` ${tr("* the element's estimate did not reach every block of that volume; the mean is over the blocks it has.")}` : ""}{merged ? ` ${tr("Blocks merged on import count only the share of the block the model filled (COVERAGE).")}` : ""}{!rho && !perBlock ? ` ${tr("Enter a density to get tonnes: no default is assumed.")}` : !rho && (noDensCol || noDensBench) ? ` ${tr("Enter a Density to give the blocks with none a value: no default is assumed.")}` : ""}{/* #3270 */}
         </div>
-        </MoreFold>
+        </CautionFold>
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "7px 9px", lineHeight: 1.5, marginBottom: 10 }}>
           {tr(NOT_A_RESOURCE)}{" "}<MoreFold summary={tr("Why")} style={{ display: "inline-block", marginBottom: 0 }}>{tr(EXPLORATION_TARGET_CAUTION)}</MoreFold>
         </div>

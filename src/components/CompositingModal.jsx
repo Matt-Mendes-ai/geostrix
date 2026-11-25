@@ -24,6 +24,7 @@ import { version as APP_VERSION } from "../../package.json";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
 import MoreFold from "./MoreFold.jsx";
+import CautionFold from "./CautionFold.jsx"; // TASKS.csv #4073 — the fold says how many cautions and the worst one
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -301,7 +302,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
               </table>
             </div>
           )}
-        <MoreFold summary={tr("Cautions and details")}>
+        <CautionFold>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {tr(chips ? "{results} composite(s) from {assays} raw intervals, stepped at the length above from each hole's first sampled depth; a domain boundary or the hole's end can shorten one. Below 100% coverage, part falls in unsampled chips: the grade is the length-weighted average of what IS sampled, not diluted toward zero." : "{results} composite(s) from {assays} raw intervals, stepped at the length above from each hole's first sampled depth; a domain boundary or the hole's end can shorten one. Below 100% coverage, part falls in unsampled core: the grade is the length-weighted average of what IS sampled, not diluted toward zero.", { results: results.length, assays: assays.length })}</div>
 
@@ -313,7 +314,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             {weightedOn && <div>{tr("Grades are weighted by length × density (the project's Specific gravity layer).")}</div>}
             {density && noDensityN > 0 && <div>{tr("{n} composite(s) have no density reading.", { n: noDensityN.toLocaleString() })}</div>}
           </div>}
-        </MoreFold>
+        </CautionFold>
           <CsvStampToggle />{/* TASKS.csv #3614 */}
           <button onClick={keepAsLayer} disabled={results.length === 0 || typeof setCustomLayers !== "function"} title={tr("Add these composites as a numeric layer: StrixViewer colours it by any field, and Estimation, Grade shell, Geochem X-Y and Statistics read it.")} className="gs-btn" style={{ alignSelf: "flex-start", padding: "7px 14px", opacity: results.length === 0 ? 0.5 : 1 }}>{tr("Keep as a layer in the project")}</button>{/* #3567 */}
           {kept && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{kept}</div>}

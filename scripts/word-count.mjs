@@ -145,7 +145,7 @@ function behindFold(p) {
     if (n.type === "JSXElement") {
       const nm = n.openingElement.name, name = nm.type === "JSXIdentifier" ? nm.name : "";
       if (name === "summary") return false;
-      if ((name === "MoreFold" || name === "details") && !viaAttr) return true;
+      if ((name === "MoreFold" || name === "CautionFold" || name === "details") && !viaAttr) return true; // CautionFold: #4073
       viaAttr = false;
     }
     if (n.type === "FunctionDeclaration" || n.type === "Program") return false;

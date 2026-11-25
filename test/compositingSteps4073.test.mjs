@@ -19,7 +19,7 @@ test("#4073 on the shared shell: three steps, Export composites (CSV) the one pr
   for (const k of ['tr("Data")', 'tr("Rules")', 'tr("Result")', 'tr("Next: rules")', 'tr("Next: result")', 'tr("Export composites (CSV)")']) assert.ok(m.includes(k), k);
   assert.ok(m.includes("onClick: exportCSV, disabled: results.length === 0"));
   assert.ok(!m.includes("gs-btn--primary") && !m.includes("useFocusTrap") && !m.includes("useEscapeKey"));
-  assert.ok(m.includes('<MoreFold summary={tr("Cautions and details")}>') && m.includes('<MoreFold summary={tr("Fine-tune…")}>'));
+  assert.ok(m.includes('<CautionFold>') && m.includes('<MoreFold summary={tr("Fine-tune…")}>'));
 });
 
 test("#4073 the description and the Help page link are in the Help card", () => {

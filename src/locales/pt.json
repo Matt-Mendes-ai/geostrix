@@ -15735,5 +15735,8 @@
   "Build structures": "Construir estruturas",
   "Kept {kept} lines in the project ({readings} readings). Choose one in the Line step to invert it.": "{kept} linhas mantidas no projeto ({readings} leituras). Escolha uma na etapa Linha para invertê-la.",
   "Build the ternary image": "Construir a imagem ternária",
-  "Compute the filtered grid": "Calcular a grade filtrada"
+  "Compute the filtered grid": "Calcular a grade filtrada",
+  "Cautions ({n}): {worst}": "Cuidados ({n}): {worst}",
+  "Details ({n})": "Detalhes ({n})",
+  "Cautions": "Cuidados"
 }

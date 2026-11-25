@@ -15735,5 +15735,8 @@
   "Build structures": "بناء البنى",
   "Kept {kept} lines in the project ({readings} readings). Choose one in the Line step to invert it.": "حُفظ {kept} خطاً في المشروع ({readings} قراءة). اختر واحداً في خطوة الخط لقلبه.",
   "Build the ternary image": "بناء الصورة الثلاثية",
-  "Compute the filtered grid": "حساب الشبكة المرشَّحة"
+  "Compute the filtered grid": "حساب الشبكة المرشَّحة",
+  "Cautions ({n}): {worst}": "تنبيهات ({n}): {worst}",
+  "Details ({n})": "تفاصيل ({n})",
+  "Cautions": "تنبيهات"
 }
