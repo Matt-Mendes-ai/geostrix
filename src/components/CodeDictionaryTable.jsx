@@ -29,8 +29,8 @@ export default function CodeDictionaryTable({ layerKey, rows, categories, legend
     <div style={{ flex: 1, overflowY: "auto", padding: "10px 14px" }}>
       <div style={note}>{tr("What each code means in this project, saved with it: the description logged beside the code in the file, or what you type here. Nothing comes from other projects, as one code can mean different rocks in different reports.")}</div>
       <div style={{ display: "flex", gap: 6, margin: "8px 0", alignItems: "center", flexWrap: "wrap" }}>
-        <button onClick={fill} style={btn} title={tr("Codes with no meaning yet take the description logged beside them, when one is logged more often than any other. Meanings already set are kept.")}>{tr("Fill from the logged descriptions")}</button>
-        <button onClick={toLegend} style={btn} disabled={!withMeaning} title={tr("Each code's legend label (every legend, section key and strip log) becomes its meaning; the colours stay.")}>{tr("Use as legend labels")}</button>
+        <button className="gs-btn gs-btn--sm" onClick={fill} title={tr("Codes with no meaning yet take the description logged beside them, when one is logged more often than any other. Meanings already set are kept.")}>{tr("Fill from the logged descriptions")}</button>
+        <button className="gs-btn gs-btn--sm" onClick={toLegend} disabled={!withMeaning} title={tr("Each code's legend label (every legend, section key and strip log) becomes its meaning; the colours stay.")}>{tr("Use as legend labels")}</button>
         <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("{n} of {total} codes have a meaning.", { n: withMeaning, total: categories.length })}</span>
       </div>
       {notice && <div role="status" style={{ ...note, marginBottom: 8, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5 }}>{notice}</div>}
@@ -65,4 +65,3 @@ const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-seconda
 const th = { textAlign: "start", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)" };
 const td = { padding: "4px 8px", color: "var(--color-text-strong)" };
 const inp = { width: "100%", minWidth: 120, background: "transparent", border: "none", borderBottom: "1px solid var(--color-border)", color: "var(--color-text)", fontSize: "var(--font-size-base)", padding: "2px 0", fontFamily: "inherit" };
-const btn = { padding: "5px 10px", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border-light)", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)", fontFamily: "inherit" };

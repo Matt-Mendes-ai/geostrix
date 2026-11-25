@@ -45,7 +45,7 @@ export default function EndInOreList({ assays, elements, units, traces, collars,
               <span style={{ flex: 1, minWidth: 0 }}>{h.length != null
                 ? tr("{hole}: {v} {u} {el} at {a}–{b} m, of {l} m", { hole: h.hole_id, v: num(h.value), u: uLabel, el: symbol, a: num(h.from), b: num(h.to), l: num(h.length) })
                 : tr("{hole}: {v} {u} {el} at {a}–{b} m", { hole: h.hole_id, v: num(h.value), u: uLabel, el: symbol, a: num(h.from), b: num(h.to) })}</span>
-              {onPlanTo && <button type="button" style={{ ...pBtn, padding: "2px 7px", flexShrink: 0, width: "auto", marginBottom: 0 }} onClick={() => onPlanTo({ x: h.x, y: h.y, z: h.z })} title={tr("Opens Planned holes with the end of this sample as the target (RL {z} m): plan a hole to reach past it.", { z: Math.round(h.z) })}>{tr("Plan a hole past this end")}</button>}
+              {onPlanTo && <button className="gs-btn gs-btn--sm" style={{ flexShrink: 0 }} type="button" onClick={() => onPlanTo({ x: h.x, y: h.y, z: h.z })} title={tr("Opens Planned holes with the end of this sample as the target (RL {z} m): plan a hole to reach past it.", { z: Math.round(h.z) })}>{tr("Plan a hole past this end")}</button>}
             </div>))}
           {list.length > SHOWN && <div style={note}>{tr("{n} more.", { n: list.length - SHOWN })}</div>}
         </>}

@@ -11,7 +11,7 @@ export default function ViewVeSelect({ figureOverlay, setFigureOverlay }) {
   const ve = veOf(figureOverlay?.ve);
   const on = !!figureOverlay?.enabled;
   return (<>
-    <button type="button" aria-pressed={on} onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} title={tr("Show or hide the figure overlay: title, legend and scale bar")}
+    <button data-btn-own="" type="button" aria-pressed={on} onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} title={tr("Show or hide the figure overlay: title, legend and scale bar")}
       style={{ ...miniBtn, color: on ? "var(--color-accent-dark)" : miniBtn.color, fontWeight: on ? 600 : 400 }}>{tr("Figure")}</button>
     <select aria-label={tr("Vertical exaggeration")} title={tr("Vertical exaggeration")} value={ve} onChange={(e) => setFigureOverlay((f) => ({ ...f, ve: Number(e.target.value) }))}
       style={{ ...miniBtn, padding: "4px 2px", color: ve > 1 ? "var(--color-accent-dark)" : miniBtn.color, fontWeight: ve > 1 ? 600 : 400 }}>

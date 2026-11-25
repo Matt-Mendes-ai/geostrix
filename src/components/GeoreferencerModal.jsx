@@ -158,7 +158,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <button onClick={() => fileInput.current.click()} style={btn(false)}>
+            <button className="gs-btn" onClick={() => fileInput.current.click()}>
               <Upload size={14} style={{ marginRight: 6 }} />{" "}{tr("Load image (PNG / JPG / TIFF)…")}</button>
             <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg,.tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
             {img ? (
@@ -246,8 +246,8 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
-          <button onClick={doImport} disabled={!fit || busy} style={{ ...btn(true), flex: 2, opacity: fit && !busy ? 1 : 0.5, cursor: fit && !busy ? "pointer" : "not-allowed" }}>
+          <button className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{tr("Cancel")}</button>
+          <button className="gs-btn gs-btn--primary" style={{ flex: 2 }} onClick={doImport} disabled={!fit || busy}>
             {busy ? tr("Georeferencing…") : tr("Georeference & import as raster")}
           </button>
         </div>
@@ -259,7 +259,6 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
 const panel = { width: "min(1100px, 96vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)" };
-const btn = (primary) => ({ padding: "8px 12px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)", display: "flex", alignItems: "center", justifyContent: "center" });
 const th = { padding: "4px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "start", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 6px", color: "var(--color-text)" };
 const numInput = { width: 80, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };

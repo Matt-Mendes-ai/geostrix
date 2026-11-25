@@ -58,10 +58,10 @@ export default function MethodPairsTab({ methods, symbol, unit, assays = null, s
       {isDifferentMeasurement(g) && <div role="status" style={{ color: "var(--color-warn-text)" }}>{tr("{m} reads {r} times {symbol} on the median sample: a different measurement (a partial or soluble digest, say), so it is not offered in its place. Calc. element can take the ratio.", { m: g.header, r: fmt(g.medianRatio), symbol })}</div>}{/* #3220 */}
       {setAssays && assays && !isDifferentMeasurement(g) /* #3220 — never offered over a total */ && ( /* TASKS.csv #2687 — use the other method's results as the element's value */
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          {!asking ? <button type="button" onClick={() => { setAsking(true); setDone(""); }}>{tr("Use {m} instead", { m: g.header })}</button> : <>
+          {!asking ? <button className="gs-btn gs-btn--sm" type="button" onClick={() => { setAsking(true); setDone(""); }}>{tr("Use {m} instead", { m: g.header })}</button> : <>
             <span>{tr("On every sample with a {m} result, {m} becomes the {symbol} value; the old value is kept as a method result, so this can be swapped back.", { m: g.header, symbol })}</span>
-            <button type="button" onClick={() => { const r = swapInMethod(assays, symbol, g.header); setAssays(r.rows); setAsking(false); setDone(tr("{n} sample(s) now take {symbol} from {m}.", { n: r.swapped.toLocaleString(), symbol, m: g.header })); }}>{tr("Swap")}</button>
-            <button type="button" onClick={() => setAsking(false)}>{tr("Cancel")}</button></>}
+            <button className="gs-btn gs-btn--sm" type="button" onClick={() => { const r = swapInMethod(assays, symbol, g.header); setAssays(r.rows); setAsking(false); setDone(tr("{n} sample(s) now take {symbol} from {m}.", { n: r.swapped.toLocaleString(), symbol, m: g.header })); }}>{tr("Swap")}</button>
+            <button className="gs-btn gs-btn--sm" type="button" onClick={() => setAsking(false)}>{tr("Cancel")}</button></>}
           {done && <span role="status" style={{ color: "var(--color-success-fg)" }}>{done}</span>}
         </div>
       )}

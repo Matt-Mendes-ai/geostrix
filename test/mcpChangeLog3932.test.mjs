@@ -51,7 +51,7 @@ test("#3932 wiring: the toast is not timed out when sticky; the AI App Access wi
   assert.match(modal, /import \{ changeLog, onChangeLog \} from "\.\.\/lib\/mcpChangeLog\.js";/);
   assert.match(modal, /useEffect\(\(\) => onChangeLog\(\(L\) => setChanges\(L\)\), \[\]\);/);
   assert.match(modal, /\{changes\.length > 0 && \(/, "listed whether or not access is still on");
-  assert.match(modal, /c\.undone \? <span>\{tr\("Undone"\)\}<\/span> : c\.canUndo \? <button type="button" onClick=\{\(\) => c\.undo\(\)\}/);
+  assert.match(modal, /c\.undone \? <span>\{tr\("Undone"\)\}<\/span> : c\.canUndo \? <button className="gs-btn gs-btn--sm" type="button" onClick=\{\(\) => c\.undo\(\)\}/);
   assert.ok(!/It cannot change the project, open files or use any password\. It works/.test(modal), "the old read-only line, which the changes switch made untrue, is gone");
   assert.match(modal, /It changes nothing unless you also tick 'Allow AI apps to make changes' below/);
 });

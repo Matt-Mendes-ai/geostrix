@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { Calculator } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { lazyModal } from "../lib/lazyModal.jsx";
-import { pBtn } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 const BlockCalculatorModal = lazyModal(() => import("./BlockCalculatorModal.jsx"));
 
@@ -14,7 +13,7 @@ export default function BlockCalculatorLauncher() {
   if (!voxelModels.some((m) => m.cells?.length)) return null;
   return (
     <div style={{ marginBottom: 16 }}>
-      <button type="button" onClick={() => setOpen(true)} style={pBtn} title={tr("A new block model from a formula over block models on the same blocks (calcined grade, a metal equivalent, a value per tonne)")}>
+      <button className="gs-btn gs-btn--block" type="button" onClick={() => setOpen(true)} title={tr("A new block model from a formula over block models on the same blocks (calcined grade, a metal equivalent, a value per tonne)")}>
         <Calculator size={14} />{" "}{tr("Block calculator…")}
       </button>
       {open && <BlockCalculatorModal onClose={() => setOpen(false)} />}

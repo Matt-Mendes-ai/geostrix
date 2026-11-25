@@ -17,9 +17,8 @@ function Card({ bgColor, setBgColor, onClose }) {
         <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)}
           style={{ width: 32, height: 22, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, cursor: "pointer", background: "none" }} />
       </label>
-      <button type="button" disabled={bgColor?.toLowerCase() === colors.viewBg} onClick={() => setBgColor(colors.viewBg)}
-        style={{ padding: "4px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer", font: "inherit" }}>{tr("White (default)")}</button>
-      <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")}
+      <button className="gs-btn gs-btn--sm" type="button" disabled={bgColor?.toLowerCase() === colors.viewBg} onClick={() => setBgColor(colors.viewBg)}>{tr("White (default)")}</button>
+      <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")}
         style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)", lineHeight: 1 }}>×</button>
     </div>
   );

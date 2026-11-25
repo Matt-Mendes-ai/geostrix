@@ -10,7 +10,7 @@ import { reprojectXY, crsName } from "../lib/reproject.js";
 import { askAdoptCrs } from "../lib/adoptCrs.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { runEm1dJob } from "../lib/desktop.js";
-import { smallSel, pBtn } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { percentile } from "../lib/arrayStats.js";
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
@@ -271,7 +271,7 @@ export default function FdemPane({ layers, setLayers, geophysSurveys, updateGeop
     <>
       <TaskPaneHeader title={tr("FDEM 1D (DUALEM, GEM-2)")} helpId="fdem-1d" icon={Layers} tone="model" onClose={onClose} />
       <div style={{ ...note, marginBottom: 8 }}>{tr("Inverts ground loop-loop EM soundings (DUALEM, GEM-2, Aarhus Workbench) for conductivity with depth, in 1D: for cover, clay and water table, not a 3D conductor.")}</div>
-      <button type="button" style={pBtn} disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{tr("Open soundings (CSV or Workbench .xyz)…")}</button>
+      <button className="gs-btn gs-btn--block" type="button" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{tr("Open soundings (CSV or Workbench .xyz)…")}</button>
       <input ref={fileRef} type="file" accept=".csv,.xyz,.txt" multiple style={{ display: "none" }} onChange={(e) => { openFiles(e.target.files); e.target.value = ""; }} />
       {msg && <div role="status" style={{ marginBottom: 10, padding: "8px 10px", background: msg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${msg.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>{msg.text}</div>}
       {survey?.data?.length > 0 && (
@@ -292,8 +292,8 @@ export default function FdemPane({ layers, setLayers, geophysSurveys, updateGeop
           <label style={row}>{tr("Tie to the neighbouring soundings")}<select style={smallSel} value={s.lateral} aria-label={tr("Tie to the neighbouring soundings")} onChange={(e) => set({ lateral: Number(e.target.value) })}>{TIES.map((t) => <option key={t.v} value={t.v}>{tr(t.label)}</option>)}</select></label>
           <label style={row}>{tr("Invert every Nth sounding")}<NumberInput style={num} min={1} step={1} value={s.every} aria-label={tr("Invert every Nth sounding")} onChange={(v) => set({ every: Math.round(v) })} /></label>
           <div style={{ ...note, marginBottom: 6 }}>{tr("{n} soundings to invert.", { n: Math.ceil(survey.data.length / Math.max(1, s.every || 1)).toLocaleString() })}</div>
-          {!busy ? <button type="button" style={pBtn} onClick={run}><Layers size={14} />{tr("Invert")}</button>
-            : <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}><div style={{ ...note, flex: 1 }}>{progress?.message || tr("Working…")}{progress?.etaS != null ? " " + tr("About {s} s left.", { s: progress.etaS }) : ""}</div><button type="button" style={{ ...pBtn, width: "auto", marginBottom: 0 }} onClick={() => abort.current?.abort()}>{tr("Cancel")}</button></div>}
+          {!busy ? <button className="gs-btn gs-btn--block" type="button" onClick={run}><Layers size={14} />{tr("Invert")}</button>
+            : <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}><div style={{ ...note, flex: 1 }}>{progress?.message || tr("Working…")}{progress?.etaS != null ? " " + tr("About {s} s left.", { s: progress.etaS }) : ""}</div><button className="gs-btn" type="button" onClick={() => abort.current?.abort()}>{tr("Cancel")}</button></div>}
         </div>
       )}
       {result && ksLine.length > 0 && (
@@ -305,7 +305,7 @@ export default function FdemPane({ layers, setLayers, geophysSurveys, updateGeop
           {selJ != null && <SoundingView result={result} reference={st.reference} j={selJ} k={idx[selJ]} survey={survey} used={used} />}
           {selJ != null && <div style={{ ...note, marginTop: 4 }}>{tr("Sounding {k}: misfit {chi}, depth of investigation {doi} m, ground {z} m.", { k: idx[selJ] + 1, chi: fmt(result.chi?.[selJ]), doi: fmt(result.doi?.[selJ]), z: fmt(resultStations?.z?.[idx[selJ]]) })}{st.reference && result.from !== "workbench" ? " " + tr("Grey dashes: Aarhus Workbench's model.") : ""}</div>}
           <label style={{ ...row, justifyContent: "flex-start", marginTop: 8 }}><input type="checkbox" checked={aboveDoi} onChange={(e) => setAboveDoi(e.target.checked)} />{tr("Only above the depth of investigation")}</label>
-          <button type="button" style={pBtn} onClick={addTo3d}>{inThreeD ? tr("Replace the models in 3D") : tr("Add the models to 3D")}</button>
+          <button className="gs-btn gs-btn--block" type="button" onClick={addTo3d}>{inThreeD ? tr("Replace the models in 3D") : tr("Add the models to 3D")}</button>
           <div style={note}>{tr("The depth of investigation is the depth above which 80% of the data's sensitivity lies: an approximation, not Aarhus Workbench's calibrated DOI.")}</div>
         </>
       )}

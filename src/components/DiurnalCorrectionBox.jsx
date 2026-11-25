@@ -86,10 +86,10 @@ export default function DiurnalCorrectionBox({ pending, setPending, numInput, pB
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={b.instrument || b.name}>
             {tr("{name} · {v} · {v2}–{v3} · {samples} readings{v4}", { name: b.name, v: b.date ? (b.dateFrom === "filename" ? tr("{date} (from the file name)", { date: b.date }) : b.date) : tr("no date"), v2: formatClock(b.start), v3: formatClock(b.end), samples: b.samples.length.toLocaleString("en-US"), v4: b.lowQuality ? tr(" ({lowQuality} low-quality dropped)", { lowQuality: b.lowQuality }) : "" })}
           </span>
-          <button title={tr("Remove this base")} onClick={() => { const next = bases.filter((x) => x !== b); setBases(next); apply(next); }} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 2 }}><X size={12} /></button>
+          <button data-btn-own="" title={tr("Remove this base")} onClick={() => { const next = bases.filter((x) => x !== b); setBases(next); apply(next); }} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 2 }}><X size={12} /></button>
         </div>
       ))}
-      <button onClick={() => fileRef.current?.click()} disabled={!rawCol} title={rawCol ? undefined : tr("Choose the raw reading column first")} style={{ ...pBtn, marginTop: 6, marginBottom: 0, opacity: rawCol ? 1 : 0.5 }}>
+      <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={() => fileRef.current?.click()} disabled={!rawCol} title={rawCol ? undefined : tr("Choose the raw reading column first")}>
         <Upload size={14} /> {bases.length ? tr("Add another base file…") : tr("Load base-station file(s)…")}
       </button>
       <input ref={fileRef} type="file" multiple accept=".tbl,.b,.txt,.xyz,.dat,.csv" style={{ display: "none" }}
@@ -98,7 +98,7 @@ export default function DiurnalCorrectionBox({ pending, setPending, numInput, pB
         <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45, color: note.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>
           {note.text}
           {note.suggest && (
-            <button onClick={() => { setShiftH(note.suggest.hours); apply(bases, note.suggest.hours); }} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>{tr("Shift rover times by {v}{hours} h", { v: note.suggest.hours > 0 ? "+" : "", hours: note.suggest.hours })}</button>
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0 }} onClick={() => { setShiftH(note.suggest.hours); apply(bases, note.suggest.hours); }}>{tr("Shift rover times by {v}{hours} h", { v: note.suggest.hours > 0 ? "+" : "", hours: note.suggest.hours })}</button>
           )}
         </div>
       )}

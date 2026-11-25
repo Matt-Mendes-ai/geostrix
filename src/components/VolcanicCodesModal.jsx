@@ -29,8 +29,8 @@ export default function VolcanicCodesModal({ label, codes, onCancel, onRun }) {
           ))}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          <button type="button" onClick={onCancel} style={{ flex: 1, padding: "6px 10px" }}>{tr("Cancel")}</button>
-          <button type="button" disabled={!n} onClick={() => onRun(ticked)} style={{ flex: 2, padding: "6px 10px", opacity: n ? 1 : 0.5 }}>{tr("Classify {n} sample(s)", { n: n.toLocaleString() })}</button>
+          <button className="gs-btn" style={{ flex: 1 }} type="button" onClick={onCancel}>{tr("Cancel")}</button>
+          <button className="gs-btn gs-btn--primary" style={{ flex: 2 }} type="button" disabled={!n} onClick={() => onRun(ticked)}>{tr("Classify {n} sample(s)", { n: n.toLocaleString() })}</button>
         </div>
         {!n && <div role="note" style={{ ...small, marginTop: 6 }}>{tr("No code is ticked: none of these samples is logged as a volcanic rock, so nothing would be classified.")}</div>}
       </div>

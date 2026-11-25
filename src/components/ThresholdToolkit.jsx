@@ -19,7 +19,7 @@ import { useStore } from "../lib/store.jsx"; // #2504 — the collars
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps, sel, th, td, label, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
+import { overlay, backdropProps, sel, th, td, label, panel, header } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
@@ -238,11 +238,11 @@ export default function ThresholdToolkit({ surfaceSamples = [], surfaceElements 
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)", flexWrap: "wrap" }}>
-          <button type="button" onClick={save} disabled={!pops.length || chosenUnusable /* #2507 */} style={{ ...btn(true), opacity: !pops.length || chosenUnusable ? 0.5 : 1 }}>{method ? tr("Save {rule} for {symbol}", { rule: tr(THRESHOLD_METHODS.find((m) => m.id === method)?.label || ""), symbol }) : tr("Choose a rule (click its column)")}</button>
-          {saved && <button type="button" onClick={clear} style={btn(false)}>{tr("Remove saved rule")}</button>}
-          <button type="button" onClick={exportCsv} disabled={!pops.length} style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }}><Download size={14} />{tr("Samples with z-scores (CSV)")}</button>
+          <button className="gs-btn gs-btn--primary" type="button" onClick={save} disabled={!pops.length || chosenUnusable /* #2507 */}>{method ? tr("Save {rule} for {symbol}", { rule: tr(THRESHOLD_METHODS.find((m) => m.id === method)?.label || ""), symbol }) : tr("Choose a rule (click its column)")}</button>
+          {saved && <button className="gs-btn" type="button" onClick={clear}>{tr("Remove saved rule")}</button>}
+          <button className="gs-btn" type="button" onClick={exportCsv} disabled={!pops.length}><Download size={14} />{tr("Samples with z-scores (CSV)")}</button>
           <span style={{ flex: 1 }} />
-          <button type="button" onClick={onClose} style={btn(false)}>{tr("Close")}</button>
+          <button className="gs-btn" type="button" onClick={onClose}>{tr("Close")}</button>
         </div>
       </div>
     </div>

@@ -63,9 +63,8 @@ export default function LogChannelsBox({ modal, onChange, sel }) {
                   const g = c.unit ? rangeGuessFor(c.unit) : null, r = modal.logRanges?.[c.col];
                   if (!g || (r && ((r.min ?? "") !== "" || (r.max ?? "") !== ""))) return null;
                   const text = g.max == null ? tr("≥ {min} {unit}", { min: g.min, unit: c.unit }) : tr("{min}–{max} {unit}", { min: g.min, max: g.max, unit: c.unit });
-                  return <button type="button" onClick={() => set({ logRanges: { ...(modal.logRanges || {}), [c.col]: { min: String(g.min), max: g.max == null ? "" : String(g.max) } } })}
-                    title={tr("The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.", { unit: c.unit })}
-                    style={{ ...sel, cursor: "pointer", padding: "1px 6px", width: "auto" }}>{text}</button>;
+                  return <button className="gs-btn gs-btn--sm" type="button" onClick={() => set({ logRanges: { ...(modal.logRanges || {}), [c.col]: { min: String(g.min), max: g.max == null ? "" : String(g.max) } } })}
+                    title={tr("The physical range of a reading in {unit} (the column name states the unit): click to use it as the valid range.", { unit: c.unit })}>{text}</button>;
                 })()}
               </>
             ) : c.unit ? <span style={{ color: "var(--color-text-muted)" }}>{` (${c.unit})`}</span> : null}

@@ -36,8 +36,8 @@ export default function PromptModal({ title, defaultValue = "", confirmLabel = "
           style={inputStyle}
         />
         <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={cancelBtn}>{tr("Cancel")}</button>
-          <button onClick={() => onConfirm(value)} style={okBtn}>{tr(confirmLabel)}</button>
+          <button className="gs-btn" onClick={onCancel}>{tr("Cancel")}</button>
+          <button className="gs-btn gs-btn--primary" onClick={() => onConfirm(value)}>{tr(confirmLabel)}</button>
         </div>
       </div>
     </div>
@@ -47,5 +47,3 @@ export default function PromptModal({ title, defaultValue = "", confirmLabel = "
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: 320, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" };
 const inputStyle = { width: "100%", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-lg)", boxSizing: "border-box" };
-const cancelBtn = { padding: "7px 14px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "transparent", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" };
-const okBtn = { padding: "7px 14px", borderRadius: 6, border: "1px solid var(--color-success-border)", background: "var(--color-success-bg)", color: "var(--color-success-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };

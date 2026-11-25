@@ -52,11 +52,11 @@ export default function UpdatePrompt({ updater, onLater }) {
             <div style={small}>{tr("Restart now to install it. Later keeps the install button in the status bar for this session.")}</div>
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button onClick={onLater} style={{ ...btn(false), padding: "7px 14px" }}>{tr("Later")}</button>
+            <button className="gs-btn" onClick={onLater}>{tr("Later")}</button>
             {event === "available" && (updater.portable
               ? <a href={`${RELEASES}/latest`} target="_blank" rel="noreferrer" onClick={onLater} style={{ ...btn(true), padding: "7px 14px", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}><Download size={14} />{" "}{tr("Download the new zip")}</a>
-              : <button onClick={() => downloadUpdate()} style={{ ...btn(true), padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}><Download size={14} />{" "}{tr("Download and install")}</button>)}
-            {event === "downloaded" && <button onClick={() => installUpdate()} style={{ ...btn(true), padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}><RefreshCw size={14} />{" "}{tr("Restart and install")}</button>}
+              : <button className="gs-btn gs-btn--primary" onClick={() => downloadUpdate()}><Download size={14} />{" "}{tr("Download and install")}</button>)}
+            {event === "downloaded" && <button className="gs-btn gs-btn--primary" /* gs-primary-alt: the downloaded update replaces the download button */ onClick={() => installUpdate()}><RefreshCw size={14} />{" "}{tr("Restart and install")}</button>}
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@
 // (lib/hyperspectral.js). Only the bands inside the feature's window are decoded.
 import React, { useRef, useState } from "react";
 import { Upload } from "./icons.js";
-import { label, sel, btn } from "../lib/modalStyles.js";
+import { label, sel } from "../lib/modalStyles.js";
 import { buildRasterImport } from "../lib/raster.js";
 import { FEATURES, parseWavelengths, wavelengthsFromGdalMetadata, featureBands, featureMap } from "../lib/hyperspectral.js";
 import { parseSpectrum, resampleSpectrum, matchMap } from "../lib/spectralMatch.js"; // TASKS.csv #2003
@@ -105,7 +105,7 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
     <>
       <div>
         <div style={label}>{tr("1. Hyperspectral GeoTIFF")}</div>
-        <button onClick={() => fileInput.current.click()} style={{ ...btn(false), padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} /> {file ? tr("Choose another file…") : tr("Choose a file…")}</button>
+        <button className="gs-btn" onClick={() => fileInput.current.click()}><Upload size={14} /> {file ? tr("Choose another file…") : tr("Choose a file…")}</button>
         <input ref={fileInput} type="file" accept=".tif,.tiff" style={{ display: "none" }} onChange={(e) => { const x = e.target.files?.[0]; if (x) pickFile(x); e.target.value = ""; }} />
         {file && <div style={{ ...small, marginTop: 6 }}>{tr("{name}: {bands} bands, {width} × {height} px.", { name: file.file.name, bands: file.bands, width: file.width.toLocaleString(), height: file.height.toLocaleString() })}</div>}
         <div style={{ ...small, marginTop: 6 }}>{tr("NASA EMIT L2A surface reflectance (free with an Earthdata login), cut to your area as a multiband GeoTIFF. A few hundred pixels across is plenty.")}</div>
@@ -117,10 +117,10 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
             <>
               <div style={small}>{tr("The file does not say its band wavelengths. Load the ENVI header (.hdr) that came with the data, or paste the list (nm or µm).")}</div>
               <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "flex-start" }}>
-                <button onClick={() => hdrInput.current.click()} style={{ ...btn(false), padding: "6px 10px" }}>{tr("Load .hdr…")}</button>
+                <button className="gs-btn gs-btn--sm" onClick={() => hdrInput.current.click()}>{tr("Load .hdr…")}</button>
                 <input ref={hdrInput} type="file" accept=".hdr,.txt,.csv" style={{ display: "none" }} onChange={async (e) => { const x = e.target.files?.[0]; e.target.value = ""; if (x) applyList(await x.text(), tr("from {name}", { name: x.name })); }} />
                 <textarea value={wlText} onChange={(e) => setWlText(e.target.value)} rows={2} style={{ ...sel, flex: 1, fontFamily: "monospace" }} aria-label={tr("Band wavelengths")} placeholder="381.0, 388.4, 395.8, …" />
-                <button onClick={() => applyList(wlText, tr("pasted"))} disabled={!wlText.trim()} style={{ ...btn(false), padding: "6px 10px" }}>{tr("Use")}</button>
+                <button className="gs-btn gs-btn--sm" onClick={() => applyList(wlText, tr("pasted"))} disabled={!wlText.trim()}>{tr("Use")}</button>
               </div>
             </>
           )}
@@ -164,8 +164,8 @@ export default function HyperspectralTab({ epsg, tie = null, defaultElevation, s
       </div>
       {error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{error}</div>}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button onClick={onClose} style={{ ...btn(false), padding: "7px 14px" }}>{tr("Cancel")}</button>
-        <button onClick={run} disabled={!canRun} style={{ ...btn(true), padding: "7px 14px", opacity: canRun ? 1 : 0.5 }}>{busy ? tr("Computing…") : mode === "match" ? tr("Make the map") : tr("Make the feature maps")}</button>
+        <button className="gs-btn" onClick={onClose}>{tr("Cancel")}</button>
+        <button className="gs-btn gs-btn--primary" onClick={run} disabled={!canRun}>{busy ? tr("Computing…") : mode === "match" ? tr("Make the map") : tr("Make the feature maps")}</button>
       </div>
     </>
   );
