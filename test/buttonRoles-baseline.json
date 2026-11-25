@@ -1,6 +1,6 @@
 {
  "note": "Recorded by scripts/button-roles.mjs --update-baseline (#4069). No file may have more <button>s without a .gs-btn role class than its number; lower it after migrating.",
- "total": 1095,
+ "total": 1075,
  "withoutRole": 0,
  "byFile": {}
 }
