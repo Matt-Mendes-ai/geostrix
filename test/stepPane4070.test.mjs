@@ -5,9 +5,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { elementCounts, quickCutoffs, shareAbove, shapeOf, shapeSettings, SHELL_SHAPES, shellResult, stackResult } from "../src/lib/paneSteps.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
-const panes = read("../src/modules/viewer/ModellingPanes.jsx");
+const panes = modellingPanesSource();
 const block = (id) => { const a = panes.indexOf(`{toolPane === "${id}" && (<>`); const b = panes.indexOf("{toolPane === ", a + 10); return panes.slice(a, b > a ? b : undefined); };
 
 test("Element: the elements most sampled first, with their counts; ties keep the list's order", () => {

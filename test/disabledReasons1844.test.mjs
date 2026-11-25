@@ -4,8 +4,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
-const src = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+const src = modellingPanesSource();
 
 test("the GemPy Run buttons' titles say what is missing, then the engine", () => {
   assert.match(src, /const gempyTitle = \(missing\) => \(implicitBusy \? tr\("A model is already running\."\) : missing \|\| tr\("Runs in GeoStrix's Python engine \(GemPy\) — the status bar's Py shows whether it is ready"\)\);/);

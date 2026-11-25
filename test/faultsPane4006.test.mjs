@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { faultInventory, isFaultCode, mappedFaultFeatures, drawnFaultLines } from "../src/lib/faultInventory.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const { searchPages, pageById } = await import("../src/help/content.js");
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -45,8 +46,8 @@ test("#4006 the pane: every fault tool is a row that opens it where it lives", (
   // the guided card's tool id is the one opened
   assert.match(read("../src/modules/viewer/guided/guidedTools.js"), /id: "faults"/);
   // wiring: a lazy chunk of ModellingPanes; ViewerModule only knows the pane id and the opener
-  const mp = read("../src/modules/viewer/ModellingPanes.jsx");
-  assert.match(mp, /const FaultsPanel = lazy\(\(\) => import\("\.\/FaultsPanel\.jsx"\)\);/);
+  const mp = modellingPanesSource();
+  assert.match(mp, /const FaultsPanel = lazy\(\(\) => import\("\.\.\/FaultsPanel\.jsx"\)\);/); // #4070 — in panes/FaultsPane.jsx
   assert.match(mp, /\{toolPane === "faults" && \(<>[^\n]*\n\s*\{paneHeader\("Faults", SquareSplitVertical, "model"\)\}\n\s*<Suspense fallback=\{null\}><FaultsPanel \{\.\.\.props\} pBtn=\{pBtn\} \/><\/Suspense>/);
   const vm = read("../src/modules/ViewerModule.jsx");
   assert.doesNotMatch(vm, /FaultsPanel/);

@@ -7,6 +7,7 @@ import fs from "node:fs";
 import { flatSearchTrend } from "../src/lib/estimationShape.js";
 import { trendBasis, trendScales } from "../src/lib/trend.js";
 import { anisoWarpPoint, invScales } from "../src/lib/viewer/geomathModelling.js"; // TASKS.csv #3590
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("a flat search's warp: the search reaches R across and the reach up and down; the typed cell comes back in real metres", () => {
   const t = flatSearchTrend(100, 10), s = trendScales(t), b = trendBasis(t), c = { x: 0, y: 0, z: 0 };
@@ -33,7 +34,7 @@ test("wiring: the run's flat search, per-axis cell and budget; the pane's fields
   assert.match(r, /let blocksNeeded = blocksOf\(cs\);/);
   assert.ok(!/gridBlockCount\(bounds, cs\)|cellToFit\(bounds, /.test(r), "the budget counts per axis");
   assert.match(r, /cellM: \[cs, cs, cz \?\? cs\]/);
-  const p = fs.readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /\{tr\("Cell height \(m\)"\)\}<NumberInput min="0\.25" allowEmpty value=\{gt \|\| numericCellHeight === "" \|\| numericCellHeight == null \? null : numericCellHeight\} disabled=\{!!gt\}/); // #3926: '0,05' reads
   assert.match(p, /\{tr\("Vertical reach \(m\)"\)\}<NumberInput min="0" allowEmpty value=\{gt \|\| numericFlatReach === "" \|\| numericFlatReach == null \? null : numericFlatReach\} disabled=\{!!gt\}/);
   assert.match(p, /numericCellHeight > 0 && !trendFor\("gradeShell"\) \? tr\("Cell E × N \(m\)"\) : tr\("Cell \(m\)"\)/);

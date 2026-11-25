@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { suggestFenceVe } from "../src/lib/fence.js";
 import { preferredElement } from "../src/lib/preferredElement.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (f) => fs.readFileSync(new URL(f, import.meta.url), "utf8");
 
@@ -21,7 +22,7 @@ test("Grade x thickness opens on the lead commodity (Fe on an iron-ore table), n
   assert.match(s, /useState\(\(\) => preferredElement\(symbols, "gradeThickness", lead\) \|\| symbols\[0\] \|\| ""\)/);
   assert.match(s, /return inArea \? a\.filter\(\(r\) => inArea\(r\.hole_id\)\) : a;/);
   assert.match(s, /\{inArea && <div style=\{note\}>\{tr\("Samples from the Model area's \{n\} checked holes \(Model settings\)\.", \{ n: areaHoles \}\)\}<\/div>\}/);
-  const p = read("../src/modules/viewer/ModellingPanes.jsx");
+  const p = modellingPanesSource();
   assert.match(p, /<GradeThicknessModal [^>]*inArea=\{modelArea === "checked" \? \(id\) => visibleHoles\?\.\[id\] !== false : null\}/);
 });
 

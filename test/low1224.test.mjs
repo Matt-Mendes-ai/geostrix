@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (f) => readFileSync(f, "utf8");
 test("#1224 a new legend is built from the view, by the same builder the sync uses", () => {
@@ -11,7 +12,7 @@ test("#1224 a new legend is built from the view, by the same builder the sync us
   assert.match(s, /ranked = rankLegendGroups\(items\), kept = firstLegendGroups\(ranked\)[\s\S]{0,400}: \[\["Item", "#55606e"\]\]/);
 });
 test("#1225 fault-like types and the rest are separate groups", () => {
-  const s = read("src/modules/viewer/ModellingPanes.jsx");
+  const s = modellingPanesSource();
   assert.match(s, /\[true, tr\("Named as faults"\)\], \[false, tr\("Other structure types"\)\]/);
   assert.match(s, /<optgroup key=\{label\} label=\{label\}>/);
 });

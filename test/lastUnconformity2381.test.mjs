@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { surfacePackages } from "../src/lib/viewer/stackPackages.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("a break above the last of six units starts no package; one above the fifth does", () => {
   assert.deepEqual(surfacePackages(6, new Set([4])), [0, 0, 0, 0, 0, 0]); // the review's E2 | Basement
@@ -16,7 +17,7 @@ test("the run leaves such a break out and says so; the pane does not offer it", 
   assert.match(m, /The unconformity marked above the last unit \(\{unit\}\) was left out/);
   // it runs before the packages are counted and the relation chosen (breakAt.size)
   assert.ok(m.indexOf("const noPackageBelow") < m.indexOf("const moved = movePointsToUnconformities(specs"));
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /\{i < stackUnits\.length - 1 && \(i < stackUnits\.length - 2 \|\| hasBreak\) && \(/);
   assert.match(p, /No unconformity above the last unit/);
 });

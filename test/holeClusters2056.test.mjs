@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { holeClusters, onlyTheseHoles } from "../src/lib/holeClusters.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 let s = 2056; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
 const cluster = (name, cx, cy, n, step) => Array.from({ length: n }, (_, i) => ({ hole_id: `${name}-${String(i).padStart(2, "0")}`, x: cx + (i % 3) * step + rnd() * 20, y: cy + Math.floor(i / 3) * step + rnd() * 20 }));
@@ -29,7 +30,7 @@ test("fans from one pad are one site; numeric hole ids sort", () => {
 test("'Only these' checks one cluster's holes and unchecks the rest; the pane offers it per cluster", () => {
   const c = [{ hole_id: "A" }, { hole_id: "B" }, { hole_id: "C" }];
   assert.deepEqual(onlyTheseHoles(c, ["A", "C"]), { A: true, B: false, C: true });
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.match(m, /const areaClusters = useMemo\(\(\) => holeClusters\(loggedInArea\), \[loggedInArea\]\);/);
   assert.match(m, /onClick=\{\(\) => \{ setVisibleHoles\(onlyTheseHoles\(collars, c\.ids\)\); setModelArea\("checked"\); (setHoleFilter\?\.\(""\); )?\}\}/);
   assert.match(m, /const clusterBody = \(\) => \(areaClusters && areaClusters\.clusters\.length > 1 \? \(<div role="note"/); // #3268: a render function, also in the Implicit and Stack panes (clusterNote(true): one line in the step panes, #4070)

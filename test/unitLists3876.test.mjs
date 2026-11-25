@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { interceptThickness } from "../src/lib/veinSolid.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // two parallel walls dipping 75° towards the east, 10 m apart across them; holes drilled west-dipping at 50° cut both
 function wallPicks() {
@@ -43,7 +44,7 @@ test("'Thickness between top and base' measures a steep pair as the vein solid d
 });
 
 test("one entry per unit: a group and its Modelling codes twin are listed once; the Alteration lithology list offers the groups", () => {
-  const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const panes = modellingPanesSource();
   assert.match(panes, /const mcodeNames = useMemo\(\(\) => new Set\(\(modellingCodeList \|\| \[\]\)\.map\(\(c\) => c\.name\)\), \[modellingCodeList\]\);/);
   assert.match(panes, /\{lithoGroups\.filter\(\(g\) => !mcodeNames\.has\(g\.name\) && !leftOutCodes\.includes\(g\.name\)\)\.map\(\(g\) => \{/); // Implicit
   assert.match(panes, /lithoGroups\.filter\(\(g\) => !mcodeNames\.has\(g\.name\) \/\* #3876/); // Strat. stack

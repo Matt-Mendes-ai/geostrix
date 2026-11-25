@@ -11,6 +11,7 @@ import { compositeDownhole } from "../src/lib/geochem.js";
 import { excludeQAQC } from "../src/lib/qaqc.js";
 import { samplePointsFromIntervals } from "../src/lib/estimation.js";
 import { desurveyHole } from "../src/lib/desurvey.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("samplesTrend: a synthetic slab dipping 60 -> 120, long axis at pitch 30, comes back as itself; a line of samples gives none", () => {
   const B = trendBasis({ dip: 60, dipAzimuth: 120, pitch: 30 });
@@ -42,7 +43,7 @@ test("wiring: 'Set the plane from' offers an element's samples; the panes say 'i
   assert.match(p, /<option key=\{el\} value=\{`samples:\$\{el\}`\}>/);
   assert.match(p, /const area = r\?\.pts\?\.length \? samplesTrendByArea\(r\.pts\) : null, st = area\?\.trend \|\| null;/);
   assert.match(p, /update\(t\.id, \{ dip: Math\.round\(st\.dip \* 10\) \/ 10, dipAzimuth: Math\.round\(st\.dipAzimuth \* 10\) \/ 10, pitch: st\.pitch, ratios: st\.ratios/);
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.match(m, /sampleElements=\{shellSymbols\} samplePoints=\{trendSamplePoints\}/);
   // #3655 — with no trend and no flat search the grade shell searches along its composites' plane unless unticked; unticked, it says 'isotropic'
   assert.match(m, /\{!trendFor\("gradeShell"\) && !\(Number\(numericFlatReach\) > 0\) && <>/);

@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { shellPlaneSearch, reachCutField, PLANE_MIN_COMPOSITES, REACH_SHARE } from "../src/lib/viewer/shellPlane.js";
 import { estimateDenseGrid } from "../src/lib/estimation.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // a tabular body dipping 60° towards 090: composites in 8 holes, spread 200 m along strike and down dip, 4 m across
 const rad = Math.PI / 180, dip = 60 * rad;
@@ -77,6 +78,6 @@ test("the wiring: each drilled area's plane in the estimate and the worker's rea
   const p = readFileSync(new URL("../src/lib/viewer/shellPost.js", import.meta.url), "utf8");
   assert.match(p, /const reached = post\.reach \? reachCutField\(base, grid, iso, post\.reach\)/ /* base: the grid's values, or #3673 phase 2's blend with an old domain */);
   assert.match(p, /capFieldAtColumns\(reached\.values,/);
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.match(m, /tr\("Search along the composites' plane"\)/);
 });

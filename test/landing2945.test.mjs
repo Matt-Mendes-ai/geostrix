@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { idwGround } from "../src/lib/pitShell.js";
 import { layerStamp } from "../src/lib/layerStamp.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("idwGround: the four nearest, inverse distance squared, as a brute force over every collar", () => {
   let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -34,7 +35,7 @@ test("the log's stamp: once per array, a new array a new stamp", () => {
 });
 
 test("wiring: the Alteration pane's rows follow the chosen custom layer only; 'not logged' is tested once per code", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /const altCustomRows = useMemo\(\(\) => \(altSource\.layer\.startsWith\("custom:"\)/);
   assert.match(p, /storeLayers\.weath, altCustomRows\]\);/);
   assert.match(p, /const vals = new Set\(\); for \(const r of altSourceRows\) vals\.add\(String\(r\.value \?\? ""\)\);/);

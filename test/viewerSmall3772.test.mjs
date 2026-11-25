@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { cappedRadiusM, minSymbolRadiusM } from "../src/lib/viewer/symbolScale.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const vm = read("../src/modules/ViewerModule.jsx");
@@ -28,7 +29,7 @@ test("#3772 the Hole labels select offers the toe and both ends", () => {
 test("#3775 (2) the hover tip is cleared when the camera moves; (4) the cluster button clears the filter box", () => {
   assert.match(vm, /if \(sig !== tipSigRef\.current\) \{ tipSigRef\.current = sig; setTooltip\(null\); \}/);
   assert.match(vm, /<ModellingPanes \{\.\.\.\{ setStackUnits, visibleHoles, setVisibleHoles, setHoleFilter,/);
-  assert.match(read("../src/modules/viewer/ModellingPanes.jsx"), /setModelArea\("checked"\); setHoleFilter\?\.\(""\); \}\}/);
+  assert.match(modellingPanesSource(), /setModelArea\("checked"\); setHoleFilter\?\.\(""\); \}\}/);
 });
 
 test("#3779 (1) the volumes in the notices are rounded as the surface card rounds them (three figures)", () => {

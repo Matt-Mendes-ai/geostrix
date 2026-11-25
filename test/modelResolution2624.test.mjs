@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { axisResolution, blockCellsM, RES_MIN, RES_MAX } from "../src/lib/modelResolution.js";
 import { octreeCellM } from "../src/lib/viewer/contactFit.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const prod = (r) => r[0] * r[1] * r[2];
 
@@ -44,6 +45,6 @@ test("the runs send the shaped counts and say the box, the block cells and the m
   assert.ok(s.indexOf("the lithology block is {nx}") < s.indexOf("await pythonImplicitModel(") /* #2905: the layer-cake branch comes first in the same statement */);
   assert.match(s, /blockCellM: blockCellsM\(extent, resolution\)/);
   assert.equal(Math.round(octreeCellM([0, 13000, 0, 13000, 0, 150], 4)), 813); // the mesh cell the notice states (Standard)
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /the last box got \{nx\} x \{ny\} x \{nz\} cells of/);
 });

@@ -2,9 +2,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const est = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
-const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+const panes = modellingPanesSource();
 
 test("Estimation: changing the element clears the cap and the old result; a capped run says so", () => {
   assert.ok(est.includes("onChange={(e) => { setSymbol(e.target.value); setCapValue(NaN); setResult(null); }}"));

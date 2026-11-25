@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 
@@ -16,6 +17,6 @@ test("every tool pane header carries the newest message since the pane opened", 
 });
 
 test("the Model from map pane uses the shared header, so its run messages land in it", () => {
-  const m = read("../src/modules/viewer/ModellingPanes.jsx");
+  const m = modellingPanesSource();
   assert.match(m, /paneHeader\("Model from map"/);
 });

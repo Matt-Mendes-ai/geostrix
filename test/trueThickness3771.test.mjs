@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { thicknessBetween, STEEP_DIP_DEG } from "../src/lib/stackOrder.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // a plane dipping `dip` degrees towards +x (z falls as x rises), as a grid mesh over x 0..200, y 0..200, shifted `offsetM` perpendicular to itself
 function wall(dipDeg, offsetM) {
@@ -44,5 +45,5 @@ test("wiring: the panel says true thickness for a steep pair, seeds the bases of
   assert.match(p, /const seedBases = \(\) => \{/);
   assert.match(p, /contactOf\(def\) === "lower" && seedInfo\.tops\.some\(\(t\) => Number\.isFinite\(t\.end\)/);
   assert.match(p, /useEffect\(\(\) => \{ setSeedNote\(null\); \}, \[def\?\.id\]\);/);
-  assert.match(readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8"), /end: r\.to \/\* #3771 — the base of the same run \*\//);
+  assert.match(modellingPanesSource(), /end: r\.to \/\* #3771 — the base of the same run \*\//);
 });

@@ -7,6 +7,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from "nod
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildSync } from "esbuild";
 import { addAllCandidates } from "../src/lib/stackAddAll.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, "..", p), "utf8").replace(/\r\n/g, "\n");
@@ -49,8 +50,9 @@ test("#3999 over 16 units the panel says so and offers the cut-down (the most lo
 });
 
 test("#3999 the source: Add all beside the dropdown, the candidates from the pane's own roles, one Ctrl+Z step since #4025 (no in-pane Undo), the existing units kept", () => {
-  const pane = read("src/modules/viewer/ModellingPanes.jsx");
-  assert.match(pane, /import \{ addAllCandidates \} from "\.\.\/\.\.\/lib\/stackAddAll\.js"; import AddAllUnits from "\.\/AddAllUnits\.jsx";/);
+  const pane = modellingPanesSource();
+  assert.match(pane, /import \{ addAllCandidates \} from "\.\.\/\.\.\/lib\/stackAddAll\.js";/);
+  assert.match(pane, /import AddAllUnits from "\.\.\/AddAllUnits\.jsx";/); // #4070 — in the Strat. stack's own file (panes/StackPane.jsx)
   assert.match(pane, /<button type="button" aria-expanded=\{addAllOpen\} onClick=\{\(\) => setAddAllOpen\(\(v\) => !v\)\}[^\n]*\{tr\("Add all…"\)\}<\/button>/);
   assert.ok(pane.indexOf("</select>\n          <button type=\"button\" aria-expanded={addAllOpen}") > 0, "in the row, beside the select");
   assert.match(pane, /roleOf: rawRole, stackUnits, codesOf: stackCodesOf,/);

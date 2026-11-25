@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { searchEllipsoidAxes, trendScales } from "../src/lib/trend.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (...p) => fs.readFileSync(path.join(root, ...p), "utf8");
@@ -30,7 +31,7 @@ test("#2676: the same numbers as the shell run's searchEllipsoidM (modellingRuns
 });
 
 test("#2676: the Grade shell pane shows the grade-shell trend with Estimation's own sentence", () => {
-  const panes = read("src", "modules", "viewer", "ModellingPanes.jsx"), est = read("src", "components", "GradeEstimationModal.jsx");
+  const panes = modellingPanesSource(), est = read("src", "components", "GradeEstimationModal.jsx");
   const key = 'tr("Along trend \\"{name}\\": an ellipsoid of {searchRadius} × {v} × {v2} m ({v3})"';
   assert.ok(est.includes(key) && panes.includes(key), "one translated sentence for both tools");
   assert.match(panes, /trendFor\("gradeShell"\)/); // the key modellingRuns' trendWarp("gradeShell") reads
@@ -38,7 +39,7 @@ test("#2676: the Grade shell pane shows the grade-shell trend with Estimation's 
 });
 
 test("#2676: no text still claims doubling the radius multiplies the volume by eight", () => {
-  const files = ["src/modules/viewer/ClosureNote.jsx", "src/modules/viewer/ModellingPanes.jsx", "src/modules/viewer/modellingRuns.js", "src/locales/es.json", "src/locales/pt.json", "src/locales/fr.json", "src/locales/ar.json"];
+  const files = ["src/modules/viewer/ClosureNote.jsx", "src/modules/viewer/panes/GradeShellPane.jsx" /* #4070 */, "src/modules/viewer/modellingRuns.js", "src/locales/es.json", "src/locales/pt.json", "src/locales/fr.json", "src/locales/ar.json"];
   for (const f of files) assert.doesNotMatch(read(f), /roughly multiplies the volume by eight/, f);
   for (const f of files.slice(0, 3)) assert.match(read(f), /can multiply the volume by up to eight/, f);
 });

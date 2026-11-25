@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { floorElements, applyFloorModes } from "../src/lib/floorShare.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // 100 silver results: 86 exactly 1 (the half-limit), 14 real values; no '<' flags (the Scottie Gold shape)
 const rows = Array.from({ length: 100 }, (_, i) => ({ hole_id: "H1", from: i, to: i + 1, values: { Ag: i < 86 ? 1 : 2 + i / 10, Au: 0.1 + i / 100 } }));
@@ -29,7 +30,7 @@ test("wired: the estimate dialog (note, choice, record), Grade-tonnage's warning
   assert.match(e, /floorValues: floorsFound\.map/);
   const g = fs.readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8");
   assert.match(g, /floorKept\.length > 0 && <div role="note"/);
-  const m = fs.readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.match(m, /if \(p90 <= v\[0\]\)/);
 });
 

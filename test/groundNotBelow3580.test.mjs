@@ -13,6 +13,7 @@ import { desurveyHole } from "../src/lib/desurvey.js";
 import { modelGround, groundAtInFrame } from "../src/lib/modelGround.js";
 import { capFieldAtGround } from "../src/lib/groundCap.js";
 import { samplesInsideShell } from "../src/lib/shellSupport.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("groundNotBelowSamples: raised to a margin over the samples within reach, unchanged elsewhere; NaN (no cut) stays NaN", () => {
   const flat = (x, y) => (x < 1000 ? 100 : NaN);
@@ -34,7 +35,7 @@ test("wiring: the grade shell and the alteration envelope raise the collar surfa
   assert.match(s, /const altLift = altGround\?\.kind === "collars" \? \(await import\("\.\.\/\.\.\/lib\/groundNotBelowSamples\.js"\)\)\.groundNotBelowSamples\(groundAtInFrame\(altGround, o\), pts, /);
   assert.match(s, /groundCappedGrid\(grid, iso, altLift \? altLift\.at : groundAtInFrame\(altGround, o\), /);
   assert.match(s, /level: inShell\.inside \* 2 < inShell\.above \? "error" : "info"/, "a shell missing most of its composites says so in an error notice");
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /checked=\{clipToTopo && \(!!terrain \|\| \(collars \|\| \[\]\)\.length >= 3\)\} disabled=\{!terrain && \(collars \|\| \[\]\)\.length < 3\}[^\n]*tr\("End the shell at the collar surface \(no terrain is loaded\)"\)/, "the pane's box says the run cuts at the collar surface");
 });
 

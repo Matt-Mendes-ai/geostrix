@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildSync } from "esbuild";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const here = path.dirname(fileURLToPath(import.meta.url));
 mkdirSync(path.join(here, "..", "node_modules", ".cache"), { recursive: true });
@@ -27,7 +28,7 @@ test("#4022 Remove all: shown from two units, asked first, units and breaks clea
 });
 
 test("#4022 wiring: beside Add all; the add row wraps; the Sort preview needs two units, so it goes with them", () => {
-  const m = read("../src/modules/viewer/ModellingPanes.jsx");
+  const m = modellingPanesSource();
   assert.match(m, /\{tr\("Add all…"\)\}<\/button>\{\/\* #3999 \*\/\}\n\s+<RemoveAllUnits stackUnits=\{stackUnits\} setStackUnits=\{setStackUnits\} setStackBreaks=\{setStackBreaks\} pBtn=\{pBtn\} \/>/);
   assert.match(m, /<div style=\{\{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 \}\}>\{\/\* #4022[^\n]*\n\s+<select aria-label=\{tr\("Add a unit to the stack"\)\}[^\n]*flex: "1 1 120px"/, "three controls wrap rather than squeeze the list (seen live: 'Add a')");
   assert.match(m, /if \(toolPane !== "stack" \|\| stackUnits\.length < 2\) return null;\n\s+return holesOrderPlan\(/, "no plan, no SortByHoles, no pending preview");

@@ -3,9 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("#3268 the cluster note heads Model settings, Implicit surface and Strat. stack", () => {
-  const src = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF checkout
+  const src = modellingPanesSource().replace(/\r\n/g, "\n"); // CRLF checkout
   assert.match(src, /const clusterBody = \(\) => \(areaClusters && areaClusters\.clusters\.length > 1 \? \(<div role="note"/);
   assert.match(src, /const clusterNote = \(compact = false\) => \{/); // #4070 — the step panes take it as one line
   assert.equal((src.match(/\{clusterNote\((true)?\)/g) || []).length, 3);

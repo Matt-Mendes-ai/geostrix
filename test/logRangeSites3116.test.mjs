@@ -4,6 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -13,7 +14,7 @@ test("each reader passes the project's log ranges", () => {
   assert.match(read("components/UnsampledChoice.jsx"), /\{ layers, customLayers, logValidRange \} : null\), \[layers, customLayers, logValidRange\]\)/);
   assert.match(read("components/GradeStatistics.jsx"), /logValidRange: storeProject\?\.logValidRange \/\* #3116 \*\//);
   assert.match(read("modules/GeochemModule.jsx"), /logValidRange: store\.project\?\.logValidRange \/\* #3116 \*\//);
-  const mp = read("modules/viewer/ModellingPanes.jsx");
+  const mp = modellingPanesSource();
   assert.match(mp, /numericSourceChoices\(\{ layers, customLayers: customLayersAll, logValidRange: storeProject\?\.logValidRange/);
   assert.match(mp, /const ns = findNumericSource\(next, \{ layers, customLayers: customLayersAll, logValidRange: storeProject\?\.logValidRange \}\)/, "the proposed cutoff from the filtered readings");
 });

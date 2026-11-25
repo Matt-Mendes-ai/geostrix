@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { veinSourceUnits } from "../src/lib/layers.js";
 import { codedRuns, topsForCode } from "../src/lib/modellingCodes.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const litho = [
   { hole_id: "H1", from: 0, to: 10, value: "AND" }, { hole_id: "H1", from: 10, to: 20, value: "MZNA" }, { hole_id: "H1", from: 20, to: 30, value: "MZNS" }, { hole_id: "H1", from: 30, to: 40, value: "SLT" },
@@ -36,7 +37,7 @@ test("wiring: Correlate sheets / Auto-number tick the group and read its rows; '
   assert.match(c, /return v && groupOf \? groupOf\(r\.value\) \|\| v : v;/);
   assert.match(c, /const pickedRow = \(r\) => numberCodes\.includes\(String\(r\.value\)\) \|\| \(!!groupOf && numberCodes\.includes\(groupOf\(r\.value\)\)\);/);
   assert.doesNotMatch(c, /numberCodes\.includes\(String\(r\.value\)\)\)\.map\(rowKey\)/);
-  const m = rd("modules/viewer/ModellingPanes.jsx");
+  const m = modellingPanesSource();
   assert.match(m, /units=\{tiedUnits\(litho_units, lithoGroups\)\}/);
   assert.match(rd("modules/ViewerModule.jsx"), /veinSourceUnits\(layers, modellingCodes, lithoGroups\)/);
 });

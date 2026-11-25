@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 
@@ -25,11 +26,11 @@ test("#1547 the Explicit unit picker lists the logged lithology codes", () => {
   const e = read("../src/components/ExplicitSurfacePanel.jsx");
   assert.match(e, /loggedUnits = \[\] \/\* #1547 \*\//);
   assert.match(e, /<optgroup label=\{tr\("Logged codes"\)\}>/);
-  assert.match(read("../src/modules/viewer/ModellingPanes.jsx"), /loggedUnits=\{litho_units\}/);
+  assert.match(modellingPanesSource(), /loggedUnits=\{litho_units\}/);
 });
 
 test("#1543 'Add a fault...' shows each candidate's k, loading the stereonet maths only with the stack pane", async () => {
-  const p = read("../src/modules/viewer/ModellingPanes.jsx");
+  const p = modellingPanesSource();
   assert.match(p, /if \(toolPane !== "stack" \|\| !faultCandidates\.length\) return undefined;/);
   assert.match(p, /import\("\.\.\/\.\.\/lib\/stereonet\.js"\)\.then\(\(\{ fisherStats \}\)/);
   assert.match(p, /faultK\[c\.key\]\.random \? tr\(" · k \{k\}, no preferred orientation"/);

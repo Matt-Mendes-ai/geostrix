@@ -4,11 +4,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8");
 // files whose number boxes are all converted (none left as <input type="number">), with how many NumberInputs each has
 const DONE = {
-  "modules/viewer/ModellingPanes.jsx": 31,
+  "modules/viewer/panes/GradeShellPane.jsx": 12, "modules/viewer/panes/SettingsPane.jsx": 9, "modules/viewer/panes/VeinPane.jsx": 4, // #4070: ModellingPanes' 31, by pane
+  "modules/viewer/panes/AlterationPane.jsx": 3, "modules/viewer/panes/ImplicitPane.jsx": 3,
   "components/GradeEstimationModal.jsx": 18,
   "components/VariogramModal.jsx": 11,
   "components/ExplicitSurfacePanel.jsx": 6,
@@ -31,14 +33,14 @@ const DONE = {
 test("every G3 box in these files is a NumberInput", () => {
   for (const [f, n] of Object.entries(DONE)) {
     const s = read(f);
-    assert.match(s, /import NumberInput from "(\.\.\/\.\.\/components|\.)\/NumberInput\.jsx"; \/\/ TASKS\.csv #3926/, f);
+    assert.match(s, /import NumberInput from "(\.\.\/\.\.\/\.\.\/components|\.\.\/\.\.\/components|\.)\/NumberInput\.jsx"; \/\/ TASKS\.csv #3926/, f);
     assert.doesNotMatch(s, /<input[^>]*type="number"/, f);
     assert.equal((s.match(/<NumberInput\s/g) || []).length, n, f);
   }
 });
 
 test("ModellingPanes: empty keeps 'auto' / 'fit' / 'none' / 'cubic'; the clamps are min / max; text state stays text", () => {
-  const p = read("modules/viewer/ModellingPanes.jsx");
+  const p = modellingPanesSource();
   // empty = auto (0), as before; the floor of 10 m is said, not clamped
   assert.match(p, /<NumberInput min=\{10\} max=\{20000\} step=\{50\} allowEmpty value=\{contactReachM \|\| null\} placeholder=\{tr\("auto"\)\} onChange=\{\(v\) => setContactReachM\(v \?\? 0\)\}/);
   // a silent clamp is now the box's min / max

@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { lengthWeightedPercentile, elementCvPct, CAP_CV_PCT } from "../src/lib/geochem.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // a nuggety gold population: 97 samples of 0.2 g/t and three bonanza grades
 const assays = [];
@@ -31,6 +32,6 @@ test("the same decision and wording as the Estimation dialog; wired under the sh
   assert.match(n, /lengthWeightedPercentile\(src, symbol, unit, units, 99\)/);
   // #3650 — the decision moved to lib/viewer/shellCapRule.js (the note asks it)
   assert.match(readFileSync(new URL("../src/lib/viewer/shellCapRule.js", import.meta.url), "utf8"), /if \(own && !has\) return "keep"; \/\/ set once for this element: an emptied field stays empty/); // #3272 — own = auto.symbol === symbol
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /<ShellCapNote assays=\{shellAreaAssays \/\* #3272 — the holes the run uses \*\/\} symbol=\{sym\} unit=\{unit\} assayElements=\{assayElements\} includeQAQC=\{numericIncludeQAQC\} isAssay=\{!numSrc && symbols\.includes\(sym\)\} capValue=\{numericCapValue\} setCapValue=\{setNumericCapValue\} autoRef=\{shellCapAuto \/\* #3272 \*\/\} cutoff=\{numericCutoff \/\* #3781 \*\/\} \/>/);
 });

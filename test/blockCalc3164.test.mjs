@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { blockCalc, calcModelRecord, calcVarFor, isCalcVar, formulaVars, joinRefusal } from "../src/lib/blockCalc.js";
 import { blockModelLattice } from "../src/lib/estimationMeta.js";
 import { NOT_A_RESOURCE_SOURCE } from "../src/lib/blockModelExport.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // a 4 x 3 x 2 lattice of 10 x 10 x 5 m blocks at a UTM-sized origin; value(i, j, k) per model, null = no block
 function model(name, valueOf, { element = null, unit = "%", shift = 0, size = 10 } = {}) {
@@ -142,7 +143,7 @@ test("no default formula; the help's examples carry letters, not prices or facto
 });
 
 test("wiring: the launcher beside grade-tonnage, the lazy modal, the strings in the four locales", () => {
-  const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const panes = modellingPanesSource();
   assert.match(panes, /<GradeTonnageLauncher \/>\{\/\* TASKS\.csv #1577 \*\/\}\s*<BlockCalculatorLauncher \/>/);
   const l = readFileSync(new URL("../src/components/BlockCalculatorLauncher.jsx", import.meta.url), "utf8");
   assert.match(l, /lazyModal\(\(\) => import\("\.\/BlockCalculatorModal\.jsx"\)\)/);

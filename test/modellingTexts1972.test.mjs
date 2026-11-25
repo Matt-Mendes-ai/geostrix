@@ -4,10 +4,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8");
 
 test("#1972 no stale modelling text", () => {
-  const panes = read("modules/viewer/ModellingPanes.jsx"), runs = read("modules/viewer/modellingRuns.js");
+  const panes = modellingPanesSource(), runs = read("modules/viewer/modellingRuns.js");
   const sg = read("components/SurfaceGeologyProjection.jsx"), help = read("help/pages/modelling.js");
   assert.doesNotMatch(panes, /Applies to all four tools/);
   assert.doesNotMatch(panes, /oriented along the structural trend below/);
@@ -22,7 +23,7 @@ test("#1972 no stale modelling text", () => {
 });
 
 test("#1972 icon-only run buttons carry an aria-label", () => {
-  const panes = read("modules/viewer/ModellingPanes.jsx");
+  const panes = modellingPanesSource();
   assert.match(panes, /aria-label=\{tr\("Build a closed alteration-halo envelope/);
   assert.match(panes, /aria-label=\{tr\("Build paired hangingwall\/footwall surfaces/);
 });

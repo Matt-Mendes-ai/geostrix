@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M } from "../src/lib/holeMapContacts.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("logged codes are matched to map units by name (case and spaces ignored); the rest wait for the geologist", () => {
   const rows = [{ value: "LMST" }, { value: "LMST" }, { value: "sandstone" }, { value: "OB" }];
@@ -38,7 +39,7 @@ test("wired: the pane's code table and preview, the run's points on the hole tra
   assert.match(p, /if \(!polys\.length\) return <>\{holesNote\}/);
   assert.match(p, /\{holeCount > 0 && !codes\.length && holesNote\}/);
   assert.match(p, /holeCodes: useHoles && holeCount > 0 \? codeUnit : null/);
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const m = modellingPanesSource().replace(/\r\n/g, "\n");
   assert.match(m, /<MapModelPanel [^\n]*holeCount=\{collars\.length\} lithoRows=\{layers\.litho\}/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(r, /const hc = holeContacts\(layers\.litho \|\| \[\], p\.holeCodes, \(u\) => rank\.has\(u\)\);/);

@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { modelGround, groundAtInFrame } from "../src/lib/modelGround.js";
 import { capFieldAtGround } from "../src/lib/groundCap.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 // nine surface collars at RL 260-280 on a 100 m grid
@@ -79,7 +80,7 @@ test("#2634: where the log is blank, an assay cut-off decides inside / outside; 
 test("#2634: the closed-body run and its pane carry the assay cut-off (no default cut-off)", () => {
   const s = fs.readFileSync(path.join(root, "src", "modules", "viewer", "modellingRuns.js"), "utf8");
   const pane = fs.readFileSync(path.join(root, "src", "components", "ModellingCodesPane.jsx"), "utf8");
-  const panes = fs.readFileSync(path.join(root, "src", "modules", "viewer", "ModellingPanes.jsx"), "utf8");
+  const panes = modellingPanesSource();
   assert.match(s, /assayIndicatorInGaps\(un\.rows, resolvedSegments\(excludeQAQC\(assays\), aSym/);
   assert.match(s, /if \(bodyOpts\.unloggedOutside\) \(ai \? ai\.rest : un\.rows\)/);
   assert.match(pane, /aria-label=\{tr\("Element that decides where the log is blank"\)\}/);

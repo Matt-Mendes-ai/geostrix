@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { holesInRange, visibilityPatch } from "../src/lib/holeFilter.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const collars = [];
 for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) collars.push({ hole_id: `G${i}${j}`, x: 400000 + i * 100, y: 6500000 + j * 100 });
@@ -24,7 +25,7 @@ test("'Check only these holes' checks the range and unchecks the rest", () => {
 });
 
 test("wired: the box under Model area when it is 'holes checked'; ViewerModule passes the setter", () => {
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /modelArea === "checked" && <Suspense fallback=\{null\}><ModelAreaRange collars=\{collars\} visibleHoles=\{visibleHoles\} setVisibleHoles=\{setVisibleHoles\}/);
   const c = readFileSync(new URL("../src/components/ModelAreaRange.jsx", import.meta.url), "utf8");
   assert.match(c, /visibilityPatch\(v, collars\.map\(\(c\) => c\.hole_id\), hit\.ids, "only"\)/);

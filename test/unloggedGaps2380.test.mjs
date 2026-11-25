@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { rockWithoutRows } from "../src/lib/unloggedGaps.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the parts of the Lithology intervals no alteration row covers, per hole", () => {
   const litho = [{ hole_id: "A", from: 0, to: 10 }, { hole_id: "A", from: 10, to: 20 }, { hole_id: "B", from: 0, to: 5 }];
@@ -17,6 +18,6 @@ test("the halo takes them as zeros only when asked, and says the metres either w
   const m = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(m, /if \(bodyOpts\.unloggedZero\) gaps\.rows\.forEach/);
   assert.match(m, /has no alteration row and counted as unknown, not unaltered/);
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /runAlterationModel\(alterationTarget, \{ unloggedZero: altSource\.layer === "alt" && !!altSource\.unloggedZero \}/);
 });

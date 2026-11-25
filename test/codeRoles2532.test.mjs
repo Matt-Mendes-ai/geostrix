@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stackRepeats } from "../src/lib/stackOrderFromHoles.js";
 import { inheritNumberedRoles } from "../src/lib/modellingCodes.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("alternating units are counted before a stack run", () => {
   const kOf = new Map([["P", 0], ["A", 1], ["D", 2]]);
@@ -27,7 +28,7 @@ test("numbered children take the base code's role unless they have their own", (
 });
 
 test("wired: both pickers resolve a raw code's role through Modelling codes and list it once; the stack run asks on repeats", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const s = modellingPanesSource();
   assert.match(s, /const rawRole = \(u\) => mcodeRole\.get\(u\) \|\| roleForLithology\(u\);/);
   assert.equal((s.match(/litho_units\)?\.filter\(\(u\) => !mcodeRole\.has\(u\)/g) || []).length, 2); // #2926: the stack's picker sorts first
   assert.match(s, /!isCrossCuttingRole\(rawRole\(u\)\)/);

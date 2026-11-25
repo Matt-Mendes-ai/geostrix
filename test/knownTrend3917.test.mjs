@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { planeFromThreePoints, surfaceTrend } from "../src/lib/trendCandidates.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const tan30 = Math.tan(Math.PI / 6);
 
@@ -54,7 +55,7 @@ test("#3917 the helper: the 3D view's click route (the explicit surface's), thre
   assert.match(h, /const res = planeFromThreePoints\(next\);/);
   assert.match(h, /surfaceTrend\(s\.name, sources\.surfacePoints\?\.\(s\.id\)/);
   assert.match(h, /useEffect\(\(\) => \(\) => stopPicking\(\), \[\]\);/);
-  const m = read("../src/modules/viewer/ModellingPanes.jsx");
+  const m = modellingPanesSource();
   assert.equal(m.split("\n").filter((l) => l.includes("<TrendHelper ")).length, 1);
   assert.match(m, /<TrendHelper [^\n]*explicitClickRef=\{explicitClickRef\} setExplicitPickFor=\{setExplicitPickFor\} worldPointFromHits=\{worldPointFromHits\}/);
   assert.doesNotMatch(read("../src/modules/ViewerModule.jsx"), /TrendHelper|trend-helper/);

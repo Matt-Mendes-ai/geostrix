@@ -8,6 +8,7 @@ import { compositeDownhole } from "../src/lib/geochem.js";
 import { estimateBlockModel } from "../src/lib/estimation.js";
 import { cellsFromColumns } from "../src/lib/estimationCells.js";
 import { gradeTonnageTable, gradeTonnageRows } from "../src/lib/gradeTonnage.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // A: 100 m, Li stored in %, sampled 20-30 m (0.8 %) and 50-60 m (1.2 %), Cu over 0-100 m; B: 80 m, no Li sample; C: no collar length
 const collars = [{ hole_id: "A", max_depth: 100 }, { hole_id: "B", max_depth: 80 }, { hole_id: "C" }];
@@ -90,6 +91,6 @@ test("the three tools read the choice and the estimate says where the metal is",
   const g = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
   assert.match(g, /resolveUnsampled\("gradeShell", \{ assays: srcAssays, collars(: inArea \? restrictRowsToHoles\(collars, visibleHoles\) : collars \/\* #3006 — the holes the run uses \*\/)?, symbol, unit, elementUnits, logCtx: \{ layers, customLayers, logValidRange \} \}\)/); // #2721: and the logs one may pick
   assert.match(g, /intervals = compositeDownhole\(runAssays, symbol/);
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /<GradeShellUnsampled assays=\{assays\}/);
 });

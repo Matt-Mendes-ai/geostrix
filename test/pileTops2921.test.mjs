@@ -11,6 +11,7 @@ import { pileFromRuns, pileRelation, absentTops, upperNeighbour, meshHeightLooku
 import { fitExplicitSurface } from "../src/lib/explicitSurface.js";
 import { checkTopology } from "../src/lib/topology.js";
 import { inputKey } from "../src/lib/explicitBuild.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 // Y over X over Z down every hole; X missing from B1-B3 (Y straight onto Z); C starts in Z; D has a gap between Y and Z
 const L = (hole_id, from, to, value) => ({ hole_id, from, to, value });
@@ -106,7 +107,7 @@ test("wiring: Add the logged tops offers the zero-thickness picks, the pane keep
   assert.match(p, /\{ relation: "below", targetId: pileTop\.surfaceId, derived: "holes", mayTouch: true \}/);
   assert.match(p, /extent: def\.extent === "hull" \? "hull" : "box"/);
   assert.match(p, /<button onClick=\{seedAbsent\}/);
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.match(m, /const absent = pile\.kOf\.has\(unit\) \? absentTops\(runs, unit, pile\)\.tops : \[\];/);
   assert.match(m, /const areaPile = useMemo\(\(\) => \{ let v = null; return \(\) => v \|\| \(v = pileFromRuns\(/, "built on first use only");
   for (const l of ["es", "pt", "fr", "ar"]) {

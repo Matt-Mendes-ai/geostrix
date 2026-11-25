@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { autoCutoffs, metalColumns, metalOf, gradeTonnageRows, isGradeTonnageModel } from "../src/lib/gradeTonnage.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const cells = (vals) => vals.map((value) => ({ value, dx: 10, dy: 10, dz: 10 }));
 
@@ -39,5 +40,5 @@ test("no table on a support index or a kriging variance; reachable from the resu
   assert.equal(isGradeTonnageModel({ source: "estimate-ok" }), true);
   assert.match(fs.readFileSync("src/modules/GeophysicsModule.jsx", "utf8"), /offersGradeTonnage\(model, \{ categorical, geophysProperty/);
   assert.match(fs.readFileSync("src/components/GradeEstimationModal.jsx", "utf8"), /onClick=\{\(\) => setGtOpen\(true\)\}/);
-  assert.match(fs.readFileSync("src/modules/viewer/ModellingPanes.jsx", "utf8"), /<GradeTonnageLauncher \/>/);
+  assert.match(modellingPanesSource(), /<GradeTonnageLauncher \/>/);
 });

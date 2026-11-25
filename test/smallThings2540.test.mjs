@@ -4,8 +4,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
-const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+const panes = modellingPanesSource();
 const core = readFileSync(new URL("../src/components/CoreOrientationCalculator.jsx", import.meta.url), "utf8");
 
 test("(1) the vein button is worded", () => {

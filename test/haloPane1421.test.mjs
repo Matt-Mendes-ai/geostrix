@@ -3,9 +3,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("a labelled button; codes with no logged length are shown disabled, with the reason", () => {
-  const s = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const s = modellingPanesSource();
   assert.match(s, /<><Layers3 size=\{14\} \/>\{tr\("Build halo"\)\}<\/>/);
   assert.match(s, /const len = Number\(r\.to\) - Number\(r\.from\); if \(k && len > 0\)|len = Number\(r\.to\) - Number\(r\.from\); if \(k && len > 0\)/);
   assert.match(s, /altLoggedM\.get\(u\) > 0 \? <option key=\{u\} value=\{u\}>\{altGroupOf\.get\(u\) \? tr\("\{code\} \(in the group \{group\}\)", \{ code: u, group: altGroupOf\.get\(u\) \}\) : u\}<\/option> : <option key=\{u\} value=\{u\} disabled>\{tr\("\{code\} \(no logged length\)", \{ code: u \}\)\}<\/option>/);

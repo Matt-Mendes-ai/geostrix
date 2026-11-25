@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { exportSurfaceTS } from "../src/lib/meshExport.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -13,7 +14,7 @@ test("#3281 the implicit engine is kept warm between runs, as the gridding jobs 
 });
 
 test("#3282 the Structures menu counts the model area's picks first; the Downhole plot opens on a checked hole", () => {
-  const p = read("../src/modules/viewer/ModellingPanes.jsx");
+  const p = modellingPanesSource();
   assert.match(p, /inArea = \(r\) => modelArea !== "checked" \|\| visibleHoles\?\.\[r\.hole_id\] !== false/);
   assert.match(p, /oriented in the model area \(\{k2\} of \{n2\} in the project\)/);
   const d = read("../src/components/DownholeStructurePlot.jsx");
@@ -23,7 +24,7 @@ test("#3282 the Structures menu counts the model area's picks first; the Downhol
 
 test("#3283 a unit volume's type is listed; codes sort without regard to case; the TSurf names its EPSG", () => {
   assert.match(read("../src/modules/ViewerModule.jsx"), /\{ key: "unit_volume", label: "Unit volume \(closed\)" \}/);
-  assert.match(read("../src/modules/viewer/ModellingPanes.jsx"), /\.sort\(\(a, b\) => a\.localeCompare\(b, undefined, \{ sensitivity: "base", numeric: true \}\)\)/);
+  assert.match(modellingPanesSource(), /\.sort\(\(a, b\) => a\.localeCompare\(b, undefined, \{ sensitivity: "base", numeric: true \}\)\)/);
   const geometry = { attributes: { position: { array: new Float32Array([0, 0, 0, 1, 0, 0, 0, 0, 1]), count: 3, itemSize: 3 } }, index: null, getIndex: () => null, getAttribute: (k) => geometry.attributes[k] };
   let ts;
   try { ts = exportSurfaceTS("OVB", geometry, { x: 0, y: 0, z: 0 }, null, { epsg: 32609 }); } catch { ts = null; }

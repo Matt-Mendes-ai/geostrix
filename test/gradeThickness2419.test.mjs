@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { computeBestIntercepts } from "../src/lib/geochem.js";
 import { holeTotals, clipAssaysToUnit, planSpacing, planGrid, planSummary, contourSegments } from "../src/lib/accumulation.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("#2419: per hole, thickness and GT over the sampled metres, from Best intercepts' own intercepts; top and base RL", () => {
   const assays = [
@@ -72,5 +73,5 @@ test("#2419: the dialog offers the oxide (never by itself), types every cut-off,
   }
   const bi = fs.readFileSync("src/components/BestIntercepts.jsx", "utf8");
   assert.match(bi, /const hs = holeTotals\(results\)|holeTotals\(results\)(, dg\))? : \[\]|holeTotalsDisplay\(holeTotals\(results\), dg\)/); // #3160: kept in a memo; #3218: converted // #3160: kept in a memo (holeRows)
-  assert.match(fs.readFileSync("src/modules/viewer/ModellingPanes.jsx", "utf8"), /<GradeThicknessModal assays=\{assays\}/);
+  assert.match(modellingPanesSource(), /<GradeThicknessModal assays=\{assays\}/);
 });

@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { GUIDED_TOOLS, ALTERATION, toolById } from "../src/modules/viewer/guided/guidedTools.js";
 import { guidedCtx } from "../src/modules/viewer/guided/guidedRun.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("#4011 the card is listed after Veins and dykes, in Start here and in the Model menu", () => {
@@ -26,7 +27,7 @@ test("#4011 the card's suggestion, Change these on the code, and its Help page",
   const set = []; ALTERATION.prefill({ setAlterationTarget: (v) => set.push(v) }, "SER"); assert.deepEqual(set, ["SER"]);
   assert.equal(ALTERATION.expertPane, "alteration");
   assert.match(read("../src/modules/ViewerModule.jsx"), /setVeinTarget, setAlterationTarget \/\* #4011 \*\/, setStructuralTarget/, "the card's api can set the pane's code");
-  assert.match(read("../src/modules/viewer/ModellingPanes.jsx"), /toolPane === "alteration"/);
+  assert.match(modellingPanesSource(), /toolPane === "alteration"/);
   assert.match(read("../src/help/pages/modelling.js"), new RegExp(`id: "${ALTERATION.help}"`), "the Help link is a page");
 });
 

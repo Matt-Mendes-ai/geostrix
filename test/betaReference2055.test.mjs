@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { betaReferenceCounts } from "../src/lib/coreOrientation.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the picks oriented from alpha / beta, by reference line", () => {
   const picks = [
@@ -20,7 +21,7 @@ test("the Stereonet and the Structures pane say it", () => {
   assert.match(s, /const betaRefs = useMemo\(\(\) => betaReferenceCounts\(picks\), \[picks\]\);/);
   assert.ok(s.indexOf("const picks = useMemo") < s.indexOf("const betaRefs = useMemo"), "picks is declared first");
   assert.match(s, /\(betaRefs\.top \+ betaRefs\.bottom\) > 0 && <div role="note"/);
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const p = modellingPanesSource();
   assert.match(p, /const b = betaReferenceCounts\(layers\.structure \|\| \[\]\); return b\.top \+ b\.bottom > 0/);
   assert.match(p, /with beta measured from the \{ref\}-of-hole line, as chosen when they were imported/);
 });

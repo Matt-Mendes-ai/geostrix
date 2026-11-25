@@ -3,6 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { layerCake, faultPlane, MIN_BLOCK_PICKS } from "../src/lib/layerCake.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const EXT = [0, 1000, 0, 1000, 0, 200], RES = [20, 20, 20];
 // holes on a 100 m grid; top A at 100 m west of x = 500 and 80 m east of it (a 20 m throw), top B 10 m under A
@@ -80,7 +81,7 @@ test("wiring: the faults go to the cake (client, worker, the stack run); the pan
   assert.match(read("../src/lib/layerCakeClient.js"), /worker\.postMessage\(\{ id, specs: slim, extent, resolution, evalPts, faults: slimFaults \}\);/);
   assert.match(read("../src/lib/layerCake.worker.js"), /layerCake\(specs, extent, resolution, \{ evalPts, faults, onProgress:/);
   assert.match(read("../src/modules/viewer/modellingRuns.js"), /faults: specs\.filter\(\(sp\) => sp\.fault\)/);
-  const pane = read("../src/modules/viewer/ModellingPanes.jsx");
+  const pane = modellingPanesSource();
   assert.doesNotMatch(pane, /Remove the faults from the stack to run it as a layer-cake/);
   assert.match(pane, /A fault in the stack splits it into fault blocks, each a layer-cake of its own/);
 });

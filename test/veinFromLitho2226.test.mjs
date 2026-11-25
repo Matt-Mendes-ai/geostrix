@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { veinSourceUnits, setLithologyNoteRoles } from "../src/lib/layers.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("the Veins log first, then the cross-cutting lithology codes as litho:<code>", () => {
   setLithologyNoteRoles(null);
@@ -18,7 +19,7 @@ test("the run reads the chosen layer; the halo offers Lithology; the pane says w
   assert.ok(runs.includes('const veinLayer = String(veinPick).startsWith("litho:") || isMcodeVein ? "litho" : "vein"')); // #2533: modelling codes too
   assert.ok(runs.includes("const rows = (layers[veinLayer] || []).filter((r) => (isMcodeVein ? effectiveCode(r, modellingCodes, mcodeGroupOf) === veinValue : r.value === veinValue)"));
   assert.ok(runs.includes('source?.layer === "litho" ? "litho" : "alt"'));
-  const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const panes = modellingPanesSource();
   assert.ok(panes.includes('<option value="litho">{tr("Lithology (a code set as an envelope)")}</option>'));
   assert.ok(panes.includes('{vein_units.length === 0 && <div'));
   assert.ok(readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").includes("const vein_units = veinSourceUnits(layers, modellingCodes, lithoGroups);"));

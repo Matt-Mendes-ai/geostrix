@@ -3,6 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 test("wiring: the run hands the advice to the pane; the pane's button sets that budget and the default cell; keys", () => {
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
@@ -12,7 +13,7 @@ test("wiring: the run hands the advice to the pane; the pane's button sets that 
   const at = r.indexOf("setNumericBudgetHint?.({ ...(budgetAdvice?.budget ? { advice: true"); // #3651
   assert.ok(at > r.indexOf("const budgetAdvice = shellBudgetAdvice("));
   assert.ok(at > r.indexOf("setNumericBudgetHint?.(null);"));
-  const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const p = modellingPanesSource().replace(/\r\n/g, "\n");
   assert.match(p, /\{numericBudgetHint\?\.advice && \(/);
   assert.match(p, /onClick=\{\(\) => \{ setNumericMaxBlocks\(numericBudgetHint\.budget\); setNumericCellSize\(numericBudgetHint\.cell\); setNumericBudgetHint\(null\); \}\}[^\n]*\{tr\("Use \{b\} blocks", \{ b: numericBudgetHint\.budget\.toLocaleString\(\) \}\)\}/);
   assert.match(p, /\{numericBudgetHint && !numericBudgetHint\.advice && numericBudgetHint\.needed > 0 && \(/, "the over-budget hint keeps its own box (#3651: not for a 'ran at' note)");

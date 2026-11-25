@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { unsampledWord } from "../src/lib/holeType.js";
 import { cellHeightFromRange } from "../src/lib/estimateMemory.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 const src = (f) => fs.readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 test("chips for RC / aircore drilling, core for diamond or no type", () => {
   const c = (t) => ({ attrs: t ? { "hole type": t } : {} });
@@ -22,5 +23,5 @@ test("the cell height is a quarter of the downhole range, to the half metre, at 
 });
 test("wiring", () => {
   assert.match(src("../src/components/GradeEstimationModal.jsx"), /tr\(chips \? \(nonMetal \? "[^\n]*unsampled chips/);
-  assert.match(src("../src/modules/viewer/ModellingPanes.jsx"), /setNumericCellHeight\(cellHeightFromRange\(an\.downholeM\)\)/);
+  assert.match(modellingPanesSource(), /setNumericCellHeight\(cellHeightFromRange\(an\.downholeM\)\)/);
 });

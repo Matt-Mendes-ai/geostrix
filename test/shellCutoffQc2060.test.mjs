@@ -4,7 +4,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { excludeQAQC, setKnownHoleIds } from "../src/lib/qaqc.js";
-const p = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
+const p = modellingPanesSource().replace(/\r\n/g, "\n");
 
 test("P90 over drill rows vs with a run of CRM pulps", () => {
   setKnownHoleIds(new Set(["DH"]));

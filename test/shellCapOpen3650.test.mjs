@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { shellCapAction } from "../src/lib/viewer/shellCapRule.js";
+import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TASKS.csv #4070 — the panes in their own files
 
 const P99 = { Ag: 209.9, Zn: 21.74 };
 // the note's effect, as ShellCapNote runs it; pick: the pane's element list (clears the box and forgets `auto`, #3650)
@@ -57,6 +58,6 @@ test("the user's own choices are kept: a typed cap, and a box emptied by hand st
 test("the wiring: the note asks the rule; the pane's list forgets the note's cap", () => {
   const n = readFileSync(new URL("../src/modules/viewer/ShellCapNote.jsx", import.meta.url), "utf8");
   assert.match(n, /const act = shellCapAction\(\{ symbol, auto: auto\.current, capValue, over: cv > CAP_CV_PCT \}\);/);
-  const m = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
+  const m = modellingPanesSource();
   assert.match(m, /setNumericSymbol\(next\); setNumericCapValue\(NaN\); shellCapAuto\.current = \{ symbol: null, value: null \};/);
 });
