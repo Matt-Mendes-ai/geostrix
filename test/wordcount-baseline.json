@@ -3,11 +3,11 @@
   "surfaces": {
     "help.seenFirst": 12918,
     "help.seenFirstWithoutMineDesign": 4384,
-    "tooltips": 14593,
+    "tooltips": 14492,
     "infoPopups": 624,
     "notices": 15036,
-    "interface.other": 85206,
-    "interface.all": 115459,
+    "interface.other": 84590,
+    "interface.all": 114742,
     "help.page.data": 332,
     "help.page.everyday": 335,
     "help.page.geophysics": 984,
@@ -22,11 +22,11 @@
     "help.page.tonnage": 170,
     "help.page.view": 302,
     "interface.area.Mine Design (hidden)": 6259,
-    "interface.area.Basic path": 16413,
+    "interface.area.Basic path": 15864,
     "interface.area.Geophysics": 12496,
     "interface.area.Modelling": 12668,
     "interface.area.Targeting, Maps, Geological Mapping": 13662,
-    "interface.area.Geochem": 5551,
-    "interface.area.Everything else (shared dialogs and library messages)": 18157
+    "interface.area.Geochem": 5485,
+    "interface.area.Everything else (shared dialogs and library messages)": 18156
   }
 }
