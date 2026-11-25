@@ -146,6 +146,7 @@ function behindFold(p) {
       const nm = n.openingElement.name, name = nm.type === "JSXIdentifier" ? nm.name : "";
       if (name === "summary") return false;
       if ((name === "MoreFold" || name === "details") && !viaAttr) return true;
+      if (name === "SectionToolbarGroup" && !viaAttr) return true; // TASKS.csv #4070 — the Section window's folded toolbar groups
       viaAttr = false;
     }
     if (n.type === "FunctionDeclaration" || n.type === "Program") return false;
