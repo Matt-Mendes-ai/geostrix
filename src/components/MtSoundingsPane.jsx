@@ -13,6 +13,7 @@ import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 — the soundings as steps
+import { zongeKind, zongeRefusal, zongeStations, csAvgToSoundings } from "../lib/zonge.js"; // TASKS.csv #4076 — Zonge CSAMT averages
 import { percentile } from "../lib/arrayStats.js"; // #1114
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -130,10 +131,11 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
     return importNow(fileList);
   };
   const importNow = useLatestCallback(async (fileList) => {
-    const all = Array.from(fileList || []), files = all.filter((f) => /\.edi$/i.test(f.name));
+    // TASKS.csv #4076 — Zonge CSAMT averages (.avg) are read with the EDIs, placed by a .stn of the same pick (else each station's $Rx.Center)
+    const all = Array.from(fileList || []), files = all.filter((f) => /\.(edi|avg)$/i.test(f.name)), stnFiles = all.filter((f) => /\.stn$/i.test(f.name));
     // TASKS.csv #2078 (review #2013, Woodjam) — a file that is not .edi was dropped without a word (the reviewer's 3050E.dat then reached the
     // drillhole importer): it is named, and a DC / IP .dat is sent to DC / IP
-    const others = all.filter((f) => !/\.edi$/i.test(f.name));
+    const others = all.filter((f) => !/\.(edi|avg|stn)$/i.test(f.name));
     const othersNote = others.length ? tr("Not EDI files, not read here: {names}. MT / AMT reads .edi soundings; try a DC / IP line table in the DC / IP pane.", { names: others.slice(0, 4).map((f) => f.name).join(", ") + (others.length > 4 ? " …" : "") }) : "";
     if (!files.length) { if (othersNote) setMsg({ info: false, text: othersNote }); return; }
     setBusy(true);
@@ -141,7 +143,15 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
     await new Promise((r) => setTimeout(r, 0));
     try {
       const parsed = [], failed = [];
-      for (const f of files) { try { parsed.push(parseEdi(await f.text(), f.name)); } catch (err) { failed.push(err.message); } }
+      const stations = new Map(); // #4076 — every .stn picked with the averages
+      for (const f of stnFiles) for (const [k, v] of zongeStations(await f.text())) stations.set(k, v);
+      for (const f of files) {
+        try {
+          const text = await f.text();
+          if (/\.avg$/i.test(f.name)) { const no = zongeRefusal(text, f.name, "mt"); if (no) { failed.push(no); continue; } if (zongeKind(text) !== "csamt") { failed.push(tr("{name} is not a Zonge CSAMT average.", { name: f.name })); continue; } parsed.push(...csAvgToSoundings(text, f.name, stations).soundings); continue; }
+          parsed.push(parseEdi(text, f.name));
+        } catch (err) { failed.push(err.message); }
+      }
       if (!parsed.length) { setMsg({ info: false, text: failed.join(" ") }); return; }
       let target = project?.epsg;
       const first = parsed.find((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon));
@@ -157,6 +167,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
       const how = [...new Set(parsed.map((e) => `${e.units}|${e.unitsFrom}`))].map((k) => {
         const [u, from] = k.split("|");
         const unit = u === "SI" ? tr("SI units (ohm)") : tr("field units, (mV/km)/nT");
+        if (from === "csamt") return tr("SI, rebuilt from Zonge CSAMT apparent resistivity and phase (scalar Ex / Hy)"); // #4076
         return from === "rho" ? tr("{unit}, checked against the file's own apparent resistivity", { unit }) : from === "info" ? tr("{unit}, as the file's notes say", { unit }) : tr("{unit}, the EDI standard's default", { unit });
       }).join("; ");
       setMsg({ info: !failed.length, text: [
@@ -166,6 +177,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
         noPlace ? tr("{n} station(s) have no latitude / longitude or no elevation: their curves are here, with no points in 3D.", { n: noPlace }) : "",
         outside ? tr("{n} reading(s) were left out of the depth transform: their phase is outside 0 to 90°.", { n: outside }) : "",
         first ? tr("Positions are the files' latitude and longitude, taken as WGS 84, in {crs}.", { crs: `${crsName(target) || "?"} (EPSG:${target})` }) : "",
+        parsed.some((e) => e.xy) ? tr("CSAMT positions are the .stn's (or each station's $Rx.Center) as X / Y in {crs}: the files name no coordinate system.", { crs: `${crsName(target) || "?"} (EPSG:${target})` }) : "", // #4076
         ...parsed.flatMap((e) => e.warnings.map((wn) => `${e.id}: ${wn}`)).slice(0, 3),
         failed.length ? tr("Not read: {v}", { v: failed.slice(0, 4).join(" ") + (failed.length > 4 ? " …" : "") }) : "",
         othersNote, // #2078
@@ -185,6 +197,9 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
   }, [pendingFiles]); // importEdi reads the current props; it runs once per drop
 
   const pts = (layers?.geophys_pts || []).filter((r) => surveyKey(r) === active).length;
+  // TASKS.csv #4076 — a scalar sounding (Zonge CSAMT: xy only) has no determinant: show the component the stations have, not an empty section
+  const has = (k) => stations.some((s) => s.rho?.[k]);
+  const compShown = has(comp) ? comp : has("xy") ? "xy" : has("yx") ? "yx" : comp;
   return (
     <>
       <TaskPaneHeader title={tr("MT / AMT soundings (.edi)")} helpId="mt-soundings" icon={Waves} tone="data" onClose={onClose} />
@@ -195,7 +210,7 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
         steps={[
           { key: "line", label: tr("Line"), question: surveys.length ? tr("Which line?") : tr("Which soundings?"), body: (<>
       <button type="button" className="gs-btn gs-btn--block" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{busy ? tr("Reading…") : tr("Import EDI files…")}</button>
-      <input ref={fileRef} type="file" accept=".edi" multiple style={{ display: "none" }} onChange={(e) => { importEdi(e.target.files); e.target.value = ""; }} />
+      <input ref={fileRef} type="file" accept=".edi,.avg,.stn" multiple style={{ display: "none" }} onChange={(e) => { importEdi(e.target.files); e.target.value = ""; }} />
       {!surveys.length ? <div style={note}>{tr("No MT soundings yet.")}</div> : (<>
           {surveys.length > 1 && (
             <label style={row}>{tr("Survey")}<select style={smallSel} value={active} aria-label={tr("MT survey")} onChange={(e) => { setSurveyName(e.target.value); setLineKey(null); setStationId(""); }}>{surveys.map((k) => <option key={k} value={k}>{k}</option>)}</select></label>
@@ -207,13 +222,13 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
               <option value="rho">{tr("Apparent resistivity")}</option>
               <option value="phase">{tr("Phase")}</option>
             </select>
-            <select style={{ ...smallSel, flex: 1, minWidth: 0 }} value={comp} title={tr("Determinant (rotation-free)")} aria-label={tr("Impedance component")} onChange={(e) => setComp(e.target.value)}>
+            <select style={{ ...smallSel, flex: 1, minWidth: 0 }} value={compShown} title={tr("Determinant (rotation-free)")} aria-label={tr("Impedance component")} onChange={(e) => setComp(e.target.value)}>
               <option value="det">{tr("Determinant")}</option>
               <option value="xy">xy</option>
               <option value="yx">yx</option>
             </select>
           </div>
-          <Pseudosection ordered={ordered} comp={comp} quantity={quantity} selected={station?.id} onPick={setStationId} />
+          <Pseudosection ordered={ordered} comp={compShown} quantity={quantity} selected={station?.id} onPick={setStationId} />
           <div style={{ ...note, margin: "4px 0 10px" }}>{tr("Shallow (short periods) at the top. Click a column for its curves.")}</div>
       </>)}
           </>) },

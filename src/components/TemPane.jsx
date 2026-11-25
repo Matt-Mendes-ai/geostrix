@@ -15,6 +15,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // no Math.min / max spre
 import TemInvertPanel from "./TemInvertPanel.jsx"; // TASKS.csv #3440 step 3 — the 1D inversion
 import TemGridTie from "./TemGridTie.jsx"; // TASKS.csv #4058 — a file on a local grid asks for its tie to the map
 import { t as tr } from "../lib/i18n.js";
+import { zongeRefusal } from "../lib/zonge.js"; // TASKS.csv #4076 — Zonge files meant for another pane, said
 import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 — the lines as steps
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
@@ -128,7 +129,9 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
     setBusy(true); setMsg({ info: true, text: tr("Reading {name}…", { name: file.name }) });
     await new Promise((r) => setTimeout(r, 0));
     try {
-      const d = readTemText(await file.text(), file.name);
+      const text = await file.text();
+      { const no = zongeRefusal(text, file.name, "tem"); if (no) { setMsg({ info: false, text: no }); setBusy(false); return; } } // TASKS.csv #4076 — a Zonge file for another pane, a raw / .chn / .mde / .zdb: named
+      const d = readTemText(text, file.name);
       if (d.localGrid && project?.crsSet === false && project?.localGrid) d.placed = "project"; // #4058 — a local-grid project takes a local-grid file as it is
       // positions into the project CRS: a Workbench file's own EPSG; a Geosoft .xyz or CSV's X / Y are taken as the project's
       let target = project?.epsg;
@@ -189,7 +192,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         steps={[
           { key: "data", label: tr("Data"), question: tr("Which channels and gate times?"), body: (<>
       <button className="gs-btn gs-btn--block" style={{ justifyContent: "center" }} type="button" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{" "}{tr("Open TEM line data…")}</button>
-      <input ref={fileRef} type="file" accept=".xyz,.csv,.txt,.dat,.tem,.pem,.stp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; open(f); }} aria-label={tr("TEM line data file")} />
+      <input ref={fileRef} type="file" accept=".xyz,.csv,.txt,.dat,.tem,.pem,.stp,.amr" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; open(f); }} aria-label={tr("TEM line data file")} />
         {data && (<>
         {st.posNote && <div style={{ ...note, marginBottom: 6 }}>{st.posNote}</div>}
         <TemGridTie data={data} onTied={() => save({ ...st, data: { ...data } })} />{/* #4058 */}

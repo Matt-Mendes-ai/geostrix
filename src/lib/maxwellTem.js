@@ -21,7 +21,9 @@ const STN_NAMES = ["STATION", "STN"], COMP_NAMES = ["COMPONENT", "C"];
 // a column-header line: it starts with a position column (EAST / STN / STATION) and has four or more gate columns
 function columnHeader(tokens) {
   const u = tokens.map((t) => t.toUpperCase());
-  return u.length >= 6 && ["EAST", "STN", "STATION"].includes(u[0]) && u.filter((t) => GATE.test(t)).length >= 4;
+  // TASKS.csv #4076 — Zonge TEMAVGW's .amr starts "LOOP LINE STN EAST NORTH …"
+  const first = ["EAST", "STN", "STATION"].includes(u[0]) || (u[0] === "LOOP" && (u.includes("STN") || u.includes("STATION")));
+  return u.length >= 6 && first && u.filter((t) => GATE.test(t)).length >= 4;
 }
 // TASKS.csv #4077 — a SMARTem24 'TIP' file (induced polarisation: DATATYPE:TIP, electrodes C1E ... P2Z, the IP decay in CH1 ... CHn) has the same STN / RDNG / CH columns
 // as a TEM receiver file and used to be read as TEM. Looked for first by every TEM reader; the DC / IP pane reads it (dcipElectrodes.parseSmartemTip).
@@ -88,9 +90,10 @@ export function parseTemReceiver(text, opts = {}) {
     if (!l) continue;
     if (l[0] === "/" || l[0] === "\\") {
       let m;
-      if ((m = l.match(/^[/\\]\s*TIMES\s*(?:\(ms\))?\s*=\s*(.*)$/i)) && !times) { const t = numbers(m[1]); if (t.length) times = t; }
-      else if ((m = l.match(/^[/\\]\s*TIMESSTART\s*(?:\(ms\))?\s*=\s*(.*)$/i)) && !tStart) tStart = numbers(m[1]);
-      else if ((m = l.match(/^[/\\]\s*TIMESEND\s*(?:\(ms\))?\s*=\s*(.*)$/i)) && !tEnd) tEnd = numbers(m[1]);
+      // "=" or ":" (Zonge TEMAVGW's .amr: "/TIMES:…", #4076)
+      if ((m = l.match(/^[/\\]\s*TIMES\s*(?:\(ms\))?\s*[=:]\s*(.*)$/i)) && !times) { const t = numbers(m[1]); if (t.length) times = t; }
+      else if ((m = l.match(/^[/\\]\s*TIMESSTART\s*(?:\(ms\))?\s*[=:]\s*(.*)$/i)) && !tStart) tStart = numbers(m[1]);
+      else if ((m = l.match(/^[/\\]\s*TIMESEND\s*(?:\(ms\))?\s*[=:]\s*(.*)$/i)) && !tEnd) tEnd = numbers(m[1]);
       else if ((m = l.match(/^[/\\]\s*TIMESWIDTH\s*(?:\(ms\))?\s*=\s*(.*)$/i)) && !tWidth) tWidth = numbers(m[1]);
       else if ((m = l.match(/^[/\\]\s*Loops? coordinates\s*,(.*)$/i)) && !loops) loops = m[1].split(",").map((p) => p.trim().split(/\s+/).map(Number)).filter((p) => p.length >= 2 && p.every(Number.isFinite)).map((p) => [p[0], p[1]]);
       continue;
@@ -117,7 +120,7 @@ export function parseTemReceiver(text, opts = {}) {
     if (ci.adc >= 0) { const adc = t[ci.adc]; if (adcOf[comp] === undefined) adcOf[comp] = adc; else if (adcOf[comp] !== adc) { adcLeftOut++; continue; } }
     const stn = ci.stn >= 0 ? t[ci.stn] : t[0];
     const east = ci.east >= 0 ? t[ci.east] : "", north = ci.north >= 0 ? t[ci.north] : "";
-    const lineKey = String(line ?? defLine ?? "1");
+    const lineKey = String(line ?? (ci.line >= 0 && t[ci.line] && t[ci.line] !== "*" ? t[ci.line] : null) ?? defLine ?? "1"); // a LINE column (Zonge .amr, #4076) when no LINE: separator row
     const key = `${lineKey}|${east}|${north}|${stn}${ci.stn < 0 && ci.elev >= 0 ? `|${t[ci.elev]}` : ""}`; // no station column (a hole's receiver moves in elevation): the elevation tells the stations apart
     let s = by.get(key);
     if (!s) {
@@ -153,7 +156,7 @@ export function parseTemReceiver(text, opts = {}) {
   // coordinates: in the file, or from the line
   let positions = "file", positionNote = null;
   if (opts.placeLines === false) positions = ci.east < 0 || ci.north < 0 ? "none" : "file";
-  else if (ci.east < 0 || ci.north < 0) {
+  else if (ci.east < 0 || ci.north < 0 || !stations.some((s) => Number.isFinite(s.x) && Number.isFinite(s.y))) { // no columns, or every position "*" (Zonge .amr, #4076)
     positions = "line";
     const loop = loopCorners(header) || (loops && loops.length >= 3 && loops.every(([x, y]) => Math.abs(x) > 1e4 || Math.abs(y) > 1e4) ? loops : null);
     const hows = new Set(), axes = new Set(), byLine = new Map();

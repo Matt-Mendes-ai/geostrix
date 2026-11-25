@@ -120,7 +120,7 @@ test("'Import survey .xyz' still sends a ground Maxwell file to EM > TEM line da
 
 test("wired: the pane takes .tem, keeps the components out of the two-moment join, asks for a local grid's tie; keys in every language", () => {
   const p = read("../src/components/TemPane.jsx");
-  assert.match(p, /accept="\.xyz,\.csv,\.txt,\.dat,\.tem,\.pem,\.stp"/);
+  assert.match(p, /accept="\.xyz,\.csv,\.txt,\.dat,\.tem,\.pem,\.stp,\.amr"/); // .pem / .stp: Crone (#4079); .amr: Zonge TEMAVGW line data (#4076)
   assert.match(p, /filter\(\(g\) => !g\.component && \(g\.role \?/);
   assert.match(p, /TemGridTie/);
   for (const k of ["a downhole configuration (CONFIG:{v})", "several elevations at one position ({col})"])

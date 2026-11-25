@@ -180,7 +180,8 @@ const r1 = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null), r7 = (v
 // parsed EDIs + toXY(lon, lat) -> { x, y } | null  ->  stations as stored with the survey (numbers to 5 significant digits)
 export function ediStations(parsed, toXY) {
   return parsed.map((e) => {
-    const c = soundingCurves(e), p = Number.isFinite(e.lat) && Number.isFinite(e.lon) ? toXY(e.lon, e.lat) : null;
+    // e.xy: a sounding placed in the project's CRS already (a Zonge CSAMT station, #4076); else its latitude / longitude
+    const c = soundingCurves(e), p = e.xy && Number.isFinite(e.xy.x) && Number.isFinite(e.xy.y) ? e.xy : Number.isFinite(e.lat) && Number.isFinite(e.lon) ? toXY(e.lon, e.lat) : null;
     const { line, station } = stationLine(e.id);
     const keep = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.map(r5)]));
     return { id: e.id, line, station, lat: r7(e.lat), lon: r7(e.lon), x: p ? r1(p.x) : null, y: p ? r1(p.y) : null, z: e.elev, freqs: c.freqs.map(r5), rho: keep(c.rho), phs: keep(c.phs), units: e.units };
