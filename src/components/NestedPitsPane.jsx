@@ -33,6 +33,8 @@ import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — th
 import { weatheredBasePoints } from "../lib/weatheredZone.js"; // TASKS.csv #2597
 import { holeTraces } from "../lib/evidenceSources.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import MoreFold from "./MoreFold.jsx";
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 part 3
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
@@ -43,6 +45,7 @@ const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const G_PER_OZ = 31.1034768;
 const SHELL_COLOURS = ["#6a994e", "#a7c957", "#f2cc8f", "#e07a5f", "#b5651d", "#9c6644", "#8338ec", "#3a86ff", "#ff006e", "#fb5607", "#ffbe0b", "#80ed99"];
+let nestSeq = 0; // numbers each series, for the Result step (#4070)
 let kept = null; // #1356 — the last series outlives the pane (this session)
 
 // the factors from "0.3-1.2 step 0.1" or "0.5, 0.8, 1, 1.2"
@@ -141,10 +144,10 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
   ]) });
   const line = (label, v) => <div style={row}><span>{label}</span><b>{v}</b></div>;
 
+  const nestKey = useMemo(() => (res ? ++nestSeq : null), [res]); // TASKS.csv #4070 part 3 — a new series opens the Result step
   return (
     <div>
       <TaskPaneHeader title="Nested pits" icon={Layers} tone="model" onClose={onClose} />
-      <div style={note}>{tr("The pit shell at a series of revenue factors (the price scaled), all on one grid so they nest, each reported at the entered price. With a mining rate and a discount rate the shells are mined in turn as pushbacks, top bench down, and each gets a net present value. It is a screen of how much the pit depends on price and time, not a mine plan or a valuation.")}</div>
       {!lastPit && <div style={warn}>{tr("It needs a pit shell: run Pit shell first. Its price, costs, density and slope are the series' inputs.")}</div>}
       {pitChoices.length > 1 && (
         <label style={row}>{tr("Pit shell")}<select value={lastPit?.id || ""} onChange={(e) => { const id = e.target.value; setPitId(id); setRes(kept && kept.pitId === id ? kept : null); setMsg(null); }} disabled={!!busy} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell whose inputs the series takes")}>
@@ -154,23 +157,22 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       <NotOfferedGrades voxelModels={voxelModels} />{/* TASKS.csv #2646 — the models the Pit shell (and so the series) leaves out, and why (#2436) */}
       {lastPit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more.", { m: lastPit.params?.blockModel || "?" })}</div>}
       {lastPit && model && (<>
+        {/* TASKS.csv #4070 part 3 (Matt's layout C): the revenue factors as the one question, Run the series as the one gold primary, the shells in Result, the rates and the pit's inputs in Fine-tune */}
+        <StepPane id="nested" label={tr("Nested pits")}
+          top={<>
         <div style={{ ...note, marginTop: 4 }}>{tr("From \"{pit}\": {price} {unit}, recovery {rec} %, mining ${mc}/t, processing ${pc}/t, density {d}, slope {s}°{sec}.", { pit: String(lastPit.name).replace(/^Pit shell: /, ""), price: inputs.price, unit: priceLabel, rec: inputs.recovery, mc: inputs.miningCost, pc: inputs.processingCost, d: inputs.wasteDensity > 0 ? tr("{o} ore, {w} waste", { o: inputs.density, w: inputs.wasteDensity }) : inputs.density /* #2437 */, s: inputs.slopeDeg, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" })}</div>{/* sec: #1897 */}
         {(inputs.typedCutoff > 0 || inputs.limitM != null || inputs.size > 0) && <div style={note}>{tr("The series keeps the shell's {list}.", { list: [inputs.typedCutoff > 0 ? tr("typed cut-off of {c} {u}", { c: inputs.typedCutoff, u: unit ? gradeUnitText(unit, element) + (element ? ` ${element}` : "") : "" }) : null, inputs.limitM != null ? tr("limit (keep within {m} m of the model)", { m: inputs.limitM }) : null, inputs.size > 0 ? tr("{s} m pit blocks", { s: inputs.size }) : null].filter(Boolean).join(", ") })}</div>}{/* #3326 */}
         {inputs.by && !byMissing && <div style={note}>{tr("By-product: {el} at {price} {unit}, recovery {rec} %.", { el: byEl, price: inputs.by.price, unit: byPriceLabel, rec: inputs.by.recovery })}</div>}{/* #1917 */}
         {byMissing && <div style={warn}>{tr("The by-product model the shell was run with (\"{m}\") is not in the project any more.", { m: lastPit.params?.byProduct?.blockModel || "?" })}</div>}
+          </>}
+          steps={[
+            { key: "factors", label: tr("Factors"), question: tr("Which revenue factors?"), body: (<>
         <label style={row}>{tr("Revenue factors")}<input value={f.factors} onChange={(e) => setF((p) => ({ ...p, factors: e.target.value }))} style={{ ...smallSel, width: 130 }} aria-label={tr("Revenue factors of the series")} title={tr("A range with a step, or a list: 0.3-1.2 step 0.1, or 0.5, 0.8, 1, 1.2")} /></label>
         <div style={note}>{factors.length ? tr("{n} factor(s): {list}", { n: factors.length, list: factors.join(", ") }) : tr("Enter a range with a step, or a list of factors.")}{droppedFactors(f.factors).length > 0 && <> {tr("Ignored: {list} (a factor must be above 0).", { list: droppedFactors(f.factors).join(", ") })}</>}</div>
-        <label style={row}>{tr("Mining rate (t rock / year)")}<NumberInput allowEmpty min={0} value={f.rate} onChange={asEvent((e) => setF((p) => ({ ...p, rate: e.target.value })))} style={num} aria-label={tr("Mining rate")} placeholder={tr("optional")} /></label>
-        <label style={row}>{tr("Discount rate (% / year)")}<NumberInput allowEmpty min={0} value={f.discount} onChange={asEvent((e) => setF((p) => ({ ...p, discount: e.target.value })))} style={num} aria-label={tr("Discount rate")} placeholder={tr("optional")} disabled={!rate} /></label>
-        {busy == null
-          ? <button onClick={run} disabled={!factors.length || byMissing} className="gs-btn gs-btn--block" style={{ marginTop: 8, opacity: factors.length && !byMissing ? 1 : 0.5 }}><Layers size={14} /> {tr("Run the series")}</button>
-          : <button onClick={cancel} className="gs-btn gs-btn--block" style={{ marginTop: 8 }}>{tr("Solving shell {i} of {n}: cancel", { i: (busy.idx || 0) + 1, n: busy.of || factors.length })}</button>}
-      </>)}
-      {lastPit && <UndergroundOreNote model={model} cutoff={lastPit.params?.cutoffGrade} />}{/* #2277 */}
-      {lastPit && <TopCutNote model={model} />}{/* #3794 */}
-      {msg && <div style={warn}>{msg}</div>}
-      {res && (
-        <div style={{ marginTop: 8 }}>
+            </>) },
+          ]}
+          action={busy == null ? { label: tr("Run the series"), onClick: run, disabled: !factors.length || byMissing, icon: <Layers size={14} /> } : { label: tr("Solving shell {i} of {n}: cancel", { i: (busy.idx || 0) + 1, n: busy.of || factors.length }), onClick: cancel }}
+          result={{ key: nestKey, body: res && (<>
           <Chart runs={res.runs} best={res.bestNpv} cur={cur} />
           <div style={{ marginTop: 6, maxHeight: 260, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
             <table style={{ borderCollapse: "collapse", width: "max-content", minWidth: "100%", fontSize: "var(--font-size-xs)" }}>{/* #3326 — its own width, scrolled in the box: the NPV column was cut off */}
@@ -185,7 +187,6 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
               ))}</tbody>
             </table>
           </div>
-          <div style={{ ...note, marginTop: 4 }}>{tr("Grade in {unit}; margin and NPV at the entered price, {price} {pu}. The eye puts a shell in the view (its colour follows the row).", { unit: element ? `${gradeUnitText(res.unit, element)} ${element}` : res.unit /* #2594; #3801 (1) — g/t, not ppm, for gold */, price: res.price, pu: res.priceLabel })}</div>
           {res.bestNpv >= 0 && line(tr("Best NPV"), tr("factor {rf}: ${npv} over {y} years", { rf: res.runs[res.bestNpv].rf, npv: big(res.runs[res.bestNpv].npv), y: res.runs[res.bestNpv].years.toFixed(1) }))}
           {/* TASKS.csv #2280 (review #2174, WA gold) — a schedule decades long discounts the later pushbacks to nothing: the NPV stops changing with the
               factor because of the rate typed, not the pits; said, with the run of shells whose NPV is flat */}
@@ -200,7 +201,6 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           {res.bestMoney >= 0 && line(tr("Largest undiscounted margin"), tr("factor {rf}: ${v}", { rf: res.runs[res.bestMoney].rf, v: big(res.runs[res.bestMoney].moneyBase) }))}
           {res.bestMoney >= 0 && line(tr("Contained metal at it"), metalText(res.runs[res.bestMoney]))}
           {res.bestMoney >= 0 && inputs?.by && res.byMetalUnit && line(tr("Contained {el} at it", { el: byEl }), byMetalText(res.runs[res.bestMoney]))}{/* #1917 */}
-          {line(tr("Grid cell"), `${res.cell.map((v) => Math.round(v * 10) / 10).join(" × ")} m`)}
           {(() => { // TASKS.csv #2108 (review #2013, Woodjam) — the series' one grid is sized for its largest factor; when it is not the shell's, factor 1 differs from it
             const sc = lastPit?.params?.gridCellM, rc = res.cell.map((v) => +v.toFixed(1));
             if (!Array.isArray(sc) || sc.length !== 3 || sc.every((v, i) => Math.abs(v - rc[i]) <= 0.05 * Math.max(1, v))) return null;
@@ -209,9 +209,6 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
               ? tr("The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its factor-1 row ({a} t of ore) differs from the shell it was run from ({b} t).", { c: rc.join(" × "), s: sc.join(" × "), a: big(one.oreT), b: big(shellOre) })
               : tr("The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its shells are not on the shell's own grid.", { c: rc.join(" × "), s: sc.join(" × ") })}</div>;
           })()}
-          {line(tr("Solved in"), `${res.seconds} s`)}
-          {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
-          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ /></>}
           {(() => { // TASKS.csv #2735 — as the Pit shell (#2596): the largest pit's ore in blocks whose nearest drilling was never sampled
             if (!(model?.params?.nearUnsampledFlagged || model?.cells?.some((c) => c.nearUnsampled))) return null;
             const largest = [...res.runs].reverse().find((r) => r.oreT > 0), p = largest?.oreNearUnsampledShare || 0;
@@ -225,13 +222,28 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
             const text = p > 0.2 ? tr("{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore, so the strip ratio rests on it.", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks above or below every sample that informs them.", { p: Math.round(p * 100) });
             return <div style={p > 0.2 ? warn : note}>{tr("Largest pit (revenue factor {rf}): {text}", { rf: largest.rf, text })}</div>;
           })()}
-          {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
           {res.coarsened && <div style={warn}>{tr("The grid was made coarser to stay within the limit, so the walls are coarser than the block model.")}</div>}
           {res.runs.some((r) => r.touchesBase) && <div style={warn}>{tr("A shell reaches the bottom of the block model: it may go deeper if the body does.")}</div>}
           <button onClick={exportCsv} className="gs-btn gs-btn--block" style={{ marginTop: 6 }}><Download size={13} /> {tr("Shells and years CSV")}</button>
           <div style={{ ...note, marginTop: 4 }}>{tr("Conceptual, from your inputs and this block model: the schedule has no stockpiles, ramps, dilution, capital or closure, and each shell is mined whole before the next. Not a Mineral Reserve, a Resource or a value of the project.")}</div>
-        </div>
-      )}
+            <MoreFold summary={tr("Details")} data-fine-tune="nested-details">
+          <div style={{ ...note, marginTop: 4 }}>{tr("Grade in {unit}; margin and NPV at the entered price, {price} {pu}. The eye puts a shell in the view (its colour follows the row).", { unit: element ? `${gradeUnitText(res.unit, element)} ${element}` : res.unit /* #2594; #3801 (1) — g/t, not ppm, for gold */, price: res.price, pu: res.priceLabel })}</div>
+          {line(tr("Grid cell"), `${res.cell.map((v) => Math.round(v * 10) / 10).join(" × ")} m`)}
+          {line(tr("Solved in"), `${res.seconds} s`)}
+          {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
+          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ /></>}
+          {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
+            </MoreFold>
+          </>) }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="nested">
+      <div style={note}>{tr("The pit shell at a series of revenue factors (the price scaled), all on one grid so they nest, each reported at the entered price. With a mining rate and a discount rate the shells are mined in turn as pushbacks, top bench down, and each gets a net present value. It is a screen of how much the pit depends on price and time, not a mine plan or a valuation.")}</div>
+        <label style={row}>{tr("Mining rate (t rock / year)")}<NumberInput allowEmpty min={0} value={f.rate} onChange={asEvent((e) => setF((p) => ({ ...p, rate: e.target.value })))} style={num} aria-label={tr("Mining rate")} placeholder={tr("optional")} /></label>
+        <label style={row}>{tr("Discount rate (% / year)")}<NumberInput allowEmpty min={0} value={f.discount} onChange={asEvent((e) => setF((p) => ({ ...p, discount: e.target.value })))} style={num} aria-label={tr("Discount rate")} placeholder={tr("optional")} disabled={!rate} /></label>
+          </MoreFold>} />
+      </>)}
+      {lastPit && <UndergroundOreNote model={model} cutoff={lastPit.params?.cutoffGrade} />}{/* #2277 */}
+      {lastPit && <TopCutNote model={model} />}{/* #3794 */}
+      {msg && <div style={warn}>{msg}</div>}
     </div>
   );
 }

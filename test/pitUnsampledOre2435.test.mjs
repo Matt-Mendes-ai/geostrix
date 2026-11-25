@@ -30,7 +30,7 @@ test("the flag rides to the pit and nested-pit workers, and the pane warns past 
   for (const f of ["src/lib/pitShell.worker.js", "src/lib/pitSeries.worker.js"]) assert.match(fs.readFileSync(f, "utf8"), /beyond: c\.beyond\?\.\[i\] === 1 \? "above"/, f);
   const pane = fs.readFileSync("src/components/PitShellPane.jsx", "utf8");
   assert.match(pane, /unsampledOre = beyondP > 0\.2/);
-  assert.match(pane, /line\(tr\("Strip ratio"\), [^\n]*, unsampledOre\)/);
-  assert.match(pane, /line\(tr\("Undiscounted margin"\), [^\n]*, unsampledOre\)/);
+  assert.match(pane, /label: tr\("Strip ratio"\), [^\n]*level: unsampledOre \? "muted" : undefined/); // #4070 part 3: the Result step's numbers
+  assert.match(pane, /label: tr\("Undiscounted margin"\), [^\n]*level: unsampledOre \? "muted" : undefined/); // #4070 part 3
   assert.match(pane, /oreBeyondSampleShare: \+\(r\.oreBeyondSampleShare \|\| 0\)\.toFixed\(3\)/);
 });

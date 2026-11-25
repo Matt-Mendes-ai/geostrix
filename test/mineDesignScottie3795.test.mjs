@@ -48,7 +48,7 @@ test("a saved run keeps its metal, element and density, so the line after a reop
   assert.equal(old.hasMetal, false, "an earlier run without it says nothing of metal");
   const p = read("../src/components/StopesPane.jsx");
   assert.match(p, /metalU: Math\.round\(s\.metalU \* 1e3\) \/ 1e3/);
-  assert.match(p, /line\(tr\("Contained metal \(diluted\)"\), metalText\(res\.totals\.metalU\)\)/);
+  assert.match(p, /label: tr\("Contained metal \(diluted\)"\), value: metalText\(res\.totals\.metalU\)/); // #4070 part 3: a row of the Result step's numbers
   assert.match(p, /tr\("\{d\} t\/m³ \(typed\)", \{ d: Number\(res\.inputs\.density\) \}\)/);
   assert.match(p, /\.\.\.settingsCells\(\) \/\* #3799 \*\//);
   assert.match(p, /gradeUnitText\(res\.unit, res\.element\) === "g\/t" \? "gpt"/, "grade_gpt, not grade_ppm, for gold");
