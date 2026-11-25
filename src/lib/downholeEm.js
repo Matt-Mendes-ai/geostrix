@@ -6,6 +6,7 @@
 //  - Crone PEM (<FMT> 210): the readings of each station, the time block in seconds, the loop and the hole's path in the tags.
 // No plate modelling: this only reads, matches the holes and draws. Pure: no UI. The parsers keep no file in memory beyond the averaged stations.
 
+import { isCronePemSurface } from "./cronePem.js"; // TASKS.csv #4079 — a surface profile is a ground EM line: EM > TEM line data reads it
 import { parseTemReceiver } from "./maxwellTem.js"; // the one receiver-text parser (Maxwell / SMARTem / Crone tables), shared with the ground TEM reader
 
 const NUM = (s) => { const v = Number(s); return Number.isFinite(v) ? v : NaN; };
@@ -14,8 +15,9 @@ const lines = (text) => String(text || "").replace(/^﻿/, "").replace(/\r\n?/g,
 // -- what a file is ---------------------------------------------------------------------------------------------------------------------------------
 // "maxwell" (a table with CH columns and a downhole header), "pem" (<FMT> 210), "chn" (a Crone channel-time file), or null. head: the first part of the file.
 export function downholeEmKind(head, name = "") {
-  const h = String(head || "").slice(0, 8000);
-  if (/^\s*<FMT>\s*210\b/m.test(h) && /<UNI>/.test(h)) return /^\s*Surface\s+(Metric|Imperial)\b/im.test(h) ? "pem-surface" : "pem"; // the instrument line says Borehole or Surface
+  const h = String(head || "").slice(0, 40000); // #4079 — a surface file lists its loop's corners (up to 99) before its profile's positions
+  // the profile's <Pnn> lines carry a station number each (x y z units stn), a hole's path has segments: cronePem.isCronePemSurface
+  if (/^\s*<FMT>\s*(210|230)\b/m.test(h) && /<UNI>/.test(h)) return isCronePemSurface(h) ? "pem-surface" : "pem"; // #4079 — format 230 (.STP, the step response) is read like the 210 beside it
   if (/^\s*Crone\b[^\n]*msec time base/im.test(h) && /DELAY\s+WIDTH/i.test(h)) return "chn";
   const downhole = /\bCONFIG:\s*DOWN\s*HOLE\b|\bCONFIG:\s*DOWNHOLE\b/i.test(h) || /\b(DOWN ?HOLE|BORE ?HOLE) PEM SURVEY\b/i.test(h);
   if (downhole && /^\s*(STN|STATION|EAST)\b[^\n]*\bCH1\b/im.test(h.replace(/\n/g, "\n"))) return "maxwell";
@@ -141,7 +143,8 @@ function formatName(line1, keys) {
 export function parsePem(text, fileName = "") {
   const all = lines(text), warnings = [];
   const tag = (name) => { const l = all.find((x) => new RegExp(`^\\s*<${name}>`).test(x)); return l ? l.replace(/^\s*<[^>]+>/, "").replace(/~.*$/, "").trim() : ""; };
-  const uni = tag("UNI"), units = /nano/i.test(uni) ? "nT/s" : /pico/i.test(uni) ? "pT/s" : /micro/i.test(uni) ? "µT/s" : uni;
+  const stp = /^\s*<FMT>\s*230\b/m.test(all.slice(0, 40).join("\n")); // #4079 — a Crone .STP: the same file, in the step response
+  const uni = tag("UNI"), units = stp ? "nT" : /nano/i.test(uni) ? "nT/s" : /pico/i.test(uni) ? "pT/s" : /micro/i.test(uni) ? "µT/s" : uni;
   const fl = (s) => String(s).trim().split(/\s+/).map(NUM);
   const loopPts = [];
   for (let k = 0; k < 8; k++) { const t = tag(`L0${k}`); if (!t) continue; const [x, y, z, u] = fl(t); if (Number.isFinite(x) && Number.isFinite(y)) { const f = u === 1 ? 0.3048 : 1; loopPts.push({ x: x * f, y: y * f, z: (Number.isFinite(z) ? z : 0) * f }); } }
@@ -192,15 +195,15 @@ export function parsePem(text, fileName = "") {
   if (block.length >= nch) { const c = block.slice(block.length - nch).map((s) => s * 1000); times = { centres: c, widths: null, source: "the time block (seconds)" }; }
   else timesNote = "The time block of the file is shorter than the readings: the gate times are not shown.";
   const hs = new Map([[holeId, h]]);
-  return finish({ kind: "pem", format: "Crone PEM", file: stem, units, holes: hs, times, nch, loop: loopPts.length >= 3 ? loopPts : null, warnings, skipped, timesNote });
+  return finish({ kind: "pem", format: stp ? "Crone STP" : "Crone PEM", file: stem, units, holes: hs, times, nch, loop: loopPts.length >= 3 ? loopPts : null, warnings, skipped, timesNote });
 }
 
 // one file -> the structure above; companions: { name: text } for the .CHN files dropped with it
 export function readDownholeEm(text, fileName = "", companions = {}) {
-  const kind = downholeEmKind(String(text).slice(0, 8000), fileName);
+  const kind = downholeEmKind(String(text).slice(0, 40000), fileName);
   if (kind === "pem") return parsePem(text, fileName);
   if (kind === "maxwell") return parseMaxwellDhem(text, fileName, companions);
-  if (kind === "pem-surface") throw new Error("this is a surface PEM profile (stations along a line), not a hole: it has no depth. TEM line data reads line surveys");
+  if (kind === "pem-surface") throw new Error("a surface PEM profile (stations along a line), not a hole: read it with EM › TEM line data.");
   if (kind === "chn") throw new Error("this is a channel-time file: open it together with the survey file that names it");
   throw new Error("not a downhole EM file this reader knows (Maxwell / SMARTem tables with CH1 … CHn, or Crone PEM)");
 }

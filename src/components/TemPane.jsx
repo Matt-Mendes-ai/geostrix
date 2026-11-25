@@ -189,7 +189,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         steps={[
           { key: "data", label: tr("Data"), question: tr("Which channels and gate times?"), body: (<>
       <button className="gs-btn gs-btn--block" style={{ justifyContent: "center" }} type="button" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{" "}{tr("Open TEM line data…")}</button>
-      <input ref={fileRef} type="file" accept=".xyz,.csv,.txt,.dat,.tem" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; open(f); }} aria-label={tr("TEM line data file")} />
+      <input ref={fileRef} type="file" accept=".xyz,.csv,.txt,.dat,.tem,.pem,.stp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; open(f); }} aria-label={tr("TEM line data file")} />
         {data && (<>
         {st.posNote && <div style={{ ...note, marginBottom: 6 }}>{st.posNote}</div>}
         <TemGridTie data={data} onTied={() => save({ ...st, data: { ...data } })} />{/* #4058 */}
