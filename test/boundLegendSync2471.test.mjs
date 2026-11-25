@@ -30,8 +30,8 @@ test("viewports carry capturedAt, loads stamp the legend, and a refresh reloads 
   assert.equal((s.match(/capturedAt: Date\.now\(\)/g) || []).length, 2);
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(l, /const stamp = \(all\) => \{ const items = keepGroups\(all, legend\?\.groupsShown\); return \{ items: carryColumnBreaks\(legend\?\.items, items\), loadedItems: items, loadedCapturedAt: vp\.capturedAt \|\| null, autoReloaded: auto \}; \};/ /* #3959: the column breaks kept, a split legend's own groups */);
-  assert.match(l, /\{legendReloaded \? " " \+ tr\("The bound legend reloaded with the refreshed viewport\."\) : ""\}/);
+  assert.match(l, /\{legendReloaded && <div style=\{note\}>\{tr\("The bound legend reloaded with the refreshed viewport\."\)\}<\/div>\}/);
   assert.match(l, /legendSyncState\(e, byId\.get\(e\.boundViewportId\)\) === "reload"\)\.forEach\(\(l\) => syncLegendFromView\(l\.id, \{ auto: true \}\)\)/);
   assert.match(l, /const staleLegends = staleBoundLegends\(layoutPages\)\.length;/);
-  assert.match(l, /Captured \{when\}\. Changes in the 3D view since then show after a refresh\./);
+  assert.match(l, /label: tr\("Captured"\), value: new Date\(sel\.capturedAt\)/); // #4070 part 4 — a Result row now
 });

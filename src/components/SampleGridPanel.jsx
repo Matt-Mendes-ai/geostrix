@@ -11,6 +11,7 @@ import { f32ToB64, b64ToF32 } from "../lib/inversion.js";
 import { runPfieldsJob } from "../lib/desktop.js";
 import { defaultDrapeElevation } from "../lib/drapeElevation.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import StepPane, { StepNumbers } from "./StepPane.jsx"; // TASKS.csv #4070 part 4
 
 export default function SampleGridPanel({ setNotices }) {
   const { surfaceSamples, surfaceElements, addRaster, collars, voxelModels, startProjectJob /* #3953 */ } = useStore();
@@ -24,6 +25,7 @@ export default function SampleGridPanel({ setNotices }) {
   const [method, setMethod] = useState("idw"); // TASKS.csv #1622 — or "mincurv", "natneigh"; #1985 "spline" (Verde, in the Python engine)
   const [busy, setBusy] = useState(null);
   const [tension, setTension] = useState(0.25);
+  const [done, setDone] = useState(null); // the last run's numbers (TASKS.csv #4070 part 4)
   const el = surfaceElements.find((e) => e.symbol === symbol) || surfaceElements[0];
   const media = useMemo(() => [...new Set(surfaceSamples.map((s) => s.medium).filter(Boolean))].sort(), [surfaceSamples]);
   const log = logChoice ?? logByDefault(el?.unit);
@@ -72,33 +74,47 @@ export default function SampleGridPanel({ setNotices }) {
       bl: res.blankM ? tr(", blank beyond {d} m of a sample", { d: res.blankM }) : "", valid: res.valid.toLocaleString(), cells: (grid.nx * grid.ny).toLocaleString() })]);
     if (method === "spline") setNotices((p) => [...p, tr("Spline: fitted to {pts} block median(s) {b} m across; damping {d} chosen by cross-validation on {cv} m blocks, R² {r} on the held-out blocks.", {
       pts: (res.splinePoints ?? 0).toLocaleString(), b: Math.round(res.blockM ?? res.cellM), d: res.damping == null ? tr("none") : String(res.damping), cv: Math.round(res.cvBlockM ?? 5 * (res.blockM ?? res.cellM)), r: Number.isFinite(res.cvScore) ? res.cvScore.toFixed(2) : "–" })]);
-    setOpen(false);
+    setDone({ key: Date.now(), rows: [ // TASKS.csv #4070 part 4 — the Result step, in numbers (the panel stays open on it)
+      { label: tr("Samples"), value: res.points.toLocaleString() },
+      { label: tr("Cells with a value"), value: tr("{valid} of {cells}", { valid: res.valid.toLocaleString(), cells: (grid.nx * grid.ny).toLocaleString() }) },
+      { label: tr("Cell size"), value: tr("{cell} m", { cell: res.cellM }) },
+    ] });
   };
+  // TASKS.csv #4070 part 4 — the gridding form as steps: What (element, medium, log10), How (method, cell, blanking) -> Grid to raster -> the Result in numbers
+  const whatStep = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", gap: 6 }}>
+        <label style={lbl}>{tr("Element")}<select value={el?.symbol} onChange={(e) => { setSymbol(e.target.value); setLogChoice(null); }} style={inp}>{surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{`${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})`}</option>)}</select></label>
+        <label style={lbl}>{tr("Medium")}<select value={medium} onChange={(e) => setMedium(e.target.value)} style={inp}><option value="">{tr("All")}</option>{media.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
+      </div>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Trace elements are lognormal.")}><input type="checkbox" checked={log} onChange={(e) => setLogChoice(e.target.checked)} />{tr("Interpolate log10 of the values")}</label>
+    </div>
+  );
+  const howStep = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label style={lbl}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} style={inp} aria-label={tr("Gridding method")}
+        title={tr("IDW: bullseyes on lone highs. Minimum curvature: smooth, may overshoot (tension 1 does not). Natural neighbour: no overshoot. Spline (Python engine): smooth fit to block medians, may overshoot.")}>
+        <option value="idw">{tr("IDW")}</option><option value="mincurv">{tr("Minimum curvature")}</option><option value="natneigh">{tr("Natural neighbour")}</option><option value="spline">{tr("Spline (Python engine)")}</option></select></label>
+      <div style={{ display: "flex", gap: 6 }}>
+        <label style={lbl}>{tr("Cell (m)")}<NumberInput min="1" allowEmpty value={cell === "" || cell == null ? null : cell} placeholder={suggestion ? String(suggestion.cellM) : ""} onChange={(n) => setCell(n == null ? "" : String(n))} style={inp} /></label>
+        {method === "natneigh" || method === "spline" ? null : method === "mincurv"
+          ? <label style={lbl}>{tr("Tension")}<NumberInput min="0" max="1" step="0.05" value={tension} onChange={(n) => setTension(n)} style={inp} /></label>
+          : <label style={lbl}>{tr("Power")}<NumberInput min="1" max="4" step="0.5" value={power} onChange={(n) => setPower(n)} style={inp} /></label>}
+        <label style={lbl}>{tr("Blank beyond (m)")}<NumberInput min="0" allowEmpty value={blank === "" || blank == null ? null : blank} placeholder={suggestion ? String(suggestion.blankM) : ""} onChange={(n) => setBlank(n == null ? "" : String(n))} style={inp} /></label>
+      </div>
+      {suggestion && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }} title={tr("Blank fields use the sample spacing.")}>{tr("Samples about {s} m apart: {c} m cells, blank beyond {b} m.", { s: Math.round(suggestion.spacingM), c: suggestion.cellM, b: suggestion.blankM })}</div>}
+      {busy && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{busy}</div>}
+    </div>
+  );
   return (
     <div style={{ marginTop: 8 }}>
       <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} onClick={() => setOpen((o) => !o)} aria-expanded={open}>{tr("Grid an element to a raster…")}</button>
       {open && el && (
-        <div style={{ marginTop: 6, padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "flex", gap: 6 }}>
-            <label style={lbl}>{tr("Element")}<select value={el.symbol} onChange={(e) => { setSymbol(e.target.value); setLogChoice(null); }} style={inp}>{surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{`${e.symbol} (${gradeUnitLabel(e.symbol, e.unit)})`}</option>)}</select></label>
-            <label style={lbl}>{tr("Medium")}<select value={medium} onChange={(e) => setMedium(e.target.value)} style={inp}><option value="">{tr("All")}</option>{media.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
-          </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}><input type="checkbox" checked={log} onChange={(e) => setLogChoice(e.target.checked)} />{tr("Interpolate log10 of the values (trace elements are lognormal)")}</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            <label style={lbl}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} style={inp} aria-label={tr("Gridding method")}
-              title={tr("IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples: tension 0 is smoothest but overshoots, 1 is a tent with no overshoot. Natural neighbour: no bullseyes, no overshoot, a high spreads only as far as its neighbours. The spline (Verde, Python engine) fits a smooth surface to block medians, smoothing chosen by spatial cross-validation; it can overshoot.")}>
-              <option value="idw">{tr("IDW")}</option><option value="mincurv">{tr("Minimum curvature")}</option><option value="natneigh">{tr("Natural neighbour")}</option><option value="spline">{tr("Spline (Python engine)")}</option></select></label>
-          </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <label style={lbl}>{tr("Cell (m)")}<NumberInput min="1" allowEmpty value={cell === "" || cell == null ? null : cell} placeholder={suggestion ? String(suggestion.cellM) : ""} onChange={(n) => setCell(n == null ? "" : String(n))} style={inp} /></label>
-            {method === "natneigh" || method === "spline" ? null : method === "mincurv"
-              ? <label style={lbl}>{tr("Tension")}<NumberInput min="0" max="1" step="0.05" value={tension} onChange={(n) => setTension(n)} style={inp} /></label>
-              : <label style={lbl}>{tr("Power")}<NumberInput min="1" max="4" step="0.5" value={power} onChange={(n) => setPower(n)} style={inp} /></label>}
-            <label style={lbl}>{tr("Blank beyond (m)")}<NumberInput min="0" allowEmpty value={blank === "" || blank == null ? null : blank} placeholder={suggestion ? String(suggestion.blankM) : ""} onChange={(n) => setBlank(n == null ? "" : String(n))} style={inp} /></label>
-          </div>
-          {suggestion && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Blank fields use the sample spacing: about {s} m between samples, so {c} m cells and no value beyond {b} m of a sample.", { s: Math.round(suggestion.spacingM), c: suggestion.cellM, b: suggestion.blankM })}</div>}
-          {busy ? <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{busy}</div>
-            : <button className="gs-btn gs-btn--sm" onClick={run}>{tr("Grid to raster")}</button>}
+        <div style={{ marginTop: 6, padding: 8, border: "1px solid var(--color-border)", borderRadius: 6 }}>
+          <StepPane id="geochem-grid" label={tr("Grid to raster")}
+            steps={[{ key: "what", label: tr("What"), body: whatStep }, { key: "how", label: tr("How"), body: howStep }]}
+            action={{ label: busy ? tr("Working…") : tr("Grid to raster"), onClick: run, disabled: !!busy, attrs: { "data-grid-run": "" } }}
+            result={{ key: done?.key ?? null, body: done ? <StepNumbers rows={done.rows} /> : null }} />
         </div>
       )}
     </div>

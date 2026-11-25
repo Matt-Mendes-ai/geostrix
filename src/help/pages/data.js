@@ -91,7 +91,7 @@ export default [
     instead: [{ text: "Collars, surveys, logs", to: "Import drillhole data", page: "import-drillholes" }],
     keys: ["Wide format (column per element) / Long format (row per analyte)", "Elements (ticked list) and the units shown beside each", "Not assayed (leave blank)"],
     summary: "Brings assay results into Geochem, one value per element per interval, keeping each element's unit and asking what blanks and negatives mean.",
-    more: "A table with a column per element is wide format; a table with one row per analyte is long format. It does not convert between labs' units or set detection limits for you: it keeps the values as reported.",
+    more: "A table with a column per element is wide format; a table with one row per analyte is long format. It does not convert between labs' units or set detection limits for you: it keeps the values as reported. A file dropped on Geochem goes by its name and columns: \"pxrf\" or \"xrf\" in the name is pXRF; x / y with no from / to is surface samples; anything else is assays. An .xlsx workbook is read from the sheet with the most element columns.",
     notFor: [
       "Collars, surveys and logs are not assays: import them in StrixViewer (see Import drillhole data).",
     ],
@@ -102,6 +102,8 @@ export default [
       { name: "Not assayed (leave blank)", gist: "what a negative or blank means", what: "What a small negative value means: below detection (half the limit, flagged <) or not assayed.", more: "How to choose: Take it from the lab's certificate." },
       { name: "Not assayed — left out of grades (intercepts, composites, statistics) and reported as unsampled metres", what: "A blank cell is a sample not assayed for that element, not a zero.", more: "How to choose: Choose A real measured zero only when the lab reported zero." },
       { name: "QC columns (optional)", what: "Sample type, parent sample, standard, certificate and method, kept for Geochem's QC charts.", more: "How to choose: Map them when the file has them." },
+      { name: "Calc. element: Formula, Name", gist: "a new element from a formula", what: "Formula takes a preset or your own formula over element symbols (100*Zn/(Zn+Pb)); Name sets its name and unit; Add stores it like an imported element.", more: "How to choose: Elements are read in their stored units, and a row missing an element in the formula gets no value. Oxide names work too, in % through the import's factors. A metal equivalent (CuEq, AuEq) takes % or g/t, so its estimate can be priced in the pit shell. A calculated element is not recalculated if the assays are re-imported: Recalculate does that." },
+      { name: "Grid an element to a raster: What, How", gist: "surface samples to a coloured grid", what: "What picks the element, the medium and whether to interpolate log10; How picks the method, the cell size and how far from a sample the grid is blank. The Result gives the samples used and the cells with a value.", more: "How to choose: Trace elements are lognormal, so log10 is the default for ppm and ppb. IDW leaves bullseyes on lone highs; minimum curvature is smooth but can overshoot (tension 1 does not); natural neighbour does not overshoot; the spline (Python engine) fits block medians and can overshoot. Blank fields take the sample spacing. The grid is in Maps > GeoTIFF / GXF and in StrixViewer." },
     ],
     warnings: [
       { says: "No element columns recognized — add one manually below.", do: "Add the columns by symbol (Cu), or name them Cu_ppm in the file." },

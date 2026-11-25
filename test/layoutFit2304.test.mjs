@@ -12,6 +12,6 @@ test("the scale is computed with and without the assumed holes' points", () => {
 });
 
 test("the clause appears only with a smaller drilled-only scale, which it names", () => {
-  assert.match(L, /\{sel\.fitInfo\.drilledScale > 0 && " " \+ tr\("Set the scale by hand, or remove those collars: \{k\} of them are assumed vertical \(no survey or azimuth \/ dip\) and widen the frame; the rest fit at 1:\{s\}\./ /* #3899 */);
+  assert.match(L, /\{sel\.fitInfo\.drilledScale > 0 && " " \+ tr\("\{k\} are assumed vertical \(no survey\) and widen the frame; the rest fit at 1:\{s\}\./ /* #3899 */);
   assert.doesNotMatch(L, /\{sel\.fitInfo\.assumed > 0 && " " \+ tr\(/);
 });

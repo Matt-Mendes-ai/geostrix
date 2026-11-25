@@ -14,5 +14,5 @@ test("#1864 the capture result carries the unplaced count; both store branches k
   assert.equal(st.split("samplesUnplaced: res.samplesUnplaced || 0").length - 1, 2, "a new viewport and a refreshed one");
   const lay = read("../src/modules/LayoutModule.jsx");
   assert.ok(lay.includes("{sel.samplesUnplaced > 0 && ("));
-  assert.ok(lay.includes("surface samples are not in this frame: they lie over a terrain void"));
+  assert.ok(lay.includes("surface samples are over a terrain void, so not in this frame."));
 });

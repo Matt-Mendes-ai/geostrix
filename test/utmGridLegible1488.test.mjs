@@ -31,5 +31,5 @@ test("the overlay and the sidebar use them", () => {
   const s = fs.readFileSync("src/modules/LayoutModule.jsx", "utf8");
   assert.match(s, /const step = legibleGridStep\(/);
   assert.match(s, /keepLabelsApart\(\[\{ x: 3, y: H - 3 - fpx/);
-  assert.match(s, /too close to read: drawn every \{step\} m\./);
+  assert.match(s, /too close to read at this scale: drawn every \{step\} m\./);
 });

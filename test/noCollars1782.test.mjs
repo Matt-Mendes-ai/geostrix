@@ -32,5 +32,5 @@ test("#1866 no holes: the fit frames the visible block models first, and the but
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   const fit = l.slice(l.indexOf("const fitViewport = async"), l.indexOf("// TASKS.csv #906 — a resize handle"));
   assert.ok(fit.indexOf("modelFootprint(m)") > 0 && fit.indexOf("modelFootprint(m)") < fit.indexOf("for (const s of surfaceSamples"));
-  assert.ok(l.includes('{hasHoles ? tr("Fit the holes at a round scale") : tr("Fit the data at a round scale")}'));
+  assert.ok(l.includes('{hasHoles ? tr("Fit the holes") : tr("Fit the data")}'));
 });
