@@ -23,7 +23,7 @@ test("#3756 (1) surveyGapsOfRows: DH-23-299's shape (0, 339, then every 3 m) is 
 
 test("#3756 (2) a UBC mesh dropped with its model is handed to Geophysics > Block models with both files", () => {
   const imp = read("../src/modules/viewer/importPipelineImpl.js");
-  assert.match(imp, /requestModuleAction\("geophysics-ubc", \{ files: \[meshes\[0\], \.\.\.ubcModels\] \}\)/);
+  assert.match(imp, /const toBlocks = \[\.\.\.\(ubcModels\.length && ubcMeshes\.length === 1 \? \[ubcMeshes\[0\], \.\.\.ubcModels\] : \[\]\), \.\.\.invFiles\]; if \(toBlocks\.length\) \{ goToModule\("geophysics"\); requestModuleAction\("geophysics-ubc", \{ files: toBlocks \}\); \}/); // #4078: a .mesh too, and a Res3DInv .inv
   assert.match(imp, /a UBC-GIF mesh and its model, opened in Geophysics > Block models/);
   assert.match(read("../src/modules/GeophysicsModule.jsx"), /useModuleAction\(\["geophysics-ubc"\], \(_a, p\) => \{ if \(p\?\.files\?\.length\) \{ setGeoPane\("voxel"\); importUBC\(p\.files\); \} \}\);/);
   hasKeys(["{name} with {models}: a UBC-GIF mesh and its model, opened in Geophysics > Block models (Import UBC mesh + model…)."]);

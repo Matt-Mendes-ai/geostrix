@@ -111,6 +111,8 @@ import { sampleSurveyOnHoles } from "../lib/surveyOnHoles.js"; // TASKS.csv #332
 import { pointDefaultsFor, surveyChecksKey } from "../lib/surveyChecksClient.js"; // TASKS.csv #3883 (#3803) — the Point survey defaults in the worker
 import { defaultModelLegend } from "../lib/modelDefaultStops.js"; // TASKS.csv #2400
 import { guessVoxelProperty, isLogProperty, propertyRamp, parseGradeLabel } from "../lib/voxelProperty.js"; // TASKS.csv #1786; propertyRamp: #1788; parseGradeLabel: #2667
+import { isRes3dinvText, parseRes3dinvModel, res3dinvTensor, res3dinvIpProperty } from "../lib/res3dinv.js"; // TASKS.csv #4078 — a Res3DInv .inv as block models
+import { UBC_MESH_NAME, isGeosoftControlText } from "../lib/ubcFiles.js"; // TASKS.csv #4078 — a .mesh is a mesh; a Geosoft .con is not a model
 import { blankForCell, levelSlices, inLevel } from "../lib/surveyGridDefaults.js"; // TASKS.csv #3322; levelSlices: #3420
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote, planElevation } from "../lib/drapeElevation.js"; // planElevation: #2294; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { collarTerrainOffset, collarClusterAbove, collarClusterNote } from "../lib/terrainCheck.js"; // TASKS.csv #1620; cluster: #3882 follow-up
@@ -1996,6 +1998,34 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       setVoxelError({ info: false, text: tr("{name}: couldn't read the GOCAD SGrid ({message}).", { name: sg.name, message: err.message }) });
     } finally { setVoxelBusy(false); job.end(); } // job: #3963
   };
+  // TASKS.csv #4078 (SARIG Hillside) — a Res3DInv .inv: the last iteration's resistivity and its IP model as two block models on the file's own blocks
+  // (lib/res3dinv.js), averaged to the cell budget as a UBC model is; -> the note, or null when its project is gone
+  const importRes3dinv = async (file, job) => {
+    const parsed = parseRes3dinvModel(await file.text());
+    const t = res3dinvTensor(parsed);
+    if (!t) throw new Error(tr("its layers' blocks differ in plan: not read yet"));
+    const base = file.name.replace(/\.inv$/i, ""), made = [];
+    for (const [key, vals, property] of [["res", t.resistivity, "Resistivity (ohm·m)"], ["ip", t.ip, res3dinvIpProperty(parsed.ipQuantity, parsed.ipUnit)]]) {
+      if (!vals) continue;
+      let mesh = t.mesh, values = vals, coarsenedFrom = null, coarse = "";
+      if (mesh.nx * mesh.ny * mesh.nz > effectiveMaxCells) {
+        const { fx, fy, fz } = planCoarsenFactors(mesh.nx, mesh.ny, mesh.nz, effectiveMaxCells);
+        const log = wantsLogMean(values, property), c = coarsenUBCModel(mesh, values, fx, fy, fz, { log });
+        coarsenedFrom = coarsenRecord({ shape: [mesh.nx, mesh.ny, mesh.nz], factors: [fx, fy, fz], cellsTo: c.mesh.nx * c.mesh.ny * c.mesh.nz, values, rule: log ? MEAN_RULE.log : MEAN_RULE.arithmetic });
+        coarse = tr(" {fx} × {fy} × {fz} blocks averaged into one (cell budget).", { fx, fy, fz });
+        mesh = c.mesh; values = c.values;
+      }
+      const cells = ubcMeshToCells(mesh, values);
+      if (!cells.length) continue;
+      const { min, max } = cellValueRange(cells), logColours = isLogProperty(property, min, max), ramp = propertyRamp(property);
+      const name = `${base} (${key})`;
+      if (!(await landed(job))) return null;
+      addVoxelModel({ name, source: "res3dinv", cells, min, max, ...(property ? { property } : {}), ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}), ...(logColours ? { stops: logStops(min, max, ramp?.anchors || SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true, ...(ramp?.palette ? { palette: ramp.palette } : {}) } : {}) });
+      made.push(tr("\"{name}\" ({unit}, {cells} blocks){coarse}", { name, unit: key === "res" ? "ohm·m" : parsed.ipUnit || tr("unit not stated"), cells: cells.length.toLocaleString(), coarse }));
+      if (made.length === 1) made.push(farNote(cells).trim());
+    }
+    return tr("Res3DInv, iteration {n}: {list}; depths from a 0 m top, {m} m deep.{swap}", { n: parsed.iterations, list: made.filter(Boolean).join("; "), m: Math.round(t.depth).toLocaleString(), swap: t.swapped ? tr(" X and Y swapped (X held the northing).") : "" });
+  };
   const importUBC = async (fileList) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
@@ -2004,6 +2034,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     setVoxelProgress(null);
     const job = beginJob(tr("Block model")); // TASKS.csv #3953
     try {
+      // TASKS.csv #4078 — a Res3DInv .inv carries its own blocks and model: read first, the rest paired as UBC mesh + models below
+      const invFiles = [], invNotes = [], invFailed = [];
+      for (const f of files) { if (/\.inv$/i.test(f.name)) { try { if (isRes3dinvText(await f.slice(0, 4096).text())) invFiles.push(f); } catch { /* unreadable: left to the pairing */ } } }
+      for (const f of invFiles) { try { const n = await importRes3dinv(f, job); if (n === null) return; invNotes.push(n); } catch (e) { invFailed.push(tr("{file}: {message}", { file: f.name, message: e.message })); } }
+      if (invFiles.length && invFiles.length === files.length) {
+        setVoxelError({ info: !invFailed.length, text: [...invNotes, ...(invFailed.length ? [tr("Not imported: {list}", { list: invFailed.join(" ") })] : [])].join(" ") });
+        return;
+      }
+      if (invFiles.length) files.splice(0, files.length, ...files.filter((f) => !invFiles.includes(f)));
       // TASKS.csv #1658 (review #1646, Kodiak) — the mesh by its content, not its name: SJ Geophysics delivered "3dmesh_utm.txt" (nx ny nz,
       // then the origin), which a .msh-only test refused. A .msh name still wins; every other file is a model on that mesh (#1669: each
       // imported, named after its own file, so the resistivity and chargeability of one mesh are no longer both "3dmesh_utm").
@@ -2013,25 +2052,27 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       // mesh is a mesh; a model takes the mesh of its own name, else the only mesh (or meshes that are the same file); one file's failure is named and the
       // others still import.
       const meshFiles = [];
-      for (const f of files) { if (/\.msh$/i.test(f.name) || (f.size < 5e6 && await looksLikeMesh(f))) meshFiles.push(f); }
+      for (const f of files) { if (UBC_MESH_NAME.test(f.name) || (f.size < 5e6 && await looksLikeMesh(f))) meshFiles.push(f); } // .mesh: #4078 (GSV's "3dip.mesh")
       const modelFiles = files.filter((f) => !meshFiles.includes(f));
       if (!meshFiles.length || !modelFiles.length) {
-        throw new Error(tr("Select the mesh file (.msh, or a text mesh such as mesh.txt) and its model file(s) (.mod / .con / .den / .sus / .res / .chg) together."));
+        throw new Error(tr("Choose the mesh (.msh, .mesh or mesh.txt) and its model files together."));
       }
       const meshTexts = new Map();
       for (const f of meshFiles) meshTexts.set(f, await f.text());
       const distinctMeshes = [...new Set(meshTexts.values())];
       const baseOf = (n) => String(n).replace(/\.[a-z0-9]+$/i, "").toLowerCase();
       const meshFor = (mf) => meshFiles.find((m) => baseOf(m.name) === baseOf(mf.name)) || (distinctMeshes.length === 1 ? meshFiles[0] : null);
-      const infoNotes = [], failed = [];
+      const infoNotes = [...invNotes], failed = [...invFailed]; // #4078 — the .inv models read above
       for (const modelFile of modelFiles) {
       try { // #3806 — one model's failure is named and the rest still import
       const meshFile = meshFor(modelFile);
+      if (modelFile.size < 2e6 && isGeosoftControlText(await modelFile.slice(0, 4096).text())) throw new Error(tr("a Geosoft map-control file, not a model")); // #4078 (GEUS)
       if (!meshFile) throw new Error(tr("no mesh of the same name among {list}; choose it with its own mesh", { list: meshFiles.map((m) => m.name).join(", ") }));
       const meshText = meshTexts.get(meshFile);
       // TASKS.csv #1348 — a DCIP2D mesh (11 of ARIS 42641Z's lines) is not a 3D mesh: say where it goes
       if (isDcip2dMeshText(meshText)) throw new Error(tr("This is a UBC DCIP2D mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its model, topography and station files."));
       let mesh = parseUBCMesh(meshText);
+      const oneCellY = mesh.ny === 1; // TASKS.csv #4078 / #4065 — a 2D inversion filed as a 3D mesh one cell thick: DC / IP reads it as a section too
       const modelName = modelFile.name.replace(/\.([a-z0-9]+)$/i, " ($1)"); // "MPD-2023_dcinv3d_r2i10 (res)" 
       // Read the model file as a stream rather than meshFile.text()-style whole-file-into-one-string —
       // a real UBC-GIF inversion model can be 500MB+ of plain-text numbers, and streaming avoids ever
@@ -2053,14 +2094,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const log = wantsLogMean(values, guessVoxelProperty(modelFile.name)); // #1785 — resistivity / conductivity on their logs; .chg not (#1786)
         const coarsened = coarsenUBCModel(mesh, values, fx, fy, fz, { log });
         coarsenedFrom = coarsenRecord({ shape, factors: [fx, fy, fz], cellsTo: coarsened.mesh.nx * coarsened.mesh.ny * coarsened.mesh.nz, values: fine, valid: (v) => Number.isFinite(v) && v > -99999, rule: log ? MEAN_RULE.log : MEAN_RULE.arithmetic });
-        if (log) coarsenMeanNote = tr(" Merged on the logs (geometric means), so a .res and a .con of one inversion give the same model.");
+        if (log) coarsenMeanNote = tr(" Merged on the logs (geometric means).");
         mesh = coarsened.mesh; values = coarsened.values;
         const coarseTotal = mesh.nx * mesh.ny * mesh.nz;
         coarsenNote = tr(" Block-averaged from {rawTotal} to {coarseTotal} cells ({fx}×{fy}×{fz} into one) to fit the {effectiveMaxCells}-cell budget. For finer detail, raise it (Advanced ribbon, Cell budget) and re-import.", { rawTotal: rawTotal.toLocaleString(), effectiveMaxCells: effectiveMaxCells.toLocaleString(), fx, fy, fz, coarseTotal: coarseTotal.toLocaleString() });
         coarsenNote += coarsenMeanNote; // #1785
       }
       const cells = ubcMeshToCells(mesh, values);
-      if (!cells.length) throw new Error(tr("Every cell in this model is no-data — nothing to render."));
+      if (!cells.length) throw new Error(tr("Every cell is no-data."));
       const { min, max } = cellValueRange(cells);
       // #481 — a positive model spanning 2+ decades (conductivity, resistivity) gets log-spaced colours;
       // on a linear ramp almost every cell of a ZTEM conductivity model (1e-5 .. 0.1 S/m) was one colour.
@@ -2070,7 +2111,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const ramp = propertyRamp(guessed); // #1788 — resistivity low = red
       if (!(await landed(job))) return; // TASKS.csv #3953 — each model into the project it started in (the finally clears the busy state)
       addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(guessed ? { property: guessed } : {}), ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, ramp?.anchors || SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true /* #1780: log-stepped range sliders */, ...(ramp?.palette ? { palette: ramp.palette } : {}) } : {}) });
-      infoNotes.push(farNote(cells) + (guessed ? tr("Values read as {p} from the file name (change it under Values are).", { p: tr(guessed) }) + " " : "") + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }));
+      infoNotes.push(farNote(cells) + (guessed ? tr("Read as {p} from the file name.", { p: tr(guessed) }) + " " : "") + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Log colours: {min} to {max}.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }) + (oneCellY ? " " + tr("One cell thick: DC / IP reads it as a section too.") : ""));
       } catch (e) { failed.push(tr("{file}: {message}", { file: modelFile.name, message: e.message })); setVoxelProgress(null); }
       }
       // #3806 — the models that came in and, by name, the ones that did not
@@ -3439,7 +3480,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <input
           ref={ubcInput}
           type="file"
-          accept=".msh,.mod,.con,.den,.sus,.res,.chg,.sen,.txt"
+          accept=".msh,.mesh,.mod,.con,.den,.sus,.res,.chg,.sen,.inv,.txt" /* .mesh / .inv: #4078 */
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importUBC(e.target.files); e.target.value = ""; }}
@@ -3632,7 +3673,7 @@ function VoxelModelRow({ withSet = false /* #3014 part c */, others = null, mode
   // and hovering the label shows the parameters that produced them.
   // #1842 — a model of named units (solids from surfaces, a GemPy block) is not a CSV and its codes are not grades
   const categorical = !!model.valueLabels;
-  const sourceLabel = categorical && (model.source === "surfaces" || model.source === "gempy") ? tr("Modelled units") : model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : model.source === "simpeg" ? "SimPEG"
+  const sourceLabel = categorical && (model.source === "surfaces" || model.source === "gempy") ? tr("Modelled units") : model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : model.source === "simpeg" ? "SimPEG" : model.source === "res3dinv" ? "Res3DInv" /* #4078 */
     : String(model.source || "").startsWith("estimate-") ? tr("Estimate") : String(model.source || "").startsWith("support-index-") ? tr("Support index")
     : model.source === "kriging-variance" ? tr("Kriging variance") : model.source === "geoml" ? "geoML" : model.source === "calc" ? tr("Calculated") /* #3596 */ : "CSV"; // #1418 — kriging variance / geoML were "CSV"
   const p = model.params;

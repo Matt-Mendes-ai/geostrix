@@ -73,6 +73,9 @@ import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; 
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
+import { UBC_MESH_NAME, UBC_MODEL_NAME, ubcLoneAdvice } from "../../lib/ubcFiles.js"; // TASKS.csv #4078
+import { isRes3dinvText } from "../../lib/res3dinv.js"; // TASKS.csv #4078
+import { isDcip2dMeshText } from "../../lib/ubc2d.js"; // TASKS.csv #4078 — a 2D mesh goes to DC / IP
 import { perHoleJoinOf, perHoleAttrs } from "../../lib/perHoleJoin.js"; // TASKS.csv #2399
 import { MACPASS_CREDIT } from "../../lib/sampleCredits.js"; // TASKS.csv #3496
 import { isTable } from "../../lib/rowTable.js"; import { publishedLayers } from "../../lib/tableFields.js"; // TASKS.csv #3140 step 2 — a big log layer held as columns
@@ -1305,16 +1308,28 @@ export function makeImportPipeline(ctx, h) {
     // TASKS.csv #1991 — a Leapfrog .msh is a solid; a UBC-GIF tensor mesh (also .msh, text 'NX NY NZ') is a block model mesh
     const mshAdvice = [];
     // TASKS.csv #3738 (Scottie Gold) — a UBC model file (.chg / .con / .mod / .den / .sus) dropped beside its .msh was '1 unrecognized file(s) skipped' with no name: the pair is named together
-    const ubcModels = grouped.files.filter((x) => /\.(chg|con|mod|den|sus)$/i.test(x.name));
-    for (const f of grouped.files.filter((x) => /\.msh$/i.test(x.name))) {
-      if (looksLikeUbcMesh(new Uint8Array(await f.slice(0, 400).arrayBuffer()))) mshAdvice.push(ubcModels.length ? notice("{name} with {models}: a UBC-GIF mesh and its model, opened in Geophysics > Block models (Import UBC mesh + model…).", { name: f.name, models: ubcModels.slice(0, 3).map((m) => m.name).join(", ") + (ubcModels.length > 3 ? " …" : "") }) : notice("{name}: a UBC-GIF mesh. Load it with its model file in Geophysics > Block models.", { name: f.name }));
-      else importSolidFile(f);
+    // TASKS.csv #4078 — .res / .sen models too (SARIG's resistivity model is a .res), and a .mesh mesh (GSV's "3dip.mesh")
+    const ubcModels = grouped.files.filter((x) => UBC_MODEL_NAME.test(x.name));
+    const ubcMeshes = [], meshAdvised = new Set();
+    let leapfrogN = 0;
+    for (const f of grouped.files.filter((x) => UBC_MESH_NAME.test(x.name))) {
+      const head = new Uint8Array(await f.slice(0, 400).arrayBuffer());
+      if (looksLikeUbcMesh(head)) { ubcMeshes.push(f); meshAdvised.add(f); mshAdvice.push(ubcModels.length ? notice("{name} with {models}: a UBC-GIF mesh and its model, opened in Geophysics > Block models (Import UBC mesh + model…).", { name: f.name, models: ubcModels.slice(0, 3).map((m) => m.name).join(", ") + (ubcModels.length > 3 ? " …" : "") }) : notice("{name}: a UBC-GIF mesh. Load it with its model file in Geophysics > Block models.", { name: f.name })); }
+      else if (isDcip2dMeshText(new TextDecoder().decode(head))) { meshAdvised.add(f); mshAdvice.push(notice("{name}: a 2D UBC mesh. Open it with its model in DC / IP.", { name: f.name })); } // #4078
+      else if (/\.msh$/i.test(f.name)) { importSolidFile(f); leapfrogN++; }
     }
     const ubcPaired = mshAdvice.length ? new Set(ubcModels) : new Set(); // read with the mesh: not 'unrecognized'
-    // TASKS.csv #3756 (2) — the pair is handed to Geophysics > Block models (its importer reads a mesh and its model(s) together), not only named
-    { const meshes = grouped.files.filter((x) => /\.msh$/i.test(x.name)); if (ubcModels.length && meshes.length === 1 && mshAdvice.length) { goToModule("geophysics"); requestModuleAction("geophysics-ubc", { files: [meshes[0], ...ubcModels] }); } }
+    // TASKS.csv #4078 — a Res3DInv inversion (.inv, by its first lines) carries its own blocks: Block models reads it
+    const invFiles = [];
+    for (const f of grouped.files.filter((x) => /\.inv$/i.test(x.name))) { try { if (isRes3dinvText(await f.slice(0, 4096).text())) invFiles.push(f); } catch { /* unreadable: left as skipped */ } }
+    if (invFiles.length) mshAdvice.push(notice("{names}: a Res3DInv inversion, opened in Geophysics › Block models.", { names: invFiles.slice(0, 4).map((f) => f.name).join(", ") + (invFiles.length > 4 ? " …" : "") }));
+    // TASKS.csv #4078 — a model with no mesh beside it, or a Geosoft .con that is no model, is named with what it is
+    const loneNamed = new Set();
+    if (!ubcPaired.size) for (const f of ubcModels) { try { const a = ubcLoneAdvice(f.name, await f.slice(0, 4096).text()); if (a) { mshAdvice.push(notice(a)); loneNamed.add(f); } } catch { /* unreadable: left as skipped */ } }
+    // TASKS.csv #3756 (2) — the pair is handed to Geophysics > Block models (its importer reads a mesh and its model(s) together), not only named; #4078: and a .inv
+    { const toBlocks = [...(ubcModels.length && ubcMeshes.length === 1 ? [ubcMeshes[0], ...ubcModels] : []), ...invFiles]; if (toBlocks.length) { goToModule("geophysics"); requestModuleAction("geophysics-ubc", { files: toBlocks }); } }
     const ubcPairedN = ubcPaired.size;
-    const mshCount = grouped.files.filter((x) => /\.msh$/i.test(x.name)).length;
+    const mshCount = grouped.files.filter((x) => UBC_MESH_NAME.test(x.name)).length;
     let files = grouped.files.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx|las)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605, las: #492
     // TASKS.csv #603 — a closed format (Geosoft .gdb / .grd, .dwg, Access) gets the way out, not "unrecognized"
     const advised = grouped.files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
@@ -1342,9 +1357,9 @@ export function makeImportPipeline(ctx, h) {
       advised.push(notice("{names}: XYZ point files are read on the Geophysics tab, which opens them now.", { names: xyzFiles.slice(0, 4).map((f) => f.name).join(", ") + (xyzFiles.length > 4 ? " …" : "") }));
     }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - omfFiles.length /* #3895 */ - voSide.size /* #2632 */ - (mshCount - mshAdvice.length) /* #1991: the Leapfrog meshes went to the solid import */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ - sideInFiles /* #2901: read with their raster */ - ubcPairedN /* #3738 */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - voFiles.length - omfFiles.length /* #3895 */ - voSide.size /* #2632 */ - leapfrogN /* #1991: the Leapfrog meshes went to the solid import; #4078: counted as sent */ - Math.max(0, invFiles.length - 1) /* #4078: one notice for the .inv files */ - Math.max(0, vsNames.length - 1) /* #1992 */ - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ - Math.max(0, xyzFiles.length - 1) /* #3212 */ - sideInFiles /* #2901: read with their raster */ - ubcPairedN /* #3738 */ + grouped.unmatched.length;
     // TASKS.csv #3738 — the skipped files are NAMED ('1 unrecognized file(s) skipped' said nothing a person could act on)
-    const handledName = (f) => files.includes(f) || direct.includes(f) || voFiles.includes(f) || voSide.has(f.name) || /\.(msh|vs|edi|la[sz]|xyz|omf)$/i.test(f.name) || sideUsed.has(f) || ubcPaired.has(f) || !!unreadableFormatAdvice(f.name);
+    const handledName = (f) => files.includes(f) || direct.includes(f) || voFiles.includes(f) || voSide.has(f.name) || /\.(msh|vs|edi|la[sz]|xyz|omf)$/i.test(f.name) || sideUsed.has(f) || ubcPaired.has(f) || meshAdvised.has(f) || invFiles.includes(f) || loneNamed.has(f) /* #4078 */ || !!unreadableFormatAdvice(f.name);
     const skippedNames = [...grouped.files.filter((f) => !handledName(f)), ...grouped.unmatched].map((f) => f.name);
     { // TASKS.csv #3737 — a skipped file that reads as a text table (.sur, .tx ...) is named as one, with the way in
       const tableLike = [];
