@@ -15426,5 +15426,6 @@
   "Which units, youngest first?": "أي الوحدات، الأحدث أولًا؟",
   "Worst miss": "أسوأ انحراف",
   "{n} samples in the holes the shell uses": "{n} عيّنة في الثقوب التي يستخدمها الغلاف",
-  "{p} of the samples at or above": "{p} من العيّنات عنده أو فوقه"
+  "{p} of the samples at or above": "{p} من العيّنات عنده أو فوقه",
+  "{k} clusters of holes, over {g} m apart: model one at a time": "{k} مجموعات من الثقوب، تتباعد أكثر من {g} م: انمذج واحدة في كل مرة"
 }

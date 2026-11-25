@@ -550,11 +550,17 @@ export default function ModellingPanes(props) {
   const areaClusters = useMemo(() => holeClusters(loggedInArea), [loggedInArea]);
   // TASKS.csv #3268 (review #3195, Galore Creek) — the note was only in Model settings, which the Simple ribbon hides: a first Run in Simple spanned
   // 9 clusters over 29 km unwarned. The same note, with its buttons, heads the Implicit surface and Strat. stack panes too.
-  const clusterNote = () => (areaClusters && areaClusters.clusters.length > 1 ? (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
+  const clusterBody = () => (areaClusters && areaClusters.clusters.length > 1 ? (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
           {(layers.litho || []).length ? tr("The {n} logged holes in the model area lie in {k} clusters over {g} m apart: one model would span the gaps between them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) : tr("The {n} holes in the model area lie in {k} clusters over {g} m apart: one model would span the gaps between them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) /* #3606: no lithology logged, so not "logged holes" */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{areaClusters.clusters.slice(0, 6).map((c) => (
             <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); setHoleFilter?.(""); }} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Around E {e}, N {nn} ({first})" : "Around E {e}, N {nn}: {n} holes over {s} km", { first: c.ids[0], n: c.n, e: Math.round(c.cx / 100) * 100, nn: Math.round(c.cy / 100) * 100, s: Math.max(0.1, c.spanM / 1000).toFixed(1) }) /* #2928 (3): a place, not one hole id */}</button>))}</div>
         </div>) : null);
+  // TASKS.csv #4070 — in a step pane, one line that opens to the note and its cluster buttons (the note took 60 words above the stack's steps)
+  const clusterNote = (compact = false) => {
+    const b = clusterBody();
+    return b && compact ? (<details style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6 }}><summary style={{ cursor: "pointer" }}>
+      {tr("{k} clusters of holes, over {g} m apart: model one at a time", { k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() })}</summary>{b}</details>) : b;
+  };
   // TASKS.csv #1844 (review #1646, Kodiak) — a disabled GemPy Run button said only 'Runs in GeoStrix's Python engine…' (the status bar read
   // 'Py: idle', ready): its title now says first what is missing, or that a model is running
   const gempyTitle = (missing) => (implicitBusy ? tr("A model is already running.") : missing || tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"));
@@ -1037,7 +1043,7 @@ export default function ModellingPanes(props) {
           const m = (x) => (x == null ? "—" : `${x} m`);
           return (
             <StepPane id="stack" label={tr("Stratigraphic stack")}
-              top={<>{clusterNote() /* #3268 */}
+              top={<>{clusterNote(true) /* #3268; one line (#4070) */}
                 {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}</>}
               steps={[
                 { key: "units", label: tr("Units"), question: tr("Which units, youngest first?"), body: (<>

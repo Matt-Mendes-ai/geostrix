@@ -90,7 +90,7 @@ test("Strat. stack: the steps, and every setting and tool it had before is still
   for (const k of ['key: "units"', 'key: "faults"', 'key: "method"']) assert.ok(b.includes(k), k);
   const reach = ["addStackUnit(", "setAddAllOpen(", "<RemoveAllUnits", "<AddAllUnits", "<SortByHoles", "moveStackUnit(u, -1)", "moveStackUnit(u, 1)", "removeStackUnit(u)", "setStackBreaks(",
     "Use the order from the holes", "setStackFaults(", "setStackFaultOffsets?.(", "setCfg({ faults:", "setStackMethod", "setStackRelation", "setIncludeSectionContacts(", "runStackModel(stackUnits, { method: stackMethod })",
-    "{leftOutNote}", "clusterNote()", "data-stack-faults"];
+    "{leftOutNote}", "clusterNote(true)", "data-stack-faults"];
   const missing = reach.filter((k) => !b.includes(k));
   assert.deepEqual(missing, []);
   assert.match(b, /<MoreFold summary=\{tr\("Fine-tune…"\)\} data-fine-tune="stack">/);

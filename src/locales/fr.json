@@ -15426,5 +15426,6 @@
   "Which units, youngest first?": "Quelles unités, la plus jeune d'abord ?",
   "Worst miss": "Pire écart",
   "{n} samples in the holes the shell uses": "{n} échantillons dans les sondages qu'utilise l'enveloppe",
-  "{p} of the samples at or above": "{p} des échantillons à cette valeur ou au-dessus"
+  "{p} of the samples at or above": "{p} des échantillons à cette valeur ou au-dessus",
+  "{k} clusters of holes, over {g} m apart: model one at a time": "{k} groupes de sondages, à plus de {g} m les uns des autres : modélisez-en un à la fois"
 }

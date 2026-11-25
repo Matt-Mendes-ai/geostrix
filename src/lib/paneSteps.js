@@ -1,5 +1,6 @@
 // TASKS.csv #4070 — the 3D Modelling panes as steps; the Grade shell and the Strat. stack first (Matt's layout C, "steps, like the Guide", 2026-11-24): the numbers each step shows, kept pure so they
 // are tested apart from the pane (test/stepPane4070.test.mjs).
+import { arrMax } from "./arrayStats.js"; // #371 — no spread into Math.max
 //   1 Element  — the elements with a lab value, most samples first, with their counts
 //   2 Cut-off  — quick values from the samples (P75, P90 the suggested one, P95) and the share of samples at or above a cut-off
 //   3 Shape    — one choice over two settings the run already reads (shellMode, shellPlaneSearch)
@@ -71,5 +72,5 @@ export function stackResult(surfaces) {
   const left = run.reduce((t, s) => t + (s.params.contactsWithoutSurface?.left || 0), 0);
   const of = run.reduce((t, s) => t + (s.params.contactsWithoutSurface?.of || s.params.contactFit?.points || 0), 0);
   return { runId: last.params.runId, n: run.length, names: run.map((s) => s.name), typicalMissM: typ.length ? typ[Math.floor((typ.length - 1) / 2)] : null,
-    worstMissM: worst.length ? Math.max(...worst) : null, left, of };
+    worstMissM: worst.length ? arrMax(worst) : null, left, of };
 }

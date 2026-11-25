@@ -15426,5 +15426,6 @@
   "Which units, youngest first?": "Quais unidades, a mais jovem primeiro?",
   "Worst miss": "Pior desvio",
   "{n} samples in the holes the shell uses": "{n} amostras nos furos que o envoltório usa",
-  "{p} of the samples at or above": "{p} das amostras nele ou acima"
+  "{p} of the samples at or above": "{p} das amostras nele ou acima",
+  "{k} clusters of holes, over {g} m apart: model one at a time": "{k} grupos de furos, a mais de {g} m entre si: modele um de cada vez"
 }
