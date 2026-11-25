@@ -7,8 +7,8 @@ import fs from "node:fs";
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 test("#3688 the import dialogs sit above Data QC and the other dialogs", () => {
   assert.match(read("../src/lib/modalStyles.js"), /export const overlay = \{[^}]*zIndex: 60/);
-  assert.match(read("../src/components/ImportMappingModal.jsx"), /\{ \.\.\.overlay, zIndex: 62/);
-  assert.match(read("../src/components/AssayImportModal.jsx"), /\{ \.\.\.overlay, zIndex: 62/);
+  assert.match(read("../src/components/ImportMappingModal.jsx"), /export const Z_IMPORT = 62;[\s\S]*zIndex=\{Z_IMPORT\}/); // #4073 — a StepDialog's zIndex
+  assert.match(read("../src/components/AssayImportModal.jsx"), /const Z_IMPORT = 62;[\s\S]*zIndex=\{Z_IMPORT\}/); // #4073 — a StepDialog's zIndex
   assert.match(read("../src/components/DataQCModal.jsx"), /<div style=\{overlay\}|\{\.\.\.backdropProps/, "Data QC keeps the common overlay (60)");
 });
 test("#3696 the Macpass README names four files and three source tables, and no longer says 'three files'", () => {

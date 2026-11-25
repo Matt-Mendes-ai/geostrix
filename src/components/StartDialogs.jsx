@@ -19,6 +19,7 @@ import { fetchAreaBox } from "../lib/dataExtent.js";
 import { tieOf } from "../lib/localGridTie.js";
 import { panel, rowBtn } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3887 — the First steps guide
 import { DropPicture } from "./DropDiagram.jsx"; // TASKS.csv #3939 — pictures first
 import { Rotate3d, Boxes, FileText } from "lucide-react"; // TASKS.csv #3939 — the card's three lines
@@ -180,7 +181,6 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   };
 
   const rows = step === 2 ? startChecklist(store, { noDrill }) : [];
-  const title = step === 1 ? tr("Step 1 of 2: the ground.") : noDrill ? tr("Step 2 of 2: your data.") : tr("Step 2 of 2: your drilling.");
   const noteLine = (n) => n && <div role="status" style={{ ...small, marginTop: 8, color: n.warn ? "var(--color-warn-text)" : "var(--color-text)" }}>{n.text}</div>;
 
   if (card) return ( // #3918 — screen 3: a small card, not a dialog; the project is usable behind it
@@ -199,17 +199,12 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
     </div>
   );
 
-  return (
-    <div data-start-dialog={step} style={{ position: "fixed", inset: 0, zIndex: Z, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(8,10,14,0.45)" }}
-      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="ge-start-title" className="ge-card" style={{ ...panel({ width: "min(560px, calc(100vw - 32px))", maxHeight: "calc(100vh - 32px)" }), borderRadius: 12, boxShadow: "var(--shadow-pop)", overflow: "auto", padding: "18px 20px" }}>{/* #3956: the shared card */}
-        <div className="ge-card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, margin: "-18px -20px 0", padding: "14px 20px 4px", borderBottom: "none" }}>
-          <h2 id="ge-start-title" style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>{tr("Let's begin a project!")}</h2>
-          <button data-btn-own="" type="button" style={link} onClick={onClose}>{tr("Close")}</button>
-        </div>
-        <div style={{ ...small, margin: "4px 0 12px" }}>{title}</div>
-
-        {step === 1 && (<>
+  // TASKS.csv #4073 — the wizard on the shared step shell (StepDialog, #4071): the step bar, Back, the one gold primary; Escape and the focus trap are
+  // the shell's. Its Z (above the app), its drop guard (a file dropped beside the drop area is not imported underneath) and data-start-* stay
+  const heading = tr("Let's begin a project!");
+  const flow = [
+    { key: "ground", label: tr("Ground"), primary: { label: tr("Next"), onClick: next, attrs: { "data-start-next": "" } }, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
           <DropArea busy={busy} accept=".tif,.tiff,.csv,.txt,.xlsx,.xls,.zip,.gpkg,.shp" onFiles={onGroundFiles} picture="terrain"
             label={tr("Drop your terrain (DEM) here.")} />
           {noteLine(note)}
@@ -235,12 +230,15 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
             {onOpenProject && <button data-btn-own="" type="button" style={link} onClick={() => { onClose?.(); onOpenProject(); }}>{tr("Open a saved project")}</button>}
           </div>
           <label style={{ display: "block", marginTop: 12 }}><input type="checkbox" checked={noDrill} onChange={(e) => setNoDrill(e.target.checked)} /> {tr("I'm not using drill hole data.")}</label>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-            <button type="button" className="gs-btn gs-btn--primary" data-start-next="" onClick={next}>{tr("Next")}</button>
-          </div>
-        </>)}
-
-        {step === 2 && (<>
+        {reason !== "button" && (
+          <label style={{ ...small, display: "block", marginTop: 14 }}>
+            <input type="checkbox" checked={optOut} onChange={(e) => { setOptOut(e.target.checked); setStartOptOut(e.target.checked); }} /> {tr("Do not show this when GeoStrix starts")}
+          </label>
+        )}
+      </div>
+    ) },
+    { key: "data", label: noDrill ? tr("Your data") : tr("Your drilling"), primary: { label: tr("Done: show my project"), onClick: finish, attrs: { "data-start-done": "" } }, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
           <DropArea busy={false} multiple onFiles={importFiles} picture={noDrill ? "map" : "holes"}
             label={noDrill ? tr("Drop your maps, samples, pictures or geophysics here, all at once. GeoStrix works out which is which.") : tr("Drop all your files here at once. GeoStrix works out which is which.")} />
           <div style={{ ...small, marginTop: 6 }}>{tr("If a file is unclear, GeoStrix asks about it.")}</div>
@@ -283,18 +281,14 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
             </div>
           )}
           {noteLine(stripDone)}
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
-            <button type="button" className="gs-btn" onClick={() => setStep(1)}>{tr("Back")}</button>
-            <button type="button" className="gs-btn gs-btn--primary" /* gs-primary-alt: the last step of the wizard */ data-start-done="" onClick={finish}>{tr("Done: show my project")}</button>
-          </div>
-        </>)}
-
         {reason !== "button" && (
           <label style={{ ...small, display: "block", marginTop: 14 }}>
             <input type="checkbox" checked={optOut} onChange={(e) => { setOptOut(e.target.checked); setStartOptOut(e.target.checked); }} /> {tr("Do not show this when GeoStrix starts")}
           </label>
         )}
       </div>
-    </div>
-  );
+    ) },
+  ];
+  return <StepDialog title={heading} onClose={onClose} steps={flow} at={step - 1} onAt={(i) => (i === 1 ? next() : setStep(1))} width="min(560px, calc(100vw - 32px))" zIndex={Z} cancelLabel={tr("Close")}
+    overlayProps={{ "data-start-dialog": step, onDragOver: (e) => { e.preventDefault(); e.stopPropagation(); }, onDrop: (e) => { e.preventDefault(); e.stopPropagation(); } }} />;
 }

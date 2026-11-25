@@ -12,7 +12,7 @@ const DATE_TEST = String.raw`!/^\d{4}-\d{2}-\d{2}$/.test(`;
 test("the dialog keeps Import disabled until the date is typed, and says why", () => {
   assert.ok(d.includes(`const needsDate = ["collars", "survey", "structure"].includes(modal.target) && modal.azimuthRef === "magnetic" && ${DATE_TEST}modal.azimuthDate || "");`));
   assert.ok(d.includes("const blocked = missingRequired.length > 0 || needsDate || importCount(modal) === 0;"));
-  assert.ok(d.includes("disabled={blocked}"));
+  assert.ok(d.includes("disabled: blocked")); // #4073 — the StepDialog primary
   assert.ok(d.includes(`{tr("Type the survey date above: magnetic azimuths need it to work out the declination.")}`));
 });
 

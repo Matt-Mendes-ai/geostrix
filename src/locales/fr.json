@@ -15564,5 +15564,8 @@
   "Send": "Envoyer",
   "{name}: {rows} rows × {cols} columns, about {gb} GB whole.": "{name} : {rows} lignes × {cols} colonnes, environ {gb} Go en entier.",
   "Read": "Lire",
-  "What it reads goes to the AI app's provider (e.g. Anthropic). Switch it on only for a project you may share.": "Ce qu'elle lit va au fournisseur de l'application d'IA (p. ex. Anthropic). Activez-la seulement pour un projet que vous pouvez partager."
+  "What it reads goes to the AI app's provider (e.g. Anthropic). Switch it on only for a project you may share.": "Ce qu'elle lit va au fournisseur de l'application d'IA (p. ex. Anthropic). Activez-la seulement pour un projet que vous pouvez partager.",
+  "Your drilling": "Vos sondages",
+  "One thing needs a look before you import.": "Un point est à vérifier avant l'import.",
+  "{n} things need a look before you import.": "{n} points sont à vérifier avant l'import."
 }

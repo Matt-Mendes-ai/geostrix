@@ -9,9 +9,7 @@ import { TARGET_SCHEMAS, guessMapping } from "../lib/layersImport.js"; // TASKS.
 import { alterationStyleFromName, blankShare } from "../lib/viewer/importHelpers.js"; // TASKS.csv #1511; blankShare: #2182
 import { AZIMUTH_REFS, azimuthToGridOffset } from "../lib/azimuthRef.js"; // TASKS.csv #396; azimuthToGridOffset: #3302
 import { fitSimilarity, parseControlPoints } from "../lib/localGrid.js"; // TASKS.csv #412
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { fieldNeedsNumber, columnHasNoNumbers } from "../lib/importChecks.js"; // TASKS.csv #1257
@@ -57,6 +55,8 @@ import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 
+export const Z_IMPORT = 62; // TASKS.csv #3688 / #4073 — above the other dialogs (60), below the CRS question (64)
+
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
   const { project: storeProject, layers: storeLayers, goToModule, collars: storeCollars } = useStore(); // #2492; layers: #2893; goToModule: #2848; collars: #2659
   // TASKS.csv #2659 — every id an existing collar at its own position: a per-hole table, whose columns join onto those holes
@@ -70,8 +70,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
     if (!xs.length || !ys.length) return null;
     try { const o = azimuthToGridOffset("true", xs[xs.length >> 1], ys[ys.length >> 1], projectEpsg); return o && Number.isFinite(o.offset) ? o.offset : null; } catch { return null; }
   }, [modal.azimuthRef, modal.target, crsUnset, projectEpsg, storeCollars]);
-  useEscapeKey(onCancel); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
+  const [at, setAt] = useState(0); // TASKS.csv #4073 — the step on screen
   const schema = TARGET_SCHEMAS[modal.target];
   // TASKS.csv #208 — generic "add a custom field" control, usable for any target/schema, not just
   // litho's new built-in Description field: map an arbitrary source column into an arbitrarily-named
@@ -144,18 +143,29 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   };
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
 
-  return (
-    <div style={{ ...overlay, zIndex: 62 /* TASKS.csv #3688 — above Data QC and the other dialogs (all 60): a file dropped while one is open opened its import dialog underneath */ }}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import {fileName}", { fileName: modal.fileName })}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{rowCount} rows detected · match each field to a column below", { rowCount: modal.rowCount })}</div>
-          </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(modal.target === "sg" ? "import-density" : "import-drillholes")} aria-label={tr("Help: {name}", { name: tr("Import drillhole data") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
-        </div>
-
-        <div style={{ padding: 16, overflowY: "auto" }}>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — two steps: 1 Columns (what it is, the column matching, the preview) whose gold Import
+  // takes the guesses at once (Enter, #3533), 2 Options (units, grids, norths, extra fields, the row filter); an option that needs a look is said on
+  // step 1 in one line, with the way there. The Help page stays the header's "?" (#3528); the dialog stays above the others (#3688)
+  const logOn = !!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels); // #2160 — the channels are the values
+  const recOn = modal.target === "recovery" && !modal.mapping.value && !modal.recoveryCalcOff && !!recoveryColumns(modal.headers); // #2891 — the value is computed
+  const minOn = !logOn && !!mineralPlan(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping || {}, modal); // #3205 — the minerals are the values
+  const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(zOptional(modal.target) && f.key === "z") /* #3955 */ && !(logOn && f.key === "value") && !(recOn && f.key === "value") && !(minOn && f.key === "value") && !(perHole?.noXY && ["x", "y", "z"].includes(f.key)) /* #2399 */)
+    .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
+  // TASKS.csv #2895 (review #2876, WA iron) — magnetic azimuths with no survey date: Import was enabled, the dialog closed and nothing
+  // was imported (the commit refuses it), so the mapping had to be redone from a fresh drop. The button waits for the date instead.
+  const needsDate = ["collars", "survey", "structure"].includes(modal.target) && modal.azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(modal.azimuthDate || "");
+  const blocked = missingRequired.length > 0 || needsDate || importCount(modal) === 0;
+  // the Options notes that warn, each with the same condition as on the Options step (the units block shows only where there are lengths or collars;
+  // the north block only for collars with an azimuth, surveys and structures)
+  const unitsShown = (TARGET_SCHEMAS[modal.target]?.fields || []).some((f) => ["depth", "from", "to", "length", "z"].includes(f.key)) || modal.target === "collars";
+  const northShown = ["collars", "survey", "structure"].includes(modal.target) && (modal.target !== "collars" || !!modal.mapping?.azimuth);
+  const optionLooks = [densityDoubt, uncollared, unitsShown && modal.depthUnitHint && ((modal.depthUnitHint.kind === "feet") === ((modal.units || "m") === "m")), needsDate,
+    northShown && modal.azimuthToolsCol && !modal.azimuthRefFrom, northShown && crsUnset && (modal.azimuthRef === "true" || modal.azimuthRef === "magnetic")].filter(Boolean).length;
+  const importPrimary = { label: tr("Import {rowCount} rows", { rowCount: importCount(modal) }), onClick: onCommit, disabled: blocked, attrs: { "data-autofocus": "" } /* TASKS.csv #3533 — Enter accepts the guesses */ };
+  const zeroRows = importCount(modal) === 0 ? tr("The row filter keeps no row: tick at least one value under Rows.") : ""; // TASKS.csv #2431 — the row filter keeps none
+  const flow = [
+    { key: "columns", label: tr("Columns"), primary: importPrimary, hint: zeroRows, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
           <div style={label}>{tr("What kind of data is this?")}</div>
           <select aria-label={tr("Import as")} value={modal.target} onChange={(e) => setTarget(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 16 }}>
             {Object.entries(TARGET_SCHEMAS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
@@ -186,7 +196,6 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               {tr("Importing as {layer} replaces {n} row(s) from {src} in {holes} hole(s) (Ctrl+Z undoes it).", { layer: tr(LAYER_META[replaceInfo.target]?.label || replaceInfo.target), n: replaceInfo.n, src: replaceInfo.src || tr("an earlier import"), holes: replaceInfo.holes })}
             </div>
           )}
-
           <div style={label}>{tr("Column mapping")}</div>
           {schema.fields.map((f) => (
             <div key={f.key} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -222,7 +231,68 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               {fieldNeedsNumber(f) && modal.mapping[f.key] && columnHasNoNumbers(modal.sampleRows, modal.mapping[f.key]) && <div role="alert" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr("\"{col}\" has no numbers in the preview rows: {field} needs a number.", { col: modal.mapping[f.key], field: tr(f.label) })}</div>}
             </div>
           ))}
-
+        {optionLooks > 0 && <div role="status" style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "4px 0 12px" }}>
+          <span style={{ flex: 1 }}>{tr(optionLooks === 1 ? "One thing needs a look before you import." : "{n} things need a look before you import.", { n: optionLooks })}</span>
+          <button type="button" className="gs-btn gs-btn--sm" onClick={() => setAt(1)}>{tr("Options")}</button></div>}
+              {missingRequired.length > 0 && (
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr(missingRequired.length === 1 ? "Map the required field above:" : "Map the required fields above:")}{" "}{missingRequired.map((f) => tr(f.label)).join(", ")}
+                  {/* TASKS.csv #2165 — which column names were looked for: the file's own name for it is then easy to spot (or it is not this kind of table) */}
+                  {missingRequired.filter((f) => f.aliases?.length).map((f) => <div key={f.key} style={{ color: "var(--color-text-muted)" }}>{tr("{field}: no column matched; the names looked for are {names}.", { field: tr(f.label), names: f.aliases.slice(0, 10).join(", ") + (f.aliases.length > 10 ? ", …" : "") })}</div>)}
+                </div>
+              )}
+              {/* TASKS.csv #2848 — no hole column but X / Y and a measurement: survey stations, which Geophysics > Point survey imports */}
+              {missingRequired.some((f) => f.key === "hole_id") && modal.file && looksLikeStationTable(modal.headers) && (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                  <span style={{ flex: 1 }}>{tr("No hole column: if these are survey stations (X, Y and a measurement), import them under Geophysics > Point survey.")}</span>
+                  <button type="button" onClick={() => { const file = modal.file; onCancel(); goToModule("geophysics"); requestModuleAction("geophysics-drop", { files: [file] }); }} className="gs-btn gs-btn--sm" style={{ whiteSpace: "nowrap" }}>{tr("Import as survey stations")}</button>
+                </div>
+              )}
+          <div style={{ ...label, marginTop: 16 }}>{tr("Preview")}</div>
+          {/* User request: highlight the columns currently selected in the mapping above, right in the
+              preview table, so it's obvious at a glance which raw CSV columns are actually being used
+              (and which are being ignored) before committing the import. Maps column name -> the
+              field label(s) it's mapped to (a column CAN legitimately be picked for more than one
+              field, e.g. reusing a "depth" column for both from/to on a point-style schema) so the
+              header caption always reflects every mapping, not just the first one found. */}
+          {(() => {
+            const colToFields = {};
+            schema.fields.forEach((f) => {
+              const col = modal.mapping[f.key];
+              if (!col) return;
+              (colToFields[col] = colToFields[col] || []).push(f.label);
+            });
+            customFields.forEach((cf) => { (colToFields[cf.column] = colToFields[cf.column] || []).push(cf.name); });
+            return (
+              <div style={{ overflowX: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
+                  <thead>
+                    <tr>
+                      {modal.headers.map((h) => {
+                        const mapped = colToFields[h];
+                        return (
+                          <th key={h} style={mapped ? thMapped : th}>
+                            {h}
+                            {mapped && <div style={mappedCaption}>{mapped.join(" + ")}</div>}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modal.sampleRows.map((r, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid var(--color-hover-bg)" }}>
+                        {modal.headers.map((h) => <td key={h} style={colToFields[h] ? tdMapped : td}>{String(r[h] ?? "")}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+      </div>
+    ) },
+    { key: "options", label: tr("Options"), primary: importPrimary, hint: zeroRows, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
           {/* TASKS.csv #208 — "make it possible to add extra fields whenever importing csv or
               vectors" — a generic escape hatch for source columns that don't correspond to any of
               this schema's built-in fields (comments, sample IDs, lab batch numbers, whatever the
@@ -447,100 +517,15 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               </div>
             </div>
           )}
-
-          <div style={{ ...label, marginTop: 16 }}>{tr("Preview")}</div>
-          {/* User request: highlight the columns currently selected in the mapping above, right in the
-              preview table, so it's obvious at a glance which raw CSV columns are actually being used
-              (and which are being ignored) before committing the import. Maps column name -> the
-              field label(s) it's mapped to (a column CAN legitimately be picked for more than one
-              field, e.g. reusing a "depth" column for both from/to on a point-style schema) so the
-              header caption always reflects every mapping, not just the first one found. */}
-          {(() => {
-            const colToFields = {};
-            schema.fields.forEach((f) => {
-              const col = modal.mapping[f.key];
-              if (!col) return;
-              (colToFields[col] = colToFields[col] || []).push(f.label);
-            });
-            customFields.forEach((cf) => { (colToFields[cf.column] = colToFields[cf.column] || []).push(cf.name); });
-            return (
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
-                  <thead>
-                    <tr>
-                      {modal.headers.map((h) => {
-                        const mapped = colToFields[h];
-                        return (
-                          <th key={h} style={mapped ? thMapped : th}>
-                            {h}
-                            {mapped && <div style={mappedCaption}>{mapped.join(" + ")}</div>}
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modal.sampleRows.map((r, i) => (
-                      <tr key={i} style={{ borderBottom: "1px solid var(--color-hover-bg)" }}>
-                        {modal.headers.map((h) => <td key={h} style={colToFields[h] ? tdMapped : td}>{String(r[h] ?? "")}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* TASKS.csv #248 — found by a pre-release review: this button stayed clickable with a required
-            field left unmapped, only failing after the click via a toast — not a data-safety issue
-            (onCommit already validates and refuses cleanly), just avoidable friction. The per-row "*"/
-            red-border cues above already exist; this just stops the click from being possible at all. */}
-        {(() => {
-          const logOn = !!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels); // #2160 — the channels are the values
-          const recOn = modal.target === "recovery" && !modal.mapping.value && !modal.recoveryCalcOff && !!recoveryColumns(modal.headers); // #2891 — the value is computed
-          const minOn = !logOn && !!mineralPlan(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping || {}, modal); // #3205 — the minerals are the values
-          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key] && !(zOptional(modal.target) && f.key === "z") /* #3955 */ && !(logOn && f.key === "value") && !(recOn && f.key === "value") && !(minOn && f.key === "value") && !(perHole?.noXY && ["x", "y", "z"].includes(f.key)) /* #2399 */)
-            .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
-          // TASKS.csv #2895 (review #2876, WA iron) — magnetic azimuths with no survey date: Import was enabled, the dialog closed and nothing
-          // was imported (the commit refuses it), so the mapping had to be redone from a fresh drop. The button waits for the date instead.
-          const needsDate = ["collars", "survey", "structure"].includes(modal.target) && modal.azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(modal.azimuthDate || "");
-          const blocked = missingRequired.length > 0 || needsDate || importCount(modal) === 0;
-          return (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-              {missingRequired.length > 0 && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr(missingRequired.length === 1 ? "Map the required field above:" : "Map the required fields above:")}{" "}{missingRequired.map((f) => tr(f.label)).join(", ")}
-                  {/* TASKS.csv #2165 — which column names were looked for: the file's own name for it is then easy to spot (or it is not this kind of table) */}
-                  {missingRequired.filter((f) => f.aliases?.length).map((f) => <div key={f.key} style={{ color: "var(--color-text-muted)" }}>{tr("{field}: no column matched; the names looked for are {names}.", { field: tr(f.label), names: f.aliases.slice(0, 10).join(", ") + (f.aliases.length > 10 ? ", …" : "") })}</div>)}
-                </div>
-              )}
-              {/* TASKS.csv #2848 — no hole column but X / Y and a measurement: survey stations, which Geophysics > Point survey imports */}
-              {missingRequired.some((f) => f.key === "hole_id") && modal.file && looksLikeStationTable(modal.headers) && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                  <span style={{ flex: 1 }}>{tr("No hole column: if these are survey stations (X, Y and a measurement), import them under Geophysics > Point survey.")}</span>
-                  <button type="button" onClick={() => { const file = modal.file; onCancel(); goToModule("geophysics"); requestModuleAction("geophysics-drop", { files: [file] }); }} className="gs-btn gs-btn--sm" style={{ whiteSpace: "nowrap" }}>{tr("Import as survey stations")}</button>
-                </div>
-              )}
               {needsDate && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr("Type the survey date above: magnetic azimuths need it to work out the declination.")}</div>}{/* #2895 */}
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={onCancel} className="gs-btn" style={{ flex: 1 }}>{tr("Cancel")}</button>
-                <button
-                  onClick={onCommit} data-autofocus /* TASKS.csv #3533 — Enter accepts the guesses; focus no longer opens on Close */
-                  disabled={blocked} // 0 rows: TASKS.csv #2431 — the row filter keeps none; the survey date: #2895
-                  className="gs-btn gs-btn--primary" style={{ flex: 2, opacity: blocked ? 0.5 : 1, cursor: blocked ? "not-allowed" : "pointer" }}
-                  title={importCount(modal) === 0 ? tr("The row filter keeps no row: tick at least one value under Rows.") : undefined}
-                >{tr("Import {rowCount} rows", { rowCount: importCount(modal) })}</button>
-              </div>
-            </div>
-          );
-        })()}
       </div>
-    </div>
-  );
+    ) },
+  ];
+  const heading = tr("Import {fileName}", { fileName: modal.fileName });
+  return <StepDialog title={heading} onClose={onCancel} steps={flow} at={at} onAt={setAt} width="min(760px, 94vw)" zIndex={Z_IMPORT} /* TASKS.csv #3688 — above Data QC and the other dialogs (all 60) */
+    extra={<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(modal.target === "sg" ? "import-density" : "import-drillholes")} aria-label={tr("Help: {name}", { name: tr("Import drillhole data") })} title={tr("Help for this tool (F1, works offline)")}>?</button>} />;
 }
 
-const panel = { width: "min(640px, 92vw)", maxHeight: "86vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const th = { textAlign: "start", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)" };

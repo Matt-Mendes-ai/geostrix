@@ -5,9 +5,7 @@ import { percentColumnsReadingPpm, ppmColumnsReadingPpb } from "../lib/percentAs
 import { conversionsOver100 } from "../lib/assayReimport.js"; // TASKS.csv #3217
 import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, UNIT_ONLY_SYMBOLS, unitAssumed, repeatColumns, numberedRepeatCandidates, oxideOfHeader, keepsOxide, importStoreUnit, oxidesOver100, LOI } from "../lib/geochem.js"; // LOI: #2887; // importStoreUnit, oxidesOver100: #2490 // numberedRepeatCandidates: #2350 // repeatColumns: #2194; oxide basis: #2487
 import { scanAssayColumns, negativeSummary, zeroCount, blankCount } from "../lib/assayColumnScan.js"; // TASKS.csv #2164
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { pointReadings } from "../lib/pxrfPoints.js"; // TASKS.csv #1653
@@ -17,12 +15,13 @@ import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
 import { assayTextColumns, assayUsedColumns, chosenExtraColumns } from "../lib/assayExtraFields.js"; // TASKS.csv #3728
 import { otherNumericColumns, customAssayEntry, nameAndUnit } from "../lib/assayOtherColumns.js"; // TASKS.csv #3923
 
+const Z_IMPORT = 62; // TASKS.csv #3688 / #4073 — as the column matching's: above the other dialogs (60), below the CRS question (64)
+
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit, onQcLinks = null, existingUnits = {} }) { // onQcLinks: TASKS.csv #3409
   // TASKS.csv #2037 — the columns an interval import cannot do without (a long file also needs its analyte and value columns)
   const unmapped = [["hole_id", tr("Hole ID")], ["from", tr("From")], ["to", tr("To")], ...(modal.format === "long" ? [["analyte", tr("Analyte")], ["value", tr("Value")]] : [])].filter(([k]) => !modal.mapping?.[k]).map(([, label]) => label);
-  useEscapeKey(onCancel); // TASKS.csv #238
+  const [at, setAt] = useState(0); // TASKS.csv #4073 — the step on screen
   const labLike = modal.isPxrf ? pxrfSignature(modal.headers || []) : null; // #2198 — a lab file on the pXRF button
-  useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
   // TASKS.csv #3728 — the text columns kept with each sample (Zone, Target): offered, the groupable ones ticked
   const extraOffer = useMemo(() => assayTextColumns(modal.headers || [], modal.allRows || [], assayUsedColumns(modal.mapping, modal.qc, modal.elements)), [modal.headers, modal.allRows, modal.mapping, modal.qc, modal.elements]);
@@ -121,20 +120,31 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
     onChange({ ...modal, selectedMethod: method, elements });
   };
 
-  return (
-    <div style={{ ...overlay, zIndex: 62 /* TASKS.csv #3688 — above Data QC */ }}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr(modal.isPxrf ? "Import pXRF: {fileName}" : "Import assays: {fileName}", { fileName: modal.fileName })}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(modal.elements.length === 1 ? "{v} · 1 element recognized" : "{v} · {elements} elements recognized", { /* #2201 */ v: modal.format === "long" ? tr("Long format (row per analyte)") : tr("Wide format (column per element)"), elements: modal.elements.length })}</div>
-            {(() => { const none = modal.format === "long" ? [] : modal.elements.filter((e) => e.n === 0); return none.length ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Empty on every row, so left unticked: {list} ({n} columns).", { list: none.map((e) => e.symbol).join(", "), n: none.length })}</div> : null; })()}{/* TASKS.csv #1679 */}
-            {labLike?.looksLikeLab && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{tr("Use Import assays for lab results: this file looks like lab assays ({cols}), and here it would be pXRF screening, kept out of grades.", { cols: labLike.lab.join(", ") })}</div>}{/* TASKS.csv #2198 */}
-          </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("import-assays")} aria-label={tr("Help: {name}", { name: tr("Import assays") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
-        </div>
-
-        <div style={{ padding: 16, overflowY: "auto" }}>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — three steps: 1 Columns (hole / from / to, QC, extra fields, method, rows), 2 Elements (which ones,
+  // their columns and units, and the unit warnings), 3 Values (what negatives, zeros and blanks mean; the lab repeats). Import is the gold primary on every
+  // step: Enter accepts the guesses (#3533), as before. What needs a look on another step is said in one line, with the way there
+  const busyOrWaiting = !!modal.busy || !scan || checkedCount === 0 || unmapped.length > 0; // !scan: #2164; 0 elements: #2183; unmapped: #2037
+  const importLabel = modal.busy ? tr("Importing…") : !scan && (modal.allRows || []).length > 0 ? tr("Checking the values… {pct}%", { pct: Math.round(scanPct * 100) }) /* TASKS.csv #3072 — why it waits, on the button */ : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount }); // busy: #583
+  const importPrimary = { label: importLabel, onClick: onCommit, disabled: busyOrWaiting, attrs: { "data-autofocus": "", "aria-busy": !scan || !!modal.busy, title: !scan ? tr("The values are being checked for negatives, zeros and empty cells: the questions below depend on them.") : undefined } /* #3533; #3072 */ };
+  // TASKS.csv #2037 / #2183 — why Import waits, said under the step (seen)
+  const waitHint = !modal.busy && scan ? (unmapped.length > 0 ? tr("Map the {cols} column(s) to import.", { cols: unmapped.join(", ") }) : checkedCount === 0 ? tr("Tick or add at least one element to import.") : "") : "";
+  const elementLooks = modal.elements.filter((e) => e.unitFromValues && !e.unitChosen && e.header === e.mainHeader).length + (pctAsPpm.length > 0) + (ppmAsPpb.length > 0) + (over100.length > 0);
+  const valueLooks = (negatives.overAny > 0) + (negatives.codes > 0) + (zeros > 0) + (blanks > 0) + (clashOver.length > 0);
+  const looksLine = (here) => {
+    const where = [[1, elementLooks, tr("Elements")], [2, valueLooks, tr("Values")]].filter(([i, n]) => i !== here && n > 0);
+    const n = where.reduce((a, [, k]) => a + k, 0);
+    return n > 0 && <div role="status" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "0 0 10px" }}>
+      <span style={{ flex: 1 }}>{tr(n === 1 ? "One thing needs a look before you import." : "{n} things need a look before you import.", { n })}</span>
+      {where.map(([i, , name]) => <button key={i} type="button" className="gs-btn gs-btn--sm" onClick={() => setAt(i)}>{name}</button>)}</div>;
+  };
+  const flow = [
+    { key: "columns", label: tr("Columns"), primary: importPrimary, hint: waitHint, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(modal.elements.length === 1 ? "{v} · 1 element recognized" : "{v} · {elements} elements recognized", { /* #2201 */ v: modal.format === "long" ? tr("Long format (row per analyte)") : tr("Wide format (column per element)"), elements: modal.elements.length })}</div>
+        {(() => { const none = modal.format === "long" ? [] : modal.elements.filter((e) => e.n === 0); return none.length ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Empty on every row, so left unticked: {list} ({n} columns).", { list: none.map((e) => e.symbol).join(", "), n: none.length })}</div> : null; })()}{/* TASKS.csv #1679 */}
+        {labLike?.looksLikeLab && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{tr("Use Import assays for lab results: this file looks like lab assays ({cols}), and here it would be pXRF screening, kept out of grades.", { cols: labLike.lab.join(", ") })}</div>}{/* TASKS.csv #2198 */}
+        <div style={{ height: 10 }} />
+        {looksLine(0)}
           <div style={label}>{tr("Column mapping")}</div>
           {[["hole_id", tr("Hole ID")], ["from", tr("From")], ["to", tr("To")]].map(([key, lbl]) => (
             <div key={key} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -194,6 +204,11 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           )}
 
           {modal.format === "wide" && <div style={{ marginTop: 12 }}><RowFilterBox modal={modal} onChange={onChange} sel={sel} qc={false /* #3207 — QC samples are kept for QAQC */} /></div>}{/* TASKS.csv #2391 */}
+      </div>
+    ) },
+    { key: "elements", label: tr("Elements"), primary: importPrimary, hint: waitHint, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {looksLine(1)}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
             <div style={{ ...label, marginBottom: 0 }}>{tr("Elements ({checkedCount} of {elements})", { checkedCount, elements: modal.elements.length })}</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -343,8 +358,11 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
               >{tr("Add")}</button>
             </div>
           )}
-        </div>
-
+      </div>
+    ) },
+    { key: "values", label: tr("Values"), primary: importPrimary, hint: waitHint, render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {looksLine(2)}
         {!scan && (modal.allRows || []).length > 0 && ( /* TASKS.csv #2164 — the values are being checked; the questions below depend on them */
           <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "0 16px 8px" }}>{tr("Checking the values for negatives, zeros and empty cells… {pct}%", { pct: Math.round(scanPct * 100) })}</div>
         )}
@@ -401,21 +419,13 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             <input type="checkbox" checked={(modal.numberedRepeats || []).includes(c.header)} onChange={(e) => onChange({ ...modal, numberedRepeats: e.target.checked ? [...(modal.numberedRepeats || []), c.header] : (modal.numberedRepeats || []).filter((h) => h !== c.header) })} />
             {tr("{header} looks like a repeat of {symbol}: {n} samples have both, median ratio {r}. Keep it as QC duplicates", { header: c.header, symbol: c.symbol, n: c.n.toLocaleString(), r: c.medianRatio.toFixed(2) })}
           </label>))}
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onCancel} className="gs-btn" style={{ flex: 1 }}>{tr("Cancel")}</button>
-          {/* TASKS.csv #2183 (review #2174) — 'Import 0 elements' committed 10,422 intervals with no values */}
-          {/* TASKS.csv #2037 (review #2013) — a file with no hole / from / to (an IP .dat on the pXRF button) could be 'imported': the button waits for
-              them, and the reason is said here, not in the panel behind the dialog */}
-          {unmapped.length > 0 && !modal.busy && scan && <div role="note" style={{ alignSelf: "center", flex: 2, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Map the {cols} column(s) to import.", { cols: unmapped.join(", ") })}</div>}
-          {checkedCount === 0 && unmapped.length === 0 && !modal.busy && scan && <div role="note" style={{ alignSelf: "center", flex: 2, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Tick or add at least one element to import.")}</div>}
-          <button onClick={onCommit} data-autofocus /* TASKS.csv #3533 */ disabled={!!modal.busy || !scan || checkedCount === 0 || unmapped.length > 0} /* !scan: #2164; 0 elements: #2183; unmapped: #2037 */ aria-busy={!scan || !!modal.busy} title={!scan ? tr("The values are being checked for negatives, zeros and empty cells: the questions below depend on them.") : undefined} /* #3072 */ className="gs-btn gs-btn--primary" style={{ flex: 2, opacity: modal.busy || !scan || checkedCount === 0 || unmapped.length > 0 ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : !scan && (modal.allRows || []).length > 0 ? tr("Checking the values… {pct}%", { pct: Math.round(scanPct * 100) }) /* TASKS.csv #3072 — why the button waits, on the button: the status line above can be scrolled out of view */ : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
-        </div>
       </div>
-    </div>
-  );
+    ) },
+  ];
+  const heading = tr(modal.isPxrf ? "Import pXRF: {fileName}" : "Import assays: {fileName}", { fileName: modal.fileName });
+  return <StepDialog title={heading} onClose={onCancel} steps={flow} at={at} onAt={setAt} width="min(720px, 94vw)" zIndex={Z_IMPORT} /* TASKS.csv #3688 — above Data QC and the other dialogs (all 60) */
+    extra={<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("import-assays")} aria-label={tr("Help: {name}", { name: tr("Import assays") })} title={tr("Help for this tool (F1, works offline)")}>?</button>} />;
 }
 
-const panel = { width: "min(680px, 92vw)", maxHeight: "86vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };

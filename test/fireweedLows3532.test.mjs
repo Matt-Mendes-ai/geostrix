@@ -26,8 +26,8 @@ test("#3533 the import dialogs focus their primary button (Enter accepts the gue
   assert.match(t, /dialog\.querySelector\("\[data-autofocus\]:not\(\[disabled\]\)"\)/);
   assert.match(t, /focusables\.find\(\(el\) => el\.tagName\.toLowerCase\(\) !== "svg" && !el\.classList\?\.contains\("ge-pane-help"\)\)/);
   assert.match(t, /\(first \|\| focusables\[0\] \|\| dialog\)\.focus\?\.\(\)/);
-  assert.match(read("../src/components/ImportMappingModal.jsx"), /onClick=\{onCommit\} data-autofocus/);
-  assert.match(read("../src/components/AssayImportModal.jsx"), /<button onClick=\{onCommit\} data-autofocus/);
+  assert.match(read("../src/components/ImportMappingModal.jsx"), /onClick: onCommit, disabled: blocked, attrs: \{ "data-autofocus": "" \}/); // #4073 — StepDialog spreads attrs on its gold button
+  assert.match(read("../src/components/AssayImportModal.jsx"), /onClick: onCommit, disabled: busyOrWaiting, attrs: \{ "data-autofocus": "",/); // #4073 — StepDialog spreads attrs on its gold button
 });
 
 // ---- #3534
