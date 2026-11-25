@@ -210,6 +210,17 @@ export const shadows = {
 };
 
 export const fontWeights = { title: 700 };
+// TASKS.csv #4069 — the button roles ("GeoStrix gold"), the JS mirror of app.css's --btn-* tokens, value for value (test/buttonRoles4069.test.mjs keeps them equal). A button
+// is styled by the .gs-btn classes, not by these: they are for the places a var() means nothing (a canvas, an exported file) and for the contrast test.
+export const buttons = {
+  primaryBg: "#e2a63c", primaryBgHover: "#d99b2d", primaryBgActive: "#c98f2a", primaryText: "#3a2a06", primaryBorder: "#c98f2a",
+  secondaryBg: "#ffffff", secondaryBgHover: "#f4f5f7", secondaryBgActive: "#e6e8eb", secondaryText: "#1a2028", secondaryBorder: "#c7ccd3",
+  quietText: "#8a6a1f", quietBgHover: "#fdf8ec", quietBgActive: "#fbf3e1",
+  dangerBg: "#ffffff", dangerBgHover: "#fdeceb", dangerText: "#b23a2e", dangerBorder: "#e3b4ae",
+  disabledBg: "#f4f5f7", disabledText: "#9aa5b3", disabledBorder: "#e6e8eb",
+  iconText: "#55606e", radius: "6px", weight: "500",
+};
+
 
 // TASKS.csv #3900 — FROZEN: these are now the sizes of text INSIDE figures (charts, SVG plots, exports), which do not follow the window's text
 // size setting. They equal app.css's five tokens at --text-bump 0 (Normal). Text a canvas or three.js draws as window furniture on screen takes
