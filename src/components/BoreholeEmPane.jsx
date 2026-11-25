@@ -214,7 +214,7 @@ export default function BoreholeEmPane({ collars, customLayers, setCustomLayers,
                 {Array.from({ length: nch }, (_, i) => i + 1).map((k) => <option key={k} value={k}>{`CH${k}`}{timeOf(k) != null ? ` (${fmt(timeOf(k))} ms)` : ""}</option>)}
               </select>
             </div>
-            <button type="button" onClick={() => addLayers(src)} className="gs-btn gs-btn--block" style={{ justifyContent: "center" }} title={tr("One layer per component for the Strip log and the StrixViewer; every channel is kept.")}>{tr("Add as layers")}</button>
+            <button type="button" onClick={() => addLayers(src)} className="gs-btn gs-btn--primary gs-btn--block" /* #4070: the pane's one gold primary */ style={{ justifyContent: "center" }} title={tr("One layer per component for the Strip log and the StrixViewer; every channel is kept.")}>{tr("Add as layers")}</button>
             <div style={note}>{tr("{m} of {n} matched.", { m: matchedCount, n: sources.filter((s) => !s.fromProject).length })}</div>
           </>)}
           {src.fromProject && <div style={note}>{tr("From a project layer.")}</div>}

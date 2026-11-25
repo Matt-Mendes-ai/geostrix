@@ -3,10 +3,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { temWorkbench, mtEdi, fdemDualem } from "./fixtures/geophys4070/make.mjs";
+import { temWorkbench, mtEdi, fdemDualem, dhemMaxwell } from "./fixtures/geophys4070/make.mjs";
 import { readTemText, channelMatrix, tauAll, linesOf } from "../src/lib/temLines.js";
 import { parseEdi, soundingCurves } from "../src/lib/edi.js";
 import { isFdemCsv, fdemFromCsv } from "../src/lib/fdem.js";
+import { readDownholeEm, matchEmHoles } from "../src/lib/downholeEm.js";
 
 const fx = (name) => readFileSync(new URL(`./fixtures/geophys4070/${name}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -14,6 +15,7 @@ test("the files on disk are what make.mjs writes", () => {
   assert.equal(fx("tem_lines_SYNTHETIC.xyz"), temWorkbench());
   for (let k = 0; k < 5; k++) assert.equal(fx(`mt_SYNTHETIC_${k + 1}.edi`), mtEdi(k));
   assert.equal(fx("fdem_dualem_SYNTHETIC.csv"), fdemDualem());
+  assert.equal(fx("dhem_maxwell_SYNTHETIC.tem"), dhemMaxwell().replace(/\r\n/g, "\n")); // written CRLF, as the files are; git may store it LF
 });
 
 test("TEM lines: a Workbench export in MGA 51, 3 lines of 41 stations, 16 gates, tau 0.3 ms to 1.6 ms over the conductor", () => {
@@ -43,4 +45,12 @@ test("FDEM: a DUALEM CSV, six coil pairs, 80 readings with positions and the DEM
   assert.equal(f.instrument, "DUALEM");
   assert.deepEqual(f.coils.map((c) => `${c.geom} ${c.sep}`), ["HCP 1", "PRP 1.1", "HCP 2", "PRP 2.1", "HCP 4", "PRP 4.1"]);
   assert.equal(f.data.length, 80); assert.equal(f.readings.zFrom, "dem_elevation_m"); assert.ok(f.readings.x);
+});
+
+test("borehole EM: a Maxwell table for a made-up hole, A / U / V at 30 stations, 10 gates; it matches no project hole by name", () => {
+  const r = readDownholeEm(fx("dhem_maxwell_SYNTHETIC.tem"), "dhem_maxwell_SYNTHETIC.tem");
+  assert.equal(r.kind, "maxwell"); assert.equal(r.units, "nT/s"); assert.equal(r.nch, 10); assert.deepEqual(r.warnings, []);
+  assert.equal(r.holes.length, 1); assert.equal(r.holes[0].id, "DH-SYN-01");
+  for (const c of ["A", "U", "V"]) assert.equal(r.holes[0].comps[c].length, 30, c);
+  assert.equal(matchEmHoles(["DH-SYN-01"], ["DH-23-001", "DH-23-002"])[0].hole, null);
 });

@@ -9,6 +9,8 @@ with it under its MIT licence.
   is `C exp(-t / tau)`, tau 0.3 ms in the background and 1.6 ms over a made-up conductor.
 - `mt_SYNTHETIC_1.edi` … `mt_SYNTHETIC_5.edi`: five EDI soundings 0.005° apart along a line, 16 frequencies from 10 kHz to 0.01 Hz: about
   300 ohm·m over 10 ohm·m from 400–640 m (deepening to the east), as a smooth apparent-resistivity curve with a phase bump.
+- `dhem_maxwell_SYNTHETIC.tem`: a borehole EM Maxwell table (CRLF) for a made-up hole `DH-SYN-01` (it matches no sample hole by name), stations
+  every 10 m to 300 m, components A, U and V, 10 gates; a made-up conductor at 180 m (A crosses zero there, U and V peak beside it).
 - `fdem_dualem_SYNTHETIC.csv`: a DUALEM-421 style CSV, 80 readings 10 m apart on a north–south walk; apparent conductivity rises over a
   made-up clay lens.
 
