@@ -207,7 +207,7 @@ export function readDownholeEm(text, fileName = "", companions = {}) {
 
 // -- matching the file's holes to the project's -----------------------------------------------------------------------------------------------------
 const squash = (s) => String(s ?? "").toLowerCase().replace(/[\s_\-.]+/g, "");
-const unzero = (s) => s.replace(/([a-z])0+(\d)/g, "$1$2"); // PENQ-010 and PENQ10
+const unzero = (s) => s.replace(/([a-z])0+(\d)/g, "$1$2"); // QRSQ-010 and QRSQ10
 const keysOf = (id) => {
   const out = [];
   let s = String(id ?? "").trim();

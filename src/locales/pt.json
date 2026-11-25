@@ -15477,6 +15477,8 @@
   "A control point has no horizontal value.": "Um ponto de controle não tem valor horizontal.",
   "A control point has no elevation.": "Um ponto de controle não tem elevação.",
   "Place at least 2 control points.": "Coloque pelo menos 2 pontos de controle.",
+  "No holes or saved sections yet: type the ends.": "Ainda não há furos nem seções salvas: digite as extremidades.",
+  "Fit error": "Erro de ajuste",
   "Cell / search": "Célula / busca",
   "Closed by the search wall": "Fechada pela parede de busca",
   "Closed naturally": "Fechada naturalmente",
