@@ -15701,7 +15701,6 @@
   "Imported in the wrong CRS? Pick it and the CRS it is really in: it moves into {v}.": "هل استُوردت بنظام إحداثيات خاطئ؟ اخترها والنظام الذي هي فيه فعلاً: تُنقل إلى {v}.",
   "Where does the ground come from?": "من أين تأتي التضاريس؟",
   "Which kind of EM survey?": "أي نوع من المسح الكهرومغناطيسي؟",
-  "Along lines (SkyTEM, Workbench, .xyz, a CSV per gate): decays and the decay constant.": "على طول الخطوط (SkyTEM أو Workbench أو .xyz أو CSV لكل بوابة): منحنيات التلاشي وثابت التلاشي.",
   "Conductivity with depth under each sounding (1D).": "الموصلية مع العمق تحت كل سبر (أحادي البعد).",
   "One channel in a table, as a point survey.": "قناة واحدة في جدول، كمسح نقطي.",
   "Next: search": "التالي: البحث",
@@ -15716,5 +15715,12 @@
   "Next: result": "التالي: النتيجة",
   "Next: estimate": "التالي: التقدير",
   "Cutoffs": "حدود القطع",
-  "Next: report": "التالي: التقرير"
+  "Next: report": "التالي: التقرير",
+  "Along lines (SkyTEM, Workbench, .xyz, CSV): decays and decay constant.": "على طول الخطوط (SkyTEM أو Workbench أو .xyz أو CSV): منحنيات التلاشي وثابت التلاشي.",
+  "yes": "نعم",
+  "Sampled for {el}": "مُعايَن لـ {el}",
+  "inside": "داخل",
+  "Next: setup": "التالي: الإعداد",
+  "Bodies": "الأجسام",
+  "Location": "الموقع"
 }

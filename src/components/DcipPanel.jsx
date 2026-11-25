@@ -575,7 +575,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
           { key: "line", label: tr("Line"), question: tr("Which line, which columns?"), body: lineStep },
           { key: "place", label: tr("Place"), question: tr("Where is the line?"), body: placeStep },
           { key: "fit", label: tr("Fit"), question: tr("How far do you trust each reading?"), body: fitStep },
-        ] : [{ key: "line", label: tr("Line"), body: lineStep }]}
+        ] : [{ key: "line", label: tr("Line"), question: tr("Which line, which columns?"), body: lineStep }]}
         action={file ? { label: running ? tr("Inverting…") : tr("Invert"), onClick: run, disabled: running, icon: <Play size={14} /> } : null}
         result={last ? { key: last, body: (<>
           <StepNumbers rows={[
@@ -586,12 +586,14 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
           ]} />
           {<InResultArea slot={resultSlot}><SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={stampEpsg(project)} large={!!resultSlot} /></InResultArea>}
         </>) } : null}
-        fineTune={fineTune} />
-      {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
-      {mesh3d && msg && !msg.ok && ( /* TASKS.csv #3883 (#3812) — the same files to Block models' Import UBC mesh + model (geophysics-ubc: that pane opens and reads them) */
-        <button className="gs-btn gs-btn--block" style={{ marginTop: 4 }} type="button" data-ubc-to-blocks="" onClick={() => { const files = mesh3d; setMesh3d(null); setMsg(null); requestModuleAction("geophysics-ubc", { files }); }}>{tr("Import as a block model")}</button>
-      )}
-      {job?.error && <div style={{ ...small, marginTop: 6, color: "var(--color-danger-fg)" }}>{job.error}</div>}
+        fineTune={fineTune}
+        message={msg || job?.error ? <>{/* #4070: what the last action said, under the step bar (it sat below the fold) */}
+        {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
+        {mesh3d && msg && !msg.ok && ( /* TASKS.csv #3883 (#3812) — the same files to Block models' Import UBC mesh + model (geophysics-ubc: that pane opens and reads them) */
+          <button className="gs-btn gs-btn--block" style={{ marginTop: 4 }} type="button" data-ubc-to-blocks="" onClick={() => { const files = mesh3d; setMesh3d(null); setMsg(null); requestModuleAction("geophysics-ubc", { files }); }}>{tr("Import as a block model")}</button>
+        )}
+        {job?.error && <div style={{ ...small, marginTop: 6, color: "var(--color-danger-fg)" }}>{job.error}</div>}
+        </> : null} />
       {/* the other DC / IP tools: open before a line is read (they are ways in too), folded once one is; one tree, so their state survives */}
       <MoreFold summary={tr("Merge lines, 3D arrays…")} data-more-dcip="" open={!file}>
       <DcipMergePanel numInput={numInput} />

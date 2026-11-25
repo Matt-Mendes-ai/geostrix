@@ -2314,7 +2314,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         {/* TASKS.csv #4070 part 2 (side 2, Matt's layout C) — the survey pane as steps: 1 Survey (import, and the loaded surveys with their tools), 2 Colours
             (legend and scale), 3 Grid (to a raster; Generate raster the one gold primary). Spatial analysis and sampling along the holes are in a fold below. */}
         <StepPane id="points" label={tr("Point survey")}
-          top={<>
+          message={xyzError || error ? <>{/* #4070: under the step bar, so a long import or grid note does not push the steps down */}
         {xyzError && (
           <div style={{ marginTop: 8, padding: "8px 10px", background: xyzError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${xyzError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: xyzError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {xyzError.text}
@@ -2330,7 +2330,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             </div>
           );
         })()}
-          </>}
+          </> : null}
           steps={[
             { key: "survey", label: tr("Survey"), question: tr("Which survey?"), body: (<>
         {/* TASKS.csv #120 — optional source EPSG, shared by the CSV and .xyz importers below. Left
@@ -3329,7 +3329,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           <TaskPaneHeader title="Electromagnetic surveys (EM)" icon={Radio} tone="data" onClose={() => setGeoPane(null)} />
           {/* TASKS.csv #4070 part 2 (side 2) — one question; the intro and each kind's line cut short (the ? beside each opens its Help page) */}
           <StepPane id="em" label={tr("EM")} steps={[{ key: "kind", label: tr("EM"), question: tr("Which kind of EM survey?"), body: [
-            { label: tr("TEM line data: channels, decays, decay constant…"), text: tr("Along lines (SkyTEM, Workbench, .xyz, a CSV per gate): decays and the decay constant."), go: () => setGeoPane("tem"), help: "tem-lines" }, // #1986 step 1
+            { label: tr("TEM line data: channels, decays, decay constant…"), text: tr("Along lines (SkyTEM, Workbench, .xyz, CSV): decays and decay constant."), go: () => setGeoPane("tem"), help: "tem-lines" }, // #1986 step 1
             { label: tr("Borehole EM…"), text: tr("Channels down a hole and the decay at a depth."), go: () => setGeoPane("bhem"), help: "borehole-em" }, // #4064
             { label: tr("FDEM 1D: ground loop-loop (DUALEM, GEM-2)…"), text: tr("Conductivity with depth under each sounding (1D)."), go: () => setGeoPane("fdem"), help: "fdem-1d" },
             { label: tr("TEM: one channel as points…"), text: tr("One channel in a table, as a point survey."), go: () => { setMethodHint("tem"); setGeoPane("points"); }, help: "point-survey" },

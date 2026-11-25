@@ -87,7 +87,8 @@ export default function StepDialog({ title, onClose, steps, at, onAt, help = nul
           </div>
         )}
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          {i > 0 ? <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={() => onAt(i - 1)}>{tr("Back")}</button> : <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{cancelLabel || tr("Cancel")}</button>}
+          {/* TASKS.csv #4070 consistency pass (side 2) — a first step whose primary IS the dialog's close (an empty state's "Close") gets no Cancel beside it: two buttons that both close */}
+          {i > 0 ? <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={() => onAt(i - 1)}>{tr("Back")}</button> : p.onClick === onClose ? null : <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{cancelLabel || tr("Cancel")}</button>}
           <button {...p.attrs} type="button" className="gs-btn gs-btn--primary" style={{ flex: 2 }} disabled={!!p.disabled} onClick={go}>{p.label}</button>
         </div>
       </div>

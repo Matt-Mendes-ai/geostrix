@@ -18,8 +18,10 @@ const muted = { color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)
 
 // steps: [{ key, label, question, body, hint }] (label and question already translated); action: { label, onClick, disabled, title, icon, step, attrs } (step: the index it sits on, default the last; attrs: extra attributes, e.g. data-mcp);
 // result: { key, body, label, offTitle } (key: what changes when a new result lands, null before any; label: the Result step's name, default "Result"; offTitle: the tooltip of the greyed pill, default "After the first run"); fineTune: a node (a closed MoreFold);
-// label: the pane's name (translated); start: the step a pane opens on the first time ("result" for a pane whose last step is the list the user opens it for; default the first)
-export default function StepPane({ id, label, steps, action, result, fineTune, top, start = 0 }) {
+// label: the pane's name (translated); start: the step a pane opens on the first time ("result" for a pane whose last step is the list the user opens it for; default the first);
+// message: what the last action said (an import's note, an error), shown under the step bar inside the step rather than above the bar, so a long one does not push
+// the steps down (TASKS.csv #4070, side 2; StepDialog's hint / error slot for panes): a node, a string (a note), or { text, level: "error" | "warn" | "info" }
+export default function StepPane({ id, label, steps, action, result, fineTune, top, start = 0, message = null }) {
   const resultLabel = result?.label || tr("Result");
   const all = result ? [...steps, { key: "result", label: resultLabel, body: result.body }] : steps;
   const last = all.length - 1;
@@ -66,6 +68,7 @@ export default function StepPane({ id, label, steps, action, result, fineTune, t
           })}
         </div>
       )}
+      {message != null && message !== "" && message !== false && <StepMessage message={message} />}
       {/* every step stays mounted, only the shown one visible: a step's parts that set a value when they mount (the Grade shell's automatic cap,
           ShellCapNote) do so whichever step is open, as they did in the one long pane */}
       {all.map((s, i) => (
@@ -128,4 +131,17 @@ export function StepNumbers({ rows }) {
       ))}
     </div>
   );
+}
+
+// the message slot's look: a plain string is a note; { text, level } takes StepDialog's error / warn colours, or the info box
+const MESSAGE_LOOK = {
+  error: { role: "alert", style: { background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", color: "var(--color-danger-text)" } },
+  warn: { role: "status", style: { background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)" } },
+  info: { role: "status", style: { background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" } },
+};
+function StepMessage({ message }) {
+  if (React.isValidElement(message) || Array.isArray(message)) return <div data-step-message="" style={{ marginBottom: 8 }}>{message}</div>;
+  const m = typeof message === "string" ? { text: message, level: "info" } : message;
+  const look = MESSAGE_LOOK[m.level] || MESSAGE_LOOK.info;
+  return <div data-step-message="" role={look.role} style={{ padding: "6px 9px", borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45, marginBottom: 8, ...look.style }}>{m.text}</div>;
 }

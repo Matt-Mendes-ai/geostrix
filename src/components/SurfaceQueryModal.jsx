@@ -172,7 +172,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
     return <StepDialog title={heading} onClose={onClose} help={help} width="min(560px, 96vw)" at={0} onAt={() => {}}
       steps={[{ key: "none", label: heading, render: () => <div style={note}>{tr("No generated surfaces yet: build one in 3D Modelling.")}</div>, primary: { label: tr("Close"), onClick: onClose } }]} />;
   }
-  const closedRows = mesh ? [{ label: tr("Closed"), value: mesh.closed ? tr("Yes") : tr("no ({openEdgeCount} open edges)", { openEdgeCount: mesh.boundaryEdges.toLocaleString() }), level: mesh.closed ? undefined : "some" }, { label: tr("Edges"), value: mesh.edges.toLocaleString() }] : [];
+  const closedRows = mesh ? [{ label: tr("Closed"), value: mesh.closed ? tr("yes") : tr("no ({openEdgeCount} open edges)", { openEdgeCount: mesh.boundaryEdges.toLocaleString() }), level: mesh.closed ? undefined : "some" }, { label: tr("Edges"), value: mesh.edges.toLocaleString() }] : [];
   const question = (
     <div style={{ flex: 1, minWidth: 300, display: "flex", flexDirection: "column", gap: 10 }}>
       <label style={rowLabel}>{tr("Surface")}<select value={surface?.id || ""} onChange={(e) => setSurfaceId(e.target.value)} style={{ ...sel, minWidth: 260 }}>
@@ -203,7 +203,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
   const holesResult = mesh && (
     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ maxWidth: 380 }}><StepNumbers rows={[{ label: tr("Holes"), value: totals.holes.toLocaleString() }, { label: tr("Pierce the surface"), value: totals.piercing.toLocaleString(), level: totals.piercing === 0 && totals.holes > 0 ? "some" : undefined },
-        mesh.closed && { label: tr("Inside (m)"), value: totals.inside.toFixed(1) }, mesh.closed && shellEl && totals.inside > 0 && { label: tr("Sampled for {el} (m)", { el: shellEl }), value: totals.sampled.toFixed(1), level: totals.inside - totals.sampled > 0.5 * totals.inside ? "some" : undefined }]} /></div>
+        mesh.closed && { label: tr("Inside"), value: `${totals.inside.toFixed(1)} m` }, mesh.closed && shellEl && totals.inside > 0 && { label: tr("Sampled for {el}", { el: shellEl }), value: `${totals.sampled.toFixed(1)} m`, level: totals.inside - totals.sampled > 0.5 * totals.inside ? "some" : undefined }]} /></div>
       <div style={note}>{inArea && <span>{" "}{tr("(the Model area's checked holes, Model settings)")}</span>}{/* #3016 */}
         {totals.piercing === 0 && totals.holes > 0 && <span style={{ color: "var(--color-warn-text)" }}>{" "}{tr("— no hole intersects this surface at all, which is usually worth a second look at the modelling inputs.")}</span>}
       </div>
@@ -261,9 +261,9 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
       <div style={{ flex: 1, minWidth: 260, display: "flex", flexDirection: "column", gap: 6 }}>
         {!pointResult ? <div style={note}>{tr("Enter all three coordinates.")}</div> : (
           <>
-            <div style={{ maxWidth: 380 }}><StepNumbers rows={[{ label: tr("Distance to surface"), value: `${pointResult.distance.toFixed(3)} m` },
-              mesh.closed && { label: tr("Position"), value: pointResult.inside ? tr("INSIDE") : tr("outside") },
-              mesh.closed && { label: tr("Signed distance"), value: `${pointResult.signed.toFixed(3)} m`, title: tr("(negative = inside)") }]} /></div>
+            <div style={{ maxWidth: 380 }}><StepNumbers rows={[{ label: tr("Distance to surface"), value: `${pointResult.distance.toFixed(1)} m` },
+              mesh.closed && { label: tr("Position"), value: pointResult.inside ? tr("inside") : tr("outside") },
+              mesh.closed && { label: tr("Signed distance"), value: `${pointResult.signed.toFixed(1)} m`, title: tr("(negative = inside)") }]} /></div>
             {!mesh.closed && <div style={note}>{tr("Inside/outside is not defined for an open surface.")}</div>}
             <div style={note}>{tr("Nearest point on surface: {x}, {y}, {z}", { x: pointResult.worldNearest.x.toFixed(1), y: pointResult.worldNearest.y.toFixed(1), z: pointResult.worldNearest.z.toFixed(1) })}</div>
           </>
