@@ -81,10 +81,12 @@ const pem = j(
   "20 ZR1 0 A 1396.0 90 512 1 2", "D7 0 0 0 0 0 0 0", " 3.424e+04  4.176e+04  4.204e+04  4.227e+04  4.238e+04", "",
 );
 
+// #4079 — a surface profile's <Pnn> positions carry a station number each (x y z units stn); a hole's path has segments (units 2)
+const surfacePem = (t) => t.replace("Borehole Metric", "Surface Metric").replace(/<P00>[^\n]*/, "<P00> 200.0 100.0 5.0 0 100.0 ~ stn").replace(/<P01>[^\n]*/, "<P01> 200.0 50.0 5.0 0 50.0 ~ stn");
 test("kinds: what a file is, from its head", () => {
   assert.equal(downholeEmKind(maxwell), "maxwell"); assert.equal(downholeEmKind(smartem), "maxwell"); assert.equal(downholeEmKind(multi), "maxwell");
   assert.equal(downholeEmKind(croneTable), "maxwell"); assert.equal(downholeEmKind(pem), "pem"); assert.equal(downholeEmKind(chn), "chn");
-  assert.equal(downholeEmKind(pem.replace("Borehole Metric", "Surface Metric")), "pem-surface");
+  assert.equal(downholeEmKind(surfacePem(pem)), "pem-surface");
   assert.equal(downholeEmKind("TEM File Created by MAXWELL\nLINE:L1 CONFIG:IN UNITS:(nT/s)\nSTATION COMPONENT CH1 CH2\n"), null, "a surface file is not downhole");
   assert.equal(downholeEmKind("/X Y Z RAWMAG\n1 2 3 4\n"), null);
 });
@@ -148,7 +150,7 @@ test("Crone PEM 210: the tags, the time block's last gates, X / Y / Z records, t
 });
 
 test("refusals that say why: a surface PEM profile, a lone .CHN, a file that is no downhole EM", () => {
-  assert.throws(() => readDownholeEm(pem.replace("Borehole Metric", "Surface Metric"), "x.pem"), /surface PEM profile .* not a hole/);
+  assert.throws(() => readDownholeEm(surfacePem(pem), "x.pem"), /surface PEM profile .* not a hole/);
   assert.throws(() => readDownholeEm(chn, "x.chn"), /channel-time file/);
   assert.throws(() => readDownholeEm("/X Y Z\n1 2 3\n", "x.xyz"), /not a downhole EM file/);
   assert.throws(() => readDownholeEm(j("TEM File Created by MAXWELL", "LINE:H CONFIG:DOWNHOLE UNITS:(nT/s)", "STATION COMPONENT CH1 CH2 CH3 CH4", "10 A 1 2"), "x.tem"), /no readings were found/);

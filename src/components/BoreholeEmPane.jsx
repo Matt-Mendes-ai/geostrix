@@ -168,7 +168,7 @@ export default function BoreholeEmPane({ collars, customLayers, setCustomLayers,
       <TaskPaneHeader title={tr("Borehole EM (downhole)")} icon={Radio} tone="data" onClose={onClose} />
       <div style={{ ...note, marginBottom: 8 }}>{tr("Downhole TEM and PEM. It does not model conductor plates.")}</div>
       <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className="gs-btn gs-btn--block" style={{ justifyContent: "center" }}><Upload size={14} />{" "}{tr("Open borehole EM files…")}</button>
-      <input ref={fileRef} type="file" multiple accept=".tem,.pem,.chn,.txt,.dat" style={{ display: "none" }} onChange={(e) => { const f = [...(e.target.files || [])]; e.target.value = ""; open(f); }} aria-label={tr("Borehole EM files")} />
+      <input ref={fileRef} type="file" multiple accept=".tem,.pem,.stp,.chn,.txt,.dat" style={{ display: "none" }} onChange={(e) => { const f = [...(e.target.files || [])]; e.target.value = ""; open(f); }} aria-label={tr("Borehole EM files")} />
       {msg && <div role={msg.info ? "status" : "alert"} style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", margin: "4px 0 8px" }}>{msg.text}</div>}
       {st.files.map((f) => (
         <div key={f.name} style={{ ...note, marginBottom: 4 }}>

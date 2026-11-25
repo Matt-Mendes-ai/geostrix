@@ -49,6 +49,11 @@ export function boreholeEmClues(columns, rows, headText = "") {
   if (HEADER_WORDS.test(lines80.filter((l) => /^\s*[/#]/.test(l)).concat(titleLine).join("\n"))) evidence.push(tr("a header that says borehole"));
   const dc = head.slice(0, 4000).match(DOWNHOLE_CONFIG);
   if (dc) evidence.push(tr("a downhole configuration (CONFIG:{v})", { v: dc[1] }));
+  { // TASKS.csv #4079 — a Crone PEM / STP file whose <P01> line is a segment (azimuth, dip, length; units 2 or 3): a hole's path (a surface profile's <Pnn> carry units 0 / 1 and a station)
+    const seg = /^\s*<FMT>\s*(210|230)\b/m.test(head.slice(0, 4000)) ? /^\s*<P01>([^\n~]*)/m.exec(head.slice(0, 20000)) : null;
+    const u = seg ? Number(seg[1].trim().split(/\s+/)[3]) : NaN;
+    if (u === 2 || u === 3) evidence.push(tr("PEM hole path"));
+  }
   const bh = head.slice(0, 4000).match(HOLE_HEADER); // #4063 — a hole named in the header, or its collar
   if (bh) evidence.push(tr("a hole in the header ({v})", { v: bh[1] }));
   // a station read for several components: the same X Y (Z) on consecutive rows

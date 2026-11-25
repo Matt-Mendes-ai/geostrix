@@ -8,6 +8,7 @@ import { guessGeophysColumns } from "./geophysColumns.js";
 import Papa from "papaparse";
 import { arrMax } from "./arrayStats.js";
 import { boreholeEmRefusal, boreholeHeaderRefusal } from "./boreholeEm.js"; // TASKS.csv #3804
+import { isCronePemSurface, parseCronePemSurface, loopSpan } from "./cronePem.js"; // TASKS.csv #4079 — Crone surface PEM and STP
 import { isReceiverTem, parseTemReceiver } from "./maxwellTem.js"; // TASKS.csv #4058 — Maxwell ground TEM, one row per component; #4063 — the other receiver layouts (Crone, SMARTem V / export, EMBASE)
 import { t as tr } from "./i18n.js";
 import { smallGridCoordinates } from "./crsFromColumns.js"; // #4058 — a file on a local grid asks for its tie to the map
@@ -89,12 +90,12 @@ export function readTemText(text, name = "TEM") {
 }
 function readTemTextCore(text, name) {
   let source, columns, get, line, epsg = null, header = null, maxwell = null;
-  if (isReceiverTem(text)) { // TASKS.csv #4058 — a station's Z, X and Y rows become the channel sets Z_CH, X_CH, Y_CH of one station row (Z first: the decay and the 1D inversion read it)
-    maxwell = parseTemReceiver(text);
+  if (isCronePemSurface(text) || isReceiverTem(text)) { // TASKS.csv #4058 — a station's Z, X and Y rows become the channel sets Z_CH, X_CH, Y_CH of one station row (Z first: the decay and the 1D inversion read it)
+    maxwell = isCronePemSurface(text) ? parseCronePemSurface(text, name) : parseTemReceiver(text); // #4079 — a Crone surface PEM / STP profile: its stations at their <Pnn> positions, its loop
     const st = maxwell.stations, fns = new Map([["EAST", (s) => s.x], ["NORTH", (s) => s.y], ["ELEV", (s) => s.elev], ["STATION", (s) => s.station]]);
     columns = ["EAST", "NORTH", "ELEV", "STATION"];
     for (const c of maxwell.components) maxwell.gates.forEach((g, k) => { const col = `${c}_${g}`; columns.push(col); fns.set(col, (s) => (s.comps[c] ? s.comps[c][k] : NaN)); });
-    source = `${maxwell.family === "Maxwell" ? "Maxwell .tem" : maxwell.family === "TEM" ? "TEM text" : `${maxwell.family} TEM text`}${maxwell.config ? ` (${maxwell.config.toLowerCase()})` : ""}`; header = maxwell.header;
+    source = maxwell.sourceLabel || `${maxwell.family === "Maxwell" ? "Maxwell .tem" : maxwell.family === "TEM" ? "TEM text" : `${maxwell.family} TEM text`}${maxwell.config ? ` (${maxwell.config.toLowerCase()})` : ""}`; header = maxwell.header;
     const cache = new Map();
     get = (c) => cache.get(c) || cache.set(c, Float64Array.from(st, fns.get(c) || (() => NaN))).get(c);
     line = st.map((s) => s.line);
@@ -146,7 +147,8 @@ function readTemTextCore(text, name) {
   return {
     name, source, n, columns, groups, epsg, header, line,
     x, y, z, xCol, yCol, zCol: z ? zCol : null, localGrid,
-    components: maxwell ? maxwell.components : null, units: maxwell?.units || null, notes: maxwell ? receiverNotes(maxwell) : [],
+    components: maxwell ? maxwell.components : null, units: maxwell?.units || null, loop: maxwell?.loop || null, stepResponse: !!maxwell?.stepResponse /* #4079 */,
+    notes: maxwell ? receiverNotes(maxwell) : [],
     get,
     gateTimes: (g) => (maxwell && g.component && maxwell.times) || gateTimesFromText(text, g.cols.length, header, channelNumber(g.prefix)) || gateTimesFromColumns(groups, g, get),
   };
@@ -155,9 +157,11 @@ function readTemTextCore(text, name) {
 // TASKS.csv #4063 — what a receiver-text file did not give, said: no coordinates (placed on the line), no named component, a second ADC left out, no gate times
 function receiverNotes(m) {
   const out = [];
-  if (m.positions === "line" && m.positionNote) out.push(tr("No coordinates in the file: stations placed along their line."));
-  if (m.assumedComponent) out.push(tr("Component not named: Z assumed."));
+  if (m.positions === "line" && m.positionNote) out.push(tr("No coordinates: placed along their line."));
+  if (m.assumedComponent) out.push(tr("Component unnamed: Z assumed."));
   if (m.adcLeftOut) out.push(tr("{n} second-ADC reading(s) left out.", { n: m.adcLeftOut.toLocaleString() }));
+  const sp = loopSpan(m.loop); // #4079 — a surface PEM file's transmitter loop
+  if (sp) out.push(tr("Loop: {n} corners.", { n: m.loop.length }));
   return out;
 }
 
