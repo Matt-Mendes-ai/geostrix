@@ -380,7 +380,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           <button className="gs-btn" type="button" onClick={() => ctl.current?.abort()}>{tr("Cancel")}</button>
         </div>
       ) : (
-        <button className="gs-btn gs-btn--block" style={{ justifyContent: "center" }} type="button" disabled={!ready} onClick={run} title={ready ? undefined : tr("Type the gate times first")}>{tr("Invert the stations (Python engine)")}</button>
+        <button className="gs-btn gs-btn--primary gs-btn--block" /* #4070: the Inversion step's gold primary */ style={{ justifyContent: "center" }} type="button" disabled={!ready} onClick={run} title={ready ? undefined : tr("Type the gate times first")}>{tr("Invert the stations (Python engine)")}</button>
       )}
       {msg && <div role={msg.info ? "status" : "alert"} style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", margin: "4px 0 8px" }}>{msg.text}</div>}
       {R && lineStations.length > 0 && (<>

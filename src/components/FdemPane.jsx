@@ -13,6 +13,7 @@ import { runEm1dJob } from "../lib/desktop.js";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { percentile } from "../lib/arrayStats.js";
 import { t as tr } from "../lib/i18n.js";
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 — the soundings as steps
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -270,10 +271,14 @@ export default function FdemPane({ layers, setLayers, geophysSurveys, updateGeop
   return (
     <>
       <TaskPaneHeader title={tr("FDEM 1D (DUALEM, GEM-2)")} helpId="fdem-1d" icon={Layers} tone="model" onClose={onClose} />
-      <div style={{ ...note, marginBottom: 8 }}>{tr("Inverts ground loop-loop EM soundings (DUALEM, GEM-2, Aarhus Workbench) for conductivity with depth, in 1D: for cover, clay and water table, not a 3D conductor.")}</div>
+      {/* TASKS.csv #4070 (side 2, Matt's layout C) — the soundings as steps: 1 Data (coils, height, spacing), 2 Fit (errors, layers, tie) -> Invert, the
+          gold primary; the Result step (the section, a sounding, Add to 3D) opens when a run lands. The import note in the message slot. */}
+      <StepPane id="fdem" label={tr("FDEM 1D")}
+        message={msg ? { text: msg.text, level: msg.info ? "info" : "error" } : null}
+        steps={[
+          { key: "data", label: tr("Data"), question: tr("Which soundings and coils?"), body: (<>
       <button className="gs-btn gs-btn--block" type="button" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{tr("Open soundings (CSV or Workbench .xyz)…")}</button>
       <input ref={fileRef} type="file" accept=".csv,.xyz,.txt" multiple style={{ display: "none" }} onChange={(e) => { openFiles(e.target.files); e.target.value = ""; }} />
-      {msg && <div role="status" style={{ marginBottom: 10, padding: "8px 10px", background: msg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${msg.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>{msg.text}</div>}
       {survey?.data?.length > 0 && (
         <div aria-label={tr("FDEM inversion settings")}>
           <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, margin: "6px 0" }}>{tr("Coil pairs")}</div>
@@ -286,18 +291,21 @@ export default function FdemPane({ layers, setLayers, geophysSurveys, updateGeop
           ))}
           <label style={row}>{tr("Sensor height above the ground (m)")}<NumberInput allowEmpty style={num} min={0} step={0.05} value={s.height} placeholder={tr("required")} aria-label={tr("Sensor height (m)")} onChange={(v) => set({ height: (v == null ? "" : String(v)) })} /></label>
           {st.raw && <label style={row}>{tr("One sounding per (m of path)")}<NumberInput allowEmpty style={num} min={0.1} step={0.5} value={s.spacing} aria-label={tr("Sounding spacing (m)")} onChange={(t) => { const v = (t == null ? "" : String(t)); setSt((o) => ({ ...o, ...resampled(o.raw, o.survey, v), settings: { ...o.settings, spacing: v }, result: null, pick: null })); }} /></label>}
+        </div>
+      )}
+          </>) },
+          ...(survey?.data?.length > 0 ? [{ key: "fit", label: tr("Fit"), question: tr("How far do you trust each reading?"), body: (<>
           <label style={row}>{tr("Errors: % of the reading")}<NumberInput allowEmpty style={num} min={0} max={100} step={1} value={s.errRel} aria-label={tr("Relative error (%)")} onChange={(v) => set({ errRel: (v == null ? "" : String(v)) })} /></label>
           <label style={row}>{survey.kind === "eca" ? tr("plus (mS/m)") : tr("plus (ppm)")}<NumberInput allowEmpty style={num} min={0} value={s.errAbs} aria-label={tr("Absolute error")} onChange={(v) => set({ errAbs: (v == null ? "" : String(v)) })} /></label>
           <label style={row}>{tr("Layers / first thickness (m) / to depth (m)")}<span style={{ display: "flex", gap: 3 }}><NumberInput allowEmpty style={{ ...num, width: 40 }} min={2} max={40} value={s.n} aria-label={tr("Number of layers")} onChange={(v) => set({ n: (v == null ? "" : String(v)) })} /><NumberInput allowEmpty style={{ ...num, width: 46 }} min={0.01} step={0.05} value={s.first} aria-label={tr("First layer thickness (m)")} onChange={(v) => set({ first: (v == null ? "" : String(v)) })} /><NumberInput allowEmpty style={{ ...num, width: 46 }} min={0.5} step={0.5} value={s.bottom} aria-label={tr("Depth of the last layer (m)")} onChange={(v) => set({ bottom: (v == null ? "" : String(v)) })} /></span></label>
           <label style={row}>{tr("Tie to the neighbouring soundings")}<select style={smallSel} value={s.lateral} aria-label={tr("Tie to the neighbouring soundings")} onChange={(e) => set({ lateral: Number(e.target.value) })}>{TIES.map((t) => <option key={t.v} value={t.v}>{tr(t.label)}</option>)}</select></label>
           <label style={row}>{tr("Invert every Nth sounding")}<NumberInput style={num} min={1} step={1} value={s.every} aria-label={tr("Invert every Nth sounding")} onChange={(v) => set({ every: Math.round(v) })} /></label>
           <div style={{ ...note, marginBottom: 6 }}>{tr("{n} soundings to invert.", { n: Math.ceil(survey.data.length / Math.max(1, s.every || 1)).toLocaleString() })}</div>
-          {!busy ? <button className="gs-btn gs-btn--block" type="button" onClick={run}><Layers size={14} />{tr("Invert")}</button>
-            : <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}><div style={{ ...note, flex: 1 }}>{progress?.message || tr("Working…")}{progress?.etaS != null ? " " + tr("About {s} s left.", { s: progress.etaS }) : ""}</div><button className="gs-btn" type="button" onClick={() => abort.current?.abort()}>{tr("Cancel")}</button></div>}
-        </div>
-      )}
-      {result && ksLine.length > 0 && (
-        <>
+          {busy && <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}><div style={{ ...note, flex: 1 }}>{progress?.message || tr("Working…")}{progress?.etaS != null ? " " + tr("About {s} s left.", { s: progress.etaS }) : ""}</div><button className="gs-btn" type="button" onClick={() => abort.current?.abort()}>{tr("Cancel")}</button></div>}
+          </>) }] : []),
+        ]}
+        action={survey?.data?.length > 0 ? { label: tr("Invert"), onClick: run, disabled: busy, icon: <Layers size={14} /> } : null}
+        result={result && ksLine.length > 0 ? { key: result, body: (<>
           {lines.length > 1 && <label style={row}>{tr("Line")}<select style={smallSel} value={line} aria-label={tr("FDEM line")} onChange={(e) => { setLineKey(lines.find((l) => String(l) === e.target.value)); setSel(null); }}>{lines.map((l) => <option key={l} value={l}>{l}</option>)}</select></label>}
           <div style={{ ...note, marginBottom: 4 }}>{result.from === "workbench" ? tr("Aarhus Workbench's models.") : tr("GeoStrix's models.")} {tr("Log colour scale {lo} to {hi} mS/m, conductive red.", { lo: fmt(10 ** range[0]), hi: fmt(10 ** range[1]) })}</div>
           <Section dist={dist} ks={ksLine.map((o) => o.k)} result={sectionResult} range={range} selected={idx[selJ]} onPick={(k) => setSel(idx.indexOf(k))} />
@@ -307,8 +315,7 @@ export default function FdemPane({ layers, setLayers, geophysSurveys, updateGeop
           <label style={{ ...row, justifyContent: "flex-start", marginTop: 8 }}><input type="checkbox" checked={aboveDoi} onChange={(e) => setAboveDoi(e.target.checked)} />{tr("Only above the depth of investigation")}</label>
           <button className="gs-btn gs-btn--block" type="button" onClick={addTo3d}>{inThreeD ? tr("Replace the models in 3D") : tr("Add the models to 3D")}</button>
           <div style={note}>{tr("The depth of investigation is the depth above which 80% of the data's sensitivity lies: an approximation, not Aarhus Workbench's calibrated DOI.")}</div>
-        </>
-      )}
+        </>) } : null} />
     </>
   );
 }

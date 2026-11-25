@@ -12,6 +12,7 @@ import { askAdoptCrs } from "../lib/adoptCrs.js";
 import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 — the soundings as steps
 import { percentile } from "../lib/arrayStats.js"; // #1114
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -187,14 +188,15 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
   return (
     <>
       <TaskPaneHeader title={tr("MT / AMT soundings (.edi)")} helpId="mt-soundings" icon={Waves} tone="data" onClose={onClose} />
-      <div style={{ ...note, marginBottom: 8 }}>{tr("Drop MT or AMT .edi files here, or pick them: apparent resistivity and phase per station, a pseudosection per line, Niblett–Bostick depths in 3D.")}</div>
+      {/* TASKS.csv #4070 (side 2, Matt's layout C) — the soundings as steps: 1 Line (survey, line, what to show, the pseudosection), 2 Station (its
+          curves); the import report in the message slot. A viewer: no run, so no gold primary. */}
+      <StepPane id="mt" label={tr("MT / AMT")}
+        message={msg ? { text: msg.text, level: msg.info ? "info" : "error" } : null}
+        steps={[
+          { key: "line", label: tr("Line"), question: surveys.length ? tr("Which line?") : tr("Which soundings?"), body: (<>
       <button type="button" className="gs-btn gs-btn--block" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{busy ? tr("Reading…") : tr("Import EDI files…")}</button>
       <input ref={fileRef} type="file" accept=".edi" multiple style={{ display: "none" }} onChange={(e) => { importEdi(e.target.files); e.target.value = ""; }} />
-      {msg && <div role="status" style={{ marginBottom: 10, padding: "8px 10px", background: msg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${msg.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-sm)", color: msg.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>{msg.text}</div>}
-      {!surveys.length ? (
-        <div style={note}>{tr("No MT soundings yet.")}</div>
-      ) : (
-        <>
+      {!surveys.length ? <div style={note}>{tr("No MT soundings yet.")}</div> : (<>
           {surveys.length > 1 && (
             <label style={row}>{tr("Survey")}<select style={smallSel} value={active} aria-label={tr("MT survey")} onChange={(e) => { setSurveyName(e.target.value); setLineKey(null); setStationId(""); }}>{surveys.map((k) => <option key={k} value={k}>{k}</option>)}</select></label>
           )}
@@ -212,13 +214,16 @@ export default function MtSoundingsPane({ layers, setLayers, geophysSurveys, upd
             </select>
           </div>
           <Pseudosection ordered={ordered} comp={comp} quantity={quantity} selected={station?.id} onPick={setStationId} />
-          <div style={{ ...note, margin: "4px 0 10px" }}>{tr("Short periods (shallow) at the top. Click a column for its station's curves.")}</div>
+          <div style={{ ...note, margin: "4px 0 10px" }}>{tr("Shallow (short periods) at the top. Click a column for its curves.")}</div>
+      </>)}
+          </>) },
+          ...(surveys.length ? [{ key: "station", label: tr("Station"), question: tr("Which station?"), body: (<>
           <label style={row}>{tr("Station")}<select style={smallSel} value={station?.id || ""} aria-label={tr("MT station")} onChange={(e) => setStationId(e.target.value)}>{(ordered.length ? ordered.map((o) => o.s) : stations).map((s) => <option key={s.id} value={s.id}>{s.id}</option>)}</select></label>
           {station && <SoundingPlot s={station} />}
-          {station && <div style={{ ...note, marginTop: 4 }}>{tr("Elevation {z} m, {n} frequencies. Phases are folded into 0 to 180°: a uniform half-space reads 45°, above 45° the ground gets more conductive with depth.", { z: Number.isFinite(station.z) ? Math.round(station.z).toLocaleString() : "?", n: station.freqs.length })}</div>}
+          {station && <div style={{ ...note, marginTop: 4 }}>{tr("Elevation {z} m, {n} frequencies. Phase over 45°: more conductive with depth.", { z: Number.isFinite(station.z) ? Math.round(station.z).toLocaleString() : "?", n: station.freqs.length })}</div>}
           <div style={{ ...note, marginTop: 8 }}>{tr("The 3D depths are a Niblett–Bostick transform: a 1D estimate, wrong under a 3D body. Interpret the contractor's 2D / 3D inversion (Block models) instead.")}</div>
-        </>
-      )}
+          </>) }] : []),
+        ]} />
     </>
   );
 }

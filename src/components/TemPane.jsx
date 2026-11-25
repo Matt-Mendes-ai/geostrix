@@ -15,6 +15,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // no Math.min / max spre
 import TemInvertPanel from "./TemInvertPanel.jsx"; // TASKS.csv #3440 step 3 — the 1D inversion
 import TemGridTie from "./TemGridTie.jsx"; // TASKS.csv #4058 — a file on a local grid asks for its tie to the map
 import { t as tr } from "../lib/i18n.js";
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 — the lines as steps
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -181,11 +182,15 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
   return (
     <div>
       <TaskPaneHeader title={tr("TEM line data (multi-channel)")} helpId="tem-lines" icon={Radio} tone="data" onClose={onClose} />
-      <div style={{ ...note, marginBottom: 8 }}>{tr("Time-domain EM lines (SkyTEM or Aarhus .xyz, Geosoft .xyz, CSV): channels stacked, a station's decay, late-time tau mapped. A long tau: a good conductor.")}</div>
+      {/* TASKS.csv #4070 (side 2, Matt's layout C) — the lines as steps: 1 Data (channels, gate times, noise), 2 Decays (line, profiles, a station's
+          decay; Map the decay constant the gold primary), 3 Invert (the 1D inversion, its run gold). The import note in the message slot. */}
+      <StepPane id="tem" label={tr("TEM line data")}
+        message={msg ? { text: msg.text, level: msg.info ? "info" : "warn" } : null}
+        steps={[
+          { key: "data", label: tr("Data"), question: tr("Which channels and gate times?"), body: (<>
       <button className="gs-btn gs-btn--block" style={{ justifyContent: "center" }} type="button" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={14} />{" "}{tr("Open TEM line data…")}</button>
       <input ref={fileRef} type="file" accept=".xyz,.csv,.txt,.dat,.tem" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; open(f); }} aria-label={tr("TEM line data file")} />
-      {msg && <div role={msg.info ? "status" : "alert"} style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", margin: "4px 0 8px" }}>{msg.text}</div>}
-      {data && (<>
+        {data && (<>
         {st.posNote && <div style={{ ...note, marginBottom: 6 }}>{st.posNote}</div>}
         <TemGridTie data={data} onTied={() => save({ ...st, data: { ...data } })} />{/* #4058 */}
         <div style={rowS}><span>{tr("Channels")}</span>
@@ -212,17 +217,20 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
             <option value="relative">{tr("STD is a fraction of the reading")}</option><option value="absolute">{tr("STD is in the data's units")}</option>
           </select>
         </div>}
+        </>)}
+          </>) },
+          ...(data ? [{ key: "decays", label: tr("Decays"), question: tr("Which line and station?"), body: (<>
         {lines.length > 1 && <div style={rowS}><span>{tr("Line")}</span>
           <select value={line?.key} onChange={(e) => save({ ...st, line: e.target.value, sel: null })} style={smallSel} aria-label={tr("TEM line")}>{lines.map((l) => <option key={l.key} value={l.key}>{l.key} ({l.idx.length})</option>)}</select>
         </div>}
         {line && mat && <Profiles line={line} mat={mat} sel={sel} onPick={(i) => save({ ...st, sel: i })} />}
-        <div style={{ ...note, margin: "3px 0 8px" }}>{tr("Early gates purple, late gates yellow; a log scale, positive readings only. Click a station to see its decay.")}</div>
+        <div style={{ ...note, margin: "3px 0 8px" }}>{tr("Early gates purple, late yellow (log scale). Click a station for its decay.")}</div>
         {sel != null && vals && (<>
           <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>{tr("Station {i}: {x} E, {y} N", { i: sel + 1, x: fmt(data.x[sel]), y: fmt(data.y[sel]) })}</div>
           {times ? <Decay times={times} vals={vals} fit={fit} /> : <div style={note}>{tr("Type the gate times to draw the decay.")}</div>}
           {times && <div style={{ ...note, marginTop: 3 }}>{fit ? tr("Decay constant tau = {tau} ms, from gates {a} to {b} ({t0} to {t1} ms, r² {r2}).", { tau: fmt(fit.tau), a: fit.from + 1, b: fit.to + 1, t0: fmt(times[fit.from]), t1: fmt(times[fit.to]), r2: fit.r2.toFixed(3) }) : tr("No decay constant here: fewer than three positive late readings, or they do not fall.")}{masked?.dropped ? " " + tr("{n} reading(s) in the noise were left out.", { n: masked.dropped }) : ""}</div>}
         </>)}
-        <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginTop: 8 }} type="button" disabled={!times || needsTie} onClick={mapTau} title={needsTie ? tr("Tie the grid first.") : times ? undefined : tr("Type the gate times first")}>{tr("Map the decay constant (tau)")}</button>
+        <button className="gs-btn gs-btn--primary gs-btn--block" style={{ justifyContent: "center", marginTop: 8 }} type="button" disabled={!times || needsTie} onClick={mapTau} title={needsTie ? tr("Tie the grid first.") : times ? undefined : tr("Type the gate times first")}>{tr("Map the decay constant (tau)")}</button>
         <div style={rowS}>
           <select value={st.gate ?? ""} onChange={(e) => save({ ...st, gate: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Gate to add as a point survey")}>
             <option value="">{tr("Add one gate as a point survey…")}</option>
@@ -230,12 +238,12 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
           </select>
           <button className="gs-btn gs-btn--sm" type="button" disabled={st.gate == null || needsTie} onClick={() => addGate(st.gate)}>{tr("Add")}</button>
         </div>
-        {/* TASKS.csv #3440 step 3 — the 1D inversion, for a set of decays (one, or both moments joined) */}
-        {!needsTie && (isJoin || group.role === "data" || (!group.role && !group.aux)) && (
+          </>) }] : []),
+          ...(data && !needsTie && (isJoin || group.role === "data" || (!group.role && !group.aux)) ? [{ key: "invert", label: tr("Inversion"), question: tr("Invert the decays in 1D?"), body: (<>
           <TemInvertPanel /* TASKS.csv #3501 — keyed by the file and its channel set: switching from one moment to both joined remounts the
               panel (its state holds a waveform per moment; reused for two moments it read the second's as undefined and closed the tab) */ key={`${data.name}|${isJoin ? `${joinable.ga.prefix}+${joinable.gb.prefix}` : group.prefix}`} data={data} groups={isJoin ? [joinable.ga, joinable.gb] : [group]} timesOf={(g) => (isJoin ? (g === joinable.ga ? joinable.ta : joinable.tb) : times)} line={line} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} />
-        )}
-      </>)}
+          </>) }] : []),
+        ]} />
     </div>
   );
 }
