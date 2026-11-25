@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Upload, Trash2 } from "./icons.js";
+import { Upload, Trash2 } from "./icons.js";
 import ImageTiePointCanvas from "./ImageTiePointCanvas.jsx";
 import { sectionLine, fitSectionTransform, sectionResiduals, sectionImageCorners, sectionFitSummary, imagesOnLine, moveSectionImage } from "../lib/sectionGeoref.js";
 import { projectExtent, detectHKind, sectionLineFor, nearestSection, flowHint } from "../lib/sectionGeorefFlow.js"; // TASKS.csv #4071
 import SectionLinePlan from "./SectionLinePlan.jsx"; // TASKS.csv #3924
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import { StepNumbers } from "./StepPane.jsx";
+import StepDialog, { stepDialogStyles } from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell: header, step bar, Back / the one gold primary, the Help card
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
@@ -57,23 +56,20 @@ function LinePicker({ sections, nearest, lineSrc, setLineSrc, drawing, setDrawin
           <span>{tr("End")}</span>{cell("bx", `${tr("End")} ${kindLabel("easting")}`)}{cell("by", `${tr("End")} ${kindLabel("northing")}`)}
         </div>
       )}
-      {(drawing || (lineOk && size)) && <SectionLinePlan collars={collars} sections={sections} images={images} line={lineOk ? line : null} pickedId={lineSrc !== "manual" ? lineSrc : null}
+      {(drawing || (lineOk && size > 0)) && <SectionLinePlan collars={collars} sections={sections} images={images} line={lineOk ? line : null} pickedId={lineSrc !== "manual" ? lineSrc : null}
         drawing={drawing} onPick={(id) => { setLineSrc(id); setDrawing(false); setShowEnds(false); }} onDrawn={(a, b) => { const r = (v) => String(Math.round(v * 10) / 10); setManual({ ax: r(a.x), ay: r(a.y), bx: r(b.x), by: r(b.y) }); setLineSrc("manual"); setDrawing(false); }} size={size} />}
     </div>
   );
 }
 
 export default function SectionGeorefModal({ sections = [], onImport, onClose, rlOffset = null, collars = [], images = [], moveImage = null, onMove }) { // rlOffset: TASKS.csv #3880 — the mine grid's RL datum (grid RL - elevation), when the project has one
-  const [help, setHelp] = useState(false);
-  useEscapeKey(() => (help ? setHelp(false) : onClose()));
-  useFocusTrap();
   const [img, setImg] = useState(null); // { bitmap, width, height }
   const [points, setPoints] = useState([]); // [{ id, px, py, h, h2, z }]  h: the value typed; h2: the other horizontal axis (optional)
   const [hKindUser, setHKindUser] = useState(null); // the override; null = detected from the numbers
   const [second, setSecond] = useState(false); // the "+ Northing" / "+ Easting" column
   const [cross, setCross] = useState(""); // the one northing (or easting) of a line given by eastings (northings) alone
   const [lineSrc, setLineSrc] = useState(""); // TASKS.csv #3924 — nothing preselected: "" until the user picks, draws or types the line of a distance figure
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // 0 Figure, 1 Points, 2 Place
   const [drawing, setDrawing] = useState(false);
   const [showEnds, setShowEnds] = useState(false);
   const [manual, setManual] = useState({ ax: "", ay: "", bx: "", by: "" });
@@ -169,10 +165,9 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
   const hint = moveImage ? null : flowHint({ rows: points, hKind, need: hKind === "distance" ? (lineOk ? null : "line") : flow.need, lineOk, lineError });
   const hintText = !hint || hint.id === "two" ? "" : hint.id === "value" ? tr("Point {n} needs a value.", { n: hint.n }) : hint.id === "elevation" ? tr("Point {n} needs an elevation.", { n: hint.n })
     : hint.id === "northing" || hint.id === "easting" ? tr("Fill in “{what}”.", { what: crossLabel }) : hint.id === "line" ? tr("Choose a line.") : tr(hint.text);
-  const stepOk = step === 1 ? !!img : step === 2 ? !!fit && !hint : true;
-  const outlier = rmse != null ? res.findIndex((r) => r.error > Math.max(rmse * 2, 0.5) && r.error > rmse * 3 - 1e-9) : -1;
+    const outlier = rmse != null ? res.findIndex((r) => r.error > Math.max(rmse * 2, 0.5) && r.error > rmse * 3 - 1e-9) : -1;
   const thumb = useMemo(() => { // step 3: the figure beside its plan
-    if (step !== 3 || !img) return null;
+    if (step !== 2 || !img) return null;
     const k = Math.min(1, 320 / Math.max(img.width, img.height)), c = document.createElement("canvas");
     c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
     const g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img.bitmap, 0, 0, c.width, c.height);
@@ -204,22 +199,11 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
       });
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
-  const next = () => { setDrawing(false); if (step === 1) setStep(2); else if (step === 2) setStep(3); else doImport(); };
   const pickerProps = { sections, nearest, lineSrc, setLineSrc, drawing, setDrawing, manual, setManual, showEnds, setShowEnds, collars, images, line, lineOk };
 
-  return (
-    <div style={overlay}>
-      <div style={panel} role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{title}</div>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <button type="button" className="gs-btn gs-btn--icon" aria-label={tr("Help")} aria-pressed={help} title={tr("Help")} onClick={() => setHelp((h) => !h)}>?</button>
-            <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-          </div>
-        </div>
-        {help && (
-          <details open role="note" style={helpCard}>
-            <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
+  const helpBody = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
             <svg width="100%" viewBox="0 0 392 120" aria-hidden="true" style={{ display: "block", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8, maxWidth: 392 }}>
               <g style={{ stroke: "var(--color-text-muted)" }} strokeWidth={1}><line x1={40} y1={16} x2={40} y2={100} /><line x1={40} y1={100} x2={370} y2={100} /></g>
               <circle cx={40} cy={100} r={6} style={{ fill: "var(--color-guide)" }} /><circle cx={360} cy={24} r={6} style={{ fill: "var(--color-guide)" }} />
@@ -231,37 +215,19 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
             <div style={note}><b>{tr("Elevation")}</b> {rlOffset ? tr("Type the RL as the figure shows it.") : tr("Type it as the figure shows, above the datum.")}</div>
             <div style={note}><b>{tr("Reversed")}</b> {tr("A figure drawn looking the other way is placed correctly.")}</div>
             <div style={note}><b>{tr("Later")}</b> {tr("Section images: Move to another line, Match to terrain.")}</div>
-          </details>
-        )}
-
-        {!moveImage && (
-          <div style={stepBar} role="list" aria-label={tr("Steps")}>
-            {[tr("Figure"), tr("Points"), tr("Place")].map((t, i) => {
-              const n = i + 1, on = n === step, done = n < step;
-              return (
-                <div key={n} role="listitem" aria-current={on ? "step" : undefined} style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-base)", color: on ? "var(--color-text)" : "var(--color-text-muted)", fontWeight: on ? 600 : 400 }}>
-                  <span onClick={done ? () => setStep(n) : undefined} style={{ width: 22, height: 22, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-sm)", cursor: done ? "pointer" : "default",
-                    background: on ? "var(--color-success-bg)" : done ? "var(--color-success-fg)" : "var(--color-bg)", color: on ? "var(--color-success-text)" : done ? "#fff" : "var(--color-text-muted)", border: "1px solid " + (on ? "var(--color-success-border)" : done ? "var(--color-success-fg)" : "var(--color-border-light)") }}>{done ? "✓" : n}</span>
-                  {t}{n < 3 && <span style={{ flex: 1, height: 1, background: "var(--color-border-light)", marginInlineStart: 6 }} />}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {moveImage && (
-          <div style={body}>
+    </details>
+  );
+  const steps = moveImage ? [
+    { key: "move", label: title, render: () => (<>
             <div style={{ flex: 1, minWidth: 300, display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={note}>{tr("“{name}” keeps its place along the line.", { name: moveImage.name })}</div>
               <SectionLinePlan collars={collars} sections={sections} images={images} line={lineOk ? line : null} pickedId={lineSrc !== "manual" ? lineSrc : null} drawing={drawing}
                 onPick={(id) => { setLineSrc(id); setDrawing(false); }} onDrawn={(a, b) => { const r = (v) => String(Math.round(v * 10) / 10); setManual({ ax: r(a.x), ay: r(a.y), bx: r(b.x), by: r(b.y) }); setLineSrc("manual"); setDrawing(false); }} size={340} />
             </div>
-            <div style={{ flex: 1, minWidth: 280 }}><LinePicker {...pickerProps} size={0} />{error && <div style={{ ...errBox, marginTop: 8 }}>{error}</div>}</div>
-          </div>
-        )}
-
-        {!moveImage && step === 1 && (
-          <div style={body}>
+            <div style={{ flex: 1, minWidth: 280 }}><LinePicker {...pickerProps} size={0} /></div>
+    </>), primary: { label: tr("Move"), onClick: doMove, disabled: !lineOk } },
+  ] : [
+    { key: "figure", label: tr("Figure"), render: () => (<>
             {img ? (
               <div style={{ flex: 1.6, minWidth: 320, maxWidth: DISPLAY_MAX, border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden", alignSelf: "flex-start" }}>
                 <canvas ref={(c) => { if (c && img) { const k = Math.min(1, DISPLAY_MAX / Math.max(img.width, img.height)); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext("2d").drawImage(img.bitmap, 0, 0, c.width, c.height); } }} style={{ display: "block", width: "100%", background: "#fff" }} aria-label={tr("The figure")} role="img" />
@@ -296,13 +262,9 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
                   )}
                 </div>
               )}
-              {error && <div style={errBox}>{error}</div>}
             </div>
-          </div>
-        )}
-
-        {!moveImage && step === 2 && img && (
-          <div style={body}>
+    </>), primary: { label: tr("Next: points"), disabled: !img } },
+    { key: "points", label: tr("Points"), render: () => (<>
             <div style={{ alignSelf: "flex-start", maxWidth: "100%" }}>
               <ImageTiePointCanvas image={img} points={points} maxSize={DISPLAY_MAX} // TASKS.csv #632 — zoom / pan / drag points
                 onAdd={(px, py) => setPoints((p) => [...p, { id: `sp_${Date.now()}_${p.length}`, px, py, h: "", h2: "", z: "" }])}
@@ -336,22 +298,17 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
                   <NumberInput allowEmpty value={cross === "" ? null : cross} onChange={(v) => setCross(v == null ? "" : String(v))} style={inputFull} aria-label={crossLabel} /></label>
               )}
               {hKind === "distance" && points.length > 0 && <LinePicker {...pickerProps} />}
-              {hintText && points.length > 0 && <div role="status" style={warnBox}>{hintText}</div>}
               {fitError && <div style={errBox}>{tr(fitError)}</div>}
-              {error && <div style={errBox}>{error}</div>}
             </div>
-          </div>
-        )}
-
-        {!moveImage && step === 3 && (
-          <div style={body}>
+    </>), primary: { label: tr("Next: place"), disabled: !fit || !!hint }, hint: points.length > 0 ? hintText : "" },
+    { key: "place", label: tr("Place"), render: () => (<>
             <div style={{ flex: 1.2, minWidth: 300, display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={label}>{tr("On the map")}</div>
               <div style={{ display: "flex", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
                 <SectionLinePlan collars={collars} sections={sections} images={images} line={lineOk ? line : null} pickedId={lineSrc !== "manual" && hKind === "distance" ? lineSrc : null} extent={summary ? { from: summary.fromDist, to: summary.toDist } : null} size={300} />
                 {thumb && <img src={thumb} alt="" style={{ maxWidth: 200, border: "1px solid var(--color-border)", borderRadius: 4 }} />}
               </div>
-              {summary && <div style={note}>{tr("{w} m wide, {low}–{high} m high.", { w: Math.abs(summary.toDist - summary.fromDist).toFixed(0), low: Math.min(summary.zBottom, summary.zTop).toFixed(0), high: Math.max(summary.zBottom, summary.zTop).toFixed(0) })}{rmse != null ? " " + tr("Fit error {rmse} m.", { rmse: rmse.toFixed(1) }) : ""}</div>}
+              {summary && <StepNumbers rows={[{ label: tr("Width"), value: `${Math.abs(summary.toDist - summary.fromDist).toFixed(0)} m` }, { label: tr("Height"), value: `${Math.min(summary.zBottom, summary.zTop).toFixed(0)}–${Math.max(summary.zBottom, summary.zTop).toFixed(0)} m` }, rmse != null && { label: tr("Fit error"), value: `${rmse.toFixed(1)} m` }]} />}{/* #4073 — StepPane's result rows: the same look as a pane's Result step */}
               {summary?.upsideDown && <div style={warnBox}>{tr("Elevations fall going up: check them.")}</div>}
               {outlier >= 0 && <div style={warnBox}>{farOff((fitRows[outlier]?.i ?? 0) + 1)}</div>}
             </div>
@@ -359,34 +316,16 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose, r
               <div style={label}>{nameLabel}</div>
               <input value={name} onChange={(e) => setName(e.target.value)} style={inputFull} aria-label={nameLabel} />
               {onLine.length > 0 && <div role="status" style={warnBox}>{tr("“{names}” already stands on this line.", { names: onLine.map((m) => m.name).join("”, “") })}</div>}
-              {error && <div style={errBox}>{error}</div>}
             </div>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          {!moveImage && step > 1 ? <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={() => setStep(step - 1)}>{tr("Back")}</button> : <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{tr("Cancel")}</button>}
-          <button type="button" className="gs-btn gs-btn--primary" style={{ flex: 2 }} disabled={moveImage ? !lineOk : !stepOk || busy} onClick={moveImage ? doMove : next}>
-            {moveImage ? tr("Move") : step === 1 ? tr("Next: points") : step === 2 ? tr("Next: place") : busy ? tr("Placing…") : tr("Place in 3D")}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    </>), primary: { label: busy ? tr("Placing…") : tr("Place in 3D"), onClick: doImport, disabled: !fit || busy } },
+  ];
+  return <StepDialog title={title} onClose={onClose} steps={steps} at={moveImage ? 0 : step} onAt={(i) => { setDrawing(false); setStep(i); }} help={helpBody} error={error} />;
 }
 
-const panel = { width: "min(1120px, 96vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const stepBar = { display: "flex", gap: 0, padding: "10px 16px", borderBottom: "1px solid var(--color-border)", background: "var(--color-bg-subtle)" };
-const body = { padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1, flexWrap: "wrap", minHeight: 360 };
-const helpCard = { position: "absolute", insetInlineEnd: 16, top: 54, width: 420, maxWidth: "calc(100% - 32px)", zIndex: 5, background: "var(--color-bg)", border: "1px solid var(--color-border-light)", borderRadius: 10, padding: 14, boxShadow: "0 8px 28px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", gap: 4 };
+const { label, note, warn: warnBox, error: errBox, input } = stepDialogStyles;
 const dropZone = { flex: 1.6, minWidth: 320, minHeight: 320, border: "2px dashed var(--color-border-light)", borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--color-text-muted)" };
-const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)" };
-const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
 const chip = (on) => ({ padding: "3px 10px", borderRadius: 12, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid " + (on ? "var(--color-selected-border)" : "var(--color-border-light)"), background: on ? "var(--color-selected-bg)" : "var(--color-bg)", color: on ? "var(--color-text)" : "var(--color-text-secondary)", fontWeight: on ? 600 : 400 });
 const th = { padding: "4px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "start", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 6px", color: "var(--color-text)" };
-const warnBox = { padding: "6px 10px", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" };
-const errBox = { padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)" };
 const numInput = { width: 96, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
-const inputFull = { ...numInput, width: "100%", boxSizing: "border-box", fontSize: "var(--font-size-base)" };
+const inputFull = { ...input, width: "100%" };

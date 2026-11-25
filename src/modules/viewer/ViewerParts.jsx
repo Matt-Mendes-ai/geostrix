@@ -237,7 +237,7 @@ export function ViewToolbar({
         )}
         <RibbonButton advanced icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
         <RibbonButton advanced icon={FenceIcon} label="Fence series" tone="section" title="Parallel sections at a set azimuth and spacing, on round grid lines" {...paneProps("fence")} />
-        <RibbonButton advanced icon={SectionImageIcon} label="Section image" tone="section" title="Put a scanned or drawn section on its line in 3D: pick the line, click points on the image and type what the figure says." onClick={onSectionImage} />{/* TASKS.csv #4048 */}
+        <RibbonButton advanced icon={SectionImageIcon} label="Section image" tone="section" title="Place a section figure in 3D: load it, click labelled points, place." onClick={onSectionImage} />{/* TASKS.csv #4048 */}
         <RibbonButton advanced={!noHoles} icon={LevelPlanIcon} label="Level plan" tone="section" title="Horizontal section (level plan) at an RL: pierce points, logs and assays in a slab, block-model cells and surfaces cut at that elevation" onClick={onLevelPlan} />
       </RibbonGroup>
       <RibbonGroup label="Measure & check">

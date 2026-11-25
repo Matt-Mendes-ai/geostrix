@@ -12,7 +12,7 @@ export default function SectionLinePlan({ collars = [], sections = [], images = 
   const [hover, setHover] = useState(null);
   useEffect(() => { if (!drawing) { setFirst(null); setHover(null); } }, [drawing]);
   const f = planFrame({ collars, sections, images, line });
-  if (!f) return <div style={empty}>{tr("There are no drillholes or saved sections to show on a plan yet: type the line's two ends.")}</div>;
+  if (!f) return <div style={empty}>{tr("No holes or saved sections yet: type the ends.")}</div>;
   const k = size / (f.x1 - f.x0);
   const sx = (x) => (x - f.x0) * k, sy = (y) => (f.y1 - y) * k;
   const toWorld = (e) => {

@@ -15260,7 +15260,6 @@
   "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dibujando: arrastre un rectángulo sobre la vista (o en Mapas › Rectángulo de serie); Esc cancela.",
   "Plan stream sites…": "Planificar sitios de drenaje…",
   "Plan new sites: Plan survey › Stream sites": "Planificar sitios nuevos: Planificar muestreo › Sitios de drenaje",
-  "Put a scanned or drawn section on its line in 3D: pick the line, click points on the image and type what the figure says.": "Ponga una sección escaneada o dibujada sobre su línea en 3D: elija la línea, haga clic en puntos de la imagen y escriba lo que dice la figura en ellos.",
   "The scene {id} is no longer in the catalogue.": "La escena {id} ya no está en el catálogo.",
   " Snow: {scl} pixels by the scene classification, {ndsi} more by the NDSI test (NDSI above {min}, green reflectance at least {green}).": " Nieve: {scl} píxeles por la clasificación de la escena, {ndsi} más por la prueba NDSI (NDSI superior a {min}, reflectancia del verde de al menos {green}).",
   " Scene {id}, {date}: the red / green / blue surface reflectance of the scene the index was made from, stretched together; snow, cloud and water are shown as they are.": " Escena {id}, {date}: la reflectancia superficial roja / verde / azul de la escena con la que se hizo el índice, estirada en conjunto; la nieve, las nubes y el agua se muestran tal como son.",
@@ -15476,5 +15475,9 @@
   "The two ends are the same: give two different points.": "Los dos extremos son iguales: dé dos puntos distintos.",
   "A control point has no horizontal value.": "Un punto de control no tiene valor horizontal.",
   "A control point has no elevation.": "Un punto de control no tiene elevación.",
-  "Place at least 2 control points.": "Coloque al menos 2 puntos de control."
+  "Place at least 2 control points.": "Coloque al menos 2 puntos de control.",
+  "No holes or saved sections yet: type the ends.": "Aún no hay sondajes ni secciones guardadas: escriba los extremos.",
+  "Fit error": "Error de ajuste"
+,
+  "Place a section figure in 3D: load it, click labelled points, place.": "Coloque una figura de sección en 3D: cárguela, haga clic en puntos rotulados y colóquela."
 }

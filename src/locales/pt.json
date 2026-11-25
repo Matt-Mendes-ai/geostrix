@@ -15260,7 +15260,6 @@
   "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Desenhando: arraste um retângulo na vista (ou em Mapas › Retângulo da série); Esc cancela.",
   "Plan stream sites…": "Planejar pontos de drenagem…",
   "Plan new sites: Plan survey › Stream sites": "Planejar novos pontos: Planejar levantamento › Pontos de drenagem",
-  "Put a scanned or drawn section on its line in 3D: pick the line, click points on the image and type what the figure says.": "Coloque uma seção escaneada ou desenhada sobre a sua linha em 3D: escolha a linha, clique em pontos da imagem e digite o que a figura diz neles.",
   "The scene {id} is no longer in the catalogue.": "A cena {id} não está mais no catálogo.",
   " Snow: {scl} pixels by the scene classification, {ndsi} more by the NDSI test (NDSI above {min}, green reflectance at least {green}).": " Neve: {scl} pixels pela classificação da cena, {ndsi} a mais pelo teste NDSI (NDSI acima de {min}, refletância do verde de pelo menos {green}).",
   " Scene {id}, {date}: the red / green / blue surface reflectance of the scene the index was made from, stretched together; snow, cloud and water are shown as they are.": " Cena {id}, {date}: a refletância de superfície vermelha / verde / azul da cena com que o índice foi feito, esticada em conjunto; neve, nuvens e água aparecem como são.",
@@ -15476,5 +15475,9 @@
   "The two ends are the same: give two different points.": "As duas extremidades são iguais: informe dois pontos diferentes.",
   "A control point has no horizontal value.": "Um ponto de controle não tem valor horizontal.",
   "A control point has no elevation.": "Um ponto de controle não tem elevação.",
-  "Place at least 2 control points.": "Coloque pelo menos 2 pontos de controle."
+  "Place at least 2 control points.": "Coloque pelo menos 2 pontos de controle.",
+  "No holes or saved sections yet: type the ends.": "Ainda não há furos nem seções salvas: digite as extremidades.",
+  "Fit error": "Erro de ajuste"
+,
+  "Place a section figure in 3D: load it, click labelled points, place.": "Coloque uma figura de seção em 3D: carregue-a, clique em pontos rotulados e coloque."
 }
