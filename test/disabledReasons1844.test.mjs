@@ -11,7 +11,7 @@ test("the GemPy Run buttons' titles say what is missing, then the engine", () =>
   assert.match(src, /const gempyTitle = \(missing\) => \(implicitBusy \? tr\("A model is already running\."\) : missing \|\| tr\("Runs in GeoStrix's Python engine \(GemPy\) — the status bar's Py shows whether it is ready"\)\);/);
   assert.equal((src.match(/title=\{tr\("Runs in GeoStrix's Python engine \(GemPy\)/g) || []).length, 0, "no button keeps the bare engine title");
   assert.match(src, /title=\{gempyTitle\(!collars\.length \? tr\("No holes with collars yet: import collars first\."\) : !implicitTarget \? tr\("Choose a unit first\."\) : null\)\}/);
-  assert.match(src, /title=\{gempyTitle\(!collars\.length \? tr\("No holes with collars yet: import collars first\."\) : stackUnits\.length < 2 \? tr\("Choose at least two units for the stack first\."\) : null\)\}/);
+  assert.match(src, /title: gempyTitle\(!collars\.length \? tr\("No holes with collars yet: import collars first\."\) : stackUnits\.length < 2 \? tr\("Choose at least two units for the stack first\."\) : null\) \}/); // the stack's Run is its StepPane action (#4070)
   assert.match(src, /title=\{gempyTitle\(!struct_types\.length \? tr\("No structure picks with an orientation yet\."\) : !structuralTarget \? tr\("Choose a structure type first\."\) : null\)\}/);
 });
 
