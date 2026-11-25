@@ -87,3 +87,40 @@ test("raw, parameter and database files are refused in words, naming the file to
   assert.match(p, /accept="[^"]*\.avg,\.stn"/);
   assert.match(p, /if \(\/\\\.\(gpx\|wpt\|stn\)\$\/i\.test\(f\.name\)\) \{ stationFiles\.push\(f\); continue; \}/);
 });
+
+// a made-up CSAMT average: three receiver stations, five frequencies; at station 1075 the 64 Hz magnitude is rejected (weight 0)
+function csavg() {
+  const L = ["\\ CSAMT data from csavgw v1.20c on 01/01/12", " ", '$Job.Number="0002"', "$Survey.Type=CSAMT", '$Line.Name="7 N"', "$Line.Number=7", "$Unit.Phase=mrad", " "];
+  for (const [stn, cx] of [[1025, 600025], [1075, 600075], [1125, 600125]]) {
+    L.push(`$Rx.Stn=${stn}`, `$Rx.Center=${cx},7000000,${100 + stn / 100}`, "$Rx.Cmp=ExHy",
+      "Z.mwgt,Z.pwgt,Freq,     Tx.Amp,E.mag,      E.phz,   B.mag,      B.phz,   Z.mag,      Z.phz,   ARes.mag,   SRes");
+    for (const f of [8, 16, 32, 64, 128]) L.push([stn === 1075 && f === 64 ? 0 : 1, 1, f, 10, 1000, 0, 10, 0, 100, 700 + f, 50 + f / 4, 60].join(", "));
+    L.push(" ");
+  }
+  return L.join("\r\n") + "\r\n";
+}
+
+test("a CSAMT average: one sounding per $Rx.Stn block, rho and phase (mrad) as an MT sounding; a rejected frequency left out; placed by the .stn", async () => {
+  const { csAvgToSoundings, zongeStations, stationAt } = await import("../src/lib/zonge.js");
+  const { soundingCurves, ediStations, stationLine } = await import("../src/lib/edi.js");
+  assert.equal(zongeKind(csavg()), "csamt");
+  const stn = zongeStations(["1000\t500000\t6000000\t50", "1050\t500050\t6000000\t52", "1100\t500100\t6000000\t54", "1150\t500150\t6000000\t56"].join("\r\n"));
+  assert.deepEqual(stationAt(stn, 1025), { x: 500025, y: 6000000, z: 51 }, "a receiver between two surveyed stations: interpolated");
+  assert.equal(stationAt(stn, 1200), null, "never extrapolated");
+  const { soundings, skipped } = csAvgToSoundings(csavg(), "L7.avg", stn);
+  assert.equal(soundings.length, 3); assert.equal(skipped, 1);
+  assert.deepEqual(soundings.map((s) => s.id), ["7N1025", "7N1075", "7N1125"]); assert.equal(stationLine("7N1025").line, "7N");
+  assert.deepEqual(soundings.map((s) => s.freqs.length), [5, 4, 5]);
+  const c = soundingCurves(soundings[0]);
+  c.freqs.forEach((f, i) => {
+    assert.ok(Math.abs(c.rho.xy[i] - (50 + f / 4)) < 1e-9 * (50 + f / 4), `rho at ${f} Hz`);
+    assert.ok(Math.abs(c.phs.xy[i] - ((700 + f) / 1000) * (180 / Math.PI)) < 1e-9, `phase at ${f} Hz (mrad -> degrees)`);
+  });
+  const placed = ediStations(soundings, () => null);
+  assert.deepEqual([placed[0].x, placed[0].y, placed[0].z], [500025, 6000000, 51], "the .stn's position, not $Rx.Center");
+  const alone = ediStations(csAvgToSoundings(csavg(), "L7.avg").soundings, () => null);
+  assert.deepEqual([alone[0].x, alone[0].y], [600025, 7000000], "no .stn: the block's $Rx.Center");
+  const m = read("../src/components/MtSoundingsPane.jsx");
+  assert.match(m, /accept="\.edi,\.avg,\.stn"/);
+  assert.match(m, /parsed\.push\(\.\.\.csAvgToSoundings\(text, f\.name, stations\)\.soundings\)/);
+});

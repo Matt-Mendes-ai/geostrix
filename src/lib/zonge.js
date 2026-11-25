@@ -50,6 +50,70 @@ export function zongeRefusal(text, name, pane) {
   return { dcip: tr("{name} is a Zonge CR (IP) average: open it in IP / Resistivity.", { name }), mt: tr("{name} is a Zonge CSAMT average: open it in MT / AMT.", { name }), tem: tr("{name} is Zonge TEM line data: open it in TEM line data (EM).", { name }) }[where];
 }
 
+// -- a Zonge station file: "station easting northing elevation" (tab or space separated, no header) -> Map(station -> { x, y, z }) ---------------------------
+export function zongeStations(text) {
+  const out = new Map();
+  for (const l of String(text).split(/\r\n|\r|\n/)) {
+    const c = l.trim().split(/[\s,]+/);
+    if (c.length < 3) continue;
+    const [s, x, y, z] = c.map(num);
+    if (Number.isFinite(s) && Number.isFinite(x) && Number.isFinite(y)) out.set(s, { x, y, z: Number.isFinite(z) ? z : null });
+  }
+  return out;
+}
+
+// -- CSAMT .avg -> soundings shaped as parseEdi's (lib/edi.js), so the MT / AMT pane draws them: one per "$Rx.Stn" block ------------------------------------
+// Apparent resistivity (ARes.mag) and impedance phase (Z.phz, mrad) per frequency, from a scalar Ex / Hy receiver: the impedance is rebuilt from them in SI
+// (|Z| = sqrt(rho 2 pi f mu0)), so soundingCurves gives back the file's rho and phase. A frequency whose magnitude or phase weight is 0 is left out of that
+// quantity. Positions: the station file's (by station number) or the block's $Rx.Center, as x / y in the project's CRS (the file names none).
+const MU0 = 4e-7 * Math.PI;
+// a station's position from a station file: the station itself, or interpolated between the two it lies between (a receiver's number is its dipole's
+// centre, between the surveyed stations); none outside the file's stations
+export function stationAt(stations, s) {
+  if (!stations || !Number.isFinite(s)) return null;
+  if (stations.has(s)) return stations.get(s);
+  const keys = [...stations.keys()].sort((a, b) => a - b);
+  for (let k = 1; k < keys.length; k++) {
+    const a = keys[k - 1], b = keys[k];
+    if (a < s && s < b) {
+      const t = (s - a) / (b - a), p = stations.get(a), q = stations.get(b), lerp = (u, v) => (Number.isFinite(u) && Number.isFinite(v) ? u + t * (v - u) : null);
+      return { x: lerp(p.x, q.x), y: lerp(p.y, q.y), z: lerp(p.z, q.z) };
+    }
+  }
+  return null;
+}
+export function csAvgToSoundings(text, name = "file.avg", stations = null) {
+  const lines = String(text).split(/\r\n|\r|\n/), params = {}, out = [];
+  let skipped = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^\s*\$\s*([A-Za-z][\w.%#]*)\s*=\s*(.*?)\s*$/);
+    if (m) { params[m[1]] = m[2].replace(/^"(.*)"$/, "$1"); continue; }
+    if (!/^\s*Z\.mwgt\s*,/.test(lines[i]) && !(/(^|,)\s*Freq\s*,/.test(lines[i]) && /ARes\.mag/.test(lines[i]))) continue;
+    const H = lines[i].split(",").map((h) => h.trim()), at = (k) => H.indexOf(k);
+    if (at("Freq") < 0 || at("ARes.mag") < 0 || at("Z.phz") < 0) throw new Error(tr("{name}: a CSAMT average with no Freq, ARes.mag or Z.phz column.", { name }));
+    const freqs = [], rho = [], phs = [];
+    for (i = i + 1; i < lines.length && /^\s*[-\d.]/.test(lines[i]); i++) {
+      const r = lines[i].split(",").map((v) => v.trim()), f = num(r[at("Freq")]);
+      if (!(f > 0)) continue;
+      const mw = at("Z.mwgt") >= 0 ? num(r[at("Z.mwgt")]) : 1, pw = at("Z.pwgt") >= 0 ? num(r[at("Z.pwgt")]) : 1;
+      const rv = num(r[at("ARes.mag")]), pv = num(r[at("Z.phz")]) / 1000; // phase mrad -> rad
+      if (!(mw > 0) || !(pw > 0) || !(rv > 0) || !Number.isFinite(pv)) { skipped++; continue; } // a rejected (weight 0) or empty frequency is left out
+      freqs.push(f); rho.push(rv); phs.push(pv);
+    }
+    i--;
+    const stn = num(params["Rx.Stn"] ?? params["Rx.GdpStn"]), line = String(params["Line.Name"] || params["Line.Number"] || "").replace(/\s+/g, "");
+    const at0 = stationAt(stations, stn), centre = String(params["Rx.Center"] || "").split(",").map(num);
+    const pos = at0 || (centre.length >= 2 && centre.every(Number.isFinite) ? { x: centre[0], y: centre[1], z: Number.isFinite(centre[2]) ? centre[2] : null } : null);
+    const re = [], im = [];
+    freqs.forEach((f, k) => { const mag = Math.sqrt(rho[k] * 2 * Math.PI * f * MU0); re.push(mag * Math.cos(phs[k])); im.push(mag * Math.sin(phs[k])); });
+    out.push({ id: `${/[NSEW]$/i.test(line) ? line : `${line}N`}${Number.isFinite(stn) ? stn : out.length + 1}`, prospect: params["Job.Number"] ? `CSAMT ${params["Job.Number"]}` : "CSAMT",
+      lat: NaN, lon: NaN, xy: pos ? { x: pos.x, y: pos.y } : null, elev: pos?.z ?? null, elevUnits: "M", freqs, z: { xy: { re, im } }, fileRho: rho, filePhs: phs.map((p) => (p * 180) / Math.PI),
+      units: "SI", unitsFrom: "csamt", warnings: [], from: at0 ? "stn" : pos ? "center" : null });
+  }
+  if (!out.length) throw new Error(tr("{name}: a CSAMT average with no station table.", { name }));
+  return { soundings: out, skipped };
+}
+
 // -- CR .avg -> the DC / IP line's table: { headers, rows, lineName, readings, note, warnings } ---------------------------------------------------------
 // The table has the columns the DC / IP reader knows (C1X C2X P1X P2X Res Phz: Phz makes it an IP PHASE in mrad, never a chargeability, #4059).
 const HEADERS = ["C1X", "C2X", "P1X", "P2X", "Res", "Phz"];

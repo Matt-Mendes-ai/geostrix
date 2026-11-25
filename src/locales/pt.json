@@ -15806,5 +15806,10 @@
   "{name}: a CR average in a layout GeoStrix does not know.": "{name}: uma média CR num formato que o GeoStrix não conhece.",
   "{name}: no CR reading with a 0 Hz row.": "{name}: nenhuma leitura CR com uma linha de 0 Hz.",
   "Zonge CR average: rho and the 3-point phase (mrad) at 0 Hz.": "Média CR da Zonge: rho e a fase de 3 pontos (mrad) a 0 Hz.",
-  "Zonge CR average: rho and phase (mrad) at the transmitter frequency.": "Média CR da Zonge: rho e fase (mrad) na frequência do transmissor."
+  "Zonge CR average: rho and phase (mrad) at the transmitter frequency.": "Média CR da Zonge: rho e fase (mrad) na frequência do transmissor.",
+  "{name}: a CSAMT average with no Freq, ARes.mag or Z.phz column.": "{name}: uma média CSAMT sem coluna Freq, ARes.mag ou Z.phz.",
+  "{name}: a CSAMT average with no station table.": "{name}: uma média CSAMT sem tabela de estações.",
+  "{name} is not a Zonge CSAMT average.": "{name} não é uma média CSAMT da Zonge.",
+  "SI, rebuilt from Zonge CSAMT apparent resistivity and phase (scalar Ex / Hy)": "SI, reconstruídas a partir da resistividade aparente e da fase CSAMT da Zonge (escalar Ex / Hy)",
+  "CSAMT positions are the .stn's (or each station's $Rx.Center) as X / Y in {crs}: the files name no coordinate system.": "As posições CSAMT são as do .stn (ou o $Rx.Center de cada estação) como X / Y em {crs}: os arquivos não nomeiam um sistema de coordenadas."
 }
