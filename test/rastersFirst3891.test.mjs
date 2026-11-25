@@ -10,10 +10,10 @@ test("#3891 the section is rendered before Geometry, once, and Geometry takes th
   const sec = v.indexOf("<RastersTerrainSection "), geo = v.indexOf('{tr("Geometry")}</div>');
   assert.ok(sec > 0 && geo > sec, "Rasters & terrain before Geometry");
   assert.equal(v.split("<RastersTerrainSection ").length, 2, "rendered once");
-  assert.ok(geo - sec < 400, "right above it (after a tool pane's end line)");
+  assert.ok(geo - sec < 480, "right above it (after a tool pane's end line)"); // 480: #4075's guard in front of the section
   assert.match(v, /<div className="ge-section-label" style=\{rasters\.length \|\| terrain \? \{ marginTop: 16 \} : null\}>\{tr\("Geometry"\)\}<\/div>/);
   assert.doesNotMatch(v, /tr\("Rasters & terrain"\)/, "the block is no longer in ViewerModule");
-  assert.match(v, /import RastersTerrainSection from "\.\/viewer\/RastersTerrainSection\.jsx";/);
+  assert.match(v, /const RastersTerrainSection = lazyPart\(\(\) => import\("\.\/viewer\/RastersTerrainSection\.jsx"\)\);/); // #4075: loaded on use, only for a project with a raster or terrain
 });
 
 test("#3891 the section: shown only with a raster or a terrain, its heading first (no top margin), the terrain card, the rows and legends", () => {

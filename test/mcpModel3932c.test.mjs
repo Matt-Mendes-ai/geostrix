@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import { runChange, ACTIONS } from "../src/lib/mcpActions.js";
-import { modelAction } from "../src/modules/viewer/useMcpModelActions.js";
+import { modelAction } from "../src/modules/viewer/mcpModelAction.js";
 import { ALTERATION, VEINS } from "../src/modules/viewer/guided/guidedTools.js";
 import { guidedCtx } from "../src/modules/viewer/guided/guidedRun.js";
 import { shellBlockModel, setLastShellCells, lastShellCells } from "../src/lib/lastShellCells.js";

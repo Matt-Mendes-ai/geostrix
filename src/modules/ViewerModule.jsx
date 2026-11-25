@@ -7,14 +7,15 @@ import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // 
 import { markZoomedHole } from "./viewer/zoomMark.js"; // #3570
 import { useShowOnLoad } from "./viewer/useShowOnLoad.js"; // #3588 (1)
 import { azimuthNorthText } from "../lib/azimuthNorthText.js"; // #3588 (6)
-import HoleFilterBar from "./viewer/HoleFilterBar.jsx"; import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import { useMcpViewActions } from "./viewer/useMcpViewActions.js"; import { useMcpModelActions } from "./viewer/useMcpModelActions.js"; /* #3932 */ import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
+const HoleFilterBar = lazyPart(() => import("./viewer/HoleFilterBar.jsx")); // TASKS.csv #4075 — startup size: drawn once the project has two or more holes
+import { useSurfaceChecks } from "./viewer/useSurfaceChecks.js"; import { useMcpViewActions } from "./viewer/useMcpViewActions.js"; import { useMcpModelActions } from "./viewer/useMcpModelActions.js"; /* #3932 */ import HiddenHolesNote from "./viewer/HiddenHolesNote.jsx"; import { publishHoleVisibility } from "../lib/holeVisibilityShare.js"; // #3555; #3605
 import { holesForFilter, holeSetsOf, fenceTracesOf } from "../lib/holeFilter.js"; // #1504; #1703; #3554; #3561
 import { holesWithoutField } from "../lib/viewer/holeFieldPicks.js"; // #3074
 import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
 const FenceOptions = lazyPart(() => import("./viewer/FenceOptions.jsx")); // TASKS.csv #3961: lazy (the slice-series pane)
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, Suspense } from "react";
-import StepPane from "../components/StepPane.jsx"; // TASKS.csv #4070 part 5
+const StepPane = lazyPart(() => import("../components/StepPane.jsx")); // TASKS.csv #4070 part 5; #4075 — startup size: the step panes draw it only once opened (preloaded when idle, see below)
 import NoticeLine from "./viewer/NoticeLine.jsx";
 import ContextGroup from "./viewer/ContextGroup.jsx";
 import MoreFold from "../components/MoreFold.jsx";
@@ -157,7 +158,7 @@ const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZones
 import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { sliceTraces, medianCollarPos, slabSummary, slabSummaryText } from "../lib/viewer/slicePlace.js"; // TASKS.csv #3258
 import AssayStaleBadge from "../components/AssayStaleBadge.jsx"; // TASKS.csv #3686
-import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
+const buildVectorFeaturesOf = async (...a) => (await import("../lib/viewer/vectorFeatures.js")).buildVectorFeatures(...a); // TASKS.csv #1083; #4075 — startup size: loaded by the first vector export
 import { isRepeatClick } from "../lib/repeatClick.js"; // TASKS.csv #1152; #3159: not interpretation.js, which put the interpretation layers' code in startup
 import { syncInterpretPreview, hoverFirstCorner } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152; hover: #2682
 import { rayAtLevel, addLevelPlane } from "../lib/viewer/interpretLevel.js"; // TASKS.csv #3972
@@ -170,7 +171,7 @@ import { sortVoxelInstancesBackToFront, sortFacesBackToFront } from "../lib/view
 import { assayValueCounts, orderAssayChips, filterAssayChips, CHIP_FILTER_MIN } from "../lib/viewer/assayChipOrder.js"; // TASKS.csv #2374; filter: #2785
 import { scoreRasterLegendGroups } from "../lib/viewer/scoreRasterLegend.js"; // TASKS.csv #2670
 import { makeStereonetLocate } from "../lib/viewer/stereonetLocate.js"; // TASKS.csv #3843
-import { snapInterpretClick } from "../lib/viewer/interpretSnap.js"; // TASKS.csv #2630
+const snapInterpretClick = async (...a) => (await import("../lib/viewer/interpretSnap.js")).snapInterpretClick(...a); // TASKS.csv #2630; #4075 — startup size: loaded by the first interpretation click
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
 import { withAlphaOnlyPicks } from "../lib/alphaPicks.js"; // #1686
@@ -240,7 +241,9 @@ import { findOnTraceWorld, findOnTrace, traceLookup, traceOfHole /* #2931 */, po
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems, setStructureFloor /* #3844 */ } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useLodTiles } from "./viewer/useLodTiles.js"; // TASKS.csv #3252
-import RastersTerrainSection from "./viewer/RastersTerrainSection.jsx"; // TASKS.csv #3891
+const RastersTerrainSection = lazyPart(() => import("./viewer/RastersTerrainSection.jsx")); // TASKS.csv #3891; #4075 — startup size: only a project with a raster or a terrain draws it
+import { preloadWhenIdle } from "../lib/idlePreload.js"; // TASKS.csv #4075 — the parts above, fetched once the window is idle
+preloadWhenIdle([() => import("../components/StepPane.jsx"), () => import("./viewer/HoleFilterBar.jsx"), () => import("./viewer/RastersTerrainSection.jsx")]);
 import { useSurfaceUndo, stashSurface } from "./viewer/surfaceUndo.js"; // TASKS.csv #3494 — Undo / Redo for the model surfaces
 import { useModelling } from "./viewer/useModelling.js";
 import { useDismiss } from "../lib/useDismiss.js"; // TASKS.csv #3969
@@ -5056,7 +5059,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const buildVectorFeatures = (kind, key) => buildVectorFeaturesOf(kind, key, { collars, survey /* #3623 — AZIM_GRID / DIP from the first station */, traces: tracesRef.current, layers, epsg: project?.epsg });
 
   const exportVectorShapefile = async (kind, key, label, built = null) => { // built: #1025 — a map layer / boundary / sample set
-    const { features, geomType } = built || buildVectorFeatures(kind, key);
+    const { features, geomType } = built || await buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
@@ -5077,7 +5080,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #191 — user request: "let's do those 3" (GeoPackage export was the previously-disabled
   // context menu item — "needs an in-browser SQLite writer" — now built on sql.js, see src/lib/gpkg.js).
   const exportVectorGeoPackage = async (kind, key, label, built = null) => { // built: #1025 — a map layer / boundary / sample set
-    const { features, geomType } = built || buildVectorFeatures(kind, key);
+    const { features, geomType } = built || await buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
@@ -5128,7 +5131,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // in day to day, alongside Shapefile/GeoPackage above. Same buildVectorFeatures() data path, just a
   // third output format. Elevations are written (#408) and the file is consistent R12 (#578), per src/lib/dxf.js.
   const exportVectorDXF = async (kind, key, label, built = null) => { // built: #1025 — a map layer / boundary / sample set
-    const { features, geomType } = built || buildVectorFeatures(kind, key);
+    const { features, geomType } = built || await buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       // #1060 — one DXF layer per logged value, structure picks labelled dip/ddd: lib/viewer/vectorFeatures.js (#1017, tested)
@@ -5147,7 +5150,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   };
   // TASKS.csv #2631 — GOCAD ASCII: points as a VSet (.vs) with the numeric attributes as properties, lines as a PLine (.pl); lib/gocadWrite.js
   const exportVectorGocad = async (kind, key, label, built = null) => {
-    const { features, geomType } = built || buildVectorFeatures(kind, key);
+    const { features, geomType } = built || await buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tx = await import("../lib/tiedExport.js"), ex = project?.crsSet === false && !tx.tieOf(project) ? null : await tx.exportCrs(project); if (!ex && project?.crsSet !== false) return; // as the Shapefile export: a tied grid through its tie, no CRS = 'Default'
@@ -5280,13 +5283,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [pickHoleMode, pickHits, worldPointFromHits, terrain, collars]);
   // TASKS.csv #1152 — a click adds a vertex to the interpretation line (on whatever is under the cursor: terrain, survey,
   // else the ground plane); a second click on the same spot ends it (the pane writes the line)
-  const onInterpretClick = useCallback((e) => {
+  const onInterpretClick = useCallback(async (e) => {
     if (!interpretRef.current.on) return;
     const rect = mountRef.current.getBoundingClientRect();
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(viewNdc(e, rect, mcDownRef.current) /* #2803 */, cameraRef.current);
     const lvl = interpretRef.current.level; // TASKS.csv #3972 — drawing on a level: the click on that plane, the vertex at its RL
-    const world = snapInterpretClick(Number.isFinite(lvl) ? rayAtLevel(raycaster.ray, lvl, originRef.current) : raycastWorldPoint(raycaster), raycaster.ray, { on: interpretOpen === true && interpretRef.current.snap !== false /* lines only, not unit polygons */, traces: tracesRef.current, layers, visible: layerVisible, origin: originRef.current, camera: cameraRef.current, heightPx: rect.height }); // #2630
+    const world = await snapInterpretClick(Number.isFinite(lvl) ? rayAtLevel(raycaster.ray, lvl, originRef.current) : raycastWorldPoint(raycaster), raycaster.ray, { on: interpretOpen === true && interpretRef.current.snap !== false /* lines only, not unit polygons */, traces: tracesRef.current, layers, visible: layerVisible, origin: originRef.current, camera: cameraRef.current, heightPx: rect.height }); // #2630
     if (!world) return;
     if (Number.isFinite(lvl)) world.z = lvl;
     const at = Date.now();
@@ -5875,7 +5878,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </MoreFold>} />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
-        <RastersTerrainSection {...{ rasters, terrain, updateTerrain, updateRaster, removeRaster, openRowMenu, zoomToObject, terrainMeshRef, rasterMeshesRef, goToModule, lodTiles }} />{/* #3891: first */}
+        {(rasters.length > 0 || terrain) && <RastersTerrainSection {...{ rasters, terrain, updateTerrain, updateRaster, removeRaster, openRowMenu, zoomToObject, terrainMeshRef, rasterMeshesRef, goToModule, lodTiles }} />}{/* #3891: first */}
         <div className="ge-section-label" style={rasters.length || terrain ? { marginTop: 16 } : null}>{tr("Geometry")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: tr("Collars"), x: e.clientX, y: e.clientY }); }} className="gs-btn gs-btn--block" style={{ marginBottom: 0, flex: 1 }} title={tr("Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Collars {v}", { v: collars.length ? `(${collars.length})` : "" })}</button>
