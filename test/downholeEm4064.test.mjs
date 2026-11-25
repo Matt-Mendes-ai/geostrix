@@ -155,13 +155,13 @@ test("refusals that say why: a surface PEM profile, a lone .CHN, a file that is 
 });
 
 test("matching the file's holes to the project's: case, zeros, separators, loop and repeat suffixes, a unique prefix", () => {
-  const proj = ["ALRC007", "PENQ10", "13ALDD018", "SQ31", "MN-005", "TTD0002", "LSD0003", "AB1", "AB12"];
-  const m = Object.fromEntries(matchEmHoles(["ALRC007", "alrc 007", "PENQ-010", "13ALDD018_L1605", "SQ31_1", "MN005", "TTD0002", "LSD0003_LS_DHEM2017_1", "NOPE1", "Hole TTD0002"], proj).map((x) => [x.id, x]));
-  assert.deepEqual([m.ALRC007.hole, m.ALRC007.how], ["ALRC007", "exact"]);
-  assert.equal(m["alrc 007"].hole, "ALRC007"); assert.equal(m["PENQ-010"].hole, "PENQ10");
-  assert.deepEqual([m["13ALDD018_L1605"].hole, m["13ALDD018_L1605"].how], ["13ALDD018", "name with a suffix"]);
-  assert.equal(m.SQ31_1.hole, "SQ31"); assert.equal(m.MN005.hole, "MN-005"); assert.equal(m.LSD0003_LS_DHEM2017_1.hole, "LSD0003");
-  assert.equal(m["Hole TTD0002"].hole, "TTD0002"); assert.equal(m.NOPE1.hole, null);
+  const proj = ["XYRC007", "QRSQ10", "13XYDD018", "ZZ31", "KK-005", "WWD0002", "VVD0003", "AB1", "AB12"];
+  const m = Object.fromEntries(matchEmHoles(["XYRC007", "xyrc 007", "QRSQ-010", "13XYDD018_L1605", "ZZ31_1", "KK005", "WWD0002", "VVD0003_VV_DHEM2017_1", "NOPE1", "Hole WWD0002"], proj).map((x) => [x.id, x]));
+  assert.deepEqual([m.XYRC007.hole, m.XYRC007.how], ["XYRC007", "exact"]);
+  assert.equal(m["xyrc 007"].hole, "XYRC007"); assert.equal(m["QRSQ-010"].hole, "QRSQ10");
+  assert.deepEqual([m["13XYDD018_L1605"].hole, m["13XYDD018_L1605"].how], ["13XYDD018", "name with a suffix"]);
+  assert.equal(m.ZZ31_1.hole, "ZZ31"); assert.equal(m.KK005.hole, "KK-005"); assert.equal(m.VVD0003_VV_DHEM2017_1.hole, "VVD0003");
+  assert.equal(m["Hole WWD0002"].hole, "WWD0002"); assert.equal(m.NOPE1.hole, null);
   // two project holes that squash to one name are not guessed; a prefix that fits two holes is not guessed
   assert.equal(matchEmHoles(["AB-1"], ["AB_1", "AB.1"])[0].hole, null);
   assert.equal(matchEmHoles(["ABCD12X"], ["ABCD1", "ABCD12"])[0].hole === null || matchEmHoles(["ABCD12X"], ["ABCD1", "ABCD12"])[0].hole === "ABCD12", true);
