@@ -29,6 +29,10 @@ export const PANE_HELP = {
   "Map layers & outcrop structures": "map-layers",
   "Mineral claims / tenure": "claims",
   "Web layers (WMS / WFS)": "web-layers",
+  "Project CRS": "project-crs",
+  "Reproject a layer": "reproject-layer",
+  "Reproject a file": "reproject-file",
+  "GeoTIFF / GXF": "geotiff-gxf",
   // Mine Design
   "Pit shell": "pit-shell",
   "Pit design": "pit-design",

@@ -45,7 +45,7 @@ test("#3982 the five pages that read a coordinate system show N3, 'check where i
 test("#3982 the 14 pages give the card fields, within the plan's limits", async () => {
   for (const [file, ids] of Object.entries(FILES)) {
     const pages = (await import(`../src/help/pages/${file}.js`)).default;
-    assert.deepEqual(pages.map((p) => p.id), ids, `${file}: its pages`);
+    assert.deepEqual(pages.map((p) => p.id).slice(0, ids.length), ids, `${file}: its pages`); // the later Maps pages (#4070) follow these
   }
   for (const id of IDS) {
     const p = pageById(id);
