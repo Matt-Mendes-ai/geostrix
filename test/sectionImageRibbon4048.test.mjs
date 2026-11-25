@@ -10,7 +10,7 @@ const parts = read("../src/modules/viewer/ViewerParts.jsx");
 const viewer = read("../src/modules/ViewerModule.jsx");
 const icons = read("../src/components/ribbonIcons.jsx");
 
-const TIP = "Put a scanned or drawn section on its line in 3D: pick the line, click points on the image and type what the figure says.";
+const TIP = "Place a section figure in 3D: load it, click labelled points, place.";
 
 test("the Sections group has a Section image button with its own icon and a tooltip that says what it does", () => {
   const sections = parts.slice(parts.indexOf('<RibbonGroup label="Sections">'), parts.indexOf('<RibbonGroup label="Measure & check">'));

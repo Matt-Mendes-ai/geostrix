@@ -15245,7 +15245,6 @@
   "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "الرسم: اسحب مستطيلًا على العرض (أو في الخرائط › مستطيل السلسلة)، وEsc للإلغاء.",
   "Plan stream sites…": "تخطيط مواقع المجاري…",
   "Plan new sites: Plan survey › Stream sites": "تخطيط مواقع جديدة: تخطيط المسح › مواقع المجاري",
-  "Put a scanned or drawn section on its line in 3D: pick the line, click points on the image and type what the figure says.": "ضع مقطعًا ممسوحًا ضوئيًا أو مرسومًا على خطه في العرض ثلاثي الأبعاد: اختر الخط، وانقر على نقاط في الصورة، واكتب ما يذكره الشكل عندها.",
   "The scene {id} is no longer in the catalogue.": "المشهد {id} لم يعد في الفهرس.",
   " Snow: {scl} pixels by the scene classification, {ndsi} more by the NDSI test (NDSI above {min}, green reflectance at least {green}).": " الثلج: {scl} بكسل حسب تصنيف المشهد، و{ndsi} إضافية باختبار NDSI (NDSI أعلى من {min}، وانعكاسية الأخضر {green} على الأقل).",
   " Scene {id}, {date}: the red / green / blue surface reflectance of the scene the index was made from, stretched together; snow, cloud and water are shown as they are.": " المشهد {id}، {date}: الانعكاسية السطحية الحمراء / الخضراء / الزرقاء للمشهد الذي صُنع منه المؤشر، مشدودة معاً؛ ويظهر الثلج والغيوم والماء كما هي.",
@@ -15463,5 +15462,6 @@
   "A control point has no elevation.": "نقطة تحكم بلا منسوب.",
   "Place at least 2 control points.": "ضع نقطتي تحكم على الأقل.",
   "No holes or saved sections yet: type the ends.": "لا توجد ثقوب أو مقاطع محفوظة بعد: اكتب الطرفين.",
-  "Fit error": "خطأ الملاءمة"
+  "Fit error": "خطأ الملاءمة",
+  "Place a section figure in 3D: load it, click labelled points, place.": "ضع شكل مقطع في 3D: حمّله، وانقر نقاطًا مُسمّاة، ثم ضعه."
 }

@@ -15245,7 +15245,6 @@
   "Drawing: drag a box on the view (or on Maps › Fence box), Esc to cancel.": "Dessin : faites glisser un rectangle sur la vue (ou dans Cartes › Rectangle de série); Échap annule.",
   "Plan stream sites…": "Planifier des sites de cours d'eau…",
   "Plan new sites: Plan survey › Stream sites": "Planifier de nouveaux sites : Planifier le levé › Sites de cours d'eau",
-  "Put a scanned or drawn section on its line in 3D: pick the line, click points on the image and type what the figure says.": "Placez une coupe numérisée ou dessinée sur sa ligne en 3D : choisissez la ligne, cliquez sur des points de l'image et saisissez ce que la figure indique à ces endroits.",
   "The scene {id} is no longer in the catalogue.": "La scène {id} n'est plus dans le catalogue.",
   " Snow: {scl} pixels by the scene classification, {ndsi} more by the NDSI test (NDSI above {min}, green reflectance at least {green}).": " Neige : {scl} pixels par la classification de la scène, {ndsi} de plus par le test NDSI (NDSI au-dessus de {min}, réflectance du vert d'au moins {green}).",
   " Scene {id}, {date}: the red / green / blue surface reflectance of the scene the index was made from, stretched together; snow, cloud and water are shown as they are.": " Scène {id}, {date} : la réflectance de surface rouge / verte / bleue de la scène dont l'indice est tiré, étirée ensemble ; la neige, les nuages et l'eau sont montrés tels quels.",
@@ -15463,5 +15462,6 @@
   "A control point has no elevation.": "Un point de contrôle n'a pas d'altitude.",
   "Place at least 2 control points.": "Placez au moins 2 points de contrôle.",
   "No holes or saved sections yet: type the ends.": "Pas encore de sondages ni de coupes enregistrées : saisissez les extrémités.",
-  "Fit error": "Erreur d'ajustement"
+  "Fit error": "Erreur d'ajustement",
+  "Place a section figure in 3D: load it, click labelled points, place.": "Placez une figure de coupe en 3D : chargez-la, cliquez des points étiquetés, placez."
 }
