@@ -33,16 +33,19 @@ test("the drillhole build draws the pin only when the layer's style asks for it"
 
 test("the Structure planes' Style dialog says what the pin shows", () => {
   const m = read("../src/components/LayerStyleModal.jsx");
-  assert.match(m, /target\.key === "structure" && target\.kind === "plane"/);
+  assert.match(m, /const dipPinShown = target\.key === "structure" && target\.kind === "plane";/);
+  assert.match(m, /\{dipPinShown && \(/);
   assert.match(m, /tr\("Dip pin"\)/);
-  assert.match(m, /tr\("A disc looks the same dipping either way; the pin shows which way the plane dips\."\)/);
+  // TASKS.csv #4073 — the switch reads "Show" beside its "Dip pin" label; what the pin shows is in the panel's Help fold, for the Structure planes only
+  assert.match(m, /aria-label=\{tr\("Dip pin"\)\} \/>\{tr\("Show"\)\}/);
+  assert.match(m, /\{dipPinShown && <div style=\{\{ marginTop: 4 \}\}>\{tr\("A disc looks the same dipping either way; the pin shows which way the plane dips\."\)\}<\/div>\}/);
   assert.match(m, /onChange\(\{ dipPin: e\.target\.checked \? true : null \}\)/);
 });
 
 test("the three new texts are translated", () => {
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(read(`../src/locales/${lang}.json`));
-    for (const k of ["Dip pin", "A pin down each disc's dip", "A disc looks the same dipping either way; the pin shows which way the plane dips."]) assert.ok(d[k] && d[k] !== k, `${lang}: ${k}`);
+    for (const k of ["Dip pin", "Show" /* #4073 — was "A pin down each disc's dip" */, "A disc looks the same dipping either way; the pin shows which way the plane dips."]) assert.ok(d[k] && d[k] !== k, `${lang}: ${k}`);
   }
   assert.equal(tr("Dip pin"), "Dip pin");
 });

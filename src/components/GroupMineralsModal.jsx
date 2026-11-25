@@ -2,11 +2,8 @@
 // numeric layer per mineral) become the fields of one wide-form Mineralization layer (lib/groupMinerals.js). Opened from the Custom layers heading.
 // ctx is the 3D View's own setters, so this lazy file needs nothing of the project itself; the change is one Undo step and says what it did.
 import React, { useMemo, useState } from "react";
-import { X } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps, panel as panelOf, header } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap)
+import { backdropProps } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { infoNotice } from "../lib/notices.js";
 import { numericCustomChoices } from "../lib/customBars.js";
@@ -20,8 +17,7 @@ export const groupedText = (s) => tr("Grouped {layers} layers: fields {fields}, 
   + (s.skipped ? " " + tr("Rows left out (several minerals under one per cent): {skipped}.", { skipped: s.skipped }) : "");
 
 export default function GroupMineralsModal({ customLayers, mnlgy, ids, ctx, onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
+  const [at, setAt] = useState(0); // TASKS.csv #4073 — the step on screen
   const choices = useMemo(() => numericCustomChoices(customLayers), [customLayers]);
   const [sel, setSel] = useState(() => new Set(ids?.length ? ids : choices.map((c) => c.id)));
   const [remove, setRemove] = useState(false);
@@ -44,41 +40,49 @@ export default function GroupMineralsModal({ customLayers, mnlgy, ids, ctx, onCl
   const stat = (r, what) => r && tr("{what}: fields {fields}, intervals {intervals}, holes {holes}.", { what, fields: r.stats.fields, intervals: r.stats.intervals.toLocaleString(), holes: r.stats.holes.toLocaleString() });
   const toggle = (id) => setSel((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const ok = !problems.length && fresh?.rows?.length;
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={{ ...panelOf({ width: 520, maxWidth: "92vw", maxHeight: "88vh" }) }} role="dialog" aria-modal="true" aria-label={tr("Group as Mineralization…")} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Group as Mineralization…")}</div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
-        <div style={{ padding: 14, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={note}>{tr("Each ticked layer becomes a mineral field, joined by hole and depth.")}</div>
-          <div data-group-layers style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 220, overflowY: "auto" }}>
-            {choices.map((c) => (
-              <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
-                <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggle(c.id)} />
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.label}>{c.label}</span>
-                {c.unit && <span style={{ color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)" }}>{c.unit}</span>}
-              </label>
-            ))}
-            {!choices.length && <div style={note}>{tr("No numeric interval layers.")}</div>}
-          </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
-            <input type="checkbox" checked={remove} onChange={(e) => setRemove(e.target.checked)} />{tr("Remove the layers afterwards (otherwise hidden)")}</label>
-          {problems.map((p) => <div key={p.kind} role="alert" style={{ ...note, color: "var(--color-warn-text)" }}>{problemText(p)}</div>)}
-          {ok && <div data-group-preview style={note}>{stat(fresh, hasOld ? tr("Replace") : tr("Group"))}</div>}
-          {ok && merged && <div data-group-preview-merge style={note}>{stat(merged, tr("Merge"))}</div>}
-          {fresh && !fresh.rows.length && <div style={note}>{tr("No mineral above zero.")}</div>}
-          {hasOld && <div style={note}>{tr("Merge adds these minerals to the Mineralization layer; Replace swaps it for them.")}</div>}
-        </div>
-        <div style={{ padding: "10px 14px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button onClick={onClose} className="gs-btn">{tr("Cancel")}</button>
-          {hasOld ? (<>
-            <button disabled={!ok} onClick={() => apply(fresh)} className="gs-btn" style={{ opacity: ok ? 1 : 0.5 }}>{tr("Replace")}</button>
-            <button disabled={!ok || !merged?.rows?.length} onClick={() => apply(merged)} className="gs-btn gs-btn--primary" style={{ opacity: ok ? 1 : 0.5 }}>{tr("Merge")}</button>
-          </>) : <button disabled={!ok} onClick={() => apply(fresh)} className="gs-btn gs-btn--primary" /* gs-primary-alt: the other branch of the ternary */ style={{ opacity: ok ? 1 : 0.5 }}>{tr("Group")}</button>}
-        </div>
-      </div>
-    </div>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows"; "too wordy … cut, don't just cap") — two steps, one question each: which layers (Layers,
+  // with what is wrong with the pick under it), then how they go in (Group: remove or hide them, the preview, and the action). With a Mineralization
+  // layer already there the gold primary is Merge and Replace is the secondary beside its own preview, and the line saying Replace swaps the layer stays
+  // seen there; with none the primary is Group. What a ticked layer becomes and what Merge does are in the Help card. A press on the backdrop still closes it.
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{tr("Mineralization")}</summary>
+      <div style={note}>{tr("Each ticked layer becomes a mineral field, joined by hole and depth.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Merge adds these minerals to the Mineralization layer; Replace swaps it for them.")}</div>
+    </details>
   );
+  const steps = [
+    { key: "layers", label: tr("Layers"), primary: { label: tr("Next"), disabled: !ok }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div data-group-layers style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 220, overflowY: "auto" }}>
+          {choices.map((c) => (
+            <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
+              <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggle(c.id)} />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.label}>{c.label}</span>
+              {c.unit && <span style={{ color: "var(--color-text-caption)", fontSize: "var(--font-size-sm)" }}>{c.unit}</span>}
+            </label>
+          ))}
+          {!choices.length && <div style={note}>{tr("No numeric interval layers.")}</div>}
+        </div>
+        {problems.map((p) => <div key={p.kind} role="alert" style={{ ...note, color: "var(--color-warn-text)" }}>{problemText(p)}</div>)}
+        {fresh && !fresh.rows.length && <div style={note}>{tr("No mineral above zero.")}</div>}
+      </div>
+    ) },
+    { key: "group", label: tr("Group"), primary: hasOld ? { label: tr("Merge"), onClick: () => apply(merged), disabled: !ok || !merged?.rows?.length } : { label: tr("Group"), onClick: () => apply(fresh), disabled: !ok }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
+          <input type="checkbox" checked={remove} onChange={(e) => setRemove(e.target.checked)} />{tr("Remove the layers afterwards (otherwise hidden)")}</label>
+        {hasOld && <div style={{ ...note, color: "var(--color-text-secondary)" }}>{tr("Replace swaps the Mineralization layer for these.")}</div>}
+        {ok && merged && <div data-group-preview-merge style={note}>{stat(merged, tr("Merge"))}</div>}
+        {ok && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div data-group-preview style={{ ...note, flex: 1 }}>{stat(fresh, hasOld ? tr("Replace") : tr("Group"))}</div>
+            {hasOld && <button type="button" disabled={!ok} onClick={() => apply(fresh)} className="gs-btn gs-btn--sm">{tr("Replace")}</button>}
+          </div>
+        )}
+      </div>
+    ) },
+  ];
+  const heading = tr("Group as Mineralization…"); // the dialog's name, seen (a JSX title= would count it as a tooltip)
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} width="min(520px, 92vw)" overlayProps={backdropProps(onClose)} />;
 }

@@ -26,5 +26,5 @@ test("Jensen / Winchester ask which logged codes are volcanic, then classify onl
   assert.match(g, /onRun=\{\(set\) => \{ const k = volcModal\.methodKey; setVolcModal\(null\); runMethod\(k, null, set\); \}\}/);
   const m = readFileSync(new URL("../src/components/VolcanicCodesModal.jsx", import.meta.url), "utf8");
   assert.match(m, /useState\(\(\) => new Set\(codes\.filter\(\(c\) => c\.volcanic\)\.map\(\(c\) => c\.code\)\)\)/);
-  assert.match(m, /disabled=\{!n\}/); // nothing ticked: nothing to classify
+  assert.match(m, /onClick: \(\) => onRun\(ticked\), disabled: !n \}/); // nothing ticked: nothing to classify (TASKS.csv #4073 — the StepDialog's gold primary)
 });

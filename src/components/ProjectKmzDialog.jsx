@@ -1,10 +1,8 @@
 // TASKS.csv #3087 — Export project as KMZ: which parts of the project go into the file (all ticked to start; the last choice is kept on this
 // computer). A part with nothing in the project is greyed. Export runs lib/projectKmzExport.js with the ticked parts.
 import React, { useState } from "react";
-import { X, Globe } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
+import { backdropProps } from "../lib/modalStyles.js";
 import { KMZ_PARTS } from "../lib/projectKmz.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -16,9 +14,7 @@ export function pickedFromPref(saved, keys) {
   const off = Array.isArray(saved) ? FIRST_PARTS.filter((k) => !saved.includes(k)) : Array.isArray(saved?.off) ? saved.off : [];
   return new Set(keys.filter((k) => !off.includes(k)));
 }
-const panel = { width: "min(480px, 92vw)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
+const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
 
 // what the project has in each part (a part with nothing is greyed, not hidden)
 export function kmzPartsPresent(store) {
@@ -34,8 +30,6 @@ export function kmzPartsPresent(store) {
 }
 
 export default function ProjectKmzDialog({ store, onExport, onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
   const present = kmzPartsPresent(store);
   const [picked, setPicked] = useState(() => {
     let saved = null;
@@ -55,36 +49,40 @@ export default function ProjectKmzDialog({ store, onExport, onClose }) {
     try { localStorage.setItem(PREF, JSON.stringify({ off: KMZ_PARTS.map((p) => p.key).filter((k) => !picked.has(k)) })); } catch { /* private window */ }
     onExport(new Set(chosen.map((p) => p.key)), { lodPixelM: lodPx === "" ? null : Number(lodPx) });
   };
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Export project as KMZ")} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}><Globe size={18} />{tr("Export project as KMZ")}</div>
-          <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={16} /></button>
-        </div>
-        <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={note}>{tr("The parts of the project to put in the KMZ, each in a folder with StrixViewer's colours; hidden layers come unticked in Google Earth.")}</div>
-          {KMZ_PARTS.map((p) => (
-            <label key={p.key} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-sm)", color: present[p.key] ? "var(--color-text)" : "var(--color-text-muted)" }}>
-              <input type="checkbox" checked={picked.has(p.key) && present[p.key]} disabled={!present[p.key]} onChange={() => toggle(p.key)} aria-label={tr(p.label)} />
-              <span>{tr(p.label)}{present[p.key] ? "" : ` ${tr("(none in this project)")}`}</span>
-            </label>
-          ))}
-          {picked.has("rasters") && present.rasters && lodChoices.length > 0 && (
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} title={tr("Imagery with a source (NAIP) is written finer, at this pixel size, from this computer or the source: one picture of at most 8,192 px a side per raster.")}>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows"; "GeoStrix is too wordy") — a StepDialog of ONE step (tick the parts, then Export): Cancel
+  // and the gold Export…, a click beside it still closes it (backdropProps). What goes in the file and how Google Earth shows it, and what the imagery
+  // pixel size does, are in the Help card; that a finer pixel size reads tiles from the source (online) stays seen while one is chosen.
+  const heading = tr("Export project as KMZ");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{heading}</summary>
+      <div style={note}>{tr("The parts of the project to put in the KMZ, each in a folder with StrixViewer's colours; hidden layers come unticked in Google Earth.")}</div>
+      {lodChoices.length > 0 && <div style={{ ...note, marginTop: 6 }}>{tr("Imagery with a source (NAIP) is written finer, at this pixel size, from this computer or the source: one picture of at most 8,192 px a side per raster.")}</div>}
+    </details>
+  );
+  const steps = [
+    { key: "parts", label: tr("Parts"), primary: { label: tr("Export…"), onClick: go, disabled: !chosen.length }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        {KMZ_PARTS.map((p) => (
+          <label key={p.key} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: present[p.key] ? "var(--color-text)" : "var(--color-text-muted)" }}>
+            <input type="checkbox" checked={picked.has(p.key) && present[p.key]} disabled={!present[p.key]} onChange={() => toggle(p.key)} aria-label={tr(p.label)} />
+            <span>{tr(p.label)}{present[p.key] ? "" : ` ${tr("(none in this project)")}`}</span>
+          </label>
+        ))}
+        {picked.has("rasters") && present.rasters && lodChoices.length > 0 && (
+          <>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
               {tr("Imagery pixel size")}
               <select value={lodPx} onChange={(e) => setLodPx(e.target.value)} aria-label={tr("Imagery pixel size")}>
                 <option value="">{tr("As fetched")}</option>
                 {lodChoices.map((p) => <option key={p} value={p}>{tr("{px} m", { px: p })}</option>)}
               </select>
             </label>
-          )}{/* TASKS.csv #3252 phase 4 */}
-        </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button className="gs-btn" type="button" onClick={onClose}>{tr("Cancel")}</button>
-          <button className="gs-btn gs-btn--primary" type="button" onClick={go} disabled={!chosen.length}>{tr("Export…")}</button>
-        </div>
+            {lodPx !== "" && <div role="note" style={note}>{tr("Tiles not on this computer are read from the source.")}</div>}
+          </>
+        )}{/* TASKS.csv #3252 phase 4 */}
       </div>
-    </div>
-  );
+    ) },
+  ];
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={0} onAt={() => {}} help={help} width="min(480px, 92vw)" overlayProps={backdropProps(onClose)} />;
 }
