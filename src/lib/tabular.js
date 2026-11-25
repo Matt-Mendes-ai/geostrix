@@ -13,6 +13,7 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #3031
 import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
 import { sl3ToTable } from "./sl3Table.js"; // TASKS.csv #4060 — Queensland's SL3 'H / D' tables
+import { addMissingHeader } from "./headerlessText.js"; // TASKS.csv #4067 — a table with no header row
 
 // Bytes -> text. UTF-8 first (BOM stripped); if that produced replacement characters, the file was not
 // UTF-8 — almost always an Excel export on Windows (Windows-1252: degree signs, accented names).
@@ -24,6 +25,14 @@ const tooLargeForOneRead = (bytes) => new Error(bytes != null ? tr("it is {mb} M
 export function decodeTableBytes(bytes) {
   const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (u8.length > TEXT_MAX_BYTES) throw tooLargeForOneRead(u8.length); // #2344
+  // TASKS.csv #4067 — a table saved as UTF-16 (Excel's "Unicode Text", GSQ's cr_85090_13.txt): its byte-order mark FF FE (little-endian) or FE FF (big-endian).
+  // Read as UTF-8 / Windows-1252 every second byte was a NUL and the first column name began 'ÿþ'.
+  if (u8.length >= 2 && ((u8[0] === 0xff && u8[1] === 0xfe) || (u8[0] === 0xfe && u8[1] === 0xff))) {
+    const encoding = u8[0] === 0xff ? "utf-16le" : "utf-16be";
+    let t16 = new TextDecoder(encoding).decode(u8.length % 2 ? u8.subarray(0, u8.length - 1) : u8);
+    if (t16.charCodeAt(0) === 0xfeff) t16 = t16.slice(1);
+    return { text: t16, encoding };
+  }
   let text;
   try { text = new TextDecoder("utf-8").decode(u8); } catch { throw tooLargeForOneRead(null); } // #2344 — a string-length failure
   if (u8.length > 0 && !text.length) throw tooLargeForOneRead(null); // #2344 — the empty decode seen in the app
@@ -226,7 +235,9 @@ function tablePrologue(text, comments) {
   if (spaced != null) text = spaced;
   let preamble = 0, banner = false;
   ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
-  return { text, spaced, preamble, banner, sl3: sl3?.note || "" };
+  let headerless = 0;
+  if (!sl3 && !preamble) { const h = addMissingHeader(text); if (h) { text = h.text; headerless = h.columns; } } // TASKS.csv #4067 — no header row: Column 1, Column 2 ...
+  return { text, spaced, preamble, banner, sl3: sl3?.note || "", headerless };
 }
 function typingRule(text) {
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
@@ -235,13 +246,13 @@ function typingRule(text) {
   return (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
 }
 // the rows from Papa's result: comma decimals, the notes; shared by both readers (#3544)
-function tableEpilogue(res, text, { spaced, preamble, banner, sl3 }, extra) {
+function tableEpilogue(res, text, { spaced, preamble, banner, sl3, headerless }, extra) {
   // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
   // ("1,5"), so when the raw text has no quoted comma number the column-by-column scan (every row x column:
   // 1.4 s of a 4.4 s parse on an 83,670 x 109 assay export) is skipped. Semicolon / tab files are scanned as before.
   const commaFree = res.meta.delimiter === "," && !QUOTED_COMMA_NUMBER.test(text);
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
-  const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
+  const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : headerless ? tr("This table has no header row (its first row is data): its {n} columns are named Column 1, Column 2 and so on. Say what each one is when you map the columns.", { n: headerless }) : ""; // #1666; #1665; headerless: #4067
   const sp = spaced != null ? tr("Read as a space-separated table ({n} columns).", { n: (res.meta.fields || []).length }) : ""; // #2017
   return { rows, headers: res.meta.fields || [], note: [note, sl3, pre, sp].filter(Boolean).join(" "), errors: res.errors || [], ...extra };
 }
@@ -413,7 +424,8 @@ export function rowsFromColumns({ headers, cols, n, errors, droppedByHole }) {
 // worker can't start, the file is read on this thread as before.
 const WORKER_MIN_BYTES = 2_000_000;
 const encodingNote = (out, encoding) => {
-  if (encoding !== "utf-8") out.note = tr("{v}Read as Windows-1252 (the file is not UTF-8 — typical of an Excel export).", { v: out.note ? `${out.note} ` : "" }).trim();
+  if (encoding === "utf-16le" || encoding === "utf-16be") out.note = tr("{v}Read as UTF-16 text (the file starts with a UTF-16 byte-order mark).", { v: out.note ? `${out.note} ` : "" }).trim(); // #4067
+  else if (encoding !== "utf-8") out.note = tr("{v}Read as Windows-1252 (the file is not UTF-8 — typical of an Excel export).", { v: out.note ? `${out.note} ` : "" }).trim();
   return { ...out, encoding };
 };
 function parseInWorker(buf, opts) {

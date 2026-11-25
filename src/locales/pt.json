@@ -15374,5 +15374,7 @@
   "EM channel shown in the Strip log and the StrixViewer": "Canal EM mostrado no Log em coluna e no StrixViewer",
   "\"{name}\" is a borehole EM file ({clues}; decay channels {first} … {last}, {n} gates), not a table of points. Read it with EM › Borehole EM.": "\"{name}\" é um arquivo de EM de furo ({clues}; canais de decaimento {first} … {last}, {n} janelas), não uma tabela de pontos. Leia-o em EM › EM de furo.",
   "\"{name}\" is borehole EM ({clues}; decay channels {first} … {last}, {n} gates). TEM line data reads airborne and ground line surveys, not a hole. Read it with EM › Borehole EM.": "\"{name}\" é EM de furo ({clues}; canais de decaimento {first} … {last}, {n} janelas). Dados de linhas TEM lê levantamentos de linhas aéreos e terrestres, não um furo. Leia-o em EM › EM de furo.",
-  "\"{name}\" is borehole EM ({clues}): read it with EM › Borehole EM.": "\"{name}\" é EM de furo ({clues}): leia-o em EM › EM de furo."
+  "\"{name}\" is borehole EM ({clues}): read it with EM › Borehole EM.": "\"{name}\" é EM de furo ({clues}): leia-o em EM › EM de furo.",
+  "{v}Read as UTF-16 text (the file starts with a UTF-16 byte-order mark).": "{v}Lido como texto UTF-16 (o arquivo começa com uma marca de ordem de bytes UTF-16).",
+  "This table has no header row (its first row is data): its {n} columns are named Column 1, Column 2 and so on. Say what each one is when you map the columns.": "Esta tabela não tem linha de cabeçalho (a primeira linha são dados): suas {n} colunas se chamam Column 1, Column 2 e assim por diante. Diga o que cada uma é ao mapear as colunas."
 }
