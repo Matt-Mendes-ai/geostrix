@@ -33,7 +33,7 @@ test("Best intercepts: the element, unit, cut-off, dilution and length first; th
 
 test("Data QC: the thresholds live in side 5's Limits step (#4073), the row's Table / Find / Checked in one line, every control still reachable", () => {
   const d = read("src/components/DataQCModal.jsx");
-  reachable(d, ["applyDensity(", "setDoglegWarn(", "snapToTerrain", "requestCollarZFromTerrain", "exportIssues", "onClick={check}", "toggleChecked(issue)", "openDataTable(", "onZoomHole(issue.holeId)"], "Data QC");
+  reachable(d, ["applyDensity(", "setDoglegWarn(", "snapToTerrain", "requestCollarZFromTerrain", "exportIssues", "onClick: check", "toggleChecked(issue)", "openDataTable(", "onZoomHole(issue.holeId)"], "Data QC");
   assert.match(d, /display: "flex", gap: 4, flexShrink: 0, alignItems: "center"/, "the row buttons side by side");
   assert.doesNotMatch(d, /flexDirection: "column", gap: 2, flexShrink: 0, justifyContent: "center"/, "no column of three buttons in a 52 px row");
 });
