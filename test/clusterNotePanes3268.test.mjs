@@ -10,7 +10,8 @@ test("#3268 the cluster note heads Model settings, Implicit surface and Strat. s
   assert.match(src, /const clusterBody = \(\) => \(areaClusters && areaClusters\.clusters\.length > 1 \? \(<div role="note"/);
   assert.match(src, /const clusterNote = \(compact = false\) => \{/); // #4070 — the step panes take it as one line
   assert.equal((src.match(/\{clusterNote\((true)?\)/g) || []).length, 3);
-  for (const h of ['paneHeader("Implicit surface", Mountain, "model")}\n        {clusterNote()']) assert.ok(src.includes(h), h);
+  // TASKS.csv #4070 — the implicit surface as a step pane too: the note heads its StepPane, one line
+  assert.match(src, /<StepPane id="implicit" label=\{tr\("Implicit surface"\)\}\n\s+top=\{<>\{clusterNote\(true\)/);
   // TASKS.csv #4070 — the stack as steps: the note heads the StepPane, above its step bar
   assert.match(src, /<StepPane id="stack" label=\{tr\("Stratigraphic stack"\)\}\n\s+top=\{<>\{clusterNote\(true\)/);
   const settings = src.slice(src.indexOf('toolPane === "settings"'), src.indexOf('toolPane === "settings"') + 8000);

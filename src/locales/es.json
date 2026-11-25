@@ -15476,5 +15476,21 @@
   "The two ends are the same: give two different points.": "Los dos extremos son iguales: dé dos puntos distintos.",
   "A control point has no horizontal value.": "Un punto de control no tiene valor horizontal.",
   "A control point has no elevation.": "Un punto de control no tiene elevación.",
-  "Place at least 2 control points.": "Coloque al menos 2 puntos de control."
+  "Place at least 2 control points.": "Coloque al menos 2 puntos de control.",
+  "Cell / search": "Celda / búsqueda",
+  "Closed by the search wall": "Cerrada por la pared de búsqueda",
+  "Closed naturally": "Cerrada de forma natural",
+  "Contact misfit (RMS)": "Desajuste de contactos (RMS)",
+  "Curved": "Curva",
+  "Dip / dip direction": "Buzamiento / dirección de buzamiento",
+  "Envelope": "Envolvente",
+  "Far from the logs": "Lejos de los registros",
+  "Fill a block model from the assays?": "¿Llenar un modelo de bloques con los ensayes?",
+  "Planar": "Plana",
+  "Samples inside": "Muestras dentro",
+  "True thickness, mean": "Espesor real, promedio",
+  "True thickness, range": "Espesor real, rango",
+  "Which codes belong together?": "¿Qué códigos van juntos?",
+  "Which structure type?": "¿Qué tipo de estructura?",
+  "Which unit's top?": "¿El techo de qué unidad?"
 }

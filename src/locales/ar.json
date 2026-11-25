@@ -15476,5 +15476,21 @@
   "The two ends are the same: give two different points.": "الطرفان متطابقان: أعطِ نقطتين مختلفتين.",
   "A control point has no horizontal value.": "نقطة تحكم بلا قيمة أفقية.",
   "A control point has no elevation.": "نقطة تحكم بلا منسوب.",
-  "Place at least 2 control points.": "ضع نقطتي تحكم على الأقل."
+  "Place at least 2 control points.": "ضع نقطتي تحكم على الأقل.",
+  "Cell / search": "الخلية / البحث",
+  "Closed by the search wall": "مغلقة بجدار البحث",
+  "Closed naturally": "مغلقة طبيعيًا",
+  "Contact misfit (RMS)": "انحراف الملامسات (RMS)",
+  "Curved": "منحنية",
+  "Dip / dip direction": "الميل / اتجاه الميل",
+  "Envelope": "الغلاف",
+  "Far from the logs": "بعيد عن السجلات",
+  "Fill a block model from the assays?": "ملء نموذج كتل من التحاليل؟",
+  "Planar": "مستوية",
+  "Samples inside": "عينات بالداخل",
+  "True thickness, mean": "السماكة الحقيقية، المتوسط",
+  "True thickness, range": "السماكة الحقيقية، المدى",
+  "Which codes belong together?": "أي الرموز تنتمي معًا؟",
+  "Which structure type?": "أي نوع من البنى؟",
+  "Which unit's top?": "قمة أي وحدة؟"
 }

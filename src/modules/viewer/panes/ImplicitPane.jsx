@@ -4,21 +4,26 @@
 // is ModellingPanes' own, kept as it was.
 import { ChevronDown, ChevronRight, Layers3, Mountain } from "../../../components/icons.js";
 import InfoButton from "../../../components/InfoButton.jsx";
+import MoreFold from "../../../components/MoreFold.jsx";
 import NumberInput from "../../../components/NumberInput.jsx"; // TASKS.csv #3926
+import StepPane, { StepNumbers } from "../../../components/StepPane.jsx";
 import { activateOnKey } from "../../../lib/a11y.js";
 import { t as tr } from "../../../lib/i18n.js";
 import { isCrossCuttingRole } from "../../../lib/layers.js";
+import { runResult } from "../../../lib/paneSteps.js";
 
-export default function ImplicitPane({ clusterNote, collars, emptyPaneHint, gempyTitle, implicitBusy, implicitTarget, includeSectionContacts, leftOutCodes, leftOutNote, lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mcodeNames, mcodeRole, modellingCodeList, paneHeader, rawRole, runImplicitModel, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setImplicitTarget, setIncludeSectionContacts, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, toolPane }) {
+export default function ImplicitPane({ clusterNote, implicitSurfaces, collars, emptyPaneHint, gempyTitle, implicitBusy, implicitTarget, includeSectionContacts, leftOutCodes, leftOutNote, lithoGroupCrossCuts, lithoGroupKey, lithoGroupRole, lithoGroups, litho_units, mcodeNames, mcodeRole, modellingCodeList, paneHeader, rawRole, runImplicitModel, sections, sensBudget, sensN, sensOpen, sensSigmaDeg, sensSigmaPos, setImplicitTarget, setIncludeSectionContacts, setSensBudget, setSensN, setSensOpen, setSensSigmaDeg, setSensSigmaPos, toolPane }) {
   return (<>
 {toolPane === "implicit" && (<>
-        {paneHeader("Implicit surface", Mountain, "model")}
-        {clusterNote() /* #3268 */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models one unit's top contact from litho intervals with GemPy (Python engine), oriented by structure picks or, without them, by the contacts' own shape.")}</div>
-        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
-          <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
-        </label>
+        {paneHeader("Implicit surface", Mountain, "model", true /* #4070 */)}
+        {(() => { /* TASKS.csv #4070 (Matt's layout C) — one step: which unit -> Run; the surfaces of the run in numbers in Result; the drawn contacts and the sensitivity spread in Fine-tune */
+          const ir = runResult(implicitSurfaces), m = (x) => (x == null ? "—" : `${x} m`);
+          return (
+            <StepPane id="implicit" label={tr("Implicit surface")}
+              top={<>{clusterNote(true) /* #3268; one line (#4070) */}
+                {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}</>}
+              steps={[
+                { key: "unit", label: tr("Unit"), question: tr("Which unit's top?"), hint: tr("Models one unit's top contact from litho intervals with GemPy (Python engine), oriented by structure picks or, without them, by the contacts' own shape."), body: (<>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Unit to model")} value={implicitTarget} onChange={(e) => setImplicitTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a unit…")}</option>
@@ -46,15 +51,22 @@ export default function ImplicitPane({ clusterNote, collars, emptyPaneHint, gemp
               </optgroup>
             )}
           </select>
-          <button
-            onClick={() => runImplicitModel(implicitTarget)}
-            disabled={!implicitTarget || implicitBusy}
-            aria-label={tr("Run the implicit model (GemPy)")}
-            title={gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : !implicitTarget ? tr("Choose a unit first.") : null)}
-            className="gs-btn gs-btn--block" style={{ width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
-          >{implicitBusy ? tr("Running…") : <><Layers3 size={14} aria-hidden="true" />{" "}{tr("Run")}</>}</button>{/* #572 — was an unlabeled icon */}
         </div>
         {leftOutNote}
+                </>) },
+              ]}
+              action={{ label: implicitBusy ? tr("Running…") : tr("Run"), onClick: () => runImplicitModel(implicitTarget), disabled: !implicitTarget || implicitBusy, icon: <Layers3 size={14} aria-hidden="true" />,
+                title: gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : !implicitTarget ? tr("Choose a unit first.") : null) }}
+              result={{ key: ir?.runId ?? null, body: ir && <StepNumbers rows={[
+                { label: tr("Surfaces"), value: ir.n.toLocaleString(), title: ir.names.join(", ") },
+                { label: tr("Typical miss"), value: m(ir.typicalMissM), title: tr("How far the surfaces pass from the logged contacts, typically") },
+                { label: tr("Worst miss"), value: m(ir.worstMissM) },
+                ir.left ? { label: tr("Contacts left out"), value: `${ir.left.toLocaleString()} / ${ir.of.toLocaleString()}`, level: "some" } : null,
+              ]} /> }}
+              fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="implicit">
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
+          <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
+        </label>
         {/* TASKS.csv #52 (a) — sensitivity spread. Collapsed by default: it is N+1 GemPy runs, not a
             casual click. Copy says "spread", never "confidence" — see lib/surfaceSpread.js's header. */}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSensOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
@@ -95,6 +107,9 @@ export default function ImplicitPane({ clusterNote, collars, emptyPaneHint, gemp
             })()}
           </div>
         )}
+              </MoreFold>} />
+          );
+        })()}
 
         </>)}
   </>);

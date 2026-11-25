@@ -3,19 +3,27 @@
 // So the panes can be converted to steps (StepPane) in parallel without every change landing in one file. The `toolPane === "alteration"` test inside
 // is ModellingPanes' own, kept as it was.
 import { Droplets, Layers3 } from "../../../components/icons.js";
+import MoreFold from "../../../components/MoreFold.jsx";
+import StepPane, { StepNumbers } from "../../../components/StepPane.jsx";
 import NumberInput from "../../../components/NumberInput.jsx"; // TASKS.csv #3926
 import { t as tr } from "../../../lib/i18n.js";
 import { isNotLogged } from "../../../lib/notLogged.js";
+import { alterationResult } from "../../../lib/paneSteps.js";
 import { smallSel } from "../../../lib/sidebarStyles.js";
 
-export default function AlterationPane({ altCustomLayers, altEmpty, altGroupOf, altGroups, altLoggedM, altNumericFields, altSource, altSourceCodes, altVocab, altVocabFields, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, miniField, paneHeader, runAlterationModel, setAltSource, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, storeLayers, toolPane }) {
+export default function AlterationPane({ altCustomLayers, implicitSurfaces, altEmpty, altGroupOf, altGroups, altLoggedM, altNumericFields, altSource, altSourceCodes, altVocab, altVocabFields, alt_units, alterationBusy, alterationCellSize, alterationSearchRadius, alterationTarget, miniField, paneHeader, runAlterationModel, setAltSource, setAlterationCellSize, setAlterationSearchRadius, setAlterationTarget, storeLayers, toolPane }) {
   return (<>
 {toolPane === "alteration" && (<>
-        {paneHeader("Alteration modelling", Droplets, "model")}
+        {paneHeader("Alteration modelling", Droplets, "model", true /* #4070 */)}
         {/* TASKS.csv #272 — this tool no longer builds a draped contact through the alteration tops via
             GemPy; it interpolates a 0/1 "altered?" indicator and takes the 0.5 iso-surface, which is a
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a closed halo envelope for one assemblage from the logged alteration intervals; unlike a contact, a halo has no \"up\". Runs in-app, no Python engine.")}</div>
+        {(() => { /* TASKS.csv #4070 (Matt's layout C) — one step: which source and code -> Build halo; the numbers of the landing in Result; the rest in Fine-tune */
+          const ar = alterationResult(implicitSurfaces), pct = (x) => (x == null ? "—" : `${Math.round(x * 100)} %`), m = (x) => (x == null ? "—" : `${Number(x).toLocaleString()} m`);
+          return (
+            <StepPane id="alteration" label={tr("Alteration modelling")}
+              steps={[
+                { key: "code", label: tr("Code"), question: tr("Which alteration?"), hint: tr("Builds a closed halo envelope for one assemblage from the logged alteration intervals; unlike a contact, a halo has no \"up\". Runs in-app, no Python engine."), body: (<>
         {alt_units.some((u) => isNotLogged(u)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Not offered: {v} (intervals with no assemblage logged).", { v: alt_units.filter((u) => isNotLogged(u)).map((u) => `"${u}"`).join(", ") })}</div>}
         {(altCustomLayers.length > 0 || altNumericFields.length > 0 || altVocabFields.length > 0 || (storeLayers.vein || []).length > 0) && ( // TASKS.csv #1574 — which log, and an intensity floor; vein: #2050
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
@@ -58,14 +66,19 @@ export default function AlterationPane({ altCustomLayers, altEmpty, altGroupOf, 
             {/* TASKS.csv #3876 (#3767) — from Lithology, a group is one unit ('mcode:<group>': its rows by their effective code, as the run reads a Modelling code) */}
             {altGroups.length > 0 && <optgroup label={tr("Groups")}>{altGroups.map((g) => <option key={g.name} value={`mcode:${g.name}`}>{g.name} [{g.codes.join("+")}]</option>)}</optgroup>}
           </select>
-          <button
-            onClick={() => runAlterationModel(alterationTarget, { unloggedZero: altSource.layer === "alt" && !!altSource.unloggedZero } /* #2380 */, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null, vocab: !!(altSource.field && altSource.vocab), minLabel: altSource.minLabel || null /* #2230 */ })}
-            disabled={!alterationTarget || alterationBusy}
-            title={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
-            aria-label={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
-            className="gs-btn gs-btn--block" style={{ width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", gap: 5, opacity: alterationTarget && !alterationBusy ? 1 : 0.5, cursor: alterationTarget && !alterationBusy ? "pointer" : "default" }}
-          >{alterationBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <><Layers3 size={14} />{tr("Build halo")}</>}</button>{/* #1421 — the only run control was an unlabelled icon */}
         </div>
+                </>) },
+              ]}
+              action={{ label: alterationBusy ? tr("Building the halo envelope…") : tr("Build halo"), onClick: () => () => runAlterationModel(alterationTarget, { unloggedZero: altSource.layer === "alt" && !!altSource.unloggedZero } /* #2380 */, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null, vocab: !!(altSource.field && altSource.vocab), minLabel: altSource.minLabel || null /* #2230 */ }), disabled: !alterationTarget || alterationBusy, icon: <Layers3 size={14} />,
+                title: tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)") }}
+              result={{ key: ar?.key ?? null, body: ar && <StepNumbers rows={[
+                { label: tr("Samples inside"), value: `${Number(ar.altered).toLocaleString()} / ${Number(ar.samples).toLocaleString()}`, title: ar.target },
+                { label: tr("Cell / search"), value: `${m(ar.cellM)} / ${m(ar.searchM)}` },
+                ar.farShare != null ? { label: tr("Far from the logs"), value: pct(ar.farShare), level: ar.farShare >= 0.5 ? "high" : ar.farShare >= 0.05 ? "some" : undefined } : null,
+                ar.beyondShare != null ? { label: tr("Beyond the drilling"), value: pct(ar.beyondShare), level: ar.beyondShare >= 0.5 ? "high" : ar.beyondShare >= 0.05 ? "some" : undefined } : null,
+                { label: tr("Envelope"), value: ar.closure === "artificial" ? tr("Closed by the search wall") : tr("Closed naturally") },
+              ]} /> }}
+              fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="alteration">
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <label style={{ ...miniField }} title={tr("Grid cell size for the indicator interpolation. 0 = auto (about 1/8 of the search radius).")}>{tr("Cell size (m)")}<NumberInput min={0} value={alterationCellSize} onChange={(v) => setAlterationCellSize(v)} style={{ ...smallSel, width: "100%" }} />
           </label>
@@ -73,7 +86,9 @@ export default function AlterationPane({ altCustomLayers, altEmpty, altGroupOf, 
           </label>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (from your hole spacing). The model domain and the structural trend chosen for alteration halos (Model settings → Structural trends) apply; the search ellipsoid's neighbour filter does not.")}</div>
-        {alterationBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>{tr("Building the halo envelope…")}</div>}
+              </MoreFold>} />
+          );
+        })()}
 
         {/* TASKS.csv #144 — vein/dyke tool. The copy here deliberately states what the construction can
             and cannot do (paired by construction; thickness between holes is interpolated), because a

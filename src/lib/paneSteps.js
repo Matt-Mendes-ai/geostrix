@@ -59,11 +59,12 @@ export function shellResult(surface, volume) {
   };
 }
 
-// the Strat. stack's Result step: the surfaces of the newest run (they share params.runId, #1101) in numbers. surfaces: the generated surfaces, oldest
-// first -> { runId, n, names, typicalMissM (the median of the surfaces' typical misses), worstMissM, left, of } | null
-export function stackResult(surfaces) {
+// the Result step of the surface tools (Strat. stack, Implicit surface, Structural modelling): the surfaces of the newest run (they share params.runId, #1101) in
+// numbers. surfaces: the generated surfaces, oldest first; only: which surface a run is looked up by (default: any) -> { runId, n, names, typicalMissM (the median of
+// the surfaces' typical misses), worstMissM, left, of } | null
+export function runResult(surfaces, only = () => true) {
   const list = surfaces || [];
-  const last = [...list].reverse().find((s) => s?.params?.runId && s.type === "stratigraphic_contact");
+  const last = [...list].reverse().find((s) => s?.params?.runId && only(s));
   if (!last) return null;
   const run = list.filter((s) => s?.params?.runId === last.params.runId);
   const fits = run.map((s) => s.params.contactFit).filter(Boolean);
@@ -73,4 +74,28 @@ export function stackResult(surfaces) {
   const of = run.reduce((t, s) => t + (s.params.contactsWithoutSurface?.of || s.params.contactFit?.points || 0), 0);
   return { runId: last.params.runId, n: run.length, names: run.map((s) => s.name), typicalMissM: typ.length ? typ[Math.floor((typ.length - 1) / 2)] : null,
     worstMissM: worst.length ? arrMax(worst) : null, left, of };
+}
+// the Strat. stack's own: a run is looked up by its stratigraphic contacts
+export const stackResult = (surfaces) => runResult(surfaces, (s) => s.type === "stratigraphic_contact");
+
+// the Vein / dyke pane's Result step: the newest vein landing (its walls and solid share one record, params.generatedAt) in numbers -> { key, target, surfaces,
+// intercepts, meanM, minM, maxM, dip, dipDir, shape, source, rmsM, pinchOut } | null
+export function veinResult(surfaces) {
+  const v = (surfaces || []).filter((s) => String(s?.params?.tool || "").startsWith("vein/dyke"));
+  if (!v.length) return null;
+  const p = v[v.length - 1].params;
+  return { key: p.generatedAt || null, target: p.target, surfaces: v.filter((s) => s.params.generatedAt === p.generatedAt && s.params.target === p.target).length,
+    intercepts: p.intercepts, meanM: p.trueThicknessMeanM, minM: p.trueThicknessMinM, maxM: p.trueThicknessMaxM, dip: p.dip, dipDir: p.dipDir, shape: p.shape,
+    source: p.attitudeSource, rmsM: p.contactResidualRmsM, pinchOut: !!p.pinchOut };
+}
+
+// the Alteration pane's Result step: the newest halo or unit body (indicator envelope) -> { key, target, samples, altered, farShare, beyondShare, closure,
+// cellM, searchM } | null (the shares: 0..1, null when the run did not measure them)
+export function alterationResult(surfaces) {
+  const v = (surfaces || []).filter((s) => /^(alteration halo|unit body)/.test(String(s?.params?.tool || "")));
+  if (!v.length) return null;
+  const p = v[v.length - 1].params;
+  return { key: p.generatedAt || null, target: p.target, samples: p.samplePoints ?? null, altered: p.alteredSamplePoints ?? null,
+    farShare: Number.isFinite(p.farFromLogs?.share) ? p.farFromLogs.share : null, beyondShare: Number.isFinite(p.beyondDrilling?.share) ? p.beyondDrilling.share : null,
+    closure: p.closure || null, cellM: p.cellSizeM ?? null, searchM: p.searchRadiusM ?? null };
 }

@@ -7,7 +7,7 @@ import { modellingPanesSource } from "./helpers/modellingPanesSource.mjs"; // TA
 
 test("a labelled button; codes with no logged length are shown disabled, with the reason", () => {
   const s = modellingPanesSource();
-  assert.match(s, /<><Layers3 size=\{14\} \/>\{tr\("Build halo"\)\}<\/>/);
+  assert.match(s, /label: alterationBusy \? tr\("Building the halo envelope…"\) : tr\("Build halo"\), onClick: .*icon: <Layers3 size=\{14\} \/>/); // the halo's StepPane action (#4070)
   assert.match(s, /const len = Number\(r\.to\) - Number\(r\.from\); if \(k && len > 0\)|len = Number\(r\.to\) - Number\(r\.from\); if \(k && len > 0\)/);
   assert.match(s, /altLoggedM\.get\(u\) > 0 \? <option key=\{u\} value=\{u\}>\{altGroupOf\.get\(u\) \? tr\("\{code\} \(in the group \{group\}\)", \{ code: u, group: altGroupOf\.get\(u\) \}\) : u\}<\/option> : <option key=\{u\} value=\{u\} disabled>\{tr\("\{code\} \(no logged length\)", \{ code: u \}\)\}<\/option>/);
 });
