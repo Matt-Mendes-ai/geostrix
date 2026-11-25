@@ -3,7 +3,7 @@ import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { stampedCsv } from "../lib/csvStampPref.js"; // TASKS.csv #3614
 import CsvStampToggle from "./CsvStampToggle.jsx";
 import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3513
-import { X, Download } from "./icons.js";
+import { Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
 import { customDomainOptions, isCategoricalLayer, attributeDomainOptions, attributeDomainLabel } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515; attributes: #2504
@@ -22,12 +22,10 @@ import { compositeRows, sig6 } from "../lib/drillReportExport.js"; // TASKS.csv 
 import { useStore } from "../lib/store.jsx";
 import { version as APP_VERSION } from "../../package.json";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
+import MoreFold from "./MoreFold.jsx";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { rememberCompositing, compositingToSave } from "../lib/lastCompositing.js"; // TASKS.csv #2224 — these settings, offered by Estimation and the grade shell
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
@@ -57,8 +55,6 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
     (collars || []).forEach((c) => { const t = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod); if (t.length) m.set(c.hole_id, t); });
     return m;
   }, [collars, survey, desurveyMethod]);
-  useEscapeKey(onClose); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const lead = useLeadCommodity();
@@ -172,22 +168,24 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
     saveFile({ suggestedName: `composites_${symbol}_${length}m.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: stampedCsv(toExportCsv(rows), stamp) /* TASKS.csv #3614 — the # lines only when asked */ });
   };
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Downhole compositing")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Fixed-length composites, breaking at domain boundaries — {assays} raw intervals loaded.{v}", { assays: assays.length, v: qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
+  // TASKS.csv #4073 — the dialog as steps on the shared StepDialog (Data, Rules, Result): what to composite, how, then the composites in a table with Export as the one gold primary.
+  const [stepAt, setStepAt] = useState(0);
+  const col = { display: "flex", flexDirection: "column", gap: 12, width: "100%" };
+  const row = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" };
+  const helpCard = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
+<div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 2 }}>{tr("Fixed-length composites, breaking at domain boundaries — {assays} raw intervals loaded.{v}", { assays: assays.length, v: qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             {/* TASKS.csv #3724 (j) — the dialog says which holes it takes: every hole with a lab assay, whatever is checked in the 3D View */}
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Takes every hole with lab assays: {h} hole(s), {n} assay interval(s), whatever is checked in StrixViewer.", { h: new Set(assays.map((a) => a.hole_id)).size.toLocaleString(), n: assays.length.toLocaleString() })}</div>
+<div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 2 }}>{tr("Takes every hole with lab assays: {h} hole(s), {n} assay interval(s), whatever is checked in StrixViewer.", { h: new Set(assays.map((a) => a.hole_id)).size.toLocaleString(), n: assays.length.toLocaleString() })}</div>
             </div>
-          </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("downhole-compositing")} aria-label={tr("Help: {name}", { name: tr("Downhole compositing") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
-        </div>
-
-        <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+      <button data-btn-own="" type="button" className="gs-btn gs-btn--sm" style={{ marginTop: 6 }} onClick={() => openHelp("downhole-compositing")} aria-label={tr("Help: {name}", { name: tr("Downhole compositing") })} title={tr("Help for this tool (F1, works offline)")}>{tr("Help")}</button>{/* TASKS.csv #3578 — the help page of this dialog */}
+    </details>
+  );
+  const steps = [
+    { key: "data", label: tr("Data"), primary: { label: tr("Next: rules") }, render: () => (
+      <div style={col}>
           {(dupInfo.exactDuplicates > 0 || dupInfo.conflictingIntervals > 0) && (
             <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.5, padding: "7px 9px", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, color: "#6b5a2a" }}>
               {dupInfo.exactDuplicates > 0 && (
@@ -202,11 +200,28 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("Standards, blanks and duplicates (found by hole_id) are left out, so they cannot be composited into a resource-estimation input. Tick to include them.")}>
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
           )}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div style={row}>
             <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
               </select>
             </label>
+        </div>
+          {symbols.length > 1 && <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Composite these elements in the same run, on the same windows: one table with each element's grade and coverage, and the density.")}>
+            <span>{tr("Also composite:")}</span>
+            {/* TASKS.csv #3745 — every element can be ticked: up to ALSO_MAX other elements as boxes, above that the ticked ones as boxes and the rest in an 'Add an element' list
+                (the first 16 were the only ones offered: Pb, Zn, S and Sb could not be composited beside gold on a 34-element suite) */}
+            {(symbols.length - 1 > 16 ? extraSyms.filter((s) => s !== symbol && symbols.includes(s)) : symbols.filter((s) => s !== symbol)).map((s) => <label key={s} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}><input type="checkbox" checked={extraSyms.includes(s)} onChange={() => setExtraSyms((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))} />{s}</label>)}
+            {symbols.length - 1 > 16 && (
+              <select aria-label={tr("Add an element")} value="" onChange={(e) => { if (e.target.value) setExtraSyms((p) => (p.includes(e.target.value) ? p : [...p, e.target.value])); }} style={{ fontSize: "var(--font-size-sm)", padding: "3px 4px" }}>
+                <option value="">{tr("Add an element… ({n} more)", { n: symbols.filter((s) => s !== symbol && !extraSyms.includes(s)).length })}</option>
+                {symbols.filter((s) => s !== symbol && !extraSyms.includes(s)).map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+          </div>}{/* #3567 */}
+      </div>) },
+    { key: "rules", label: tr("Rules"), primary: { label: tr("Next: result") }, render: () => (
+      <div style={col}>
+        <div style={row}>
             <label style={fieldLabel}>{tr("Composite length (m)")}<NumberInput min="0.1" value={length} onChange={(v) => setLength(Math.max(0.1, v ?? 2))} style={inp} />
               {usual && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("{length} m: the commonest sample length ({pct} % of the samples)", { length: usual.length, pct: Math.round(usual.share * 100) })}</span>}{/* #1801 */}
             </label>
@@ -221,6 +236,9 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             <div style={{ gridColumn: "1 / -1", flexBasis: "100%" }}>
               <CapAuditHint assays={compAssays} symbol={symbol} unit={unit} unitLabel={unitL} /* #2192: g/t beside the g/t field */ elementUnits={elementUnits} capValue={capStored} toShown={sh} /* #3475 */ onSetCap={(v) => setCapValue(String(Number(sh(v).toPrecision(4))))} />
             </div>
+        </div>
+        <MoreFold summary={tr("Fine-tune…")}>
+          <div style={row}>
             <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be reported.")}>{tr("Min coverage (%)")}<NumberInput step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(v) => setMinCoverage(Math.max(0, Math.min(100, v ?? 0)) / 100)} style={inp} />
               {Math.round(minCoverage * 100) === 50 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("50 is the tool's starting value")}</span>}{/* #3579 */}
             </label>
@@ -239,19 +257,10 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             </label>
             {shortEnd !== "keep" && <label style={fieldLabel}>{tr("when under (m)")}<NumberInput min="0" value={minEnd} onChange={(v) => setMinEnd(Math.max(0, v ?? 0))} style={{ ...inp, width: 80 }} /></label>}
           </div>
-          {symbols.length > 1 && <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Composite these elements in the same run, on the same windows: one table with each element's grade and coverage, and the density.")}>
-            <span>{tr("Also composite:")}</span>
-            {/* TASKS.csv #3745 — every element can be ticked: up to ALSO_MAX other elements as boxes, above that the ticked ones as boxes and the rest in an 'Add an element' list
-                (the first 16 were the only ones offered: Pb, Zn, S and Sb could not be composited beside gold on a 34-element suite) */}
-            {(symbols.length - 1 > 16 ? extraSyms.filter((s) => s !== symbol && symbols.includes(s)) : symbols.filter((s) => s !== symbol)).map((s) => <label key={s} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}><input type="checkbox" checked={extraSyms.includes(s)} onChange={() => setExtraSyms((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))} />{s}</label>)}
-            {symbols.length - 1 > 16 && (
-              <select aria-label={tr("Add an element")} value="" onChange={(e) => { if (e.target.value) setExtraSyms((p) => (p.includes(e.target.value) ? p : [...p, e.target.value])); }} style={{ fontSize: "var(--font-size-sm)", padding: "3px 4px" }}>
-                <option value="">{tr("Add an element… ({n} more)", { n: symbols.filter((s) => s !== symbol && !extraSyms.includes(s)).length })}</option>
-                {symbols.filter((s) => s !== symbol && !extraSyms.includes(s)).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            )}
-          </div>}{/* #3567 */}
-
+        </MoreFold>
+      </div>) },
+    { key: "result", label: tr("Result"), primary: { label: <><Download size={14} /> {tr("Export composites (CSV)")}</>, onClick: exportCSV, disabled: results.length === 0 }, render: () => (
+      <div style={col}>
           {symbols.length === 0 ? (
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No assay elements loaded — import assays first.")}</div>
           ) : results.length === 0 ? (
@@ -292,7 +301,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
               </table>
             </div>
           )}
-
+        <MoreFold summary={tr("Cautions and details")}>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {tr(chips ? "{results} composite(s) from {assays} raw intervals, stepped at the length above from each hole's first sampled depth; a domain boundary or the hole's end can shorten one. Below 100% coverage, part falls in unsampled chips: the grade is the length-weighted average of what IS sampled, not diluted toward zero." : "{results} composite(s) from {assays} raw intervals, stepped at the length above from each hole's first sampled depth; a domain boundary or the hole's end can shorten one. Below 100% coverage, part falls in unsampled core: the grade is the length-weighted average of what IS sampled, not diluted toward zero.", { results: results.length, assays: assays.length })}</div>
 
@@ -304,23 +313,15 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             {weightedOn && <div>{tr("Grades are weighted by length × density (the project's Specific gravity layer).")}</div>}
             {density && noDensityN > 0 && <div>{tr("{n} composite(s) have no density reading.", { n: noDensityN.toLocaleString() })}</div>}
           </div>}
-          <button onClick={exportCSV} disabled={results.length === 0} className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
-            <Download size={14} />{" "}{tr("Export composites (CSV)")}</button>
+        </MoreFold>
           <CsvStampToggle />{/* TASKS.csv #3614 */}
           <button onClick={keepAsLayer} disabled={results.length === 0 || typeof setCustomLayers !== "function"} title={tr("Add these composites as a numeric layer: StrixViewer colours it by any field, and Estimation, Grade shell, Geochem X-Y and Statistics read it.")} className="gs-btn" style={{ alignSelf: "flex-start", padding: "7px 14px", opacity: results.length === 0 ? 0.5 : 1 }}>{tr("Keep as a layer in the project")}</button>{/* #3567 */}
           {kept && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{kept}</div>}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
-        </div>
-      </div>
-    </div>
-  );
+      </div>) },
+  ];
+  return <StepDialog title={tr("Downhole compositing")} width="min(1300px, 96vw)" onClose={onClose} steps={steps} at={stepAt} onAt={setStepAt} help={helpCard} />;
 }
 
-const panel = { width: "min(1300px, 96vw)", /* #3567 — room for each element's grade and coverage */ maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const fieldLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 4 };
 const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", width: 130 };
 const th = { textAlign: "start", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };

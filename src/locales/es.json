@@ -15470,5 +15470,8 @@
   "Next: run": "Siguiente: ejecutar",
   "Run again": "Ejecutar de nuevo",
   "Cautions and details": "Precauciones y detalles",
-  "Next: model": "Siguiente: modelo"
+  "Next: model": "Siguiente: modelo",
+  "Next: rules": "Siguiente: reglas",
+  "Rules": "Reglas",
+  "Next: result": "Siguiente: resultado"
 }
