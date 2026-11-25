@@ -44,7 +44,7 @@ const voxetSidePaths = (voPath, text, realpath = fs.promises.realpath) => sidePa
 // TASKS.csv #4066 — an ER Mapper .ers header names its data file the same way: the file of the same name with no extension (or stem.dat, GSQ's UBC sections), or the
 // header's own DataFile = "name". The same rules; only the names differ.
 function ersSideNames(ersPath, text) {
-  const stem = path.basename(String(ersPath || "")).replace(/\.ers$/i, "");
+  const stem = path.win32.basename(String(ersPath || "")).replace(/\.ers$/i, ""); // win32: splits on \ and /, so a Windows path reads the same on CI's Linux runner
   const m = /^\s*DataFile\s*=\s*"?([^"\r\n]+?)"?\s*$/im.exec(String(text || ""));
   return [stem, `${stem}.dat`, ...(m ? [m[1]] : [])];
 }
