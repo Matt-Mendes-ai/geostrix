@@ -11,7 +11,9 @@ import path from "node:path";
 // 0.80-0.92 s median, 1.13 s at worst; with 301 kB more startup JavaScript (Geochem made eager for the test), 0.96 s median, so
 // about 0.15-0.5 ms per kB there. 2,000 kB adds about 0.2 s at the higher rate: about 1.3 s at worst on that laptop, under 3 s even
 // on a computer more than twice as slow. History: 1,548 kB +5 % (2026-09-26, #476); 1,627 / 1,628 kB (2026-11-03, #1369, #1403, #1373).
-const EAGER_BUDGET_KB = 2000;
+// TASKS.csv #4075 — the step panes / dialogs of #4069-#4074 had taken it to 1,987.7 kB (1,971 at v0.2.10): the step pane shell, the hole filter bar, the Rasters & terrain section, the AI app's
+// actions, the vector-export builder and the interpretation snap now load on use (1,950.7 kB). Lowered to hold the 37 kB: 1,970 kB leaves about 19 kB for what is added next.
+const EAGER_BUDGET_KB = 1970;
 
 const dist = path.resolve(process.argv[2] || "dist");
 const html = readFileSync(path.join(dist, "index.html"), "utf8");
