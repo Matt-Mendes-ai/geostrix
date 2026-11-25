@@ -1,9 +1,7 @@
 // TASKS.csv #2177 (Matt's decision 2026-11-09) — a table too large for this computer's memory: choose its columns before it is read, so
 // every value kept stays exact (nothing composited or thinned). The estimate follows the ticks; 'Open anyway' keeps #2171's way out.
 import React, { useMemo, useState } from "react";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell
 import { subsetBytes, holesShare, compositeShare } from "../lib/tableSubsetRequest.js"; // holesShare: TASKS.csv #2321; compositeShare: #2345
 import { FROM_COL, TO_COL } from "../lib/compositeOnRead.js"; // TASKS.csv #2345
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #2321 — the project's holes
@@ -18,8 +16,6 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
   const [keep, setKeep] = useState(() => new Set(preview.headers.filter((h) => CORE.test(h.replace(/\s+/g, "_")))));
   const [q, setQ] = useState("");
   const cancel = () => onDone(false);
-  useEscapeKey(cancel);
-  useFocusTrap();
   // TASKS.csv #2321 (Matt's decision 2026-11-09: subset first) — only the rows of the project's holes, or of the checked holes
   const { collars = [], viewerUiState } = useStore();
   const visibleHoles = viewerUiState?.visibleHoles && !Array.isArray(viewerUiState.visibleHoles) ? viewerUiState.visibleHoles : {}; // the 3D View's hole ticks, mirrored
@@ -39,14 +35,25 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
   const toggle = (h) => setKeep((s) => { const n = new Set(s); if (n.has(h)) n.delete(h); else n.add(h); return n; });
   // how many more columns fit, at this table's rows
   const room = Math.max(0, Math.floor((budget - preview.fixed) / Math.max(1, preview.perColumn * rowShare))); // share: #2321; composite: #2345
-  return (
-    <div style={overlay}>
-      <div role="dialog" aria-modal="true" aria-label={tr("Choose the columns to read")} onClick={(e) => e.stopPropagation()} style={panel}>
-        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border)" }}>
-          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}>{tr("Choose the columns to read")}</div>
-          <div style={{ ...note, marginTop: 4 }}>{tr("Tick the columns you need: {name} is about {rows} rows × {cols} columns, roughly {gb} GB to open whole; only ticked ones are read, every value exact.", { name, rows: preview.rows.toLocaleString(), cols: preview.cols, gb: gb(preview.bytes) })}</div>
-        </div>
-        <div style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — steps: 1 Columns, 2 Rows (which holes, composite as read), 3 Read; the size line in steps 1 and 3
+  const [at, setAt] = useState(0);
+  const sizeLine = (
+          <div role="status" style={{ ...note, color: fits ? "var(--color-text-secondary)" : "var(--color-warn-text-strong)" }}>
+            {fits
+              ? tr("{k} of {n} columns: about {gb} GB. Fits (up to about {room} columns at this many rows).", { k: keep.size, n: preview.cols, gb: gb(bytes), room })
+              : tr("{k} of {n} columns: about {gb} GB, more than this computer can safely give (about {room} columns fit).", { k: keep.size, n: preview.cols, gb: gb(bytes), room })}
+          </div>
+  );
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{tr("Choose the columns to read")}</summary>
+      <div style={note}>{tr("Tick the columns you need: {name} is about {rows} rows × {cols} columns, roughly {gb} GB to open whole; only ticked ones are read, every value exact.", { name, rows: preview.rows.toLocaleString(), cols: preview.cols, gb: gb(preview.bytes) })}</div>
+    </details>
+  );
+  const steps = [
+    { key: "columns", label: tr("Columns"), primary: { label: tr("Next"), disabled: !keep.size }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={note}>{tr("{name}: {rows} rows × {cols} columns, about {gb} GB whole.", { name, rows: preview.rows.toLocaleString(), cols: preview.cols, gb: gb(preview.bytes) })}</div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Filter columns")} aria-label={tr("Filter columns")} style={inp} />
             <button type="button" className="gs-btn gs-btn--sm" onClick={() => setKeep((s) => new Set([...s, ...shown]))}>{tr("Tick shown")}</button>
@@ -59,6 +66,11 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
               </label>
             ))}
           </div>
+        {sizeLine}
+      </div>
+    ) },
+    { key: "rows", label: tr("Rows"), primary: { label: tr("Next"), disabled: (rowsBy !== "all" && !holeCol) || !compOk }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
           {projectIds.length > 0 && ( // #2321
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)" }}>
               <label style={{ display: "flex", gap: 5, alignItems: "center" }}>{tr("Rows:")}
@@ -94,22 +106,18 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
           {comp.on && <div style={note}>{cShare?.meanM
             ? tr("Composite each hole to this length (numbers length-weighted, text by most of the length); raw rows are not kept. At {m} m average intervals, about {pct}% of the rows remain.", { m: cShare.meanM.toFixed(2), pct: Math.max(1, Math.round(cShare.share * 100)) })
             : tr("Pick the From, To and hole id columns and type a length to composite each hole (numbers length-weighted, text by most of the length); raw rows are not kept.")}</div>}
-          <div role="status" style={{ ...note, color: fits ? "var(--color-text-secondary)" : "var(--color-warn-text-strong)" }}>
-            {fits
-              ? tr("{k} of {n} columns: about {gb} GB. Fits (up to about {room} columns at this many rows).", { k: keep.size, n: preview.cols, gb: gb(bytes), room })
-              : tr("{k} of {n} columns: about {gb} GB, more than this computer can safely give (about {room} columns fit).", { k: keep.size, n: preview.cols, gb: gb(bytes), room })}
-          </div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button type="button" className="gs-btn" onClick={cancel}>{tr("Don't open it")}</button>
-          <button type="button" className="gs-btn" onClick={() => onDone(true)} title={tr("Every column: this can close GeoStrix on this computer.")}>{tr("Open it whole anyway")}</button>
-          <button type="button" className="gs-btn gs-btn--primary" disabled={!keep.size || !fits || (rowsBy !== "all" && !holeCol) || !compOk} onClick={() => onDone({ keep: preview.headers.filter((h) => keep.has(h)), ...(ids && holeCol ? { holes: { col: holeCol, ids, label: rowsBy === "checked" ? tr("the checked holes") : tr("the holes in this project") } } : {}), ...(comp.on && compOk ? { composite: { hole: holeCol, from: comp.from, to: comp.to, lengthM: Number(comp.lengthM) } } : {}) /* #2345 */ })}>{tr("Read the {k} column(s)", { k: keep.size })}</button>
-        </div>
       </div>
-    </div>
-  );
+    ) },
+    { key: "read", label: tr("Read"), primary: { label: tr("Read the {k} column(s)", { k: keep.size }), disabled: !keep.size || !fits || (rowsBy !== "all" && !holeCol) || !compOk, onClick: () => onDone({ keep: preview.headers.filter((h) => keep.has(h)), ...(ids && holeCol ? { holes: { col: holeCol, ids, label: rowsBy === "checked" ? tr("the checked holes") : tr("the holes in this project") } } : {}), ...(comp.on && compOk ? { composite: { hole: holeCol, from: comp.from, to: comp.to, lengthM: Number(comp.lengthM) } } : {}) /* #2345 */ }) }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        {sizeLine}
+        <div><button type="button" className="gs-btn" onClick={() => onDone(true)} title={tr("Every column: this can close GeoStrix on this computer.")}>{tr("Open it whole anyway")}</button></div>
+      </div>
+    ) },
+  ];
+  const heading = tr("Choose the columns to read"); // the dialog's name, seen (not a tooltip)
+  return <StepDialog title={heading} onClose={cancel} steps={steps} at={at} onAt={setAt} help={help} width="min(640px, 96vw)" />;
 }
 
-const panel = { width: "min(640px, 96vw)", maxHeight: "90vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const inp = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };

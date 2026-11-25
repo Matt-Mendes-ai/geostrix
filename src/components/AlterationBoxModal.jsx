@@ -6,14 +6,13 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // lib/geochem.js classifyAlterationBox (tested).
 import React, { useMemo, useState } from "react";
 import { PROTOLITHS, PROVISIONAL_ALTERATION_BOXES, guessProtolith, FITTED_PROTOLITH, guessTrendRole } from "../lib/geochemDiagrams.js"; // fitted: #2028; trend: #2145
-import { useEscapeKey } from "../lib/useEscapeKey.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], meaningOf = null, onCancel, onRun }) { // altCodes: #2028; meaningOf(layerKey, code): the project's own name for a logged code (#3482)
-  useEscapeKey(onCancel);
   const [boxes, setBoxes] = useState(() => saved?.boxes || PROVISIONAL_ALTERATION_BOXES);
   const [source, setSource] = useState(saved?.source || "logged");
   const [map, setMap] = useState(() => Object.fromEntries(lithoCodes.map((c) => [c, saved?.map && c in saved.map ? saved.map[c] : guessProtolith(c)])));
@@ -27,16 +26,22 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], m
   const valid = PROTOLITHS.every((p) => boxes[p] && boxes[p].ai[0] < boxes[p].ai[1] && boxes[p].ccpi[0] < boxes[p].ccpi[1]);
   const num = { width: 52, padding: "2px 4px", border: "1px solid var(--color-border)", borderRadius: 4, fontSize: "var(--font-size-sm)", background: "var(--color-bg)", color: "var(--color-text)" };
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onCancel}>
-      <div role="dialog" aria-modal="true" aria-label={tr("Alteration box plot classification")} onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", borderRadius: 8, padding: 16, width: 520, maxHeight: "85vh", overflow: "auto", fontSize: "var(--font-size-sm)" }}>
-        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}>{tr("Alteration from AI / CCPI (box plot)")}</div>
-        <div style={{ ...small, marginTop: 4 }}>{tr("Samples inside their protolith's least-altered box are least altered; outside, they are named by direction: sericite (AI up), chlorite-pyrite (up-right), chlorite-carbonate (right), epidote-calcite (down-right), albite (down). Screening only: the protolith is assumed, not measured; samples with none are not classified.")}</div>
-        {provisional && (
-          <div role="note" style={{ marginTop: 8, padding: "6px 8px", borderRadius: 5, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>{tr("These box limits are")}{" "}<b>{tr("provisional")}</b>{" "}{tr("— within the published range (AI 10–65, CCPI 15–85), not yet checked against Large et al. (2001) fig. 6. Edit them below; they are saved with the project.")}</div>
-        )}
-
-        <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Protolith of each sample")}</div>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — steps: 1 Protolith, 2 AI-up trend (only when alteration is logged), 3 Boxes -> Classify; the
+  // explanations in the Help card, the two cautions (screening only; provisional limits) kept seen first in one line each
+  const [at, setAt] = useState(0);
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{tr("Alteration from AI / CCPI (box plot)")}</summary>
+      <div style={small}>{tr("Samples inside their protolith's least-altered box are least altered; outside, they are named by direction: sericite (AI up), chlorite-pyrite (up-right), chlorite-carbonate (right), epidote-calcite (down-right), albite (down). Screening only: the protolith is assumed, not measured; samples with none are not classified.")}</div>
+      <div style={{ ...small, marginTop: 6 }}>{tr("Tick the logged alteration codes of the least-altered rock: their samples' AI and CCPI (5th–95th percentile) make the box. For intrusive or other hosts the volcanic boxes do not describe.")}</div>
+      <div style={{ ...small, marginTop: 6 }}>{tr("Whole-rock chemistry cannot reliably tell potassic (K-feldspar, biotite) from phyllic (sericite) on the AI-up trend. Samples in a logged code marked below are named from the log; others keep the joint name (see the Molar K/Al vs Na/Al diagram). The marks are suggested from the code names: check them.")}</div>
+      <div style={{ ...small, marginTop: 6 }}>{tr("These box limits are")}{" "}<b>{tr("provisional")}</b>{" "}{tr("— within the published range (AI 10–65, CCPI 15–85), not yet checked against Large et al. (2001) fig. 6. Edit them below; they are saved with the project.")}</div>
+    </details>
+  );
+  const steps = [
+    { key: "protolith", label: tr("Protolith"), primary: { label: tr("Next") }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>
+        <div style={{ ...small, marginBottom: 6 }}>{tr("Screening only: the protolith is assumed, not measured.")}</div>
         <select value={source} onChange={(e) => setSource(e.target.value)} aria-label={tr("Protolith source")} style={{ ...num, width: "100%", marginTop: 4 }}>
           <option value="logged">{tr("From the logged lithology at the sample (map the codes below)")}</option>
           {PROTOLITHS.map((p) => <option key={p} value={p}>{tr("Every sample is {p}", { p })}</option>)}
@@ -44,7 +49,6 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], m
         </select>
         {fittedMode && (
           <div style={{ marginTop: 6 }}>
-            <div style={small}>{tr("Tick the logged alteration codes of the least-altered rock: their samples' AI and CCPI (5th–95th percentile) make the box. For intrusive or other hosts the volcanic boxes do not describe.")}</div>
             <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: "2px 12px" }}>
               {altCodes.map((c) => (
                 <label key={c} style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -68,10 +72,10 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], m
             ))}
           </div>
         )}
-
-        {altCodes.length > 0 && (<>{/* #2145 */}
-          <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Naming the AI-up trend from the log")}</div>
-          <div style={small}>{tr("Whole-rock chemistry cannot reliably tell potassic (K-feldspar, biotite) from phyllic (sericite) on the AI-up trend. Samples in a logged code marked below are named from the log; others keep the joint name (see the Molar K/Al vs Na/Al diagram). The marks are suggested from the code names: check them.")}</div>
+      </div>
+    ) },
+    ...(altCodes.length > 0 ? [{ key: "trend", label: tr("AI-up trend"), primary: { label: tr("Next") }, render: () => (<div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>{/* #2145 */}
+      <div style={{ ...small, marginBottom: 4 }}>{tr("Mark the potassic and phyllic codes (suggested from their names).")}</div>
           <div style={{ marginTop: 4, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 12px" }}>
             {altCodes.map((c) => (
               <label key={c} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -84,8 +88,10 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], m
               </label>
             ))}
           </div>
-        </>)}
-
+    </div>) }] : []),
+    { key: "boxes", label: tr("Boxes"), primary: { label: tr("Classify"), onClick: () => onRun({ boxes, map, source, fitCodes, trendRoles }), disabled: !valid || (fittedMode && !fitCodes.length) }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>
+        {provisional && <div role="note" style={{ marginBottom: 6, padding: "6px 8px", borderRadius: 5, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>{tr("Provisional limits: not yet checked against Large et al. (2001).")}</div>}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", justifyContent: "space-between" }}>
           <span>{tr("Least-altered boxes")}</span>
           {!provisional && <span style={{ cursor: "pointer", textTransform: "none", letterSpacing: 0 }} {...iconAction(() => setBoxes(PROVISIONAL_ALTERATION_BOXES), tr("Reset to provisional boxes"))}>{tr("Reset to provisional")}</span>}
@@ -106,12 +112,9 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], m
           </tbody>
         </table>
         {!valid && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Each box needs min below max.")}</div>}
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
-          <button onClick={onCancel} className="gs-btn">{tr("Cancel")}</button>
-          <button disabled={!valid || (fittedMode && !fitCodes.length)} onClick={() => onRun({ boxes, map, source, fitCodes, trendRoles })} className="gs-btn gs-btn--primary">{tr("Classify")}</button>
-        </div>
       </div>
-    </div>
-  );
+    ) },
+  ];
+  const heading = tr("Alteration from AI / CCPI (box plot)"); // the dialog's name, seen (not a tooltip)
+  return <StepDialog title={heading} onClose={onCancel} steps={steps} at={at} onAt={setAt} help={help} width="min(560px, 94vw)" />;
 }

@@ -69,8 +69,10 @@ test("the scanner reads a tag whose handler holds a comment with an apostrophe, 
 test("the migrated surfaces carry the roles: the import dialogs' Import is the primary, Cancel the secondary; the guide's step button is primary", () => {
   const f = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const im = f("../src/components/ImportMappingModal.jsx");
-  assert.match(im, /<button onClick=\{onCancel\} className="gs-btn" style=\{\{ flex: 1 \}\}>/);
-  assert.match(im, /className="gs-btn gs-btn--primary" style=\{\{ flex: 2, opacity: blocked/);
+  // TASKS.csv #4073 — the column matching is a StepDialog: its Import is the step's gold primary, Cancel / Back the shell's secondaries
+  assert.match(im, /const importPrimary = \{ label: tr\("Import \{rowCount\} rows"/);
+  assert.match(im, /primary: importPrimary/);
+  assert.match(im, /return <StepDialog title=\{heading\} onClose=\{onCancel\}/);
   assert.match(f("../src/modules/viewer/guided/GuideBar.jsx"), /className="gs-btn gs-btn--primary gs-btn--sm"/);
   assert.match(f("../src/components/GradeEstimationModal.jsx"), /className=\{result \? "gs-btn" : "gs-btn gs-btn--primary"\}/);
 });

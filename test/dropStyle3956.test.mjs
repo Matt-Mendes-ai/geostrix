@@ -37,8 +37,10 @@ test("#3956 tokens only: colours and shadows; no words in the SVG; app.css and t
 
 test("#3956 (part 2) the other first-screen cards share the style: the Start dialog and its card, Layout's sheets, Macrostrat, the samples, the tool info card", () => {
   const sd = read("../src/components/StartDialogs.jsx"), lay = read("../src/components/LayoutStartCard.jsx"), mac = read("../src/components/MacrostratModal.jsx"), smp = read("../src/modules/viewer/SampleButtons.jsx"), tip = read("../src/components/HoverToolInfo.jsx");
-  assert.equal((sd.match(/className="ge-card"/g) || []).length, 2, "the dialog and the 'Your project is in' card");
-  assert.equal((sd.match(/className="ge-card-head"/g) || []).length, 2);
+  // TASKS.csv #4073 — the wizard is on the shared step shell (StepDialog, as every pop-up); the 'Your project is in' card keeps the card style
+  assert.equal((sd.match(/className="ge-card"/g) || []).length, 1, "the 'Your project is in' card");
+  assert.equal((sd.match(/className="ge-card-head"/g) || []).length, 1);
+  assert.match(sd, /return <StepDialog title=\{heading\}/);
   assert.match(sd, /borderRadius: 14, padding: "18px 16px", textAlign: "center", background: over \? "var\(--color-selected-bg\)" : "linear-gradient\(160deg, var\(--color-bg\) 0%, var\(--color-tier-basic-bg\) 75%\)", boxShadow: "var\(--shadow-lift\)"/, "the lifted drop area");
   assert.match(lay, /className="ge-card"/); assert.match(lay, /className="ge-card-head"/);
   assert.match(lay, /<DropPicture picture=\{s\.kind === "intercepts" \? "table" : s\.kind\}/, "each sheet's picture is the block");

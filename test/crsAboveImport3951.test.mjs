@@ -13,8 +13,10 @@ test("#3951 the Project coordinate system dialog is above the import's column ma
   const crsSrc = read("../src/components/ProjectCrsModal.jsx");
   assert.match(crsSrc, /zIndex=\{Z_ABOVE_IMPORT\}/);
   const crs = z(crsSrc, /const Z_ABOVE_IMPORT = (\d+);/);
-  const mapping = z(read("../src/components/ImportMappingModal.jsx"), /\.\.\.overlay, zIndex: (\d+)/);
-  const assay = z(read("../src/components/AssayImportModal.jsx"), /\.\.\.overlay, zIndex: (\d+)/);
+  const mapping = z(read("../src/components/ImportMappingModal.jsx"), /export const Z_IMPORT = (\d+);/); // TASKS.csv #4073 — a StepDialog's zIndex
+  assert.match(read("../src/components/ImportMappingModal.jsx"), /zIndex=\{Z_IMPORT\}/);
+  const assay = z(read("../src/components/AssayImportModal.jsx"), /const Z_IMPORT = (\d+);/); // TASKS.csv #4073 — a StepDialog's zIndex
+  assert.match(read("../src/components/AssayImportModal.jsx"), /zIndex=\{Z_IMPORT\}/);
   const start = z(read("../src/components/StartDialogs.jsx"), /const Z = (\d+);/);
   assert.ok(Number.isFinite(crs) && Number.isFinite(mapping) && Number.isFinite(assay) && Number.isFinite(start), "all four found");
   assert.ok(crs > mapping && crs > assay, `the CRS question (${crs}) must be above the import dialogs (${mapping}, ${assay})`);

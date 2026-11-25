@@ -7,6 +7,6 @@ import fs from "node:fs";
 test("the Import button says the values are being checked while the scan runs", () => {
   const s = fs.readFileSync(new URL("../src/components/AssayImportModal.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(s, /modal\.busy \? tr\("Importing…"\) : !scan && \(modal\.allRows \|\| \[\]\)\.length > 0 \? tr\("Checking the values… \{pct\}%", \{ pct: Math\.round\(scanPct \* 100\) \}\)/);
-  assert.match(s, /aria-busy=\{!scan \|\| !!modal\.busy\} title=\{!scan \? tr\("The values are being checked for negatives, zeros and empty cells: the questions below depend on them\."\) : undefined\}/);
-  assert.match(s, /disabled=\{!!modal\.busy \|\| !scan \|\| checkedCount === 0 \|\| unmapped\.length > 0\}/, "still disabled until the scan is in (#2164)");
+  assert.match(s, /"aria-busy": !scan \|\| !!modal\.busy, title: !scan \? tr\("The values are being checked for negatives, zeros and empty cells: the questions below depend on them\."\) : undefined \}/);
+  assert.match(s, /const busyOrWaiting = !!modal\.busy \|\| !scan \|\| checkedCount === 0 \|\| unmapped\.length > 0;[\s\S]*disabled: busyOrWaiting/, "still disabled until the scan is in (#2164)");
 });
