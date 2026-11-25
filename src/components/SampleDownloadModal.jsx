@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { X } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, btn } from "../lib/modalStyles.js";
+import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { sampleDownload, sampleDownloadCancel, onSampleDownloadProgress } from "../lib/desktop.js";
 import { BC_SAMPLE_INFO } from "../lib/bcSamples.js";
@@ -53,8 +53,8 @@ export default function SampleDownloadModal({ id, onClose, onReady }) {
           {state.phase === "error" && <p style={{ ...note, color: "var(--color-danger-fg)" }}>{tr("The download did not work: {error}", { error: state.error || "" })}</p>}
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", padding: "0 16px 14px" }}>
-          <button type="button" onClick={close} style={{ ...btn(false), padding: "7px 14px" }}>{tr("Cancel")}</button>
-          {!busy && <button type="button" onClick={start} style={{ ...btn(true), padding: "7px 14px" }}>{state.phase === "ask" ? tr("Download ({size} MB)", { size: mb(info.bytes) }) : tr("Try again")}</button>}
+          <button type="button" onClick={close} className="gs-btn" style={{ padding: "7px 14px" }}>{tr("Cancel")}</button>
+          {!busy && <button type="button" onClick={start} className="gs-btn gs-btn--primary" style={{ padding: "7px 14px" }}>{state.phase === "ask" ? tr("Download ({size} MB)", { size: mb(info.bytes) }) : tr("Try again")}</button>}
         </div>
       </div>
     </div>

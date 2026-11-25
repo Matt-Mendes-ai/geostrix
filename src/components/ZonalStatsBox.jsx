@@ -24,13 +24,13 @@ export default function ZonalStatsBox({ raster, boundaries, onClip = null }) { /
         <option value="">{tr("Choose a boundary or claim…")}</option>
         {areas.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
       </select>
-      {b && onClip && <button type="button" onClick={() => onClip(b)} title={tr("A new raster of this grid's cells inside the boundary (the original stays), cropped to its extent")} style={{ marginTop: 4, display: "block", fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Clip to this boundary (new raster)")}</button>}
+      {b && onClip && <button data-btn-own="" type="button" onClick={() => onClip(b)} title={tr("A new raster of this grid's cells inside the boundary (the original stays), cropped to its extent")} style={{ marginTop: 4, display: "block", fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Clip to this boundary (new raster)")}</button>}
       {b && !s && <div style={{ marginTop: 4, color: "var(--color-text-muted)" }}>{tr("No cell of this grid lies inside it.")}</div>}
       {s && (
         <div style={{ marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
           {rows.map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ color: "var(--color-text-muted)" }}>{k}</span><span>{v}</span></div>)}
           {unit && <div style={{ color: "var(--color-text-muted)" }}>{tr("Values in {unit}; cells are read at their centres.", { unit })}</div>}
-          <button type="button" onClick={() => navigator.clipboard?.writeText(text).catch(() => {})} style={{ marginTop: 4, fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Copy as text")}</button>
+          <button data-btn-own="" type="button" onClick={() => navigator.clipboard?.writeText(text).catch(() => {})} style={{ marginTop: 4, fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Copy as text")}</button>
         </div>
       )}
     </details>

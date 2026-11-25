@@ -3,13 +3,12 @@
 // strings of one Stope outlines run. Each remove is confirmed with a count, names the solids made from those strings (they keep
 // their shape), and is one undo step.
 import React, { useMemo, useState } from "react";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { isStopeString } from "../lib/stopeRuns.js";
 import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
-const btn = { ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" };
 
 export default function StringManager({ strings, setStrings, surfaces = [], activeId, setActiveId }) {
   const [open, setOpen] = useState(false);
@@ -42,27 +41,27 @@ export default function StringManager({ strings, setStrings, surfaces = [], acti
 
   return (
     <div style={{ marginTop: 8, border: "1px solid var(--color-border)", borderRadius: 6, padding: "5px 7px" }}>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)" }}>
+      <button data-btn-own="" type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)" }}>
         {open ? "▾" : "▸"} {tr("Manage all strings ({n})", { n: strings.length })}
       </button>
       {open && (
         <div style={{ marginTop: 5 }}>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            <button type="button" onClick={() => remove(strings.map((s) => s.id), tr("every string in the project"))} style={btn}>{tr("Remove all strings ({n})", { n: strings.length })}</button>
+            <button type="button" onClick={() => remove(strings.map((s) => s.id), tr("every string in the project"))} className="gs-btn gs-btn--sm">{tr("Remove all strings ({n})", { n: strings.length })}</button>
             {runs.length > 0 && (
               <>
                 <select value={run} onChange={(e) => setRun(e.target.value)} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Stope outline strings to remove")}>
                   <option value="">{tr("Stope outline strings…")}</option>
                   {runs.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
                 </select>
-                <button type="button" disabled={!run} onClick={() => { const r = runs.find((x) => x.key === run); if (r) remove(r.ids, r.label); setRun(""); }} style={{ ...btn, opacity: run ? 1 : 0.5 }}>{tr("Remove these")}</button>
+                <button type="button" disabled={!run} onClick={() => { const r = runs.find((x) => x.key === run); if (r) remove(r.ids, r.label); setRun(""); }} className="gs-btn gs-btn--sm" style={{ opacity: run ? 1 : 0.5 }}>{tr("Remove these")}</button>
               </>
             )}
           </div>
           <input type="search" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={tr("Filter by name…")} aria-label={tr("Filter the strings by name")} style={{ ...smallSel, width: "100%", marginTop: 6, boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap", alignItems: "center" }}>
-            <button type="button" onClick={() => setTicked(new Set(shown.map((s) => s.id)))} style={btn}>{tr("Tick the {n} listed", { n: shown.length })}</button>
-            <button type="button" onClick={() => setTicked(new Set())} disabled={!tickedIds.length} style={{ ...btn, opacity: tickedIds.length ? 1 : 0.5 }}>{tr("Untick all")}</button>
+            <button type="button" onClick={() => setTicked(new Set(shown.map((s) => s.id)))} className="gs-btn gs-btn--sm">{tr("Tick the {n} listed", { n: shown.length })}</button>
+            <button type="button" onClick={() => setTicked(new Set())} disabled={!tickedIds.length} className="gs-btn gs-btn--sm" style={{ opacity: tickedIds.length ? 1 : 0.5 }}>{tr("Untick all")}</button>
             <span style={note}>{tr("{n} ticked", { n: tickedIds.length })}</span>
           </div>
           <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 4, marginTop: 4 }}>
@@ -76,9 +75,9 @@ export default function StringManager({ strings, setStrings, surfaces = [], acti
             {!shown.length && <div style={{ ...note, padding: 4 }}>{tr("No string matches.")}</div>}
           </div>
           <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-            <button type="button" disabled={!tickedIds.length} onClick={() => setVisible(tickedIds, true)} style={{ ...btn, flex: 1, opacity: tickedIds.length ? 1 : 0.5 }}>{tr("Show ticked")}</button>
-            <button type="button" disabled={!tickedIds.length} onClick={() => setVisible(tickedIds, false)} style={{ ...btn, flex: 1, opacity: tickedIds.length ? 1 : 0.5 }}>{tr("Hide ticked")}</button>
-            <button type="button" disabled={!tickedIds.length} onClick={() => remove(tickedIds, tr("the ticked strings"))} style={{ ...btn, flex: 1, opacity: tickedIds.length ? 1 : 0.5 }}>{tr("Remove ticked")}</button>
+            <button type="button" disabled={!tickedIds.length} onClick={() => setVisible(tickedIds, true)} className="gs-btn gs-btn--sm" style={{ flex: 1, opacity: tickedIds.length ? 1 : 0.5 }}>{tr("Show ticked")}</button>
+            <button type="button" disabled={!tickedIds.length} onClick={() => setVisible(tickedIds, false)} className="gs-btn gs-btn--sm" style={{ flex: 1, opacity: tickedIds.length ? 1 : 0.5 }}>{tr("Hide ticked")}</button>
+            <button type="button" disabled={!tickedIds.length} onClick={() => remove(tickedIds, tr("the ticked strings"))} className="gs-btn gs-btn--sm" style={{ flex: 1, opacity: tickedIds.length ? 1 : 0.5 }}>{tr("Remove ticked")}</button>
           </div>
           {said && <div role="status" style={{ ...note, marginTop: 4 }}>{said}</div>}
         </div>

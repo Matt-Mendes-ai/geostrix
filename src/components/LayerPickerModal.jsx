@@ -35,7 +35,7 @@ export default function LayerPickerModal({ fileName, options, onPick, onCancel }
         </div>
         <div style={{ padding: 12, overflowY: "auto", maxHeight: 380 }}>
           {options.map((o) => (
-            <button key={o.name} onClick={() => onPick(o.name)} style={row} title={tr("Import \"{name}\"", { name: o.name })}>
+            <button key={o.name} onClick={() => onPick(o.name)} className="gs-btn gs-btn--block" title={tr("Import \"{name}\"", { name: o.name })}>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }}>{o.name}</span>
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", flexShrink: 0 }}>
                 {/* TASKS.csv #1116 — whole counted phrases */}
@@ -45,7 +45,7 @@ export default function LayerPickerModal({ fileName, options, onPick, onCancel }
           ))}
         </div>
         <div style={{ padding: "10px 12px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ ...row, width: "auto", padding: "6px 14px", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
+          <button onClick={onCancel} className="gs-btn">{tr("Cancel")}</button>
         </div>
       </div>
     </div>
@@ -54,4 +54,3 @@ export default function LayerPickerModal({ fileName, options, onPick, onCancel }
 
 const panel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif", width: 460, maxWidth: "92vw" };
 const header = { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const row = { display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "start", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };

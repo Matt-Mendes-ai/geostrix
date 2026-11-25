@@ -62,15 +62,15 @@ export default function PlanModelsList() {
       {voxelModels.map((m) => (
         <span key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <span style={{ flex: "1 1 100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.name}>{m.name}</span>
-          <button type="button" style={btn} title={tr("Add the model's footprint (the rectangle round its cells) to Boundaries")} onClick={() => outlineModel(m)}>{tr("Outline as boundary")}</button>
-          <button type="button" style={btn} title={tr("Add the cells that hold this level to the rasters, in the model's own colours")} onClick={() => sliceModel(m)}>{tr("Level slice to Maps")}</button>
+          <button data-btn-own="" type="button" style={btn} title={tr("Add the model's footprint (the rectangle round its cells) to Boundaries")} onClick={() => outlineModel(m)}>{tr("Outline as boundary")}</button>
+          <button data-btn-own="" type="button" style={btn} title={tr("Add the cells that hold this level to the rasters, in the model's own colours")} onClick={() => sliceModel(m)}>{tr("Level slice to Maps")}</button>
         </span>
       ))}
       {generatedSurfaces.map((sf) => (
         <span key={sf.id} style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <span style={{ flex: "1 1 100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={sf.name}>{sf.name}</span>
-          <button type="button" style={btn} title={tr("Add the surface's outline (the convex hull of its vertices) to Boundaries")} onClick={() => outlineSurface(sf)}>{tr("Outline as boundary")}</button>
-          <button type="button" style={btn} title={tr("Add the lines where the surface crosses this level to Boundaries")} onClick={() => cutSurface(sf)}>{tr("Cut at the level")}</button>
+          <button data-btn-own="" type="button" style={btn} title={tr("Add the surface's outline (the convex hull of its vertices) to Boundaries")} onClick={() => outlineSurface(sf)}>{tr("Outline as boundary")}</button>
+          <button data-btn-own="" type="button" style={btn} title={tr("Add the lines where the surface crosses this level to Boundaries")} onClick={() => cutSurface(sf)}>{tr("Cut at the level")}</button>
         </span>
       ))}
       {note && <span role="status" style={{ color: "var(--color-text-muted)" }}>{note}</span>}

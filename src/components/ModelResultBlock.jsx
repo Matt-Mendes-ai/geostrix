@@ -14,15 +14,15 @@ export default function ModelResultBlock({ last, stale, buildPanel, onClose, onU
     : tr("No model yet.");
   const can = !!last && !last.structural; // a structural model has no litho block to add (#1554)
   const why = !last ? tr("Build the blocks first.") : null;
-  const addBtn = (onClick, Icon, label, title, tail) => <button onClick={onClick} disabled={!can && !!why} title={why || title} style={{ ...pBtn, marginBottom: tail ? 0 : 4, opacity: !can && why ? 0.5 : 1, cursor: !can && why ? "default" : "pointer" }}><Icon size={14} />{" "}{label}</button>;
+  const addBtn = (onClick, Icon, label, title, tail) => <button onClick={onClick} disabled={!can && !!why} title={why || title} className="gs-btn gs-btn--block" style={{ marginBottom: tail ? 0 : 4, opacity: !can && why ? 0.5 : 1, cursor: !can && why ? "default" : "pointer" }}><Icon size={14} />{" "}{label}</button>;
   return (
     <>
     <div style={{ height: 8 }} aria-hidden="true" />{/* the gap above is not part of the pinned block: nothing peeks over it while it is pinned */}
     <div data-result-block="" style={{ position: "sticky", top: 0, zIndex: 4, margin: "0 0 8px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", boxShadow: "0 2px 6px rgba(0,0,0,0.12)", fontSize: "var(--font-size-sm)", maxHeight: "calc(100vh - 200px)", overflowY: "auto" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: open ? 6 : 0 }}>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", opacity: stale ? 0.55 : 1, ...(open ? null : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }) }} title={open ? undefined : line}><b>{tr("Result")}</b>{" · "}{line}</div>
-        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? tr("Fold the result block") : tr("Open the result block")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: 0, flexShrink: 0 }}>{open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>
-        {!last && onClose && <button type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: 0, flexShrink: 0 }}><X size={14} /></button>}
+        <button data-btn-own="" type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? tr("Fold the result block") : tr("Open the result block")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: 0, flexShrink: 0 }}>{open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>
+        {!last && onClose && <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: 0, flexShrink: 0 }}><X size={14} /></button>}
       </div>
       {open && (<>
         {buildPanel}

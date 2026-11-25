@@ -8,7 +8,7 @@ import { Shapes, Trash2 } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { NEW_LAYER, uniqueLayerName, isDrawnGeologyLayer, geologyPolygonLayer, addUnitPolygon, removeUnitPolygon, offerableForDrawing, drawnCopyOf, unitFieldOf } from "../lib/interpretation.js"; // offerable…: #2682
 import { activateOnKey } from "../lib/a11y.js";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
@@ -114,14 +114,14 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
         <datalist id="ge-unit-polygon-units">{knownUnits.map((u) => <option key={u} value={u} />)}</datalist>
         <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={tr("Note (optional)")} aria-label={tr("Polygon note")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         {!drawing.on ? (
-          <button type="button" onClick={onStart} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Draw a polygon")}</button>
+          <button type="button" onClick={onStart} className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 0 }}>{tr("Draw a polygon")}</button>
         ) : (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{n ? tr("{n} corner(s). Click to add a corner; double-click or Finish to close the polygon.", { n }) : tr("Click the first corner of the unit.")}</div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button type="button" onClick={() => finish() /* #2682 (found live): handing finish itself to onClick passed the click event as closedOnFirst, which dropped the last corner */} disabled={n < 3} style={{ ...pBtn, flex: 1, justifyContent: "center", marginBottom: 0, opacity: n < 3 ? 0.5 : 1 }}>{tr("Finish")}</button>
-              <button type="button" onClick={onUndo} disabled={!n} style={{ ...pBtn, width: "auto", marginBottom: 0, opacity: n ? 1 : 0.5 }}>{tr("Undo point")}</button>
-              <button type="button" onClick={onCancel} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Cancel")}</button>
+              <button type="button" onClick={() => finish() /* #2682 (found live): handing finish itself to onClick passed the click event as closedOnFirst, which dropped the last corner */} disabled={n < 3} className="gs-btn gs-btn--block" style={{ flex: 1, justifyContent: "center", marginBottom: 0, opacity: n < 3 ? 0.5 : 1 }}>{tr("Finish")}</button>
+              <button type="button" onClick={onUndo} disabled={!n} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, opacity: n ? 1 : 0.5 }}>{tr("Undo point")}</button>
+              <button type="button" onClick={onCancel} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0 }}>{tr("Cancel")}</button>
             </div>
           </div>
         )}

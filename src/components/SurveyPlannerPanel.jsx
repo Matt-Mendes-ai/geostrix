@@ -14,7 +14,7 @@ import { exportCrs, exportXY, bearingToWorld } from "../lib/tiedExport.js"; // T
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps, sel, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
+import { overlay, backdropProps, sel, panel, header } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #4042
 import { t as tr } from "../lib/i18n.js";
@@ -121,12 +121,12 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Survey planner")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("A soil grid or stream-sediment sites, numbered with your QC inserts, for the field crew")}</div>
           </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("survey-planner")} aria-label={tr("Help: {name}", { name: tr("Survey planner") })} title={tr("Help for this tool (F1, works offline)")}>?</button>{/* TASKS.csv #4042 */}
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("survey-planner")} aria-label={tr("Help: {name}", { name: tr("Survey planner") })} title={tr("Help for this tool (F1, works offline)")}>?</button>{/* TASKS.csv #4042 */}
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div role="tablist" style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--color-border)" }}>
-            {[["soil", "Soil grid"], ["streams", "Stream sites"]].map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} style={{ ...tabBtn, borderBottom: mode === k ? "2px solid var(--color-accent)" : "2px solid transparent", color: mode === k ? "var(--color-text)" : "var(--color-text-secondary)" }}>{tr(l)}</button>)}
+            {[["soil", "Soil grid"], ["streams", "Stream sites"]].map(([k, l]) => <button data-btn-own="" key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} style={{ ...tabBtn, borderBottom: mode === k ? "2px solid var(--color-accent)" : "2px solid transparent", color: mode === k ? "var(--color-text)" : "var(--color-text-secondary)" }}>{tr(l)}</button>)}
           </div>
           <div style={rowS}>
             <label style={ctl}>{mode === "soil" ? tr("Area") : tr("Area (optional)")}<select value={areaId} onChange={(e) => pickArea(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 260 }}>
@@ -175,7 +175,7 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
                   <input type="checkbox" checked={q.on} onChange={(e) => setQc((l) => l.map((x, j) => (j === i ? { ...x, on: e.target.checked } : x)))} aria-label={tr("Use this insert")} />
                   <input value={q.label} onChange={(e) => setQc((l) => l.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} style={{ ...sel, width: 120 }} aria-label={tr("Insert name")} />
                   {tr("every")}<NumberInput min={2} step={1} value={q.every} onChange={(v) => setQc((l) => l.map((x, j) => (j === i ? { ...x, every: v } : x)))} style={{ ...sel, width: 56 }} aria-label={tr("Every N samples")} />
-                  <button type="button" style={linkBtn} onClick={() => setQc((l) => l.filter((_, j) => j !== i))} aria-label={tr("Remove this insert")}>×</button>
+                  <button data-btn-own="" type="button" style={linkBtn} onClick={() => setQc((l) => l.filter((_, j) => j !== i))} aria-label={tr("Remove this insert")}>×</button>
                 </span>
               ))}
               <select value="" onChange={(e) => { if (e.target.value) setQc((l) => [...l, { kind: e.target.value, every: 25, label: e.target.value === "duplicate" ? "duplicate" : e.target.value, on: true }]); }} style={sel} aria-label={tr("Add an insert")}>
@@ -190,11 +190,11 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
                 {plan.truncated ? " " + tr("Stopped at 50,000 stations: widen the spacing.") : ""}
               </div>
               <div style={rowS}>
-                <button type="button" style={btn(true)} onClick={draw} disabled={!plan.sites.length}>{tr("Show on the map")}</button>
-                <button type="button" style={dl} onClick={() => save("gpx", (ll, _e, t) => planGpx(rows, plan.sites, ll, t), "GPX")} disabled={!rows.length}><Download size={14} />GPX</button>
-                <button type="button" style={dl} onClick={() => save("kml", (ll, _e, t) => planKml(rows, plan.sites, ll, t), "KML")} disabled={!rows.length}><Download size={14} />KML</button>
-                <button type="button" style={dl} onClick={() => save("csv", (ll, e, _t, b) => toExportCsv(planCsvRows(rows, plan.sites, ll).map((r) => ({ ...r, crs: `EPSG:${e}` /* #1064 — x / y */, ...(mode === "soil" ? { line_bearing_grid: grid.azimuth, line_bearing_true: b?.true ?? "", line_bearing_magnetic: b?.magnetic ?? "", declination_date: b?.date ?? "" } : {}) }))), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
-                <button type="button" style={dl} onClick={() => save("html", (_ll, epsg, t) => planFieldSheet(rows, plan.sites, { title: t, crs: `${crsName(epsg) || ""} (EPSG:${epsg})` }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
+                <button type="button" className="gs-btn gs-btn--primary" onClick={draw} disabled={!plan.sites.length}>{tr("Show on the map")}</button>
+                <button type="button" className="gs-btn" onClick={() => save("gpx", (ll, _e, t) => planGpx(rows, plan.sites, ll, t), "GPX")} disabled={!rows.length}><Download size={14} />GPX</button>
+                <button type="button" className="gs-btn" onClick={() => save("kml", (ll, _e, t) => planKml(rows, plan.sites, ll, t), "KML")} disabled={!rows.length}><Download size={14} />KML</button>
+                <button type="button" className="gs-btn" onClick={() => save("csv", (ll, e, _t, b) => toExportCsv(planCsvRows(rows, plan.sites, ll).map((r) => ({ ...r, crs: `EPSG:${e}` /* #1064 — x / y */, ...(mode === "soil" ? { line_bearing_grid: grid.azimuth, line_bearing_true: b?.true ?? "", line_bearing_magnetic: b?.magnetic ?? "", declination_date: b?.date ?? "" } : {}) }))), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
+                <button type="button" className="gs-btn" onClick={() => save("html", (_ll, epsg, t) => planFieldSheet(rows, plan.sites, { title: t, crs: `${crsName(epsg) || ""} (EPSG:${epsg})` }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
               </div>
               {msg && <div style={note}>{msg}</div>}
               <div style={note}>{tr("GPX and KML are WGS 84, for a handheld GPS or phone.")}</div>
@@ -202,7 +202,7 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
             </>
           )}
         </div>
-        <div style={{ display: "flex", padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}><span style={{ flex: 1 }} /><button type="button" style={btn(false)} onClick={onClose}>{tr("Close")}</button></div>
+        <div style={{ display: "flex", padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}><span style={{ flex: 1 }} /><button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button></div>
       </div>
     </div>
   );
@@ -215,4 +215,3 @@ const rowS = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end
 const inp = { ...sel, display: "block", marginTop: 4, width: 80 };
 const tabBtn = { background: "none", border: "none", padding: "6px 10px", cursor: "pointer", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const linkBtn = { background: "none", border: "none", padding: "0 2px", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const dl = { ...btn(false), display: "flex", alignItems: "center", gap: 6 };

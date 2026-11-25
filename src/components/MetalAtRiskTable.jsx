@@ -13,7 +13,6 @@ export default function MetalAtRiskTable({ values, weights, unitLabel = "", toSh
   const t = useMemo(() => metalAtRisk(values, weights), [values, weights]);
   const deciles = useMemo(() => decileTable(values, weights), [values, weights]); // TASKS.csv #3758
   if (!t.rows.length) return null;
-  const btn = { background: "none", border: "1px solid var(--color-border)", borderRadius: 4, padding: "0 6px", cursor: "pointer", fontSize: "var(--font-size-xs)", color: "var(--color-text)", fontFamily: "inherit" };
   return (
     <details open={defaultOpen} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
       <summary style={{ cursor: "pointer" }} title={tr("Which samples hold the metal: pick a cap where the loss is acceptable, before applying it.")}>{tr("Metal at risk: the top {a} sample(s) hold {pct} % of the metal", { a: t.rows[Math.min(t.rows.length - 1, 3)].n, pct: t.rows[Math.min(t.rows.length - 1, 3)].pctMetal.toFixed(1) })}</summary>
@@ -28,7 +27,7 @@ export default function MetalAtRiskTable({ values, weights, unitLabel = "", toSh
                 <td style={{ ...td, textAlign: "left" }}>{r.kind === "n" ? tr("Top {n}", { n: r.top }) : tr("Top {p} % of samples", { p: r.top })}</td>
                 <td style={td}>{r.n.toLocaleString()}</td><td style={td}>{fmt(toShown(r.grade))}</td><td style={td}>{r.metres.toFixed(1)}</td>
                 <td style={{ ...td, fontWeight: 600 }}>{r.pctMetal.toFixed(1)} %</td><td style={td}>{r.capRemovesPct.toFixed(1)} %</td><td style={td}>{fmt(toShown(r.meanCapped))}</td><td style={td}>{r.cvCapped != null ? r.cvCapped.toFixed(2) : "—"}</td>
-                {onSetCap && <td style={td}><button type="button" style={btn} onClick={() => onSetCap(r.grade)}>{tr("Cap here")}</button></td>}
+                {onSetCap && <td style={td}><button type="button" className="gs-btn gs-btn--sm" onClick={() => onSetCap(r.grade)}>{tr("Cap here")}</button></td>}
               </tr>
             ))}
           </tbody>

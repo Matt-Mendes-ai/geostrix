@@ -143,7 +143,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               )}
             </div>
           </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("qaqc")} aria-label={tr("Help: {name}", { name: tr("QAQC — lab quality control") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("qaqc")} aria-label={tr("Help: {name}", { name: tr("QAQC — lab quality control") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -156,7 +156,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Lab lower detection limit for this element: blanks are judged against a multiple of it, duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit ({unit})", { unit: unitL })}<NumberInput allowEmpty min={0} onChange={(v) => setDetectionLimit(v ?? 0)} value={dl ?? null} placeholder={tr("not set")} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
             </label>
             {dlSuggestion.limit != null && dlSuggestion.limit !== dl && (
-              <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) /* #2503 */ ? tr("{n} result(s) are '<' at {limit}, converted at import (from another unit or an oxide); the lab's limit is the round figure in the source file", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) }) : tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) })) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
+              <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) /* #2503 */ ? tr("{n} result(s) are '<' at {limit}, converted at import (from another unit or an oxide); the lab's limit is the round figure in the source file", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) }) : tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) })) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
                 {dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) ? tr("Use <{limit} (the '<' results, converted at import)", { limit: formatLimit(dlSuggestion.limit) }) : tr("Use the lab's <{limit}", { limit: formatLimit(dlSuggestion.limit) })) : dlSuggestion.basis === "floor" ? (dlSuggestion.gap /* #3222 — a reading of the data, not a fact of the file */ ? tr("Use {limit}: the file states no limit. {pct} % of the results sit on {floor}, the lowest value, and the next value is {next}, more than twice it: the limit is read as that next value.", { limit: formatLimit(dlSuggestion.limit), floor: formatLimit(dlSuggestion.floor), next: formatLimit(dlSuggestion.next), pct: Math.round(dlSuggestion.share * 100) }) : tr("Use {limit}: the file states no limit. {pct} % of the results sit on {floor}, the lowest value, read as half a limit substituted before import; the next value is {next}.", { limit: formatLimit(dlSuggestion.limit), floor: formatLimit(dlSuggestion.floor), next: dlSuggestion.next == null ? "—" : formatLimit(dlSuggestion.next), pct: Math.round(dlSuggestion.share * 100) })) : tr("Use the lowest value {limit}", { limit: formatLimit(dlSuggestion.limit) })}
               </button>
             )}
@@ -174,7 +174,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             )}
             <div style={{ display: "flex", gap: 4 }}>
               {tabs.map((t) => (
-                <button key={t} onClick={() => setTab(t)} style={t === tab ? tabBtnActive : tabBtn}>
+                <button data-btn-own="" key={t} onClick={() => setTab(t)} style={t === tab ? tabBtnActive : tabBtn}>
                   {t === "totals" ? tr("Totals") : t === "methods" ? tr("Method pairs ({n})", { n: methods.reduce((a, m) => a + m.n, 0) }) : t === "pxrf" ? tr("pXRF vs lab ({n})", { n: pxrf.pairs }) : t === "standards" ? !groups.length && !counts.standard ? tr("Standards ({groups})", { groups: 0 }) : tr(groups.length === 1 ? "Standards ({n} in 1 CRM)" : "Standards ({n} in {groups} CRMs)", { n: counts.standard, groups: groups.length }) /* #2033 — insertions, as the other tabs count samples */ : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
                 </button>
               ))}
@@ -284,7 +284,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           )}
           {tab === "duplicates" && dups.repeatedRows > 0 && ( /* TASKS.csv #3549 — QC links step 2: the repeated intervals of assays with no sample ids, suggested as duplicate pairs and marked only as the user confirms them */
             <div style={{ margin: "4px 0" }}>
-              {!reviewOpen && <button type="button" onClick={() => setReviewOpen(true)} title={tr("Mark which repeated rows are duplicates: only a sample type and a parent sample id are written, on the second row of each pair you tick.")}>{tr("Review {n} repeated interval(s) and mark duplicates…", { n: fmtNum(dups.repeatedRows) })}</button>}
+              {!reviewOpen && <button type="button" className="gs-btn gs-btn--sm" onClick={() => setReviewOpen(true)} title={tr("Mark which repeated rows are duplicates: only a sample type and a parent sample id are written, on the second row of each pair you tick.")}>{tr("Review {n} repeated interval(s) and mark duplicates…", { n: fmtNum(dups.repeatedRows) })}</button>}
               {reviewOpen && <QcPairReview assays={assays} symbol={symbol} unit={unit} elementUnits={elementUnits} unitLabel={unitL} onClose={() => setReviewOpen(false)}
                 onApply={(rows, marked) => { setAssays?.(rows); setReviewNote(tr("{n} pair(s) marked: the second row of each is now a field duplicate of the first.", { n: fmtNum(marked) })); setReviewOpen(false); }} />}
               {reviewNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-success-text)", marginTop: 4 }}>{reviewNote}</div>}
@@ -324,12 +324,12 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           <MoreFold summary={tr("How QC samples are found")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>{tr("QC samples are read from a sample-type column (standards grouped by a CRM / standard-name column if present), else from the hole_id (\"std\"/\"crm\"/\"oreas\"…, \"blank\"/\"blk\", \"dup\"); a collar-table hole is never QC. Duplicates pair by parent sample id, else hole and interval, else name. Certified limits are those you enter from each CRM's certificate.")}</MoreFold>{/* #3939 — the rules, behind their heading */}
 
           {/* TASKS.csv #617 — with nothing in the current view, Export used to do nothing at all when clicked */}
-          <button onClick={exportCSV} disabled={!exportCount} title={exportCount ? tr("Export the {exportCount} row(s) in this view", { exportCount }) : tr("Nothing to export: this view has no {v}", { v: tab === "standards" ? tr("standard results") : tab })} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: exportCount ? 1 : 0.5, cursor: exportCount ? "pointer" : "not-allowed" }}>
+          <button onClick={exportCSV} disabled={!exportCount} title={exportCount ? tr("Export the {exportCount} row(s) in this view", { exportCount }) : tr("Nothing to export: this view has no {v}", { v: tab === "standards" ? tr("standard results") : tab })} className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: exportCount ? 1 : 0.5, cursor: exportCount ? "pointer" : "not-allowed" }}>
             <Download size={14} />{" "}{tr("Export current view (CSV)")}</button>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
+          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -345,8 +345,8 @@ function CertInputs({ cert, unit, onSave }) {
     <div style={{ display: "flex", alignItems: "flex-end", gap: 8, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
       <label>{tr("Certified mean ({unit})", { unit })}<NumberInput allowEmpty value={mean} onChange={(v) => setMean(v == null ? "" : String(v))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified mean")} /></label>
       <label>{tr("Certified 1 SD")}<NumberInput allowEmpty min={0} value={sd} onChange={(v) => setSd(v == null ? "" : String(v))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified standard deviation")} /></label>
-      <button type="button" disabled={!ok} onClick={() => onSave({ mean: Number(mean), sd: Number(sd) })} style={{ ...tabBtn, opacity: ok ? 1 : 0.5 }}>{tr("Use certificate")}</button>
-      {cert && <button type="button" onClick={() => { setMean(""); setSd(""); onSave(null); }} style={tabBtn}>{tr("Clear")}</button>}
+      <button type="button" disabled={!ok} onClick={() => onSave({ mean: Number(mean), sd: Number(sd) })} className="gs-btn gs-btn--sm" style={{ opacity: ok ? 1 : 0.5 }}>{tr("Use certificate")}</button>
+      {cert && <button type="button" onClick={() => { setMean(""); setSd(""); onSave(null); }} className="gs-btn gs-btn--sm">{tr("Clear")}</button>}
     </div>
   );
 }
@@ -384,7 +384,6 @@ const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "var(-
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
 const tabBtn = { padding: "6px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text-secondary)" };
 const tabBtnActive = { ...tabBtn, background: "var(--color-text)", color: "var(--color-bg)", border: "1px solid var(--color-text)" };
 const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };

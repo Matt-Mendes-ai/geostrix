@@ -127,13 +127,13 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
               </div>
             )}
             {target.onEditColours && !st.color && (
-              <button type="button" onClick={target.onEditColours} style={{ alignSelf: "flex-start", padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer" }}>{tr("Edit legend colours…")}</button>
+              <button type="button" onClick={target.onEditColours} className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-start" }}>{tr("Edit legend colours…")}</button>
             )}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-          <button type="button" onClick={onReset} style={{ flex: 1, padding: "6px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Reset to default")}</button>
-          <button type="button" onClick={onClose} style={{ flex: 1, padding: "6px 10px", border: "1px solid var(--color-success-border)", borderRadius: 6, background: "var(--color-success-bg)", color: "var(--color-success-text)", cursor: "pointer" }}>{tr("Done")}</button>
+          <button type="button" onClick={onReset} className="gs-btn" style={{ flex: 1 }}>{tr("Reset to default")}</button>
+          <button type="button" onClick={onClose} className="gs-btn gs-btn--primary" style={{ flex: 1 }}>{tr("Done")}</button>
         </div>
       </div>
     </div>

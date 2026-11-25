@@ -17,7 +17,7 @@ import { sgSummary } from "../lib/gradeTonnage.js";
 import { densityRangeOf } from "../lib/densityRange.js"; // TASKS.csv #3587
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import FlatPanels from "./FlatPanels.jsx"; // TASKS.csv #2650
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
@@ -186,7 +186,7 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {element && cutV > 0 && gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))).includes("(") && <div style={{ ...note, marginTop: 0 }}>{tr("Cut-off: {g}", { g: gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))) })}</div>}{/* #2594 — 0.4645 % Li (1 % Li2O) */}
         {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it."), placeholder: blockH ? String(blockH) : "" })}
         {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(Math.round(zRange[0] * 10) / 10) : "" })}{/* the level a blank run starts at (the model's base): #1923, #1919 */}
-        {levels && <div style={{ ...note, marginTop: 2 }}>{tr("The collars sit on {n} drill levels ({list} m), a median {s} m apart.", { n: levels.levels.length, list: levels.levels.slice(0, 6).map((v) => Math.round(v)).join(", ") + (levels.levels.length > 6 ? ", …" : ""), s: Math.round(levels.spacing) })} <button onClick={() => setF((p) => ({ ...p, zMin: String(Math.round(levels.from)), levelH: String(Math.round(levels.spacing)) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the drill levels")}</button></div>}{/* TASKS.csv #2284 */}
+        {levels && <div style={{ ...note, marginTop: 2 }}>{tr("The collars sit on {n} drill levels ({list} m), a median {s} m apart.", { n: levels.levels.length, list: levels.levels.slice(0, 6).map((v) => Math.round(v)).join(", ") + (levels.levels.length > 6 ? ", …" : ""), s: Math.round(levels.spacing) })} <button onClick={() => setF((p) => ({ ...p, zMin: String(Math.round(levels.from)), levelH: String(Math.round(levels.spacing)) }))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the drill levels")}</button></div>}{/* TASKS.csv #2284 */}
         {field("zMax", tr("To RL (m)"), { placeholder: zRange ? String(Math.round(zRange[1])) : "" })}
         {field("minWidth", tr("Minimum mining width (m)"), { title: tr("Anything thinner is dropped (a morphological opening by this width, in whole columns of the model).") })}
         {field("minLength", tr("Minimum length (m)"), { title: tr("A patch shorter than this in both directions is dropped.") })}
@@ -203,11 +203,11 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {!ground.at && <div style={note}>{ground.underground ? tr("The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).") : tr("No terrain or collar elevations: the levels are not checked against the ground.")}</div>}
         {ground.source === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
         {dipBad && <div style={warn}>{tr("A dip needs both the dip (0–90°) and the dip direction (0–360°).")}</div>}
-        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button>{sg.left > 0 && <span style={{ marginLeft: 6 }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out (the range is set in Data QC).", { n: sg.left.toLocaleString(), min: sg.range.min, max: sg.range.max })}</span> /* #3587 */}</div>}
+        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button>{sg.left > 0 && <span style={{ marginLeft: 6 }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out (the range is set in Data QC).", { n: sg.left.toLocaleString(), min: sg.range.min, max: sg.range.max })}</span> /* #3587 */}</div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}
         {/* TASKS.csv #3796 — a minimum width under one column, said BEFORE the run: the outline is never narrower than the model's column */}
         {model && v("minWidth") > 0 && v("minWidth") < Math.min(model.cells[0]?.dx ?? Infinity, model.cells[0]?.dy ?? Infinity) - 1e-9 && <div style={warn}>{tr("A minimum mining width of {w} m is under this model's {c} m columns: a stope outline here is never narrower than one column, so the result is the grade shell's thickness mined, not a {w} m vein. For a body this narrow, estimate a model with a cell of {w} m or less, or read the intercepts diluted to the width below.", { w: v("minWidth"), c: Math.min(model.cells[0].dx, model.cells[0].dy) })}</div>}
-        {model && !dipTyped && modelSearchPlane(model.params) && (() => { const pl = modelSearchPlane(model.params); return <div style={{ ...note, marginTop: 2 }}>{tr("The model's estimate searched along a plane dipping {d}° towards {a}°.", { d: pl.dipDeg, a: pl.dipDirDeg })} <button onClick={() => setF((p) => ({ ...p, dip: String(pl.dipDeg), dipDir: String(pl.dipDirDeg) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use it as the dip")}</button></div>; })()}
+        {model && !dipTyped && modelSearchPlane(model.params) && (() => { const pl = modelSearchPlane(model.params); return <div style={{ ...note, marginTop: 2 }}>{tr("The model's estimate searched along a plane dipping {d}° towards {a}°.", { d: pl.dipDeg, a: pl.dipDirDeg })} <button onClick={() => setF((p) => ({ ...p, dip: String(pl.dipDeg), dipDir: String(pl.dipDirDeg) }))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use it as the dip")}</button></div>; })()}
         {model && !(v("zMin") > 0 || f.zMin !== "") && zRange && <div style={note}>{tr("Levels start at the model's base ({rl} m): type a round From RL to get round floors.", { rl: Math.round(zRange[0] * 10) / 10 })}</div>}{/* #3801 (6) */}
         {model && element && <MiningWidthIntercepts element={element} unit={unit} cutoff={cutV} minWidth={v("minWidth") || 0} dipDeg={dipTyped && !dipBad ? v("dip") : null} dipDirDeg={dipTyped && !dipBad ? v("dipDir") : null} />}
         {/* TASKS.csv #3797 (Matt's decision, 2026-11-16) — the optional Economics: revenue, cost and margin of the outlines, and a cut-off that carries the mining cost */}
@@ -222,14 +222,14 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           {econ && <div style={{ ...note, marginTop: 4 }}>
             {tr("Break-even cut-off including {costs}: {be} {unit}.", { costs: [econ.perTonne.mining > 0 && tr("mining {v}", { v: econ.perTonne.mining }), econ.perTonne.processing > 0 && tr("processing {v}", { v: econ.perTonne.processing }), econ.perTonne.other > 0 && tr("other {v}", { v: econ.perTonne.other })].filter(Boolean).join(" + ") + ` ${cur}/t`, be: Number(econ.breakEven.toPrecision(3)), unit: gradeUnitText(unit, element) + (element ? ` ${element}` : "") })}
             {econ.mill != null && econ.includes.length > 1 && <> {tr("Mill cut-off (processing only): {mill} {unit}.", { mill: Number(econ.mill.toPrecision(3)), unit: gradeUnitText(unit, element) + (element ? ` ${element}` : "") })}</>}
-            {" "}<button onClick={() => setF((p) => ({ ...p, cutoff: String(Number(econ.breakEven.toPrecision(4))), cutIn: "" }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use it as the cut-off")}</button>
+            {" "}<button onClick={() => setF((p) => ({ ...p, cutoff: String(Number(econ.breakEven.toPrecision(4))), cutIn: "" }))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use it as the cut-off")}</button>
           </div>}
           <div style={{ ...note, marginTop: 4 }}>{tr("Revenue is the metal inside the outlines, every block of them, at the price and recovery; mining, processing and other costs are charged on every diluted tonne. Not included: {list}.", { list: NOT_INCLUDED.map((x) => tr(x)).join(", ") })}</div>
         </details>}
         {rangeBad && <div style={warn}>{tr("From RL must be below To RL.")}</div>}
         {!busy
-          ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Outline the stopes")}</button>
-          : <button onClick={() => job.current?.cancel()} style={{ ...pBtn, marginTop: 8 }}>{busy.levels ? tr("Outlining level {k} of {n}: cancel", { k: busy.level, n: busy.levels }) : tr("Outlining: cancel")}</button>}{/* #2279 */}
+          ? <button onClick={run} disabled={missing} className="gs-btn gs-btn--block" style={{ marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Outline the stopes")}</button>
+          : <button onClick={() => job.current?.cancel()} className="gs-btn gs-btn--block" style={{ marginTop: 8 }}>{busy.levels ? tr("Outlining level {k} of {n}: cancel", { k: busy.level, n: busy.levels }) : tr("Outlining: cancel")}</button>}{/* #2279 */}
         {missing && !rangeBad && <div style={note}>{tr("Enter the cut-off, the level interval and the density: none has a default.")}</div>}
       </>)}
       {msg && <div style={warn}>{msg}</div>}
@@ -275,9 +275,9 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           </div>
           {res.levels.some((l) => l.stopes.some((s) => s.holesFilled)) && <div style={note}>{tr("Holes inside a patch were filled into the stope.")}</div>}
           <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-            <button onClick={addSolids} disabled={!res.totals.stopes || added.solids} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, opacity: !res.totals.stopes || added.solids ? 0.5 : 1 }}><Box size={13} /> {added.solids ? tr("Solids added") : tr("Stopes to the view")}</button>
-            <button onClick={addStrings} disabled={!res.totals.stopes || added.strings} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, opacity: !res.totals.stopes || added.strings ? 0.5 : 1 }}>{added.strings ? tr("Strings added") : tr("Outlines as strings")}</button>
-            <button onClick={exportCsv} disabled={!res.totals.stopes} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> CSV</button>
+            <button onClick={addSolids} disabled={!res.totals.stopes || added.solids} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, opacity: !res.totals.stopes || added.solids ? 0.5 : 1 }}><Box size={13} /> {added.solids ? tr("Solids added") : tr("Stopes to the view")}</button>
+            <button onClick={addStrings} disabled={!res.totals.stopes || added.strings} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, opacity: !res.totals.stopes || added.strings ? 0.5 : 1 }}>{added.strings ? tr("Strings added") : tr("Outlines as strings")}</button>
+            <button onClick={exportCsv} disabled={!res.totals.stopes} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> CSV</button>
           </div>
           <div style={{ ...note, marginTop: 4 }}>{tr("Conceptual, from your cut-off, width and skin on this block model. It is not a mine design, a Mineral Reserve or a Resource.")}</div>
         </div>
@@ -320,8 +320,8 @@ function StopesInProject({ stopes, saved = [], onAdd = null, strings, onShow, on
     <div style={{ marginTop: 10, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <div style={{ fontWeight: 600, fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Stopes in the project ({n})", { n: total })}</div>
       <div style={{ display: "flex", gap: 4, marginTop: 5, flexWrap: "wrap" }}>
-        {onShow && <button type="button" onClick={() => onShow(stopes.map((s) => s.id), !shownAll)} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0 }}>{shownAll ? tr("Hide all") : tr("Show all")}</button>}
-        <button type="button" onClick={() => drop(stopes.map((s) => s.id), allStrings, tr("Remove all {n} stope solid(s) from the project?", { n: total }) + andStrings(allStrings.length))} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0 }}>{tr("Remove all stopes ({n})", { n: total })}</button>
+        {onShow && <button type="button" onClick={() => onShow(stopes.map((s) => s.id), !shownAll)} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}>{shownAll ? tr("Hide all") : tr("Show all")}</button>}
+        <button type="button" onClick={() => drop(stopes.map((s) => s.id), allStrings, tr("Remove all {n} stope solid(s) from the project?", { n: total }) + andStrings(allStrings.length))} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}>{tr("Remove all stopes ({n})", { n: total })}</button>
       </div>
       {runs.map((r) => {
         const strs = stopeStringIds(strings, r.key), lv = level[r.key] ?? "";
@@ -331,7 +331,7 @@ function StopesInProject({ stopes, saved = [], onAdd = null, strings, onShow, on
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {onShow && <input type="checkbox" checked={r.visible > 0} onChange={(e) => onShow(r.ids, e.target.checked)} aria-label={tr("Show the stopes of {run}", { run: label })} />}
               <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{label}</span>
-              <button type="button" onClick={() => drop(r.ids, strs, tr("Remove the {n} stope solid(s) of {run}?", { n: r.count, run: label }) + andStrings(strs.length))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Remove")}</button>
+              <button type="button" onClick={() => drop(r.ids, strs, tr("Remove the {n} stope solid(s) of {run}?", { n: r.count, run: label }) + andStrings(strs.length))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Remove")}</button>
             </div>
             <div style={{ ...note, marginTop: 2 }}>
               {tr("{n} stope(s) on {l} level(s), {t} t", { n: r.count, l: r.levels.length, t: big(r.tonnes) })}{r.hasMetal && r.tonnes > 0 && r.element ? ` · ${gradeWithElement(r.metalU / r.tonnes, r.unit, r.element)} · ${(() => { const mt = pitMetalOf(r.unit, r.element); return mt ? metalAmountText(r.metalU * mt.factor, mt.unit, r.element, big) : ""; })()}` : ""}{r.density ? ` · ${tr("at {d} t/m³ (typed)", { d: r.density })}` : ""}{/* #3795 / #3799 — grade, metal and density of a saved run */}{r.when ? ` · ${r.when.slice(0, 10)}` : ""}{r.key.startsWith("earlier|") ? ` · ${tr("from an earlier session")}` : ""}
@@ -342,14 +342,14 @@ function StopesInProject({ stopes, saved = [], onAdd = null, strings, onShow, on
                   <option value="">{tr("A level…")}</option>
                   {[...r.levels].reverse().map((rl) => <option key={rl} value={rl}>{tr("{rl} m", { rl })}</option>)}
                 </select>
-                <button type="button" disabled={lv === ""} onClick={() => { const ids = stopeIdsOnLevel(stopes, r.key, Number(lv)); drop(ids, [], tr("Remove the {n} stope solid(s) of {run} on the {rl} m level?", { n: ids.length, run: label, rl: lv })); setLevel((p) => ({ ...p, [r.key]: "" })); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px", opacity: lv === "" ? 0.5 : 1 }}>{tr("Remove level")}</button>
+                <button type="button" disabled={lv === ""} onClick={() => { const ids = stopeIdsOnLevel(stopes, r.key, Number(lv)); drop(ids, [], tr("Remove the {n} stope solid(s) of {run} on the {rl} m level?", { n: ids.length, run: label, rl: lv })); setLevel((p) => ({ ...p, [r.key]: "" })); }} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px", opacity: lv === "" ? 0.5 : 1 }}>{tr("Remove level")}</button>
               </div>
             )}
           </div>
         );
       })}
       {allStrings.length > 0 && allStrings.length > runs.reduce((a, r) => a + stopeStringIds(strings, r.key).length, 0) && <div style={{ ...note, marginTop: 6 }}>{tr("Outline strings sent before runs were tagged are not removed with a run: Remove all stopes takes them, or remove them in Strings.")}</div>}
-      {said && <div role="status" style={{ ...note, marginTop: 6 }}>{said}{last && onAdd && last.surfaces.length > 0 && <> <button type="button" onClick={restore} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Restore")}</button></>}</div>}
+      {said && <div role="status" style={{ ...note, marginTop: 6 }}>{said}{last && onAdd && last.surfaces.length > 0 && <> <button type="button" onClick={restore} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Restore")}</button></>}</div>}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { X, Globe } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #963
-import { overlay, panel, header, label, sel, btn } from "../lib/modalStyles.js";
+import { overlay, panel, header, label, sel } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { geochemFetch } from "../lib/desktop.js";
@@ -173,7 +173,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
           </div>
           <div style={{ ...small, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span>{!area && project?.crsSet === false ? tr("The project's coordinate system is not chosen yet, so its data cannot be placed: choose it (status bar) or draw an area.") : area ? tr("Area: {w}° × {h}° around {lon}, {lat} ({from})", { w: (area[2] - area[0]).toFixed(2), h: (area[3] - area[1]).toFixed(2), lon: ((area[0] + area[2]) / 2).toFixed(3), lat: ((area[1] + area[3]) / 2).toFixed(3), from: areaFrom === "drawn" ? tr("drawn") : tr("the project's data, with a margin") }) : tr("No area yet: the project has no located data. Draw one.")}</span>
-            <button onClick={() => setDrawing(true)} style={{ ...btn(false), padding: "4px 10px" }}>{tr("Draw area…")}</button>
+            <button onClick={() => setDrawing(true)} className="gs-btn" style={{ padding: "4px 10px" }}>{tr("Draw area…")}</button>
           </div>
           {tooBig && <div role="alert" style={{ ...small, color: "var(--color-warn-text)" }}>{tr("The area is larger than {n}° in one direction. Draw a smaller one: this is for a project, not a province.", { n: MAX_DEG })}</div>}
           <div role="listbox" aria-label={tr("Surveys")} style={{ border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 190, overflowY: "auto" }}>
@@ -200,7 +200,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
                 </label>
               )}
               {entry.downloadable && !ngsa && !cdogs && (
-                <button onClick={download} disabled={!!busy || !area || tooBig || !coversArea(entry, area)} style={{ ...btn(true), padding: "7px 12px", alignSelf: "flex-start", opacity: busy || !area || tooBig ? 0.6 : 1 }}>
+                <button onClick={download} disabled={!!busy || !area || tooBig || !coversArea(entry, area)} className="gs-btn gs-btn--primary" style={{ padding: "7px 12px", alignSelf: "flex-start", opacity: busy || !area || tooBig ? 0.6 : 1 }}>
                   {busy || (area && !coversArea(entry, area) ? tr("This survey does not cover the area") : tr("Download the samples in the area"))}
                 </button>
               )}
@@ -210,7 +210,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
                   <select value={cdogs.pick} onChange={(e) => setCdogs({ ...cdogs, pick: Number(e.target.value) })} aria-label={tr("Survey and data package")} style={sel}>
                     {cdogs.cands.map((c, i) => <option key={i} value={i}>{`${c.year || "?"} · ${c.name.slice(0, 70)}${c.name.length > 70 ? "…" : ""} — ${c.sampleType || tr("sample type not given")}${c.prep ? `, ${c.prep}` : ""} — ${c.pkgName}${c.n ? ` (${c.n})` : ""}`}</option>)}
                   </select>
-                  <button onClick={importCdogs} disabled={!!busy} style={{ ...btn(true), padding: "7px 12px", alignSelf: "flex-start", opacity: busy ? 0.6 : 1 }}>{busy || tr("Continue to the import")}</button>
+                  <button onClick={importCdogs} disabled={!!busy} className="gs-btn gs-btn--primary" /* gs-primary-alt: a later step of the dialog */ style={{ padding: "7px 12px", alignSelf: "flex-start", opacity: busy ? 0.6 : 1 }}>{busy || tr("Continue to the import")}</button>
                 </div>
               )}
               {ngsa && (
@@ -219,7 +219,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
                   <select value={ngsa.combos.indexOf(ngsa.pick)} onChange={(e) => setNgsa({ ...ngsa, pick: ngsa.combos[Number(e.target.value)] })} aria-label={tr("Fraction, depth and digestion")} style={sel}>
                     {ngsa.combos.map((k, i) => <option key={i} value={i}>{comboLabel(k)}</option>)}
                   </select>
-                  <button onClick={importNgsa} style={{ ...btn(true), padding: "7px 12px", alignSelf: "flex-start" }}>{tr("Continue to the import")}</button>
+                  <button onClick={importNgsa} className="gs-btn gs-btn--primary" /* gs-primary-alt: a later step of the dialog */ style={{ padding: "7px 12px", alignSelf: "flex-start" }}>{tr("Continue to the import")}</button>
                 </div>
               )}
             </div>

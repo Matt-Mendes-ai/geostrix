@@ -82,8 +82,8 @@ export default function DrillTableModal({ request = {}, onClose }) {
               </select>
               <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("Find in any column")} aria-label={tr("Find in any column")} style={{ ...sel, flex: 1, minWidth: 160 }} />
               <span role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{order.length === table.n ? tr("{n} rows", { n: table.n.toLocaleString() }) : tr("{n} of {m} rows", { n: order.length.toLocaleString(), m: table.n.toLocaleString() })}</span>
-              {hasFilter && <button type="button" style={btn} onClick={() => { setFilters({}); setSearch(""); }}>{tr("Clear filters")}</button>}
-              <button type="button" style={btn} onClick={exportCsv} disabled={!order.length} title={tr("Save the rows shown as a CSV")}><Download size={13} />{" "}{tr("Export CSV")}</button>
+              {hasFilter && <button type="button" className="gs-btn" onClick={() => { setFilters({}); setSearch(""); }}>{tr("Clear filters")}</button>}
+              <button type="button" className="gs-btn" onClick={exportCsv} disabled={!order.length} title={tr("Save the rows shown as a CSV")}><Download size={13} />{" "}{tr("Export CSV")}</button>
             </div>
             <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, minHeight: 0, overflow: "auto", position: "relative" }}>
               <div style={{ width, position: "sticky", top: 0, zIndex: 1, background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)" }}>
@@ -117,7 +117,7 @@ export default function DrillTableModal({ request = {}, onClose }) {
           </>
         )}
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <button type="button" style={btn} onClick={onClose}>{tr("Close")}</button>
+          <button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -127,5 +127,4 @@ export default function DrillTableModal({ request = {}, onClose }) {
 const panel = { width: "min(980px, 96vw)", height: "min(720px, 90vh)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const header = { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const btn = { display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };
 const cell = { width: COL_W, flexShrink: 0, boxSizing: "border-box", padding: "4px 6px", fontSize: "var(--font-size-sm)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: "16px", borderRight: "1px solid var(--color-border-subtle)" };

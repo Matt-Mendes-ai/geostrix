@@ -118,7 +118,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
   const tabBtn = (id, label, Icon) => (
     <button
       onClick={() => setTab((t) => (t === id ? null : id))}
-      style={{ ...btn, background: tab === id ? "#e3ecf5" : "var(--color-bg-subtle)", borderColor: tab === id ? "var(--color-selected-border)" : "var(--color-border-light)" }}
+      data-btn-own="" style={{ ...btn, background: tab === id ? "#e3ecf5" : "var(--color-bg-subtle)", borderColor: tab === id ? "var(--color-selected-border)" : "var(--color-border-light)" }}
     >
       <Icon size={12} /> {label}
     </button>
@@ -148,7 +148,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
           {/* TASKS.csv #1733 — the project's own lift / drift, one click */}
           {ownDev && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.4 }}>
             <span style={{ flex: 1 }}>{tr("This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).", { l: ownDev.lift.toFixed(2), d: ownDev.drift.toFixed(2), n: ownDev.holes })}</span>
-            <button type="button" onClick={() => onUpdate(hole.id, { lift: +ownDev.lift.toFixed(2), drift: +ownDev.drift.toFixed(2) })} style={{ fontSize: "var(--font-size-xs)", padding: "2px 7px", borderRadius: 5, border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Use them")}</button>
+            <button type="button" onClick={() => onUpdate(hole.id, { lift: +ownDev.lift.toFixed(2), drift: +ownDev.drift.toFixed(2) })} className="gs-btn gs-btn--sm">{tr("Use them")}</button>
           </div>}
           <div style={rowStyle}>
             <TargetField label={tr("Target E")} value={target?.x} onChange={(v) => setTarget({ x: v })} />
@@ -178,10 +178,10 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
               {devSolved && (
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4, lineHeight: 1.5 }}>{tr("Aim-off for the deviation:")}{" "}<b>{tr("Az {azimuth}°", { azimuth: devSolved.azimuth.toFixed(1) })}</b> / <b>{tr("Dip {dip}°", { dip: devSolved.dip.toFixed(1) })}</b>{tr(", target reached at {devSolved} m{v}.", { devSolved: devSolved.length.toFixed(1), v: devSolved.miss >= 1 ? tr(" (closest {miss} m — check the lift / drift)", { miss: devSolved.miss.toFixed(1) }) : "" })}</div>
               )}
-              <button onClick={applySolved} style={{ ...btn, background: "#e3ecf5", borderColor: "var(--color-selected-border)" }}>{tr("Apply {v} orientation{v2}", { v: devSolved ? tr("aim-off") : tr("solved"), v2: past ? tr(", {past} m past the target", { past }) : "" })}
+              <button onClick={applySolved} className="gs-btn gs-btn--sm" style={{ width: "100%" }}>{tr("Apply {v} orientation{v2}", { v: devSolved ? tr("aim-off") : tr("solved"), v2: past ? tr(", {past} m past the target", { past }) : "" })}
               </button>
               {devSolved && (
-                <button onClick={applySolvedStraightOnly} style={{ ...btn, marginTop: 4 }}>{tr("Apply the straight aim instead")}</button>
+                <button onClick={applySolvedStraightOnly} className="gs-btn gs-btn--sm" style={{ width: "100%", marginTop: 4 }}>{tr("Apply the straight aim instead")}</button>
               )}
             </div>
           )}

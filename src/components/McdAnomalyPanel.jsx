@@ -61,7 +61,6 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
   const where = (r) => (r.hole_id != null && r.from != null ? `${r.hole_id} ${r.from}–${r.to} m` : r.sample_id || r.id || "");
   const lbl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
   const sel = { background: "var(--color-bg)", color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 6px", fontSize: "var(--font-size-sm)", fontFamily: "inherit" };
-  const btn = (primary) => ({ ...sel, cursor: "pointer", padding: "5px 12px", ...(primary ? { background: "var(--color-selected-bg)", color: "var(--color-primary)", borderColor: "var(--color-selected-border)" } : {}) });
   return (
     <div style={overlay} {...backdropProps(onClose)}>
       <div role="dialog" aria-modal="true" aria-label={tr("Multivariate anomaly score")} onClick={(e) => e.stopPropagation()} style={{ width: "min(640px, 94vw)", maxHeight: "88vh", overflow: "auto", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -89,7 +88,7 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button type="button" style={btn(true)} disabled={busy || chosen.length < 3} onClick={run}>{busy ? tr("Scoring…") : tr("Score")}</button>
+          <button type="button" className="gs-btn" disabled={busy || chosen.length < 3} onClick={run}>{busy ? tr("Scoring…") : tr("Score")}</button>
           {chosen.length < 3 && <span style={lbl}>{tr("Choose at least three elements.")}</span>}
         </div>
         {err && <div role="alert" style={{ ...lbl, color: "var(--color-danger-text)" }}>{err}</div>}
@@ -101,11 +100,11 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
           </table>}
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
             <label style={lbl}>{tr("Column name")}<input value={name} onChange={(e) => setName(e.target.value.trim())} style={{ ...sel, display: "block", marginTop: 3, width: 150 }} /></label>
-            <button type="button" style={btn(true)} disabled={!validName} onClick={write}>{tr("Write the score")}</button>
+            <button type="button" className="gs-btn gs-btn--primary" disabled={!validName} onClick={write}>{tr("Write the score")}</button>
             {exists && <span style={{ ...lbl, color: "var(--color-warn-text)" }}>{tr("\"{n}\" already exists — pick another name.", { n: name })}</span>}
           </div>
         </>)}
-        <div style={{ display: "flex", justifyContent: "flex-end" }}><button type="button" style={btn(false)} onClick={onClose}>{tr("Close")}</button></div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}><button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button></div>
       </div>
     </div>
   );

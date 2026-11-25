@@ -44,12 +44,12 @@ export default function PlannedHolePattern({ start, orient, ground, groundLabel,
     placed.forEach((h) => onAdd({ name: h.name, x: h.x, y: h.y, z: h.z, azimuth: orient.azimuth, dip: orient.dip, length: orient.length, zSource: h.zSource, notes: `pattern: line ${h.line}, hole ${h.station}`, ...(p.type.trim() ? { type: p.type.trim() } : {}) /* #2978 (3) */ }));
     setDone(tr("{n} planned hole(s) added: {first} to {last}.", { n: placed.length, first: placed[0].name, last: placed[placed.length - 1].name }));
   };
-  if (!open) return <button type="button" onClick={() => setOpen(true)} style={{ ...btn, width: "100%", marginTop: 5 }} aria-expanded={false}>{tr("Line / grid of holes…")}</button>;
+  if (!open) return <button type="button" onClick={() => setOpen(true)} className="gs-btn gs-btn--sm" style={{ width: "100%", marginTop: 5 }} aria-expanded={false}>{tr("Line / grid of holes…")}</button>;
   return (
     <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--color-border)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
         <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)" }}>{tr("Line / grid of holes")}</span>
-        <button type="button" onClick={() => setOpen(false)} style={{ ...btn, padding: "1px 7px" }} aria-expanded>{tr("Close")}</button>
+        <button type="button" onClick={() => setOpen(false)} className="gs-btn gs-btn--sm" style={{ width: "100%", padding: "1px 7px" }} aria-expanded>{tr("Close")}</button>
       </div>
       <div style={small}>{tr("From the E / N above, every hole with the Az / Dip / Length above. Lines step to the right of the bearing.")}</div>
       <div style={{ display: "flex", gap: 4, margin: "5px 0" }}>
@@ -68,7 +68,7 @@ export default function PlannedHolePattern({ start, orient, ground, groundLabel,
       {noZ > 0 && <div style={{ ...small, color: "var(--color-warn-text)" }}>{tr("{n} hole(s) have no Elev: no ground is known there. Type an Elev above for them.", { n: noZ })}</div>}
       {!orient && <div style={{ ...small, color: "var(--color-warn-text)" }}>{tr("Enter the Az, Dip and Length above (a length above 0).")}</div>}
       {pat.error === "inputs" && <div style={small}>{tr("Enter the E / N above, a bearing, a spacing and a number of holes; for more than one line, a line spacing.")}</div>}
-      <button type="button" onClick={add} disabled={!ready} style={{ ...btn, width: "100%", marginTop: 5, opacity: ready ? 1 : 0.5 }}>{ready ? tr("+ Add {n} hole(s)", { n: placed.length }) : tr("+ Add the holes")}</button>
+      <button type="button" onClick={add} disabled={!ready} className="gs-btn gs-btn--sm" style={{ width: "100%", marginTop: 5, opacity: ready ? 1 : 0.5 }}>{ready ? tr("+ Add {n} hole(s)", { n: placed.length }) : tr("+ Add the holes")}</button>
       {done && <div role="status" style={{ ...small, marginTop: 4 }}>{done}</div>}
     </div>
   );

@@ -127,7 +127,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <span style={{ ...rowLabel, marginBottom: 0 }} title={tr("Recategorize: instead of one flat colour, split this element into grade classes, each with its own colour — like a graduated/categorized legend.")}>{tr("Grade classes (recategorize)")}</span>
-              {!local.breaks.length && <button onClick={addBreak} style={smallBtn}><Plus size={12} />{" "}{tr("Add classes")}</button>}
+              {!local.breaks.length && <button onClick={addBreak} className="gs-btn gs-btn--sm"><Plus size={12} />{" "}{tr("Add classes")}</button>}
             </div>
             {(major || logLims || basisText) && !local.breaks.some((b) => b.seeded === false) /* #2941 — not once a class was edited (rounded, a limit added) */ && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{major ? tr("Default classes: round steps of the data, as for a major component (a median of {p50} {unit}): {limits}.", { p50: +range.p50.toFixed(2), unit: unitLbl, limits: major.join(" / ") }) : logLims ? tr("Default classes: round limits on a log scale between the median ({p50}) and the 97.5th percentile ({p975}): {limits} {unit}.", { p50: +Number(range.p50).toPrecision(3), p975: +Number(range.p975).toPrecision(3), limits: logLims.join(" / "), unit: unitLbl }) /* #3260 */ : basisText}</div>}{/* #2519; #2935 */}
             {range.basis?.pile && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("{pct} % of the samples sit on the column's lowest value, {v} {unit}: likely half a detection limit, not a measured grade. They fall in the palest class.", { pct: Math.round(range.basis.pile.share * 100), v: gradeText(range.basis.pile.value), unit: unitLbl })}</div> /* TASKS.csv #3773 */}
@@ -136,7 +136,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                 <span>{tr("Saved threshold:")}</span>
                 {offers.map((o) => {
                   const has = local.breaks.some((b) => b.max === o.value);
-                  return <button key={o.key} type="button" disabled={has} onClick={() => addOffer(o.value)} style={{ ...smallBtn, padding: "1px 6px", opacity: has ? 0.6 : 1, cursor: has ? "default" : "pointer" }}
+                  return <button key={o.key} type="button" disabled={has} onClick={() => addOffer(o.value)} className="gs-btn gs-btn--sm" style={{ padding: "1px 6px", opacity: has ? 0.6 : 1, cursor: has ? "default" : "pointer" }}
                     title={has ? tr("Already a class limit.") : tr("{rule}{pop}, decided {date}. Click to add it as a class limit.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>
                     {o.population ? `${o.population.split(": ").pop()} ` : ""}{gradeText(o.value)} {unitLbl}</button>;
                 })}
@@ -144,9 +144,9 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
             )}
             {local.breaks.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>{/* #2519 */}
-                <button type="button" onClick={roundAll} style={smallBtn} title={tr("Round every class limit to two significant figures")}>{tr("Round the limits")}</button>
+                <button type="button" onClick={roundAll} className="gs-btn gs-btn--sm" title={tr("Round every class limit to two significant figures")}>{tr("Round the limits")}</button>
                 <NumberInput allowEmpty value={cutoff} onChange={(v) => setCutoff(v == null ? "" : String(v))} placeholder={tr("Cut-off ({unit})", { unit: unitLbl })} aria-label={tr("Cut-off to add as a class limit")} style={{ width: 110, fontSize: "var(--font-size-sm)", padding: "3px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" }} />
-                <button type="button" onClick={addCutoff} disabled={cutoff === ""} style={smallBtn} title={tr("Split the class holding this grade there, so the economic cut-off is a class limit")}>{tr("Add as a class limit")}</button>
+                <button type="button" onClick={addCutoff} disabled={cutoff === ""} className="gs-btn gs-btn--sm" title={tr("Split the class holding this grade there, so the economic cut-off is a class limit")}>{tr("Add as a class limit")}</button>
               </div>
             )}
             {local.breaks.length > 0 && (
@@ -167,17 +167,17 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                     <Trash2 aria-label={tr("Remove this grade class")} title={tr("Remove this grade class")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)", marginLeft: "auto" }} onClick={() => removeBreak(i)} />
                   </div>
                 ))}
-                <button onClick={addBreak} style={{ ...smallBtn, alignSelf: "flex-start" }}><Plus size={12} />{" "}{tr("Add class")}</button>
+                <button onClick={addBreak} className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-start" }}><Plus size={12} />{" "}{tr("Add class")}</button>
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("A sample takes the colour of the first class whose value is ≤ its threshold; a value above every threshold takes the top class's colour, so none disappears.")}</div>
               </div>
             )}
           </div>
 
-          <button onClick={reset} style={{ ...smallBtn, alignSelf: "flex-start" }}><RotateCcw size={12} />{" "}{tr("Reset to default")}</button>
+          <button onClick={reset} className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-start" }}><RotateCcw size={12} />{" "}{tr("Reset to default")}</button>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(true), flex: 1 }}>{tr("Done")}</button>
+          <button onClick={onClose} className="gs-btn gs-btn--primary" style={{ flex: 1 }}>{tr("Done")}</button>
         </div>
       </div>
     </div>
@@ -190,5 +190,3 @@ const row = { display: "flex", alignItems: "center", gap: 8 };
 const rowLabel = { fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", width: 96, flexShrink: 0 };
 const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const colorInp = { width: 34, height: 28, padding: 2, border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", cursor: "pointer", flexShrink: 0 };
-const smallBtn = { display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border-light)", background: "transparent", color: "var(--color-text-secondary)" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });

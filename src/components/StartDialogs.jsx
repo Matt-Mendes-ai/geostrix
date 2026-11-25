@@ -39,7 +39,7 @@ function DropArea({ onFiles, multiple, accept, label, busy, picture }) {
       style={{ border: `1.5px dashed ${over ? "var(--color-primary)" : "var(--color-tier-basic)"}`, borderRadius: 14, padding: "18px 16px", textAlign: "center", background: over ? "var(--color-selected-bg)" : "linear-gradient(160deg, var(--color-bg) 0%, var(--color-tier-basic-bg) 75%)", boxShadow: "var(--shadow-lift)" }}>{/* #3956: style A */}
       {picture && <div style={{ maxWidth: 240, margin: "0 auto 8px" }}><DropPicture picture={picture} /></div>}{/* TASKS.csv #3939 */}
       <div style={{ marginBottom: 10 }}>{label}</div>
-      <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => input.current?.click()}>{busy ? tr("Reading…") : tr("Browse…")}</button>
+      <button type="button" className="gs-btn" disabled={busy} onClick={() => input.current?.click()}>{busy ? tr("Reading…") : tr("Browse…")}</button>
       <input ref={input} type="file" hidden multiple={multiple} accept={accept} onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ""; if (f.length) onFiles(f); }} />
     </div>
   );
@@ -187,15 +187,15 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
     <div data-start-card="" role="status" className="ge-card" style={{ ...panel({ width: "min(380px, calc(100vw - 32px))" }), borderRadius: 12, boxShadow: "var(--shadow-pop)", position: "fixed", right: 16, bottom: 40, zIndex: Z, padding: "12px 14px", gap: 6 }}>{/* #3956: the shared card */}
       <div className="ge-card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, margin: "-12px -14px 2px", padding: "10px 14px 8px" }}>
         <b>{tr("Your project is in.")}</b>
-        <button type="button" style={link} onClick={onClose}>{tr("Close")}</button>
+        <button data-btn-own="" type="button" style={link} onClick={onClose}>{tr("Close")}</button>
       </div>
       {card.checking && <div style={small}>{tr("Checking your data…")}</div>}
       {card.qc && <div data-start-qc="">{card.qc}</div>}
       {/* TASKS.csv #3939 — three icon lines */}
       <div style={cardLine}><Rotate3d size={16} aria-hidden="true" style={cardIcon} /><span>{tr("Look around: drag to turn, wheel to zoom.")}</span></div>
-      {!noDrill && <div style={cardLine}><Boxes size={16} aria-hidden="true" style={cardIcon} /><span>{tr("Model: the green Model button, one step at a time.")} <button type="button" style={link} onClick={() => { goTo?.("viewer"); onClose?.(); }}>{tr("Show me")}</button></span></div>}
-      <div style={cardLine}><FileText size={16} aria-hidden="true" style={cardIcon} /><span>{tr("Sheet: Layout > Sheets, in one click.")} <button type="button" style={link} onClick={() => { goTo?.("layout"); onClose?.(); }}>{tr("Open Layout")}</button></span></div>
-      <div>{tr("New here? First steps shows the everyday path in six screens.")} <button type="button" style={link} data-start-guide="" onClick={() => openHelp("first-steps")}>{tr("First steps")}</button></div>{/* TASKS.csv #3887 */}
+      {!noDrill && <div style={cardLine}><Boxes size={16} aria-hidden="true" style={cardIcon} /><span>{tr("Model: the green Model button, one step at a time.")} <button data-btn-own="" type="button" style={link} onClick={() => { goTo?.("viewer"); onClose?.(); }}>{tr("Show me")}</button></span></div>}
+      <div style={cardLine}><FileText size={16} aria-hidden="true" style={cardIcon} /><span>{tr("Sheet: Layout > Sheets, in one click.")} <button data-btn-own="" type="button" style={link} onClick={() => { goTo?.("layout"); onClose?.(); }}>{tr("Open Layout")}</button></span></div>
+      <div>{tr("New here? First steps shows the everyday path in six screens.")} <button data-btn-own="" type="button" style={link} data-start-guide="" onClick={() => openHelp("first-steps")}>{tr("First steps")}</button></div>{/* TASKS.csv #3887 */}
     </div>
   );
 
@@ -205,7 +205,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
       <div role="dialog" aria-modal="true" aria-labelledby="ge-start-title" className="ge-card" style={{ ...panel({ width: "min(560px, calc(100vw - 32px))", maxHeight: "calc(100vh - 32px)" }), borderRadius: 12, boxShadow: "var(--shadow-pop)", overflow: "auto", padding: "18px 20px" }}>{/* #3956: the shared card */}
         <div className="ge-card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, margin: "-18px -20px 0", padding: "14px 20px 4px", borderBottom: "none" }}>
           <h2 id="ge-start-title" style={{ margin: 0, fontSize: "var(--font-size-xl)" }}>{tr("Let's begin a project!")}</h2>
-          <button type="button" style={link} onClick={onClose}>{tr("Close")}</button>
+          <button data-btn-own="" type="button" style={link} onClick={onClose}>{tr("Close")}</button>
         </div>
         <div style={{ ...small, margin: "4px 0 12px" }}>{title}</div>
 
@@ -217,26 +217,26 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
             <div data-start-crs="" style={{ marginTop: 8, padding: 10, border: "1px solid var(--color-border)", borderRadius: 6 }}>
               <div>{tr("Which coordinate system is this file in?")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
-                {epsg && <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => pickCrs(Number(epsg))}>{tr("The project's: {crs}", { crs: crsName(epsg) || `EPSG:${epsg}` })}</button>}
+                {epsg && <button type="button" className="gs-btn" disabled={busy} onClick={() => pickCrs(Number(epsg))}>{tr("The project's: {crs}", { crs: crsName(epsg) || `EPSG:${epsg}` })}</button>}
                 <label style={small}>{epsg ? tr("Another, by its EPSG code:") : tr("Its EPSG code:")} <input value={picker.typed} onChange={(e) => setPicker((p) => ({ ...p, typed: e.target.value, error: null }))} placeholder="32609" style={{ width: 90 }} /></label>
-                <button type="button" style={rowBtn(!epsg)} disabled={busy} onClick={() => pickCrs(parseEpsgInput(picker.typed))}>{tr("Use it")}</button>
+                <button type="button" className="gs-btn" disabled={busy} onClick={() => pickCrs(parseEpsgInput(picker.typed))}>{tr("Use it")}</button>
               </div>
               {picker.error && <div style={{ ...small, color: "var(--color-warn-text)", marginTop: 4 }}>{picker.error}</div>}
             </div>
           )}
           <div style={{ marginTop: 12 }}>
-            <button type="button" style={rowBtn(ground === "make")} aria-pressed={ground === "make"} onClick={() => { setGround("make"); setNote({ text: tr("OK. GeoStrix will make it once it knows where your project is, in the next step.") }); }}>
+            <button data-btn-own="" type="button" style={rowBtn(ground === "make")} aria-pressed={ground === "make"} onClick={() => { setGround("make"); setNote({ text: tr("OK. GeoStrix will make it once it knows where your project is, in the next step.") }); }}>
               {tr("Make one for me")}
             </button>
           </div>
           <div style={{ ...small, marginTop: 10, display: "flex", gap: 14, flexWrap: "wrap" }}>
-            <button type="button" style={link} onClick={() => { setGround("skip"); next(); }}>{tr("Skip for now")}</button>
-            <button type="button" style={link} onClick={() => { onClose?.(); goTo?.("viewer"); }}>{tr("Try an example")}</button>
-            {onOpenProject && <button type="button" style={link} onClick={() => { onClose?.(); onOpenProject(); }}>{tr("Open a saved project")}</button>}
+            <button data-btn-own="" type="button" style={link} onClick={() => { setGround("skip"); next(); }}>{tr("Skip for now")}</button>
+            <button data-btn-own="" type="button" style={link} onClick={() => { onClose?.(); goTo?.("viewer"); }}>{tr("Try an example")}</button>
+            {onOpenProject && <button data-btn-own="" type="button" style={link} onClick={() => { onClose?.(); onOpenProject(); }}>{tr("Open a saved project")}</button>}
           </div>
           <label style={{ display: "block", marginTop: 12 }}><input type="checkbox" checked={noDrill} onChange={(e) => setNoDrill(e.target.checked)} /> {tr("I'm not using drill hole data.")}</label>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-            <button type="button" style={rowBtn(true)} data-start-next="" onClick={next}>{tr("Next")}</button>
+            <button type="button" className="gs-btn gs-btn--primary" data-start-next="" onClick={next}>{tr("Next")}</button>
           </div>
         </>)}
 
@@ -249,8 +249,8 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
               <b>{tr("What is this?")}</b> <span style={small}>{u.text}</span>
               {u.where && <div style={small}>{u.where}</div>}
               <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
-                <button type="button" style={link} onClick={() => { sendFiles([u.file]); setUnplaced((x) => x.filter((y) => y !== u)); }}>{tr("Try it anyway")}</button>
-                <button type="button" style={link} onClick={() => setUnplaced((x) => x.filter((y) => y !== u))}>{tr("Leave it out")}</button>
+                <button data-btn-own="" type="button" style={link} onClick={() => { sendFiles([u.file]); setUnplaced((x) => x.filter((y) => y !== u)); }}>{tr("Try it anyway")}</button>
+                <button data-btn-own="" type="button" style={link} onClick={() => setUnplaced((x) => x.filter((y) => y !== u))}>{tr("Leave it out")}</button>
               </div>
             </div>
           ))}
@@ -267,8 +267,8 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
             <div data-start-zone="" style={{ marginTop: 12, padding: 10, border: "1px solid var(--color-warn-border)", borderRadius: 6 }}>
               <div>{tr("Check the UTM zone: your collars sit a median {v} m off this ground, but within {v2} m of it read as {name}.", { v: Math.round(zoneAsk.misfit.medianDz), name: zoneAsk.better.name, v2: Math.round(zoneAsk.better.medianDz) })}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => { const code = zoneAsk.better.code; setEpsg(code); setZoneAsk(null); makeGround(code); }}>{tr("Use {name} and download again", { name: zoneAsk.better.name })}</button>
-                <button type="button" style={rowBtn(false)} disabled={busy} onClick={() => keepGround(zoneAsk.parsed, tr(" The collars sit a median {v} m off this terrain (in {name} they would sit within {v2} m) — kept as you chose.", { v: Math.round(zoneAsk.misfit.medianDz), name: zoneAsk.better.name, v2: Math.round(zoneAsk.better.medianDz) }))}>{tr("Keep this ground")}</button>
+                <button type="button" className="gs-btn gs-btn--primary" /* gs-primary-alt: one question of the wizard, not the step's own button */ disabled={busy} onClick={() => { const code = zoneAsk.better.code; setEpsg(code); setZoneAsk(null); makeGround(code); }}>{tr("Use {name} and download again", { name: zoneAsk.better.name })}</button>
+                <button type="button" className="gs-btn" disabled={busy} onClick={() => keepGround(zoneAsk.parsed, tr(" The collars sit a median {v} m off this terrain (in {name} they would sit within {v2} m) — kept as you chose.", { v: Math.round(zoneAsk.misfit.medianDz), name: zoneAsk.better.name, v2: Math.round(zoneAsk.better.medianDz) }))}>{tr("Keep this ground")}</button>
               </div>
             </div>
           )}
@@ -276,16 +276,16 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
             <div data-start-ground="" style={{ marginTop: 12, padding: 10, border: "1px solid var(--color-border)", borderRadius: 6 }}>
               <div>{tr("Make the ground for this area? GeoStrix downloads it from the Copernicus 30 m elevation model (copernicus-dem-30m.s3.amazonaws.com). Only the corner coordinates of the area are sent.")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                <button type="button" style={rowBtn(true)} disabled={busy} onClick={() => makeGround()}>{busy ? tr("Downloading…") : tr("Download")}</button>
-                <button type="button" style={rowBtn(false)} disabled={busy} onClick={() => setStripDone({ text: tr("Using the collar heights: the holes start where your collar file says. Add a terrain later with Add data.") })}>{tr("Use the collar heights instead (rough)")}</button>
-                <button type="button" style={rowBtn(false)} disabled={busy} onClick={() => setStripDone({ text: tr("No ground for now. Add a terrain later with Add data.") })}>{tr("No ground")}</button>
+                <button type="button" className="gs-btn gs-btn--primary" /* gs-primary-alt: another step of the wizard */ disabled={busy} onClick={() => makeGround()}>{busy ? tr("Downloading…") : tr("Download")}</button>
+                <button type="button" className="gs-btn" disabled={busy} onClick={() => setStripDone({ text: tr("Using the collar heights: the holes start where your collar file says. Add a terrain later with Add data.") })}>{tr("Use the collar heights instead (rough)")}</button>
+                <button type="button" className="gs-btn" disabled={busy} onClick={() => setStripDone({ text: tr("No ground for now. Add a terrain later with Add data.") })}>{tr("No ground")}</button>
               </div>
             </div>
           )}
           {noteLine(stripDone)}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
-            <button type="button" style={rowBtn(false)} onClick={() => setStep(1)}>{tr("Back")}</button>
-            <button type="button" style={rowBtn(true)} data-start-done="" onClick={finish}>{tr("Done: show my project")}</button>
+            <button type="button" className="gs-btn" onClick={() => setStep(1)}>{tr("Back")}</button>
+            <button type="button" className="gs-btn gs-btn--primary" /* gs-primary-alt: the last step of the wizard */ data-start-done="" onClick={finish}>{tr("Done: show my project")}</button>
           </div>
         </>)}
 

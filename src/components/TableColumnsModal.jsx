@@ -49,8 +49,8 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
         <div style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Filter columns")} aria-label={tr("Filter columns")} style={inp} />
-            <button type="button" style={mini} onClick={() => setKeep((s) => new Set([...s, ...shown]))}>{tr("Tick shown")}</button>
-            <button type="button" style={mini} onClick={() => setKeep((s) => { const n = new Set(s); shown.forEach((h) => n.delete(h)); return n; })}>{tr("Untick shown")}</button>
+            <button type="button" className="gs-btn gs-btn--sm" onClick={() => setKeep((s) => new Set([...s, ...shown]))}>{tr("Tick shown")}</button>
+            <button type="button" className="gs-btn gs-btn--sm" onClick={() => setKeep((s) => { const n = new Set(s); shown.forEach((h) => n.delete(h)); return n; })}>{tr("Untick shown")}</button>
           </div>
           <div role="group" aria-label={tr("Columns")} style={{ overflowY: "auto", maxHeight: 300, border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 8px", columns: 2 }}>
             {shown.map((h) => (
@@ -101,9 +101,9 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
           </div>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button type="button" style={btn(false)} onClick={cancel}>{tr("Don't open it")}</button>
-          <button type="button" style={btn(false)} onClick={() => onDone(true)} title={tr("Every column: this can close GeoStrix on this computer.")}>{tr("Open it whole anyway")}</button>
-          <button type="button" style={btn(true)} disabled={!keep.size || !fits || (rowsBy !== "all" && !holeCol) || !compOk} onClick={() => onDone({ keep: preview.headers.filter((h) => keep.has(h)), ...(ids && holeCol ? { holes: { col: holeCol, ids, label: rowsBy === "checked" ? tr("the checked holes") : tr("the holes in this project") } } : {}), ...(comp.on && compOk ? { composite: { hole: holeCol, from: comp.from, to: comp.to, lengthM: Number(comp.lengthM) } } : {}) /* #2345 */ })}>{tr("Read the {k} column(s)", { k: keep.size })}</button>
+          <button type="button" className="gs-btn" onClick={cancel}>{tr("Don't open it")}</button>
+          <button type="button" className="gs-btn" onClick={() => onDone(true)} title={tr("Every column: this can close GeoStrix on this computer.")}>{tr("Open it whole anyway")}</button>
+          <button type="button" className="gs-btn gs-btn--primary" disabled={!keep.size || !fits || (rowsBy !== "all" && !holeCol) || !compOk} onClick={() => onDone({ keep: preview.headers.filter((h) => keep.has(h)), ...(ids && holeCol ? { holes: { col: holeCol, ids, label: rowsBy === "checked" ? tr("the checked holes") : tr("the holes in this project") } } : {}), ...(comp.on && compOk ? { composite: { hole: holeCol, from: comp.from, to: comp.to, lengthM: Number(comp.lengthM) } } : {}) /* #2345 */ })}>{tr("Read the {k} column(s)", { k: keep.size })}</button>
         </div>
       </div>
     </div>
@@ -113,5 +113,3 @@ export default function TableColumnsModal({ name, preview, budget, onDone }) {
 const panel = { width: "min(640px, 96vw)", maxHeight: "90vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const inp = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const mini = { padding: "4px 8px", borderRadius: 5, border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "7px 14px", borderRadius: 6, fontSize: "var(--font-size-base)", fontFamily: "inherit", cursor: "pointer", border: primary ? "1px solid var(--color-accent)" : "1px solid var(--color-border)", background: primary ? "var(--color-accent)" : "var(--color-bg)", color: primary ? "var(--color-bg)" : "var(--color-text)" });

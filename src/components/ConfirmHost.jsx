@@ -4,7 +4,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { registerConfirmHost, askChoice } from "../lib/confirmDialog.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, panel, rowBtn } from "../lib/modalStyles.js";
+import { overlay, panel } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
 
 function Ask({ req, done }) {
@@ -23,9 +23,9 @@ function Ask({ req, done }) {
       <div style={panel({ width: "min(460px, calc(100vw - 32px))" })} role="alertdialog" aria-modal="true" aria-label={tr(confirmKind || choiceKind ? "Please confirm" : "Notice")} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "16px 18px", fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.5, whiteSpace: "pre-line", overflowWrap: "anywhere", maxHeight: "60vh", overflowY: "auto" }}>{req.message}</div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          {choiceKind && req.choices.map((c, i) => <button key={i} ref={c.primary ? okRef : undefined} type="button" style={rowBtn(c.primary)} onClick={() => answer(c.value)}>{tr(c.label)}</button>)}
-          {confirmKind && <button ref={cancelRef} type="button" style={rowBtn(false)} onClick={() => answer(false)}>{tr(req.cancelLabel)}</button>}
-          {!choiceKind && <button ref={okRef} type="button" style={req.destructive ? { ...rowBtn(false), borderColor: "var(--color-danger-border, var(--color-danger-icon))", color: "var(--color-danger-text)" } : rowBtn(true)} onClick={() => answer(true)}>{tr(req.okLabel)}</button>}
+          {choiceKind && req.choices.map((c, i) => <button key={i} ref={c.primary ? okRef : undefined} type="button" className={c.primary ? "gs-btn gs-btn--primary" : "gs-btn"} /* gs-primary-alt: the choice kind has no OK button */ onClick={() => answer(c.value)}>{tr(c.label)}</button>)}
+          {confirmKind && <button ref={cancelRef} type="button" className="gs-btn" onClick={() => answer(false)}>{tr(req.cancelLabel)}</button>}
+          {!choiceKind && <button ref={okRef} type="button" className={req.destructive ? "gs-btn gs-btn--danger" : "gs-btn gs-btn--primary"} onClick={() => answer(true)}>{tr(req.okLabel)}</button>}
         </div>
       </div>
     </div>

@@ -11,5 +11,5 @@ export default function RemoveAllUnits({ stackUnits, setStackUnits, setStackBrea
     if (!(await askConfirm(tr("Remove the {n} units from the stack? (Ctrl+Z undoes this.)", { n: stackUnits.length }), { okLabel: tr("Remove all"), destructive: true }))) return;
     setStackUnits([]); setStackBreaks([]); // one render: one step
   };
-  return <button type="button" onClick={remove} style={{ ...pBtn, width: "auto", marginBottom: 0, flex: "0 0 auto" }} data-remove-all="">{tr("Remove all")}</button>;
+  return <button type="button" onClick={remove} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, flex: "0 0 auto" }} data-remove-all="">{tr("Remove all")}</button>;
 }

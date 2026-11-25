@@ -5,7 +5,7 @@ import React, { useMemo, useState } from "react";
 import { X } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps, panel as panelOf, header, rowBtn } from "../lib/modalStyles.js";
+import { overlay, backdropProps, panel as panelOf, header } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { infoNotice } from "../lib/notices.js";
@@ -72,11 +72,11 @@ export default function GroupMineralsModal({ customLayers, mnlgy, ids, ctx, onCl
           {hasOld && <div style={note}>{tr("Merge adds these minerals to the Mineralization layer; Replace swaps it for them.")}</div>}
         </div>
         <div style={{ padding: "10px 14px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button onClick={onClose} style={rowBtn(false)}>{tr("Cancel")}</button>
+          <button onClick={onClose} className="gs-btn">{tr("Cancel")}</button>
           {hasOld ? (<>
-            <button disabled={!ok} onClick={() => apply(fresh)} style={{ ...rowBtn(false), opacity: ok ? 1 : 0.5 }}>{tr("Replace")}</button>
-            <button disabled={!ok || !merged?.rows?.length} onClick={() => apply(merged)} style={{ ...rowBtn(true), opacity: ok ? 1 : 0.5 }}>{tr("Merge")}</button>
-          </>) : <button disabled={!ok} onClick={() => apply(fresh)} style={{ ...rowBtn(true), opacity: ok ? 1 : 0.5 }}>{tr("Group")}</button>}
+            <button disabled={!ok} onClick={() => apply(fresh)} className="gs-btn" style={{ opacity: ok ? 1 : 0.5 }}>{tr("Replace")}</button>
+            <button disabled={!ok || !merged?.rows?.length} onClick={() => apply(merged)} className="gs-btn gs-btn--primary" style={{ opacity: ok ? 1 : 0.5 }}>{tr("Merge")}</button>
+          </>) : <button disabled={!ok} onClick={() => apply(fresh)} className="gs-btn gs-btn--primary" /* gs-primary-alt: the other branch of the ternary */ style={{ opacity: ok ? 1 : 0.5 }}>{tr("Group")}</button>}
         </div>
       </div>
     </div>

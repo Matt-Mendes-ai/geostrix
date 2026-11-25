@@ -107,7 +107,7 @@ export default function CardPage({ page, onOpen, pageExists, backButton, More, r
             const inner = <><span {...EN}>{x.text}</span><ArrowRight size={11} aria-hidden="true" style={{ flex: "0 0 auto" }} /><span {...EN} style={{ fontWeight: 600 }}>{x.to}</span></>;
             const chip = { display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 9px", borderRadius: 999, border: "1px solid var(--color-border)", background: "var(--color-bg)", boxShadow: "var(--shadow-chip)", fontSize: "var(--font-size-sm)", color: "var(--color-text)", font: "inherit" };
             return x.page && pageExists(x.page)
-              ? <button key={i} type="button" dir="ltr" data-help-chip={x.page} onClick={() => onOpen(x.page)} style={{ ...chip, cursor: "pointer", color: "var(--color-info)" }}>{inner}</button>
+              ? <button data-btn-own="" key={i} type="button" dir="ltr" data-help-chip={x.page} onClick={() => onOpen(x.page)} style={{ ...chip, cursor: "pointer", color: "var(--color-info)" }}>{inner}</button>
               : <span key={i} dir="ltr" style={chip}>{inner}</span>; // dir: #3978 — the chip's words are English: "A → B" reads left to right (in Arabic the row flipped and the arrow pointed back)
           })}
         </div>

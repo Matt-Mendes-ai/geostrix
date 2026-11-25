@@ -1,5 +1,5 @@
 // TASKS.csv #3541 / #3528 (Fireweed rehearsal) — the empty state's sample buttons, each with its own description as a second line (it was fifteen descriptions run
-// together in one paragraph under the buttons). The full text stays as the tooltip. A fragment of <button>s: the empty state's action row lays them out.
+// together in one paragraph under the buttons). The full text stays as the tooltip. A fragment of buttons: the empty state's action row lays them out.
 // TASKS.csv #3948 (Matt: "fold the samples ... Show Macpass and Mount Raymond") — the samples in view (lib/sampleCards.js emptyCardSamples) come first,
 // the first one filled; every other sample sits under a closed "More samples" fold, on a row of its own.
 import React from "react";
@@ -19,7 +19,7 @@ const second = { fontSize: "var(--font-size-xs)", fontWeight: 400, color: "var(-
 const row = { display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" };
 
 const buttons = (cards, onLoad, loading, firstFilled) => cards.map((c, i) => (
-  <button key={c.id} type="button" data-sample-id={c.id} onClick={() => onLoad(c.id)} disabled={loading} title={c.title} style={btn(loading, firstFilled && i === 0)}>
+  <button data-btn-own="" key={c.id} type="button" data-sample-id={c.id} onClick={() => onLoad(c.id)} disabled={loading} title={c.title} style={btn(loading, firstFilled && i === 0)}>
     <span>{c.label}</span>{/* #3948 — while a sample loads the buttons are dimmed and its own "Loading the … sample project" notice says so */}
     <span style={firstFilled && i === 0 ? { ...second, color: "rgba(255,255,255,0.88)" } : second}>{descriptionOf(c.title)}</span>
   </button>

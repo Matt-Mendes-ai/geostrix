@@ -109,11 +109,11 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
               style={{ width: "100%", height: 100, fontFamily: "monospace", fontSize: "var(--font-size-base)", padding: 10, border: "1px solid var(--color-border)", borderRadius: 6, resize: "vertical", color: "var(--color-text)" }}
             />
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={run} disabled={state.status !== "ready" || running} style={{ ...btn(true), display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", opacity: state.status === "ready" && !running ? 1 : 0.5, cursor: state.status === "ready" && !running ? "pointer" : "not-allowed" }}>
+              <button onClick={run} disabled={state.status !== "ready" || running} className="gs-btn gs-btn--primary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", opacity: state.status === "ready" && !running ? 1 : 0.5, cursor: state.status === "ready" && !running ? "pointer" : "not-allowed" }}>
                 <Play size={14} /> {running ? tr("Running…") : tr("Run query")}
               </button>
               {result && result.rows.length > 0 && (
-                <button onClick={exportCSV} style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6, padding: "7px 14px" }}>
+                <button onClick={exportCSV} className="gs-btn" style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px" }}>
                   <Download size={14} />{" "}{tr("Export CSV")}</button>
               )}
             </div>
@@ -140,7 +140,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
+          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -150,6 +150,5 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
 const panel = { width: "min(1000px, 96vw)", height: "min(720px, 92vh)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
 const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "start", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)" };
 const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "start", fontFamily: "'Exo 2', system-ui, sans-serif", whiteSpace: "nowrap" };
