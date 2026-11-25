@@ -55,7 +55,7 @@ export default function ImplicitPane({ clusterNote, implicitSurfaces, collars, e
         {leftOutNote}
                 </>) },
               ]}
-              action={{ label: implicitBusy ? tr("Running…") : tr("Run"), onClick: () => runImplicitModel(implicitTarget), disabled: !implicitTarget || implicitBusy, icon: <Layers3 size={14} aria-hidden="true" />,
+              action={{ label: implicitBusy ? tr("Building surfaces…") : tr("Build surfaces") /* #4070: a model-making primary says Build + what */, onClick: () => runImplicitModel(implicitTarget), disabled: !implicitTarget || implicitBusy, icon: <Layers3 size={14} aria-hidden="true" />,
                 title: gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : !implicitTarget ? tr("Choose a unit first.") : null) }}
               result={{ key: ir?.runId ?? null, body: ir && <StepNumbers rows={[
                 { label: tr("Surfaces"), value: ir.n.toLocaleString(), title: ir.names.join(", ") },

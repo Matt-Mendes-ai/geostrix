@@ -46,7 +46,7 @@ test("Planned holes: Collar, Direction, + Add hole as the action, the holes (lis
   const p = read("src/components/PlannedHoleParts.jsx"), v = read("src/modules/ViewerModule.jsx"), st = read("src/components/StepPane.jsx");
   assert.match(p, /<StepPane id="plan" label=\{tr\("Planned drillholes"\)\} start=\{plannedSoFar\.length \? "result" : 0\}/);
   for (const k of ['key: "collar"', 'key: "direction"']) assert.ok(p.includes(k), k);
-  assert.match(p, /action=\{\{ label: tr\("\+ Add hole"\), onClick: submit, disabled: !canAdd,/);
+  assert.match(p, /action=\{\{ label: tr\("Add hole"\), onClick: submit, disabled: !canAdd,/);
   assert.match(p, /result=\{\{ key: plannedSoFar\.length \|\| null, label: tr\("Holes"\), offTitle: tr\("After the first hole"\), body: resultBody \}\}/);
   assert.match(p, /<MoreFold summary=\{tr\("Fine-tune…"\)\} data-fine-tune="plan">/);
   assert.match(p, /<MoreFold summary=\{tr\("Aim at a target…"\)\} data-fine-tune="plan-aim" open=\{aimOpen\}>/);

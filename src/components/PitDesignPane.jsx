@@ -197,6 +197,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       {pits.length > 0 && (<>
         {/* TASKS.csv #4070 part 3 (Matt's layout C): the shell and the bench height, berm and face angle as the one question, Design the benches as the one gold primary, the benches in Result, every other setting in Fine-tune */}
         <StepPane id="design" label={tr("Pit design")}
+          top={<div style={note}>{tr("Conceptual: not a mine plan, a Reserve or a Resource.")}</div> /* #4070: the line the other Mine Design panes carry */}
           steps={[
             { key: "benches", label: tr("Benches"), question: tr("Which benches?"), body: (<>
         <label style={row}>{tr("Pit shell")}<select value={pit?.id || ""} onChange={(e) => setPitId(e.target.value)} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell to design on")}>

@@ -347,7 +347,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       </MoreFold>
         </>) },
       ]}
-      action={{ label: tr("+ Add hole"), onClick: submit, disabled: !canAdd, title: canAdd ? undefined : tr("+ Add hole needs E, N and Elev as numbers, and a length above 0.") }}
+      action={{ label: tr("Add hole"), onClick: submit, disabled: !canAdd, title: canAdd ? undefined : tr("+ Add hole needs E, N and Elev as numbers, and a length above 0.") }}
       result={{ key: plannedSoFar.length || null, label: tr("Holes"), offTitle: tr("After the first hole"), body: resultBody }}
       fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="plan">
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #1729 */}

@@ -179,7 +179,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
               {supportText && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 */}
               {unit && !support && unit.type === "geophysical_shell" && <div style={note}>{tr("\"{name}\" was cut from a block model with no drillhole support per cell (imported or geophysical), so nothing here says how well drilled it is.", { name: unit.name })}</div>}{/* #2096 */}
             </>) },
-            { key: "cover", label: tr("Covered"), question: tr("How near counts as covered?"), body: (<>
+            { key: "cover", label: tr("Coverage"), question: tr("How near counts as covered?"), body: (<>
               <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
                 <NumberInput min="1" step="5" value={coverM} onChange={(n) => setCoverM(n)} style={{ ...smallSel, width: 70 }} /></label>
               {siteSpacing > 0 && <div style={note}>{holeSp > 0 && holeSp < 0.9 * siteSpacing ? tr("Drill sites are typically {s} m apart and holes {h} m apart (nearest other hole, in 3D); covered within starts at half the smaller.", { s: Math.round(siteSpacing), h: Math.round(holeSp) }) /* #3820 */ : tr("Drill sites are typically {s} m apart; covered within starts at half that.", { s: Math.round(siteSpacing) })}</div>}{/* #2452 */}
@@ -200,7 +200,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
             ))}
             {result.zones.length > 8 && <div style={note}>{tr("… and {n} more.", { n: result.zones.length - 8 })}</div>}
             {result.zones.length > 0 && <button onClick={add} className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 6 }}>{tr("Add the zones to the 3D view")}</button>}
-            <MoreFold summary={tr("Notes on this run")} data-fine-tune="undrilled-notes">
+            <MoreFold summary={tr("Details")} data-fine-tune="undrilled-notes">
               {result.underground && <div style={note}>{tr("No air was cut: the collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) stacked). Load a terrain to cut at the surface.", { upward: result.underground.upward, stacked: result.underground.stacked })}</div>}{/* #2249 */}
               {result.aboveGroundCells > 0 && <div style={note}>{tr(result.groundFrom === "terrain" ? "{v} of the solid lies above the terrain and was left out (air, not the unit)." : "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).", { v: mm3(result.aboveGroundCells * result.cellVolume) })}</div>}
               {result.groundFrom === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}

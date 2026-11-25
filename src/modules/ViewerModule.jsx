@@ -6871,9 +6871,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         )}
         {toolPane === "sgMaps" && paneHeader("Geology map", MapIcon, "data")}
         {toolPane === "sgStructs" && paneHeader("Outcrop structures", Compass, "data")}
+        <div hidden={!!interpretOpen}>{/* TASKS.csv #4070 part 5 (side 2's pass): with Unit polygons or Interpret open the map layers' and structures' step panes are hidden (two step bars, two gold buttons); mounted, so a pending import survives */}
         <Suspense fallback={null}>
           <SurfaceMappingPanel part={toolPane === "sgMaps" ? "maps" : toolPane === "sgStructs" ? "structures" : null} pBtn={pBtn} numInput={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", width: 70 }} />
         </Suspense>
+        </div>
         </>)}{/* TASKS.csv #820 */}
 
         {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onZoomTo={zoomToSurface} /* #1498 */ onClose={() => setToolPane(null)} /></Suspense>}
