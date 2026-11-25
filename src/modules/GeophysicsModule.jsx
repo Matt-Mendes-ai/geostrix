@@ -2187,7 +2187,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const csvs = files.filter((f) => f.name.toLowerCase().endsWith(".csv"));
         const rasterSides = rasterFileSet(files); // #2901 — world files, .prj and Geosoft .xml with the raster of the same name; ones with none are named below
         const tifs = files.filter((f) => /\.tiff?$/i.test(f.name));
-        const gxfs = files.filter((f) => /\.(gxf|grd)$/i.test(f.name)); // grd: #2855 — a Geosoft / Surfer grid, read as Maps and the 3D View read it
+        const gxfs = files.filter((f) => /\.(gxf|grd|ers)$/i.test(f.name)); // ers: #4066 (its data file is paired by rasterFileSet) // grd: #2855 — a Geosoft / Surfer grid, read as Maps and the 3D View read it
         const plys = files.filter((f) => /\.(ply|dxf)$/i.test(f.name));
         // TASKS.csv #1986 — an Aarhus Workbench export ("/INFO" then a Workbench line) is FDEM soundings or models, not a Geosoft XYZ
         const xyzAll = files.filter((f) => /\.xyz$/i.test(f.name)), wbs = [];
@@ -2209,8 +2209,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const lidarFiles = [];
         for (const f of lasFiles) { const b = new Uint8Array(await f.slice(0, 4).arrayBuffer()); if (/\.laz$/i.test(f.name) || (b[0] === 0x4c && b[1] === 0x41 && b[2] === 0x53 && b[3] === 0x46)) lidarFiles.push(f); else advice.push(tr("{name} is a LAS well log: drop it on StrixViewer, which reads downhole logs.", { name: f.name })); }
         if (lidarFiles.length) { if (geoPane === "terrain") openLidar(lidarFiles[0]); else { goToModule("maps"); requestModuleAction("maps-lidar", { file: lidarFiles[0] }); } if (lidarFiles.length > 1) advice.push(tr("Opened \"{name}\". Lidar files are imported one at a time: import it, then drop the next.", { name: lidarFiles[0].name })); }
-        const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj].filter(Boolean))); // #2901 — read with their raster
-        const other = files.filter((f) => !sideUsed.has(f) && !bhems.includes(f) && !/\.(csv|tiff?|gxf|grd|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
+        const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj, i.data].filter(Boolean))); // #2901 — read with their raster; data: an ER Mapper data file, #4066
+        const other = files.filter((f) => !sideUsed.has(f) && !bhems.includes(f) && !/\.(csv|tiff?|gxf|grd|ers|ply|dxf|xyz|edi|las|laz|vs)$/i.test(f.name) && !(/\.(dfn|dat)$/i.test(f.name) && gdfPair(files)) /* #1990 / #1992: read above */ && !unreadableFormatAdvice(f.name)).map((f) => f.name);
         if (other.length) advice.push(tr("Not imported from this drop: {names}. This tab reads CSV, GeoTIFF, GXF, .grd, XYZ, PLY / DXF, EDI and LAS / LAZ. UBC meshes go to Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
         // TASKS.csv #1989 — MT / AMT soundings go to their own pane, which reads them
         const edis = files.filter((f) => /\.edi$/i.test(f.name));

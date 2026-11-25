@@ -86,7 +86,7 @@ export function parseEpsgInput(s) {
   return m ? Number(m[1]) : null;
 }
 // "What is this?": what the 3D view's drop reads (lib/../modules/viewer/importPipelineImpl.js handleDrop) and the files that come with them
-const KNOWN = /\.(csv|zip|gpkg|shp|shx|dbf|prj|cpg|qml|kml|kmz|xlsx|las|laz|tiff?|tfw|tifw|aux|xml|gxf|grd|dxf|obj|ts|gp|pl|vo|vs|msh|chg|con|mod|den|sus|edi|xyz|tab|map|id|dat|ind|dfn)$/i;
+const KNOWN = /\.(csv|zip|gpkg|shp|shx|dbf|prj|cpg|qml|kml|kmz|xlsx|las|laz|tiff?|tfw|tifw|aux|xml|gxf|grd|ers|dxf|obj|ts|gp|pl|vo|vs|msh|chg|con|mod|den|sus|edi|xyz|tab|map|id|dat|ind|dfn)$/i;
 // -> null for a file the import reads (it decides the rest), or { text, where } for one it can't place: what this step reads, and where it might go
 export function whatIsThis(name) {
   const n = String(name || "");

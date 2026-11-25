@@ -4,15 +4,16 @@
 // Anything that fails here (no OffscreenCanvas, a file the reader refuses) answers `failed`, and the UI thread reads the file itself, as
 // before, which also gives the user the reader's own message.
 import { gxfRows, grdRows, rowsPicture } from "./rasterRows.js";
+import { ersRows } from "./erMapper.js"; // TASKS.csv #4066 — an ER Mapper .ers header and its data file
 import { bytesToB64 } from "./base64.js";
 import { useDictionary as setDictionary } from "./i18n.js"; // not a React hook: it only sets the module's dictionary
 
 self.onmessage = async (e) => {
-  const { id, kind, name, buf, lang } = e.data || {};
+  const { id, kind, name, buf, header, lang } = e.data || {};
   try {
     if (lang) setDictionary(lang.code, lang.dict);
     if (typeof OffscreenCanvas === "undefined") throw new Error("no OffscreenCanvas");
-    const rows = kind === "gxf" ? gxfRows(new TextDecoder().decode(buf), name) : await grdRows(new Uint8Array(buf), name);
+    const rows = kind === "gxf" ? gxfRows(new TextDecoder().decode(buf), name) : kind === "ers" ? ersRows(header, new Uint8Array(buf), name) : await grdRows(new Uint8Array(buf), name);
     const { record, rgba, outW, outH } = rowsPicture(rows);
     const canvas = new OffscreenCanvas(outW, outH);
     canvas.getContext("2d").putImageData(new ImageData(rgba, outW, outH), 0, 0);

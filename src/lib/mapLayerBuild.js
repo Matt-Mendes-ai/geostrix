@@ -125,9 +125,9 @@ export function sameMapLayer(mapLayers, layer) {
 // 'use Boundaries, Terrain or Web layers above')
 export function mapsDropRoutes(names) {
   const out = { raster: [], vector: [], table: [], other: [] };
-  const stem = (n) => String(n).replace(/\.[^.]+$/, "").toLowerCase(), rasterStems = new Set((names || []).filter((n) => /\.(tiff?|gxf|grd)$/i.test(n)).map(stem));
+  const stem = (n) => String(n).replace(/\.[^.]+$/, "").toLowerCase(), rasterStems = new Set((names || []).filter((n) => /\.(tiff?|gxf|grd|ers)$/i.test(n)).map(stem)), ersBare = new Set((names || []).filter((n) => /\.ers$/i.test(n)).map((n) => String(n).replace(/\.ers$/i, "").toLowerCase())); // ers: #4066 — its data file has no extension
   for (const n of names || []) {
-    if (/\.(tiff?|gxf|grd)$/i.test(n) || (/\.(tfw|tifw|tiffw|wld|prj|xml)$/i.test(n) && rasterStems.has(stem(n)))) out.raster.push(n);
+    if (/\.(tiff?|gxf|grd|ers)$/i.test(n) || (/\.(tfw|tifw|tiffw|wld|prj|xml)$/i.test(n) && rasterStems.has(stem(n))) || ersBare.has(String(n).toLowerCase().replace(/\.dat$/, ""))) out.raster.push(n);
     else if (/\.(shp|zip|gpkg|kml|kmz)$/i.test(n)) out.vector.push(n);
     else if (/\.(csv|xlsx|las|dxf)$/i.test(n)) out.table.push(n);
     else out.other.push(n);
