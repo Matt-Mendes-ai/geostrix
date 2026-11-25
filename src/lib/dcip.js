@@ -320,6 +320,13 @@ export function columnReach(cells, pass) {
   return { cols: out, median: out.length ? median(out.map((o) => o.depth)) : 0 }; // median: arrayStats.js (#1114)
 }
 
+// TASKS.csv #4070 part 2 — a section's reach for the DC / IP Result step, in metres: the median depth of the deepest cell each column's support
+// still sees (a missing support passes: an imported section has none); null when no column reaches below its top.
+export function dataReachM(cells, cutoff = 0) {
+  const r = columnReach(cells, (i) => !(cells.support?.[i] < cutoff));
+  return r.cols.length && r.median > 0 ? Math.round(r.median) : null;
+}
+
 // #772 — the DOI line as drawn: a running median over `w` columns. Per column, "the deepest passing cell" spikes
 // where one isolated deep cell passes (Woodjam 115N: single columns plunging 100+ m into the unresolved zone); a
 // DOI result is read as a contour, so the drawn line is smoothed. The reported median depth is not.
