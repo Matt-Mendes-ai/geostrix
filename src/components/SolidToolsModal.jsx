@@ -136,13 +136,13 @@ export default function SolidToolsModal({ solid, surfaces = [], meshOf, groundAt
         {!me && <div style={warn}>{tr("This surface's mesh is not in the view.")}</div>}
         {meClosed && !meClosed.closed && <div style={warn}>{tr("\"{name}\" has {n} open edges: it can be clipped, not combined, and a clip's volume is unreliable.", { name: solid.name, n: meClosed.boundaryEdges })}</div>}
       </div>
-    ), primary: { label: tr("Next"), disabled: !me } },
+    ), primary: { label: tr("Next: setup"), disabled: !me } },
     { key: "setup", label: tr("Setup"), render: () => (clip ? setupClip : setupCombine), hint: msg || "",
       primary: { label: busy ? (busy === "clip" ? tr("Cutting…") : tr("Combining…")) : clip ? tr("Clip") : tr("Combine"), onClick: clip ? runClip : runBoolean, disabled: !ready || !!busy } },
     { key: "result", label: tr("Result"), render: () => (done ? (
       <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ fontWeight: 600 }}>{tr("Added \"{name}\".", { name: done.name })}</div>
-        <div style={{ maxWidth: 380 }}><StepNumbers rows={[{ label: tr("Volume"), value: `${big(done.volumeM3)} m³` }, { label: tr("Closed"), value: done.closed ? tr("Yes") : tr("no ({openEdgeCount} open edges)", { openEdgeCount: done.boundaryEdges }), level: done.closed ? undefined : "some" }, done.components > 1 && { label: tr("Separate bodies"), value: String(done.components) }]} /></div>
+        <div style={{ maxWidth: 380 }}><StepNumbers rows={[{ label: tr("Volume"), value: `${big(done.volumeM3)} m³` }, { label: tr("Closed"), value: done.closed ? tr("yes") : tr("no ({openEdgeCount} open edges)", { openEdgeCount: done.boundaryEdges }), level: done.closed ? undefined : "some" }, done.components > 1 && { label: tr("Bodies"), value: String(done.components) }]} /></div>
         {done.notes.map((n) => <div key={n} style={warn}>{n}</div>)}
       </div>
     ) : <div style={note}>{tr("Nothing added yet.")}</div>), primary: { label: tr("Done"), onClick: onClose } },

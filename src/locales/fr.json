@@ -15673,7 +15673,13 @@
   "Imported in the wrong CRS? Pick it and the CRS it is really in: it moves into {v}.": "Importée dans le mauvais SCR ? Choisissez-la et le SCR où elle est vraiment : elle passe dans {v}.",
   "Where does the ground come from?": "D'où vient le terrain ?",
   "Which kind of EM survey?": "Quel type de levé EM ?",
-  "Along lines (SkyTEM, Workbench, .xyz, a CSV per gate): decays and the decay constant.": "Le long de lignes (SkyTEM, Workbench, .xyz, un CSV par fenêtre) : décroissances et constante de décroissance.",
+  "Along lines (SkyTEM, Workbench, .xyz, CSV): decays and decay constant.": "Le long de lignes (SkyTEM, Workbench, .xyz, CSV) : décroissances et constante de décroissance.",
   "Conductivity with depth under each sounding (1D).": "Conductivité selon la profondeur sous chaque sondage (1D).",
-  "One channel in a table, as a point survey.": "Une voie dans un tableau, comme levé de points."
+  "One channel in a table, as a point survey.": "Une voie dans un tableau, comme levé de points.",
+  "yes": "oui",
+  "Sampled for {el}": "Échantillonné pour {el}",
+  "inside": "à l'intérieur",
+  "Next: setup": "Suivant : réglages",
+  "Bodies": "Corps",
+  "Location": "Emplacement"
 }

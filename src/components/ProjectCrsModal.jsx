@@ -143,7 +143,7 @@ export default function ProjectCrsModal({ reason, points, suggested = null, noLo
     </div>
   ) : <div style={note}>{tr("Choose a CRS")}</div>;
   const steps = [
-    { key: "where", label: tr("Where"), render: () => whereStep,
+    { key: "where", label: tr("Location"), render: () => whereStep,
       primary: localMode ? { label: tr("Keep the local grid"), onClick: keepLocal } : { label: choice ? tr("Next: check") : tr("Choose a CRS"), disabled: !choice } },
     { key: "check", label: tr("Check"), render: () => checkStep, primary: { label: choice ? tr("Use {v}", { v: choiceName }) : tr("Choose a CRS"), onClick: use, disabled: !choice } },
   ];

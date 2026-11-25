@@ -26,7 +26,7 @@ test("#2626: Surface query reads the shell's element from its stored params and 
   const s = fs.readFileSync(path.join(root, "src", "components", "SurfaceQueryModal.jsx"), "utf8");
   assert.match(s, /generatedSurfaces\.find\(\(g\) => g\.id === surface\?\.id\)\?\.params\?\.element/);
   assert.match(s, /sampledByHole\(resolvedSegments\(excludeQAQC\(assays\), shellEl/);
-  assert.ok(s.includes('tr("Sampled for {el} (m)", { el: shellEl })'));
+  assert.ok(s.includes('tr("Sampled for {el}", { el: shellEl }), value: `${totals.sampled.toFixed(1)} m`')); // #4070: the unit with the number, as in every Result row
   assert.ok(s.includes("have no {el} sample: there the shell is the estimate's reach, not a measured grade."));
   assert.match(fs.readFileSync(path.join(root, "src", "modules", "viewer", "modellingRuns.js"), "utf8"), /tool: "numeric grade shell",[^\n]*\n?[^\n]*element: symbol/);
 });
