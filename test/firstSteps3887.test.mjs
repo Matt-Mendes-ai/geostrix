@@ -66,6 +66,6 @@ test("Help's English bodies keep their own direction in an Arabic interface (dir
   const h = read("src/components/HelpPane.jsx");
   assert.match(h, /const EN = \{ lang: "en", dir: "auto" \};/);
   assert.match(h, /const En = \(\{ children \}\) => <span lang="en" dir="ltr">\{children\}<\/span>;/);
-  for (const re of [/<p \{\.\.\.EN\} [^>]*>\{page\.summary\}<\/p>/, /<dt \{\.\.\.EN\}/, /<div \{\.\.\.EN\}>\{f\.what\}<\/div>/, /<En>\{f\.choose\}<\/En>/, /<En>\{w\.do\}<\/En>/, /<div \{\.\.\.EN\} style=\{\{ marginTop: 2 \}\}>\{text\}<\/div><\/details>/]) assert.match(h, re);
+  for (const re of [/<p \{\.\.\.EN\} [^>]*>\{page\.summary\}<\/p>/, /<dt \{\.\.\.EN\}/, /<div \{\.\.\.EN\}>\{f\.what\}<\/div>/, /<En>\{f\.choose\}<\/En>/, /<En>\{w\.do\}<\/En>/, /<div key=\{i\} \{\.\.\.EN\} style=\{\{ marginTop: i === 0 \? 2 : 6 \}\}>\{p\}<\/div>\)\}<\/details>/]) assert.match(h, re);
   assert.match(h, /page\.guide \? <p [^>]*>\{tr\(page\.summary\)\}<\/p>/); // the guide is translated: it follows the interface
 });
