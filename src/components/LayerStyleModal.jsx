@@ -43,12 +43,16 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
   const row = { display: "flex", alignItems: "center", gap: 8, marginBottom: 10 };
   // TASKS.csv #3058 — opens in the middle of the window (it was pinned at the far right, where it went unseen) and drags by its header
   const { panelRef, pos, dragProps } = useDragPanel(300);
+  // TASKS.csv #4073 — NOT a StepDialog: this panel floats beside the 3D view and drags (#3058), every change shows live behind it (#635, #1528), so a
+  // modal with an overlay and a focus trap would take away the very thing it is for. Its words are cut the same way instead: short labels on the
+  // panel, the explanations in a closed Help fold at its foot (the word count files a <details> body as folded, #3939).
+  const dipPinShown = target.key === "structure" && target.kind === "plane";
+  const rampShown = !!(ramp?.numeric && !st.color);
   return (
     <div ref={panelRef} role="dialog" aria-label={tr("Style of {label}", { label: target.label })} style={{ position: "fixed", left: pos.left, top: pos.top, width: 300, zIndex: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, boxShadow: "0 12px 32px rgba(0,0,0,0.25)", fontSize: "var(--font-size-base)" }}>
       <div {...dragProps} title={tr("Drag to move")} style={{ ...dragProps.style, display: "flex", alignItems: "center", padding: "10px 12px", borderBottom: "1px solid var(--color-border)" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr("Style — {label}", { label: target.label })}</div>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Changes show in 3D straight away and are saved with the project.")}</div>
         </div>
         <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
       </div>
@@ -78,16 +82,13 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
         {target.key === "mnlgy" && <WidthByRow rows={layers?.mnlgy} style={style} onChange={onChange} row={row} lbl={lbl} select={{ flex: 1, padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }} /> /* TASKS.csv #3942 */}
         </>}
         {target.sizeNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-6px 0 10px 82px" }}>{target.sizeNote}</div>}
-        {target.key === "structure" && target.kind === "plane" && ( // TASKS.csv #4038 - the pin down each disc's dip: off, the discs alone are the default
-          <>
-            <div style={row}>
-              <span style={lbl}>{tr("Dip pin")}</span>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>
-                <input type="checkbox" checked={st.dipPin} onChange={(e) => onChange({ dipPin: e.target.checked ? true : null })} />{tr("A pin down each disc's dip")}
-              </label>
-            </div>
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-6px 0 10px 82px", lineHeight: 1.4 }}>{tr("A disc looks the same dipping either way; the pin shows which way the plane dips.")}</div>
-          </>
+        {dipPinShown && ( // TASKS.csv #4038 - the pin down each disc's dip: off, the discs alone are the default (target.key === "structure" && target.kind === "plane"); what it shows: the Help fold (#4073)
+          <div style={row}>
+            <span style={lbl}>{tr("Dip pin")}</span>
+            <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", fontSize: "var(--font-size-sm)" }}>
+              <input type="checkbox" checked={st.dipPin} onChange={(e) => onChange({ dipPin: e.target.checked ? true : null })} aria-label={tr("Dip pin")} />{tr("Show")}
+            </label>
+          </div>
         )}
         <div style={row}>
           <span style={lbl}>{tr("Opacity")}</span>
@@ -111,16 +112,16 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
                 </select>
               </label>
             )}
-            {ramp?.numeric && !st.color && ( /* TASKS.csv #2367 */
+            {rampShown && ( /* TASKS.csv #2367 (ramp?.numeric && !st.color) */
               <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Range")}
                   <NumberInput allowEmpty value={style?.rampMin ?? null} placeholder={String(+ramp.min.toPrecision(4))} onChange={numIn("rampMin")} aria-label={tr("Colour range from")} style={{ width: 70, padding: "2px 4px" }} />–
                   <NumberInput allowEmpty value={style?.rampMax ?? null} placeholder={String(+ramp.max.toPrecision(4))} onChange={numIn("rampMax")} aria-label={tr("Colour range to")} style={{ width: 70, padding: "2px 4px" }} />
                 </label>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Blank: the 2nd-98th percentile; the data run {a} to {b}.", { a: String(+ramp.dataMin.toPrecision(4)), b: String(+ramp.dataMax.toPrecision(4)) })}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Data: {a} to {b}", { a: String(+ramp.dataMin.toPrecision(4)), b: String(+ramp.dataMax.toPrecision(4)) })}{/* #4073 — what a blank range means: the Help fold */}</div>
                 <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Scale")}
                   <select value={style?.rampScale || ""} onChange={(e) => onChange({ rampScale: e.target.value || null })} aria-label={tr("Colour scale")} style={{ padding: "2px 4px" }}>
-                    <option value="">{customLayer?.defaultRampScale ? tr("as the model: {scale}", { scale: customLayer.defaultRampScale === "log" ? tr("log") : tr("linear") }) : tr("auto (log over a decade)")}</option>{/* #3813 — an evaluated layer starts on its model's scale */}<option value="linear">{tr("linear")}</option><option value="log">{tr("log")}</option>
+                    <option value="">{customLayer?.defaultRampScale ? tr("as the model: {scale}", { scale: customLayer.defaultRampScale === "log" ? tr("log") : tr("linear") }) : tr("auto")}</option>{/* #3813 — an evaluated layer starts on its model's scale */}<option value="linear">{tr("linear")}</option><option value="log">{tr("log")}</option>
                   </select>
                   {tr("Classes")}<NumberInput allowEmpty min="0" max="12" step="1" value={style?.classes ?? null} placeholder={tr("none")} onChange={numIn("classes")} aria-label={tr("Number of colour classes")} style={{ width: 64, padding: "2px 4px" }} />{/* #3280 (6) — 50 px cut "none" to "non" */}
                 </label>
@@ -131,6 +132,13 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
             )}
           </div>
         </div>
+        {/* TASKS.csv #4073 — the explanations, folded (closed: the panel stays small beside the view) */}
+        <details data-style-help="" style={{ margin: "0 0 10px", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
+          <summary style={{ cursor: "pointer" }}>{tr("Help")}</summary>
+          <div style={{ marginTop: 4 }}>{tr("Changes show in 3D straight away and are saved with the project.")}</div>
+          {dipPinShown && <div style={{ marginTop: 4 }}>{tr("A disc looks the same dipping either way; the pin shows which way the plane dips.")}</div>}
+          {rampShown && <div style={{ marginTop: 4 }}>{tr("A blank range uses the 2nd-98th percentile. Auto scale: log when that range spans more than a decade.")}</div>}
+        </details>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button type="button" onClick={onReset} className="gs-btn" style={{ flex: 1 }}>{tr("Reset to default")}</button>
           <button type="button" onClick={onClose} className="gs-btn gs-btn--primary" style={{ flex: 1 }}>{tr("Done")}</button>

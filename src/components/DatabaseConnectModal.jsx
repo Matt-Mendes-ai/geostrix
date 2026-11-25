@@ -109,7 +109,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
     </details>
   );
   const flow = [
-    { key: "connect", label: tr("Connect"), primary: { label: tr("Next: data"), disabled: !(status?.ok || liveEntry) }, hint: status?.ok || liveEntry ? "" : tr("Test the connection first."), render: () => (
+    { key: "connect", label: tr("Connection"), primary: { label: tr("Next: data"), disabled: !(status?.ok || liveEntry) }, hint: status?.ok || liveEntry ? "" : tr("Test the connection first."), render: () => (
       <div style={{ flex: 1, minWidth: 0 }}>
           {dbConnections.length > 0 && (
             <select onChange={(e) => loadSaved(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>

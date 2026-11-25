@@ -147,7 +147,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
     </details>
   );
   const steps = [
-    { key: "service", label: tr("Service"), primary: fetched ? { label: tr("Next") } : { label: loadingCaps ? tr("Fetching…") : tr("Fetch layers"), onClick: fetchAndNext, disabled: !url.trim() || loadingCaps }, render: () => (
+    { key: "service", label: tr("Service"), primary: fetched ? { label: tr("Next: layer") } : { label: loadingCaps ? tr("Fetching…") : tr("Fetch layers"), onClick: fetchAndNext, disabled: !url.trim() || loadingCaps }, render: () => (
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
         {/* TASKS.csv #1468 — common open services: picking one fills the URL and lists its layer */}
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)" }}>{tr("Common services")}
@@ -177,7 +177,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
         {capsError && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-solid)" }}>{capsError}</div>}
       </div>
     ) },
-    { key: "layer", label: tr("Layer"), primary: { label: tr("Next"), disabled: !selectedLayer }, hint: layers ? "" : tr("Fetch the service's layers first."), render: () => (
+    { key: "layer", label: tr("Layer"), primary: { label: tr("Next: details"), disabled: !selectedLayer }, hint: layers ? "" : tr("Fetch layers first."), render: () => (
       <div style={{ flex: 1, minWidth: 0 }}>
         {layers && (
           <div>
@@ -191,7 +191,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
         )}
       </div>
     ) },
-    { key: "import", label: tr("Import"), primary: { label: busy ? (wmsProgress ? tr("Fetching {done}/{total}…", wmsProgress) : tr("Importing…")) : tr("Import this layer"), onClick: doImport, disabled: !selectedLayer || busy || (service === "wms" && !bboxLonLat) },
+    { key: "import", label: tr("Details"), primary: { label: busy ? (wmsProgress ? tr("Fetching {done}/{total}…", wmsProgress) : tr("Importing…")) : tr("Import this layer"), onClick: doImport, disabled: !selectedLayer || busy || (service === "wms" && !bboxLonLat) },
       render: () => (
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
         {selectedLayer && <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{selectedLayer.title || selectedLayer.name}</div>}

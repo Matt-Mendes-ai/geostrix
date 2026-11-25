@@ -3,15 +3,13 @@
 // in its source file and imported again (said at the top), so nothing here changes the data. Opened by lib/dataTableRequests.js (the ribbon, a layer's inspector, Geochem's
 // sidebar, a Data QC row: { source, hole, from, to } preset the filters and mark the row).
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { X, Download } from "./icons.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap)
 import { useStore } from "../lib/store.jsx";
 import { tableSources, buildTable, applyTable } from "../lib/dataTable.js";
 import { saveFile } from "../lib/desktop.js";
 import { toExportCsv } from "../lib/tabular.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
+import { backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -21,8 +19,6 @@ const colWidth = (c) => Math.max(COL_W, Math.min(260, Math.ceil(String(c?.label 
 const fmt = (v) => (v == null || v === "" ? "" : typeof v === "number" ? String(+v.toPrecision(10)) : String(v));
 
 export default function DrillTableModal({ request = {}, onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
   const store = useStore();
   const { assays, assayElements, layers, customLayers, project } = store;
   const sources = useMemo(() => tableSources({ assays, layers, customLayers }), [assays, layers, customLayers]);
@@ -62,28 +58,25 @@ export default function DrillTableModal({ request = {}, onClose }) {
   };
   const widths = table.columns.map(colWidth), width = Math.max(COL_W, widths.reduce((a, b) => a + b, 0));
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Data table")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Read only: a value is corrected in its source file and imported again.")}</div>
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows"; "too wordy … cut, don't just cap") — a StepDialog of ONE step: a table to read and filter, not
+  // a question. Export CSV (the rows shown) is the gold primary and Close the way out; the table, its toolbar and its filters are as they were, in a column
+  // of a fixed height so the rows stay windowed. The read-only line stays seen at the top. A press on the backdrop still closes it.
+  const heading = tr("Data table"); // the dialog's name, seen (a JSX title= would count it as a tooltip)
+  const steps = [
+    { key: "table", label: heading, primary: { label: tr("Export CSV"), onClick: exportCsv, disabled: !order.length, attrs: { title: tr("Save the rows shown as a CSV") } }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, height: "min(580px, 68vh)", display: "flex", flexDirection: "column" }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 8 }}>{tr("Read only: correct the source file and import it again.")}</div>
         {sources.length === 0 ? (
           <div style={{ padding: 24, color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>{tr("No assays or drillhole logs are loaded yet.")}</div>
         ) : (
           <>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 16px", borderBottom: "1px solid var(--color-border)", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", paddingBottom: 10, borderBottom: "1px solid var(--color-border)", flexWrap: "wrap" }}>
               <select value={source} onChange={(e) => pickSource(e.target.value)} aria-label={tr("Table")} style={sel}>
                 {sources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.count.toLocaleString()})</option>)}
               </select>
               <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("Find in any column")} aria-label={tr("Find in any column")} style={{ ...sel, flex: 1, minWidth: 160 }} />
               <span role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{order.length === table.n ? tr("{n} rows", { n: table.n.toLocaleString() }) : tr("{n} of {m} rows", { n: order.length.toLocaleString(), m: table.n.toLocaleString() })}</span>
               {hasFilter && <button type="button" className="gs-btn" onClick={() => { setFilters({}); setSearch(""); }}>{tr("Clear filters")}</button>}
-              <button type="button" className="gs-btn" onClick={exportCsv} disabled={!order.length} title={tr("Save the rows shown as a CSV")}><Download size={13} />{" "}{tr("Export CSV")}</button>
             </div>
             <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, minHeight: 0, overflow: "auto", position: "relative" }}>
               <div style={{ width, position: "sticky", top: 0, zIndex: 1, background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)" }}>
@@ -116,15 +109,11 @@ export default function DrillTableModal({ request = {}, onClose }) {
             </div>
           </>
         )}
-        <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button>
-        </div>
       </div>
-    </div>
-  );
+    ) },
+  ];
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={0} onAt={() => {}} cancelLabel={tr("Close")} width="min(980px, 96vw)" overlayProps={backdropProps(onClose)} />;
 }
 
-const panel = { width: "min(980px, 96vw)", height: "min(720px, 90vh)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
-const header = { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const cell = { width: COL_W, flexShrink: 0, boxSizing: "border-box", padding: "4px 6px", fontSize: "var(--font-size-sm)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: "16px", borderRight: "1px solid var(--color-border-subtle)" };

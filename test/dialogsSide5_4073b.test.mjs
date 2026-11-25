@@ -69,7 +69,7 @@ test("the image is the gold button only without the units; Fetch layers is the o
   const m = read("MacrostratModal"), w = read("AddWebLayerModal");
   assert.match(m, /primary: addMapLayer \? \{ label: tr\("Add the units as a map layer"\), onClick: addUnits/);
   assert.match(m, /\{addMapLayer && <button className="gs-btn" type="button" disabled=\{!bboxLonLat \|\| !!busy\} onClick=\{addLayer\}/);
-  assert.match(w, /primary: fetched \? \{ label: tr\("Next"\) \} : \{ label: loadingCaps \? tr\("Fetching…"\) : tr\("Fetch layers"\), onClick: fetchAndNext/);
+  assert.match(w, /primary: fetched \? \{ label: tr\("Next: layer"\) \} : \{ label: loadingCaps \? tr\("Fetching…"\) : tr\("Fetch layers"\), onClick: fetchAndNext/);
   assert.match(w, /disabled: !selectedLayer \|\| busy \|\| \(service === "wms" && !bboxLonLat\)/);
   assert.match(w, /<input type="checkbox" checked=\{clipToArea\} disabled=\{!defaultBboxLonLat\}/);
 });
@@ -79,5 +79,5 @@ test("Match to terrain and the Georeferencer: the primary is the step's, with th
   assert.match(v, /primary: warp \? \{ label: tr\("Apply the fit at each point"\), onClick: applyWarp, disabled: !bitmap \} : \{ label: tr\("Apply"\), onClick: apply, disabled: !adj \|\| \(adj\.offset === 0 && adj\.scale === 1\) \}/);
   assert.match(v, /\{image\.corners0 && <button type="button" onClick=\{reset\} className="gs-btn"/);
   assert.match(g, /primary: \{ label: busy \? tr\("Georeferencing…"\) : tr\("Import"\), onClick: doImport, disabled: !fit \|\| busy \}/);
-  assert.match(g, /\{ key: "points", label: tr\("Points"\), primary: \{ label: tr\("Next: check"\), disabled: !fit \}/);
+  assert.match(g, /\{ key: "points", label: tr\("Points"\), primary: \{ label: tr\("Next: fit"\), disabled: !fit \}/);
 });

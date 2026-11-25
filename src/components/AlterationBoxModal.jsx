@@ -39,7 +39,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], m
     </details>
   );
   const steps = [
-    { key: "protolith", label: tr("Protolith"), primary: { label: tr("Next") }, render: () => (
+    { key: "protolith", label: tr("Protolith"), primary: { label: altCodes.length > 0 ? tr("Next: trend") : tr("Next: boxes") }, render: () => (
       <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>
         <div style={{ ...small, marginBottom: 6 }}>{tr("Screening only: the protolith is assumed, not measured.")}</div>
         <select value={source} onChange={(e) => setSource(e.target.value)} aria-label={tr("Protolith source")} style={{ ...num, width: "100%", marginTop: 4 }}>
@@ -74,7 +74,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], m
         )}
       </div>
     ) },
-    ...(altCodes.length > 0 ? [{ key: "trend", label: tr("AI-up trend"), primary: { label: tr("Next") }, render: () => (<div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>{/* #2145 */}
+    ...(altCodes.length > 0 ? [{ key: "trend", label: tr("AI-up trend"), primary: { label: tr("Next: boxes") }, render: () => (<div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>{/* #2145 */}
       <div style={{ ...small, marginBottom: 4 }}>{tr("Mark the potassic and phyllic codes (suggested from their names).")}</div>
           <div style={{ marginTop: 4, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 12px" }}>
             {altCodes.map((c) => (

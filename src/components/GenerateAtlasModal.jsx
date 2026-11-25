@@ -142,7 +142,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           {!busy && lastMsPerPage && lastMsPerPage * selectedCount >= 30000 && <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.75 }}>{tr("About {m} min for {n} pages, at the last run's {s} s a page on this computer.", { m: Math.max(1, Math.round((lastMsPerPage * selectedCount) / 60000)), n: selectedCount, s: (lastMsPerPage / 1000).toFixed(1) })}</div>}{/* #2607 */}
   </>);
   const flow = [
-    { key: "pages", label: tr("Pages"), primary: { label: tr("Next") }, render: () => (
+    { key: "pages", label: tr("Pages"), primary: { label: tr("Next: items") }, render: () => (
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 8 }}>
             <select value={mode} onChange={(e) => switchMode(e.target.value)} style={{ ...sel, flex: 1 }}>
@@ -158,7 +158,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           )}
       </div>
     ) },
-    { key: "items", label: tr("Items"), primary: mode === "hole" ? { label: tr("Next"), disabled: !selectedCount } : generateStep, render: () => (
+    { key: "items", label: tr("Items"), primary: mode === "hole" ? { label: tr("Next: content"), disabled: !selectedCount } : generateStep, render: () => (
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
             <div style={{ ...labelStyle, display: "flex", justifyContent: "space-between" }}>

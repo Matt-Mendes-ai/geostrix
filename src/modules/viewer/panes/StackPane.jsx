@@ -161,7 +161,7 @@ export default function StackPane({ addAllC, addAllOpen, addAllStart, addStackUn
                   </>)}
                 </>) },
               ]}
-              action={{ label: implicitBusy ? tr("Running…") : tr(stackUnits.length === 1 ? "Run stack ({n} unit)" : "Run stack ({n} units)", { n: stackUnits.length }), onClick: () => runStackModel(stackUnits, { method: stackMethod }),
+              action={{ label: implicitBusy ? tr("Building…") : tr(stackUnits.length === 1 ? "Build stack ({n} unit)" : "Build stack ({n} units)", { n: stackUnits.length }), onClick: () => runStackModel(stackUnits, { method: stackMethod }),
                 disabled: stackUnits.length < 2 || implicitBusy, icon: <Layers3 size={14} />, title: gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : stackUnits.length < 2 ? tr("Choose at least two units for the stack first.") : null) }}
               result={{ key: sr?.runId ?? null, body: sr && <StepNumbers rows={[
                 { label: tr("Surfaces"), value: sr.n.toLocaleString(), title: sr.names.join(", ") },

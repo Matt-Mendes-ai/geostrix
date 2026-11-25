@@ -179,9 +179,9 @@ export default [
     // TASKS.csv #3980 — the card (#3967's plan, section 8, batch C2); the summary and the rest are in its folds
     line: "Models one unit's top contact from the logs, with GemPy, and checks it.",
     picture: { help: "support", alt: "A modelled surface is firm between the drill holes, extrapolated beyond them, and held by one hole where only one cuts it." },
-    cautions: ["On few holes a surface always looks convincing: between them it is the interpolator's.", "The sensitivity spread is not a probability or a confidence."],
+    cautions: ["On few holes a surface looks convincing: between them it is the interpolator's.", "The sensitivity spread is not a probability or a confidence."],
     instead: [{ text: "A volume", to: "Stratigraphic stack", page: "stratigraphic-stack" }, { text: "A rock at the top of most holes", to: "Model > Cover and weathering" }],
-    keys: ["Unit to model (Choose a unit…)", "Run", "Run with sensitivity spread"],
+    keys: ["Unit to model (Choose a unit…)", "Build surfaces", "Build with sensitivity spread"],
     summary: "Models the top contact of one unit from the lithology logs, with GemPy. Each run reports where its contacts came from and a model check against the logs.",
     more: "GemPy runs in GeoStrix's Python engine. Contacts are taken where the unit starts below a younger stratigraphic unit; orientations come from the structure picks chosen in Model settings, or from the contact points' own shape when there are none. Read the model check and the list of holes, not the picture. For several units that must not cross use Stratigraphic stack; for a vein or dyke, Vein / dyke modelling; for faults and shears, Structural modelling. Forcing a repeated unit into one surface bends it through all of its levels: split it with Modelling codes or an intercept set first.",
     notFor: [
@@ -193,10 +193,10 @@ export default [
     fields: [
       { name: "Unit to model (Choose a unit…)", gist: "a code, group or modelling code", what: "A logged code, a lithology group or a modelling code; an overburden unit is modelled by its base.", more: "How to choose: Pick a unit with tops in several holes spread across the area, not along one line. Groups are listed under Groups, modelling codes under Modelling codes. Cross-cutting and other roles are shown after the name." },
       { name: "Include drawn cross-section contacts", what: "Also feeds contacts drawn on cross-sections and tagged as this unit's upper contact.", more: "Contacts are drawn with Draw upper contact, in the section window, to steer the surface between holes. The count of drawn contacts is shown." },
-      { name: "Run", gist: "the first run starts Python", what: "Runs the model; the Python engine starts on first use, and a run can take minutes.", more: "The status bar's Py shows whether the engine is ready. Lower Resolution in Model settings for quick tries." },
+      { name: "Build surfaces", gist: "the first run starts Python", what: "Builds the surfaces; Python starts on first use, and a run can take minutes.", more: "The status bar's Py shows whether the engine is ready. Lower Resolution in Model settings for quick tries." },
       { name: "Contact position ± / Orientation ±", what: "How far each contact (m, per axis) and orientation (°) is moved at random per realization; no default.", more: "How to choose: Enter the uncertainty you believe, from your depths, surveys and oriented-core scatter. There is deliberately no default. A per-pick uncertainty_m column overrides the position value. For orientation, read the scatter of your oriented-core readings on the Stereonet." },
       { name: "Realizations / Time budget", what: "How many randomized runs to make, cut to fit the time you allow.", more: "The base run is timed first and the number of realizations is cut to fit the budget. Each realization is a full GemPy run." },
-      { name: "Run with sensitivity spread", gist: "how far the surface moves", what: "Colours the surface by how far the realizations move it: pale little, dark a lot, grey where none made one.", more: "How to choose: Use it before trusting a surface in a sparsely drilled area. It runs the model, then the realizations. Dark parts are where the contacts barely constrain the surface." },
+      { name: "Build with sensitivity spread", gist: "how far the surface moves", what: "Colours the surface by how far the realizations move it: pale little, dark a lot, grey where none made one.", more: "How to choose: Use it before trusting a surface in a sparsely drilled area. It runs the model, then the realizations. Dark parts are where the contacts barely constrain the surface." },
       { name: "Export", what: "Right-click the surface under Generated surfaces: OBJ, DXF, GOCAD TSurf or OMF.", choose: "See Export: what goes where." },
     ],
     warnings: [
@@ -212,9 +212,9 @@ export default [
       sample: "Harry",
       steps: [
         "File > Open Sample Project > Harry, then 3D Modelling > Implicit surface, and choose DACT.",
-        "Press Run; the first run starts the Python engine (progress in the status bar).",
+        "Press Build surfaces; the first run starts the Python engine (progress in the status bar).",
         "Read the notices: the holes the contacts came from, the orientations used, the model check.",
-        "Open Sensitivity, enter a Contact position ± and Orientation ± you believe, and Run with sensitivity spread.",
+        "Open Sensitivity, enter a Contact position ± and Orientation ± you believe, and Build with sensitivity spread.",
       ],
     },
     related: ["model-settings", "stratigraphic-stack", "modelling-codes", "lithology-groups", "explicit-surface", "section-correlation"],
@@ -243,7 +243,7 @@ export default [
       { name: "Unit relationship", gist: "erode or conformable", what: "Erode: younger units truncate older ones, so units can pinch out. Conformable: parallel surfaces, no pinch-outs.", more: "How to choose: Conformable for a continuous layered sequence; Erode for discontinuous units. Erode: each younger unit truncates everything below it (an erosional unconformity), and a unit missing between its neighbours pinches out there. Conformable: one shared field, so the surfaces stay parallel and every unit keeps a thickness everywhere. Hidden when an unconformity is marked." },
       { name: "Faults that offset the stack (Add a fault…)", gist: "solved in the same run", what: "Up to six fault types or named structures, solved in the same run so contacts are offset.", more: "How to choose: Add only faults you can see offsetting contacts in the holes. Faults come from structure picks with dip and dip direction. Each fault runs through the whole model box. Use Offsets Basalt and the units below it when a younger cover was laid down after the fault." },
       { name: "Include drawn cross-section contacts", what: "As in Implicit surface: drawn section contacts tagged with a unit of the stack are extra points." },
-      { name: "Run stack (3 units)", what: "Runs the stack; needs at least two units.", more: "When only one contact is left, that contact is solved on its own. Only one contact is left when the youngest unit has no tops of its own, or overburden's base is folded into the unit under it. Lower Resolution in Model settings while you settle the order." },
+      { name: "Build stack (3 units)", what: "Builds the stack; needs at least two units.", more: "When only one contact is left, that contact is solved on its own. Only one contact is left when the youngest unit has no tops of its own, or overburden's base is folded into the unit under it. Lower Resolution in Model settings while you settle the order." },
     ],
     warnings: [
       { says: "Rhyolite: no top contacts it can use (the notes above say why). …", do: "Nothing, unless you expected tops: then check its role in Modelling codes.", more: "… As the youngest unit of the stack it needs none: … The top unit has no top; the stack starts from the unit below it. It starts under overburden, casing or at the hole start everywhere. Its base is the top of the next unit, which is modelled." },
@@ -259,7 +259,7 @@ export default [
         "File > Open Sample Project > Harry, then 3D Modelling with the ribbon in Advanced mode.",
         "Open Strat. stack and add two or three units in the order Harry's strip logs show, youngest first.",
         "Choose Conformable for a layered sequence, or Erode if units pinch out between holes.",
-        "Press Run stack and read the notices: skipped units, pinch-outs, the model check by unit.",
+        "Press Build stack and read the notices: skipped units, pinch-outs, the model check by unit.",
         "Fix the order or the roles (Modelling codes) and run again.",
       ],
     },
@@ -339,7 +339,7 @@ export default [
       { name: "Stereonet (QC picks)", gist: "one cluster, one surface", what: "Pole plot and great circles of the structure picks and outcrop measurements.", more: "How to choose: One cluster suggests one surface; a girdle or scatter does not." },
       { name: "Downhole structure (tadpole)", what: "Depth against dip with an azimuth tail, per hole, with lithology and structure-frequency tracks.", more: "It shows where a structure's picks sit in each hole, and whether they change at a contact." },
       { name: "Structure type (Choose a structure type…)", gist: "picks with dip and dip direction", what: "The structure-plane type to model; only picks with dip and dip direction are used.", more: "How to choose: Choose a type that records one structure, or one with names / IDs mapped. The types come from the Structure planes layer." },
-      { name: "Run", what: "Runs GemPy for each named structure of that type, plus one for the unnamed picks.", more: "It follows the trend chosen for Structural surfaces, and the domain and search ellipsoid in Model settings." },
+      { name: "Build structures", what: "Runs GemPy for each named structure of that type, plus one for the unnamed picks.", more: "It follows the trend chosen for Structural surfaces, and the domain and search ellipsoid in Model settings." },
     ],
     warnings: [
       { says: "All 46 \"Vein\" picks (12 holes) are modelled as ONE surface. …", more: "The picks have no names, so all of them feed one surface.", do: "If they are several structures, re-import with a name / ID column." },
@@ -538,7 +538,7 @@ export default [
         "File > Open Sample Project > Harry. In Geochem > Grade stats for Au, note where the distribution breaks and its upper tail.",
         "In 3D Modelling > Grade shell, choose Au and set the Cutoff and High-grade cap from what you saw.",
         "Set Search from Harry's hole spacing (measure it in plan); keep Min holes at two or more.",
-        "Press Generate Au shell and read the notice: cells estimated, cells held by one hole, open edges.",
+        "Press Build Au shell and read the notice: cells estimated, cells held by one hole, open edges.",
         "In Generated surfaces, use Colour by data support to see where it is interpolated or carried outward.",
       ],
     },

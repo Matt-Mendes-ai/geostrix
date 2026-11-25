@@ -204,7 +204,7 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
   // the shell's. Its Z (above the app), its drop guard (a file dropped beside the drop area is not imported underneath) and data-start-* stay
   const heading = tr("Let's begin a project!");
   const flow = [
-    { key: "ground", label: tr("Ground"), primary: { label: tr("Next"), onClick: next, attrs: { "data-start-next": "" } }, render: () => (
+    { key: "ground", label: tr("Ground"), primary: { label: noDrill ? tr("Next: your data") : tr("Next: your drilling"), onClick: next, attrs: { "data-start-next": "" } }, render: () => (
       <div style={{ flex: 1, minWidth: 0 }}>
           <DropArea busy={busy} accept=".tif,.tiff,.csv,.txt,.xlsx,.xls,.zip,.gpkg,.shp" onFiles={onGroundFiles} picture="terrain"
             label={tr("Drop your terrain (DEM) here.")} />

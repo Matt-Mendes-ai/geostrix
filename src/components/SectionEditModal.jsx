@@ -8,10 +8,7 @@
 // always starts from "everything included" (matching the pre-#240-scope default behavior) and the
 // user unchecks what they don't want.
 import React, { useState } from "react";
-import { X, Layers3 } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -20,8 +17,7 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '
 const SECTION_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "weath", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
 
 export default function SectionEditModal({ sectionCount, initialCorridor, voxelModels, onSave, onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap(); // TASKS.csv #238
+  const [at, setAt] = useState(0); // TASKS.csv #4073 — the step on screen
   const [layerKeys, setLayerKeys] = useState(new Set(SECTION_LAYER_KEYS));
   const [voxelModelIds, setVoxelModelIds] = useState(new Set((voxelModels || []).map((m) => m.id)));
   const [showTerrain, setShowTerrain] = useState(true);
@@ -48,86 +44,82 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
     onSave(scope, corridorValue);
   };
 
-  return (
-    <div style={overlay}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Layers3 size={18} style={{ color: "var(--color-text-secondary)" }} />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Edit {v}", { v: sectionCount === 1 ? tr("section") : tr("{sectionCount} sections", { sectionCount }) })}
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows"; "GeoStrix is too wordy") — two steps, one question each: the corridor width, then what the
+  // section(s) show, with Save the last step's gold primary. The state lives here, not in a step, so going Back keeps every tick and the width. What a
+  // section shows by default (everything visible in the 3D view) is in the Help card; a bulk edit keeps its seen line that a blank width changes nothing.
+  const one = sectionCount === 1;
+  const heading = tr("Edit {v}", { v: one ? tr("section") : tr("{sectionCount} sections", { sectionCount }) });
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{heading}</summary>
+      <div style={note}>{tr("Choose what {v} {v2} when reopened: by default a section shows everything visible in the 3D view, unrelated content included.", { v: one ? tr("this section") : tr("these sections"), v2: one ? tr("shows") : tr("show") })}</div>
+    </details>
+  );
+  const check = { display: "flex", alignItems: "center", gap: 6, padding: "3px 5px", fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" };
+  const steps = [
+    { key: "corridor", label: tr("Width"), primary: { label: tr("Next") }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+        <label htmlFor="section-edit-corridor" style={field}>{tr("Corridor width (m)")}</label>
+        <NumberInput id="section-edit-corridor" allowEmpty min={0} value={corridor === "" ? null : corridor} onChange={(v) => setCorridor(v == null ? "" : String(v))} placeholder={sectionCount > 1 ? tr("(unchanged)") : ""} style={inp} />
+        {sectionCount > 1 && <div style={note}>{tr("Leave blank to keep each section's own width.")}</div>}
+      </div>
+    ) },
+    { key: "content", label: tr("Content"), primary: { label: tr("Save"), onClick: save }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={field}>{tr("Layers")}</span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(true)} style={linkText}>{tr("All")}</span>
+              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(false)} style={linkText}>{tr("None")}</span>
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, maxHeight: 180, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
+            {SECTION_LAYER_KEYS.map((key) => (
+              <label key={key} style={check}>
+                <input type="checkbox" checked={layerKeys.has(key)} onChange={() => toggleLayer(key)} />
+                {LAYER_META[key]?.label || key}
+              </label>
+            ))}
+          </div>
         </div>
 
-        <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Choose what {v} {v2} when reopened: by default a section shows everything visible in the 3D view, unrelated content included.", { v: sectionCount === 1 ? tr("this section") : tr("these sections"), v2: sectionCount === 1 ? tr("shows") : tr("show") })}</div>
-
-          <div>
-            <label style={{ ...field, marginBottom: 6 }}>{tr("Corridor width (m)")}{" "}{sectionCount > 1 && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("— leave blank to keep each section's own width")}</span>}
-            </label>
-            <NumberInput allowEmpty min={0} value={corridor === "" ? null : corridor} onChange={(v) => setCorridor(v == null ? "" : String(v))} placeholder={sectionCount > 1 ? tr("(unchanged)") : ""} style={inp} />
-          </div>
-
+        {(voxelModels || []).length > 0 && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <span style={field}>{tr("Layers")}</span>
+              <span style={field}>{tr("Voxel / block models")}</span>
               <div style={{ display: "flex", gap: 8 }}>
-                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(true)} style={linkText}>{tr("All")}</span>
-                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(false)} style={linkText}>{tr("None")}</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(true)} style={linkText}>{tr("All")}</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(false)} style={linkText}>{tr("None")}</span>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, maxHeight: 180, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
-              {SECTION_LAYER_KEYS.map((key) => (
-                <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 5px", fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>
-                  <input type="checkbox" checked={layerKeys.has(key)} onChange={() => toggleLayer(key)} />
-                  {LAYER_META[key]?.label || key}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 120, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
+              {voxelModels.map((m) => (
+                <label key={m.id} style={check}>
+                  <input type="checkbox" checked={voxelModelIds.has(m.id)} onChange={() => toggleVoxel(m.id)} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</span>
                 </label>
               ))}
             </div>
           </div>
+        )}
 
-          {(voxelModels || []).length > 0 && (
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={field}>{tr("Voxel / block models")}</span>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(true)} style={linkText}>{tr("All")}</span>
-                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(false)} style={linkText}>{tr("None")}</span>
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 120, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
-                {voxelModels.map((m) => (
-                  <label key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 5px", fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>
-                    <input type="checkbox" checked={voxelModelIds.has(m.id)} onChange={() => toggleVoxel(m.id)} />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>
-              <input type="checkbox" checked={showTerrain} onChange={(e) => setShowTerrain(e.target.checked)} />{" "}{tr("Terrain elevation profile")}</label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>
-              <input type="checkbox" checked={showCustomLayers} onChange={(e) => setShowCustomLayers(e.target.checked)} />{" "}{tr("Custom CSV layers")}</label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>
-              <input type="checkbox" checked={showAssays} onChange={(e) => setShowAssays(e.target.checked)} />{" "}{tr("Assays")}</label>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Cancel")}</button>
-          <button onClick={save} className="gs-btn gs-btn--primary" style={{ flex: 2 }}>{tr("Save")}</button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={check}>
+            <input type="checkbox" checked={showTerrain} onChange={(e) => setShowTerrain(e.target.checked)} />{" "}{tr("Terrain elevation profile")}</label>
+          <label style={check}>
+            <input type="checkbox" checked={showCustomLayers} onChange={(e) => setShowCustomLayers(e.target.checked)} />{" "}{tr("Custom CSV layers")}</label>
+          <label style={check}>
+            <input type="checkbox" checked={showAssays} onChange={(e) => setShowAssays(e.target.checked)} />{" "}{tr("Assays")}</label>
         </div>
       </div>
-    </div>
-  );
+    ) },
+  ];
+
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} width="min(520px, 92vw)" />;
 }
 
-const panel = { width: "min(480px, 92vw)", maxHeight: "86vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const field = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)" };
 const linkText = { fontSize: "var(--font-size-sm)", color: "var(--color-info)", cursor: "pointer" };
+const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 };
 const inp = { width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };

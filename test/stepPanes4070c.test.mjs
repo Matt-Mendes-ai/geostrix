@@ -64,7 +64,7 @@ test("Implicit surface: one step (the unit), Run as the action, the surfaces of 
   assert.match(b, /<StepPane id="implicit" label=\{tr\("Implicit surface"\)\}/);
   assert.ok(b.includes('key: "unit"'));
   assert.match(b, /<MoreFold summary=\{tr\("Fine-tune…"\)\} data-fine-tune="implicit">/);
-  reachable(b, ["runImplicitModel(implicitTarget)", "setImplicitTarget(", "setIncludeSectionContacts(", "setSensOpen(", "setSensSigmaPos", "setSensSigmaDeg", "setSensN(", "setSensBudget(", "Run with sensitivity spread",
+  reachable(b, ["runImplicitModel(implicitTarget)", "setImplicitTarget(", "setIncludeSectionContacts(", "setSensOpen(", "setSensSigmaPos", "setSensSigmaDeg", "setSensN(", "setSensBudget(", "Build with sensitivity spread",
     "ensemble:", "{leftOutNote}", "clusterNote(true)", "runResult(implicitSurfaces)", "optgroup label={tr(\"Modelling codes\")}"]);
 });
 
