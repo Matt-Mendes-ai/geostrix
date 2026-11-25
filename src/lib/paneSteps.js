@@ -99,3 +99,12 @@ export function alterationResult(surfaces) {
     farShare: Number.isFinite(p.farFromLogs?.share) ? p.farFromLogs.share : null, beyondShare: Number.isFinite(p.beyondDrilling?.share) ? p.beyondDrilling.share : null,
     closure: p.closure || null, cellM: p.cellSizeM ?? null, searchM: p.searchRadiusM ?? null };
 }
+
+// the Undrilled zones pane's Result step (#4070 part 3): a run's numbers -> { coveredPct, unitV, openV, zones, ignoredZones, drilled, planned } | null.
+// result: the pane's run (unitCells, coveredCells, cellVolume, uncoveredCells, ignored { cells, zones }, zones [], holes { drilled, planned }): volumes in m3
+export function undrilledNumbers(result) {
+  if (!result || !(result.unitCells > 0)) return null;
+  const cv = result.cellVolume || 0;
+  return { coveredPct: (100 * result.coveredCells) / Math.max(1, result.unitCells), unitV: result.unitCells * cv, openV: Math.max(0, (result.uncoveredCells - (result.ignored?.cells || 0)) * cv),
+    zones: result.zones?.length || 0, ignoredZones: result.ignored?.zones || 0, drilled: result.holes?.drilled || 0, planned: result.holes?.planned || 0 };
+}

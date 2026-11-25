@@ -17,12 +17,13 @@ const kept = new Map(); // pane id -> step index (this session)
 const muted = { color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" };
 
 // steps: [{ key, label, question, body, hint }] (label and question already translated); action: { label, onClick, disabled, title, icon, step, attrs } (step: the index it sits on, default the last; attrs: extra attributes, e.g. data-mcp);
-// result: { key, body } (key: what changes when a new result lands, null before any); fineTune: a node (a closed MoreFold); label: the pane's name (translated)
-export default function StepPane({ id, label, steps, action, result, fineTune, top }) {
-  const resultLabel = tr("Result");
+// result: { key, body, label, offTitle } (key: what changes when a new result lands, null before any; label: the Result step's name, default "Result"; offTitle: the tooltip of the greyed pill, default "After the first run"); fineTune: a node (a closed MoreFold);
+// label: the pane's name (translated); start: the step a pane opens on the first time ("result" for a pane whose last step is the list the user opens it for; default the first)
+export default function StepPane({ id, label, steps, action, result, fineTune, top, start = 0 }) {
+  const resultLabel = result?.label || tr("Result");
   const all = result ? [...steps, { key: "result", label: resultLabel, body: result.body }] : steps;
   const last = all.length - 1;
-  const [at, setAtState] = useState(() => Math.min(kept.get(id) ?? 0, last));
+  const [at, setAtState] = useState(() => Math.min(kept.get(id) ?? (start === "result" ? last : start), last));
   const setAt = (i) => { const k = Math.max(0, Math.min(last, i)); kept.set(id, k); setAtState(k); };
   // a new result opens the Result step (not the one there when the pane opened)
   const seen = useRef(result?.key ?? null);
@@ -53,7 +54,7 @@ export default function StepPane({ id, label, steps, action, result, fineTune, t
             const isResult = result && i === last, off = isResult && !resultReady, on = i === at;
             return (
               <button key={s.key} type="button" role="tab" aria-selected={on} disabled={off} onClick={() => setAt(i)} data-btn-own=""
-                title={off ? tr("After the first run") : s.label} aria-label={`${i + 1}. ${s.label}`}
+                title={off ? result.offTitle || tr("After the first run") : s.label} aria-label={`${i + 1}. ${s.label}`}
                 style={{ flex: 1, minWidth: 0, height: 24, borderRadius: 12, cursor: off ? "default" : "pointer", fontSize: "var(--font-size-xs)", fontWeight: 600, padding: "0 4px",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   border: `${on ? 2 : 1}px solid ${on ? "var(--btn-primary-border)" : "var(--color-border)"}`,
@@ -114,15 +115,15 @@ export function StepChoices({ value, options, onChange, label, columns = 1 }) {
   );
 }
 
-// a Result step's numbers: rows [{ label, value, level }] (level: "high" red, "some" amber)
+// a Result step's numbers: rows [{ label, value, level }] (level: "high" red, "some" amber, "muted" grey and light: a figure the pane says not to lean on)
 export function StepNumbers({ rows }) {
-  const colour = { high: "var(--color-danger-text)", some: "var(--color-warn-text-strong)" };
+  const colour = { high: "var(--color-danger-text)", some: "var(--color-warn-text-strong)", muted: "var(--color-text-muted)" };
   return (
     <div role="table" style={{ display: "grid", gridTemplateColumns: "1fr auto", columnGap: 10, rowGap: 3, fontSize: "var(--font-size-sm)", marginBottom: 6 }}>
       {rows.filter(Boolean).map((r) => (
         <React.Fragment key={r.label}>
           <span role="rowheader" style={{ color: "var(--color-text-secondary)" }} title={r.title}>{r.label}</span>
-          <span role="cell" style={{ fontWeight: 600, textAlign: "end", color: colour[r.level] || "var(--color-text)" }}>{r.value}</span>
+          <span role="cell" style={{ fontWeight: r.level === "muted" ? 400 : 600, textAlign: "end", color: colour[r.level] || "var(--color-text)" }}>{r.value}</span>
         </React.Fragment>
       ))}
     </div>

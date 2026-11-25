@@ -32,6 +32,8 @@ import { modelWithCodeDensity } from "../lib/densityByCode.js"; // TASKS.csv #26
 import { densityUsedText } from "./densityUsedText.js"; // TASKS.csv #2647
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import MoreFold from "./MoreFold.jsx";
+import StepPane, { StepNumbers } from "./StepPane.jsx"; // TASKS.csv #4070 part 3
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
@@ -43,6 +45,7 @@ const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maxim
 const EMPTY = { benchH: "", berm: "", batterDeg: "", datum: "", rampAz: "", rampTurn: "clockwise", rampGrade: "", rampW: "", sectors: {}, upRL: "", upBatter: "", upBerm: "" }; // ramp*: #1948; sectors: #1952; up*: #2730
 const SECTOR_GRID = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]];
 const SECTORS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+let designSeq = 0; // numbers each design, for the Result step (#4070)
 let kept = null; // #1356 — the last result (with its strings, for export) outlives the pane this session
 
 // surfaces: the project's generated surfaces (pit shells in, designs out); worldPositionsOf(id) -> Float64Array of E, N, Z for a
@@ -176,18 +179,113 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   };
   const gradeText = (g) => (g == null ? "—" : gradeWithElement(g, unit, pit?.params?.element || elementOfModel({ name: pit?.params?.blockModel }))); // #2594 — with its element and oxide
 
+  const designKey = useMemo(() => (res ? ++designSeq : null), [res]); // TASKS.csv #4070 part 3 — a new design opens the Result step
+  const numbers = res && [
+    { label: tr("Benches"), value: tr("{n} ({lo} to {hi} m)", { n: res.benches.length, lo: Math.round(res.floorRL), hi: Math.round(Number.isFinite(res.groundTopRL) ? Math.min(res.crestRL, res.groundTopRL) : res.crestRL) }) },
+    { label: tr("Inter-ramp angle"), value: `${res.interRampDeg.toFixed(1)}°` },
+    res.inputs?.upper && { label: tr("Inter-ramp angle above {rl} m", { rl: res.inputs.upper.rl }), value: `${upperInterRamp(res.inputs).toFixed(1)}°` },
+    { label: cmpLabel(tr("Ore (shell)"), tr("Ore (largest pit)")), value: `${big(res.totals.oreT)} t (${big(Number(cmp.oreTonnes) || 0)} t)` },
+    { label: cmpLabel(tr("Mean grade (shell)"), tr("Mean grade (largest pit)")), value: `${gradeText(res.totals.meanGrade)} (${gradeText(Number(cmp.meanGrade) || null)})` },
+    metalText(res) && { label: tr("Contained metal"), value: metalText(res) },
+    { label: cmpLabel(tr("Waste (shell)"), tr("Waste (largest pit)")), value: `${big(res.totals.wasteT)} t (${big(Number(cmp.wasteTonnes) || 0)} t)` },
+    { label: cmpLabel(tr("Strip ratio (shell)"), tr("Strip ratio (largest pit)")), value: `${res.totals.stripRatio == null ? "—" : res.totals.stripRatio.toFixed(2)} (${Number.isFinite(Number(cmp.stripRatio)) ? Number(cmp.stripRatio).toFixed(2) : "—"})` },
+  ];
   return (
     <div>
       <TaskPaneHeader title="Pit design" icon={Layers3} tone="model" onClose={onClose} />
-      <div style={note}>{tr("Benches, berms and faces on a pit shell: bench floors on round elevations, a face at the batter angle up to each crest and a catch bench before the next, from the pit bottom to where the walls meet the ground. It gives crest and toe strings and a bench-by-bench table. A ramp, and a face angle and berm per wall sector, can be added; there is no dilution or scheduling, so it is a drawing of the shell, not a mine plan.")}</div>
       {!pits.length && <div style={warn}>{tr("It needs a pit shell: run Pit shell first.")}</div>}
       {pits.length > 0 && (<>
+        {/* TASKS.csv #4070 part 3 (Matt's layout C): the shell and the bench height, berm and face angle as the one question, Design the benches as the one gold primary, the benches in Result, every other setting in Fine-tune */}
+        <StepPane id="design" label={tr("Pit design")}
+          steps={[
+            { key: "benches", label: tr("Benches"), question: tr("Which benches?"), body: (<>
         <label style={row}>{tr("Pit shell")}<select value={pit?.id || ""} onChange={(e) => setPitId(e.target.value)} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell to design on")}>
           {pits.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}
         </select></label>
         {field("benchH", tr("Bench height (m)"))}
         {field("berm", tr("Berm width (m)"), { title: tr("The catch bench left between one face's crest and the next face's toe.") })}
         {field("batterDeg", tr("Face angle (°)"), { max: 89, title: tr("The angle of each bench face (batter), steeper than the overall slope.") })}
+        {predicted && (predicted.facesDrawn
+          ? <div style={note}>{tr("Design cell at these benches: {c} m; the {f} m faces are drawn.", { c: predicted.cell.toFixed(1), f: predicted.faceRun.toFixed(1) })}</div>
+          : <div style={warn}>{tr("Design cell at these benches: {c} m, wider than the {f} m face: no faces or berms would be drawn, only the shell stepped to bench floors.", { c: predicted.cell.toFixed(1), f: predicted.faceRun.toFixed(1) })} {drawsAt ? tr("Benches of {h} m would draw at this size; or pick a design area (a closed design string) so the grid covers one prospect.", { h: drawsAt }) : tr("Pick a design area (a closed design string) so the grid covers one prospect.")}</div>)}
+        {interRamp != null && (
+          <div style={{ ...note, marginTop: 4 }}>
+            {tr("Inter-ramp angle at these benches: {a}° (a face run of {r} m plus the berm).", { a: interRamp.toFixed(1), r: (reach - v("berm")).toFixed(1) })}
+            {(() => { // TASKS.csv #2433 — against the walls the shell really stands at (a typed 28° could stand 32–33°), the typed slope only for an older pit
+              const cmp = shellWallCompare(interRamp, pit?.params?.wallAnglesDeg, shellSlope, !!pit?.params?.inputs?.sectorSlopes);
+              if (!cmp) return null;
+              if (cmp.walls) return <div style={warn}>{cmp.side < 0
+                ? tr("Flatter than the shell's walls ({f}–{s}° for a typed {t}°): the design will take more waste than the shell counted.", { f: cmp.walls[0].toFixed(0), s: cmp.walls[1].toFixed(0), t: shellSlope })
+                : tr("Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.", { f: cmp.walls[0].toFixed(0), s: cmp.walls[1].toFixed(0), t: shellSlope })}</div>;
+              return <div style={warn}>{cmp.side < 0
+                ? tr("Flatter than the {s}° the shell was solved at: the design will take more waste than the shell counted.", { s: shellSlope })
+                : tr("Steeper than the {s}° the shell was solved at: the design stands inside the shell's walls, which the shell's economics did not test.", { s: shellSlope })}</div>;
+            })()}
+          </div>
+        )}
+        {pit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more: the table will show rock only, no ore.", { m: pit.params?.blockModel || "?" })}</div>}
+        {pit && model && byIn && !byModel && <div style={warn}>{tr("The by-product model the shell was run with (\"{m}\") is not in the project any more: the ore is decided on the main metal alone, at its cut-off.", { m: pit.params?.byProduct?.blockModel || "?" })}</div>}{/* #1917 */}
+            </>) },
+          ]}
+          action={!busy ? { label: tr("Design the benches"), onClick: run, disabled: missing, icon: <Layers3 size={14} />, title: missing ? tr("Enter the bench height, berm width and face angle: none has a default, because they are the design.") : undefined } : { label: busy && busy.stage === "grid" ? tr("Building the design grid: cancel") : busy && busy.stage === "mesh" ? tr("Meshing the design and counting its tonnes: cancel") /* #3002 */ : busy && busy.k ? (busy.n ? tr("Designing bench {k} of about {n}: cancel", { k: busy.k, n: Math.max(busy.n, busy.k) }) : tr("Designing bench {k}: cancel", { k: busy.k })) : tr("Designing: cancel"), onClick: cancel }}
+          result={{ key: designKey, body: res && (<>
+            <StepNumbers rows={numbers} />
+          {res.sectorsUsed && (() => {
+            const h = Number(res.inputs?.benchH), ira = (s) => (Math.atan(h / (h / Math.tan((s.batterDeg * Math.PI) / 180) + Number(s.berm))) * 180) / Math.PI;
+            const rows = Object.entries(res.sectorsUsed).map(([k, s]) => ({ k, s, a: ira(s), shell: Number(pit?.params?.inputs?.sectorSlopes?.[k]) || shellSlope }));
+            const flat = rows.filter((r) => Number.isFinite(r.shell) && r.a < r.shell - 1);
+            return (<>
+              <div style={note}>{tr("By wall (face° / berm m → inter-ramp): {list}.", { list: rows.map((r) => `${r.k} ${r.s.batterDeg}° / ${r.s.berm} → ${r.a.toFixed(1)}°`).join(", ") })}</div>
+              {flat.length > 0 && <div style={warn}>{tr("Flatter than the shell was solved at: {list}. Those walls take more waste than the shell counted.", { list: flat.map((r) => `${r.k} ${r.a.toFixed(1)}° < ${r.shell}°`).join(", ") })}</div>}
+            </>);
+          })()}
+          {res.ramp?.needsSwitchback && <div style={warn}>{tr("The wall at {rl} m is too short for a {g} % run at this width: the ramp stops there and a switchback is needed, which is not drawn.", { rl: Math.round(res.ramp.stoppedAtRL), g: res.ramp.gradientPct })}</div>}
+          {res.modelMissing && <div style={warn}>{tr("No block model: the ore column is empty, the rock is counted.")}</div>}
+          {res.coarsened && <div style={warn}>{tr("The design grid was made coarser to stay within the limit: faces and strings are coarser than asked.")}</div>}
+          {res.cell > res.faceRun && <div style={warn}>{tr("The design cell ({c} m) is wider than a face ({f} m): faces and berms are not drawn at this size, and the surface is the shell stepped to bench floors.", { c: res.cell.toFixed(1), f: res.faceRun.toFixed(1) })}</div>}{/* #1899 */}
+          {!res.daylights && <div style={warn}>{tr("The walls never met the ground: the design stops at the top bench.")}</div>}
+          {(() => { // TASKS.csv #2735 — as the Pit shell (#2596): the design's ore in blocks whose nearest drilling was never sampled
+            const p = res.totals?.oreNearUnsampledShare || 0;
+            if (!(p > 0) || !(model?.params?.nearUnsampledFlagged || model?.cells?.some((c) => c.nearUnsampled))) return null;
+            return <><div style={p > 0.2 ? warn : note}>{p > 0.2 ? tr(chips ? "{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled chips, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\"." : "{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(p * 100) })}</div>{nearUnsampledMayBeStale(model?.params) && <div style={note}>{tr("This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.")}</div>}</>; // #3065
+          })()}
+          {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the design's ore in blocks beyond every sample informing them
+            const p = res.totals?.oreBeyondSampleShare || 0;
+            if (!(p > 0) || !(model?.params?.beyondFlagged || model?.cells?.some((c) => c.beyond))) return null;
+            return <div style={p > 0.2 ? warn : note}>{p > 0.2 ? tr("{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore, so the strip ratio rests on it.", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks above or below every sample that informs them.", { p: Math.round(p * 100) })}</div>;
+          })()}
+          <div style={{ marginTop: 6, maxHeight: 220, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)" }}>
+              <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Floor"), tr("Ore t"), tr("Grade"), ...(res.alsoLabels || []) /* #3084 */, tr("Waste t"), tr("Strip")].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
+              <tbody>{[...res.benches].reverse().map((b) => (
+                <tr key={b.rl}><td style={cellStyle}>{Math.round(b.rl)}</td><td style={cellStyle}>{big(b.oreT)}</td><td style={cellStyle}>{b.meanGrade == null ? "—" : Number(b.meanGrade.toPrecision(3))}</td>{(res.alsoLabels || []).map((l, k) => <td key={l} style={cellStyle}>{b.alsoGrades?.[k] == null ? "—" : Number(b.alsoGrades[k].toPrecision(3))}</td>)}<td style={cellStyle}>{big(b.wasteT)}</td><td style={cellStyle}>{b.oreT > 0 ? (b.wasteT / b.oreT).toFixed(1) : "—"}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+          <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+            <button onClick={exportStringsDxf} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }} title={tr("Crest and toe strings, one DXF layer per bench")}><Download size={13} /> {tr("Strings DXF")}</button>
+            <button onClick={exportStringsCsv} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> {tr("Strings CSV")}</button>
+            <button onClick={exportBenchesCsv} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> {tr("Benches CSV")}</button>
+          </div>
+          <div style={{ ...note, marginTop: 4 }}>{tr("A geometric design on a conceptual shell, at your bench, berm and face angle. It is not a Mineral Reserve or Resource.")}</div>
+            <MoreFold summary={tr("Details")} data-fine-tune="design-details">
+          {res.ramp && line(tr("Ramp"), tr("{L} m at {g} %, {w} m wide, over {n} bench(es)", { L: Math.round(res.ramp.lengthM).toLocaleString(), g: res.ramp.gradientPct, w: res.ramp.widthM, n: res.ramp.benches }))}{/* #1948 */}
+          {res.ramp && line(tr("Rock under the road"), `${big(res.ramp.rockT)} t`)}
+          {res.ramp?.daylightRL != null && <div style={note}>{tr("The road reaches the ground at {rl} m and ends there; its length is counted to that point.", { rl: Math.round(res.ramp.daylightRL * 10) / 10 })}</div>}{/* #2713 */}
+          {res.ramp && !res.ramp.needsSwitchback && res.ramp.daylightRL == null && res.ramp.benches < res.benches.length && <div style={note}>{tr("The ramp climbs {n} of the {m} benches: the benches above it have no road.", { n: res.ramp.benches, m: res.benches.length })}</div>}
+          {line(tr("Design cell"), `${res.cell.toFixed(1)} m`)}
+          {line(tr("Designed in"), `${res.seconds} s`)}
+          {res.columnsInArea > 0 && <div style={note}>{tr("Designed inside \"{name}\": {n} of the shell's columns.", { name: res.areaName || "?", n: res.columnsInArea })}</div>}{/* #1916 */}
+          {res.partsDropped > 0 && <div style={note}>{tr("The largest of the shell's separate pits was designed; {k} left out.", { k: res.partsDropped })}</div>}{/* #1899 */}
+          {Number(res.shell?.gridCellM?.[0]) > Number(res.inputs?.benchH) && <div style={note}>{tr("The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.", { d: res.shell.gridCellM[0], h: res.inputs.benchH })}</div>}{/* #1899 */}
+          {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
+          {res.totals?.weatheredT > 0 && line(tr("Of the rock, weathered"), tr("{t} t at {d} t/m³", { t: big(res.totals.weatheredT), d: res.totals.weatheredDensity }))}{/* #2671 — as the Pit shell (#2597) */}
+          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ /></>}
+          {res.groundSource === "model top" && <div style={note}>{res.modelMissing ? tr("No terrain and no collars: the top of the shell is taken as flat ground.") : tr("No terrain and no collars: the ground is the top of the block model's columns, interpolated between them.")}</div>}{/* #1850 */}
+            </MoreFold>
+          </>) }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="design">
+      <div style={note}>{tr("Benches, berms and faces on a pit shell: bench floors on round elevations, a face at the batter angle up to each crest and a catch bench before the next, from the pit bottom to where the walls meet the ground. It gives crest and toe strings and a bench-by-bench table. A ramp, and a face angle and berm per wall sector, can be added; there is no dilution or scheduling, so it is a drawing of the shell, not a mine plan.")}</div>
         {/* TASKS.csv #2730 — benches above an RL with their own face and berm (soft cover), as the shell's upper slope */}
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
           {field("upRL", tr("Upper benches above RL (m)"), { placeholder: Number.isFinite(Number(pit?.params?.inputs?.upperSlope?.rl)) ? String(pit.params.inputs.upperSlope.rl) : tr("optional"), title: tr("Optional: the benches whose face starts at or above this RL take the face angle and berm beside it (soft cover, weathered rock), as the shell's upper slope. All three, or none.") })}
@@ -222,32 +320,9 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         {rampBad && <div style={warn}>{tr("A ramp needs its floor bearing, a gradient above 0 and a width above 0.")}</div>}
         {/* TASKS.csv #1916 — a design area: a closed design string; the design grid then covers that part of the shell alone */}
         {areas.length > 0 && <label style={row}>{tr("Design area")}<select value={areaId} onChange={(e) => { setAreaId(e.target.value); setMsg(null); }} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Design area (a closed design string)")} title={tr("Only the shell's columns inside this closed string are designed, so the design grid goes to one prospect.")}><option value="">{tr("— the whole shell —")}</option>{areas.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
-        {predicted && (predicted.facesDrawn
-          ? <div style={note}>{tr("Design cell at these benches: {c} m; the {f} m faces are drawn.", { c: predicted.cell.toFixed(1), f: predicted.faceRun.toFixed(1) })}</div>
-          : <div style={warn}>{tr("Design cell at these benches: {c} m, wider than the {f} m face: no faces or berms would be drawn, only the shell stepped to bench floors.", { c: predicted.cell.toFixed(1), f: predicted.faceRun.toFixed(1) })} {drawsAt ? tr("Benches of {h} m would draw at this size; or pick a design area (a closed design string) so the grid covers one prospect.", { h: drawsAt }) : tr("Pick a design area (a closed design string) so the grid covers one prospect.")}</div>)}
-        {interRamp != null && (
-          <div style={{ ...note, marginTop: 4 }}>
-            {tr("Inter-ramp angle at these benches: {a}° (a face run of {r} m plus the berm).", { a: interRamp.toFixed(1), r: (reach - v("berm")).toFixed(1) })}
-            {(() => { // TASKS.csv #2433 — against the walls the shell really stands at (a typed 28° could stand 32–33°), the typed slope only for an older pit
-              const cmp = shellWallCompare(interRamp, pit?.params?.wallAnglesDeg, shellSlope, !!pit?.params?.inputs?.sectorSlopes);
-              if (!cmp) return null;
-              if (cmp.walls) return <div style={warn}>{cmp.side < 0
-                ? tr("Flatter than the shell's walls ({f}–{s}° for a typed {t}°): the design will take more waste than the shell counted.", { f: cmp.walls[0].toFixed(0), s: cmp.walls[1].toFixed(0), t: shellSlope })
-                : tr("Steeper than the shell's walls ({f}–{s}° for a typed {t}°): the design stands inside them, which the shell's economics did not test.", { f: cmp.walls[0].toFixed(0), s: cmp.walls[1].toFixed(0), t: shellSlope })}</div>;
-              return <div style={warn}>{cmp.side < 0
-                ? tr("Flatter than the {s}° the shell was solved at: the design will take more waste than the shell counted.", { s: shellSlope })
-                : tr("Steeper than the {s}° the shell was solved at: the design stands inside the shell's walls, which the shell's economics did not test.", { s: shellSlope })}</div>;
-            })()}
-          </div>
-        )}
-        {pit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more: the table will show rock only, no ore.", { m: pit.params?.blockModel || "?" })}</div>}
-        {pit && model && byIn && !byModel && <div style={warn}>{tr("The by-product model the shell was run with (\"{m}\") is not in the project any more: the ore is decided on the main metal alone, at its cut-off.", { m: pit.params?.byProduct?.blockModel || "?" })}</div>}{/* #1917 */}
         {pitCount > 1 && !area && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The shell is several separate pits; the design grid then goes to the largest alone.")}><input type="checkbox" checked={largestOnly} onChange={(e) => setLargestOnly(e.target.checked)} />{tr("Design the largest of the {n} separate pits only", { n: pitCount })}</label>}{/* #1899 */}
         {designs.some((s) => s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier designs")}</label>}
-        {!busy
-          ? <button onClick={run} disabled={missing} className="gs-btn gs-btn--block" style={{ marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Design the benches")}</button>
-          : <button onClick={cancel} className="gs-btn gs-btn--block" style={{ marginTop: 8 }}>{busy && busy.stage === "grid" ? tr("Building the design grid: cancel") : busy && busy.stage === "mesh" ? tr("Meshing the design and counting its tonnes: cancel") /* #3002 */ : busy && busy.k ? (busy.n ? tr("Designing bench {k} of about {n}: cancel", { k: busy.k, n: Math.max(busy.n, busy.k) }) : tr("Designing bench {k}: cancel", { k: busy.k })) : tr("Designing: cancel")}</button>}{/* #2286 */}
-        {missing && !busy && <div style={note}>{tr("Enter the bench height, berm width and face angle: none has a default, because they are the design.")}</div>}
+          </MoreFold>} />
       </>)}
       {designs.length > 0 && (
         <div style={{ marginTop: 10 }}>
@@ -266,72 +341,6 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       {pit && <UndergroundOreNote model={model} cutoff={pit.params?.cutoffGrade} />}{/* #2277 */}
       {pit && <TopCutNote model={model} />}{/* #3794 */}
       {msg && <div style={warn}>{msg}</div>}
-      {res && (
-        <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
-          {line(tr("Benches"), tr("{n} ({lo} to {hi} m)", { n: res.benches.length, lo: Math.round(res.floorRL), hi: Math.round(Number.isFinite(res.groundTopRL) ? Math.min(res.crestRL, res.groundTopRL) : res.crestRL) }))}{/* #2440 — to the ground the pit meets */}
-          {line(tr("Inter-ramp angle"), `${res.interRampDeg.toFixed(1)}°`)}
-          {res.inputs?.upper && line(tr("Inter-ramp angle above {rl} m", { rl: res.inputs.upper.rl }), `${upperInterRamp(res.inputs).toFixed(1)}°`)}{/* #3002 — the upper benches' own */}
-          {/* #1952; TASKS.csv #2117 (review #2013, Woodjam) — each wall's own inter-ramp angle (a 55° / 8 m N wall is 33.7°, not the 46.0° above), and the
-              walls flatter than the slope the shell was solved at */}
-          {res.sectorsUsed && (() => {
-            const h = Number(res.inputs?.benchH), ira = (s) => (Math.atan(h / (h / Math.tan((s.batterDeg * Math.PI) / 180) + Number(s.berm))) * 180) / Math.PI;
-            const rows = Object.entries(res.sectorsUsed).map(([k, s]) => ({ k, s, a: ira(s), shell: Number(pit?.params?.inputs?.sectorSlopes?.[k]) || shellSlope }));
-            const flat = rows.filter((r) => Number.isFinite(r.shell) && r.a < r.shell - 1);
-            return (<>
-              <div style={note}>{tr("By wall (face° / berm m → inter-ramp): {list}.", { list: rows.map((r) => `${r.k} ${r.s.batterDeg}° / ${r.s.berm} → ${r.a.toFixed(1)}°`).join(", ") })}</div>
-              {flat.length > 0 && <div style={warn}>{tr("Flatter than the shell was solved at: {list}. Those walls take more waste than the shell counted.", { list: flat.map((r) => `${r.k} ${r.a.toFixed(1)}° < ${r.shell}°`).join(", ") })}</div>}
-            </>);
-          })()}
-          {res.ramp && line(tr("Ramp"), tr("{L} m at {g} %, {w} m wide, over {n} bench(es)", { L: Math.round(res.ramp.lengthM).toLocaleString(), g: res.ramp.gradientPct, w: res.ramp.widthM, n: res.ramp.benches }))}{/* #1948 */}
-          {res.ramp && line(tr("Rock under the road"), `${big(res.ramp.rockT)} t`)}
-          {res.ramp?.needsSwitchback && <div style={warn}>{tr("The wall at {rl} m is too short for a {g} % run at this width: the ramp stops there and a switchback is needed, which is not drawn.", { rl: Math.round(res.ramp.stoppedAtRL), g: res.ramp.gradientPct })}</div>}
-          {res.ramp?.daylightRL != null && <div style={note}>{tr("The road reaches the ground at {rl} m and ends there; its length is counted to that point.", { rl: Math.round(res.ramp.daylightRL * 10) / 10 })}</div>}{/* #2713 */}
-          {res.ramp && !res.ramp.needsSwitchback && res.ramp.daylightRL == null && res.ramp.benches < res.benches.length && <div style={note}>{tr("The ramp climbs {n} of the {m} benches: the benches above it have no road.", { n: res.ramp.benches, m: res.benches.length })}</div>}
-          {/* #1929 — when the largest part alone was designed, the comparison is that part's, not the whole shell's */}
-          {line(cmpLabel(tr("Ore (shell)"), tr("Ore (largest pit)")), `${big(res.totals.oreT)} t (${big(Number(cmp.oreTonnes) || 0)} t)`)}
-          {line(cmpLabel(tr("Mean grade (shell)"), tr("Mean grade (largest pit)")), `${gradeText(res.totals.meanGrade)} (${gradeText(Number(cmp.meanGrade) || null)})`)}
-          {metalText(res) && line(tr("Contained metal"), metalText(res))}
-          {line(cmpLabel(tr("Waste (shell)"), tr("Waste (largest pit)")), `${big(res.totals.wasteT)} t (${big(Number(cmp.wasteTonnes) || 0)} t)`)}
-          {line(cmpLabel(tr("Strip ratio (shell)"), tr("Strip ratio (largest pit)")), `${res.totals.stripRatio == null ? "—" : res.totals.stripRatio.toFixed(2)} (${Number.isFinite(Number(cmp.stripRatio)) ? Number(cmp.stripRatio).toFixed(2) : "—"})`)}
-          {line(tr("Design cell"), `${res.cell.toFixed(1)} m`)}
-          {line(tr("Designed in"), `${res.seconds} s`)}
-          {res.modelMissing && <div style={warn}>{tr("No block model: the ore column is empty, the rock is counted.")}</div>}
-          {res.coarsened && <div style={warn}>{tr("The design grid was made coarser to stay within the limit: faces and strings are coarser than asked.")}</div>}
-          {res.columnsInArea > 0 && <div style={note}>{tr("Designed inside \"{name}\": {n} of the shell's columns.", { name: res.areaName || "?", n: res.columnsInArea })}</div>}{/* #1916 */}
-          {res.partsDropped > 0 && <div style={note}>{tr("The largest of the shell's separate pits was designed; {k} left out.", { k: res.partsDropped })}</div>}{/* #1899 */}
-          {res.cell > res.faceRun && <div style={warn}>{tr("The design cell ({c} m) is wider than a face ({f} m): faces and berms are not drawn at this size, and the surface is the shell stepped to bench floors.", { c: res.cell.toFixed(1), f: res.faceRun.toFixed(1) })}</div>}{/* #1899 */}
-          {Number(res.shell?.gridCellM?.[0]) > Number(res.inputs?.benchH) && <div style={note}>{tr("The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.", { d: res.shell.gridCellM[0], h: res.inputs.benchH })}</div>}{/* #1899 */}
-          {!res.daylights && <div style={warn}>{tr("The walls never met the ground: the design stops at the top bench.")}</div>}
-          {res.densityUsed && <div style={note}>{densityUsedText(res.densityUsed)}</div>}{/* #2647 */}
-          {res.totals?.weatheredT > 0 && line(tr("Of the rock, weathered"), tr("{t} t at {d} t/m³", { t: big(res.totals.weatheredT), d: res.totals.weatheredDensity }))}{/* #2671 — as the Pit shell (#2597) */}
-          {res.groundSource === "collars" && <><div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div><CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ /></>}
-          {(() => { // TASKS.csv #2735 — as the Pit shell (#2596): the design's ore in blocks whose nearest drilling was never sampled
-            const p = res.totals?.oreNearUnsampledShare || 0;
-            if (!(p > 0) || !(model?.params?.nearUnsampledFlagged || model?.cells?.some((c) => c.nearUnsampled))) return null;
-            return <><div style={p > 0.2 ? warn : note}>{p > 0.2 ? tr(chips ? "{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled chips, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\"." : "{p} % of this ore is in blocks whose nearest drilling was never sampled: the estimate carried sampled grade across unsampled core, which is unknown, not ore. Drilled metres with no sample can be estimated as barren: 3D Modelling › Estimation, \"Unsampled metres inside a sampled hole\".", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks whose nearest drilling was never sampled.", { p: Math.round(p * 100) })}</div>{nearUnsampledMayBeStale(model?.params) && <div style={note}>{tr("This block model was estimated from the checked holes by an earlier version, which counted every unchecked hole as drilling with no sample: some of these flags may be wrong. Estimate it again to refresh them.")}</div>}</>; // #3065
-          })()}
-          {(() => { // TASKS.csv #2645 — as the Pit shell (#2435): the design's ore in blocks beyond every sample informing them
-            const p = res.totals?.oreBeyondSampleShare || 0;
-            if (!(p > 0) || !(model?.params?.beyondFlagged || model?.cells?.some((c) => c.beyond))) return null;
-            return <div style={p > 0.2 ? warn : note}>{p > 0.2 ? tr("{p} % of this ore is in blocks above or below every sample that informs them: unsampled ground, neither barren nor ore, so the strip ratio rests on it.", { p: Math.round(p * 100) }) : tr("{p} % of the ore is in blocks above or below every sample that informs them.", { p: Math.round(p * 100) })}</div>;
-          })()}
-          {res.groundSource === "model top" && <div style={note}>{res.modelMissing ? tr("No terrain and no collars: the top of the shell is taken as flat ground.") : tr("No terrain and no collars: the ground is the top of the block model's columns, interpolated between them.")}</div>}{/* #1850 */}
-          <div style={{ marginTop: 6, maxHeight: 220, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
-            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)" }}>
-              <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Floor"), tr("Ore t"), tr("Grade"), ...(res.alsoLabels || []) /* #3084 */, tr("Waste t"), tr("Strip")].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
-              <tbody>{[...res.benches].reverse().map((b) => (
-                <tr key={b.rl}><td style={cellStyle}>{Math.round(b.rl)}</td><td style={cellStyle}>{big(b.oreT)}</td><td style={cellStyle}>{b.meanGrade == null ? "—" : Number(b.meanGrade.toPrecision(3))}</td>{(res.alsoLabels || []).map((l, k) => <td key={l} style={cellStyle}>{b.alsoGrades?.[k] == null ? "—" : Number(b.alsoGrades[k].toPrecision(3))}</td>)}<td style={cellStyle}>{big(b.wasteT)}</td><td style={cellStyle}>{b.oreT > 0 ? (b.wasteT / b.oreT).toFixed(1) : "—"}</td></tr>
-              ))}</tbody>
-            </table>
-          </div>
-          <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-            <button onClick={exportStringsDxf} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }} title={tr("Crest and toe strings, one DXF layer per bench")}><Download size={13} /> {tr("Strings DXF")}</button>
-            <button onClick={exportStringsCsv} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> {tr("Strings CSV")}</button>
-            <button onClick={exportBenchesCsv} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> {tr("Benches CSV")}</button>
-          </div>
-          <div style={{ ...note, marginTop: 4 }}>{tr("A geometric design on a conceptual shell, at your bench, berm and face angle. It is not a Mineral Reserve or Resource.")}</div>
-        </div>
-      )}
     </div>
   );
 }

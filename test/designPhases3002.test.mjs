@@ -23,7 +23,7 @@ test("#3002 the busy button names the phases; the design names its upper benches
   assert.ok(p.includes('busy.stage === "mesh" ? tr("Meshing the design and counting its tonnes: cancel")'));
   assert.ok(p.includes("(p) => setBusy(p && (p.k || p.stage) ? p : true)"));
   assert.ok(p.includes('upperIn ? tr(", above {rl} m {b} m berms at {a}°"'));
-  assert.ok(p.includes('line(tr("Inter-ramp angle above {rl} m"'));
+  assert.ok(p.includes('{ label: tr("Inter-ramp angle above {rl} m"')); // #4070 part 3: a row of the Result step's numbers
   const w = fs.readFileSync(new URL("../src/lib/pitDesign.worker.js", import.meta.url), "utf8");
   assert.ok(w.includes("onPhase: (stage) => self.postMessage({ phases: { stage } })"));
   // the upper inter-ramp formula: 10 m benches, 6 m berms at 65 deg -> 43.2 deg (the review's hand figure for the lower benches' same inputs)

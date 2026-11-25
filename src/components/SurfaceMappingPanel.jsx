@@ -4,7 +4,7 @@
 //   * Surface structures: outcrop strike/dip CSVs rendered as dip symbols on the terrain.
 // Its own component rather than more inline JSX in GeophysicsModule (already ~1,500 lines); it talks
 // to the store directly, the same way AddWebLayerModal does.
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import AzimuthRefPicker from "./AzimuthRefPicker.jsx"; // TASKS.csv #547
 import { bearingsToGrid, northRefText, loadIgrf } from "../lib/azimuthRef.js";
@@ -45,6 +45,8 @@ import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { readGeoPackageNear, GPKG_IN_PLACE_BYTES } from "../lib/gpkgInPlace.js"; // TASKS.csv #1716
 import { canReadGpkgInPlace, tabSiblingShapefile } from "../lib/desktop.js"; // tabSiblingShapefile: #1349
 import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
+import MoreFold from "./MoreFold.jsx";
+import StepPane, { requestStep } from "./StepPane.jsx"; // TASKS.csv #4070 part 3
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { tieOf, fileToLocal, bearingToLocal } from "../lib/localGridTie.js"; // TASKS.csv #2320
@@ -639,24 +641,23 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   );
   const select = { ...numInput, flex: 1, minWidth: 0 };
 
+  const mapKey = mapLayers.length || null, structKey = surfaceStructures.length || null; // TASKS.csv #4070 part 3 — a layer or a set added opens the last step
+  const pendingNow = !!pendingStruct;
+  useEffect(() => { if (pendingNow) requestStep("structs", "columns"); }, [pendingNow]); // a file chosen (or a measurement typed) opens its column check
   return (
     <>
       {importReview && <MapImportReview rows={importReview.rows} onCancel={() => importReview.resolve(null)} onConfirm={(on) => importReview.resolve(on)} />}
       {part !== "structures" && (<>
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Map layers")}<InfoButton title={tr("Map layers")} text={tr("Import a geology map, alteration or outcrop polygons, fault traces or sample points and drape them on the terrain, coloured by an attribute. A QGIS style (.qml) reuses your map's colours. Layers are reprojected into the project's EPSG ({v}). Contacts can be projected underground in 3D Modelling.", { v: project?.epsg ?? "?" })} />
       </div>
-      <SourceCrsField
-        value={mapSourceEpsg} onChange={(c) => setMapSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
-        defaultText={project?.crsSet === false ? tr("From the file (.prj / GeoPackage), else the project CRS (not chosen yet)") /* #2262 */ : tr("From the file (.prj / GeoPackage), else the project CRS ({v})", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
-        title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.")}
-      />
-      <button onClick={() => mapInput.current.click()} className="gs-btn gs-btn--block" disabled={busy} title={tr("Formats: GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml")}>
-        <MapIcon size={14} /> {busy ? tr("Importing…") : tr("Import map layer…")}
-      </button>
       <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml,.tab,.map,.id,.dat,.mif,.mid,.gpx,.geojson,.json,.kml,.kmz" multiple style={{ display: "none" }}
         onChange={(e) => { importMaps(e.target.files); e.target.value = ""; }} />
       <input ref={qmlInput} type="file" accept=".qml" style={{ display: "none" }}
         onChange={(e) => { applyQmlToLayer(e.target.files[0]); e.target.value = ""; }} />
+      {/* TASKS.csv #4070 part 3 (Matt's layout C): the file, Import map layer… as the one gold primary, the layers as the last step, the file's CRS in Fine-tune */}
+      <StepPane id="geomap" label={tr("Geology map")} start={mapLayers.length ? "result" : 0}
+        steps={[
+          { key: "file", label: tr("File"), question: tr("Which map file?"), body: (<>
       {/* TASKS.csv #1719 (review #1645, Copley) — the collars' top-of-hole lithology as a starting map */}
       {collars.length > 0 && (layers.litho || []).length > 0 && (
         <button onClick={() => makeSubcrop()} className="gs-btn gs-btn--block" style={{ marginTop: 6 }} title={tr("A point layer: each hole's first logged unit under its cover, coloured like the logs, with the hole and the depth of cover as attributes.")}>
@@ -670,7 +671,6 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           <span>{tr("m down each hole")}</span>
         </div>
       )}
-      {msgBox(mapMsg)}
       {subcropCard && mapLayers.some((l) => l.name === subcropCard.name) && (() => { /* TASKS.csv #2956 — what the holes start in, cover, outlines */
         const layer = mapLayers.find((l) => l.name === subcropCard.name);
         const starts = holeStartCodes({ collars, litho: layers.litho, roleOf: roleWithCodes(modellingCodes) }), total = starts.reduce((a, c) => a + c.holes, 0) || 1;
@@ -708,6 +708,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           </div>
         );
       })()}
+          </>) },
+        ]}
+        action={{ label: busy ? tr("Importing…") : tr("Import map layer…"), onClick: () => mapInput.current.click(), disabled: busy, icon: <MapIcon size={14} />, title: tr("Formats: GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml") }}
+        result={{ key: mapKey, label: tr("Layers"), offTitle: tr("After the first layer"), body: (<>
       {mapLayers.map((l) => {
         const legendOpen = !!openLegend[l.id];
         return (
@@ -823,12 +827,25 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           </div>
         );
       })}
-
       {part === "maps" && <CoveringLayers />}{/* TASKS.csv #1823 — in the Geology map pane; the tab's home has 'On the map' (#1597) */}
+        </>) }}
+        fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="geomap">
+      <SourceCrsField
+        value={mapSourceEpsg} onChange={(c) => setMapSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
+        defaultText={project?.crsSet === false ? tr("From the file (.prj / GeoPackage), else the project CRS (not chosen yet)") /* #2262 */ : tr("From the file (.prj / GeoPackage), else the project CRS ({v})", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
+        title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.")}
+      />
+        </MoreFold>} />
+      {msgBox(mapMsg)}
       </>)}
       {part !== "maps" && (<>
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV or MapInfo point table (easting, northing, dip, and dip direction or strike). Each is a disc in the measured plane, coloured by type; rows without elevation sit on the terrain. 3D Modelling uses them to set contact dips.")} />
       </div>
+      <input ref={structInput} type="file" accept=".csv,.txt,.xlsx,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
+        onChange={(e) => { readStructCsv(e.target.files); e.target.value = ""; }} />
+      <StepPane id="structs" label={tr("Outcrop structures")} start={surfaceStructures.length ? "result" : 0}
+        steps={[
+          { key: "file", label: tr("File"), question: tr("Where are the measurements?"), body: (<>
       {!terrain && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 8 }}>{tr("No terrain yet: make one in Maps > Terrain. Map layers and measurements then sit on the ground.")}</div>}{/* TASKS.csv #1719 */}
       <button onClick={() => structInput.current.click()} className="gs-btn gs-btn--block" title={tr("Formats: .csv, .xlsx, MapInfo .tab / .mif")}>
         <Compass size={14} />{" "}{tr("Import structure measurements…")}</button>
@@ -871,8 +888,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           </div>
         </div>
       )}
-      <input ref={structInput} type="file" accept=".csv,.txt,.xlsx,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
-        onChange={(e) => { readStructCsv(e.target.files); e.target.value = ""; }} />
+          </>) },
+          { key: "columns", label: tr("Columns"), question: tr("Check the columns"), body: (<>
+            {!pendingStruct && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Choose a file first.")}</div>}
       {pendingStruct && (
         <div style={card}>
           <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{name}: {rows} rows — check the columns", { name: pendingStruct.name, rows: pendingStruct.rows.length })}</div>
@@ -915,12 +933,14 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             </div>
           )}
           <div style={{ display: "flex", gap: 6, marginTop: 9 }}>
-            <button onClick={commitStructs} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}>{tr("Import")}</button>
-            <button onClick={() => { setPendingStruct(null); setStructMsg(null); /* #1722 — the column check's message goes with it */ }} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
+            <button onClick={() => { setPendingStruct(null); setStructMsg(null); /* #1722 — the column check's message goes with it */ requestStep("structs", "file"); }} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
           </div>
         </div>
       )}
-      {msgBox(structMsg)}
+          </>) },
+        ]}
+        action={{ label: tr("Import"), onClick: commitStructs, disabled: !pendingStruct, step: 1 }}
+        result={{ key: structKey, label: tr("Sets"), offTitle: tr("After the first set"), body: (<>
       {surfaceStructures.map((s) => {
         // #3066 — one line per structure type (the file's own type words; a row with none goes under its class)
         const types = new Map();
@@ -970,6 +990,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           </div>
         );
       })}
+        </>) }} />
+      {msgBox(structMsg)}
       </>)}
     </>
   );

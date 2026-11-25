@@ -14,6 +14,8 @@ import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #2768
 import { interpretationOnCollars } from "../lib/viewer/sceneBuilders.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { smallSel } from "../lib/sidebarStyles.js";
+import MoreFold from "./MoreFold.jsx";
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 part 3
 import { t as tr } from "../lib/i18n.js";
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
@@ -120,15 +122,15 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   const elevNow = elev !== "" && Number.isFinite(Number(elev)) ? Number(elev) : Number.isFinite(layer?.elevation) ? layer.elevation : plan?.z;
   const setLayerElev = (v) => { setElev(v); if (layer && v !== "" && Number.isFinite(Number(v))) updateMapLayer(layer.id, (l) => ({ ...l, elevation: Number(v) })); };
 
+  const lineKey = layer && layer.features.length > 0 ? `${layer.id}:${layer.features.length}` : null; // TASKS.csv #4070 part 3 — a line added opens the list
   return (
     <>
       <TaskPaneHeader title={tr("Interpretation lines")} helpId="interpretation-lines" icon={PenTool} tone="analyse" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        <div style={note}>{tr("Draw faults, contacts and lineaments over the map or a survey in the 3D view (Top view works best). Each set is a map layer: draped on the terrain, exported as Shapefile, GeoPackage, KML or DXF, and shown in the Layout legend.")}</div>
-        {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the lines are draped on the ground between the collars (a surface through the collar elevations).")}</div>}{/* #2768 */}
-        {plan && !terrain && layer && (collars || []).length >= 3 && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
-        {plan && !onCollars && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
-        {plan && !onCollars && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The RL the lines of this layer are drawn at while there is no terrain to drape them on")}>{tr("Elev. (m RL)")}<NumberInput allowEmpty value={elev !== "" ? elev : Number.isFinite(elevNow) ? Math.round(elevNow * 100) / 100 : null} onChange={(v) => setLayerElev(v == null ? "" : String(v))} aria-label={tr("Elevation of the interpretation lines (m RL)")} style={{ ...smallSel, width: 90 }} /></label>}{/* #2522 */}
+        {/* TASKS.csv #4070 part 3 (Matt's layout C): the survey, layer, type and confidence as the one question, Draw a line (then Finish) as the one gold primary, the lines as the last step, the notes, snapping and the drawing plane in Fine-tune */}
+        <StepPane id="interpret" label={tr("Interpretation lines")}
+          steps={[
+            { key: "line", label: tr("Line"), question: tr("What kind of line?"), body: (<>
         {surveys.length > 0 && <label style={row}>{tr("Survey")}{/* TASKS.csv #2274 — no Survey row when the project has none */}
           <select value={survey} onChange={(e) => { setSurvey(e.target.value); setLayerPick(""); }} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Survey the lines are drawn on")}>
             <option value="">{tr("(none named)")}</option>
@@ -154,40 +156,20 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
             <input value={direction} onChange={(e) => setDirection(e.target.value)} inputMode="decimal" placeholder={tr("{v} (optional)", { v: tr(attitude[3]) })} aria-label={tr(attitude[3])} title={tr(attitude[3])} style={{ ...smallSel, flex: 1, minWidth: 0, boxSizing: "border-box" }} />
           </div>
         )}
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Line name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
-        <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={tr("Note (optional)")} aria-label={tr("Line note")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
-        {onSnap && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("A click near a collar, a logged boundary of a shown layer or a hole's trace snaps to it, and the line records the hole. In Top view only collars are taken: every contact of a vertical hole is under its collar.")} /* plan: #2972 */>{/* #2630 */}
-          <input type="checkbox" checked={drawing.snap !== false} onChange={(e) => onSnap(e.target.checked)} />{tr("Snap to holes and logged contacts")}</label>}
-        {onLevel && <label style={row}>{tr("Draw on")}{/* TASKS.csv #3972 */}
-          <select value={drawOn} onChange={(e) => setDrawOn(e.target.value)} disabled={drawing.on} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Draw on")}>
-            <option value="terrain">{tr("The terrain")}</option>
-            <option value="level">{tr("A level (RL)")}</option>
-            <option value="slice">{tr("The 3D slice plane")}</option>
-          </select></label>}
-        {onLevel && drawOn === "level" && <label style={row}>{tr("Elev. (m RL)")}<NumberInput value={levelRl} onChange={(v) => setLevelRl(Number.isFinite(v) ? v : levelRl)} disabled={drawing.on} aria-label={tr("Elev. (m RL)")} style={{ width: 90 }} /></label>}
-        {onLevel && drawOn === "slice" && <div role="note" style={note}>{level == null ? tr("Turn on the 3D slice, Horizontal, to draw at its level.") : tr("RL {rl} m", { rl: level.toLocaleString() })}</div>}
-        {!drawing.on ? (
-          <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 0 }} type="button" onClick={onStart} disabled={drawOn === "slice" && level == null}>{tr("Draw a line")}</button>
-        ) : (
+        {drawing.on && (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{n ? tr("{n} point(s), {m} m. Click to add a point; double-click or Finish to end the line.", { n, m: Math.round(lineLengthM(pts)).toLocaleString() }) : tr("Click the first point of the line.") /* #2274 — the pane is also the mapping tab's */}</div>
             {lastSnap && <div style={note}>{lastSnap.kind === "collar" ? tr("Snapped to the collar of {hole}.", { hole: lastSnap.hole_id }) : lastSnap.kind === "trace" ? tr("Snapped to {hole} at {md} m.", { hole: lastSnap.hole_id, md: lastSnap.md }) : tr("Snapped to {hole} at {md} m ({label}).", { hole: lastSnap.hole_id, md: lastSnap.md, label: lastSnap.label })}</div>}{/* #2630 */}
             <div style={{ display: "flex", gap: 6 }}>
-              <button className="gs-btn" style={{ flex: 1 }} type="button" onClick={finish} disabled={n < 2}>{tr("Finish")}</button>
               <button className="gs-btn" type="button" onClick={onUndo} disabled={!n}>{tr("Undo point")}</button>
               <button className="gs-btn" type="button" onClick={onCancel}>{tr("Cancel")}</button>
             </div>
           </div>
         )}
-        {editIdx != null && layer?.features?.[editIdx] && (
-          <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>{/* #2767 */}
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Editing \"{name}\": in the 3D view, drag a vertex (orange) to move it, a midpoint (small yellow) to add one, Alt+click a vertex to remove it.", { name: layer.features[editIdx].attributes.name })}</div>
-            <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 0 }} type="button" onClick={() => setEditIdx(null)}>{tr("Done")}</button>
-          </div>
-        )}
-        {msg && <div role="status" style={note}>{msg}</div>}
-        {removed && <button className="gs-btn gs-btn--block" style={{ marginBottom: 0 }} type="button" onClick={restore}>{tr("Restore \"{name}\"", { name: removed.feature?.attributes?.name || "" })}</button>}{/* #2522 — outside the list: it stays when the last line went */}
-        {layer && layer.features.length > 0 && (
+            </>) },
+          ]}
+          action={drawing.on ? { label: tr("Finish"), onClick: finish, disabled: n < 2 } : { label: tr("Draw a line"), onClick: onStart, disabled: drawOn === "slice" && level == null }}
+          result={{ key: lineKey, label: tr("Lines"), offTitle: tr("After the first line"), body: layer && layer.features.length > 0 && (
           <div>
             <div className="ge-section-label" style={{ marginTop: 6 }}>{tr("Lines in \"{layer}\"", { layer: layer.name })}</div>
             {layer.features.map((f, i) => (
@@ -201,7 +183,34 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
             ))}
             <div style={{ ...note, marginTop: 4 }}>{tr("Show, hide or remove the whole layer under Map layers; export it from its right-click menu in StrixViewer's layer list (Map layers).") /* #3381 — the Map layers cards have no export */}</div>
           </div>
+          ) }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="interpret">
+        <div style={note}>{tr("Draw faults, contacts and lineaments over the map or a survey in the 3D view (Top view works best). Each set is a map layer: draped on the terrain, exported as Shapefile, GeoPackage, KML or DXF, and shown in the Layout legend.")}</div>
+        {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the lines are draped on the ground between the collars (a surface through the collar elevations).")}</div>}{/* #2768 */}
+        {plan && !terrain && layer && (collars || []).length >= 3 && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
+        {plan && !onCollars && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
+        {plan && !onCollars && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The RL the lines of this layer are drawn at while there is no terrain to drape them on")}>{tr("Elev. (m RL)")}<NumberInput allowEmpty value={elev !== "" ? elev : Number.isFinite(elevNow) ? Math.round(elevNow * 100) / 100 : null} onChange={(v) => setLayerElev(v == null ? "" : String(v))} aria-label={tr("Elevation of the interpretation lines (m RL)")} style={{ ...smallSel, width: 90 }} /></label>}{/* #2522 */}
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Line name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
+        <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={tr("Note (optional)")} aria-label={tr("Line note")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
+        {onSnap && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("A click near a collar, a logged boundary of a shown layer or a hole's trace snaps to it, and the line records the hole. In Top view only collars are taken: every contact of a vertical hole is under its collar.")} /* plan: #2972 */>{/* #2630 */}
+          <input type="checkbox" checked={drawing.snap !== false} onChange={(e) => onSnap(e.target.checked)} />{tr("Snap to holes and logged contacts")}</label>}
+        {onLevel && <label style={row}>{tr("Draw on")}{/* TASKS.csv #3972 */}
+          <select value={drawOn} onChange={(e) => setDrawOn(e.target.value)} disabled={drawing.on} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Draw on")}>
+            <option value="terrain">{tr("The terrain")}</option>
+            <option value="level">{tr("A level (RL)")}</option>
+            <option value="slice">{tr("The 3D slice plane")}</option>
+          </select></label>}
+        {onLevel && drawOn === "level" && <label style={row}>{tr("Elev. (m RL)")}<NumberInput value={levelRl} onChange={(v) => setLevelRl(Number.isFinite(v) ? v : levelRl)} disabled={drawing.on} aria-label={tr("Elev. (m RL)")} style={{ width: 90 }} /></label>}
+        {onLevel && drawOn === "slice" && <div role="note" style={note}>{level == null ? tr("Turn on the 3D slice, Horizontal, to draw at its level.") : tr("RL {rl} m", { rl: level.toLocaleString() })}</div>}
+          </MoreFold>} />
+        {editIdx != null && layer?.features?.[editIdx] && (
+          <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>{/* #2767 */}
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Editing \"{name}\": in the 3D view, drag a vertex (orange) to move it, a midpoint (small yellow) to add one, Alt+click a vertex to remove it.", { name: layer.features[editIdx].attributes.name })}</div>
+            <button className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 0 }} type="button" onClick={() => setEditIdx(null)}>{tr("Done")}</button>
+          </div>
         )}
+        {msg && <div role="status" style={note}>{msg}</div>}
+        {removed && <button className="gs-btn gs-btn--block" style={{ marginBottom: 0 }} type="button" onClick={restore}>{tr("Restore \"{name}\"", { name: removed.feature?.attributes?.name || "" })}</button>}{/* #2522 — outside the list: it stays when the last line went */}
       </div>
     </>
   );

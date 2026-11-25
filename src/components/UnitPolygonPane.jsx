@@ -11,6 +11,7 @@ import { activateOnKey } from "../lib/a11y.js";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 part 3
 import { planElevation, planElevationText } from "../lib/drapeElevation.js"; // TASKS.csv #2269
 import { mapLayerOnCollars } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #3368
 import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #2572 — the logs' colour for a logged code
@@ -92,16 +93,15 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
 
   const remove = (i) => { if (!layer) return; updateMapLayer(layer.id, () => ({ ...removeUnitPolygon(layer, i), id: layer.id })); };
 
+  const polyKey = layer && layer.features.length > 0 ? `${layer.id}:${layer.features.length}` : null; // TASKS.csv #4070 part 3 — a polygon added opens the list
   return (
     <>
       <TaskPaneHeader title={tr("Unit polygons")} helpId="unit-polygons" icon={Shapes} tone="data" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        <div style={note}>{tr("Click the corners of a map unit's outline in the 3D view (Top view works best); a click on the first corner, a double-click or Finish closes it.")}</div>
-        <MoreFold style={{ ...note, marginBottom: 0 }}>{tr("The polygons form a geology map layer: draped on the terrain, exported as Shapefile or GeoPackage, in the Layout legend, and used by Model it.")}</MoreFold>{/* #3939 */}
-        {/* TASKS.csv #3368 — with no terrain the polygons lie on the surface through the collars, as the interpretation lines do (#2768) */}
-        {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the polygons are draped on the ground between the collars (a surface through the collar elevations), as the interpretation lines are.")}</div>}
-        {plan && layer && (onCollars || layer.drapeMode === "flat") && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
-        {plan && !onCollars && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
+        {/* TASKS.csv #4070 part 3 (Matt's layout C): the layer and the unit as the one question, Draw a polygon (then Finish) as the one gold primary, the polygons as the last step, the notes in Fine-tune */}
+        <StepPane id="unitpoly" label={tr("Unit polygons")}
+          steps={[
+            { key: "unit", label: tr("Unit"), question: tr("Which unit?"), body: (<>
         <label style={row}>{tr("Layer")}
           <select value={layerId} onChange={(e) => setLayerPick(e.target.value)} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Drawn geology layer")}>
             {mine.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.features.length})</option>)}
@@ -113,20 +113,19 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
         <input value={unit} onChange={(e) => setUnit(e.target.value)} list="ge-unit-polygon-units" placeholder={tr("Unit (for example Basalt, Rhyolite)")} aria-label={tr("Unit")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         <datalist id="ge-unit-polygon-units">{knownUnits.map((u) => <option key={u} value={u} />)}</datalist>
         <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={tr("Note (optional)")} aria-label={tr("Polygon note")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
-        {!drawing.on ? (
-          <button type="button" onClick={onStart} className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 0 }}>{tr("Draw a polygon")}</button>
-        ) : (
+        {drawing.on && (
           <div style={{ border: "1px solid var(--color-accent)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{n ? tr("{n} corner(s). Click to add a corner; double-click or Finish to close the polygon.", { n }) : tr("Click the first corner of the unit.")}</div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button type="button" onClick={() => finish() /* #2682 (found live): handing finish itself to onClick passed the click event as closedOnFirst, which dropped the last corner */} disabled={n < 3} className="gs-btn gs-btn--block" style={{ flex: 1, justifyContent: "center", marginBottom: 0, opacity: n < 3 ? 0.5 : 1 }}>{tr("Finish")}</button>
               <button type="button" onClick={onUndo} disabled={!n} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, opacity: n ? 1 : 0.5 }}>{tr("Undo point")}</button>
               <button type="button" onClick={onCancel} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0 }}>{tr("Cancel")}</button>
             </div>
           </div>
         )}
-        {msg && <div role="status" style={note}>{msg}</div>}
-        {layer && layer.features.length > 0 && (
+            </>) },
+          ]}
+          action={drawing.on ? { label: tr("Finish"), onClick: () => finish() /* #2682 (found live): handing finish itself to onClick passed the click event as closedOnFirst, which dropped the last corner */, disabled: n < 3 } : { label: tr("Draw a polygon"), onClick: onStart }}
+          result={{ key: polyKey, label: tr("Polygons"), offTitle: tr("After the first polygon"), body: layer && layer.features.length > 0 && (
           <div>
             <div className="ge-section-label" style={{ marginTop: 6 }}>{tr("Polygons in \"{layer}\"", { layer: layer.name })}</div>
             {layer.features.map((f, i) => (
@@ -139,7 +138,16 @@ export default function UnitPolygonPane({ drawing, onStart, onUndo, onCancel, on
             ))}
             <div style={{ ...note, marginTop: 4 }}>{tr("Show, hide or remove the whole layer under Map layers; export it from its right-click menu in StrixViewer's layer list (Map layers).") /* #3381 — the Map layers cards have no export */}</div>
           </div>
-        )}
+          ) }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="unitpoly">
+        <div style={note}>{tr("Click the corners of a map unit's outline in the 3D view (Top view works best); a click on the first corner, a double-click or Finish closes it.")}</div>
+        <div style={note}>{tr("The polygons form a geology map layer: draped on the terrain, exported as Shapefile or GeoPackage, in the Layout legend, and used by Model it.")}</div>{/* #3939 */}
+        {/* TASKS.csv #3368 — with no terrain the polygons lie on the surface through the collars, as the interpretation lines do (#2768) */}
+        {plan && onCollars && <div role="note" style={note}>{tr("No terrain: the polygons are draped on the ground between the collars (a surface through the collar elevations), as the interpretation lines are.")}</div>}
+        {plan && layer && (onCollars || layer.drapeMode === "flat") && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={layer.drapeMode === "flat"} onChange={(e) => updateMapLayer(layer.id, (l) => ({ ...l, drapeMode: e.target.checked ? "flat" : "terrain" }))} />{tr("Flat at one RL instead")}</label>}
+        {plan && !onCollars && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{planElevationText(plan)}</div>}{/* #2269 */}
+          </MoreFold>} />
+        {msg && <div role="status" style={note}>{msg}</div>}
       </div>
     </>
   );

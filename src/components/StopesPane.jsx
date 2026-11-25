@@ -32,6 +32,8 @@ import { topCutCells, topCutRecord } from "../lib/topCutCells.js";
 import { stopeEconomicsSetup, stopeValue, stopeValueCells, NOT_INCLUDED } from "../lib/stopeEconomics.js"; // TASKS.csv #3797 — the optional economics
 import { currencyOf, withCurrency, moneyText } from "../lib/currency.js"; // TASKS.csv #3797 (b)
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import MoreFold from "./MoreFold.jsx";
+import StepPane, { StepNumbers } from "./StepPane.jsx"; // TASKS.csv #4070 part 3
 import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
@@ -43,6 +45,7 @@ const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const LEVEL_COLOURS = ["#e76f51", "#f4a261", "#e9c46a", "#2a9d8f", "#264653", "#8ab17d", "#bc6c25", "#6d597a"];
 const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "", dip: "", dipDir: "", pitId: "", pillar: "", crown: "", cutIn: "", price: "", priceUnit: "", recovery: "", miningCost: "", processingCost: "", otherCost: "" }; // price .. otherCost: #3797 — the optional economics // crown: #2438; cutIn: #2111 ("%" for a ppm model of a metal read in percent) // dip / dipDir: #1953; pitId / pillar: #1964
+let stopeSeq = 0; // numbers each outline run, for the Result step (#4070)
 let kept = null; // #1356 — the last result outlives the pane (this session)
 
 // onAdd as the pit pane's (a solid into the generated surfaces); onRemove(id) takes one out again (#1887: a re-run replaces the
@@ -168,22 +171,33 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
   const g = (x) => (x == null ? "—" : gradeWithElement(x, res.unit, res.element)); // #2594
   const flat = useMemo(() => (res ? flatBodyCheck(res.levels, Number(res.inputs?.levelH)) : null), [res]); // #2438
 
+  const stopeKey = useMemo(() => (res ? ++stopeSeq : null), [res]); // TASKS.csv #4070 part 3 — a new outline opens the Result step
+  const numbers = res && [
+    (() => { const withStopes = res.levels.filter((l) => l.stopes.length).length; return { label: tr("Stopes"), value: withStopes === res.levels.length ? tr("{n} on {l} level(s)", { n: res.totals.stopes, l: withStopes }) : tr("{n} on {l} of {m} levels", { n: res.totals.stopes, l: withStopes, m: res.levels.length }) }; })(),
+    { label: tr("Tonnes (diluted)"), value: `${big(res.totals.tonnes)} t` },
+    { label: tr("Grade (diluted)"), value: g(res.totals.grade) },
+    resMetal && { label: tr("Contained metal (diluted)"), value: metalText(res.totals.metalU) },
+    { label: tr("Material above cut-off"), value: `${big(res.totals.oreTonnes)} t` },
+    { label: tr("Grade above cut-off"), value: g(res.totals.oreGrade) },
+    resMetal && { label: tr("Contained metal above cut-off"), value: metalText(res.totals.oreMetalU) },
+  ];
   return (
     <div>
       <TaskPaneHeader title="Stope outlines" icon={Layers3} tone="model" onClose={onClose} />
-      <div style={note}>{tr("A block model at a cut-off, level by level: columns at or above the cut-off, nothing thinner than the minimum mining width, a dilution skin, and each patch left is a stope outline and a solid over the level, with its tonnes and diluted grade. Outlines, not a stope optimizer: no geotechnical, access or sequencing check.")}</div>
       {!models.length && <div style={warn}>{tr("It needs a block model of grades. Estimate one (3D Modelling > Estimation) or import one.")}</div>}
       <NotOfferedGrades voxelModels={voxelModels} />{/* TASKS.csv #2436 */}
       {models.length > 0 && (<>
+        {/* TASKS.csv #4070 part 3 (Matt's layout C): the model and cut-off, then the level interval, RL range, width, skin and density, Outline the stopes as the one gold primary, the outlines in Result, every other setting in Fine-tune */}
+        <StepPane id="stopes" label={tr("Stope outlines")}
+          steps={[
+            { key: "cutoff", label: tr("Cut-off"), question: tr("Which model and cut-off?"), body: (<>
         <label style={row}>{tr("Block model")}<select value={f.modelId} onChange={set("modelId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the stopes")}>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
-        {model && alsoCandidates.length > 0 && <details style={{ marginTop: 4 }}><summary style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{alsoChosen.length ? tr("Report these grades too ({n})", { n: alsoChosen.length }) : tr("Report these grades too")}</summary>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3, fontSize: "var(--font-size-sm)" }} title={tr("Each chosen model's grade over each stope's tonnes (joined by block centre: a model on the same grid as this one).")}>
-            {alsoCandidates.map((m) => { const id = m.id ?? m.name; return <label key={id} style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={alsoIds.includes(id)} onChange={(e) => setAlsoIds((p) => (e.target.checked ? [...p, id] : p.filter((x) => x !== id)))} />{m.name}{m.property ? ` (${m.property})` : ""}</label>; })}
-          </div></details>}{/* #3084 */}
         {pctOk
           ? <label style={row}>{tr("Cut-off ({unit})", { unit: element })}<span style={{ display: "flex", gap: 4 }}><NumberInput allowEmpty min={0} value={f.cutoff} onChange={asEvent(set("cutoff"))} style={num} aria-label={tr("Cut-off")} /><select value={cutUnit.key} onChange={set("cutIn")} style={{ ...smallSel, width: 92 }} aria-label={tr("Unit of the cut-off")}>{cutUnits.map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}</select>{/* #2666 */}</span></label>
           : field("cutoff", unit ? tr("Cut-off ({unit})", { unit: element ? `${gradeUnitText(unit, element)} ${element}` : unit }) : tr("Cut-off"))}{/* #2111 — % for a ppm Cu model; g/t for a ppm Au one */}
         {element && cutV > 0 && gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))).includes("(") && <div style={{ ...note, marginTop: 0 }}>{tr("Cut-off: {g}", { g: gradeWithElement(cutV, unit, element, (x) => String(Number(x.toPrecision(4)))) })}</div>}{/* #2594 — 0.4645 % Li (1 % Li2O) */}
+            </>) },
+            { key: "levels", label: tr("Levels"), question: tr("How are the levels and stopes cut?"), body: (<>
         {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it."), placeholder: blockH ? String(blockH) : "" })}
         {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(Math.round(zRange[0] * 10) / 10) : "" })}{/* the level a blank run starts at (the model's base): #1923, #1919 */}
         {levels && <div style={{ ...note, marginTop: 2 }}>{tr("The collars sit on {n} drill levels ({list} m), a median {s} m apart.", { n: levels.levels.length, list: levels.levels.slice(0, 6).map((v) => Math.round(v)).join(", ") + (levels.levels.length > 6 ? ", …" : ""), s: Math.round(levels.spacing) })} <button onClick={() => setF((p) => ({ ...p, zMin: String(Math.round(levels.from)), levelH: String(Math.round(levels.spacing)) }))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the drill levels")}</button></div>}{/* TASKS.csv #2284 */}
@@ -192,6 +206,62 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {field("minLength", tr("Minimum length (m)"), { title: tr("A patch shorter than this in both directions is dropped.") })}
         {field("skin", tr("Dilution skin (m)"), { title: tr("The outline grows by this all round; the added rock carries the model's grade there, or none.") })}
         {field("density", tr("Density (t/m³)"))}
+        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button>{sg.left > 0 && <span style={{ marginLeft: 6 }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out (the range is set in Data QC).", { n: sg.left.toLocaleString(), min: sg.range.min, max: sg.range.max })}</span> /* #3587 */}</div>}
+        {dipBad && <div style={warn}>{tr("A dip needs both the dip (0–90°) and the dip direction (0–360°).")}</div>}
+        {model && v("minWidth") > 0 && v("minWidth") < Math.min(model.cells[0]?.dx ?? Infinity, model.cells[0]?.dy ?? Infinity) - 1e-9 && <div style={warn}>{tr("A minimum mining width of {w} m is under this model's {c} m columns: a stope outline here is never narrower than one column, so the result is the grade shell's thickness mined, not a {w} m vein. For a body this narrow, estimate a model with a cell of {w} m or less, or read the intercepts diluted to the width below.", { w: v("minWidth"), c: Math.min(model.cells[0].dx, model.cells[0].dy) })}</div>}
+        {rangeBad && <div style={warn}>{tr("From RL must be below To RL.")}</div>}
+            </>) },
+          ]}
+          action={!busy ? { label: tr("Outline the stopes"), onClick: run, disabled: missing, icon: <Layers3 size={14} />, title: missing && !rangeBad ? tr("Enter the cut-off, the level interval and the density: none has a default.") : undefined } : { label: busy.levels ? tr("Outlining level {k} of {n}: cancel", { k: busy.level, n: busy.levels }) : tr("Outlining: cancel"), onClick: () => job.current?.cancel() }}
+          result={{ key: stopeKey, body: res && (<>
+            <StepNumbers rows={numbers} />
+          <TopCutNote model={models.find((m) => m.name === res.model) || model} />{/* #3794 */}
+          {flat?.flat && <div style={warn}>{tr("A flat-lying body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t). These are level outlines, not stopes; a flat body is a question for the pit tools or a method this tool does not design.", { a: Math.round(flat.a), b: Math.round(flat.b), h: +flat.h.toFixed(1), t: big(flat.tonnes) })}</div>}{/* #2438 */}
+          {flat?.massive && <div style={warn}>{tr("A massive body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t), and outlines are found on {n} levels over {H} m of height. These are level outlines, not stopes: a body wide on every level is a bulk-mining question (a pit, or a cave), which this tool does not design.", { a: Math.round(flat.a), b: Math.round(flat.b), h: +flat.h.toFixed(1), t: big(flat.tonnes), n: flat.levels, H: Math.round(flat.bodyH) })}</div>}{/* #3317 */}
+          {flat?.flat && <FlatPanels model={models.find((m) => m.name === res.model) || model} cutoff={Number(res.inputs?.cutoff)} density={Number(res.inputs?.density)} unit={res.unit} element={res.element} inputStyle={num} />}{/* #2650 */}
+          {Number(res.inputs.skin) > 0 && res.skinCols === 0 && <div style={warn}>{tr("No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.")}{/* #3003 (3) — one statement */}</div>}
+          {res.blockH > 0 && Number(res.inputs.levelH) < res.blockH - 1e-9 && <div style={warn}>{tr("Levels under {h} m are slices of the same block: the per-level figures repeat.", { h: res.blockH })}</div>}
+          {res.totals.stopes === 0 && res.pit && res.oreColumns > 0 && res.oreColumns === res.pit.shut ? <div style={warn}>{tr("Every column at the cut-off lies inside the pit or its pillar.")}</div> : res.totals.stopes === 0 && (res.oreColumns === 0
+            ? <div style={warn}>{tr("No column reaches the cut-off on any level.")}</div>
+            : <div style={warn}>{tr("Columns reach the cut-off, but no patch is {n} column(s) wide and {l} m long.", { n: res.widthCols, l: res.inputs.minLength || 0 })}</div>)}
+          {res.unbuilt > 0 && <div style={warn}>{tr("{n} outline(s) could not be made into a solid (kept as outlines; the tonnes count).", { n: res.unbuilt })}</div>}
+          <div style={{ marginTop: 6, maxHeight: 200, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)" }}>
+              <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Level"), tr("Stopes"), tr("t"), tr("Grade"), ...(resMetal ? [tr("Metal")] : []) /* #3795 */, ...(res.alsoLabels || []) /* #3084 */, tr("Above cut-off t") /* #3801 (7) */, ...(res.econ ? [tr("Revenue"), tr("Cost"), tr("Margin")] : []) /* #3797 */].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
+              <tbody>{[...res.levels].reverse().map((l) => <tr key={l.rl}><td style={cellStyle}>{Math.round(l.rl)}</td><td style={cellStyle}>{l.stopes.length}</td><td style={cellStyle}>{l.tonnes ? big(l.tonnes) : "—"}</td><td style={cellStyle}>{l.grade == null ? "—" : Number(l.grade.toPrecision(3))}</td>{resMetal && <td style={cellStyle}>{l.metalU > 0 ? metalText(l.metalU) : "—"}</td>}{(res.alsoLabels || []).map((lab, k) => <td key={lab} style={cellStyle}>{l.alsoGrades?.[k] == null ? "—" : Number(l.alsoGrades[k].toPrecision(3))}</td>)}<td style={cellStyle}>{l.oreTonnes ? big(l.oreTonnes) : "—"}</td>{res.econ && (() => { const lv = res.econ.value.levels[res.levels.indexOf(l)]; return <><td style={cellStyle}>{money(lv.revenue)}</td><td style={cellStyle}>{money(lv.cost)}</td><td style={cellStyle}>{money(lv.margin)}</td></>; })()}</tr>)}</tbody>
+            </table>
+          </div>
+          <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+            <button onClick={addSolids} disabled={!res.totals.stopes || added.solids} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, opacity: !res.totals.stopes || added.solids ? 0.5 : 1 }}><Box size={13} /> {added.solids ? tr("Solids added") : tr("Stopes to the view")}</button>
+            <button onClick={addStrings} disabled={!res.totals.stopes || added.strings} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, opacity: !res.totals.stopes || added.strings ? 0.5 : 1 }}>{added.strings ? tr("Strings added") : tr("Outlines as strings")}</button>
+            <button onClick={exportCsv} disabled={!res.totals.stopes} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> CSV</button>
+          </div>
+          <div style={{ ...note, marginTop: 4 }}>{tr("Conceptual, from your cut-off, width and skin on this block model. It is not a mine design, a Mineral Reserve or a Resource.")}</div>
+            <MoreFold summary={tr("Details")} data-fine-tune="stopes-details">
+          {res.totals.unestimatedTonnes > 0.5 && <div style={note}>{tr("{t} t of it is rock the model has no block for (inside the outlines or their skin), counted at the density with no metal.", { t: big(res.totals.unestimatedTonnes) })}</div>}{/* TASKS.csv #2118 */}
+          {res.econ && <>{/* TASKS.csv #3797 — revenue, cost and margin of the diluted outlines, in the project's currency */}
+            {line(tr("Revenue"), money(res.econ.value.totals.revenue))}
+            {line(tr("Cost"), money(res.econ.value.totals.cost))}
+            {line(tr("Margin (revenue − cost)"), money(res.econ.value.totals.margin))}
+            <div style={note}>{tr("At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.", { price: res.econ.setup.inputs.price, unit: res.econ.priceUnitLabel, rec: res.econ.setup.inputs.recovery, costs: `${res.econ.setup.perTonne.total} ${res.econ.currency}/t`, be: Number(res.econ.setup.breakEven.toPrecision(3)), u: gradeUnitText(res.unit, res.element), list: NOT_INCLUDED.map((x) => tr(x)).join(", ") })}</div></>}
+          {line(tr("Density"), tr("{d} t/m³ (typed)", { d: Number(res.inputs.density) }))}{/* #3799 */}
+          {res.totals.dilutionPct != null && line(!(Number(res.inputs.skin) > 0) || res.skinCols === 0 ? tr("Internal dilution") : tr("Dilution"), `${res.totals.dilutionPct.toFixed(0)} %`)}{/* #3003 (3) — with no skin it is the blocks under the cut-off inside the outlines */}
+          {res.support && <div style={row}><span title={tr("Of the material above the cut-off: the part resting on one hole, the part the estimate classed as extrapolated, the part beyond every sample that informs it.")}>{tr("Above cut-off: one hole / extrapolated / beyond the samples")}</span><b>{`${Math.round(res.support.thin * 100)} % / ${Math.round(res.support.extrap * 100)} % / ${Math.round(res.support.beyond * 100)} %`}</b></div>}{/* #3794 */}
+          {line(tr("Outlined in"), `${res.seconds} s`)}
+          {res.pit && <div style={note}>{tr("Below {pit}: {n} column-level(s) at the cut-off lie inside the pit or its {p} m pillar and were left out.", { pit: res.pitName, n: res.pit.shut, p: res.pit.pillar })}</div>}{/* #1964 */}
+          {res.ground && res.ground.shut > 0 && <div style={note}>{tr("{n} column-level(s) at the cut-off reach above the ground less the {c} m crown ({src}) and were left out.", { n: res.ground.shut, c: res.ground.crown, src: res.groundSource === "terrain" ? tr("the terrain") : tr("interpolated between the collars") })}</div>}{/* #2438 */}
+          {res.dip && <div style={note}>{tr("Along a dip of {d}° towards {a}°: each stope leans with the vein; the {w} m width and {s} m skin across it are {wg} m and {sg} m on the ground.", { d: res.dip.dipDeg, a: res.dip.dipDirDeg, w: res.inputs.minWidth || 0, s: res.inputs.skin || 0, wg: +res.dip.widthOnGroundM.toFixed(1), sg: +res.dip.skinOnGroundM.toFixed(1) })}</div>}{/* #1953 */}
+          {/* #1885 — the width and skin as applied; #1886 — a level interval below the block height slices the same block */}
+          <div style={note}>{tr("Width {w} m → {n} column(s) ({m} m); skin {s} m → {k} column(s) ({t} m).", { w: res.inputs.minWidth || 0, n: res.widthCols, m: +effWidthM.toFixed(1), s: res.inputs.skin || 0, k: res.skinCols, t: +effSkinM.toFixed(1) })}</div>
+          {res.levels.some((l) => l.stopes.some((s) => s.holesFilled)) && <div style={note}>{tr("Holes inside a patch were filled into the stope.")}</div>}
+            </MoreFold>
+          </>) }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="stopes">
+      <div style={note}>{tr("A block model at a cut-off, level by level: columns at or above the cut-off, nothing thinner than the minimum mining width, a dilution skin, and each patch left is a stope outline and a solid over the level, with its tonnes and diluted grade. Outlines, not a stope optimizer: no geotechnical, access or sequencing check.")}</div>
+        {model && alsoCandidates.length > 0 && <details style={{ marginTop: 4 }}><summary style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{alsoChosen.length ? tr("Report these grades too ({n})", { n: alsoChosen.length }) : tr("Report these grades too")}</summary>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3, fontSize: "var(--font-size-sm)" }} title={tr("Each chosen model's grade over each stope's tonnes (joined by block centre: a model on the same grid as this one).")}>
+            {alsoCandidates.map((m) => { const id = m.id ?? m.name; return <label key={id} style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={alsoIds.includes(id)} onChange={(e) => setAlsoIds((p) => (e.target.checked ? [...p, id] : p.filter((x) => x !== id)))} />{m.name}{m.property ? ` (${m.property})` : ""}</label>; })}
+          </div></details>}{/* #3084 */}
         {/* TASKS.csv #1953 — a dipping vein: the stopes lean with it, the width and skin are measured across it */}
         {field("dip", tr("Dip of the body (°)"), { max: 89, placeholder: tr("vertical"), title: tr("Blank: vertical columns. With a dip, the blocks are taken along it, each stope leans with the body between its levels, and the width and skin are measured across the body.") })}{/* #2438 — not only a vein */}
         {field("dipDir", tr("Dip direction (°)"), { max: 360, placeholder: tr("—") })}
@@ -202,11 +272,8 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
         {ground.at && field("crown", tr("Crown under the ground (m)"), { placeholder: "0", title: tr("Rock left between the ground and the top of the highest stope. Blank: none; no stope reaches above the ground.") })}
         {!ground.at && <div style={note}>{ground.underground ? tr("The collars look like underground drill positions, so no ground is known: the levels are not checked against the surface. Load a terrain (Maps > Terrain).") : tr("No terrain or collar elevations: the levels are not checked against the ground.")}</div>}
         {ground.source === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
-        {dipBad && <div style={warn}>{tr("A dip needs both the dip (0–90°) and the dip direction (0–360°).")}</div>}
-        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button>{sg.left > 0 && <span style={{ marginLeft: 6 }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out (the range is set in Data QC).", { n: sg.left.toLocaleString(), min: sg.range.min, max: sg.range.max })}</span> /* #3587 */}</div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}
         {/* TASKS.csv #3796 — a minimum width under one column, said BEFORE the run: the outline is never narrower than the model's column */}
-        {model && v("minWidth") > 0 && v("minWidth") < Math.min(model.cells[0]?.dx ?? Infinity, model.cells[0]?.dy ?? Infinity) - 1e-9 && <div style={warn}>{tr("A minimum mining width of {w} m is under this model's {c} m columns: a stope outline here is never narrower than one column, so the result is the grade shell's thickness mined, not a {w} m vein. For a body this narrow, estimate a model with a cell of {w} m or less, or read the intercepts diluted to the width below.", { w: v("minWidth"), c: Math.min(model.cells[0].dx, model.cells[0].dy) })}</div>}
         {model && !dipTyped && modelSearchPlane(model.params) && (() => { const pl = modelSearchPlane(model.params); return <div style={{ ...note, marginTop: 2 }}>{tr("The model's estimate searched along a plane dipping {d}° towards {a}°.", { d: pl.dipDeg, a: pl.dipDirDeg })} <button onClick={() => setF((p) => ({ ...p, dip: String(pl.dipDeg), dipDir: String(pl.dipDirDeg) }))} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use it as the dip")}</button></div>; })()}
         {model && !(v("zMin") > 0 || f.zMin !== "") && zRange && <div style={note}>{tr("Levels start at the model's base ({rl} m): type a round From RL to get round floors.", { rl: Math.round(zRange[0] * 10) / 10 })}</div>}{/* #3801 (6) */}
         {model && element && <MiningWidthIntercepts element={element} unit={unit} cutoff={cutV} minWidth={v("minWidth") || 0} dipDeg={dipTyped && !dipBad ? v("dip") : null} dipDirDeg={dipTyped && !dipBad ? v("dipDir") : null} />}
@@ -226,62 +293,9 @@ export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onSh
           </div>}
           <div style={{ ...note, marginTop: 4 }}>{tr("Revenue is the metal inside the outlines, every block of them, at the price and recovery; mining, processing and other costs are charged on every diluted tonne. Not included: {list}.", { list: NOT_INCLUDED.map((x) => tr(x)).join(", ") })}</div>
         </details>}
-        {rangeBad && <div style={warn}>{tr("From RL must be below To RL.")}</div>}
-        {!busy
-          ? <button onClick={run} disabled={missing} className="gs-btn gs-btn--block" style={{ marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Outline the stopes")}</button>
-          : <button onClick={() => job.current?.cancel()} className="gs-btn gs-btn--block" style={{ marginTop: 8 }}>{busy.levels ? tr("Outlining level {k} of {n}: cancel", { k: busy.level, n: busy.levels }) : tr("Outlining: cancel")}</button>}{/* #2279 */}
-        {missing && !rangeBad && <div style={note}>{tr("Enter the cut-off, the level interval and the density: none has a default.")}</div>}
+          </MoreFold>} />
       </>)}
       {msg && <div style={warn}>{msg}</div>}
-      {res && (
-        <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
-          {(() => { const withStopes = res.levels.filter((l) => l.stopes.length).length; return line(tr("Stopes"), withStopes === res.levels.length ? tr("{n} on {l} level(s)", { n: res.totals.stopes, l: withStopes }) : tr("{n} on {l} of {m} levels", { n: res.totals.stopes, l: withStopes, m: res.levels.length })); })()}{/* TASKS.csv #2283 — the levels that hold a stope, as 'Stopes in the project' counts them */}
-          {line(tr("Tonnes (diluted)"), `${big(res.totals.tonnes)} t`)}
-          {res.totals.unestimatedTonnes > 0.5 && <div style={note}>{tr("{t} t of it is rock the model has no block for (inside the outlines or their skin), counted at the density with no metal.", { t: big(res.totals.unestimatedTonnes) })}</div>}{/* TASKS.csv #2118 */}
-          {line(tr("Grade (diluted)"), g(res.totals.grade))}
-          {resMetal && line(tr("Contained metal (diluted)"), metalText(res.totals.metalU))}{/* #3795 */}
-          {line(tr("Material above cut-off"), `${big(res.totals.oreTonnes)} t`)}{/* #3801 (7) — not 'Ore': no reserve is meant */}
-          {line(tr("Grade above cut-off"), g(res.totals.oreGrade))}
-          {resMetal && line(tr("Contained metal above cut-off"), metalText(res.totals.oreMetalU))}
-          {res.econ && <>{/* TASKS.csv #3797 — revenue, cost and margin of the diluted outlines, in the project's currency */}
-            {line(tr("Revenue"), money(res.econ.value.totals.revenue))}
-            {line(tr("Cost"), money(res.econ.value.totals.cost))}
-            {line(tr("Margin (revenue − cost)"), money(res.econ.value.totals.margin))}
-            <div style={note}>{tr("At {price} {unit}, {rec} % recovery; {costs} on the diluted tonnes. Break-even cut-off {be} {u}. Not included: {list}.", { price: res.econ.setup.inputs.price, unit: res.econ.priceUnitLabel, rec: res.econ.setup.inputs.recovery, costs: `${res.econ.setup.perTonne.total} ${res.econ.currency}/t`, be: Number(res.econ.setup.breakEven.toPrecision(3)), u: gradeUnitText(res.unit, res.element), list: NOT_INCLUDED.map((x) => tr(x)).join(", ") })}</div></>}
-          {line(tr("Density"), tr("{d} t/m³ (typed)", { d: Number(res.inputs.density) }))}{/* #3799 */}
-          {res.totals.dilutionPct != null && line(!(Number(res.inputs.skin) > 0) || res.skinCols === 0 ? tr("Internal dilution") : tr("Dilution"), `${res.totals.dilutionPct.toFixed(0)} %`)}{/* #3003 (3) — with no skin it is the blocks under the cut-off inside the outlines */}
-          {res.support && <div style={row}><span title={tr("Of the material above the cut-off: the part resting on one hole, the part the estimate classed as extrapolated, the part beyond every sample that informs it.")}>{tr("Above cut-off: one hole / extrapolated / beyond the samples")}</span><b>{`${Math.round(res.support.thin * 100)} % / ${Math.round(res.support.extrap * 100)} % / ${Math.round(res.support.beyond * 100)} %`}</b></div>}{/* #3794 */}
-          <TopCutNote model={models.find((m) => m.name === res.model) || model} />{/* #3794 */}
-          {line(tr("Outlined in"), `${res.seconds} s`)}
-          {res.pit && <div style={note}>{tr("Below {pit}: {n} column-level(s) at the cut-off lie inside the pit or its {p} m pillar and were left out.", { pit: res.pitName, n: res.pit.shut, p: res.pit.pillar })}</div>}{/* #1964 */}
-          {res.ground && res.ground.shut > 0 && <div style={note}>{tr("{n} column-level(s) at the cut-off reach above the ground less the {c} m crown ({src}) and were left out.", { n: res.ground.shut, c: res.ground.crown, src: res.groundSource === "terrain" ? tr("the terrain") : tr("interpolated between the collars") })}</div>}{/* #2438 */}
-          {flat?.flat && <div style={warn}>{tr("A flat-lying body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t). These are level outlines, not stopes; a flat body is a question for the pit tools or a method this tool does not design.", { a: Math.round(flat.a), b: Math.round(flat.b), h: +flat.h.toFixed(1), t: big(flat.tonnes) })}</div>}{/* #2438 */}
-          {flat?.massive && <div style={warn}>{tr("A massive body: the largest outline spans {a} × {b} m in plan on a {h} m level ({t} t), and outlines are found on {n} levels over {H} m of height. These are level outlines, not stopes: a body wide on every level is a bulk-mining question (a pit, or a cave), which this tool does not design.", { a: Math.round(flat.a), b: Math.round(flat.b), h: +flat.h.toFixed(1), t: big(flat.tonnes), n: flat.levels, H: Math.round(flat.bodyH) })}</div>}{/* #3317 */}
-          {flat?.flat && <FlatPanels model={models.find((m) => m.name === res.model) || model} cutoff={Number(res.inputs?.cutoff)} density={Number(res.inputs?.density)} unit={res.unit} element={res.element} inputStyle={num} />}{/* #2650 */}
-          {res.dip && <div style={note}>{tr("Along a dip of {d}° towards {a}°: each stope leans with the vein; the {w} m width and {s} m skin across it are {wg} m and {sg} m on the ground.", { d: res.dip.dipDeg, a: res.dip.dipDirDeg, w: res.inputs.minWidth || 0, s: res.inputs.skin || 0, wg: +res.dip.widthOnGroundM.toFixed(1), sg: +res.dip.skinOnGroundM.toFixed(1) })}</div>}{/* #1953 */}
-          {/* #1885 — the width and skin as applied; #1886 — a level interval below the block height slices the same block */}
-          <div style={note}>{tr("Width {w} m → {n} column(s) ({m} m); skin {s} m → {k} column(s) ({t} m).", { w: res.inputs.minWidth || 0, n: res.widthCols, m: +effWidthM.toFixed(1), s: res.inputs.skin || 0, k: res.skinCols, t: +effSkinM.toFixed(1) })}</div>
-          {Number(res.inputs.skin) > 0 && res.skinCols === 0 && <div style={warn}>{tr("No skin dilution: the skin is under half a column. The dilution above is internal only: the blocks under the cut-off inside the outlines.")}{/* #3003 (3) — one statement */}</div>}
-          {res.blockH > 0 && Number(res.inputs.levelH) < res.blockH - 1e-9 && <div style={warn}>{tr("Levels under {h} m are slices of the same block: the per-level figures repeat.", { h: res.blockH })}</div>}
-          {res.totals.stopes === 0 && res.pit && res.oreColumns > 0 && res.oreColumns === res.pit.shut ? <div style={warn}>{tr("Every column at the cut-off lies inside the pit or its pillar.")}</div> : res.totals.stopes === 0 && (res.oreColumns === 0
-            ? <div style={warn}>{tr("No column reaches the cut-off on any level.")}</div>
-            : <div style={warn}>{tr("Columns reach the cut-off, but no patch is {n} column(s) wide and {l} m long.", { n: res.widthCols, l: res.inputs.minLength || 0 })}</div>)}
-          {res.unbuilt > 0 && <div style={warn}>{tr("{n} outline(s) could not be made into a solid (kept as outlines; the tonnes count).", { n: res.unbuilt })}</div>}
-          <div style={{ marginTop: 6, maxHeight: 200, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
-            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)" }}>
-              <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Level"), tr("Stopes"), tr("t"), tr("Grade"), ...(resMetal ? [tr("Metal")] : []) /* #3795 */, ...(res.alsoLabels || []) /* #3084 */, tr("Above cut-off t") /* #3801 (7) */, ...(res.econ ? [tr("Revenue"), tr("Cost"), tr("Margin")] : []) /* #3797 */].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
-              <tbody>{[...res.levels].reverse().map((l) => <tr key={l.rl}><td style={cellStyle}>{Math.round(l.rl)}</td><td style={cellStyle}>{l.stopes.length}</td><td style={cellStyle}>{l.tonnes ? big(l.tonnes) : "—"}</td><td style={cellStyle}>{l.grade == null ? "—" : Number(l.grade.toPrecision(3))}</td>{resMetal && <td style={cellStyle}>{l.metalU > 0 ? metalText(l.metalU) : "—"}</td>}{(res.alsoLabels || []).map((lab, k) => <td key={lab} style={cellStyle}>{l.alsoGrades?.[k] == null ? "—" : Number(l.alsoGrades[k].toPrecision(3))}</td>)}<td style={cellStyle}>{l.oreTonnes ? big(l.oreTonnes) : "—"}</td>{res.econ && (() => { const lv = res.econ.value.levels[res.levels.indexOf(l)]; return <><td style={cellStyle}>{money(lv.revenue)}</td><td style={cellStyle}>{money(lv.cost)}</td><td style={cellStyle}>{money(lv.margin)}</td></>; })()}</tr>)}</tbody>
-            </table>
-          </div>
-          {res.levels.some((l) => l.stopes.some((s) => s.holesFilled)) && <div style={note}>{tr("Holes inside a patch were filled into the stope.")}</div>}
-          <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-            <button onClick={addSolids} disabled={!res.totals.stopes || added.solids} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, opacity: !res.totals.stopes || added.solids ? 0.5 : 1 }}><Box size={13} /> {added.solids ? tr("Solids added") : tr("Stopes to the view")}</button>
-            <button onClick={addStrings} disabled={!res.totals.stopes || added.strings} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, opacity: !res.totals.stopes || added.strings ? 0.5 : 1 }}>{added.strings ? tr("Strings added") : tr("Outlines as strings")}</button>
-            <button onClick={exportCsv} disabled={!res.totals.stopes} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0 }}><Download size={13} /> CSV</button>
-          </div>
-          <div style={{ ...note, marginTop: 4 }}>{tr("Conceptual, from your cut-off, width and skin on this block model. It is not a mine design, a Mineral Reserve or a Resource.")}</div>
-        </div>
-      )}
       <StopesInProject stopes={stopes} saved={generatedSurfaces} onAdd={onAdd} strings={designStrings} onShow={onShow} onRemoveMany={onRemoveMany} setDesignStrings={setDesignStrings} onRemoved={(ids) => { if (kept?.addedIds?.some((id) => ids.includes(id))) { kept = { ...kept, addedIds: kept.addedIds.filter((id) => !ids.includes(id)) }; setRes(kept); } }} />
     </div>
   );

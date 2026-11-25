@@ -23,6 +23,9 @@ import { t as tr } from "../lib/i18n.js";
 import { runUndrilledZonesAsync } from "../lib/undrilledZonesClient.js"; // TASKS.csv #2258 — off the UI thread
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import MoreFold from "./MoreFold.jsx";
+import StepPane, { StepNumbers } from "./StepPane.jsx"; // TASKS.csv #4070 part 3
+import { undrilledNumbers } from "../lib/paneSteps.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -37,6 +40,7 @@ const mm3 = (v) => (v >= 1e5 ? `${(v / 1e6).toFixed(2)} Mm³` : `${Math.round(v)
 // TASKS.csv #1456 — the last result outlives the pane (as PitShellPane's does, #1341): "Plan a hole to here" opens the Planned
 // holes pane, and coming back should not mean measuring again
 let lastResult = null;
+let runSeq = 0; // #4070 — numbers each run, for the Result step
 export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlanTo = null }) {
   const { collars = [], survey = [], plannedHoles = [], desurveyMethod, terrain, assays = [] } = useStore(); // terrain: #1557; assays: #3345
   // TASKS.csv #1732 (review #1645, Copley) — the restored result brings back the unit and settings it was made with: the unit read 'Modelled
@@ -62,7 +66,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   useEffect(() => () => job.current?.cancel(), []);
   const [msg, setMsg] = useState(null);
   const [result, setResultState] = useState(() => lastResult);
-  const setResult = (r) => { lastResult = r; setResultState(r); };
+  const setResult = (r) => { const k = r ? { ...r, runKey: r.runKey ?? ++runSeq } : r; lastResult = k; setResultState(k); }; // runKey: a new run opens the Result step (#4070)
   const unit = solids.find((s) => s.id === unitId) || null;
   // TASKS.csv #1564 — closed solids first with their volumes (two 'Au > 1 ppm shell' could not be told apart), open meshes apart and
   // not selectable: Lawyers' 12 imported VLF isosurfaces were offered and each refused only after Run
@@ -149,66 +153,80 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
 
   const unitV = result ? result.unitCells * result.cellVolume : 0;
   const openV = result ? (result.uncoveredCells - result.ignored.cells) * result.cellVolume : 0;
+  const nums = undrilledNumbers(result); // TASKS.csv #4070 — the Result step's numbers
   return (
     <>
       <TaskPaneHeader title={tr("Undrilled zones")} helpId="undrilled-zones" icon={Crosshair} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: "var(--font-size-sm)" }}>
-        <div style={note}>{tr("The parts of a modelled unit farther than a chosen distance from every drillhole: where the unit has not been tested yet.")}</div>
-        {!solids.length && <div style={{ ...note, color: "var(--color-danger-fg)" }}>{tr("No modelled solids yet. Build a closed unit in 3D Modelling, or a shell of a block model's range (Targeting > Voxel ranges, on the Advanced ribbon > Shell at this range).")}</div>}
-        {!collars.length && solids.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(plannedHoles.length ? "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted." : "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they leave untested.", { n: plannedHoles.length })}</div>}{/* TASKS.csv #1833 — Kodiak: zero holes, said instead of a 0 % figure */}
-        <select value={unitId} onChange={(e) => { setUnitId(e.target.value); setResult(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Modelled unit")}>
-          <option value="">{tr("Modelled unit…")}</option>
-          {choices.closed.map((s) => <option key={s.id} value={s.id}>{tr("{name} — {v}", { name: s.name, v: mm3(s.volumeM3) })}</option>)}
-          {choices.open.length > 0 && (
-            <optgroup label={tr("Open meshes (no inside to search)")}>
-              {choices.open.map((s) => <option key={s.id} value={s.id} disabled>{tr("{name} (open: {n} edges)", { name: s.name, n: s.openEdges.toLocaleString() })}</option>)}
-            </optgroup>
-          )}
-        </select>
-        {choices.open.length > 0 && !unit && <div style={note}>{tr(OPEN_ROUTE, { n: choices.open.length })}</div>}{/* #3348 (13) — not while a closed shell is chosen */}
-        {supportText && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 */}
-        {unit && !support && unit.type === "geophysical_shell" && <div style={note}>{tr("\"{name}\" was cut from a block model with no drillhole support per cell (imported or geophysical), so nothing here says how well drilled it is.", { name: unit.name })}</div>}{/* #2096 */}
-        <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
-          <NumberInput min="1" step="5" value={coverM} onChange={(n) => setCoverM(n)} style={{ ...smallSel, width: 70 }} /></label>
-        {siteSpacing > 0 && <div style={note}>{holeSp > 0 && holeSp < 0.9 * siteSpacing ? tr("Drill sites are typically {s} m apart and holes {h} m apart (nearest other hole, in 3D); covered within starts at half the smaller.", { s: Math.round(siteSpacing), h: Math.round(holeSp) }) /* #3820 */ : tr("Drill sites are typically {s} m apart; covered within starts at half that.", { s: Math.round(siteSpacing) })}</div>}{/* #2452 */}
-        <label style={row}>{tr("Block size (m)")}
-          <NumberInput min="0" allowEmpty value={cellText === "" || cellText == null ? null : cellText} placeholder={autoCell ? tr("auto {v}", { v: autoCell }) : tr("auto")} onChange={(n) => setCellText(n == null ? "" : String(n))} style={{ ...smallSel, width: 70 }} /></label>
-        <label style={row} title={tr("Optional: a block height of its own, for a flat body. Blank: the block size, or the shell's own cell height for a block-model shell.")}>{tr("Block height (m)")}
-          <NumberInput min="0" allowEmpty value={cellZText === "" || cellZText == null ? null : cellZText} placeholder={autoZ ? tr("auto {v}", { v: autoZ }) : tr("= block size")} onChange={(n) => setCellZText(n == null ? "" : String(n))} style={{ ...smallSel, width: 70 }} aria-label={tr("Block height (m)")} /></label>{/* #2966 */}
-        {own && !(Number(cellText) > 0) && !(Number(cellZText) > 0) && <div style={note}>{tr("Blocks of {b} m: the shell's own cells.", { b: `${own.cellM} × ${own.cellM} × ${own.cellZM}` })}</div>}
-        {cellsVol && unit && <div style={note}>{tr("Three volumes of one body: its {n} cells in the range hold {c}; the shell between the cell centres holds {s}; the run counts blocks, so its volume depends on block size.", { n: cellsVol.cells.toLocaleString(), c: mm3(cellsVol.volumeM3), s: mm3(choices.closed.find((x) => x.id === unit.id)?.volumeM3 ?? 0) })}</div>}{/* #2966 */}
-        {blockCount > 0 && <div style={{ ...note, ...(blockCount > 1_000_000 ? { color: "var(--color-warn-text)" } : {}) }}>{tr("About {n} blocks in the unit's box at this size.", { n: blockCount.toLocaleString() })}</div>}{/* #2258 */}
-        <label style={row} title={tr("Gaps smaller than this are left out of the zones (they are counted)")}>{tr("Ignore gaps under (m³)")}
-          <NumberInput min="0" allowEmpty value={minText === "" || minText == null ? null : minText} placeholder={minAuto ? tr("{n} blocks: {v}", { n: MIN_ZONE_BLOCKS, v: Math.round(minAuto).toLocaleString() }) : "0"} title={tr("Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).", { n: MIN_ZONE_BLOCKS })} onChange={(n) => setMinText(n == null ? "" : String(n))} style={{ ...smallSel, width: 90 }} /></label>
-        <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={insideOnly} onChange={(e) => setInsideOnly(e.target.checked)} />
-          <span>{tr("Count only the parts of holes inside the unit")}<span style={{ ...note, display: "block" }}>{tr("Off: a hole just outside still tests the contact beside it.")}</span></span></label>
-        <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={assayedOnly} onChange={(e) => setAssayedOnly(e.target.checked)} />{/* #3345 */}
-          <span>{tr("Count only the assayed parts of holes")}<span style={{ ...note, display: "block" }}>{tr("Off: every metre drilled tests the ground, assayed or not.")}</span></span></label>
-        <label style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={withPlanned} onChange={(e) => setWithPlanned(e.target.checked)} disabled={!plannedHoles.length} />
-          {tr("Count planned holes as drilled ({n})", { n: plannedHoles.length })}</label>
-        <button onClick={run} disabled={!unit || busy || !(coverM > 0)} className="gs-btn gs-btn--block" style={{ justifyContent: "center", opacity: unit && !busy && coverM > 0 ? 1 : 0.5, marginBottom: 0 }}>{busy ? tr("Measuring…") : tr("Find undrilled zones")}</button>
-        {msg && <div role="status" style={{ ...note, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
-        {result && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 5, border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
-            <div style={{ color: "var(--color-text)" }}>{tr("{pct}% of {unit} ({v}) is within {d} m of a hole.", { pct: ((100 * result.coveredCells) / Math.max(1, result.unitCells)).toFixed(1), unit: result.unitName, v: mm3(unitV), d: result.coverM })}</div>
+        {/* TASKS.csv #4070 part 3 (Matt's layout C): one question per step, Find as the one gold primary, the run's numbers in Result, every other setting in Fine-tune */}
+        <StepPane id="undrilled" label={tr("Undrilled zones")}
+          top={<>
+            {!solids.length && <div style={{ ...note, color: "var(--color-danger-fg)" }}>{tr("No modelled solids yet. Build a closed unit in 3D Modelling, or a shell of a block model's range (Targeting > Voxel ranges, on the Advanced ribbon > Shell at this range).")}</div>}
+            {!collars.length && solids.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(plannedHoles.length ? "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted." : "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they leave untested.", { n: plannedHoles.length })}</div>}{/* TASKS.csv #1833 — Kodiak: zero holes, said instead of a 0 % figure */}
+          </>}
+          steps={[
+            { key: "unit", label: tr("Unit"), question: tr("Which unit?"), body: (<>
+              <select value={unitId} onChange={(e) => { setUnitId(e.target.value); setResult(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Modelled unit")}>
+                <option value="">{tr("Modelled unit…")}</option>
+                {choices.closed.map((s) => <option key={s.id} value={s.id}>{tr("{name} — {v}", { name: s.name, v: mm3(s.volumeM3) })}</option>)}
+                {choices.open.length > 0 && (
+                  <optgroup label={tr("Open meshes (no inside to search)")}>
+                    {choices.open.map((s) => <option key={s.id} value={s.id} disabled>{tr("{name} (open: {n} edges)", { name: s.name, n: s.openEdges.toLocaleString() })}</option>)}
+                  </optgroup>
+                )}
+              </select>
+              {choices.open.length > 0 && !unit && <div style={note} title={tr(OPEN_ROUTE, { n: choices.open.length })}>{tr("An open mesh has no inside to search.")}</div>}{/* #3348 (13) — not while a closed shell is chosen; #1564: the routes to a closed one are the tooltip (and the Help page) */}
+              {supportText && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 */}
+              {unit && !support && unit.type === "geophysical_shell" && <div style={note}>{tr("\"{name}\" was cut from a block model with no drillhole support per cell (imported or geophysical), so nothing here says how well drilled it is.", { name: unit.name })}</div>}{/* #2096 */}
+            </>) },
+            { key: "cover", label: tr("Covered"), question: tr("How near counts as covered?"), body: (<>
+              <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
+                <NumberInput min="1" step="5" value={coverM} onChange={(n) => setCoverM(n)} style={{ ...smallSel, width: 70 }} /></label>
+              {siteSpacing > 0 && <div style={note}>{holeSp > 0 && holeSp < 0.9 * siteSpacing ? tr("Drill sites are typically {s} m apart and holes {h} m apart (nearest other hole, in 3D); covered within starts at half the smaller.", { s: Math.round(siteSpacing), h: Math.round(holeSp) }) /* #3820 */ : tr("Drill sites are typically {s} m apart; covered within starts at half that.", { s: Math.round(siteSpacing) })}</div>}{/* #2452 */}
+            </>) },
+          ]}
+          action={{ label: busy ? tr("Measuring…") : tr("Find undrilled zones"), onClick: run, disabled: !unit || busy || !(coverM > 0) }}
+          result={{ key: result?.runKey ?? null, body: result && nums && (<>
+            <StepNumbers rows={[
+              { label: tr("Covered"), value: `${nums.coveredPct.toFixed(1)} %`, title: tr("{pct}% of {unit} ({v}) is within {d} m of a hole.", { pct: nums.coveredPct.toFixed(1), unit: result.unitName, v: mm3(unitV), d: result.coverM }) },
+              { label: tr("Not covered"), value: nums.zones ? tr(nums.zones === 1 ? "{v} in 1 zone" : "{v} in {n} zones", { v: mm3(openV), n: nums.zones }) : tr("none"), level: openV > 0 ? "some" : undefined },
+              { label: tr("Holes counted"), value: result.holes.planned ? tr("{drilled} drilled, {planned} planned", { drilled: nums.drilled, planned: nums.planned }) : String(nums.drilled) },
+            ]} />
             {supportText && openV > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 — beside the zones and their Plan buttons */}
-            <div style={{ color: openV > 0 ? "var(--color-text)" : "var(--color-text-secondary)", fontWeight: 600 }}>
-              {result.zones.length ? tr(result.zones.length === 1 ? "Not covered: {v} in 1 zone." : "Not covered: {v} in {n} zones.", { v: mm3(openV), n: result.zones.length }) : tr("Every part of the unit is within the distance of a hole.")}</div>
             {(unit?.closure === "artificial" || unit?.params?.closure === "artificial") && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{unit} was closed artificially where its estimate ended. Beyond that edge the ground is untested, not covered, and these zones leave it out: look there too.", { unit: unit.name || tr("This unit") })}</div>}{/* #2580 */}
-            {result.underground && <div style={note}>{tr("No air was cut: the collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) stacked). Load a terrain to cut at the surface.", { upward: result.underground.upward, stacked: result.underground.stacked })}</div>}{/* #2249 */}
-            {result.aboveGroundCells > 0 && <div style={note}>{tr(result.groundFrom === "terrain" ? "{v} of the solid lies above the terrain and was left out (air, not the unit)." : "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).", { v: mm3(result.aboveGroundCells * result.cellVolume) })}</div>}
-            {result.groundFrom === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
-            {result.ignored.zones > 0 && <div style={note}>{tr(result.ignored.zones === 1 ? "1 gap under {m} ({v}) left out." : "{n} gaps under {m} ({v}) left out.", { n: result.ignored.zones, v: mm3(result.ignored.cells * result.cellVolume), m: mm3(result.minZoneM3 ?? 0) }) /* #2256 — the size it was cut at */}</div>}
+            {result.cellM > result.coverM && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Type a smaller block size if the box allows: {b} m blocks are coarser than the {c} m coverage distance, so coverage shifts with the grid.", { b: +result.cellM.toFixed(2), c: result.coverM })}</div>}{/* #1568 */}
             {result.zones.slice(0, 8).map((z, i) => (
               <div key={i} style={{ ...note, color: "var(--color-text-secondary)" }}>{onPlanTo && <button onClick={() => onPlanTo(z.target || z.centre)} className="gs-btn gs-btn--sm" style={{ float: "right", marginLeft: 6 }} title={tr("Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve")}>{/* #1724 */}{tr("Plan a hole to here")}</button>}{z.target ? tr("{i}. {v}: a hole aims at E {x}, N {y}, elevation {z} (the zone's point farthest from the drilling).", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.target.x).toLocaleString(), y: Math.round(z.target.y).toLocaleString(), z: Math.round(z.target.z).toLocaleString() }) /* #2580 — the point handed over, not the centroid */ : tr("{i}. {v} around E {x}, N {y}, elevation {z}", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.centre.x).toLocaleString(), y: Math.round(z.centre.y).toLocaleString(), z: Math.round(z.centre.z).toLocaleString() })}</div>
             ))}
             {result.zones.length > 8 && <div style={note}>{tr("… and {n} more.", { n: result.zones.length - 8 })}</div>}
-            <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: result.cellZM > 0 && Math.abs(result.cellZM - result.cellM) > 1e-6 ? `${+result.cellM.toFixed(2)} × ${+result.cellM.toFixed(2)} × ${+result.cellZM.toFixed(2)}` : +result.cellM.toFixed(2) /* #2966 */ })}{result.holes.assumed ? " " + tr("{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.", { n: result.holes.assumed }) : ""}{result.holes.proposed ? " " + tr("{n} collar(s) whose status is proposed are not counted.", { n: result.holes.proposed }) : ""}</div>
-            {result.inputs?.assayedOnly && <div style={note}>{tr("Only the assayed parts of holes were counted: {k} of the {n} drilled holes have no assay.", { k: result.holes.unassayed || 0, n: result.holes.holesDrilled || result.holes.drilled })}</div>}{/* #3345 */}{/* #2097 */}
-            {result.cellM > result.coverM && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Type a smaller block size if the box allows: {b} m blocks are coarser than the {c} m coverage distance, so coverage shifts with the grid.", { b: +result.cellM.toFixed(2), c: result.coverM })}</div>}{/* #1568 */}
-            {result.zones.length > 0 && <button onClick={add} className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 0 }}>{tr("Add the zones to the 3D view")}</button>}
-          </div>
-        )}
+            {result.zones.length > 0 && <button onClick={add} className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 6 }}>{tr("Add the zones to the 3D view")}</button>}
+            <MoreFold summary={tr("Notes on this run")} data-fine-tune="undrilled-notes">
+              {result.underground && <div style={note}>{tr("No air was cut: the collars look underground ({upward} hole(s) drilled upward, {stacked} pair(s) stacked). Load a terrain to cut at the surface.", { upward: result.underground.upward, stacked: result.underground.stacked })}</div>}{/* #2249 */}
+              {result.aboveGroundCells > 0 && <div style={note}>{tr(result.groundFrom === "terrain" ? "{v} of the solid lies above the terrain and was left out (air, not the unit)." : "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).", { v: mm3(result.aboveGroundCells * result.cellVolume) })}</div>}
+              {result.groundFrom === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
+              {result.ignored.zones > 0 && <div style={note}>{tr(result.ignored.zones === 1 ? "1 gap under {m} ({v}) left out." : "{n} gaps under {m} ({v}) left out.", { n: result.ignored.zones, v: mm3(result.ignored.cells * result.cellVolume), m: mm3(result.minZoneM3 ?? 0) }) /* #2256 — the size it was cut at */}</div>}
+              <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: result.cellZM > 0 && Math.abs(result.cellZM - result.cellM) > 1e-6 ? `${+result.cellM.toFixed(2)} × ${+result.cellM.toFixed(2)} × ${+result.cellZM.toFixed(2)}` : +result.cellM.toFixed(2) /* #2966 */ })}{result.holes.assumed ? " " + tr("{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.", { n: result.holes.assumed }) : ""}{result.holes.proposed ? " " + tr("{n} collar(s) whose status is proposed are not counted.", { n: result.holes.proposed }) : ""}</div>
+              {result.inputs?.assayedOnly && <div style={note}>{tr("Only the assayed parts of holes were counted: {k} of the {n} drilled holes have no assay.", { k: result.holes.unassayed || 0, n: result.holes.holesDrilled || result.holes.drilled })}</div>}{/* #3345 */}{/* #2097 */}
+            </MoreFold>
+          </>) }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="undrilled">
+            <label style={row}>{tr("Block size (m)")}
+              <NumberInput min="0" allowEmpty value={cellText === "" || cellText == null ? null : cellText} placeholder={autoCell ? tr("auto {v}", { v: autoCell }) : tr("auto")} onChange={(n) => setCellText(n == null ? "" : String(n))} style={{ ...smallSel, width: 70 }} /></label>
+            <label style={row} title={tr("Optional: a block height of its own, for a flat body. Blank: the block size, or the shell's own cell height for a block-model shell.")}>{tr("Block height (m)")}
+              <NumberInput min="0" allowEmpty value={cellZText === "" || cellZText == null ? null : cellZText} placeholder={autoZ ? tr("auto {v}", { v: autoZ }) : tr("= block size")} onChange={(n) => setCellZText(n == null ? "" : String(n))} style={{ ...smallSel, width: 70 }} aria-label={tr("Block height (m)")} /></label>{/* #2966 */}
+            {own && !(Number(cellText) > 0) && !(Number(cellZText) > 0) && <div style={note}>{tr("Blocks of {b} m: the shell's own cells.", { b: `${own.cellM} × ${own.cellM} × ${own.cellZM}` })}</div>}
+            {cellsVol && unit && <div style={note}>{tr("Three volumes of one body: its {n} cells in the range hold {c}; the shell between the cell centres holds {s}; the run counts blocks, so its volume depends on block size.", { n: cellsVol.cells.toLocaleString(), c: mm3(cellsVol.volumeM3), s: mm3(choices.closed.find((x) => x.id === unit.id)?.volumeM3 ?? 0) })}</div>}{/* #2966 */}
+            {blockCount > 0 && <div style={{ ...note, ...(blockCount > 1_000_000 ? { color: "var(--color-warn-text)" } : {}) }}>{tr("About {n} blocks in the unit's box at this size.", { n: blockCount.toLocaleString() })}</div>}{/* #2258 */}
+            <label style={row} title={tr("Gaps smaller than this are left out of the zones (they are counted)")}>{tr("Ignore gaps under (m³)")}
+              <NumberInput min="0" allowEmpty value={minText === "" || minText == null ? null : minText} placeholder={minAuto ? tr("{n} blocks: {v}", { n: MIN_ZONE_BLOCKS, v: Math.round(minAuto).toLocaleString() }) : "0"} title={tr("Blank: gaps under {n} blocks are left out (a gap of a block or two is the grid, not a target).", { n: MIN_ZONE_BLOCKS })} onChange={(n) => setMinText(n == null ? "" : String(n))} style={{ ...smallSel, width: 90 }} /></label>
+            <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={insideOnly} onChange={(e) => setInsideOnly(e.target.checked)} />
+              <span>{tr("Count only the parts of holes inside the unit")}<span style={{ ...note, display: "block" }}>{tr("Off: a hole just outside still tests the contact beside it.")}</span></span></label>
+            <label style={{ display: "flex", gap: 5, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={assayedOnly} onChange={(e) => setAssayedOnly(e.target.checked)} />{/* #3345 */}
+              <span>{tr("Count only the assayed parts of holes")}<span style={{ ...note, display: "block" }}>{tr("Off: every metre drilled tests the ground, assayed or not.")}</span></span></label>
+            <label style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={withPlanned} onChange={(e) => setWithPlanned(e.target.checked)} disabled={!plannedHoles.length} />
+              {tr("Count planned holes as drilled ({n})", { n: plannedHoles.length })}</label>
+          </MoreFold>} />
+        {msg && <div role="status" style={{ ...note, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
       </div>
     </>
   );
