@@ -124,3 +124,27 @@ test("a CSAMT average: one sounding per $Rx.Stn block, rho and phase (mrad) as a
   assert.match(m, /accept="\.edi,\.avg,\.stn"/);
   assert.match(m, /parsed\.push\(\.\.\.csAvgToSoundings\(text, f\.name, stations\)\.soundings\)/);
 });
+
+// a made-up Zonge TEMAVGW .amr: a header starting LOOP LINE STN, "*" for every position, "/TIMES:" with a colon, 6 gates, X and Z rows per station
+function amr() {
+  const T = [0.04, 0.07, 0.13, 0.3, 0.65, 1.3];
+  const L = ["TEM data from TEMAVGW v1.10d on 01/01/10", "DATATYPE:TEM INSTRUMENT:ZONGE UNITS:(uV/A) CHANNELFILE:T900N.chn INITDELAY:.5000 CONFIG:FIXEDLOOP LV1X:-400 LV1Y:200 LV1Z:0 LV2X:-400 LV2Y:-200 LV2Z:0",
+    "/DATE:2010-01-01", `/TIMES:${T.join(",")}`, `/TIMESSTART:${T.map((t) => t * 0.8).join(",")}`, `/TIMESEND:${T.map((t) => t * 1.2).join(",")}`,
+    ["LOOP", "LINE", "STN", "EAST", "NORTH", "ELEV", "TXAREA", "CUR", "RMP", "G", "COMPONENT", "NCH", "VPRI", ...T.map((_, k) => `CH${k + 1}`)].join("     ")];
+  for (const stn of [100, 200, 300, 400]) for (const c of ["Z", "X"]) L.push(["900", "900N", stn, "*", "*", "*", "3.2E+5", "8.0", "0.5", "4", c, T.length, "0", ...T.map((t) => (1000 * Math.exp(-t / (0.3 + stn / 1000))).toExponential(4))].join("     "));
+  return L.join("\r\n") + "\r\n";
+}
+
+test("a Zonge TEM .amr: LOOP-first header, '*' positions placed on the line (station along it), gate times from '/TIMES:'; the pane takes .amr", async () => {
+  const { readTemText, linesOf } = await import("../src/lib/temLines.js");
+  assert.equal(zongeKind(amr()), "tem-amr");
+  const d = readTemText(amr(), "T900N.amr");
+  assert.equal(d.n, 4); assert.deepEqual(linesOf(d).map((l) => l.key), ["900N"]);
+  assert.deepEqual(d.gateTimes(d.groups[0]), [0.04, 0.07, 0.13, 0.3, 0.65, 1.3]);
+  assert.deepEqual(Array.from(d.x), [100, 200, 300, 400], "the station along the line (east-west: N suffix)"); assert.deepEqual(Array.from(d.y), [900, 900, 900, 900]);
+  assert.equal(zongeRefusal(amr(), "T900N.amr", "tem"), null);
+  assert.match(zongeRefusal(amr(), "T900N.amr", "dcip"), /Zonge TEM line data: open it in TEM line data/);
+  const t = read("../src/components/TemPane.jsx");
+  assert.match(t, /accept="\.xyz,\.csv,\.txt,\.dat,\.tem,\.amr"/);
+  assert.match(t, /const no = zongeRefusal\(text, file\.name, "tem"\); if \(no\) \{ setMsg\(\{ info: false, text: no \}\); setBusy\(false\); return; \}/);
+});
