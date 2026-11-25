@@ -3,6 +3,7 @@
 // So the panes can be converted to steps (StepPane) in parallel without every change landing in one file. The `toolPane === "groups"` test inside
 // is ModellingPanes' own, kept as it was.
 import { ChevronDown, ChevronUp, Group, Trash2 } from "../../../components/icons.js";
+import StepPane from "../../../components/StepPane.jsx";
 import { activateOnKey, iconAction } from "../../../lib/a11y.js";
 import { askConfirm } from "../../../lib/confirmDialog.js";
 import { t as tr } from "../../../lib/i18n.js";
@@ -16,14 +17,11 @@ const LithoSuggestBox = lazy(() => import("../../../components/LithoSuggestBox.j
 export default function LithoGroupsPane({ addLithoGroup, askPrompt, emptyPaneHint, expandedLithoGroupId, layers, lithoGroupCrossCuts, lithoGroupRole, lithoGroups, lithoUnitsAll, litho_units, paneHeader, removeLithoGroup, setExpandedLithoGroupId, toolPane, updateLithoGroup }) {
   return (<>
 {toolPane === "groups" && (<>
-        {paneHeader("Lithology groups", Group, "model")}
-        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}
-        <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>{tr("Lithology groups")}</span>
-          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); })}
-            style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("New lithology group")}>{tr("+ New group")}</span>
-        </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Lump codes logged differently for the same real unit (e.g. andesite + basalt) into one modelled unit. Raw intervals keep their own colours in 3D.")}</div>
+        {paneHeader("Lithology groups", Group, "model", true /* #4070 */)}
+        <StepPane id="groups" label={tr("Lithology groups")}
+          top={<>{!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}</>}
+          steps={[
+            { key: "groups", label: tr("Groups"), question: tr("Which codes belong together?"), hint: tr("Lump codes logged differently for the same real unit (e.g. andesite + basalt) into one modelled unit. Raw intervals keep their own colours in 3D."), body: (<>
         {lithoGroups.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No groups yet.")}</div>
         )}
@@ -100,6 +98,9 @@ export default function LithoGroupsPane({ addLithoGroup, askPrompt, emptyPaneHin
             </div>
           );
         })}
+            </>) },
+          ]}
+          action={{ label: tr("+ New group"), onClick: () => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); }), title: tr("New lithology group") }} />
 
         {/* TASKS.csv #139 — fence/panel diagram. Deliberately sits immediately ABOVE the implicit
             modelling tools because it is the lighter-weight companion to them: three holes on a line

@@ -10,7 +10,7 @@ const panes = modellingPanesSource();
 const core = readFileSync(new URL("../src/components/CoreOrientationCalculator.jsx", import.meta.url), "utf8");
 
 test("(1) the vein button is worded", () => {
-  assert.match(panes, /<><Layers3 size=\{14\} \/>\{" "\}\{tr\("Build vein"\)\}<\/>/);
+  assert.match(panes, /label: veinBusy \? tr\("Building the vein pair…"\) : tr\("Build vein"\), onClick: \(\) => runVeinModel\(veinTarget\)/); // the vein's StepPane action (#4070)
 });
 
 test("(2) the halo starts on a layer that has codes, and says when Alteration is empty", () => {

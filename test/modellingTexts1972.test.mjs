@@ -24,8 +24,9 @@ test("#1972 no stale modelling text", () => {
 
 test("#1972 icon-only run buttons carry an aria-label", () => {
   const panes = modellingPanesSource();
-  assert.match(panes, /aria-label=\{tr\("Build a closed alteration-halo envelope/);
-  assert.match(panes, /aria-label=\{tr\("Build paired hangingwall\/footwall surfaces/);
+  // TASKS.csv #4070 — worded StepPane actions now (a label and a title), no icon-only button left
+  assert.match(panes, /title: tr\("Build a closed alteration-halo envelope/);
+  assert.match(panes, /title: tr\("Build paired hangingwall\/footwall surfaces/);
 });
 
 test("#1972 translations follow the renamed strings", () => {

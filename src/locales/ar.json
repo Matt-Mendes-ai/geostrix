@@ -15524,5 +15524,21 @@
   "Plotted": "المرسومة",
   "Next: plot": "التالي: الرسم",
   "in front of": "أمام",
-  "behind": "خلف"
+  "behind": "خلف",
+  "Cell / search": "الخلية / البحث",
+  "Closed by the search wall": "مغلقة بجدار البحث",
+  "Closed naturally": "مغلقة طبيعيًا",
+  "Contact misfit (RMS)": "انحراف الملامسات (RMS)",
+  "Curved": "منحنية",
+  "Dip / dip direction": "الميل / اتجاه الميل",
+  "Envelope": "الغلاف",
+  "Far from the logs": "بعيد عن السجلات",
+  "Fill a block model from the assays?": "ملء نموذج كتل من التحاليل؟",
+  "Planar": "مستوية",
+  "Samples inside": "عينات بالداخل",
+  "True thickness, mean": "السماكة الحقيقية، المتوسط",
+  "True thickness, range": "السماكة الحقيقية، المدى",
+  "Which codes belong together?": "أي الرموز تنتمي معًا؟",
+  "Which structure type?": "أي نوع من البنى؟",
+  "Which unit's top?": "قمة أي وحدة؟"
 }
