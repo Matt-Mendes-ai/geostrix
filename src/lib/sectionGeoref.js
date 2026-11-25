@@ -14,7 +14,7 @@ import { arrMin, arrMax } from "./arrayStats.js"; // no Math.min/max spread (#30
 export function sectionLine(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;
   const length = Math.hypot(dx, dy);
-  if (!(length > 0)) throw new Error("The section's start and end points are the same — give two different points.");
+  if (!(length > 0)) throw new Error("The two ends are the same: give two different points.");
   return { a, b, length, ux: dx / length, uy: dy / length, azimuth: ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360 };
 }
 
@@ -25,7 +25,7 @@ export function alongDistance(line, hKind, h) {
   if (hKind === "distance") return v;
   const axis = hKind === "easting" ? "x" : "y";
   const u = axis === "x" ? line.ux : line.uy;
-  if (Math.abs(u) < 0.02) throw new Error(`This section runs almost exactly ${axis === "x" ? "north–south" : "east–west"}, so ${hKind} barely changes along it — read the horizontal position as ${axis === "x" ? "northing" : "easting"} or as distance from the start.`);
+  if (Math.abs(u) < 0.02) throw new Error(`This line runs ${axis === "x" ? "north–south" : "east–west"}: use ${axis === "x" ? "northings" : "eastings"} or distances.`);
   return (v - line.a[axis]) / u;
 }
 
@@ -35,7 +35,7 @@ export function fitSectionTransform(points, line) {
   if (pts.length < 2) throw new Error("Place at least 2 control points.");
   if (pts.length === 2) {
     const [p, q] = pts;
-    if (Math.abs(q.px - p.px) < 1 || Math.abs(q.py - p.py) < 1) throw new Error("With 2 points, they must differ both across and up/down the image — pick two opposite grid corners.");
+    if (Math.abs(q.px - p.px) < 1 || Math.abs(q.py - p.py) < 1) throw new Error("Pick two corners that differ both across and up the image.");
     const a = (q.x - p.x) / (q.px - p.px), e = (q.y - p.y) / (q.py - p.py);
     return { t: { a, b: 0, c: p.x - a * p.px, d: 0, e, f: p.y - e * p.py }, pts, kind: "scale" };
   }

@@ -31,7 +31,7 @@ test("the dialog does not need holes or saved sections: it asks for the line its
   const d = read("../src/components/SectionGeorefModal.jsx");
   assert.match(d, /sections = \[\], onImport, onClose/);
   assert.match(d, /collars = \[\]/);
-  assert.match(d, /draw the line with two clicks, or type its ends/);
+  assert.match(d, /tr\("Draw on the plan"\)/); assert.match(d, /tr\("Type the ends"\)/); // #4071: the guided flow asks for the line only when the figure gives none
 });
 
 test("the tooltip is in every language", () => {
