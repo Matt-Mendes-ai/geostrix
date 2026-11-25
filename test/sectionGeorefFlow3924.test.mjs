@@ -50,11 +50,10 @@ test("wired: the dialog asks for the line first with nothing preselected, warns 
   const m = readFileSync(new URL("../src/components/SectionGeorefModal.jsx", import.meta.url), "utf8");
   assert.match(m, /const \[lineSrc, setLineSrc\] = useState\(""\);/); // no silent default
   assert.doesNotMatch(m, /sections\[0\]\.id/);
-  assert.match(m, /const onLine = line && !line\.error \? imagesOnLine\(images, line, moveImage\?\.id\) : \[\];/);
-  assert.match(m, /tr\("1\. Where is this section on the map\?"\)/);
-  assert.match(m, /<SectionLinePlan [^>]*extent=\{\{ from: summary\.fromDist, to: summary\.toDist \}\}/); // the preview
+  assert.match(m, /const onLine = lineOk \? imagesOnLine\(images, line, moveImage\?\.id\) : \[\];/); // #4071: the guided flow
+  assert.match(m, /<SectionLinePlan [^>]*extent=\{summary \? \{ from: summary\.fromDist, to: summary\.toDist \} : null\}/); // the preview (step 3)
   assert.match(m, /const m = moveSectionImage\(moveImage, line\); onMove\?\.\(m\.patch/);
-  assert.match(m, /onClick=\{moveImage \? doMove : \(\) => \{ setDrawing\(false\); setStep\(2\); \}\} disabled=\{!lineOk\}/); // no step 2 without a line
+  assert.match(m, /disabled=\{moveImage \? !lineOk : !stepOk \|\| busy\} onClick=\{moveImage \? doMove : next\}/); // no placing without a fit, no move without a line (#4071)
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /\{ label: tr\("Move to another line…"\), onClick: \(\) => setSectionGeorefOpen\(\{ moveId: im\.id \}\) \}/);
   assert.match(vm, /collars=\{collars\} images=\{sectionImages\}/);
