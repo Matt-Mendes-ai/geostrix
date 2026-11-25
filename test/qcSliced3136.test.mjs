@@ -48,7 +48,10 @@ test("wiring: the dialog runs the sliced check, shows its progress, and a newer 
   const s = fs.readFileSync(new URL("../src/components/DataQCModal.jsx", import.meta.url), "utf8");
   assert.match(s, /runDataQCSliced\(qcArgs\(\), \{ onProgress: \(p\) => \{ if \(runGen\.current === gen\) setProgress\(p\); \}, cancelled: \(\) => runGen\.current !== gen \}\)/);
   assert.match(s, /useEffect\(\(\) => \(\) => \{ runGen\.current\+\+; \}, \[\]\);/);
-  assert.match(s, /<button className="gs-btn gs-btn--primary" onClick=\{check\} disabled=\{!!progress\}/);
+  // TASKS.csv #4073 — Re-run is the gold primary of both StepDialog steps, off while a run is under way
+  assert.match(s, /const rerun = \{ label: tr\("Re-run"\), onClick: check, disabled: !!progress \};/);
+  assert.match(s, /\{ key: "issues", label: tr\("Issues"\), primary: rerun,/);
+  assert.match(s, /\{ key: "limits", label: tr\("Limits"\), primary: \{ \.\.\.rerun, onClick: \(\) => \{ check\(\); setAt\(0\); \} \}/);
   const q = fs.readFileSync(new URL("../src/lib/dataQC.js", import.meta.url), "utf8");
   for (const f of ["validateSurveyAndTrajectorySteps", "validateIntervalLayerSteps", "validateAssaysSteps"]) assert.match(q, new RegExp(`function\\* ${f}\\(`));
 });

@@ -9,14 +9,11 @@
 // real Excel sheets, but zero new dependencies and consistent with every other export in this app.
 const gradeText = (v) => (Number.isFinite(v) ? (v !== 0 && Math.abs(v) < 0.01 ? String(Number(v.toPrecision(3))) : v.toFixed(3)) : "—"); // TASKS.csv #1213, as Grade statistics
 import React, { useMemo } from "react";
-import { X, Download, FileBarChart2 } from "./icons.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import { saveFile } from "../lib/desktop.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { LAYER_META } from "../lib/layers.js";
 import { valueIn } from "../lib/geochem.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { backdropProps } from "../lib/modalStyles.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -42,8 +39,6 @@ function elementStats(rows, elements, weighted = false) {
 }
 
 export default function ProjectReportModal({ store, onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap(); // TASKS.csv #238
   const { project, collars, survey, layers, assays, assayElements, surfaceSamples, surfaceElements } = store;
 
   const report = useMemo(() => {
@@ -79,53 +74,40 @@ export default function ProjectReportModal({ store, onClose }) {
     saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_report.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <FileBarChart2 size={18} style={{ color: "var(--color-accent-dark)" }} />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Project report")}</div>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — a StepDialog of ONE step (the report to look at, then one action): the numbers and the
+  // statistics, Export report (CSV) the gold primary and Close the way out. The basis of the assay means (length-weighted, QAQC inserts out, not
+  // composited or capped) stays seen above its table; with nothing imported, the hint says what is missing.
+  const empty = !collars.length && !surfaceSamples.length;
+  const heading = tr("Project report"); // the dialog's name, seen (a JSX title= would count it as a tooltip)
+  const steps = [
+    { key: "report", label: tr("Report"), primary: { label: tr("Export report (CSV)"), onClick: exportCSV, disabled: empty }, hint: empty ? tr("Import drillholes or surface samples to generate a report.") : "", render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
+          <StatCard label={tr("Drillholes")} value={collars.length} />
+          <StatCard label={tr("Total metres")} value={report.totalMetres.toFixed(0)} />
+          <StatCard label={tr("Surface samples")} value={surfaceSamples.length} />
+          <StatCard label={tr("Layers with data")} value={report.layerCounts.length} />
+        </div>
+
+        {report.assayStats.length > 0 && (
+          <div>
+            <div style={label}>{tr("Assay statistics")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Length-weighted mean; QAQC inserts excluded{v}; all domains combined, not composited or capped.", { v: report.qaqcExcluded ? ` (${report.qaqcExcluded} rows)` : "" })}</div>
+            <MiniTable rows={report.assayStats} />
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
+        )}
 
-        <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
-            <StatCard label={tr("Drillholes")} value={collars.length} />
-            <StatCard label={tr("Total metres")} value={report.totalMetres.toFixed(0)} />
-            <StatCard label={tr("Surface samples")} value={surfaceSamples.length} />
-            <StatCard label={tr("Layers with data")} value={report.layerCounts.length} />
+        {report.surfaceStats.length > 0 && (
+          <div>
+            <div style={label}>{tr("Surface sample statistics (unweighted mean)")}</div>
+            <MiniTable rows={report.surfaceStats} />
           </div>
-
-          {report.assayStats.length > 0 && (
-            <div>
-              <div style={label}>{tr("Assay statistics")}</div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Length-weighted mean; QAQC inserts excluded{v}; all domains combined, not composited or capped.", { v: report.qaqcExcluded ? ` (${report.qaqcExcluded} rows)` : "" })}</div>
-              <MiniTable rows={report.assayStats} />
-            </div>
-          )}
-
-          {report.surfaceStats.length > 0 && (
-            <div>
-              <div style={label}>{tr("Surface sample statistics (unweighted mean)")}</div>
-              <MiniTable rows={report.surfaceStats} />
-            </div>
-          )}
-
-          {!collars.length && !surfaceSamples.length && (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("Import drillholes or surface samples to generate a report.")}</div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
-          <button onClick={exportCSV} className="gs-btn gs-btn--primary" style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }} disabled={!collars.length && !surfaceSamples.length}>
-            <Download size={14} />{" "}{tr("Export report (CSV)")}</button>
-        </div>
+        )}
       </div>
-    </div>
-  );
+    ) },
+  ];
+
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={0} onAt={() => {}} cancelLabel={tr("Close")} width="min(560px, 92vw)" overlayProps={backdropProps(onClose)} />;
 }
 
 function StatCard({ label: l, value }) {
@@ -158,8 +140,6 @@ function MiniTable({ rows }) {
   );
 }
 
-const panel = { width: "min(560px, 92vw)", maxHeight: "86vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "right" };

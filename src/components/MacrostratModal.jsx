@@ -5,13 +5,10 @@
 // default, or one drawn on the map with the picker the WMS and terrain fetches use; all three buttons use it.
 import React, { useMemo, useState } from "react";
 import { isCancelledError } from "../lib/desktop.js"; // TASKS.csv #3976
-import { X, Globe, Loader2 } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, panel, header } from "../lib/modalStyles.js";
+import { Loader2 } from "./icons.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import BasemapView from "./BasemapView.jsx"; // #2314 — the area picker
 import { DropPicture } from "./DropDiagram.jsx"; // TASKS.csv #3952 — the card's picture
-import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3952
 import AreaChooser, { useFetchArea } from "./AreaChooser.jsx"; // TASKS.csv #3954
 import { fetchMacrostratRaster, fetchMacrostratUnits, fetchMacrostratLegend, fetchMacrostratMapLayer } from "../lib/macrostratFetch.js"; // legend: #2011; map layer: #2012
 import { MACROSTRAT_CREDIT, MACROSTRAT_MVT_URL } from "../lib/macrostrat.js";
@@ -33,8 +30,7 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
   const [picking, setPicking] = useState(false);
   const bboxLonLat = area.bboxLonLat;
   const atProject = area.option?.kind === "project";
-  useEscapeKey(onClose); // a stack: Esc in the picker closes only the picker
-  useFocusTrap();
+  // Escape: StepDialog's, on the stack of lib/useEscapeKey.js, so Esc in the picker (opened later) closes only the picker
   const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const beginJob = () => (startProjectJob ? startProjectJob({ label: tr("Macrostrat geology") }) : noJob(tr("Macrostrat geology"))); // TASKS.csv #3953
   // TASKS.csv #3976 — the fetch's bar in the status bar (the tiles, then the legend), with Cancel stopping the reads (#3963's signal)
@@ -82,31 +78,39 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
     try { setUnits(await fetchMacrostratUnits(centre[0], centre[1])); } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
     setBusy(null);
   };
-  return (
-    <div style={overlay} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      {/* TASKS.csv #3952 (Matt's first-time test: "we should have a nice card here for macrostrat geology. all the writing can go in more") — the dialog had
-          no background: it spread modalStyles' panel, which is a function (panel(sizing)), so the title, text and buttons sat on the dimmed map. Now an
-          opaque card in #3939's kit: the picture, one line of scale, the area, the buttons; what Macrostrat is and its credit behind More. */}
-      <div role="dialog" aria-modal="true" aria-label={tr("Macrostrat geology")} data-macrostrat-card="" className="ge-card" style={panel({ width: 520, maxWidth: "94vw", maxHeight: "86vh", borderRadius: 12, boxShadow: "var(--shadow-pop)" })}>{/* #3956: the shared card */}
-        <div className="ge-card-head" style={header}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}><Globe size={16} />{tr("Macrostrat geology")}</span>
-          <button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
-        </div>
-        <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — one step on the shared shell (a one-question dialog: which area): the picture, the scale
+  // line, the area and the buttons in view, the units as the gold primary (#3952: "add the units as a map layer should be the default"), the image a
+  // second button; the licence in one line seen, the full credit and what Macrostrat is in the Help card (were behind More, #3952)
+  const heading = tr("Macrostrat geology");
+  const unitsLabel = tr(atProject ? "Map units at the project centre" : "Map units at the centre of this area");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{heading}</summary>
+      <div style={note}>{tr("Macrostrat compiles geologic maps from many surveys into one world map, at the scale of its sources (often 1:250,000 to 1:1,000,000): context, not mapping at your property's scale.")}</div>
+      <div style={{ ...note, fontSize: "var(--font-size-xs)", marginTop: 6 }}>{tr("Data CC BY 4.0: credit Macrostrat (Peters et al. 2018, doi:10.1029/2018GC007467; Quinn et al. 2023, doi:10.1002/gdj3.189) and the original maps below in shared figures.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("The map layer: sharp polygons with names, for Model it, Identify and the legend. The image: a picture only, with no names.")}</div>
+    </details>
+  );
+  const steps = [
+    { key: "area", label: heading,
+      primary: addMapLayer ? { label: tr("Add the units as a map layer"), onClick: addUnits, disabled: !bboxLonLat || !!busy } /* #2012 */
+        : { label: tr("Add as an image only"), onClick: addLayer, disabled: !bboxLonLat || !!busy } /* the image is the main button only when the units cannot be added */,
+      render: () => (
+        <div data-macrostrat-card="" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
           <DropPicture picture="units" />
           <div style={note}>{tr("Regional geology (1:250,000 to 1:1,000,000), not property-scale mapping.")}</div>
+          {/* the licence stays seen (shared figures must credit it), in one line */}
+          <div style={{ ...note, fontSize: "var(--font-size-xs)" }}>{tr("Data CC BY 4.0: credit Macrostrat in shared figures.")}</div>
           {/* #2314 / #3954 — which area the buttons fetch */}
           <AreaChooser options={options} area={area} disabled={!!busy} onDraw={() => setPicking(true)} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {/* #3952 — Matt: "add the units as a map layer should be the default, only as raster should be the optional": the units (sharp, named, for Model it) are the main button; the image is a choice that says it is a picture */}
-            {addMapLayer && <button className="gs-btn gs-btn--primary" type="button" disabled={!bboxLonLat || !!busy} onClick={addUnits} title={tr("Sharp polygons with names: for Model it, Identify and the legend.")}>{tr("Add the units as a map layer")}</button>}{/* #2012 */}
-            <button className={addMapLayer ? "gs-btn" : "gs-btn gs-btn--primary"} /* gs-primary-alt: the image is the main button only when the units cannot be added */ type="button" disabled={!bboxLonLat || !!busy} onClick={addLayer} title={tr("A picture only, with no names.")}>{tr("Add as an image only")}</button>
-            <button className="gs-btn" type="button" disabled={!centre || !!busy} onClick={listUnits}>{tr(atProject ? "Map units at the project centre" : "Map units at the centre of this area")}</button>
+            {addMapLayer && <button className="gs-btn" type="button" disabled={!bboxLonLat || !!busy} onClick={addLayer} title={tr("A picture only, with no names.")}>{tr("Add as an image only")}</button>}
+            <button className="gs-btn" type="button" disabled={!centre || !!busy} onClick={listUnits}>{unitsLabel}</button>
           </div>
           {busy && <div role="status" style={{ ...note, display: "flex", alignItems: "center", gap: 6 }}><Loader2 size={14} className="spin" />{busy}</div>}
           {msg && <div role="status" style={{ ...note, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-text)" }}>{msg.text}</div>}
           {units && (units.length ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }} aria-label={tr(atProject ? "Map units at the project centre" : "Map units at the centre of this area")}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }} aria-label={unitsLabel}>
               {units.map((u, i) => (
                 <div key={i} style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", ...note }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, color: "var(--color-text)" }}>
@@ -121,12 +125,13 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
               ))}
             </div>
           ) : <div style={note}>{tr("Macrostrat has no mapped unit at this point.")}</div>)}
-          <MoreFold style={{ marginBottom: 0 }}>
-            <div style={note}>{tr("Macrostrat compiles geologic maps from many surveys into one world map, at the scale of its sources (often 1:250,000 to 1:1,000,000): context, not mapping at your property's scale.")}</div>
-            <div style={{ ...note, fontSize: "var(--font-size-xs)", marginTop: 6 }}>{tr("Data CC BY 4.0: credit Macrostrat (Peters et al. 2018, doi:10.1029/2018GC007467; Quinn et al. 2023, doi:10.1002/gdj3.189) and the original maps below in shared figures.")}</div>
-          </MoreFold>
         </div>
-      </div>
+      ) },
+  ];
+  return (
+    <>
+      {/* a click on the dimmed map around it closes it, as before */}
+      <StepDialog title={heading} onClose={onClose} steps={steps} at={0} onAt={() => {}} help={help} width="min(520px, 94vw)" overlayProps={{ onMouseDown: (e) => { if (e.target === e.currentTarget) onClose(); } }} />
       {picking && (
         <BasemapView
           mode="draw"
@@ -138,6 +143,6 @@ export default function MacrostratModal({ onClose, addRaster, addMapLayer = null
           onConfirm={(b) => { area.setDrawn(b); setUnits(null); setMsg(null); setPicking(false); }}
         />
       )}
-    </div>
+    </>
   );
 }

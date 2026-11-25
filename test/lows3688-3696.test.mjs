@@ -9,7 +9,11 @@ test("#3688 the import dialogs sit above Data QC and the other dialogs", () => {
   assert.match(read("../src/lib/modalStyles.js"), /export const overlay = \{[^}]*zIndex: 60/);
   assert.match(read("../src/components/ImportMappingModal.jsx"), /export const Z_IMPORT = 62;[\s\S]*zIndex=\{Z_IMPORT\}/); // #4073 — a StepDialog's zIndex
   assert.match(read("../src/components/AssayImportModal.jsx"), /const Z_IMPORT = 62;[\s\S]*zIndex=\{Z_IMPORT\}/); // #4073 — a StepDialog's zIndex
-  assert.match(read("../src/components/DataQCModal.jsx"), /<div style=\{overlay\}|\{\.\.\.backdropProps/, "Data QC keeps the common overlay (60)");
+  // TASKS.csv #4073 — Data QC is a StepDialog without a zIndex: StepDialog's overlay is the common one (60), under the import dialogs (62)
+  const qc = read("../src/components/DataQCModal.jsx");
+  assert.match(qc, /return <StepDialog title=\{heading\} onClose=\{onCancel\}/);
+  assert.doesNotMatch(qc, /zIndex=/, "Data QC keeps the common overlay (60)");
+  assert.match(read("../src/components/StepDialog.jsx"), /<div style=\{zIndex != null \? \{ \.\.\.overlay, zIndex \} : overlay\}/);
 });
 test("#3696 the Macpass README names four files and three source tables, and no longer says 'three files'", () => {
   const r = read("../sample_data/yk_macpass/README.md");

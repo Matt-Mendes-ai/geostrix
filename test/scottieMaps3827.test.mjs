@@ -34,7 +34,10 @@ test("#3835 choosing a Common service only fills the URL: no request until Fetch
   assert.doesNotMatch(onChange, /fetchCapabilities/);
   assert.match(onChange, /setUrl\(p\[s\]\); wantRef\.current = p\.layer \|\| null;/);
   assert.match(m, /const fetchCapabilities = async \(svc = service, u = url, want = wantRef\.current\) => \{/);
-  assert.match(m, /onClick=\{\(\) => fetchCapabilities\(\)\}/); // the button, and Enter in the URL box
+  // TASKS.csv #4073 — Fetch layers is the first step's gold primary (StepDialog), and Enter in the URL box: both fetch, then go on to the layers
+  assert.match(m, /const fetchAndNext = async \(\) => \{ if \(await fetchCapabilities\(\)\) setAt\(1\); \};/);
+  assert.match(m, /\{ label: loadingCaps \? tr\("Fetching…"\) : tr\("Fetch layers"\), onClick: fetchAndNext, disabled: !url\.trim\(\) \|\| loadingCaps \}/);
+  assert.match(m, /onKeyDown=\{\(e\) => \{ if \(e\.key === "Enter"\) fetchAndNext\(\); \}\}/);
   hasKeys(["Choosing a service only fills the URL. Nothing goes online until you press Fetch layers."]);
 });
 

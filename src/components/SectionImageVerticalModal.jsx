@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X, Trash2 } from "./icons.js";
+import { Trash2 } from "./icons.js";
 import ImageTiePointCanvas from "./ImageTiePointCanvas.jsx";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
+import StepDialog, { stepDialogStyles } from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { adjustCorners, adjustedImage, terrainProfilePx, topoPicks, fitVertical, typedAdjustment, imageVE, imageFrame } from "../lib/sectionVertical.js";
@@ -33,8 +32,7 @@ function warpedDataUrl(bitmap, plan) {
   return out.toDataURL("image/png");
 }
 export default function SectionImageVerticalModal({ image, terrain, onApply, onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
+  const [at, setAt] = useState(0); // TASKS.csv #4073 — the step on screen
   const [bitmap, setBitmap] = useState(null);
   const [picks, setPicks] = useState([]);
   const [offset, setOffset] = useState("0");
@@ -80,62 +78,79 @@ export default function SectionImageVerticalModal({ image, terrain, onApply, onC
   };
   // back to the picture as georeferenced: its corners and, after a fit at each point (#3929), its own bitmap and size
   const reset = () => { if (image.corners0) { onApply({ corners: image.corners0, corners0: null, verticalAdjust: null, ...(image.dataUrl0 ? { dataUrl: image.dataUrl0, width: image.width0, height: image.height0, dataUrl0: null, width0: null, height0: null } : {}) }); onClose(); } };
-  const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
   const num = { width: 90, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
   const th = { padding: "3px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "start", borderBottom: "1px solid var(--color-border)" };
   const rmsNow = rmsOf(rows), rmsAfter = rmsOf(after);
-  return (
-    <div style={{ ...overlay, alignItems: "flex-start", paddingTop: "4vh" }}>{/* anchored at the top: the table of clicks grows, and a centred box moved the picture under the cursor between two clicks */}
-      <div role="dialog" aria-modal="true" aria-label={tr("Match a section image to the terrain")} onClick={(e) => e.stopPropagation()} style={{ width: "min(1060px, 96vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--color-border)" }}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{tr("Match a section image to the terrain")}</div>
-            <div style={note}>{image.name}</div>
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
-        <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            {bitmap ? <ImageTiePointCanvas image={{ bitmap, width: image.width, height: image.height }} points={picks} maxSize={640} overlayLines={lines} ariaLabel={tr("Click along the drawn topography line")}
-              onAdd={(px, py) => setPicks((p) => [...p, { id: `tp_${Date.now()}_${p.length}`, px, py }])} onMove={(id, px, py) => setPicks((p) => p.map((x) => (x.id === id ? { ...x, px, py } : x)))} /> : <div style={note}>{tr("Loading…")}</div>}
-            <div style={{ ...note, marginTop: 6 }}>{terrain ? tr("Green: the terrain along this picture with the typed adjustment. Dashed grey: where it stands now.") : tr("No terrain is loaded (Maps > Terrain), so there is nothing to match to: the picture can still be moved by typing an offset.")}</div>
-          </div>
-          <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={note}>{tr("Click along the topography line drawn on the picture (3 or more points, at its highs and lows). Each click is compared with the terrain under it.")}</div>
-            {ve != null && <div style={note}>{tr("The picture's own vertical exaggeration is {ve} ×. GeoStrix places it in metres, so this is not applied; the 3D view's own VE stretches the picture and the terrain alike.", { ve: +ve.toFixed(2) })}</div>}
-            {picks.length > 0 && (
-              <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                <thead><tr><th style={th}>#</th><th style={th}>{tr("Picture (m)")}</th><th style={th}>{tr("Terrain (m)")}</th><th style={th}>{tr("Terrain − picture (m)")}</th>{warp && <th style={th} title={tr("How far the click sits from the straight trend through all the clicks: the bend the fit makes there. A large one marks a click off the drawn line.")}>{tr("Off the trend (m)")}</th>}<th style={th} /></tr></thead>
-                <tbody>{picks.map((p, i) => { const r = rows.find((x) => x.id === p.id); return (
-                  <tr key={p.id}><td style={{ padding: "3px 6px" }}>{i + 1}</td>
-                    <td style={{ padding: "3px 6px" }}>{r ? r.zImage.toFixed(1) : "—"}</td><td style={{ padding: "3px 6px" }}>{r ? r.zTerrain.toFixed(1) : tr("no terrain")}</td><td style={{ padding: "3px 6px" }}>{r ? r.diff.toFixed(1) : "—"}</td>{warp && <td style={{ padding: "3px 6px" }}>{(() => { const q = warp.residuals.find((x) => x.id === p.id); return q ? q.offTrendM.toFixed(1) : "—"; })()}</td>}
-                    <td style={{ padding: "3px 6px" }}><Trash2 aria-label={tr("Remove this point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)" }} onClick={() => setPicks((q) => q.filter((x) => x.id !== p.id))} /></td></tr>); })}</tbody>
-              </table>
-            )}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => fit("offset")} disabled={!rows.length} className="gs-btn" title={tr("Move the whole picture up or down by the average difference.")}>{tr("Fit the height")}</button>
-              <button type="button" onClick={() => fit("scale")} disabled={rows.length < 3} className="gs-btn" title={tr("Move it and stretch its heights about the clicks' mean height (least squares). Needs 3 clicks that differ in height by 5 m or more.")}>{tr("Fit the height and scale")}</button>
-              <button type="button" onClick={fitEach} disabled={rows.length < 2} className="gs-btn" title={tr("Bend the picture so its drawn ground meets the terrain at every click, for a drawing not to scale throughout. The terrain is not changed.")}>{tr("Fit at each point")}</button>
-            </div>
-            <label style={note}>{tr("Fit at each point bends the picture down to (m below the drawn ground)")}{" "}<NumberInput min={1} value={depthM === "" ? null : depthM} onChange={(v) => { setDepthM(String(v)); setWarp(null); }} style={num} aria-label={tr("Bend depth (m)")} /></label>
-            {warp && <div role="status" style={note}>{tr("Fit at each point: the picture moves {mean} m as a whole and bends up to {bend} m more at the clicks, fading out {depth} m below the drawn ground, so holes drawn deeper stay straight. The drawn ground meets the terrain at all {n} clicks.", { mean: round2(warp.mean), bend: round2(warp.maxBendM), depth: round2(warp.depthM), n: warp.n })}{warp.depthM > Number(depthM) + 0.5 ? " " + tr("The depth was raised to {d} m: at least twice the largest bend, so no part of the picture folds back.", { d: round2(warp.depthM) }) : ""}</div>}
-            {msg && <div role="alert" style={{ ...note, color: "var(--color-danger-fg)" }}>{msg}</div>}
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <label style={note}>{tr("Vertical offset (m)")}{" "}<NumberInput allowEmpty value={offset === "" ? null : offset} onChange={(v) => { setOffset(v == null ? "" : String(v)); setWarp(null); }} style={num} aria-label={tr("Vertical offset (m)")} /></label>
-              <label style={note}>{tr("Vertical scale (%)")}{" "}<NumberInput min={1} value={scalePct === "" ? null : scalePct} onChange={(v) => { setScalePct(String(v)); setWarp(null); }} style={num} aria-label={tr("Vertical scale (%)")} /></label>
-            </div>
-            {rmsNow != null && <div style={note}>{tr("Over {n} click(s) the picture is {before} m (root mean square) from the terrain; with this adjustment {after} m.", { n: rows.length, before: rmsNow.toFixed(1), after: rmsAfter == null ? "—" : rmsAfter.toFixed(1) })}</div>}
-            {image.verticalAdjust?.warp && <div style={note}>{tr("Already fitted at {n} points (bends up to {b} m); Back to as georeferenced puts the original picture back.", { n: image.verticalAdjust.warp.points, b: image.verticalAdjust.warp.maxBendM })}</div>}
-            {image.verticalAdjust && !image.verticalAdjust.warp && <div style={note}>{tr("Already adjusted: {offset} m, scale {scale} % (the corners it was georeferenced with are kept).", { offset: image.verticalAdjust.offset, scale: image.verticalAdjust.scalePct })}</div>}
-            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-              {warp ? <button type="button" onClick={applyWarp} disabled={!bitmap} className="gs-btn gs-btn--primary">{tr("Apply the fit at each point")}</button>
-                : <button type="button" onClick={apply} disabled={!adj || (adj.offset === 0 && adj.scale === 1)} className="gs-btn gs-btn--primary" /* gs-primary-alt: the other branch of the ternary */>{tr("Apply")}</button>}
-              {image.corners0 && <button type="button" onClick={reset} className="gs-btn" title={tr("Put the picture back at the heights it was georeferenced with.")}>{tr("Back to as georeferenced")}</button>}
-              <button type="button" onClick={onClose} className="gs-btn">{tr("Cancel")}</button>
-            </div>
-          </div>
-        </div>
-      </div>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — two steps: 1 Points (click along the drawn ground line), 2 Fit (fit or type the
+  // adjustment, then Apply). The picture is on both, so the green line shows the fit; the long explanations are in the Help card
+  const picture = () => (
+    <div>
+      {bitmap ? <ImageTiePointCanvas image={{ bitmap, width: image.width, height: image.height }} points={picks} maxSize={640} overlayLines={lines} ariaLabel={tr("Click along the drawn topography line")}
+        onAdd={(px, py) => setPicks((p) => [...p, { id: `tp_${Date.now()}_${p.length}`, px, py }])} onMove={(id, px, py) => setPicks((p) => p.map((x) => (x.id === id ? { ...x, px, py } : x)))} /> : <div style={note}>{tr("Loading…")}</div>}
+      {/* no terrain: said where you are (there is nothing to match to), with the way that still works */}
+      <div style={{ ...note, marginTop: 6 }}>{terrain ? tr("Green: with the adjustment. Dashed grey: now.") : tr("No terrain loaded: type an offset instead.")}</div>
     </div>
   );
+  const heading = tr("Match to terrain");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{heading}</summary>
+      <div style={note}>{tr("Click along the topography line drawn on the picture (3 or more points, at its highs and lows). Each click is compared with the terrain under it.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Green: the terrain along this picture with the typed adjustment. Dashed grey: where it stands now.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("No terrain is loaded (Maps > Terrain), so there is nothing to match to: the picture can still be moved by typing an offset.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Fit at each point bends the picture so its drawn ground meets the terrain at every click, fading out at the bend depth below the drawn ground, so holes drawn deeper stay straight.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Only the picture's heights change; its place along the section line does not. The corners it was georeferenced with are kept, so Back to as georeferenced puts it back.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("A picture's own vertical exaggeration is not applied: GeoStrix places it in metres, and the 3D view's own VE stretches the picture and the terrain alike.")}</div>
+    </details>
+  );
+  // the clicks' table: on both steps, so the fit's 'Off the trend' column is read beside the fit
+  const clicks = () => (<>
+    {picks.length > 0 && (
+      <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
+        <thead><tr><th style={th}>#</th><th style={th}>{tr("Picture (m)")}</th><th style={th}>{tr("Terrain (m)")}</th><th style={th}>{tr("Terrain − picture (m)")}</th>{warp && <th style={th} title={tr("How far the click sits from the straight trend through all the clicks: the bend the fit makes there. A large one marks a click off the drawn line.")}>{tr("Off the trend (m)")}</th>}<th style={th} /></tr></thead>
+        <tbody>{picks.map((p, i) => { const r = rows.find((x) => x.id === p.id); return (
+          <tr key={p.id}><td style={{ padding: "3px 6px" }}>{i + 1}</td>
+            <td style={{ padding: "3px 6px" }}>{r ? r.zImage.toFixed(1) : "—"}</td><td style={{ padding: "3px 6px" }}>{r ? r.zTerrain.toFixed(1) : tr("no terrain")}</td><td style={{ padding: "3px 6px" }}>{r ? r.diff.toFixed(1) : "—"}</td>{warp && <td style={{ padding: "3px 6px" }}>{(() => { const q = warp.residuals.find((x) => x.id === p.id); return q ? q.offTrendM.toFixed(1) : "—"; })()}</td>}
+            <td style={{ padding: "3px 6px" }}><Trash2 aria-label={tr("Remove this point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)" }} onClick={() => setPicks((q) => q.filter((x) => x.id !== p.id))} /></td></tr>); })}</tbody>
+      </table>
+    )}
+  </>);
+  const steps = [
+    { key: "points", label: tr("Points"), primary: { label: tr("Next") }, render: () => (<>
+      {picture()}
+      <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: 8 }}>
+        {image.name && <div style={{ ...note, fontWeight: 600 }}>{image.name}</div>}
+        <div style={note}>{tr("Click along the drawn ground line, at its highs and lows.")}</div>
+        {/* the picture's VE is dropped, not applied: said in one line where the clicks are made */}
+        {ve != null && <div style={note}>{tr("Its {ve} × vertical exaggeration is not applied.", { ve: +ve.toFixed(2) })}</div>}
+        {clicks()}
+      </div>
+    </>) },
+    { key: "fit", label: tr("Fit"), primary: warp ? { label: tr("Apply the fit at each point"), onClick: applyWarp, disabled: !bitmap } : { label: tr("Apply"), onClick: apply, disabled: !adj || (adj.offset === 0 && adj.scale === 1) }, render: () => (<>
+      {picture()}
+      <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={() => fit("offset")} disabled={!rows.length} className="gs-btn" title={tr("Move the whole picture up or down by the average difference.")}>{tr("Fit the height")}</button>
+          <button type="button" onClick={() => fit("scale")} disabled={rows.length < 3} className="gs-btn" title={tr("Move it and stretch its heights about the clicks' mean height (least squares). Needs 3 clicks that differ in height by 5 m or more.")}>{tr("Fit the height and scale")}</button>
+          <button type="button" onClick={fitEach} disabled={rows.length < 2} className="gs-btn" title={tr("Bend the picture so its drawn ground meets the terrain at every click, for a drawing not to scale throughout. The terrain is not changed.")}>{tr("Fit at each point")}</button>
+        </div>
+        <label style={note}>{tr("Bend depth (m)")}{" "}<NumberInput min={1} value={depthM === "" ? null : depthM} onChange={(v) => { setDepthM(String(v)); setWarp(null); }} style={num} aria-label={tr("Bend depth (m)")} /></label>
+        {warp && <div role="status" style={note}>{tr("Moves {mean} m, bends up to {bend} m, fading out {depth} m below the ground: it meets the terrain at all {n} clicks.", { mean: round2(warp.mean), bend: round2(warp.maxBendM), depth: round2(warp.depthM), n: warp.n })}{warp.depthM > Number(depthM) + 0.5 ? " " + tr("Depth raised to {d} m so the picture does not fold.", { d: round2(warp.depthM) }) : ""}</div>}
+        {msg && <div role="alert" style={{ ...note, color: "var(--color-danger-fg)" }}>{msg}</div>}
+        {clicks()}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <label style={note}>{tr("Vertical offset (m)")}{" "}<NumberInput allowEmpty value={offset === "" ? null : offset} onChange={(v) => { setOffset(v == null ? "" : String(v)); setWarp(null); }} style={num} aria-label={tr("Vertical offset (m)")} /></label>
+          <label style={note}>{tr("Vertical scale (%)")}{" "}<NumberInput min={1} value={scalePct === "" ? null : scalePct} onChange={(v) => { setScalePct(String(v)); setWarp(null); }} style={num} aria-label={tr("Vertical scale (%)")} /></label>
+        </div>
+        {rmsNow != null && <div style={note}>{tr("Misfit (RMS, {n} click(s)): {before} m now, {after} m after.", { n: rows.length, before: rmsNow.toFixed(1), after: rmsAfter == null ? "—" : rmsAfter.toFixed(1) })}</div>}
+        {image.verticalAdjust?.warp && <div style={note}>{tr("Already fitted at {n} points (bends up to {b} m).", { n: image.verticalAdjust.warp.points, b: image.verticalAdjust.warp.maxBendM })}</div>}
+        {image.verticalAdjust && !image.verticalAdjust.warp && <div style={note}>{tr("Already adjusted: {offset} m, scale {scale} %.", { offset: image.verticalAdjust.offset, scale: image.verticalAdjust.scalePct })}</div>}
+        {image.corners0 && <button type="button" onClick={reset} className="gs-btn" style={{ alignSelf: "flex-start" }} title={tr("Put the picture back at the heights it was georeferenced with.")}>{tr("Back to as georeferenced")}</button>}
+      </div>
+    </>) },
+  ];
+  // anchored at the top (overlayProps' style): the table of clicks grows, and a centred box moved the picture under the cursor between two clicks
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} width="min(1060px, 96vw)" overlayProps={{ style: { ...overlay, alignItems: "flex-start", paddingTop: "4vh" } }} />;
 }
+
+const { note } = stepDialogStyles;

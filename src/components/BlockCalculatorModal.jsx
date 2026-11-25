@@ -2,11 +2,10 @@
 // write the formula (calcExpr's language, no eval), state the new value's name and unit, calculate, add. The maths is lib/blockCalc.js.
 // No default formula, price, factor or penalty (#264): the formula field starts empty and the help's examples are letters, not numbers.
 // Lazy-loaded from BlockCalculatorLauncher, so the startup JavaScript does not grow.
-import React, { useMemo, useRef, useState } from "react";
-import { X, Calculator } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps, panel, header as headerStyle, sel } from "../lib/modalStyles.js";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { X } from "./icons.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
+import { sel } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3597
 import { blockModelLattice } from "../lib/estimationMeta.js";
@@ -27,8 +26,6 @@ const rampOf = (cells) => {
 };
 
 export default function BlockCalculatorModal({ onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
   const { voxelModels = [], addVoxelModel, updateVoxelModel } = useStore(); // updateVoxelModel: #3596
   const models = useMemo(() => voxelModels.filter((m) => m.cells?.length), [voxelModels]);
   const [inputs, setInputs] = useState([]); // [{ key, var }]
@@ -74,86 +71,98 @@ export default function BlockCalculatorModal({ onClose }) {
     } catch (err) { setError(err.message); }
   };
   const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
-  return (
-    <div style={overlay} {...backdropProps(null)}>
-      <div role="dialog" aria-modal="true" aria-label={tr("Block calculator")} style={{ ...panel(), width: 620, maxHeight: "88vh" }}>
-        <div style={headerStyle}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}><Calculator size={18} />{" "}{tr("Block calculator")}</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("block-calculator")} aria-label={tr("Help: {name}", { name: tr("Block calculator") })} title={tr("Help for this tool (F1, works offline)")}>?</button><button data-btn-own="" type="button" onClick={onClose} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button></span>
-        </div>
-        <div style={{ padding: 16, overflowY: "auto", fontSize: "var(--font-size-base)" }}>
-          <div style={{ ...small, marginBottom: 12, lineHeight: 1.45 }}>{tr("A new block model from a formula over block models on the same blocks. A block that lacks a value in any model the formula reads is left out, not set to zero.")}</div>
-          <div style={{ ...small, marginBottom: 6 }}>{tr("Block models in the formula")}</div>
-          {picked.length > 0 && (
-            <table style={{ borderCollapse: "collapse", marginBottom: 8, width: "100%" }}>
-              <tbody>
-                {picked.map((x, i) => (
-                  <tr key={x.key}>
-                    <td style={{ padding: "3px 8px 3px 0", width: 130 }}>
-                      <input value={x.var} onChange={(e) => { const v = e.target.value; setInputs((cur) => cur.map((y) => (y.key === x.key ? { ...y, var: v } : y))); changed(); }} aria-label={tr("Name in the formula for {model}", { model: x.model.name })} style={{ ...sel, width: 120, fontFamily: "monospace" }} />
-                      {varError(x, i) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)" }}>{varError(x, i)}</div>}
-                    </td>
-                    <td style={{ padding: "3px 8px", color: "var(--color-text)" }}>{x.model.name}{x.model.params?.unit ? ` (${x.model.params.unit})` : ""}{i === 0 && <span style={{ ...small, marginInlineStart: 6 }}>{tr("(sets the blocks)")}</span>}</td>
-                    <td style={{ padding: "3px 0", textAlign: "end" }}><button data-btn-own="" type="button" onClick={() => { setInputs((cur) => cur.filter((y) => y.key !== x.key)); changed(); }} aria-label={tr("Remove {model}", { model: x.model.name })} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={14} /></button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
-            <select value="" onChange={(e) => { const m = models.find((q) => keyOf(q) === e.target.value); if (m) add([m]); }} aria-label={tr("Add a block model")} style={{ ...sel, flex: 1, minWidth: 220 }} disabled={picked.length >= MAX_CALC_INPUTS}>
-              <option value="">{picked.length ? tr("Add a block model on the same blocks…") : tr("Pick the first block model…")}</option>
-              {choices.filter((c) => !c.why).map(({ m }) => <option key={keyOf(m)} value={keyOf(m)}>{m.name}</option>)}
-            </select>
-            {set.length > 0 && <button className="gs-btn gs-btn--sm" type="button" onClick={() => add(set)}>{tr("Add the rest of its set ({n})", { n: set.length })}</button>}
-          </div>
-          {choices.some((c) => c.why) && ( /* TASKS.csv #3809 — said before the first pick too: four models in the project and an empty list, with no word why (a UBC mesh with two cell heights) */
-            <details style={{ ...small, marginBottom: 10 }}>
-              <summary style={{ cursor: "pointer" }}>{tr(choices.filter((c) => c.why).length === 1 ? "1 block model can't be added" : "{n} block models can't be added", { n: choices.filter((c) => c.why).length })}</summary>
-              <ul style={{ margin: "4px 0 0", paddingInlineStart: 18 }}>{choices.filter((c) => c.why).map(({ m, why }) => <li key={keyOf(m)}>{m.name}: {why}</li>)}</ul>
-            </details>
-          )}
-          <label style={{ display: "block", ...small, margin: "10px 0 4px" }} htmlFor="blockcalc-formula">{tr("Formula")}</label>
-          <textarea id="blockcalc-formula" value={formula} onChange={(e) => { setFormula(e.target.value); changed(); }} rows={3} spellCheck={false} style={{ ...sel, width: "100%", boxSizing: "border-box", fontFamily: "monospace", resize: "vertical" }} />
-          <details style={{ ...small, margin: "4px 0 12px", lineHeight: 1.5 }}>
-            <summary style={{ cursor: "pointer" }}>{tr("How to write a formula")}</summary>
-            <div>{tr("Use the names above, numbers, + - * / ^ ( ), comparisons (< <= > >= = !=), and / or / not, if(condition, value if true, value if false), and min, max, abs, sqrt, log, log10, exp, round, floor, ceil.")}</div>
-            <div style={{ marginTop: 4 }}>{tr("Examples, with letters where your own numbers go:")}</div>
-            <ul style={{ margin: "2px 0 0", paddingInlineStart: 18, fontFamily: "monospace" }}>
-              <li>Fe / (1 - LOI / 100)</li>
-              <li>Cu + Au * k</li>
-              <li>Fe * p - max(0, SiO2 - s) * q</li>
-            </ul>
-            <div style={{ marginTop: 4 }}>{tr("Replace k, p, q and s with your own factor, price, penalty and threshold: GeoStrix proposes no price, recovery or penalty.")}</div>
-          </details>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "6px 12px", marginBottom: 12 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 3, ...small }}>{tr("Name of the new block model")} *
-              <input value={name} onChange={(e) => { setName(e.target.value); setAdded(null); }} style={sel} /></label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 3, ...small }}>{tr("Unit of the new value")} *
-              <input value={unit} onChange={(e) => { setUnit(e.target.value); setAdded(null); }} placeholder={tr("e.g. %, g/t, $/t")} style={sel} /></label>
-          </div>
-          {sameUnit && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, ...small, marginBottom: 12 }}>{/* TASKS.csv #3522 */}
-              <input type="checkbox" checked={likeFirst} onChange={(e) => { setLikeFirst(e.target.checked); setAdded(null); }} />
-              {tr("Colour it as {model} (the same ramp and range)", { model: first.name })}
-            </label>
-          )}
-          {error && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-text)", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, padding: "7px 9px", marginBottom: 10 }}>{error}</div>}
-          {result && (
-            <div style={{ fontSize: "var(--font-size-sm)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", marginBottom: 10, lineHeight: 1.5 }}>
-              <div>{result.cells.length ? tr(result.blocks === 1 ? "1 block calculated; value {mean}." : "{blocks} blocks calculated; mean {mean}, from {min} to {max}.", { blocks: result.blocks.toLocaleString(), mean: fmt(mean) + unitSuffix, min: fmt(rampOf(result.cells).min) + unitSuffix, max: fmt(rampOf(result.cells).max) + unitSuffix } /* #3607 (7): with its unit */) : tr("No block got a value.")}</div>
-              {result.missing > 0 && <div>{tr(result.missing === 1 ? "1 block left out: a model the formula reads has no value there." : "{n} blocks left out: a model the formula reads has no value there.", { n: result.missing.toLocaleString() })}</div>}
-              {result.blank > 0 && <div>{tr(result.blank === 1 ? "1 block left out: the formula gives no number there (e.g. a division by zero)." : "{n} blocks left out: the formula gives no number there (e.g. a division by zero).", { n: result.blank.toLocaleString() })}</div>}
-              {added && <div style={{ color: "var(--color-success-text)" }}>{tr("Added \"{name}\". It is a snapshot: it does not change when its inputs do.", { name: added })}</div>}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            {running && <button className="gs-btn" type="button" onClick={() => acRef.current?.abort()}>{tr("Cancel")}</button>}
-            <button className="gs-btn gs-btn--primary" type="button" disabled={!ready} onClick={run}>{running ? (progress != null ? tr("Calculating… {p} %", { p: Math.round(progress * 100) }) : tr("Calculating…")) : tr("Calculate")}</button>
-            <button className="gs-btn" type="button" disabled={!canAdd} onClick={addModel} title={!unit.trim() ? tr("State the unit of the new value first") : undefined}>{tr("Add block model")}</button>
-          </div>
-        </div>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows"; "too wordy … cut, don't just cap") — a StepDialog of three steps, one job each: Models (the
+  // block models and their names in the formula), Formula (Calculate, the gold primary, with Cancel while it runs) and Result (the summary, the new
+  // model's name, unit and colours; Add block model the gold primary, Done once added). The intro and how to write a formula moved into the Help card,
+  // with its examples and the line that GeoStrix proposes no price; the blocks left out, and why, stay seen on Result, as does the snapshot line.
+  // Every string is one the four locales already have (test/blockCalc3164 checks each tr() key of this file).
+  const [at, setAt] = useState(0);
+  useEffect(() => { if (result) setAt(2); }, [result]); // a calculation done: its result
+  const heading = tr("Block calculator"); // the dialog's name, seen (a JSX title= would count it as a tooltip)
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{heading}</summary>
+      <div style={{ ...small, lineHeight: 1.5 }}>{tr("A new block model from a formula over block models on the same blocks. A block that lacks a value in any model the formula reads is left out, not set to zero.")}</div>
+      <div style={{ ...small, lineHeight: 1.5, marginTop: 6 }}>
+        <b>{tr("How to write a formula")}</b>
+        <div>{tr("Use the names above, numbers, + - * / ^ ( ), comparisons (< <= > >= = !=), and / or / not, if(condition, value if true, value if false), and min, max, abs, sqrt, log, log10, exp, round, floor, ceil.")}</div>
+        <div style={{ marginTop: 4 }}>{tr("Examples, with letters where your own numbers go:")}</div>
+        <ul style={{ margin: "2px 0 0", paddingInlineStart: 18, fontFamily: "monospace" }}>
+          <li>Fe / (1 - LOI / 100)</li>
+          <li>Cu + Au * k</li>
+          <li>Fe * p - max(0, SiO2 - s) * q</li>
+        </ul>
+        <div style={{ marginTop: 4 }}>{tr("Replace k, p, q and s with your own factor, price, penalty and threshold: GeoStrix proposes no price, recovery or penalty.")}</div>
       </div>
-    </div>
+      <button type="button" className="gs-btn gs-btn--sm" style={{ marginTop: 8 }} onClick={() => openHelp("block-calculator")}>{tr("Help: {name}", { name: heading })}</button>{/* TASKS.csv #3597 — the help page of this tool */}
+    </details>
   );
+  const steps = [
+    { key: "models", label: tr("Models"), primary: { label: tr("Next"), disabled: !namesOk }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)" }}>
+        <div style={{ ...small, marginBottom: 6 }}>{tr("Block models in the formula")}</div>
+        {picked.length > 0 && (
+          <table style={{ borderCollapse: "collapse", marginBottom: 8, width: "100%" }}>
+            <tbody>
+              {picked.map((x, i) => (
+                <tr key={x.key}>
+                  <td style={{ padding: "3px 8px 3px 0", width: 130 }}>
+                    <input value={x.var} onChange={(e) => { const v = e.target.value; setInputs((cur) => cur.map((y) => (y.key === x.key ? { ...y, var: v } : y))); changed(); }} aria-label={tr("Name in the formula for {model}", { model: x.model.name })} style={{ ...sel, width: 120, fontFamily: "monospace" }} />
+                    {varError(x, i) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)" }}>{varError(x, i)}</div>}
+                  </td>
+                  <td style={{ padding: "3px 8px", color: "var(--color-text)" }}>{x.model.name}{x.model.params?.unit ? ` (${x.model.params.unit})` : ""}{i === 0 && <span style={{ ...small, marginInlineStart: 6 }}>{tr("(sets the blocks)")}</span>}</td>
+                  <td style={{ padding: "3px 0", textAlign: "end" }}><button data-btn-own="" type="button" onClick={() => { setInputs((cur) => cur.filter((y) => y.key !== x.key)); changed(); }} aria-label={tr("Remove {model}", { model: x.model.name })} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={14} /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+          <select value="" onChange={(e) => { const m = models.find((q) => keyOf(q) === e.target.value); if (m) add([m]); }} aria-label={tr("Add a block model")} style={{ ...sel, flex: 1, minWidth: 220 }} disabled={picked.length >= MAX_CALC_INPUTS}>
+            <option value="">{picked.length ? tr("Add a block model on the same blocks…") : tr("Pick the first block model…")}</option>
+            {choices.filter((c) => !c.why).map(({ m }) => <option key={keyOf(m)} value={keyOf(m)}>{m.name}</option>)}
+          </select>
+          {set.length > 0 && <button className="gs-btn gs-btn--sm" type="button" onClick={() => add(set)}>{tr("Add the rest of its set ({n})", { n: set.length })}</button>}
+        </div>
+        {choices.some((c) => c.why) && ( /* TASKS.csv #3809 — said before the first pick too: four models in the project and an empty list, with no word why (a UBC mesh with two cell heights) */
+          <details style={{ ...small, marginBottom: 10 }}>
+            <summary style={{ cursor: "pointer" }}>{tr(choices.filter((c) => c.why).length === 1 ? "1 block model can't be added" : "{n} block models can't be added", { n: choices.filter((c) => c.why).length })}</summary>
+            <ul style={{ margin: "4px 0 0", paddingInlineStart: 18 }}>{choices.filter((c) => c.why).map(({ m, why }) => <li key={keyOf(m)}>{m.name}: {why}</li>)}</ul>
+          </details>
+        )}
+      </div>
+    ) },
+    { key: "formula", label: tr("Formula"), primary: { label: running ? (progress != null ? tr("Calculating… {p} %", { p: Math.round(progress * 100) }) : tr("Calculating…")) : tr("Calculate"), onClick: run, disabled: !ready }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)" }}>
+        <label style={{ display: "block", ...small, margin: "0 0 4px" }} htmlFor="blockcalc-formula">{tr("Formula")}</label>
+        <textarea id="blockcalc-formula" value={formula} onChange={(e) => { setFormula(e.target.value); changed(); }} rows={4} spellCheck={false} autoFocus style={{ ...sel, width: "100%", boxSizing: "border-box", fontFamily: "monospace", resize: "vertical" }} />
+        {running && <button className="gs-btn" type="button" style={{ marginTop: 8 }} onClick={() => acRef.current?.abort()}>{tr("Cancel")}</button>}
+      </div>
+    ) },
+    { key: "result", label: tr("Result"), primary: added ? { label: tr("Done"), onClick: onClose } : { label: tr("Add block model"), onClick: addModel, disabled: !canAdd }, hint: result && !unit.trim() ? tr("State the unit of the new value first") : "", render: () => (
+      <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)" }}>
+        {result && (
+          <div style={{ fontSize: "var(--font-size-sm)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", marginBottom: 12, lineHeight: 1.5 }}>
+            <div>{result.cells.length ? tr(result.blocks === 1 ? "1 block calculated; value {mean}." : "{blocks} blocks calculated; mean {mean}, from {min} to {max}.", { blocks: result.blocks.toLocaleString(), mean: fmt(mean) + unitSuffix, min: fmt(rampOf(result.cells).min) + unitSuffix, max: fmt(rampOf(result.cells).max) + unitSuffix } /* #3607 (7): with its unit */) : tr("No block got a value.")}</div>
+            {result.missing > 0 && <div>{tr(result.missing === 1 ? "1 block left out: a model the formula reads has no value there." : "{n} blocks left out: a model the formula reads has no value there.", { n: result.missing.toLocaleString() })}</div>}
+            {result.blank > 0 && <div>{tr(result.blank === 1 ? "1 block left out: the formula gives no number there (e.g. a division by zero)." : "{n} blocks left out: the formula gives no number there (e.g. a division by zero).", { n: result.blank.toLocaleString() })}</div>}
+            {added && <div style={{ color: "var(--color-success-text)" }}>{tr("Added \"{name}\". It is a snapshot: it does not change when its inputs do.", { name: added })}</div>}
+          </div>
+        )}
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "6px 12px", marginBottom: 12 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 3, ...small }}>{tr("Name of the new block model")} *
+            <input value={name} onChange={(e) => { setName(e.target.value); setAdded(null); }} style={sel} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 3, ...small }}>{tr("Unit of the new value")} *
+            <input value={unit} onChange={(e) => { setUnit(e.target.value); setAdded(null); }} placeholder={tr("e.g. %, g/t, $/t")} style={sel} /></label>
+        </div>
+        {sameUnit && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, ...small, marginBottom: 12 }}>{/* TASKS.csv #3522 */}
+            <input type="checkbox" checked={likeFirst} onChange={(e) => { setLikeFirst(e.target.checked); setAdded(null); }} />
+            {tr("Colour it as {model} (the same ramp and range)", { model: first.name })}
+          </label>
+        )}
+      </div>
+    ) },
+  ];
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} error={error} width="min(620px, 94vw)" />;
 }

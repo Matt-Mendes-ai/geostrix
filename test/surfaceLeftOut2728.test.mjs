@@ -19,5 +19,7 @@ test("a column with too many different values is listed; kept, mapped, element, 
 test("wired into the dialog with the limit", () => {
   const m = readFileSync(new URL("../src/components/SurfaceImportModal.jsx", import.meta.url), "utf8");
   assert.match(m, /surfaceAttrLeftOut\(modal\.headers, modal\.allRows, modal\.mapping, modal\.elements, modal\.attrExclude\)/);
-  assert.match(m, /tr\("Not kept as sample attributes \(more than \{max\} different values; not a note or an id\): \{list\}", \{ max: SURFACE_ATTR_MAX_DISTINCT,/);
+  // TASKS.csv #4073 — the line is shorter (the "not a note or an id" rule is in the dialog's Help card) and still names the columns, with the limit
+  assert.match(m, /tr\("Not kept as attributes \(over \{max\} different values\): \{list\}", \{ max: SURFACE_ATTR_MAX_DISTINCT,/);
+  assert.match(m, /tr\("A column with more than \{max\} different values that is not a note or an id is not kept as a sample attribute\.", \{ max: SURFACE_ATTR_MAX_DISTINCT \}\)/);
 });

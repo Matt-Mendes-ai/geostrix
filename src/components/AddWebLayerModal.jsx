@@ -1,9 +1,8 @@
 import React, { useMemo, useRef, useState } from "react";
 import AreaChooser, { useFetchArea } from "./AreaChooser.jsx"; // TASKS.csv #3954
-import { X, Globe, Loader2, Download } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, panel, header, label as labelStyle, sel, inp } from "../lib/modalStyles.js";
+import { Loader2 } from "./icons.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
+import { label as labelStyle, sel, inp } from "../lib/modalStyles.js";
 import { fetchWmsLayers, fetchWmsMapAsRaster, fetchWfsFeatureTypes, fetchWfsFeaturesAsBoundary, defaultWmsArea, wfsTruncationText, pickWfsStyleField, WMS_DETAIL, wmsImageSize, wmsPixelMetres, wmsTilePlan, WMS_DEFAULT_MAX_REQUEST } from "../lib/webLayers.js";
 import { buildLayer, autoColorFor } from "../lib/mapLayerBuild.js";
 import { autoCategories } from "../lib/mapLayers.js";
@@ -24,8 +23,7 @@ import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — a 
 // vector features, imported as a boundary polylines layer (addBoundary). Both go through
 // src/lib/webLayers.js, which does the actual GetCapabilities/GetMap/GetFeature work.
 export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addMapLayer, projectEpsg, defaultBboxLonLat, areaOptions = null }) {
-  useEscapeKey(onClose);
-  useFocusTrap(); // TASKS.csv #238
+  const [at, setAt] = useState(0); // TASKS.csv #4073 — the step on screen
   const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const [service, setService] = useState("wms"); // "wms" | "wfs"
   const [url, setUrl] = useState("");
@@ -34,6 +32,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
   const [loadingCaps, setLoadingCaps] = useState(false);
   const [capsError, setCapsError] = useState(null);
   const [layers, setLayers] = useState(null); // [{name,title,...}] once fetched
+  const [fetchedFor, setFetchedFor] = useState(""); // TASKS.csv #4073 — the service and URL the layers came from: Back to the first step and on again asks nothing new
   const [selectedName, setSelectedName] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null); // {ok, text}
@@ -58,20 +57,24 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
   // TASKS.csv #3835 — choosing a common service used to ask it for its layers at once, before 'Fetch layers' was pressed: nothing goes online until the button (or Enter in the URL box). The layer a preset wants is kept for then.
   const wantRef = useRef(null);
   const fetchCapabilities = async (svc = service, u = url, want = wantRef.current) => {
-    if (!u.trim()) return;
+    if (!u.trim()) return false;
     setLoadingCaps(true); setCapsError(null); setLayers(null); setSelectedName(""); setResult(null);
     try {
       const found = svc === "wms" ? await fetchWmsLayers(u.trim()) : await fetchWfsFeatureTypes(u.trim());
-      if (!found.length) { setCapsError(tr("No layers found in this service's capabilities — double check the URL.")); return; }
-      setLayers(found);
+      if (!found.length) { setCapsError(tr("No layers found in this service's capabilities — double check the URL.")); return false; }
+      setLayers(found); setFetchedFor(`${svc} ${u.trim()}`);
       const pick = want && found.find((l) => l.name === want);
       if (pick) setSelectedName(pick.name);
+      return true;
     } catch (err) {
       setCapsError(err.message);
+      return false;
     } finally {
       setLoadingCaps(false);
     }
   };
+  // TASKS.csv #4073 — Fetch layers is the first step's gold button (and Enter in the URL box): the layers found, it goes on to them
+  const fetchAndNext = async () => { if (await fetchCapabilities()) setAt(1); };
 
   const selectLayer = (name) => {
     setSelectedName(name);
@@ -131,89 +134,103 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
     return { width, height, m: wmsPixelMetres(bboxLonLat, longPx), requests: wmsTilePlan(width, height, maxW, maxH).length };
   })();
 
-  return (
-    <div style={overlay} role="dialog" aria-modal="true" onClick={onClose}>
-      <div style={panel({ width: 560, maxHeight: "85vh" })} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600 }}><Globe size={14} />{" "}{tr("Add web layer (WMS / WFS)")}</div>
-          <button data-btn-own="" onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
+  // TASKS.csv #4073 (Matt: "similar for all pop up windows") — three steps: 1 Service (a common one or a URL; Fetch layers is its gold button and
+  // the only thing that goes online), 2 Layer, 3 Import (WMS: the area and detail; WFS: the clip and what it becomes). The long explanations are in the Help card
+  const fetched = !!layers && fetchedFor === `${service} ${url.trim()}`;
+  const heading = tr("Add web layer (WMS / WFS)");
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{heading}</summary>
+      <div style={note}>{tr("Point this at an OGC service URL, as in QGIS. A WMS imports as a raster drape for a chosen area; a WFS as a Map layer that keeps its attributes, or as boundary lines.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Only as sharp as the service's own imagery: past its native resolution, more detail just enlarges pixels. Use services whose terms allow saving their images.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("Limiting a WFS to the project area is recommended for province- or country-wide layers.")}</div>
+    </details>
+  );
+  const steps = [
+    { key: "service", label: tr("Service"), primary: fetched ? { label: tr("Next") } : { label: loadingCaps ? tr("Fetching…") : tr("Fetch layers"), onClick: fetchAndNext, disabled: !url.trim() || loadingCaps }, render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* TASKS.csv #1468 — common open services: picking one fills the URL and lists its layer */}
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)" }}>{tr("Common services")}
+          <select value={preset ? presetId : ""} aria-label={tr("Common services")} style={{ ...sel, flex: 1 }}
+            onChange={(e) => { const p = COMMON_WEB_SERVICES.find((x) => x.id === e.target.value); if (!p) { setPresetId(""); return; } const s = presetService(p, service); setPresetId(p.id); setService(s); setUrl(p[s]); wantRef.current = p.layer || null; setLayers(null); setSelectedName(""); setResult(null); setCapsError(null); }}>
+            <option value="">{tr("Choose one, or type a URL below…")}</option>
+            {servicesFirst(COMMON_WEB_SERVICES, defaultBboxLonLat ? { lon: (defaultBboxLonLat[0] + defaultBboxLonLat[2]) / 2, lat: (defaultBboxLonLat[1] + defaultBboxLonLat[3]) / 2 } : null).map((p) => <option key={p.id} value={p.id}>{p.label}{p.wfs ? "" : ` (${tr("WMS only")})`}</option>)}
+          </select>
+        </label>
+        {/* what goes online, and when, stays seen (TASKS.csv #3835); so does the licence */}
+        <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7 }}>{tr("Choosing a service only fills the URL. Nothing goes online until you press Fetch layers.")}</div>
+        {preset && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("Licence: {v}. Credit the publisher in figures you share.", { v: preset.licence })}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <select value={service} aria-label={tr("Service")} onChange={(e) => { const s = e.target.value; setService(s); setLayers(null); setSelectedName(""); setResult(null); setCapsError(null); if (preset) { if (preset[s]) setUrl(preset[s]); else { setPresetId(""); setUrl(""); } } }} style={{ ...sel, width: 100 }}>
+            <option value="wms">{tr("WMS")}</option>
+            <option value="wfs">{tr("WFS")}</option>
+          </select>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={service === "wfs" ? tr("https://example.gov/geoserver/wfs") : tr("https://example.gov/geoserver/wms")}
+            style={{ ...inp, flex: 1 }}
+            onKeyDown={(e) => { if (e.key === "Enter") fetchAndNext(); }}
+          />
+          {loadingCaps && <Loader2 size={14} className="spin" style={{ alignSelf: "center" }} />}
         </div>
-        <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Point this at an OGC service URL, as in QGIS. A WMS imports as a raster drape for a chosen area; a WFS as a Map layer that keeps its attributes, or as boundary lines.")}</div>
-          {/* TASKS.csv #1468 — common open services: picking one fills the URL and lists its layer */}
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)" }}>{tr("Common services")}
-            <select value={preset ? presetId : ""} aria-label={tr("Common services")} style={{ ...sel, flex: 1 }}
-              onChange={(e) => { const p = COMMON_WEB_SERVICES.find((x) => x.id === e.target.value); if (!p) { setPresetId(""); return; } const s = presetService(p, service); setPresetId(p.id); setService(s); setUrl(p[s]); wantRef.current = p.layer || null; setLayers(null); setSelectedName(""); setResult(null); setCapsError(null); }}>
-              <option value="">{tr("Choose one, or type a URL below…")}</option>
-              {servicesFirst(COMMON_WEB_SERVICES, defaultBboxLonLat ? { lon: (defaultBboxLonLat[0] + defaultBboxLonLat[2]) / 2, lat: (defaultBboxLonLat[1] + defaultBboxLonLat[3]) / 2 } : null).map((p) => <option key={p.id} value={p.id}>{p.label}{p.wfs ? "" : ` (${tr("WMS only")})`}</option>)}
+        {capsError && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-solid)" }}>{capsError}</div>}
+      </div>
+    ) },
+    { key: "layer", label: tr("Layer"), primary: { label: tr("Next"), disabled: !selectedLayer }, hint: layers ? "" : tr("Fetch the service's layers first."), render: () => (
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {layers && (
+          <div>
+            <div style={labelStyle}>{tr("{layers} {v} found", { layers: layers.length, v: tr(layers.length === 1 ? "layer" : "layers") })}</div>
+            <select value={selectedName} onChange={(e) => selectLayer(e.target.value)} aria-label={tr("Layer")} style={{ ...sel, width: "100%" }}>
+              <option value="">{tr("Choose a layer…")}</option>
+              {layers.map((l) => <option key={l.name} value={l.name}>{l.title || l.name}</option>)}
+            </select>
+            {selectedLayer?.abstract && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, marginTop: 6, lineHeight: 1.4 }}>{selectedLayer.abstract}</div>}
+          </div>
+        )}
+      </div>
+    ) },
+    { key: "import", label: tr("Import"), primary: { label: busy ? (wmsProgress ? tr("Fetching {done}/{total}…", wmsProgress) : tr("Importing…")) : tr("Import this layer"), onClick: doImport, disabled: !selectedLayer || busy || (service === "wms" && !bboxLonLat) },
+      render: () => (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+        {selectedLayer && <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>{selectedLayer.title || selectedLayer.name}</div>}
+        {selectedLayer && service === "wms" && (
+          <div>
+            <AreaChooser options={options} area={area} disabled={busy} onDraw={() => setAreaPickerOpen(true)} />{/* #3954 */}
+            <div style={{ ...labelStyle, marginTop: 10 }}>{tr("Detail")}</div>{/* TASKS.csv #840 */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
+              <select value={wmsDetail} onChange={(e) => setWmsDetail(e.target.value)} aria-label={tr("Image detail")} style={{ ...sel, width: "auto" }}
+                title={tr("The longest side of the imported image. Larger ones take several requests, take longer and make a bigger project file.")}>
+                {Object.entries(WMS_DETAIL).map(([k, d]) => <option key={k} value={k}>{tr("{label} ({px} px)", { label: tr(d.label), px: d.longPx.toLocaleString() })}</option>)}
+              </select>
+              {wmsPlan && <span style={{ opacity: 0.75 }}>{tr("~{m} m pixels · {w} × {h} px · {n} map requests", { m: fmtM(wmsPlan.m), w: wmsPlan.width, h: wmsPlan.height, n: wmsPlan.requests })}</span>}
+            </div>
+            {/* the permission line stays seen where the image is fetched; why more detail may not help is in the Help card */}
+            <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, marginTop: 4, lineHeight: 1.4 }}>{tr("Use services whose terms allow saving their images.")}</div>
+          </div>
+        )}
+
+        {selectedLayer && service === "wfs" && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={defaultBboxLonLat ? undefined : tr("No project area yet (no drillholes, terrain, map layers or samples): nothing to clip against, so this has no effect.")}>{/* #1970 — the clip needs the project area, not drillholes */}
+            <input type="checkbox" checked={clipToArea} disabled={!defaultBboxLonLat} onChange={(e) => setClipToArea(e.target.checked)} />{tr("Limit to the project area")}</label>
+        )}
+        {selectedLayer && service === "wfs" && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>{tr("Import as")}<select value={wfsAs} onChange={(e) => setWfsAs(e.target.value)} style={{ ...sel, width: "auto" }}>
+              <option value="map">{tr("Map layer (keeps attributes)")}</option>
+              <option value="lines">{tr("Boundary lines (3D outlines only)")}</option>
             </select>
           </label>
-          <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7 }}>{tr("Choosing a service only fills the URL. Nothing goes online until you press Fetch layers.")}</div>{/* TASKS.csv #3835 */}
-          {preset && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("Licence: {v}. Credit the publisher in figures you share.", { v: preset.licence })}</div>}
-          <div style={{ display: "flex", gap: 8 }}>
-            <select value={service} onChange={(e) => { const s = e.target.value; setService(s); setLayers(null); setSelectedName(""); setResult(null); setCapsError(null); if (preset) { if (preset[s]) setUrl(preset[s]); else { setPresetId(""); setUrl(""); } } }} style={{ ...sel, width: 100 }}>
-              <option value="wms">{tr("WMS")}</option>
-              <option value="wfs">{tr("WFS")}</option>
-            </select>
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={service === "wfs" ? tr("https://example.gov/geoserver/wfs") : tr("https://example.gov/geoserver/wms")}
-              style={{ ...inp, flex: 1 }}
-              onKeyDown={(e) => { if (e.key === "Enter") fetchCapabilities(); }}
-            />
-            <button className="gs-btn" onClick={() => fetchCapabilities()} disabled={!url.trim() || loadingCaps}>
-              {loadingCaps ? <Loader2 size={14} className="spin" /> : null}{" "}{tr("Fetch layers")}</button>
-          </div>
-          {capsError && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-solid)" }}>{capsError}</div>}
+        )}
 
-          {layers && (
-            <div>
-              <div style={labelStyle}>{tr("{layers} {v} found", { layers: layers.length, v: tr(layers.length === 1 ? "layer" : "layers") })}</div>
-              <select value={selectedName} onChange={(e) => selectLayer(e.target.value)} style={{ ...sel, width: "100%" }}>
-                <option value="">{tr("Choose a layer…")}</option>
-                {layers.map((l) => <option key={l.name} value={l.name}>{l.title || l.name}</option>)}
-              </select>
-              {selectedLayer?.abstract && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, marginTop: 6, lineHeight: 1.4 }}>{selectedLayer.abstract}</div>}
-            </div>
-          )}
-
-          {selectedLayer && service === "wms" && (
-            <div>
-              <AreaChooser options={options} area={area} disabled={busy} onDraw={() => setAreaPickerOpen(true)} />{/* #3954 */}
-              <div style={{ ...labelStyle, marginTop: 10 }}>{tr("Detail")}</div>{/* TASKS.csv #840 */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
-                <select value={wmsDetail} onChange={(e) => setWmsDetail(e.target.value)} aria-label={tr("Image detail")} style={{ ...sel, width: "auto" }}
-                  title={tr("The longest side of the imported image. Larger ones take several requests, take longer and make a bigger project file.")}>
-                  {Object.entries(WMS_DETAIL).map(([k, d]) => <option key={k} value={k}>{tr("{label} ({px} px)", { label: tr(d.label), px: d.longPx.toLocaleString() })}</option>)}
-                </select>
-                {wmsPlan && <span style={{ opacity: 0.75 }}>{tr("~{m} m pixels · {w} × {h} px · {n} map requests", { m: fmtM(wmsPlan.m), w: wmsPlan.width, h: wmsPlan.height, n: wmsPlan.requests })}</span>}
-              </div>
-              <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, marginTop: 4, lineHeight: 1.4 }}>{tr("Only as sharp as the service's own imagery: past its native resolution, more detail just enlarges pixels. Use services whose terms allow saving their images.")}</div>
-            </div>
-          )}
-
-          {selectedLayer && service === "wfs" && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={defaultBboxLonLat ? undefined : tr("No project area yet (no drillholes, terrain, map layers or samples): nothing to clip against, so this has no effect.")}>{/* #1970 — the clip needs the project area, not drillholes */}
-              <input type="checkbox" checked={clipToArea} disabled={!defaultBboxLonLat} onChange={(e) => setClipToArea(e.target.checked)} />{tr("Limit to the current project area (recommended for province/country-wide layers)")}</label>
-          )}
-          {selectedLayer && service === "wfs" && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>{tr("Import as")}<select value={wfsAs} onChange={(e) => setWfsAs(e.target.value)} style={{ ...sel, width: "auto" }}>
-                <option value="map">{tr("Map layer (keeps attributes)")}</option>
-                <option value="lines">{tr("Boundary lines (3D outlines only)")}</option>
-              </select>
-            </label>
-          )}
-
-          {result && <div style={{ fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : result.warn ? "var(--color-warn-text)" : "var(--color-danger-solid)" }}>{result.text}</div>}
-
-          {selectedLayer && (
-            <button className="gs-btn gs-btn--primary" style={{ width: "100%" }} onClick={doImport} disabled={busy || (service === "wms" && !bboxLonLat)}>
-              {busy ? <Loader2 size={14} className="spin" /> : <Download size={14} />} {busy ? (wmsProgress ? tr("Fetching {done}/{total}…", wmsProgress) : tr("Importing…")) : tr("Import this layer")}
-            </button>
-          )}
-        </div>
+        {result && <div style={{ fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : result.warn ? "var(--color-warn-text)" : "var(--color-danger-solid)" }}>{result.text}</div>}
       </div>
+    ) },
+  ];
+  return (
+    <>
+      {/* a click on the dimmed view around it closes it, as before */}
+      <StepDialog title={heading} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} width="min(560px, 94vw)" overlayProps={{ onClick: (e) => { if (e.target === e.currentTarget) onClose(); } }} />
       {areaPickerOpen && (
         <BasemapView
           mode="draw"
@@ -225,9 +242,10 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
           onConfirm={(bbox) => { area.setDrawn(bbox); setAreaPickerOpen(false); }}
         />
       )}
-    </div>
+    </>
   );
 }
 
+const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
 // TASKS.csv #840 — a ground pixel size for the plan line: one decimal under 10 m, whole metres above
 const fmtM = (m) => (m < 10 ? m.toFixed(1) : Math.round(m).toLocaleString());

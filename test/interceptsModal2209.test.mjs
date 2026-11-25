@@ -20,5 +20,5 @@ test("one snapshot per opening; rows a page at a time, memoized on what they sho
   assert.match(m, /handlers\.current\.onToggle\(i\.id\)/);
   assert.match(m, /setLimit\(\(l\) => l \+ INTERCEPT_PAGE\)/);
   assert.doesNotMatch(m, /\{shown\.map\(\(i\) => \{/); // every row is no longer drawn at once
-  assert.match(m, /useEscapeKey\(onCancel\)/); // Escape still closes it
+  assert.match(m, /return <StepDialog title=\{heading\} onClose=\{onCancel\}/); // Escape still closes it (TASKS.csv #4073 — StepDialog's Escape calls onClose)
 });
