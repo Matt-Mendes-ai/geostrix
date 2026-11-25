@@ -31,6 +31,8 @@ import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
 const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
+import OverflowRow from "./components/OverflowRow.jsx"; // TASKS.csv #4074 — the top bar's actions, with a ⋯ menu when the row is too wide
+import { clearOverflow, fitRowByOverflow, hideLastTool, shownCount, trimSeparators } from "./lib/overflowFit.js";
 import ConfirmHost from "./components/ConfirmHost.jsx"; // TASKS.csv #3957 — the app's one confirm / alert dialog
 import TitleCards from "./components/TitleCards.jsx"; // TASKS.csv #3940 — the info card for every button that has only a native title
 import CollarZGate from "./components/CollarZGate.jsx"; // TASKS.csv #3955 — collar elevations from the terrain: the gate (the dialog, the offer and the planner load on first use)
@@ -171,6 +173,7 @@ export default function App() {
   // TASKS.csv #790 — the top toolbar fits itself: compact (file actions icon-only) when its buttons do not fit the
   // window, whatever the language or text scaling. Re-measured on resize and when the labels change, not per render.
   const toolbarRef = useRef(null);
+  const actionsRef = useRef(null); // #4074 — the OverflowRow's container
   const toolbarKey = useRef("");
   // TASKS.csv #3900 — larger text needs more steps (plan_fable 2.5, measured: French at Large, 1,280 px, Larger): after the output names (snug, #1293:
   // New, Open and Save keep their names longest) and then every file action's name (compact), the tab names go one step smaller, then the tabs
@@ -180,7 +183,13 @@ export default function App() {
     const el = toolbarRef.current;
     if (!el) return;
     el.classList.remove(...TOOLBAR_FIT_STEPS);
+    const actions = actionsRef.current;
+    if (actions) clearOverflow(actions);
     for (const step of TOOLBAR_FIT_STEPS) { if (el.scrollWidth <= el.clientWidth + 1) break; el.classList.add(step); }
+    // TASKS.csv #4074 — still too wide with every step taken (1,366 px: KMZ was cut off): the last actions go into the ⋯ menu, never dropped
+    if (actions && el.scrollWidth > el.clientWidth + 1) {
+      fitRowByOverflow({ fits: () => el.scrollWidth <= el.clientWidth + 1, visible: () => shownCount(actions), hideLast: () => { hideLastTool(actions); trimSeparators(actions); } });
+    }
   }, []);
   useEffect(() => {
     const el = toolbarRef.current;
@@ -678,17 +687,19 @@ export default function App() {
           </React.Fragment>
         ))}
         <div className="ge-tool-sep" />
-        {/* TASKS.csv #449 — below 1280 px these action labels collapse to icons (app.css), the module tabs keep theirs. */}
-        <button data-btn-own="" className="ge-tool-btn" onClick={doNew} title={tr("New project")} aria-label={tr("New project")}><FilePlus2 size={14} /> <span className="ge-tool-label-opt">{tr("New")}</span></button>
-        <button data-btn-own="" className="ge-tool-btn" onClick={doOpen} title={tr("Open project")} aria-label={tr("Open project")}><FolderOpen size={14} /> <span className="ge-tool-label-opt">{tr("Open")}</span></button>
-        <button data-btn-own="" className="ge-tool-btn" onClick={() => doSave()} title={tr("Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)")} aria-label={tr("Save project")}><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? tr("Saved ✓") : tr("Save")}</span></button>
-        <div className="ge-tool-sep" />
-        <button data-btn-own="" className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={undoTooltip("undo", peekUndo?.(), tr("Undoable: data edits, sections, map layers, interpretation lines and Layout pages. Not undoable: rasters, terrain, block models, generated surfaces and view changes."))} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
-        <button data-btn-own="" className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={undoTooltip("redo", peekRedo?.(), "")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
-        <div className="ge-tool-sep" />
-        <button data-btn-own="" className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Export PDF")}</span></button>
-        <button data-btn-own="" className="ge-tool-btn" onClick={doExportKmz} title={tr("Export the whole project as one KMZ for Google Earth: every layer with a map position, in folders, with its colours and classes")} aria-label={tr("Export project as KMZ")}><Globe size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("KMZ")}</span></button>{/* TASKS.csv #3068 */}
-        <button data-btn-own="" className="ge-tool-btn" onClick={() => setReportOpen(true)} title={tr("Consolidated drillhole/assay project summary (CSV)")} aria-label={tr("Project report")}><FileBarChart2 size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Report")}</span></button>
+        {/* TASKS.csv #4074 — the actions are one OverflowRow: when the row is too wide even without labels (1,366 px), the last ones go into its ⋯ menu (fitToolbar), never cut off */}
+        <OverflowRow ref={actionsRef} items={[
+          { key: "new", node: <button data-btn-own="" className="ge-tool-btn" onClick={doNew} title={tr("New project")} aria-label={tr("New project")}><FilePlus2 size={14} /> <span className="ge-tool-label-opt">{tr("New")}</span></button> },
+          { key: "open", node: <button data-btn-own="" className="ge-tool-btn" onClick={doOpen} title={tr("Open project")} aria-label={tr("Open project")}><FolderOpen size={14} /> <span className="ge-tool-label-opt">{tr("Open")}</span></button> },
+          { key: "save", node: <button data-btn-own="" className="ge-tool-btn" onClick={() => doSave()} title={tr("Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)")} aria-label={tr("Save project")}><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? tr("Saved ✓") : tr("Save")}</span></button> },
+          { sep: true },
+          { key: "undo", node: <button data-btn-own="" className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={undoTooltip("undo", peekUndo?.(), tr("Undoable: data edits, sections, map layers, interpretation lines and Layout pages. Not undoable: rasters, terrain, block models, generated surfaces and view changes."))} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button> },
+          { key: "redo", node: <button data-btn-own="" className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={undoTooltip("redo", peekRedo?.(), "")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button> },
+          { sep: true },
+          { key: "pdf", node: <button data-btn-own="" className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Export PDF")}</span></button> },
+          { key: "kmz", node: <button data-btn-own="" className="ge-tool-btn" onClick={doExportKmz} title={tr("Export the whole project as one KMZ for Google Earth: every layer with a map position, in folders, with its colours and classes")} aria-label={tr("Export project as KMZ")}><Globe size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("KMZ")}</span></button> }, /* TASKS.csv #3068 */
+          { key: "report", node: <button data-btn-own="" className="ge-tool-btn" onClick={() => setReportOpen(true)} title={tr("Consolidated drillhole/assay project summary (CSV)")} aria-label={tr("Project report")}><FileBarChart2 size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Report")}</span></button> },
+        ]} />
       </div>
 
       {/* TASKS.csv #309 — .ge-subtoolbar (the QGIS-style 38px icon row from #155) is rendered by

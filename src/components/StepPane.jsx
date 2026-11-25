@@ -58,7 +58,7 @@ export default function StepPane({ id, label, steps, action, result, fineTune, t
             const isResult = result && i === last, off = isResult && !resultReady, on = i === at;
             return (
               <button key={s.key} type="button" role="tab" aria-selected={on} disabled={off} onClick={() => setAt(i)} data-btn-own=""
-                title={off ? result.offTitle || tr("After a run") : s.label} aria-label={`${i + 1}. ${s.label}`}
+                title={off ? result.offTitle || tr("Not yet") : s.label} aria-label={`${i + 1}. ${s.label}`}
                 style={{ flex: 1, minWidth: 0, height: 24, borderRadius: 12, cursor: off ? "default" : "pointer", fontSize: "var(--font-size-xs)", fontWeight: 600, padding: "0 4px",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   border: `${on ? 2 : 1}px solid ${on ? "var(--btn-primary-border)" : "var(--color-border)"}`,

@@ -248,6 +248,15 @@ input, select { font-family: inherit; }
 .ge-toolbar.ge-toolbar-snug { gap: 2px; padding: 0 6px; }
 .ge-toolbar-snug .ge-tool-btn { padding: 0 8px; gap: 5px; }
 .ge-toolbar-snug .ge-tool-sep { margin: 0 3px; }
+/* TASKS.csv #4074 — the actions' own container takes no box; the last ones move into the ⋯ menu when the row is still too wide (App.jsx fitToolbar). */
+.ge-tool-actions { display: contents; }
+.ge-tool-actions > [data-ovf] { display: none; }
+.ge-tool-more-wrap { display: none; }
+.ge-tool-actions[data-overflow-from] > .ge-tool-more-wrap { display: flex; align-items: center; }
+.ge-tool-menu { position: fixed; z-index: 70; display: flex; flex-direction: column; gap: 1px; padding: 4px; min-width: 190px;
+  background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
+.ge-tool-menu .ge-tool-btn { width: 100%; justify-content: flex-start; height: auto; min-height: 30px; padding: 4px 10px; gap: 8px; }
+.ge-tool-menu .ge-tool-btn:not(:has(.ge-tool-label-opt))::after { content: attr(aria-label); } /* undo and redo have no label of their own: their accessible name */
 
 /* TASKS.csv #155 — QGIS-style icon toolbar, a second row directly below the module bar, for a
    module's TOOLS (as opposed to its data — collars/survey/layers stay in the sidebar as a data
@@ -345,6 +354,18 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
 .ge-ribbon-inner[data-tight] .ge-ribbon-btn { min-width: 28px; padding: 5px 1px 2px; }
 .ge-ribbon-inner[data-tight] .ge-ribbon-group { padding: 0 1px; }
 .ge-ribbon-inner[data-wrap] { flex-wrap: wrap; }
+/* TASKS.csv #4074 — never a tool cut off: when even the tight, icon-only band is too wide (1,366 px and Geochem's 27 tools, Jensen was gone), a group's last tools are
+   hidden here (data-ovf, set by Ribbon.jsx fit) and listed in its More menu. Each tool sits in a slot so the menu knows which ones are hidden. */
+.ge-ribbon-slot { display: flex; align-items: flex-start; }
+.ge-ribbon-items > [data-ovf] { display: none; }
+.ge-ribbon-more-wrap { display: none; align-items: flex-start; }
+.ge-ribbon-items[data-overflow-from] > .ge-ribbon-more-wrap { display: flex; }
+.ge-ribbon-more-btn { min-width: 34px; }
+.ge-ribbon-menu { position: fixed; z-index: 70; display: flex; flex-direction: column; gap: 1px; padding: 4px; min-width: 200px; max-height: calc(100vh - 110px); overflow-y: auto;
+  background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
+.ge-ribbon-menu .ge-ribbon-cell { width: 100%; }
+.ge-ribbon-menu .ge-ribbon-btn { flex-direction: row; width: 100%; max-width: none; min-width: 190px; height: auto; min-height: 32px; padding: 4px 10px; gap: 10px; justify-content: flex-start; text-align: start; }
+.ge-ribbon-menu .ge-ribbon-label { display: block; white-space: nowrap; font-size: var(--font-size-base); }
 /* A tool shown in the sidebar ("task pane"): its header, and the break before the tab's data. */
 .ge-pane-end { height: 0; border-top: 2px solid var(--color-border); margin: 14px -14px 14px; }
 .ge-pane-header {
