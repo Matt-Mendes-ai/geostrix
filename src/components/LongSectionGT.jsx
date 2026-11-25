@@ -72,7 +72,6 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
     const header = `# Grade x thickness long-section pierce points (GeoStrix): ${symbol}, intercepts at ${cut} ${shownGrade}; section along ${Math.round(frame.strikeAz)} deg${mode === "fit" ? `, the intercepts' best-fit plane dipping ${Math.round(frame.dip)} deg` : ""}; thickness used: ${KIND_WORD[kind]}; GT = grade x that thickness; a hole assayed with no intercept is a 0`;
     saveFile({ suggestedName: `${base}_pierce_points.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: [header, toCsv(pierceRows(points, { gradeLabel: shownGrade, gtLabel, kind }), { escapeFormulae: FORMULA_LEAD })].join("\n"), encoding: "text" });
   };
-  const btn = { ...inp, width: "auto", cursor: "pointer" };
 
   return (
     <>
@@ -103,7 +102,7 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
         </select></label>
         {maskKind === "distance" && <label style={field}>{tr("Distance (m)")}<NumberInput min="0" allowEmpty value={maskText === "" || maskText == null ? null : maskText} placeholder={radiusM ? String(radiusM) : ""} onChange={(n) => { setMaskText(n == null ? "" : String(n)); setFig(null); }} style={inp} aria-label={tr("Mask distance (m)")} /></label>}
         <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }}><input type="checkbox" checked={labels} onChange={(e) => { setLabels(e.target.checked); setFig(null); }} />{tr("Label the pierce points with their hole ids")}</label>{/* #3123 */}
-        <button type="button" disabled={frame.error || points.length < 2 || !cellM || !radiusM} onClick={draw} style={btn}>{tr("Draw the long section")}</button>
+        <button type="button" disabled={frame.error || points.length < 2 || !cellM || !radiusM} onClick={draw} className="gs-btn gs-btn--primary">{tr("Draw the long section")}</button>
       </div>
       {frame.error === "azimuth" && <div style={note}>{tr("Type the azimuth along strike: none is chosen for you.")}</div>}
       {!frame.error && (
@@ -121,10 +120,10 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
           <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{fig.grid.maskM > 0 ? tr("{n} of {t} nodes estimated, within {m} m of a pierce point. Intervals: thickness {a} m, grade {b} {gu}, GT {c} {tu}.", { n: fig.grid.estimated.toLocaleString(), t: (fig.grid.nx * fig.grid.ny).toLocaleString(), m: Math.round(fig.grid.maskM), a: fig.levels[0][0] ?? "—", b: fig.levels[1][0] ?? "—", gu: shownGrade, c: fig.levels[2][0] ?? "—", tu: gtLabel }) : tr("{n} of {t} nodes estimated, inside the pierce points' outline. Intervals: thickness {a} m, grade {b} {gu}, GT {c} {tu}.", { n: fig.grid.estimated.toLocaleString(), t: (fig.grid.nx * fig.grid.ny).toLocaleString(), a: fig.levels[0][0] ?? "—", b: fig.levels[1][0] ?? "—", gu: shownGrade, c: fig.levels[2][0] ?? "—", tu: gtLabel })}{/* #3123 — the distance mask says its distance */}</div>
           <img src={fig.png} alt={tr("Grade × thickness long section: thickness, grade and GT")} style={{ width: "100%", border: "1px solid var(--color-border)", borderRadius: 6, background: "#fff" }} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" onClick={savePng} style={btn}>{tr("Export PNG")}</button>
-            <button type="button" onClick={savePdf} style={btn}>{tr("Export PDF")}</button>
-            <button type="button" onClick={toLayout} style={btn}>{tr("Add to Layout")}</button>
-            <button type="button" onClick={saveCsv} style={btn}>{tr("Export the pierce points (CSV)")}</button>
+            <button type="button" onClick={savePng} className="gs-btn gs-btn--sm">{tr("Export PNG")}</button>
+            <button type="button" onClick={savePdf} className="gs-btn gs-btn--sm">{tr("Export PDF")}</button>
+            <button type="button" onClick={toLayout} className="gs-btn gs-btn--sm">{tr("Add to Layout")}</button>
+            <button type="button" onClick={saveCsv} className="gs-btn gs-btn--sm">{tr("Export the pierce points (CSV)")}</button>
           </div>
           <div style={note}><b>{tr("Not a resource estimate.")}</b>{" "}{fig.ok ? tr("Ordinary kriging of the pierce points' thickness and GT on the section (a variogram fitted to each), grade as GT over thickness; no declustering or classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and an assayed hole with no intercept counts as 0.") : tr("Inverse-distance interpolation of the pierce points' thickness and GT on the section, grade as GT over thickness; no declustering, variogram or classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and an assayed hole with no intercept counts as 0.")}{/* #3122 */}</div>
         </>

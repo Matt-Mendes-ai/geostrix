@@ -44,8 +44,8 @@ export default function MultiStripLogModal({ holeId, collars, layers, assays, as
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--color-border)" }}>
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Strip logs side by side")}</div>
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button type="button" onClick={exportSvg} disabled={!composed} style={{ ...chip(false), display: "flex", alignItems: "center", gap: 4 }}><Download size={12} />{tr("SVG")}</button>
-            {onAddToLayout && <button type="button" onClick={toLayout} disabled={!composed} style={chip(false)}>{tr("Add to Layout")}</button>}
+            <button type="button" onClick={exportSvg} disabled={!composed} className="gs-btn gs-btn--sm" style={{ display: "flex", alignItems: "center", gap: 4 }}><Download size={12} />{tr("SVG")}</button>
+            {onAddToLayout && <button type="button" onClick={toLayout} disabled={!composed} className="gs-btn gs-btn--sm">{tr("Add to Layout")}</button>}
             <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
           </span>
         </div>

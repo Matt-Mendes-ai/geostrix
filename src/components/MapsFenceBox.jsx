@@ -46,7 +46,7 @@ export function useFenceBoxOnPlan(v, size, buttonStyle, chipStyle) {
   };
   const toggle = () => { setOn((o) => !o); setDrawing(!on && !saved); setDraft(null); };
   const button = (
-    <button onClick={toggle} aria-pressed={on} title={tr("The fence series' box (StrixViewer › Slice series)")} style={{ ...buttonStyle, border: `1px solid ${on ? "var(--color-selected-border)" : "var(--color-border)"}`, background: on ? "var(--color-selected-bg)" : "var(--color-bg)" }}>{tr("Fence box")}</button>
+    <button data-btn-own="" onClick={toggle} aria-pressed={on} title={tr("The fence series' box (StrixViewer › Slice series)")} style={{ ...buttonStyle, border: `1px solid ${on ? "var(--color-selected-border)" : "var(--color-border)"}`, background: on ? "var(--color-selected-bg)" : "var(--color-bg)" }}>{tr("Fence box")}</button>
   );
   if (!on || !v) return { button, overlay: null, status: null };
   const X = (x) => size.w / 2 + (x - v.cx) / v.mPerPx, Y = (y) => size.h / 2 - (y - v.cy) / v.mPerPx;
@@ -63,7 +63,7 @@ export function useFenceBoxOnPlan(v, size, buttonStyle, chipStyle) {
       <span>{drawing || !box
         ? tr("Drag on the plan to draw the fence series' box, turned to its azimuth ({a}°).", { a: azimuth.toFixed(0) })
         : tr("Fence series box, {l} × {w} m at {a}°: drag a corner to change it.", { l: fmtM(box.len), w: fmtM(box.wid), a: azimuth.toFixed(0) })}</span>
-      {!drawing && <button onClick={() => setDrawing(true)} style={buttonStyle}>{tr("Draw a box…")}</button>}
+      {!drawing && <button onClick={() => setDrawing(true)} className="gs-btn gs-btn--sm">{tr("Draw a box…")}</button>}
     </div>
   );
   return { button, overlay, status };

@@ -150,10 +150,10 @@ export default function SurfaceCompareModal({
                   {lineage.map((s, i) => <option key={s.id} value={s.id}>v{i + 1} · {s.name}</option>)}
                 </select>
               </label>
-              <button onClick={runCompare} disabled={!surfA || !surfB || surfA === surfB || busy} style={{ ...primaryBtn, opacity: !surfA || !surfB || surfA === surfB || busy ? 0.5 : 1 }}>
+              <button onClick={runCompare} disabled={!surfA || !surfB || surfA === surfB || busy} className="gs-btn gs-btn--primary" style={{ opacity: !surfA || !surfB || surfA === surfB || busy ? 0.5 : 1 }}>
                 <GitCompare size={12} /> {busy ? tr("Comparing…") : tr("Compare geometry")}
               </button>
-              {(result || paramDiff) && <button onClick={exportCsv} style={{ ...ghostBtn, marginLeft: "auto" }}><Download size={12} />{" "}{tr("Export CSV")}</button>}
+              {(result || paramDiff) && <button onClick={exportCsv} className="gs-btn" style={{ marginLeft: "auto" }}><Download size={12} />{" "}{tr("Export CSV")}</button>}
             </div>
 
             {surfA && surfB && surfA.id === surfB.id && (
@@ -261,12 +261,12 @@ export default function SurfaceCompareModal({
 
             {/* ---------- OVERLAY + ACCEPT ---------- */}
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, paddingTop: 10, borderTop: "1px solid #eef0f3", flexWrap: "wrap" }}>
-              <button onClick={() => surfA && surfB && onOverlay?.(surfA.id, surfB.id)} disabled={!surfA || !surfB} style={{ ...ghostBtn, opacity: surfA && surfB ? 1 : 0.5 }} title={tr("Show both versions in the 3D view in contrasting colours (older grey-blue, newer orange) and hide the rest of the lineage.")}>
+              <button onClick={() => surfA && surfB && onOverlay?.(surfA.id, surfB.id)} disabled={!surfA || !surfB} className="gs-btn" style={{ opacity: surfA && surfB ? 1 : 0.5 }} title={tr("Show both versions in the 3D view in contrasting colours (older grey-blue, newer orange) and hide the rest of the lineage.")}>
                 <Layers size={12} />{" "}{tr("Overlay both in the 3D view")}</button>
-              <button onClick={() => onClearOverlay?.()} style={ghostBtn} title={tr("Put the compared surfaces back to their own colours.")}>{tr("Reset colours")}</button>
+              <button onClick={() => onClearOverlay?.()} className="gs-btn" title={tr("Put the compared surfaces back to their own colours.")}>{tr("Reset colours")}</button>
               <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-                {surfA && <button onClick={() => onAccept?.(surfA.id)} style={acceptBtn} title={tr("Mark \"{name}\" as the accepted version of this lineage", { name: surfA.name })}><Check size={12} />{" "}{tr("Accept A")}</button>}
-                {surfB && <button onClick={() => onAccept?.(surfB.id)} style={acceptBtn} title={tr("Mark \"{name}\" as the accepted version of this lineage", { name: surfB.name })}><Check size={12} />{" "}{tr("Accept B")}</button>}
+                {surfA && <button onClick={() => onAccept?.(surfA.id)} className="gs-btn" title={tr("Mark \"{name}\" as the accepted version of this lineage", { name: surfA.name })}><Check size={12} />{" "}{tr("Accept A")}</button>}
+                {surfB && <button onClick={() => onAccept?.(surfB.id)} className="gs-btn" title={tr("Mark \"{name}\" as the accepted version of this lineage", { name: surfB.name })}><Check size={12} />{" "}{tr("Accept B")}</button>}
               </div>
             </div>
             <div style={hint}>{tr("Accepting a version marks it as the one you are working from and hides the others in this lineage — it does")}{" "}<strong>{tr("not")}</strong>{" "}{tr("delete them, nor say the accepted run is correct. Nothing here checks either version against the ground; it reports what differs between two runs.")}</div>
@@ -281,9 +281,6 @@ const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)"
 const panel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", width: 880, maxWidth: "94vw", maxHeight: "94vh", overflow: "auto" };
 const rowLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 3 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
-const primaryBtn = { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "#e8eef8", color: "#1a4a9c", fontSize: "var(--font-size-base)", cursor: "pointer" };
-const ghostBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "transparent", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" };
-const acceptBtn = { ...ghostBtn, background: "#f1f7f2", borderColor: "#c6e0cb", color: "#20512f" };
 const sectionLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: 0.4, margin: "6px 0 5px" };
 const tbl = { width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" };
 const th = { textAlign: "start", padding: "5px 7px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600 };

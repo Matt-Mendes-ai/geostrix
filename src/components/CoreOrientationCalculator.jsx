@@ -225,7 +225,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
                 {(result.refNearPerpendicular || result.unkNearPerpendicular) && (
                   <div style={{ color: "#c9962b", marginTop: 4 }}>{tr("One structure is within ~5° of perpendicular to the hole axis — beta (and therefore this result) is only weakly constrained here.")}</div>
                 )}
-                <button onClick={save} disabled={!canSave} style={{ ...saveBtn, marginTop: 8, opacity: canSave ? 1 : 0.5, cursor: canSave ? "pointer" : "default" }}
+                <button onClick={save} disabled={!canSave} className="gs-btn gs-btn--primary" style={{ marginTop: 8, opacity: canSave ? 1 : 0.5, cursor: canSave ? "pointer" : "default" }}
                   title={canSave ? "" : tr("Pick a hole and depth (not manual entry) to save")}>
                   <Save size={12} />{" "}{tr("Save as Structure pick")}</button>
               </div>
@@ -247,7 +247,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
             <div style={row}>
               <NumberInput allowEmpty placeholder={tr("Dip-dir (°)")} value={newRefDipDir === "" ? null : newRefDipDir} onChange={(v) => { const s = v == null ? "" : String(v); setNewRefDipDir(s); }} style={numFill} wrapStyle={numWrap} />
               <NumberInput allowEmpty placeholder={tr("Dip (°)")} value={newRefDip === "" ? null : newRefDip} onChange={(v) => { const s = v == null ? "" : String(v); setNewRefDip(s); }} style={numFill} wrapStyle={numWrap} />
-              <button onClick={addReference} title={tr("Add to the library")} aria-label={tr("Add field reference")} style={{ ...saveBtn, padding: "6px 8px" }}><Plus size={12} /></button>
+              <button onClick={addReference} title={tr("Add to the library")} aria-label={tr("Add field reference")} className="gs-btn gs-btn--sm" style={{ padding: "6px 8px" }}><Plus size={12} /></button>
             </div>
             <AzimuthRefPicker value={newRefNorth} onChange={setNewRefNorth} selectStyle={sel} labelStyle={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 80, flexShrink: 0, alignSelf: "center" }} rowStyle={row} />
             {newRefMsg && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{newRefMsg}</div>}
@@ -266,4 +266,3 @@ const sel = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px 
 const num = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" };
 // TASKS.csv #3926 — a NumberInput's wrapper takes the row's share (flex 1), its input the wrapper's width
 const numWrap = { flex: 1, minWidth: 0 }, numFill = { ...num, width: "100%", boxSizing: "border-box" };
-const saveBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, fontSize: "var(--font-size-sm)", padding: "6px 10px" };

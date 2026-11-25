@@ -82,7 +82,6 @@ export default function SectionImageVerticalModal({ image, terrain, onApply, onC
   const reset = () => { if (image.corners0) { onApply({ corners: image.corners0, corners0: null, verticalAdjust: null, ...(image.dataUrl0 ? { dataUrl: image.dataUrl0, width: image.width0, height: image.height0, dataUrl0: null, width0: null, height0: null } : {}) }); onClose(); } };
   const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
   const num = { width: 90, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
-  const btn = (primary) => ({ padding: "6px 12px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg, var(--color-bg-subtle))" : "var(--color-bg-subtle)", color: "var(--color-text)" });
   const th = { padding: "3px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "start", borderBottom: "1px solid var(--color-border)" };
   const rmsNow = rmsOf(rows), rmsAfter = rmsOf(after);
   return (
@@ -114,9 +113,9 @@ export default function SectionImageVerticalModal({ image, terrain, onApply, onC
               </table>
             )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => fit("offset")} disabled={!rows.length} style={btn(false)} title={tr("Move the whole picture up or down by the average difference.")}>{tr("Fit the height")}</button>
-              <button type="button" onClick={() => fit("scale")} disabled={rows.length < 3} style={btn(false)} title={tr("Move it and stretch its heights about the clicks' mean height (least squares). Needs 3 clicks that differ in height by 5 m or more.")}>{tr("Fit the height and scale")}</button>
-              <button type="button" onClick={fitEach} disabled={rows.length < 2} style={btn(false)} title={tr("Bend the picture so its drawn ground meets the terrain at every click, for a drawing not to scale throughout. The terrain is not changed.")}>{tr("Fit at each point")}</button>
+              <button type="button" onClick={() => fit("offset")} disabled={!rows.length} className="gs-btn" title={tr("Move the whole picture up or down by the average difference.")}>{tr("Fit the height")}</button>
+              <button type="button" onClick={() => fit("scale")} disabled={rows.length < 3} className="gs-btn" title={tr("Move it and stretch its heights about the clicks' mean height (least squares). Needs 3 clicks that differ in height by 5 m or more.")}>{tr("Fit the height and scale")}</button>
+              <button type="button" onClick={fitEach} disabled={rows.length < 2} className="gs-btn" title={tr("Bend the picture so its drawn ground meets the terrain at every click, for a drawing not to scale throughout. The terrain is not changed.")}>{tr("Fit at each point")}</button>
             </div>
             <label style={note}>{tr("Fit at each point bends the picture down to (m below the drawn ground)")}{" "}<NumberInput min={1} value={depthM === "" ? null : depthM} onChange={(v) => { setDepthM(String(v)); setWarp(null); }} style={num} aria-label={tr("Bend depth (m)")} /></label>
             {warp && <div role="status" style={note}>{tr("Fit at each point: the picture moves {mean} m as a whole and bends up to {bend} m more at the clicks, fading out {depth} m below the drawn ground, so holes drawn deeper stay straight. The drawn ground meets the terrain at all {n} clicks.", { mean: round2(warp.mean), bend: round2(warp.maxBendM), depth: round2(warp.depthM), n: warp.n })}{warp.depthM > Number(depthM) + 0.5 ? " " + tr("The depth was raised to {d} m: at least twice the largest bend, so no part of the picture folds back.", { d: round2(warp.depthM) }) : ""}</div>}
@@ -129,10 +128,10 @@ export default function SectionImageVerticalModal({ image, terrain, onApply, onC
             {image.verticalAdjust?.warp && <div style={note}>{tr("Already fitted at {n} points (bends up to {b} m); Back to as georeferenced puts the original picture back.", { n: image.verticalAdjust.warp.points, b: image.verticalAdjust.warp.maxBendM })}</div>}
             {image.verticalAdjust && !image.verticalAdjust.warp && <div style={note}>{tr("Already adjusted: {offset} m, scale {scale} % (the corners it was georeferenced with are kept).", { offset: image.verticalAdjust.offset, scale: image.verticalAdjust.scalePct })}</div>}
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-              {warp ? <button type="button" onClick={applyWarp} disabled={!bitmap} style={btn(true)}>{tr("Apply the fit at each point")}</button>
-                : <button type="button" onClick={apply} disabled={!adj || (adj.offset === 0 && adj.scale === 1)} style={btn(true)}>{tr("Apply")}</button>}
-              {image.corners0 && <button type="button" onClick={reset} style={btn(false)} title={tr("Put the picture back at the heights it was georeferenced with.")}>{tr("Back to as georeferenced")}</button>}
-              <button type="button" onClick={onClose} style={btn(false)}>{tr("Cancel")}</button>
+              {warp ? <button type="button" onClick={applyWarp} disabled={!bitmap} className="gs-btn gs-btn--primary">{tr("Apply the fit at each point")}</button>
+                : <button type="button" onClick={apply} disabled={!adj || (adj.offset === 0 && adj.scale === 1)} className="gs-btn gs-btn--primary" /* gs-primary-alt: the other branch of the ternary */>{tr("Apply")}</button>}
+              {image.corners0 && <button type="button" onClick={reset} className="gs-btn" title={tr("Put the picture back at the heights it was georeferenced with.")}>{tr("Back to as georeferenced")}</button>}
+              <button type="button" onClick={onClose} className="gs-btn">{tr("Cancel")}</button>
             </div>
           </div>
         </div>

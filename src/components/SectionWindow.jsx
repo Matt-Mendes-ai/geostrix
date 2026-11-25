@@ -552,15 +552,15 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
               ) : (
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={tr("Unit name (no litho data loaded)")} style={{ ...selectStyle, width: 170 }} />
               )}
-              <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={drawTip(kindPick, unitPick, pickName, pickExplicit)}>
+              <button onClick={startDrawing} disabled={!unitPick} className="gs-btn gs-btn--sm" style={{ opacity: unitPick ? 1 : 0.5 }} title={drawTip(kindPick, unitPick, pickName, pickExplicit)}>
                 <Pencil size={14} /> {kindPick === "contact" && pickExplicit ? tr("Draw a line of {name}", { name: pickName }) /* TASKS.csv #884 */ : kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : kindPick === "outline" ? tr("Draw outline") : tr("Draw string")}
               </button>
             </>
           ) : (
             <>
-              <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo point")}</button>
-              <button onClick={finishContact} disabled={drawPoints.length < (kindPick === "outline" ? 3 : 2)} style={{ ...btnStyle(true), opacity: drawPoints.length >= (kindPick === "outline" ? 3 : 2) ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>
-              <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>
+              <button onClick={undoPoint} disabled={!drawPoints.length} className="gs-btn gs-btn--sm" style={{ opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo point")}</button>
+              <button onClick={finishContact} disabled={drawPoints.length < (kindPick === "outline" ? 3 : 2)} className="gs-btn gs-btn--sm" style={{ opacity: drawPoints.length >= (kindPick === "outline" ? 3 : 2) ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>
+              <button onClick={cancelDrawing} className="gs-btn gs-btn--sm"><X size={14} />{" "}{tr("Cancel")}</button>
             </>
           )}
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("A click within ~12 px of a hole snaps to the unit's logged top (any boundary for faults / strings), else to the trace, at the hole's exact position (square marker)")}>
@@ -568,11 +568,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           {snapOn && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("On: points snapped to a hole stay on this section's plane, so the cut follows what you draw. Off: they keep the hole's real position, off the section.")}>
             <input type="checkbox" checked={projectSnaps || outlineOnPlane} disabled={outlineOnPlane} onChange={(e) => setProjectSnaps(e.target.checked)} />{" "}{tr("Keep snaps on the section")}</label>}
           {/* TASKS.csv #876 — step to the parallel section beside this one, and refresh what the main window draws on it */}
-          <button onClick={() => stepTo({ id: data.id, step: -1 })} title={tr("Save your contacts, then open the parallel section to the right (looking from its start); one is made at the section spacing if none exists.")} style={btnStyle(false)}>‹</button>
-          <button onClick={() => stepTo({ id: data.id, step: 1 })} title={tr("Save your contacts, then open the parallel section to the left (looking from its start); one is made at the section spacing if none exists.")} style={btnStyle(false)}>›</button>
+          <button onClick={() => stepTo({ id: data.id, step: -1 })} title={tr("Save your contacts, then open the parallel section to the right (looking from its start); one is made at the section spacing if none exists.")} className="gs-btn gs-btn--sm">‹</button>
+          <button onClick={() => stepTo({ id: data.id, step: 1 })} title={tr("Save your contacts, then open the parallel section to the left (looking from its start); one is made at the section spacing if none exists.")} className="gs-btn gs-btn--sm">›</button>
           {/* TASKS.csv #1131 — move the section by exactly ± its buffer (a new parallel section, or the saved one there) */}
-          <button onClick={() => stepTo({ id: data.id, step: -1, by: "buffer" })} title={tr("Move the section {v} m to the right (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>−{data.section?.corridor} m</button>
-          <button onClick={() => stepTo({ id: data.id, step: 1, by: "buffer" })} title={tr("Move the section {v} m to the left (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>+{data.section?.corridor} m</button>
+          <button onClick={() => stepTo({ id: data.id, step: -1, by: "buffer" })} title={tr("Move the section {v} m to the right (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} className="gs-btn gs-btn--sm">−{data.section?.corridor} m</button>
+          <button onClick={() => stepTo({ id: data.id, step: 1, by: "buffer" })} title={tr("Move the section {v} m to the left (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} className="gs-btn gs-btn--sm">+{data.section?.corridor} m</button>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("How far either side of the line holes and data are included; press Enter to redraw. Saved with the section.")}>
             {tr("Buffer ±")}
             <NumberInput min={1} step={5} value={data.section?.corridor ?? null}
@@ -615,11 +615,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           {patternCodes.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("FGDC lithology patterns on the lithology ribbon, as chosen in the strip log; readable from a hole width of about 10 px.")}>
             <input type="checkbox" checked={patternsOn} onChange={(e) => setPatternsOn(e.target.checked)} />{tr("Patterns")}
           </label>}
-          <button onClick={() => stepTo({ id: data.id, refresh: true })} title={tr("Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).")} style={btnStyle(false)}>{tr("Refresh")}</button>
-          <button onClick={saveContacts} disabled={!contacts.length && !drawing} style={{ ...btnStyle(saved), opacity: contacts.length || drawing ? 1 : 0.5 }}>
+          <button onClick={() => stepTo({ id: data.id, refresh: true })} title={tr("Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).")} className="gs-btn gs-btn--sm">{tr("Refresh")}</button>
+          <button onClick={saveContacts} disabled={!contacts.length && !drawing} className="gs-btn gs-btn--sm" style={{ opacity: contacts.length || drawing ? 1 : 0.5 }}>
             <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
           </button>
-          <button onClick={() => snapshotToLayout()} style={btnStyle(snapped)}>
+          <button onClick={() => snapshotToLayout()} className="gs-btn gs-btn--sm">
             <Camera size={14} /> {snapped ? tr("Sent ✓") : tr("Snapshot to Layout")}
           </button>
           {data.modelBackdrop && ( // TASKS.csv #759
@@ -634,24 +634,24 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             ×
           </label>
           <span data-zoom-controls="" style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>{/* TASKS.csv #4009 */}
-            <button onClick={() => setZoom(zoomBy(zoom, 1 / BUTTON_STEP))} disabled={isFit(zoom)} style={{ ...btnStyle(false), padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} aria-label={tr("Zoom out")} title={tr("Zoom out")}>−</button>
-            <button onClick={() => setZoom(zoomBy(zoom, BUTTON_STEP))} style={{ ...btnStyle(false), padding: "2px 8px" }} aria-label={tr("Zoom in")} title={tr("Zoom in (or the wheel); pan with the middle button or Space + drag")}>+</button>
-            <button onClick={() => setZoom(FIT)} disabled={isFit(zoom)} style={{ ...btnStyle(false), padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} title={tr("Fit the whole section (or double-click empty ground)")}>{tr("Fit")}</button>
+            <button onClick={() => setZoom(zoomBy(zoom, 1 / BUTTON_STEP))} disabled={isFit(zoom)} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} aria-label={tr("Zoom out")} title={tr("Zoom out")}>−</button>
+            <button onClick={() => setZoom(zoomBy(zoom, BUTTON_STEP))} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px" }} aria-label={tr("Zoom in")} title={tr("Zoom in (or the wheel); pan with the middle button or Space + drag")}>+</button>
+            <button onClick={() => setZoom(FIT)} disabled={isFit(zoom)} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px", opacity: isFit(zoom) ? 0.5 : 1 }} title={tr("Fit the whole section (or double-click empty ground)")}>{tr("Fit")}</button>
             <span data-zoom-readout="" role="status" style={{ minWidth: 34, textAlign: "center", fontSize: "var(--font-size-sm)", color: "#55606e", fontVariantNumeric: "tabular-nums" }}>{zoomText(zoom)}</span>
           </span>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("Scale the section to fit the window, both ways, at its VE (off: full width, scroll for detail)")}><input type="checkbox" checked={fitWhole} onChange={(e) => setFitWhole(e.target.checked)} />{tr("Fit to window")}</label>{/* #3259 */}
           {fitWhole && fitTextPx != null && fitTextPx < 7 && <span role="note" style={{ fontSize: "var(--font-size-sm)", color: "#8a6a1f" }} title={tr("Lower the VE or untick Fit to window to read the labels: fitted whole, they are under 7 px tall.")}>{tr("Text under 7 px: lower the VE, or untick to scroll")}</span>}{/* #3304 */}
-          {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
-          <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
-          <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
-          <button onClick={exportPDF} style={btnStyle(false)} title={tr("Export section → PDF")}><FileText size={14} />{" "}{tr("PDF")}</button>
+          {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} className="gs-btn gs-btn--sm" title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
+          <button onClick={exportPNG} className="gs-btn gs-btn--sm" title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
+          <button onClick={exportSVG} className="gs-btn gs-btn--sm" title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
+          <button onClick={exportPDF} className="gs-btn gs-btn--sm" title={tr("Export section → PDF")}><FileText size={14} />{" "}{tr("PDF")}</button>
         </span>
       </div>
 
       {/* TASKS.csv #395 — planned-hole design bar */}
       <div className="ge-section-chips" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "6px 16px", borderBottom: "1px solid #e6e8eb", fontSize: "var(--font-size-sm)" }}>
         {!planning ? (
-          <button onClick={startPlanning} style={btnStyle(false)} title={tr("Click the collar (snapped to the ground profile when there is one), then the target — gives azimuth, dip and length for a new planned hole")}><Crosshair size={14} />{" "}{tr("Plan a hole")}</button>
+          <button onClick={startPlanning} className="gs-btn gs-btn--sm" title={tr("Click the collar (snapped to the ground profile when there is one), then the target — gives azimuth, dip and length for a new planned hole")}><Crosshair size={14} />{" "}{tr("Plan a hole")}</button>
         ) : (
           <>
             <span style={{ color: colors.planned }}>
@@ -662,11 +662,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
                 <span style={{ color: "#1a2028" }}>{tr("Az")}{" "}<b>{planSolution.azimuth.toFixed(1)}°</b>{" "}{tr("· dip")}{" "}<b>{planSolution.dip.toFixed(1)}°</b> · <b>{Math.round(planSolution.length)} m</b>{" "}{tr("to target")}</span>
                 <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#55606e" }}>{tr("+ past target")}{" "}<NumberInput min={0} step={10} value={planPast} onChange={(v) => setPlanPast(String(v))} style={{ width: 52, ...selectStyle, padding: "3px 5px" }} aria-label={tr("Metres past target")} /> m</label>
                 <input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder={tr("Name (optional)")} style={{ ...selectStyle, width: 120 }} aria-label={tr("Planned hole name")} />
-                <button onClick={addPlannedHole} style={btnStyle(true)}><Check size={14} />{" "}{tr("Add planned hole")}</button>
+                <button onClick={addPlannedHole} className="gs-btn gs-btn--sm"><Check size={14} />{" "}{tr("Add planned hole")}</button>
               </>
             )}
-            {planPts.length > 0 && <button onClick={() => setPlanPts((p) => p.slice(0, -1))} style={btnStyle(false)}><Undo2 size={14} />{" "}{tr("Undo point")}</button>}
-            <button onClick={cancelPlanning} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>
+            {planPts.length > 0 && <button onClick={() => setPlanPts((p) => p.slice(0, -1))} className="gs-btn gs-btn--sm"><Undo2 size={14} />{" "}{tr("Undo point")}</button>}
+            <button onClick={cancelPlanning} className="gs-btn gs-btn--sm"><X size={14} />{" "}{tr("Cancel")}</button>
           </>
         )}
         {/* TASKS.csv #823 — hole labels */}
@@ -677,8 +677,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             <summary style={{ cursor: "pointer", listStyle: "none", padding: "4px 8px", border: "1px solid #d9dce1", borderRadius: 6, background: "#f4f5f7" }}>{tr("Labels")} ▾</summary>
             <div style={{ position: "absolute", zIndex: 5, top: "100%", right: 0, marginTop: 4, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 10px", display: "flex", flexDirection: "column", gap: 4, whiteSpace: "nowrap" }}>
               <span style={{ display: "flex", gap: 6, marginBottom: 2 }}>
-                <button type="button" onClick={() => changeLabels(labelsPatchAll(labels, true))} style={{ ...btnStyle(false), padding: "2px 8px" }}>{tr("All")}</button>
-                <button type="button" onClick={() => changeLabels(labelsPatchAll(labels, false))} style={{ ...btnStyle(false), padding: "2px 8px" }}>{tr("None")}</button>
+                <button type="button" onClick={() => changeLabels(labelsPatchAll(labels, true))} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px" }}>{tr("All")}</button>
+                <button type="button" onClick={() => changeLabels(labelsPatchAll(labels, false))} className="gs-btn gs-btn--sm" style={{ padding: "2px 8px" }}>{tr("None")}</button>
               </span>
               {LABEL_KINDS.map(([k, name]) => <label key={k} style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={!!labelsShown[k]} onChange={(e) => changeLabels(labelsPatch(labels, holeCount, k, e.target.checked))} />{tr(name)}</label>)}
               {data?.maps?.layers?.length > 0 && <>{/* TASKS.csv #4041 — the map layers along the line and on the overview: as in Maps until changed here, then saved with the section */}
@@ -695,7 +695,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             <select value={labels.leaders} onChange={(e) => changeLabels({ leaders: e.target.value })} disabled={labels.mode === "off"} style={{ ...selectStyle, padding: "3px 5px" }} aria-label={tr("Leader lines")}>
               <option value="auto">{tr("automatic")}</option><option value="always">{tr("always")}</option><option value="off">{tr("off")}</option>
             </select></label>
-          <button onClick={() => changeLabels({ offsets: {} })} disabled={!Object.keys(labels.offsets).length} style={{ ...btnStyle(false), opacity: Object.keys(labels.offsets).length ? 1 : 0.5 }}
+          <button onClick={() => changeLabels({ offsets: {} })} disabled={!Object.keys(labels.offsets).length} className="gs-btn gs-btn--sm" style={{ opacity: Object.keys(labels.offsets).length ? 1 : 0.5 }}
             title={tr("Put every dragged label back where GeoStrix places it. Drag a label to move it.")}><Undo2 size={14} />{" "}{tr("Reset labels")}</button>
         </span>
         {planAdded.length > 0 && !planning && <span style={{ color: "#2e7d4f" }}>{tr("Added {planAdded} {v} to Targeting.", { planAdded: planAdded.length, v: tr(planAdded.length > 1 ? "planned holes" : "planned hole") })}</span>}
@@ -737,9 +737,6 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   );
 }
 
-function btnStyle(active) {
-  return { display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: active ? "#1e3629" : "#f4f5f7", border: active ? "1px solid #3d6b52" : "1px solid #d9dce1", borderRadius: 6, color: active ? "#8fd9ab" : "#1a2028", fontSize: "var(--font-size-sm)", cursor: "pointer" };
-}
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: "var(--font-size-sm)" };
 
 // TASKS.csv #3280 (Galore review) — '1 holes · 60 intervals' and an offset of '-0…+6 m': singular / plural, and a sign from the rounded metre
@@ -1463,7 +1460,7 @@ function SectionKey({ rows, shown, onToggle }) {
   if (!list.length) return null;
   return (
     <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "#55606e" }}>
-      <button type="button" onClick={onToggle} style={{ background: "none", border: "none", padding: 0, color: "#2f6db5", cursor: "pointer", fontSize: "var(--font-size-sm)" }} aria-expanded={shown}>{shown ? tr("Hide the key") : tr("Show the key")}</button>
+      <button data-btn-own="" type="button" onClick={onToggle} style={{ background: "none", border: "none", padding: 0, color: "#2f6db5", cursor: "pointer", fontSize: "var(--font-size-sm)" }} aria-expanded={shown}>{shown ? tr("Hide the key") : tr("Show the key")}</button>
       {shown && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", marginTop: 4 }} aria-label={tr("Section key")}>
           {list.map(([label, color, opt], i) => (opt?.heading

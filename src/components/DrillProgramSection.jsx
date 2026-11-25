@@ -31,7 +31,6 @@ import MoreFold from "./MoreFold.jsx"; // #3962: the detail behind More (Matt: l
 
 const label = { display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
 const row = { display: "flex", gap: 4, marginBottom: 6, alignItems: "flex-end" };
-const btn = { width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", color: "var(--color-text)" };
 const RULE_KEYS = ["balanced", "hit", "metal", "learn"];
 // project data and export files stay English (CLAUDE.md): the same sentence, filled without translating
 const english = (k, v) => String(k).replace(/\{(\w+)\}/g, (_, n) => (v && v[n] != null ? v[n] : ""));
@@ -200,7 +199,7 @@ export default function DrillProgramSection({ source, unit, step, prepare, rules
         <div style={row}>
           <label style={label}>{tr("New pad E")}<NumberInput value={padE ?? ""} allowEmpty onChange={setPadE} disabled={off} style={{ width: "100%" }} /></label>
           <label style={label}>{tr("New pad N")}<NumberInput value={padN ?? ""} allowEmpty onChange={setPadN} disabled={off} style={{ width: "100%" }} /></label>
-          <button type="button" onClick={addPad} disabled={off || !Number.isFinite(padE) || !Number.isFinite(padN)} style={{ ...btn, width: "auto" }}>{tr("Add pad")}</button>
+          <button type="button" onClick={addPad} disabled={off || !Number.isFinite(padE) || !Number.isFinite(padN)} className="gs-btn gs-btn--sm" style={{ width: "auto" }}>{tr("Add pad")}</button>
         </div>
       </details>
       <details style={{ marginBottom: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
@@ -234,10 +233,10 @@ export default function DrillProgramSection({ source, unit, step, prepare, rules
       {busy ? (
         <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flex: 1 }} role="status">{tr("Suggesting… {p} %", { p: Math.round(progress * 100) })}</span>
-          <button type="button" onClick={() => abort.current?.abort()} style={{ ...btn, width: "auto" }}>{tr("Cancel")}</button>
+          <button type="button" onClick={() => abort.current?.abort()} className="gs-btn gs-btn--sm" style={{ width: "auto" }}>{tr("Cancel")}</button>
         </div>
       ) : (
-        <button type="button" onClick={suggest} disabled={off} style={btn}>{tr("Suggest a program")}</button>
+        <button type="button" onClick={suggest} disabled={off} className="gs-btn gs-btn--sm" style={{ width: "100%" }}>{tr("Suggest a program")}</button>
       )}
       {error && <div role="alert" style={{ marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)", lineHeight: 1.4 }}>{error}</div>}
       {programs.length > 0 && (
@@ -248,13 +247,13 @@ export default function DrillProgramSection({ source, unit, step, prepare, rules
             if (prog.scenario && mine.length === 0) return (
               <div key={prog.id} data-drill-program-row="" style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                 <span style={{ flex: 1 }}>{tr("Program of {date} by {by}: {n} holes suggested, not added.", { date: String(prog.date).slice(0, 10), by: prog.by || "?", n: v.holes.length })}</span>
-                <button type="button" disabled={off} onClick={() => { try { undoCheckpoint?.(); } catch { /* no history */ } add_program_holes({ program_id: prog.id, holes: "all" }, { ...storeAll, plannedHoles }); try { undoCheckpoint?.(trRaw("Add the suggested drill program")); } catch { /* no history */ } }} style={{ ...btn, width: "auto" }}>{tr("Add")}</button>
+                <button type="button" disabled={off} onClick={() => { try { undoCheckpoint?.(); } catch { /* no history */ } add_program_holes({ program_id: prog.id, holes: "all" }, { ...storeAll, plannedHoles }); try { undoCheckpoint?.(trRaw("Add the suggested drill program")); } catch { /* no history */ } }} className="gs-btn gs-btn--sm" style={{ width: "auto" }}>{tr("Add")}</button>
               </div>);
             return (
               <div key={prog.id} data-drill-program-row="" style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
                 <span style={{ flex: 1 }}>{tr("Program of {date}: {n} holes, {k} drilled.", { date: String(prog.date).slice(0, 10), n: mine.length, k: drilledN })}
                   {v.stamp !== stampNow && <span style={{ color: "var(--color-warn-text)" }}>{" "}{tr("New data since.")}</span>}</span>
-                <button type="button" onClick={() => rerun(prog)} disabled={off || !mine.length || drilledN === mine.length} style={{ ...btn, width: "auto" }}>{tr("Re-run")}</button>
+                <button type="button" onClick={() => rerun(prog)} disabled={off || !mine.length || drilledN === mine.length} className="gs-btn gs-btn--sm" style={{ width: "auto" }}>{tr("Re-run")}</button>
               </div>);
           })}
         </div>
@@ -265,7 +264,7 @@ export default function DrillProgramSection({ source, unit, step, prepare, rules
           {result.changed.keep.length > 0 && <div>{tr("Still suggested: {list}.", { list: result.changed.keep.map((k) => `${k.hole.name} (#${k.order})`).join(", ") })}</div>}
           {result.changed.drop.length > 0 && <div style={{ color: "var(--color-warn-text)" }}>{tr("Consider dropping: {list}.", { list: result.changed.drop.map((h) => h.name).join(", ") })}</div>}
           {result.changed.add.length > 0 && <div>{tr("Consider adding: {list}.", { list: result.changed.add.map((c) => `#${c.order} ${result.padNames[c.pad] || ""} ${c.azimuth}° / ${c.dip}°`).join(", ") })}</div>}
-          {result.changed.add.length > 0 && <button type="button" onClick={() => addHoles(1, new Set(result.changed.add.map((c) => c.id)))} style={{ ...btn, marginTop: 4 }}>{tr(result.changed.add.length === 1 ? "Add the new one" : "Add the {n} new ones", { n: result.changed.add.length })}</button>}
+          {result.changed.add.length > 0 && <button type="button" onClick={() => addHoles(1, new Set(result.changed.add.map((c) => c.id)))} className="gs-btn gs-btn--sm" style={{ width: "100%", marginTop: 4 }}>{tr(result.changed.add.length === 1 ? "Add the new one" : "Add the {n} new ones", { n: result.changed.add.length })}</button>}
         </div>
       )}
       {result && (
@@ -292,9 +291,9 @@ export default function DrillProgramSection({ source, unit, step, prepare, rules
           </ol>
           {rows.length > 0 && !result.rerunOf && ( /* a re-run adds only its new holes, from What changed */
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {above > 0 && above < rows.length && <button type="button" onClick={() => addHoles(above)} style={btn}>{tr("Add the {n} above the line", { n: above })}</button>}
-              <button type="button" onClick={() => addHoles(rows.length)} style={btn}>{tr("Add all {n}", { n: rows.length })}</button>
-              <button type="button" onClick={exportCsv} style={btn}>{tr("Export the program (CSV)")}</button>
+              {above > 0 && above < rows.length && <button type="button" onClick={() => addHoles(above)} className="gs-btn gs-btn--sm" style={{ width: "100%" }}>{tr("Add the {n} above the line", { n: above })}</button>}
+              <button type="button" onClick={() => addHoles(rows.length)} className="gs-btn gs-btn--sm" style={{ width: "100%" }}>{tr("Add all {n}", { n: rows.length })}</button>
+              <button type="button" onClick={exportCsv} className="gs-btn gs-btn--sm" style={{ width: "100%" }}>{tr("Export the program (CSV)")}</button>
             </div>
           )}
           {added && <div role="status" style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr(added.n === 1 ? "Added {first}." : "Added {first} to {last}.", added)}</div>}

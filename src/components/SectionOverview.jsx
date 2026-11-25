@@ -60,7 +60,7 @@ export default function SectionOverview({ model, section, onMove, exportRef, bus
 
   const corner = { position: "fixed", right: 14, bottom: 14, zIndex: 20 };
   if (!pref.open) {
-    return <button type="button" className="ge-section-overview" onClick={() => save({ open: true })} style={{ ...corner, padding: "4px 10px", background: "#ffffff", border: "1px solid #9aa3ad", borderRadius: 4, cursor: "pointer", fontSize: "var(--font-size-sm)" }} title={tr("Show where this section is on the plan")}>{tr("Overview")}</button>;
+    return <button data-btn-own="" type="button"  onClick={() => save({ open: true })} style={{ ...corner, padding: "4px 10px", background: "#ffffff", border: "1px solid #9aa3ad", borderRadius: 4, cursor: "pointer", fontSize: "var(--font-size-sm)" }} title={tr("Show where this section is on the plan")}>{tr("Overview")}</button>;
   }
   const X = view.X, Y = view.Y, d = drag ? [s.n[0] * drag.off, s.n[1] * drag.off] : [0, 0];
   return (
@@ -68,7 +68,7 @@ export default function SectionOverview({ model, section, onMove, exportRef, bus
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 6px", borderBottom: "1px solid #e6e8eb" }}>
         <b style={{ flex: 1 }}>{tr("Overview")}</b>
         <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#55606e" }}><input type="checkbox" checked={!!pref.onExport} onChange={(e) => save({ onExport: e.target.checked })} />{tr("Show on export")}</label>
-        <button type="button" onClick={() => save({ open: false })} aria-label={tr("Hide the overview")} title={tr("Hide the overview")} style={{ border: "none", background: "none", cursor: "pointer", fontSize: "var(--font-size-lg)", lineHeight: 1, padding: "0 2px" }}>×</button>
+        <button data-btn-own="" type="button" onClick={() => save({ open: false })} aria-label={tr("Hide the overview")} title={tr("Hide the overview")} style={{ border: "none", background: "none", cursor: "pointer", fontSize: "var(--font-size-lg)", lineHeight: 1, padding: "0 2px" }}>×</button>
       </div>
       <div ref={boxRef} style={{ position: "relative", width: pref.w, height: pref.h, minWidth: MIN_W, minHeight: MIN_H, maxWidth: "70vw", maxHeight: "70vh", resize: "both", overflow: "hidden" }}>
         <div aria-hidden="true" dangerouslySetInnerHTML={{ __html: base }} style={{ position: "absolute", inset: 0, lineHeight: 0 }} />
