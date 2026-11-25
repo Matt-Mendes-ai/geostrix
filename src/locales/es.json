@@ -15476,5 +15476,7 @@
   "The two ends are the same: give two different points.": "Los dos extremos son iguales: dé dos puntos distintos.",
   "A control point has no horizontal value.": "Un punto de control no tiene valor horizontal.",
   "A control point has no elevation.": "Un punto de control no tiene elevación.",
-  "Place at least 2 control points.": "Coloque al menos 2 puntos de control."
+  "Place at least 2 control points.": "Coloque al menos 2 puntos de control.",
+  "No holes or saved sections yet: type the ends.": "Aún no hay sondajes ni secciones guardadas: escriba los extremos.",
+  "Fit error": "Error de ajuste"
 }

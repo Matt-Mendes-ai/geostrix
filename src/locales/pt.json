@@ -15476,5 +15476,7 @@
   "The two ends are the same: give two different points.": "As duas extremidades são iguais: informe dois pontos diferentes.",
   "A control point has no horizontal value.": "Um ponto de controle não tem valor horizontal.",
   "A control point has no elevation.": "Um ponto de controle não tem elevação.",
-  "Place at least 2 control points.": "Coloque pelo menos 2 pontos de controle."
+  "Place at least 2 control points.": "Coloque pelo menos 2 pontos de controle.",
+  "No holes or saved sections yet: type the ends.": "Ainda não há furos nem seções salvas: digite as extremidades.",
+  "Fit error": "Erro de ajuste"
 }

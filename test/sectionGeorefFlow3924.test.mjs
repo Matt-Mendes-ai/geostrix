@@ -53,7 +53,8 @@ test("wired: the dialog asks for the line first with nothing preselected, warns 
   assert.match(m, /const onLine = lineOk \? imagesOnLine\(images, line, moveImage\?\.id\) : \[\];/); // #4071: the guided flow
   assert.match(m, /<SectionLinePlan [^>]*extent=\{summary \? \{ from: summary\.fromDist, to: summary\.toDist \} : null\}/); // the preview (step 3)
   assert.match(m, /const m = moveSectionImage\(moveImage, line\); onMove\?\.\(m\.patch/);
-  assert.match(m, /disabled=\{moveImage \? !lineOk : !stepOk \|\| busy\} onClick=\{moveImage \? doMove : next\}/); // no placing without a fit, no move without a line (#4071)
+  assert.match(m, /primary: \{ label: tr\("Move"\), onClick: doMove, disabled: !lineOk \}/); // no move without a line (#4071)
+  assert.match(m, /primary: \{ label: busy \? tr\("Placing…"\) : tr\("Place in 3D"\), onClick: doImport, disabled: !fit \|\| busy \}/); // no placing without a fit (#4071 / #4073)
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(vm, /\{ label: tr\("Move to another line…"\), onClick: \(\) => setSectionGeorefOpen\(\{ moveId: im\.id \}\) \}/);
   assert.match(vm, /collars=\{collars\} images=\{sectionImages\}/);

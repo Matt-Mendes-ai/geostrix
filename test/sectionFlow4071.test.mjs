@@ -87,6 +87,7 @@ test("#4071 every capability of the old dialog is still reachable", () => {
   // a drawn line (two clicks on the plan) and a typed line (its ends)
   assert.ok(m.includes("onDrawn={(a, b) =>") && m.includes('setLineSrc("manual")'));
   assert.ok(m.includes('cell("ax"') && m.includes('cell("by"') && m.includes('tr("Type the ends")') && m.includes('tr("Draw on the plan")'));
+  assert.ok(m.includes("lineOk && size > 0") && !m.includes("lineOk && size))"), "a size of 0 must not render a stray 0 (the Move screen)");
   // a saved section; a figure already on the line is said; a figure is never put on a line by default
   assert.ok(m.includes("useState(\"\"); // TASKS.csv #3924") && !m.includes("sections[0].id"));
   assert.ok(m.includes("imagesOnLine(images, line, moveImage?.id)") && m.includes('already stands on this line'));
@@ -94,11 +95,12 @@ test("#4071 every capability of the old dialog is still reachable", () => {
 
 test("#4071 three steps, one on screen at a time, one primary button; the Help card holds the long text", () => {
   const m = read("src/components/SectionGeorefModal.jsx");
-  assert.equal((m.match(/gs-btn--primary/g) || []).length, 1, "one primary: Next / Next / Place in 3D / Move are one element");
+  const sd = read("src/components/StepDialog.jsx"); // #4073: the shell
+  assert.equal((sd.match(/gs-btn--primary/g) || []).length >= 1 && (m.match(/gs-btn--primary/g) || []).length, 0, "one primary: the shell's footer button (Next / Next / Place in 3D / Move)");
   for (const t of ['tr("Figure")', 'tr("Points")', 'tr("Place")', 'tr("Next: points")', 'tr("Next: place")', 'tr("Place in 3D")']) assert.ok(m.includes(t), t);
-  assert.ok(m.includes("{!moveImage && step === 1 && (") && m.includes("{!moveImage && step === 2 && img && (") && m.includes("{!moveImage && step === 3 && ("));
-  assert.ok(m.includes("<details open") && m.includes('tr("How it works")'), "the Help card");
-  assert.ok(m.includes('aria-current={on ? "step" : undefined}'), "the step bar");
+  assert.ok(m.includes('key: "figure"') && m.includes('key: "points"') && m.includes('key: "place"'));
+  assert.ok(m.includes("<details open>") && m.includes('tr("How it works")') && m.includes("help={helpBody}"), "the Help card, a fold the word count reads as behind More");
+  assert.ok(sd.includes('aria-current={on ? "step" : undefined}'), "the step bar");
   // the figure comes first: step 1 loads it; the line is no longer asked up front
   assert.ok(!m.includes("1. Where is this section on the map?"));
   const strings = [...m.matchAll(/\btr\("((?:[^"\\]|\\.)*)"/g)].map((x) => x[1]);
