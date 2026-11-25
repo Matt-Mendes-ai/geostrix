@@ -5024,7 +5024,7 @@
   "Sections ({sections}) — move with the project": "Seções ({sections}) — se movem com o projeto",
   "Nothing loaded yet. Set the project CRS first: every import is then reprojected into it.": "Ainda não há nada carregado. Defina antes o SRC do projeto: depois toda importação é reprojetada para ele.",
   "No scale data available yet for this element — for a viewport, click \"Refresh from theme\" first; for a cross-section, re-snapshot it from the section pop-out.": "Ainda não há dados de escala para este elemento — para uma janela de visualização, clique antes em \"Atualizar pelo tema\"; para uma seção, capture-a de novo pela janela da seção.",
-  "Pick a bound viewport or cross-section above first.": "Escolha antes acima uma janela de visualização ou seção vinculada.",
+  "Pick a bound viewport or cross-section first.": "Escolha primeiro uma janela de visualização ou seção vinculada.",
   "That viewport/section no longer exists on this page — pick a different one.": "Essa janela de visualização/seção não existe mais nesta página — escolha outra.",
   "This cross-section snapshot has no litho/alteration/vein/structure data to show — nothing to load.": "Esta captura de seção não tem dados de lito/alteração/veios/estruturas para mostrar — nada para carregar.",
   "The Lithology layer was hidden in that view's theme, so there's nothing to load — show it in the StrixViewer, resave the theme, and sync again.": "A camada de litologia estava oculta no tema dessa visão, então não há nada para carregar — mostre-a no StrixViewer, salve o tema de novo e sincronize outra vez.",

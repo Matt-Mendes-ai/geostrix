@@ -1367,7 +1367,7 @@ export default function LayoutModule() {
     const legend = elements.find((el) => el.id === legendId);
     if (!legend) return;
     const say = auto ? () => {} : setSyncNotice;
-    if (!legend.boundViewportId) { say(tr("Pick a bound viewport or cross-section above first.")); return; }
+    if (!legend.boundViewportId) { say(tr("Pick a bound viewport or cross-section first.")); return; }
     const vp = elements.find((el) => el.id === legend.boundViewportId);
     if (!vp) { say(tr("That viewport/section no longer exists on this page — pick a different one.")); return; }
     // #3959 — the column breaks stay; a legend split from another (part B) is refilled with its own group(s) only
@@ -1626,7 +1626,7 @@ export default function LayoutModule() {
                 </div>
               );
               if (!collarsSrc) return (
-                <StepPane key={sel.id} id="layout-table" label={tr("Table")} fineTune={fine}
+                <StepPane key={sel.id} id="layout-table" help="layout" label={tr("Table")} fineTune={fine}
                   steps={[...(samplesSrc ? [{ key: "rows", label: tr("Rows"), question: tr("Which rows?"), body: samplesStep }] : []), { key: "text", label: tr("Text"), question: tr("What does it say?"), body: lookStep }]} />
               );
               // TASKS.csv #1638 — an appendix of every hole: a first row, a filter, continuation pages
@@ -1661,7 +1661,7 @@ export default function LayoutModule() {
                 {noSplit && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Drop a column, or keep one and let the rest carry on to the next page: two halves with these columns do not fit even at 5 pt.")}</div>}
               </>);
               return (
-                <StepPane key={sel.id} id="layout-table" label={tr("Table")} fineTune={fine}
+                <StepPane key={sel.id} id="layout-table" help="layout" label={tr("Table")} fineTune={fine}
                   steps={[
                     { key: "rows", label: tr("Rows"), question: tr("Which rows?"), body: rowsStep },
                     { key: "columns", label: tr("Columns"), question: tr("Which columns?"), body: columnsStep },
@@ -1871,7 +1871,7 @@ export default function LayoutModule() {
                   <Plus size={12} />{" "}{tr("Add row")}</button>
               </>);
               return (
-                <StepPane key={sel.id} id="layout-legend" label={tr("Legend")} top={<div style={{ marginTop: 4 }} />}
+                <StepPane key={sel.id} id="layout-legend" help="layout" label={tr("Legend")} top={<div style={{ marginTop: 4 }} />}
                   steps={[
                     { key: "source", label: tr("Source"), question: tr("Where from?"), body: sourceStep },
                     ...(sizeStep ? [{ key: "size", label: tr("Size"), question: tr("How big?"), body: sizeStep }] : []),
@@ -2021,7 +2021,7 @@ export default function LayoutModule() {
                 </MoreFold>
               );
               return (
-                <StepPane key={sel.id} id="layout-drillplan" label={tr("Drill plan")} fineTune={fine}
+                <StepPane key={sel.id} id="layout-drillplan" help="layout" label={tr("Drill plan")} fineTune={fine}
                   steps={[
                     { key: "frame", label: tr("Frame"), question: tr("What does it show?"), body: frameStep },
                     { key: "holes", label: tr("Holes"), question: tr("Which holes?"), body: holesStep },
@@ -2741,7 +2741,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
   );
   return (
     <div style={{ marginTop: 4 }}>
-      <StepPane key={sel.id} id="layout-viewport" label={tr("Viewport")}
+      <StepPane key={sel.id} id="layout-viewport" help="layout" label={tr("Viewport")}
         steps={[{ key: "view", label: tr("View"), question: tr("Which view?"), body: viewStep }, { key: "scale", label: tr("Scale"), question: tr("What scale?"), body: scaleStep }]}
         action={{ label: sel.refreshing ? tr("Rendering…") : tr("Refresh"), onClick: onRefresh, disabled: sel.refreshing, icon: <RefreshCw size={14} />, title: tr("Capture again from the theme, the scale and the frame."), attrs: { "data-viewport-refresh": "" } }}
         result={{ key: sel.capturedAt || null, body: resultBody }} fineTune={fine} />

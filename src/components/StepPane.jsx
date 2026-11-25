@@ -9,6 +9,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 
+import { openHelp } from "../lib/help.js";
 import { requestStep, takeStep, STEP_EVENT } from "../lib/stepRequest.js"; // a step asked for from outside the pane (lib/stepRequest.js)
 export { requestStep };
 
@@ -19,7 +20,8 @@ const muted = { color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)
 // steps: [{ key, label, question, body, hint }] (label and question already translated); action: { label, onClick, disabled, title, icon, step, attrs } (step: the index it sits on, default the last; attrs: extra attributes, e.g. data-mcp);
 // result: { key, body, label, offTitle } (key: what changes when a new result lands, null before any; label: the Result step's name, default "Result"; offTitle: the tooltip of the greyed pill, default "After the first run"); fineTune: a node (a closed MoreFold);
 // label: the pane's name (translated); start: the step a pane opens on the first time ("result" for a pane whose last step is the list the user opens it for; default the first)
-export default function StepPane({ id, label, steps, action, result, fineTune, top, start = 0 }) {
+// help: a Help page id, for a pane with no header of its own (the inline panes of the Layout and Geochem sidebars): a "?" at the end of the step bar opens it
+export default function StepPane({ id, label, steps, action, result, fineTune, top, start = 0, help = null }) {
   const resultLabel = result?.label || tr("Result");
   const all = result ? [...steps, { key: "result", label: resultLabel, body: result.body }] : steps;
   const last = all.length - 1;
@@ -64,6 +66,8 @@ export default function StepPane({ id, label, steps, action, result, fineTune, t
               </button>
             );
           })}
+          {help && <button type="button" data-btn-own="" data-step-help={help} onClick={() => openHelp(help)} aria-label={tr("Help")} title={tr("Help")}
+            style={{ flex: "none", width: 24, height: 24, borderRadius: 12, padding: 0, cursor: "pointer", fontSize: "var(--font-size-xs)", fontWeight: 600, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text-secondary)" }}>?</button>}
         </div>
       )}
       {/* every step stays mounted, only the shown one visible: a step's parts that set a value when they mount (the Grade shell's automatic cap,

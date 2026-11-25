@@ -5024,7 +5024,7 @@
   "Sections ({sections}) — move with the project": "المقاطع ({sections}) — تتحرك مع المشروع",
   "Nothing loaded yet. Set the project CRS first: every import is then reprojected into it.": "لا شيء محمّل بعد. اضبط نظام إحداثيات المشروع أولًا: سيُعاد إسقاط كل استيراد إليه.",
   "No scale data available yet for this element — for a viewport, click \"Refresh from theme\" first; for a cross-section, re-snapshot it from the section pop-out.": "لا بيانات مقياس متاحة لهذا العنصر بعد — لنافذة عرض انقر «تحديث من السمة» أولًا؛ ولمقطع عرضي أعد أخذ اللقطة من نافذة المقطع المنبثقة.",
-  "Pick a bound viewport or cross-section above first.": "اختر نافذة عرض مرتبطة أو مقطعًا أعلاه أولًا.",
+  "Pick a bound viewport or cross-section first.": "اختر أولًا نافذة عرض مرتبطة أو مقطعًا.",
   "That viewport/section no longer exists on this page — pick a different one.": "لم تعد نافذة العرض/المقطع موجودة في هذه الصفحة — اختر أخرى.",
   "This cross-section snapshot has no litho/alteration/vein/structure data to show — nothing to load.": "لقطة المقطع هذه بلا بيانات ليثولوجيا/تحول/عروق/بنية للعرض — لا شيء للتحميل.",
   "The Lithology layer was hidden in that view's theme, so there's nothing to load — show it in the StrixViewer, resave the theme, and sync again.": "كانت طبقة الليثولوجيا مخفية في سمة ذلك العرض، لذا لا شيء للتحميل — أظهرها في StrixViewer، وأعد حفظ السمة، وزامن مجددًا.",
