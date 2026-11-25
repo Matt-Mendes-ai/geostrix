@@ -4,12 +4,10 @@
 // the holes as graduated circles on a plan; then a 2D estimate of GT and thickness, a contour at a GT cut-off the user types, and
 // area x GT x density = metal, with the same honesty as Estimation. No default cut-off reads as a fact (#264): every cut-off is typed.
 import React, { Suspense, lazy, useEffect, useMemo, useState } from "react"; // useEffect: #2756; Suspense / lazy: #3089
-import { X, Download } from "./icons.js";
+import { Download } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
+import MoreFold from "./MoreFold.jsx";
 import { useStore } from "../lib/store.jsx";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3452
 import { desurveyHole } from "../lib/desurvey.js";
@@ -40,8 +38,6 @@ function sdImageUrl(sdPixels, sd, nx, ny, max) {
 // TASKS.csv #3016 (WA iron review) — inArea(hole_id): the Model area's checked holes (Model settings), as Estimation and the Variogram read
 // them; null = every hole. It took 4,800 holes of the whole field with a 4.2 s stall on a 228-hole Model area, and opened on Al, not Fe.
 export default function GradeThicknessModal({ assays, assayElements, collars, survey, layers, inArea = null, onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
   const { desurveyMethod, addMapLayer, project } = useStore(); // addMapLayer: #2755; project: #2880 (the grid's CRS)
   const symbols = (assayElements || []).map((e) => e.symbol);
   const lead = useLeadCommodity(); // #3016
@@ -162,22 +158,31 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
   const th = { textAlign: "start", padding: "5px 7px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600 };
   const td = { padding: "4px 7px", borderBottom: "1px solid var(--color-border-light)", whiteSpace: "nowrap", fontSize: "var(--font-size-sm)" };
   const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 };
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div role="dialog" aria-modal="true" aria-label={gtView === "long" ? tr("Grade × thickness on a long section") : tr("Grade × thickness in plan")} onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, width: 900, maxWidth: "95vw", maxHeight: "94vh", overflow: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{gtView === "long" ? tr("Grade × thickness on a long section") : tr("Grade × thickness in plan")}</div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3452 — the help page of the tool */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-thickness")} aria-label={tr("Help: {name}", { name: tr("Grade × thickness") })} title={tr("Help for this tool (F1, works offline)")}>?</button>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
-        </div>
+  // TASKS.csv #4073 — the dialog as steps on the shared StepDialog: Intercepts, Estimate (the plan view only) and Result; the long section has no estimate step.
+  const [stepAt, setStepAt] = useState(0);
+  const col = { display: "flex", flexDirection: "column", gap: 10, width: "100%" };
+  const row = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" };
+  const isLong = gtView === "long";
+  const title = isLong ? tr("Grade × thickness on a long section") : tr("Grade × thickness in plan");
+  const showOnPlan = () => { showGtOnPlan({ symbol: ox ? ox.oxide : symbol, label: gtLabel, title: `GT (${gtLabel}), intercepts at ${cut} ${shownGrade}`, holes: [...totals.holes.filter((h) => Number.isFinite(h.x)), ...totals.zeros].map((h) => ({ hole_id: h.hole_id, x: h.x, y: h.y, gt: h.gt, thicknessM: h.thicknessM })) }); setPlanMsg(tr("The holes' GT is on the Maps tab's plan, as circles sized by GT (until the app is closed or you clear it there).")); };
+  const canEstimate = !(pts.length < 2 || !cellM || !radiusM);
+  const helpCard = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
+        {gtView === "long" ? <div style={note}>{tr("For a steep vein or lode: each hole's intercept thickness and grade × thickness (GT), by the Best intercepts rules, at the intercepts' mid-point, projected on a vertical plane along strike and contoured in three panels (thickness, grade, GT), or four with the kriging standard deviation, within the drilled extent.")}</div> : <div style={note}>{tr("For a thin, flat body: each hole's mineralized thickness and grade × thickness (GT) from its intercepts, by the Best intercepts rules; GT and thickness are interpolated in plan and contoured at a GT cut-off you choose. Thickness is downhole metres (true thickness for vertical holes through flat ore).")}</div>}
+        {inArea && <div style={note}>{tr("Samples from the Model area's {n} checked holes (Model settings).", { n: areaHoles })}</div>}{/* #3016 */}
+      <button data-btn-own="" type="button" className="gs-btn gs-btn--sm" style={{ marginTop: 6 }} onClick={() => openHelp("grade-thickness")} aria-label={tr("Help: {name}", { name: tr("Grade × thickness") })} title={tr("Help for this tool (F1, works offline)")}>{tr("Help")}</button>{/* TASKS.csv #3452 — the help page of the tool */}
+    </details>
+  );
+  const intercepts = {
+    key: "intercepts", label: tr("Intercepts"), primary: { label: isLong ? tr("Next: result") : tr("Next: estimate"), disabled: !totals }, render: () => (
+      <div style={col}>
         {/* TASKS.csv #3089 — Plan (a thin, flat body) or Long section (a steep vein or lode) */}
         <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 8 }}>{tr("View")}<select value={gtView} onChange={(e) => setGtView(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Grade × thickness view")}>
           <option value="plan">{tr("Plan (a thin, flat body)")}</option>
           <option value="long">{tr("Long section (a steep vein or lode)")}</option>
         </select></label>
-        {gtView === "long" ? <div style={note}>{tr("For a steep vein or lode: each hole's intercept thickness and grade × thickness (GT), by the Best intercepts rules, at the intercepts' mid-point, projected on a vertical plane along strike and contoured in three panels (thickness, grade, GT), or four with the kriging standard deviation, within the drilled extent.")}</div> : <div style={note}>{tr("For a thin, flat body: each hole's mineralized thickness and grade × thickness (GT) from its intercepts, by the Best intercepts rules; GT and thickness are interpolated in plan and contoured at a GT cut-off you choose. Thickness is downhole metres (true thickness for vertical holes through flat ore).")}</div>}
-        {inArea && <div style={note}>{tr("Samples from the Model area's {n} checked holes (Model settings).", { n: areaHoles })}</div>}{/* #3016 */}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div style={row}>
           <label style={field}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setCutoff(""); setGtCut(""); setAsOxide(false); }} style={inp} aria-label={tr("Element")}>{symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, (assayElements || []).find((e) => e.symbol === s)?.unit)})</option>)}</select></label>
           {offer && <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }}><input type="checkbox" checked={asOxide} onChange={(e) => { setAsOxide(e.target.checked); setCutoff(""); setGtCut(""); }} />{tr("Report as {oxide} (× {f})", { oxide: offer.oxide, f: offer.factor })}</label>}
           <label style={field}>{tr("Intercept cut-off ({unit})", { unit: shownGrade })}<NumberInput allowEmpty min="0" value={cutoff} placeholder={tr("cut-off")} onChange={(v) => setCutoff(v == null ? "" : String(v))} style={inp} aria-label={tr("Intercept cut-off")} /></label>
@@ -187,9 +192,31 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
         </div>
         {!Number.isFinite(cut) && <div style={note}>{tr("Type the intercepts' cut-off: none is chosen for you.")}</div>}
         {totals && (
-          <>
             <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} hole(s) with an intercept at {c} {u}; {z} hole(s) assayed for {el} with none (read as 0 in the plan estimate). GT in {gt}.", { n: totals.holes.length, c: cut, u: shownGrade, z: totals.zeros.length, el: symbol, gt: gtLabel })}{ox ? " " + tr("Grades and GT are {oxide}: {el} × {f}, the stoichiometric factor (Calc. element's preset).", { oxide: ox.oxide, el: symbol, f: ox.factor }) : ""}</div>
-            {gtView === "long" ? <Suspense fallback={null}><LongSectionGT holes={totals.holes} zeros={totals.zeros} symbol={ox ? ox.oxide : symbol} shownGrade={shownGrade} gtLabel={gtLabel} cut={cut} field={field} inp={inp} note={note} /></Suspense> : (<>{/* #3089 */}
+        )}
+      </div>) };
+  const estimate = {
+    key: "estimate", label: tr("Estimate"), primary: { label: tr("Estimate GT and thickness"), onClick: () => { setRunMethod(method); setRun((n) => n + 1); setStepAt(2); }, disabled: !canEstimate }, render: () => (
+      <div style={col}>
+            <div className="ge-section-label" style={{ marginTop: 4 }}>{tr("Estimate in plan")}</div>
+        <div style={row}>
+              <label style={field}>{tr("Cell (m)")}<NumberInput allowEmpty min="0" value={cell} placeholder={cellM ? String(cellM) : ""} onChange={(v) => setCell(v == null ? "" : String(v))} style={inp} aria-label={tr("Plan cell (m)")} /></label>
+              <label style={field} title={tr("No hole within this distance of a node leaves it unestimated (not barren). Blank = 2.5 times the typical hole spacing.")}>{tr("Search radius (m)")}<NumberInput allowEmpty min="0" value={radius} placeholder={radiusM ? String(radiusM) : ""} onChange={(v) => setRadius(v == null ? "" : String(v))} style={inp} aria-label={tr("Plan search radius (m)")} /></label>
+              <label style={field}>{tr("GT cut-off ({u})", { u: gtLabel })}<NumberInput allowEmpty min="0" value={gtCut} placeholder={tr("cut-off")} onChange={(v) => setGtCut(v == null ? "" : String(v))} style={inp} aria-label={tr("GT cut-off")} /></label>
+              <label style={field}>{tr("Density (t/m³)")}<NumberInput allowEmpty min="0" value={density} onChange={(v) => setDensity(v == null ? "" : String(v))} style={inp} aria-label={tr("Density (t/m³)")} /></label>
+              <label style={field} title={tr("Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.")}>{tr("Panel side (m)")}<NumberInput allowEmpty min="0" value={panelText} placeholder={tr("optional")} onChange={(v) => setPanelText(v == null ? "" : String(v))} style={inp} aria-label={tr("Panel side (m)")} /></label>{/* #2650 */}
+              <label style={field} title={tr("Ordinary kriging weighs the nearest holes by 2D variograms fitted to their GT and thickness; inverse distance by distance alone. Both estimate the same nodes.")}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Plan estimation method")}>
+                <option value="idw">{tr("Inverse distance (squared)")}</option>
+                <option value="ok">{tr("Ordinary kriging (a 2D variogram of each)")}</option>
+              </select></label>{/* #2756 */}
+        </div>
+            {runMethod === "ok" && ok?.busy && <div style={note}>{tr("Kriging the plan grid…")}</div>}{/* #2756 */}
+            {spacing && <div style={note}>{tr("Holes typically {s} m apart in plan: blank cell = a quarter of that, blank search = 2.5 times it.", { s: Math.round(spacing) })}</div>}
+      </div>) };
+  const result = {
+    key: "result", label: tr("Result"), primary: isLong ? { label: tr("Close"), onClick: onClose } : { label: tr("Show on the Maps plan"), onClick: showOnPlan, disabled: !totals?.holes?.length }, render: () => (
+      <div style={col}>
+        {totals && (isLong ? <Suspense fallback={null}><LongSectionGT holes={totals.holes} zeros={totals.zeros} symbol={ox ? ox.oxide : symbol} shownGrade={shownGrade} gtLabel={gtLabel} cut={cut} field={field} inp={inp} note={note} /></Suspense> : (<>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <div style={{ overflow: "auto", maxHeight: 360, flex: "1 1 330px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 <table style={{ borderCollapse: "collapse", width: "100%" }}>
@@ -212,26 +239,9 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
               <button type="button" onClick={exportGridTiff} className="gs-btn gs-btn--sm" style={{ width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("GT, thickness and, with kriging, their standard deviations, one band each, in the project's CRS")}><Download size={14} />{tr("Export the plan grid (GeoTIFF)")}</button>
             </div>}
             <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={exportCsv} className="gs-btn gs-btn--sm" style={{ width: "auto", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Download size={14} />{tr("Export per-hole totals (CSV)")}</button>
-              <button type="button" disabled={!totals?.holes?.length} /* TASKS.csv #2755 */ onClick={() => { showGtOnPlan({ symbol: ox ? ox.oxide : symbol, label: gtLabel, title: `GT (${gtLabel}), intercepts at ${cut} ${shownGrade}`, holes: [...totals.holes.filter((h) => Number.isFinite(h.x)), ...totals.zeros].map((h) => ({ hole_id: h.hole_id, x: h.x, y: h.y, gt: h.gt, thicknessM: h.thicknessM })) }); setPlanMsg(tr("The holes' GT is on the Maps tab's plan, as circles sized by GT (until the app is closed or you clear it there).")); }}
-                className="gs-btn gs-btn--sm" style={{ width: "auto", cursor: totals?.holes?.length ? "pointer" : "default" }} title={tr("Size the collars on the Maps plan by GT (circle area); a hole assayed with no intercept is a hollow ring.")}>{tr("Show on the Maps plan")}</button>
               <button type="button" disabled={!contour.length} /* TASKS.csv #2755 */ onClick={() => { const l = gtContourLayer(contour, { level: gtc, label: gtLabel, symbol: ox ? ox.oxide : symbol, cellM: grid?.cell }); if (l) { addMapLayer(l); setPlanMsg(tr("Added \"{name}\" as a map layer: on the Maps plan and in StrixViewer, and exported like any other.", { name: l.name })); } }}
                 className="gs-btn gs-btn--sm" style={{ width: "auto", cursor: contour.length ? "pointer" : "default" }} title={tr("The contour at the GT cut-off, as lines in a map layer of the project.")}>{tr("Add the GT contour as a map layer")}</button></div>
             {planMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{planMsg}</div>}
-            <div className="ge-section-label" style={{ marginTop: 4 }}>{tr("Estimate in plan")}</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <label style={field}>{tr("Cell (m)")}<NumberInput allowEmpty min="0" value={cell} placeholder={cellM ? String(cellM) : ""} onChange={(v) => setCell(v == null ? "" : String(v))} style={inp} aria-label={tr("Plan cell (m)")} /></label>
-              <label style={field} title={tr("No hole within this distance of a node leaves it unestimated (not barren). Blank = 2.5 times the typical hole spacing.")}>{tr("Search radius (m)")}<NumberInput allowEmpty min="0" value={radius} placeholder={radiusM ? String(radiusM) : ""} onChange={(v) => setRadius(v == null ? "" : String(v))} style={inp} aria-label={tr("Plan search radius (m)")} /></label>
-              <label style={field}>{tr("GT cut-off ({u})", { u: gtLabel })}<NumberInput allowEmpty min="0" value={gtCut} placeholder={tr("cut-off")} onChange={(v) => setGtCut(v == null ? "" : String(v))} style={inp} aria-label={tr("GT cut-off")} /></label>
-              <label style={field}>{tr("Density (t/m³)")}<NumberInput allowEmpty min="0" value={density} onChange={(v) => setDensity(v == null ? "" : String(v))} style={inp} aria-label={tr("Density (t/m³)")} /></label>
-              <label style={field} title={tr("Optional: the side of a square panel (a strip, an in-situ recovery pattern); each panel counts when its mean GT reaches the GT cut-off.")}>{tr("Panel side (m)")}<NumberInput allowEmpty min="0" value={panelText} placeholder={tr("optional")} onChange={(v) => setPanelText(v == null ? "" : String(v))} style={inp} aria-label={tr("Panel side (m)")} /></label>{/* #2650 */}
-              <label style={field} title={tr("Ordinary kriging weighs the nearest holes by 2D variograms fitted to their GT and thickness; inverse distance by distance alone. Both estimate the same nodes.")}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Plan estimation method")}>
-                <option value="idw">{tr("Inverse distance (squared)")}</option>
-                <option value="ok">{tr("Ordinary kriging (a 2D variogram of each)")}</option>
-              </select></label>{/* #2756 */}
-              <button type="button" disabled={pts.length < 2 || !cellM || !radiusM} onClick={() => { setRunMethod(method); setRun((n) => n + 1); }} className="gs-btn gs-btn--primary" style={{ width: "auto", cursor: "pointer" }}>{tr("Estimate GT and thickness")}</button>
-            </div>
-            {runMethod === "ok" && ok?.busy && <div style={note}>{tr("Kriging the plan grid…")}</div>}{/* #2756 */}
-            {spacing && <div style={note}>{tr("Holes typically {s} m apart in plan: blank cell = a quarter of that, blank search = 2.5 times it.", { s: Math.round(spacing) })}</div>}
             {grid && (
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
                 {grid.method === "ok" ? <div>{tr("{n} of {t} nodes estimated ({c} m cells{v}, {r} m search, ordinary kriging from the nearest {k} holes).", { n: grid.estimated.toLocaleString(), t: (grid.nx * grid.ny).toLocaleString(), c: +grid.cell.toFixed(1), v: grid.cell !== grid.cellAsked ? tr(", coarsened to stay under the node limit") : "", r: grid.radius, k: grid.maxSamples })}</div> : (
@@ -249,13 +259,11 @@ export default function GradeThicknessModal({ assays, assayElements, collars, su
                   <div>{tr("At GT ≥ {c} {u}: {a} km² ({n} nodes), mean thickness {th} m, mean grade {g} {gu}{v}.", { c: gtc, u: gtLabel, a: fmt(summary.areaM2 / 1e6, 3), n: summary.nodes.toLocaleString(), th: fmt(summary.meanThicknessM, 2), g: fmt(summary.meanGrade == null ? null : summary.meanGrade, 3), gu: shownGrade, v: summary.tonnes != null ? tr("; {t} t at {d} t/m³, {m} {mu} of {el}", { t: fmt(summary.tonnes, 0), d: Number(density), m: fmt(summary.metalUnit === "g" && summary.metal >= 1e6 ? summary.metal / 1e6 : summary.metal, summary.metalUnit === "g" && summary.metal >= 1e6 ? 1 : 0), mu: summary.metalUnit === "g" && summary.metal >= 1e6 ? "t" : summary.metalUnit || "", /* a million grams and over: tonnes */ el: ox ? ox.oxide : symbol }) : tr("; type a density for tonnes and metal") })}</div>
                 )}
                 {panels && <div>{panels.totals.orePanels ? tr("In {p} m panels: {n} of {m} reach GT ≥ {c} {u}: {a} km², {t} t at {g} {gu}, mean thickness {th} m.", { p: Number(panelText), n: panels.totals.orePanels, m: panels.totals.panels, c: gtc, u: gtLabel, a: fmt(panels.totals.area / 1e6, 3), t: fmt(panels.totals.tonnes, 0), g: fmt(panels.totals.grade, 3), gu: shownGrade, th: fmt(panels.totals.thick, 2) }) : tr("In {p} m panels: none of {m} reaches GT ≥ {c} {u}.", { p: Number(panelText), m: panels.totals.panels, c: gtc, u: gtLabel })}</div>}{/* #2650 */}
-                <div style={{ ...note, marginTop: 4 }}><b>{tr("Not a resource estimate.")}</b>{" "}{grid.method === "ok" ? tr("Ordinary kriging of the holes' GT and thickness in plan, each with its own fitted 2D variogram; no declustering or classification. Between holes the numbers are the model's, not the data's. A node beyond the search radius of every hole is left out, not counted as barren; an assayed hole with no intercept counts as 0.") : tr("Inverse-distance interpolation of the holes' GT and thickness in plan; no declustering, variogram or classification. Between holes the numbers are the method's, not the data's. A node beyond the search radius of every hole is left out, not counted as barren; an assayed hole with no intercept counts as 0.")}</div>
+                <div style={{ ...note, marginTop: 4 }}><b>{tr("Not a resource estimate.")}</b>{" "}<MoreFold summary={tr("Why")} style={{ display: "inline-block", marginBottom: 0 }}>{grid.method === "ok" ? tr("Ordinary kriging of the holes' GT and thickness in plan, each with its own fitted 2D variogram; no declustering or classification. Between holes the numbers are the model's, not the data's. A node beyond the search radius of every hole is left out, not counted as barren; an assayed hole with no intercept counts as 0.") : tr("Inverse-distance interpolation of the holes' GT and thickness in plan; no declustering, variogram or classification. Between holes the numbers are the method's, not the data's. A node beyond the search radius of every hole is left out, not counted as barren; an assayed hole with no intercept counts as 0.")}</MoreFold></div>
               </div>
             )}
-            </>)}
-          </>
-        )}
-      </div>
-    </div>
-  );
+        </>))}
+      </div>) };
+  const steps = isLong ? [intercepts, result] : [intercepts, estimate, result];
+  return <StepDialog title={title} width="min(900px, 95vw)" onClose={onClose} steps={steps} at={Math.min(stepAt, steps.length - 1)} onAt={setStepAt} help={helpCard} />;
 }
