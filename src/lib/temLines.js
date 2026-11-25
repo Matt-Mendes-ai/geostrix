@@ -8,7 +8,7 @@ import { guessGeophysColumns } from "./geophysColumns.js";
 import Papa from "papaparse";
 import { arrMax } from "./arrayStats.js";
 import { boreholeEmRefusal, boreholeHeaderRefusal } from "./boreholeEm.js"; // TASKS.csv #3804
-import { isReceiverTem, parseTemReceiver } from "./maxwellTem.js"; // TASKS.csv #4058 — Maxwell ground TEM, one row per component; #4063 — the other receiver layouts (Crone, SMARTem V / export, EMBASE)
+import { isReceiverTem, parseTemReceiver, isSmartemTipText } from "./maxwellTem.js"; // TASKS.csv #4058 — Maxwell ground TEM, one row per component; #4063 — the other receiver layouts (Crone, SMARTem V / export, EMBASE)
 import { t as tr } from "./i18n.js";
 import { smallGridCoordinates } from "./crsFromColumns.js"; // #4058 — a file on a local grid asks for its tie to the map
 
@@ -88,6 +88,8 @@ export function readTemText(text, name = "TEM") {
   }
 }
 function readTemTextCore(text, name) {
+  // TASKS.csv #4077 — a SMARTem24 TIP file is induced polarisation, not TEM: said, with where to open it (it used to be read as TEM, its IP decay as channels)
+  if (isSmartemTipText(text)) throw new Error(tr("\"{name}\" is a SMARTem IP (TIP) file: electrode positions, apparent resistivity and chargeability, not a TEM survey. Open it in the DC / IP line pane.", { name }));
   let source, columns, get, line, epsg = null, header = null, maxwell = null;
   if (isReceiverTem(text)) { // TASKS.csv #4058 — a station's Z, X and Y rows become the channel sets Z_CH, X_CH, Y_CH of one station row (Z first: the decay and the 1D inversion read it)
     maxwell = parseTemReceiver(text);

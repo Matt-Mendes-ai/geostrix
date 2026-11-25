@@ -15806,5 +15806,15 @@
   "Ticked first: the elements with a value in 90 % of the samples.": "Marcados no início: os elementos com valor em 90 % das amostras.",
   "Ticked first: the elements with a value on 90 % of the samples and few below detection or on the detection floor.": "Marcados no início: os elementos com valor em 90 % das amostras e poucos abaixo da detecção ou no piso de detecção.",
   "Values in {unit}; click a column to pick its rule.": "Valores em {unit}; clique numa coluna para escolher sua regra.",
-  "{n} {medium} sites; background {bg} {unit} ({how}); anomalous from {thr} {unit} ({rule}).": "{n} sítios de {medium}; fundo {bg} {unit} ({how}); anômalo a partir de {thr} {unit} ({rule})."
+  "{n} {medium} sites; background {bg} {unit} ({how}); anomalous from {thr} {unit} ({rule}).": "{n} sítios de {medium}; fundo {bg} {unit} ({how}); anômalo a partir de {thr} {unit} ({rule}).",
+  "\"{name}\" is a SMARTem IP (TIP) file: electrode positions, apparent resistivity and chargeability, not a TEM survey. Open it in the DC / IP line pane.": "\"{name}\" é um arquivo SMARTem de IP (TIP): posições dos eletrodos, resistividade aparente e cargabilidade, não um levantamento TEM. Abra-o no painel Linha DC / IP.",
+  "This is a TQIPdb plot-point table of a {array} survey: only pole-dipole plot points can be turned back into electrode positions.": "Esta é uma tabela de pontos de plotagem TQIPdb de um levantamento {array}: somente os pontos de plotagem de polo-dipolo podem ser convertidos de volta em posições de eletrodos.",
+  "TQIPdb plot-point table: {n} readings, pole-dipole with a {a} m dipole{v}. The table gives plot points and n-levels, not electrodes: the current pole is taken at the {side} end of each array. If the survey ran the other way the readings are mirrored; the raw dump of the line gives the electrode positions.": "Tabela de pontos de plotagem TQIPdb: {n} leituras, polo-dipolo com dipolo de {a} m{v}. A tabela traz pontos de plotagem e níveis n, não eletrodos: o polo de corrente é tomado na extremidade de {side} de cada arranjo. Se o levantamento foi feito no sentido contrário, as leituras ficam espelhadas; o despejo bruto da linha traz as posições dos eletrodos.",
+  " (the array is not stated: read as pole-dipole)": " (o arranjo não é indicado: lido como polo-dipolo)",
+  "higher-coordinate": "coordenada maior",
+  "lower-coordinate": "coordenada menor",
+  "{n} repeated plot points.": "{n} pontos de plotagem repetidos.",
+  "TS2DIP file{v}: {n} readings (the observed values; the contractor's model columns are not read){u}.": "Arquivo TS2DIP{v}: {n} leituras (os valores observados; as colunas do modelo do contratado não são lidas){u}.",
+  ", IP as phase in mrad": ", IP como fase em mrad",
+  ", IP in {unit}": ", IP em {unit}"
 }

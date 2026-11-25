@@ -15806,5 +15806,15 @@
   "Ticked first: the elements with a value in 90 % of the samples.": "المؤشَّر عليها في البداية: العناصر ذات القيمة في 90 % من العينات.",
   "Ticked first: the elements with a value on 90 % of the samples and few below detection or on the detection floor.": "المؤشَّر عليها في البداية: العناصر ذات القيمة في 90 % من العينات وقليلة تحت الكشف أو على أرضية الكشف.",
   "Values in {unit}; click a column to pick its rule.": "القيم بوحدة {unit}؛ انقر عمودًا لاختيار قاعدته.",
-  "{n} {medium} sites; background {bg} {unit} ({how}); anomalous from {thr} {unit} ({rule}).": "{n} موقعًا من {medium}؛ الخلفية {bg} {unit} ({how})؛ شاذ ابتداءً من {thr} {unit} ({rule})."
+  "{n} {medium} sites; background {bg} {unit} ({how}); anomalous from {thr} {unit} ({rule}).": "{n} موقعًا من {medium}؛ الخلفية {bg} {unit} ({how})؛ شاذ ابتداءً من {thr} {unit} ({rule}).",
+  "\"{name}\" is a SMARTem IP (TIP) file: electrode positions, apparent resistivity and chargeability, not a TEM survey. Open it in the DC / IP line pane.": "\"{name}\" ملف SMARTem للاستقطاب المحرَّض (TIP): مواضع الأقطاب والمقاومية الظاهرية والشحنية، وليس مسحاً TEM. افتحه في لوحة خط DC / IP.",
+  "This is a TQIPdb plot-point table of a {array} survey: only pole-dipole plot points can be turned back into electrode positions.": "هذا جدول نقاط رسم TQIPdb لمسح من نوع {array}: لا يمكن إعادة نقاط الرسم إلى مواضع الأقطاب إلا في مسح القطب-ثنائي القطب.",
+  "TQIPdb plot-point table: {n} readings, pole-dipole with a {a} m dipole{v}. The table gives plot points and n-levels, not electrodes: the current pole is taken at the {side} end of each array. If the survey ran the other way the readings are mirrored; the raw dump of the line gives the electrode positions.": "جدول نقاط رسم TQIPdb: {n} قراءة، قطب-ثنائي القطب بثنائي قطب {a} م{v}. يعطي الجدول نقاط الرسم والمستويات n لا الأقطاب: يُؤخذ قطب التيار عند طرف {side} من كل ترتيب. إذا جرى المسح في الاتجاه المعاكس تنعكس القراءات؛ والملف الخام للخط يعطي مواضع الأقطاب.",
+  " (the array is not stated: read as pole-dipole)": " (الترتيب غير مذكور: قُرئ كقطب-ثنائي القطب)",
+  "higher-coordinate": "الإحداثي الأعلى",
+  "lower-coordinate": "الإحداثي الأدنى",
+  "{n} repeated plot points.": "{n} من نقاط الرسم المكررة.",
+  "TS2DIP file{v}: {n} readings (the observed values; the contractor's model columns are not read){u}.": "ملف TS2DIP{v}: {n} قراءة (القيم المرصودة؛ ولا تُقرأ أعمدة نموذج المقاول){u}.",
+  ", IP as phase in mrad": "، الاستقطاب المحرَّض كطور بالميلي راديان",
+  ", IP in {unit}": "، الاستقطاب المحرَّض بوحدة {unit}"
 }
