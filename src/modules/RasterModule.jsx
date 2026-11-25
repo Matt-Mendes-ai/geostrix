@@ -75,7 +75,6 @@ function SpectrumPanel({ spectrum, onSplit }) {
   const kx = Math.max(...k), ymin = Math.min(...y), ymax = Math.max(...y);
   const X = (v) => L + ((W - L - 6) * v) / kx, Y = (v) => 6 + ((H - B - 6) * (ymax - v)) / Math.max(1e-9, ymax - ymin);
   const line = (s) => s && <line x1={X(s.k0 * 1000)} y1={Y(s.c - 2 * s.h * s.k0)} x2={X(s.k1 * 1000)} y2={Y(s.c - 2 * s.h * s.k1)} strokeWidth="2" />;
-  const btn = { flex: 1, padding: "4px 6px", border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-xs)", color: "var(--color-text)" };
   return (
     <div style={{ marginTop: 8 }}>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Radially averaged power spectrum")} style={{ display: "block" }}>
@@ -94,8 +93,8 @@ function SpectrumPanel({ spectrum, onSplit }) {
       </div>
       {fit?.shallow && (
         <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-          <button onClick={() => onSplit("deep")} style={btn}>{tr("Add the deep component")}</button>
-          <button onClick={() => onSplit("shallow")} style={btn}>{tr("Add the shallow component")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => onSplit("deep")}>{tr("Add the deep component")}</button>
+          <button className="gs-btn gs-btn--sm" onClick={() => onSplit("shallow")}>{tr("Add the shallow component")}</button>
         </div>
       )}
     </div>
@@ -640,7 +639,7 @@ export default function RasterModule({ embedded = false } = {}) {
                     return <span style={fetchFits(w.memoryMB, ramGB) ? undefined : { color: "var(--color-warn-text)" }}>{w.parts > 1 ? tr("up to {n} pictures, about {mb} MB", { n: w.parts, mb: w.memoryMB.toLocaleString() }) : tr("about {mb} MB", { mb: w.memoryMB.toLocaleString() })}{fetchFits(w.memoryMB, ramGB) ? "" : " " + tr("over this computer's {max} MB", { max: fetchBudgetMB(ramGB).toLocaleString() })}</span>;
                   })()}
                   {p && setArea && !p.nativeLimited && p.pixelM > 1.5 * (naip ? NAIP_FINEST_M : 10) && (
-                    <button type="button" onClick={() => setArea(centreBox(bbox, p.fullSideM))} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}
+                    <button className="gs-btn gs-btn--sm" type="button" onClick={() => setArea(centreBox(bbox, p.fullSideM))}
                       title={tr("The imagery's own pixels at this resolution cover about {km} km across: keep the centre of the drawn area", { km: (p.fullSideM / 1000).toFixed(1) })}>{tr("Full resolution: centre {km} km", { km: (p.fullSideM / 1000).toFixed(1) })}</button>
                   )}
                   {bbox && (() => { // TASKS.csv #3450 — why the higher levels are greyed out, and what gives finer detail
@@ -690,12 +689,12 @@ export default function RasterModule({ embedded = false } = {}) {
 
         {gridRasters.length >= 3 && (
           <div style={{ marginTop: 10 }}>
-            <button type="button" onClick={() => setTern((p) => {
+            <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} type="button" onClick={() => setTern((p) => {
               // TASKS.csv #2559 — opening it fills each empty channel with that channel's grid when exactly one is known (K, eTh, eU from one import)
               if (p.open) return { ...p, open: false };
               const pick = (ch) => { if (p[ch]) return p[ch]; const ex = ternaryChoices(gridRasters, ch, (x) => rasterMethodOf(x, geophysSurveys)).filter((c) => c.exact); return ex.length === 1 ? ex[0].raster.id : ""; };
               return { ...p, open: true, k: pick("k"), th: pick("th"), u: pick("u") };
-            })} aria-expanded={tern.open} style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "start" }}>{tr("Radiometric ternary image (K-eTh-eU)…")}</button>
+            })} aria-expanded={tern.open}>{tr("Radiometric ternary image (K-eTh-eU)…")}</button>
             {tern.open && (
               <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5 }}>
                 {[["k", "K (red)"], ["th", tr("eTh (green)")], ["u", tr("eU (blue)")]].map(([key, label]) => (
@@ -707,7 +706,7 @@ export default function RasterModule({ embedded = false } = {}) {
                     </select>
                   </div>
                 ))}
-                <button type="button" onClick={makeTernary} style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-sm)" }}>{tr("Build — adds a new raster")}</button>
+                <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} type="button" onClick={makeTernary}>{tr("Build — adds a new raster")}</button>
               </div>
             )}
           </div>
@@ -766,7 +765,7 @@ export default function RasterModule({ embedded = false } = {}) {
                 {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && ( /* TASKS.csv #2561 — I and D from IGRF-14 for the survey date */
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
                     <input type="date" value={filt.date} onChange={(e) => setFilt((p) => ({ ...p, date: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Survey date (for IGRF)")} />
-                    <button type="button" onClick={() => fillIgrf(r)} style={{ ...numInput, cursor: "pointer", flex: "0 0 auto" }}>{tr("Fill from IGRF-14")}</button>
+                    <button className="gs-btn gs-btn--sm" style={{ flex: "0 0 auto" }} type="button" onClick={() => fillIgrf(r)}>{tr("Fill from IGRF-14")}</button>
                     {filt.igrfSource && <div style={{ flexBasis: "100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)" }}>{tr("Source: {source}", { source: filt.igrfSource })}</div>}
                   </div>
                 )}
@@ -819,7 +818,7 @@ export default function RasterModule({ embedded = false } = {}) {
                     <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, color: "var(--color-text-secondary)" }}><input type="checkbox" checked={!!assumeField[r.id]} onChange={(e) => setAssumeField((p) => ({ ...p, [r.id]: e.target.checked }))} />{tr("It is a magnetic or gravity field")}</label>
                   </div>
                 )}
-                <button onClick={() => runFilter(r)} disabled={filtering || !!filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys)) || unknownNeedsTick(r) /* #2835 */} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>
+                <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginTop: 6, marginBottom: 0, justifyContent: "center" }} onClick={() => runFilter(r)} disabled={filtering || !!filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys)) || unknownNeedsTick(r) /* #2835 */}>
                   {filtering ? tr("Filtering…") : filt.kind === "spectrum" ? tr("Compute the spectrum") : tr("Apply — adds a new raster")}
                 </button>
                 {/* TASKS.csv #808 — the spectrum, its fitted depths and the matched-filter split */}

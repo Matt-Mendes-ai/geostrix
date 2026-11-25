@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 
 test("disabled without a terrain, and said under it", () => {
   const src = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.match(src, /<button type="button" disabled=\{!terrain\} onClick=\{\(\) => convertAgl\(sv\.key\)\}/);
+  assert.match(src, /<button className="gs-btn gs-btn--block" style=\{\{ marginTop: 5 \}\} type="button" disabled=\{!terrain\} onClick=\{\(\) => convertAgl\(sv\.key\)\}/);
   assert.match(src, /meta\.zMeaning === "agl" && !terrain && \(/);
   assert.match(src, /tr\("Needs a terrain: load or build one under Maps > Terrain \(a DEM, a fetch, or the project's own collars\)\."\)/);
 });

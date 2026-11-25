@@ -47,7 +47,7 @@ const num = (v) => (v === "" || v == null ? NaN : Number(v));
 // TASKS.csv #970 — ipFitOf now lives in lib/inversion.js, shared with the 3D panel.
 const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"], ["err", "Reading error (optional)"]];
 
-export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
+export default function DcipPanel({ numInput, resultSlot = null }) {
   const { terrain, project, addVoxelModelToTab, getProjectToken, startProjectJob /* #3953 */, dcipLines, saveDcipLine, removeDcipLine, projectIsEmpty, setEpsg } = useStore();
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
@@ -425,19 +425,19 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     <div style={{ fontSize: "var(--font-size-sm)" }}>
       {engine && !engine.available && <div style={{ ...small, color: "var(--color-danger-fg)", marginBottom: 8 }}>{tr("Needs GeoStrix's Python engine with SimPEG (status bar: Py).")}</div>}
       <div style={small}>{tr("One 2.5D line (ground assumed unchanged across it): A, B, M, N along it, blank B or N for a pole, apparent resistivity, optional chargeability.")}</div>
-      <button onClick={() => fileRef.current?.click()} style={{ ...pBtn, marginTop: 8 }} title={tr("A CSV, or a contractor TDIP line file (.dat / .ipg: T1X T2X R1X R2X ... RHO ... MX, '*' = electrode at infinity)")}><Upload size={14} />{" "}{tr("Import line (CSV / .dat)…")}</button>
+      <button className="gs-btn gs-btn--block" style={{ marginTop: 8 }} onClick={() => fileRef.current?.click()} title={tr("A CSV, or a contractor TDIP line file (.dat / .ipg: T1X T2X R1X R2X ... RHO ... MX, '*' = electrode at infinity)")}><Upload size={14} />{" "}{tr("Import line (CSV / .dat)…")}</button>
       {dcipLines.length > 0 && (
         <div style={row}>
           <select value={pick} onChange={(e) => { setPick(e.target.value); if (e.target.value) loadSaved(e.target.value); }} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Lines saved in the project")}>
             <option value="">{tr("Lines in this project ({dcipLines})…", { dcipLines: dcipLines.length })}</option>
             {dcipLines.map((l) => <option key={l.id} value={l.id}>{tr("{name} — {readings} readings{v}", { name: l.name, readings: l.readings.length, v: l.section ? tr(", inverted") : "" })}</option>)}
           </select>
-          {pick && <button onClick={async () => { const e = dcipLines.find((l) => l.id === pick); if (!await confirmDestructive(tr("Remove the saved line \"{name}\"{inv} from the project?", { name: e?.name || "", inv: e?.section ? tr(" and its inversion result") : "" }), { recover: e?.section ? tr("re-import the line file and run the inversion again.") : tr("re-import the line file.") })) return; removeDcipLine(pick); setPick(""); }} /* confirm: #322 */ title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")} style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={14} /></button>}
+          {pick && <button className="gs-btn gs-btn--icon gs-btn--sm" onClick={async () => { const e = dcipLines.find((l) => l.id === pick); if (!await confirmDestructive(tr("Remove the saved line \"{name}\"{inv} from the project?", { name: e?.name || "", inv: e?.section ? tr(" and its inversion result") : "" }), { recover: e?.section ? tr("re-import the line file and run the inversion again.") : tr("re-import the line file.") })) return; removeDcipLine(pick); setPick(""); }} /* confirm: #322 */ title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")}><Trash2 size={14} /></button>}
         </div>
       )}
       <input ref={fileRef} type="file" multiple accept=".csv,.txt,.dat,.ipg,.arw,.gpx,.wpt,.xyz,.dc" style={{ display: "none" }} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
       {/* TASKS.csv #1348 — a contractor's UBC-GIF DCIP2D inversion (dcinv2d.msh + dcinv2d.con / ipinv2d.chg), placed along its line */}
-      <button onClick={() => ubcRef.current?.click()} style={{ ...pBtn, marginTop: 6 }} title={tr("The mesh (dcinv2d.msh) with its .con and / or .chg model, the topography file and the line's station file to place it")}><Upload size={14} />{" "}{tr("Import a UBC DCIP2D inversion (mesh + model)…")}</button>
+      <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => ubcRef.current?.click()} title={tr("The mesh (dcinv2d.msh) with its .con and / or .chg model, the topography file and the line's station file to place it")}><Upload size={14} />{" "}{tr("Import a UBC DCIP2D inversion (mesh + model)…")}</button>
       <div style={{ ...small, marginTop: 4 }}>{tr("One 2D line only. A UBC 3D mesh goes to Block models; a cloud of apparent values (X Y Z value) to Point survey.")}</div>{/* TASKS.csv #3812 */}
       <input ref={ubcRef} type="file" multiple accept=".msh,.con,.chg,.txt,.dat,.csv,.mod" style={{ display: "none" }} onChange={(e) => { onUbcFiles(e.target.files); e.target.value = ""; }} />
       {ubc && (
@@ -449,7 +449,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
             {[["x0", tr("X at 0 m")], ["y0", tr("Y at 0 m")], ["x1", tr("X at {s} m", { s: ubc.sEnd })], ["y1", tr("Y at {s} m", { s: ubc.sEnd })]].map(([k, l]) => <label key={k} style={row}><span>{l}</span><input value={ubc.pts[k]} onChange={(e) => setUbc((u) => ({ ...u, pts: { ...u.pts, [k]: e.target.value } }))} style={{ ...numInput, width: 90 }} aria-label={l} /></label>)}
           </div>
           <div style={small}>{ubc.placeNote}</div>
-          <div style={{ display: "flex", gap: 6 }}><button onClick={addUbcSection} style={{ ...pBtn, flex: 1, marginBottom: 0 }}>{tr("Add the section to the project")}</button><button onClick={() => setUbc(null)} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Cancel")}</button></div>
+          <div style={{ display: "flex", gap: 6 }}><button className="gs-btn" style={{ flex: 1 }} onClick={addUbcSection}>{tr("Add the section to the project")}</button><button className="gs-btn" onClick={() => setUbc(null)}>{tr("Cancel")}</button></div>
         </div>
       )}
       {file && (
@@ -477,12 +477,12 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
           )}
           {parsed?.readings.length > 0 && <InResultArea slot={resultSlot}><Pseudosection parsed={parsed} large={!!resultSlot} /></InResultArea>}
           {parsed?.readings.length > 0 && (
-            <button onClick={() => { keepLine(); setMsg({ ok: true, text: tr("{lineName} kept in the project (saved with it; also kept automatically when you invert).", { lineName }) }); }} style={{ ...pBtn, marginTop: 6 }}
+            <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => { keepLine(); setMsg({ ok: true, text: tr("{lineName} kept in the project (saved with it; also kept automatically when you invert).", { lineName }) }); }}
               title={tr("Store the readings, line position and settings in the project file, so the line can be reloaded and re-inverted without the CSV.")}>{tr("Keep line in project")}</button>
           )}
           <div className="ge-section-label" style={{ marginTop: 10 }}>{tr("Line position (project CRS)")}</div>
           <div style={{ ...small, marginBottom: 4 }}>{tr("Easiest: load the survey's GPS or station file — GeoStrix finds line {lineName}'s stations, places the line and takes the ground elevations from them.", { lineName })}</div>
-          <button onClick={() => stationRef.current?.click()} style={{ ...pBtn, marginTop: 6 }} title={tr("GPS waypoints named '<line> <station>' (e.g. '8575E 750N'), or a table of station, X, Y and optional elevation: places the line and its ground profile")}><Upload size={14} />{" "}{tr("Load the line stations (GPS / station file)…")}</button>
+          <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => stationRef.current?.click()} title={tr("GPS waypoints named '<line> <station>' (e.g. '8575E 750N'), or a table of station, X, Y and optional elevation: places the line and its ground profile")}><Upload size={14} />{" "}{tr("Load the line stations (GPS / station file)…")}</button>
           <input ref={stationRef} type="file" accept=".txt,.csv,.dat,.gpx,.wpt,.xyz" style={{ display: "none" }} onChange={(e) => { onStationFile(e.target.files[0]); e.target.value = ""; }} />
           {stationFile && (
             <div style={row}>
@@ -496,7 +496,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
           {line.stations && (
             <div style={{ ...small, display: "flex", gap: 6, alignItems: "baseline" }}>
               <span style={{ flex: 1 }}>{line.stations.line ? tr("Stations: {list} from {file} (line {line}){v}.", { list: line.stations.list.length, file: line.stations.file, line: line.stations.line, v: line.stations.list.some((p) => Number.isFinite(p.z)) ? tr(" — used as the ground profile") : tr(" — no elevations") }) : tr("Stations: {list} from {file}{v}.", { list: line.stations.list.length, file: line.stations.file, v: line.stations.list.some((p) => Number.isFinite(p.z)) ? tr(" — used as the ground profile") : tr(" — no elevations") }) /* #2247 — no '(line )' */}</span>
-              <button onClick={() => setLine((l) => ({ ...l, stations: null }))} style={{ ...pBtn, width: "auto", padding: "2px 6px", marginBottom: 0 }} title={tr("Stop using the station elevations (the placement stays)")}>{tr("Clear")}</button>
+              <button className="gs-btn gs-btn--sm" onClick={() => setLine((l) => ({ ...l, stations: null }))} title={tr("Stop using the station elevations (the placement stays)")}>{tr("Clear")}</button>
             </div>
           )}
           <div style={{ ...small, margin: "6px 0 4px" }}>{tr("Or type two points: each one's distance in the data file and its x / y in the project CRS{v}, from GPS, a map or notes.{v2}", { v: project?.epsg && project?.crsSet !== false /* #2242 */ ? ` (EPSG:${project.epsg})` : "", v2: span ? tr(" Already filled with the first and last electrode ({v} and {v2} m) — look up those two stations.", { v: span[0], v2: span[1] }) : "" })}</div>
@@ -541,7 +541,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
             const deep = deepestPseudoDepth(parsed.readings);
             return deep > (num(opts.depth) || 0) + 1 ? (
               <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("The data plot down to {deep} m (pseudo-depth: half the largest current-to-potential separation).", { deep })}{" "}
-                <button type="button" onClick={() => setOpts((o) => ({ ...o, depth: String(deep), voxExtrapolated: true }))} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>{tr("Model to {deep} m", { deep })}</button>
+                <button className="gs-btn gs-btn--sm" type="button" onClick={() => setOpts((o) => ({ ...o, depth: String(deep), voxExtrapolated: true }))}>{tr("Model to {deep} m", { deep })}</button>
                 {" "}{tr("Below the depth of investigation the cells are extrapolated by the inversion, not seen by the data, and a deeper mesh takes longer to run.")}</div>
             ) : null;
           })()}
@@ -558,20 +558,20 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <button onClick={run} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Play size={14} />{" "}{tr("Invert")}</button>
-            {running && <button onClick={() => cancelInversionJob()} style={{ ...pBtn, width: "auto" }}>{tr("Cancel")}</button>}
+            <button className="gs-btn" style={{ flex: 1 }} onClick={run} disabled={running}><Play size={14} />{" "}{tr("Invert")}</button>
+            {running && <button className="gs-btn" onClick={() => cancelInversionJob()}>{tr("Cancel")}</button>}
           </div>
         </div>
       )}
       {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
       {mesh3d && msg && !msg.ok && ( /* TASKS.csv #3883 (#3812) — the same files to Block models' Import UBC mesh + model (geophysics-ubc: that pane opens and reads them) */
-        <button type="button" data-ubc-to-blocks="" style={{ ...pBtn, marginTop: 4 }} onClick={() => { const files = mesh3d; setMesh3d(null); setMsg(null); requestModuleAction("geophysics-ubc", { files }); }}>{tr("Import as a block model")}</button>
+        <button className="gs-btn gs-btn--block" style={{ marginTop: 4 }} type="button" data-ubc-to-blocks="" onClick={() => { const files = mesh3d; setMesh3d(null); setMsg(null); requestModuleAction("geophysics-ubc", { files }); }}>{tr("Import as a block model")}</button>
       )}
       {job?.error && <div style={{ ...small, marginTop: 6, color: "var(--color-danger-fg)" }}>{job.error}</div>}
-      {last && <InResultArea slot={resultSlot}><SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={stampEpsg(project)} pBtn={pBtn} large={!!resultSlot} /></InResultArea>}
-      <DcipMergePanel pBtn={pBtn} numInput={numInput} />
-      <Dcip3dPanel pBtn={pBtn} numInput={numInput} />
-      <Dcip3dArrayPanel pBtn={pBtn} numInput={numInput} />
+      {last && <InResultArea slot={resultSlot}><SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={stampEpsg(project)} large={!!resultSlot} /></InResultArea>}
+      <DcipMergePanel numInput={numInput} />
+      <Dcip3dPanel numInput={numInput} />
+      <Dcip3dArrayPanel numInput={numInput} />
     </div>
   );
 }
@@ -601,7 +601,7 @@ function Pseudosection({ parsed, large = false }) {
           : parsed.ipKind === "phase" ? tr("Apparent IP phase {v}–{v2} mrad", { v: sig3(arrMin(parsed.ip.filter(Number.isFinite))), v2: sig3(arrMax(parsed.ip.filter(Number.isFinite))) })
           : tr("Data (pseudosection): apparent chargeability {v}–{v2} mV/V", { v: sig3(arrMin(parsed.ip.filter(Number.isFinite))), v2: sig3(arrMax(parsed.ip.filter(Number.isFinite))) })}</span>
         {hasIp && [["resistivity", tr("Resistivity")], ["chargeability", parsed.ipKind === "phase" ? tr("IP phase") : tr("Chargeability")]].map(([v, l]) => (
-          <button key={v} onClick={() => setKind(v)} aria-pressed={v === field} style={{ fontSize: "var(--font-size-xs)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: v === field ? "var(--color-selected-bg)" : "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}>{l}</button>
+          <button data-btn-own="" key={v} onClick={() => setKind(v)} aria-pressed={v === field} style={{ fontSize: "var(--font-size-xs)", padding: "1px 7px", border: "1px solid var(--color-border)", borderRadius: 4, background: v === field ? "var(--color-selected-bg)" : "var(--color-bg)", color: "var(--color-text)", cursor: "pointer" }}>{l}</button>
         ))}
       </div>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} style={{ display: "block", width: "100%", maxWidth: W, height: "auto", background: "var(--color-bg-subtle)", borderRadius: 4 }}>
@@ -626,7 +626,7 @@ function Pseudosection({ parsed, large = false }) {
 }
 
 // the inverted section: cells coloured by resistivity (log) and chargeability, poorly supported cells greyed
-function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
+function SectionResult({ last, cutoff, epsg, large = false }) {
   const { result } = last;
   const { addLayoutImage, goToModule, addVoxelModel } = useStore();
   const [note, setNote] = useState(null);
@@ -665,7 +665,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
       {result.ip && !imported && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{ipPhase ? tr("IP phase: {verdict}", { verdict: iv.shown }) : tr("Chargeability: {verdict}", { verdict: iv.shown })}</div>; })()}
       {c.chargeability && (
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          {["resistivity", "chargeability"].map((f) => <button key={f} onClick={() => setField(f)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: f === field ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{f === "resistivity" ? tr("Resistivity") : ipPhase ? tr("IP phase") : tr("Chargeability")}</button>)}
+          {["resistivity", "chargeability"].map((f) => <button data-btn-own="" key={f} onClick={() => setField(f)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: f === field ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{f === "resistivity" ? tr("Resistivity") : ipPhase ? tr("IP phase") : tr("Chargeability")}</button>)}
         </div>
       )}
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Inverted {field} section", { field })} style={{ display: "block", marginTop: 4, width: "100%", maxWidth: large ? "none" : W, height: "auto" }}>
@@ -684,17 +684,17 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
         {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("colours over {v}–{v2} ohm·m (log: dark red conductive → light blue resistive; the 2nd–98th percentile of the cells the data see, the model runs {a}–{b})", { v: sig3(ramp.lo), v2: sig3(ramp.hi), a: sig3(arrMin(vals)), b: sig3(arrMax(vals)) }) : (ipPhase ? tr("colours over 0–{v} mrad (98th percentile; the model runs to {b})", { v: sig3(ramp.hi), b: sig3(arrMax(vals)) }) : tr("colours over 0–{v} mV/V (the 98th percentile of the cells the data see; the model runs to {b})", { v: sig3(ramp.hi), b: sig3(arrMax(vals)) })), v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: imported ? tr("Imported from the contractor's files (kept in the project).") : last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-        <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title={tr("Every section cell: distance, x / y (project CRS), elevation, size, values, support")}><Download size={14} />{" "}{tr("CSV")}</button>
-        <button onClick={async () => { const img = await sectionImage(last, field, cutoff); saveFile({ suggestedName: `dcip_${safeFileName(last.name, "line")}_${field}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: img.dataUrl.split(",")[1], encoding: "base64" }); }} style={{ ...pBtn, width: "auto", flex: 1 }}><Download size={14} />{" "}{tr("PNG")}</button>
-        <button onClick={async () => { const img = await sectionImage(last, field, cutoff); addLayoutImage({ label: `DC/IP ${last.name} — ${field}`, src: img.dataUrl, naturalW: img.width, naturalH: img.height }); goToModule("layout"); setNote(tr("Section added to the Layout page.")); }} style={{ ...pBtn, width: "auto", flex: 1 }}>{tr("Add to Layout")}</button>
+        <button className="gs-btn" style={{ flex: 1 }} onClick={() => exportCsv(last, epsg, cutoff)} title={tr("Every section cell: distance, x / y (project CRS), elevation, size, values, support")}><Download size={14} />{" "}{tr("CSV")}</button>
+        <button className="gs-btn" style={{ flex: 1 }} onClick={async () => { const img = await sectionImage(last, field, cutoff); saveFile({ suggestedName: `dcip_${safeFileName(last.name, "line")}_${field}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: img.dataUrl.split(",")[1], encoding: "base64" }); }}><Download size={14} />{" "}{tr("PNG")}</button>
+        <button className="gs-btn" style={{ flex: 1 }} onClick={async () => { const img = await sectionImage(last, field, cutoff); addLayoutImage({ label: `DC/IP ${last.name} — ${field}`, src: img.dataUrl, naturalW: img.width, naturalH: img.height }); goToModule("layout"); setNote(tr("Section added to the Layout page.")); }}>{tr("Add to Layout")}</button>
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
         {[["observed", tr("Add observed voxel")], ["extrapolated", tr("Add extrapolated voxel (to {v} m)", { v: (z1 - z0).toFixed(0) })]].map(([k, label]) => (
-          <button key={k} onClick={() => {
+          <button className="gs-btn" style={{ flex: 1 }} key={k} onClick={() => {
             const ms = lineVoxelModels(result, last.geom, { name: last.name, thick: last.thick || c.ds[0] || 10, cut: cutoff, params: { tool: "2D DC resistivity / IP inversion (SimPEG)", line: last.name, versions: result.versions, inverted: last.restored || "this session" }, kinds: [k], dataRho: last.obs?.rho }); // dataRho: #2072
             ms.forEach((m) => addVoxelModel(m));
             setNote(tr("Added {v} to Block models.", { v: ms.map((m) => `"${m.name}"`).join(" and ") }));
-          }} style={{ ...pBtn, width: "auto", flex: 1 }}
+          }}
             title={k === "observed" ? tr("The cells within the depth of investigation only") : tr("Every cell of the model; below the depth of investigation the values are the inversion's extrapolation, not data")}>{label}</button>
         ))}
       </div>
@@ -742,7 +742,7 @@ function DataFit({ obs, result }) {
       <div className="ge-section-label">{tr("Data fit")}</div>
       {hasIp && (
         <div style={{ display: "flex", gap: 4, marginBottom: 2 }}>
-          {[["dc", tr("Resistivity")], ["ip", result.ipKind === "phase" ? tr("IP phase") : tr("Chargeability")]].map(([v, l]) => <button key={v} onClick={() => setKind(v)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: v === k ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{l}</button>)}
+          {[["dc", tr("Resistivity")], ["ip", result.ipKind === "phase" ? tr("IP phase") : tr("Chargeability")]].map(([v, l]) => <button data-btn-own="" key={v} onClick={() => setKind(v)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: v === k ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{l}</button>)}
         </div>
       )}
       {plot(tr("Observed ({v}–{v2} {unit})", { v: fmt(lo), v2: fmt(hi), unit }), (x) => (Number.isFinite(x.obs) ? colorForVoxelValue(valModel, x.obs) : null))}

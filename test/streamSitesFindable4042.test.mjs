@@ -21,7 +21,7 @@ test("#4042 Plan survey is in Geochem's Basic tools, and the planner opens on St
 test("#4042 'Plan stream sites…' where the DEM is, and a pointer in Catchments: each asks Geochem for the planner on Stream sites", () => {
   const ask = /requestModuleAction\("plan-stream-sites", \{ tab: "streams" \}\)/; // a payload: kept for two minutes while Geochem loads
   const geo = read("../src/modules/GeophysicsModule.jsx");
-  assert.match(geo, /<button onClick=\{\(\) => \{ goToModule\?\.\("geochem"\); requestModuleAction\("plan-stream-sites", \{ tab: "streams" \}\); \}\}[^\n]*\{tr\("Plan stream sites…"\)\}<\/button>/, "Maps > Terrain, beside Export to GeoTIFF");
+  assert.match(geo, /<button className="gs-btn gs-btn--block" style=\{\{ marginTop: 6, marginBottom: 0 \}\} onClick=\{\(\) => \{ goToModule\?\.\("geochem"\); requestModuleAction\("plan-stream-sites", \{ tab: "streams" \}\); \}\}[^\n]*\{tr\("Plan stream sites…"\)\}<\/button>/, "Maps > Terrain, beside Export to GeoTIFF");
   const card = read("../src/modules/viewer/TerrainCard.jsx");
   assert.match(card, /\{ label: tr\("Plan stream sites…"\), onClick: \(\) => \{ goToModule\("geochem"\); requestModuleAction\("plan-stream-sites", \{ tab: "streams" \}\); \} \}/, "the terrain row's menu");
   const c = read("../src/components/CatchmentsPanel.jsx");

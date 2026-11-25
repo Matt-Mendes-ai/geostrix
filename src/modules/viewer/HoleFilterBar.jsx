@@ -7,7 +7,6 @@ import { collarTwinGroups, mergeCollarTwins, twinGroupText } from "../../lib/att
 import { LAYER_META } from "../../lib/layers.js"; // TASKS.csv #3690
 import { holeFieldPicks, holesWithoutField, noValuePick } from "../../lib/viewer/holeFieldPicks.js"; // TASKS.csv #3074
 
-const btn = { flex: 1, minWidth: 0, padding: "3px 4px", fontSize: "var(--font-size-xs)", background: "var(--color-bg)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer" };
 
 export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles, setVisibleHoles, colourBy = "", setColourBy = null, holeSets = null, onApplied = null }) { // colourBy: #1504; holeSets: #3554
   const ids = collars.map((c) => c.hole_id);
@@ -56,13 +55,13 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
       {twins.length > 0 && setCollars && ( /* TASKS.csv #3742 — the import notice named them (#3733); here one click makes each group one value, in the filter, the colours and Grade statistics */
         <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>
           {tr("These collar values look like one value spelled two ways: {list}.", { list: twins.slice(0, 3).map((g) => `${g.col}: ${twinGroupText(g)}`).join("; ") + (twins.length > 3 ? "; …" : "") })}{" "}
-          <button type="button" style={{ ...btn, flex: "none", padding: "1px 6px" }} onClick={() => setCollars((p) => mergeCollarTwins(p).collars)} title={tr("Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.")}>{tr("Make them one")}</button>
+          <button className="gs-btn gs-btn--sm" style={{ flex: "none" }} type="button" onClick={() => setCollars((p) => mergeCollarTwins(p).collars)} title={tr("Rewrites the less common spelling of each group to the commoner one, on every collar. Undo brings them back.")}>{tr("Make them one")}</button>
         </div>
       )}
       <div style={{ display: "flex", gap: 4 }}>
-        <button type="button" style={btn} onClick={() => apply("show")} title={tr("Show every hole listed below")}>{tr("Check {n}", { n: shown.length })}</button>
-        <button type="button" style={btn} onClick={() => apply("hide")} title={tr("Hide every hole listed below")}>{tr("Uncheck {n}", { n: shown.length })}</button>
-        <button type="button" style={btn} onClick={() => apply("only")} title={tr("Show the holes listed below and hide all the others")}>{tr("Only these")}</button>
+        <button className="gs-btn gs-btn--sm" style={{ flex: 1, minWidth: 0 }} type="button" onClick={() => apply("show")} title={tr("Show every hole listed below")}>{tr("Check {n}", { n: shown.length })}</button>
+        <button className="gs-btn gs-btn--sm" style={{ flex: 1, minWidth: 0 }} type="button" onClick={() => apply("hide")} title={tr("Hide every hole listed below")}>{tr("Uncheck {n}", { n: shown.length })}</button>
+        <button className="gs-btn gs-btn--sm" style={{ flex: 1, minWidth: 0 }} type="button" onClick={() => apply("only")} title={tr("Show the holes listed below and hide all the others")}>{tr("Only these")}</button>
       </div>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3 }}>{tr("{ticked} of {total} checked", { ticked, total: ids.length })}</div>
       {!shown.length && filter.trim() && ( /* TASKS.csv #3554 — nothing listed: say what the box reads (it said nothing for 'year>=2017') */

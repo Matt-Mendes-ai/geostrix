@@ -28,7 +28,7 @@ test("#3444 the Generate button uses the worker, shows the rows done and has a C
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(g, /const job = idwGridAsync\(pts, \{ xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, maxDistance: blank \}/);
   assert.match(g, /raster = gridValuesToRasterInput\(res\.values, res\.gridW, res\.gridH, \{ xmin, ymax, cellSize: idwCellSize, name: gName, stretch: idwStretch \}\);/);
-  assert.match(g, /\{idwMethod !== "spline" && <button type="button" onClick=\{\(\) => idwCancel\.current\?\.\(\)\}/);
+  assert.match(g, /\{idwMethod !== "spline" && <button className="gs-btn" type="button" onClick=\{\(\) => idwCancel\.current\?\.\(\)\}/);
   assert.doesNotMatch(g, /This grid has \{cells\} cells\. IDW runs in this window/);
   const w = readFileSync(new URL("../src/lib/idwGrid.worker.js", import.meta.url), "utf8");
   assert.match(w, /self\.postMessage\(r, \[r\.values\.buffer\]\)/);

@@ -16,7 +16,7 @@ import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — th
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 4 };
 const lbl = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: "var(--font-size-sm)", marginTop: 5 };
 
-export default function GravityReductionBox({ survey, rows, epsg, terrain, setLayers, updateGeophysSurvey, numInput, pBtn, method = null }) {
+export default function GravityReductionBox({ survey, rows, epsg, terrain, setLayers, updateGeophysSurvey, numInput, method = null }) {
   const startProjectJob = useStartProjectJob(); // TASKS.csv #3953
   const pts = useMemo(() => rows.filter((r) => surveyKey(r) === survey && Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)), [rows, survey]);
   const withZ = useMemo(() => pts.filter((r) => Number.isFinite(r.z)), [pts]);
@@ -100,8 +100,8 @@ export default function GravityReductionBox({ survey, rows, epsg, terrain, setLa
       <div style={note}>{tr("2,670 kg/m³ is the conventional crustal density; use the rocks' own where known. The terrain prisms run from sea level to the ground.")}</div>
       {twice && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Labelled a Bouguer anomaly: a Bouguer correction would remove the plate twice. If it is free-air, change the survey's method above, or tick below.")}</div>}
       {twice && <label style={{ ...lbl, justifyContent: "flex-start" }}><input type="checkbox" checked={anyway} onChange={(e) => setAnyway(e.target.checked)} />{tr("These readings are a free-air anomaly: reduce them")}</label>}
-      {!busy ? <button type="button" onClick={run} disabled={twice && !anyway} style={{ ...pBtn, marginTop: 6, marginBottom: 0, opacity: twice && !anyway ? 0.5 : 1 }}>{tr("Reduce")}</button>
-        : <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}><span style={{ ...note, marginTop: 0, flex: 1 }}>{busy}</span><button type="button" onClick={() => abort.current?.abort()} style={{ ...pBtn, width: "auto", marginTop: 0, marginBottom: 0 }}>{tr("Cancel")}</button></div>}
+      {!busy ? <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={run} disabled={twice && !anyway}>{tr("Reduce")}</button>
+        : <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}><span style={{ ...note, marginTop: 0, flex: 1 }}>{busy}</span><button className="gs-btn" type="button" onClick={() => abort.current?.abort()}>{tr("Cancel")}</button></div>}
       {msg && <div role="status" style={{ ...note, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-text)" }}>{msg.text}</div>}
     </div>
   );

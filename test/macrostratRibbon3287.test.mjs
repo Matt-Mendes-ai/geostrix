@@ -18,7 +18,7 @@ test("the pane answers the action with the item's own steps; the item keeps them
   const g = rd("modules/GeophysicsModule.jsx");
   assert.match(g, /useModuleAction\(\["open-macrostrat"\], \(\) => \{ if \(forcePane === "web"\) openMacrostrat\(\); \}\);/);
   assert.match(g, /const openMacrostrat = async \(\) => \{\n[^\n]*ensureProjectCrs[^\n]*\n\s*setWebLayerDefaultBbox\(await defaultSrtmBboxLonLat\(\)\); setWebAreaOptions\(await buildFetchAreas\(\)\); setMacrostratOpen\(true\);/); // the areas: #3954
-  assert.match(g, /<button onClick=\{openMacrostrat [^}]*\} style=\{pBtn\} title=\{tr\("Macrostrat's compilation of geologic maps/);
+  assert.match(g, /<button className="gs-btn gs-btn--block" onClick=\{openMacrostrat [^}]*\} title=\{tr\("Macrostrat's compilation of geologic maps/);
   assert.match(g, /\{tr\("Macrostrat geology…"\)\}<\/button>/);
 });
 

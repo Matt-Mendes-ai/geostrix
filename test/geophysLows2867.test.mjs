@@ -44,7 +44,7 @@ test("#2871 small things: the Source CRS kept, Clear clears the notices, no '-0 
   assert.match(g, /keptGeophysSourceEpsg = v; setGeophysSourceEpsg\(v\);/);
   assert.match(g, /replaceLayer\("geophys_pts", \[\]\); setError\(null\); setXyzError\(null\);/);
   assert.match(g, /aria-label=\{tr\("Colour stretch of \\"\{name\}\\"", \{ name: model\.name \?\? tr\("Geophysics points"\) \}\)\}/);
-  assert.match(g, /<button type="button" aria-label=\{tr\("Remove survey \\"\{key\}\\"", \{ key: sv\.key \}\)\}/);
+  assert.match(g, /<button className="gs-btn gs-btn--icon gs-btn--sm" type="button" aria-label=\{tr\("Remove survey \\"\{key\}\\"", \{ key: sv\.key \}\)\}/);
   assert.match(read("../src/components/IdentifyPanel.jsx"), /z: \(Math\.round\(it\.world\.z\) \|\| 0\)\.toLocaleString\(\)/);
   assert.equal((Math.round(-0.3) || 0).toLocaleString(), "0");
   assert.match(read("../src/lib/viewer/identify.js"), /else fields\.push\(\[tr\("Value"\), tr\("No data at this point"\)\]\);/);

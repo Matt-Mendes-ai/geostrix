@@ -58,7 +58,7 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand, crs
     return (
       <div style={panelStyle}>
         <div style={{ padding: 10, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", textAlign: "center" }}>{crsUnset ? tr("The project's coordinate system isn't set, so it has no real-world location yet. Set it from the CRS box in the status bar.") /* TASKS.csv #2207 */ : tr("No real-world location yet — import collars (or a georeferenced raster/terrain) first.")}</div>
-        <button onClick={onClose} title={tr("Hide locator map")} style={closeBtnStyle}><X size={12} /></button>
+        <button data-btn-own="" onClick={onClose} title={tr("Hide locator map")} style={closeBtnStyle}><X size={12} /></button>
       </div>
     );
   }
@@ -96,10 +96,10 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand, crs
       </div>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-disabled)", textAlign: "center", marginTop: 3 }}>{getBaseLayer(effectiveLayerId).attribution}</div>
       {onExpand && (
-        <button onClick={onExpand} title={tr("Expand to full-screen map")} style={expandBtnStyle}><Maximize2 size={12} /></button>
+        <button data-btn-own="" onClick={onExpand} title={tr("Expand to full-screen map")} style={expandBtnStyle}><Maximize2 size={12} /></button>
       )}
       <div style={{ position: "absolute", bottom: -8, left: -8 }}>
-        <button onClick={() => setLayerPickerOpen((v) => !v)} title={tr("Base layer")} style={{ ...closeBtnStyle, position: "static" }}><Layers size={12} /></button>
+        <button data-btn-own="" onClick={() => setLayerPickerOpen((v) => !v)} title={tr("Base layer")} style={{ ...closeBtnStyle, position: "static" }}><Layers size={12} /></button>
         {layerPickerOpen && (
           <div style={{ position: "relative" }}>
             <LayerPicker
@@ -113,7 +113,7 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand, crs
           </div>
         )}
       </div>
-      <button onClick={onClose} title={tr("Hide locator map")} style={closeBtnStyle}><X size={12} /></button>
+      <button data-btn-own="" onClick={onClose} title={tr("Hide locator map")} style={closeBtnStyle}><X size={12} /></button>
     </div>
   );
 }

@@ -37,7 +37,7 @@ export function VoxelChoice({ o, setO, lbl, row }) {
   );
 }
 
-export default function Dcip3dPanel({ pBtn, numInput }) {
+export default function Dcip3dPanel({ numInput }) {
   const { terrain, dcipLines, addVoxelModelToTab, getProjectToken, startProjectJob /* #3953 */ } = useStore();
   const setTaskProgress = useSetTaskProgress();
   const placed = useMemo(() => dcipLines.map((e) => ({ e, l: lineIn3d(e, terrain) })), [dcipLines, terrain]);
@@ -159,9 +159,9 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
       <div style={row} title={tr("Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.001} value={o.cutoff} onChange={(v) => setO((p) => ({ ...p, cutoff: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Support cutoff")} /></div>
       <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        <button onClick={estimate} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Box size={14} />{" "}{tr("Estimate")}</button>
-        <button onClick={run} disabled={running || !plan?.ok} title={plan ? "" : tr("Estimate first")} style={{ ...pBtn, flex: 1, opacity: running || !plan?.ok ? 0.5 : 1 }}><Play size={14} />{" "}{tr("Invert in 3D")}</button>
-        {running && job?.meta?.dcip3d && <button onClick={() => cancelInversionJob()} style={{ ...pBtn, width: "auto" }}>{tr("Cancel")}</button>}
+        <button className="gs-btn" style={{ flex: 1 }} onClick={estimate} disabled={running}><Box size={14} />{" "}{tr("Estimate")}</button>
+        <button className="gs-btn" style={{ flex: 1 }} onClick={run} disabled={running || !plan?.ok} title={plan ? "" : tr("Estimate first")}><Play size={14} />{" "}{tr("Invert in 3D")}</button>
+        {running && job?.meta?.dcip3d && <button className="gs-btn" onClick={() => cancelInversionJob()}>{tr("Cancel")}</button>}
       </div>
       {plan && (
         <div style={{ ...small, marginTop: 6, color: plan.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>

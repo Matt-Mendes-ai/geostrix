@@ -38,12 +38,12 @@ export default function RasterPictureLegend({ raster: r, updateRaster }) {
             <img src={r.legendImage.dataUrl} alt={tr("Colour bar of \"{name}\"", { name: r.name })} style={{ maxWidth: "100%", maxHeight: 160, display: "block", border: "1px solid var(--color-border)", background: "#fff" }} />
             <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
               <span style={{ ...xs, color: "var(--color-text-muted)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.legendImage.name}</span>
-              <button type="button" onClick={() => input.current?.click()} style={link}>{tr("Replace")}</button>
-              <button type="button" onClick={() => updateRaster(r.id, { legendImage: null })} style={link}>{tr("Remove")}</button>
+              <button data-btn-own="" type="button" onClick={() => input.current?.click()} style={link}>{tr("Replace")}</button>
+              <button data-btn-own="" type="button" onClick={() => updateRaster(r.id, { legendImage: null })} style={link}>{tr("Remove")}</button>
             </div>
           </div>
         )
-        : <button type="button" onClick={() => input.current?.click()} style={{ ...link, marginTop: 3 }}>{tr("Attach the map's colour bar (a picture)…")}</button>}
+        : <button data-btn-own="" type="button" onClick={() => input.current?.click()} style={{ ...link, marginTop: 3 }}>{tr("Attach the map's colour bar (a picture)…")}</button>}
       <input ref={input} type="file" accept=".png,.jpg,.jpeg,.webp,.gif" aria-label={tr("Colour bar picture of \"{name}\"", { name: r.name })} style={{ display: "none" }} onChange={(e) => { attach(e.target.files?.[0]); e.target.value = ""; }} />
       {err && <div role="status" style={{ ...xs, color: "var(--color-danger-text)" }}>{err}</div>}
     </div>

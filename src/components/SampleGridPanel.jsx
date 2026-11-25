@@ -76,7 +76,7 @@ export default function SampleGridPanel({ setNotices }) {
   };
   return (
     <div style={{ marginTop: 8 }}>
-      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} style={{ width: "100%", padding: "5px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("Grid an element to a raster…")}</button>
+      <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} onClick={() => setOpen((o) => !o)} aria-expanded={open}>{tr("Grid an element to a raster…")}</button>
       {open && el && (
         <div style={{ marginTop: 6, padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", gap: 6 }}>
@@ -98,7 +98,7 @@ export default function SampleGridPanel({ setNotices }) {
           </div>
           {suggestion && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Blank fields use the sample spacing: about {s} m between samples, so {c} m cells and no value beyond {b} m of a sample.", { s: Math.round(suggestion.spacingM), c: suggestion.cellM, b: suggestion.blankM })}</div>}
           {busy ? <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{busy}</div>
-            : <button onClick={run} style={{ padding: "6px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-selected-border)", borderRadius: 5, background: "var(--color-selected-bg)", color: "var(--color-primary)", cursor: "pointer" }}>{tr("Grid to raster")}</button>}
+            : <button className="gs-btn gs-btn--sm" onClick={run}>{tr("Grid to raster")}</button>}
         </div>
       )}
     </div>

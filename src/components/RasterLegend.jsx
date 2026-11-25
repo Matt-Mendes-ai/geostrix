@@ -33,7 +33,7 @@ export default function RasterLegend({ raster: r, updateRaster, compact = false 
   if (!legend) {
     return (
       <div style={wrap}>
-        <button type="button" onClick={fetchLegend} disabled={!!busy} style={link}>{busy || tr("Fetch the legend (which colour is which map unit)")}</button>
+        <button data-btn-own="" type="button" onClick={fetchLegend} disabled={!!busy} style={link}>{busy || tr("Fetch the legend (which colour is which map unit)")}</button>
         {err && <div role="status" style={{ ...xs, color: "var(--color-danger-text)" }}>{err}</div>}
       </div>
     );
@@ -43,7 +43,7 @@ export default function RasterLegend({ raster: r, updateRaster, compact = false 
   const stale = isMacrostrat(r) && !legend.inArea && !!r.provenance?.areaLonLat;
   return (
     <div style={wrap}>
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} style={link}>{open ? tr("Hide the legend") : title}</button>
+      <button data-btn-own="" type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} style={link}>{open ? tr("Hide the legend") : title}</button>
       {open && (
         <div role="list" aria-label={title} style={{ ...xs, marginTop: 4, maxHeight: compact ? 220 : 360, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
           {legend.units.map((u) => (
@@ -56,7 +56,7 @@ export default function RasterLegend({ raster: r, updateRaster, compact = false 
               </span>
             </div>
           ))}
-          {stale && <div style={{ color: "var(--color-warn-text)" }}>{tr("This legend was read before GeoStrix cut it to the drape's area, so it can list units of the surrounding tiles that are not on the map.")}{" "}<button type="button" onClick={fetchLegend} disabled={!!busy} style={link}>{busy || tr("Fetch it again for the area only")}</button></div>}
+          {stale && <div style={{ color: "var(--color-warn-text)" }}>{tr("This legend was read before GeoStrix cut it to the drape's area, so it can list units of the surrounding tiles that are not on the map.")}{" "}<button data-btn-own="" type="button" onClick={fetchLegend} disabled={!!busy} style={link}>{busy || tr("Fetch it again for the area only")}</button></div>}
           {err && <div role="status" style={{ color: "var(--color-danger-text)" }}>{err}</div>}
           {legend.lines?.length > 0 && <div style={{ color: "var(--color-text-secondary)" }}>{tr("Also drawn, as lines: {list}.", { list: legend.lines.map((l) => `${l.count} ${l.type}`).join(", ") })}</div>}
           <div style={{ color: "var(--color-text-muted)", marginTop: 3 }}>

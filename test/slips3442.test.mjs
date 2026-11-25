@@ -17,7 +17,7 @@ test("#3442 (6) two long codes never read the same; a short one is untouched; a 
 
 test("#3442 (3) (7) (8) (9) wording and stale messages", () => {
   const g = rd("../src/modules/GeophysicsModule.jsx");
-  assert.match(g, /<button onClick=\{\(\) => \{ setXyzPending\(null\); setXyzError\(null\); setError\(null\);/); // a cancelled picker's message goes with it
+  assert.match(g, /<button className="gs-btn" style=\{\{ width: 90 \}\} onClick=\{\(\) => \{ setXyzPending\(null\); setXyzError\(null\); setError\(null\);/); // a cancelled picker's message goes with it
   assert.match(g, /const about = \(e\) => \(e && typeof e === "object" && String\(e\.text \|\| ""\)\.includes\(`"\$\{sv\.key\}"`\) \? null : e\); setXyzError\(about\); setError\(about\);/);
   assert.match(g, /This limits block models only \(OMF and UBC imports\)\. Point surveys and rasters are not cut down by it\./);
   const d = rd("../src/components/DcipPanel.jsx");

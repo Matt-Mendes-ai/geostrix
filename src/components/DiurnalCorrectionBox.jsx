@@ -9,7 +9,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // selects it as the Value; removing every base removes the channel again. All maths is in lib/diurnal.js.
 //   pending: the picker's xyzPending ({ rows, columns, valueCol, header: gemHeaderInfo(...) , ... })
 //   setPending: its setter
-export default function DiurnalCorrectionBox({ pending, setPending, numInput, pBtn }) {
+export default function DiurnalCorrectionBox({ pending, setPending, numInput }) {
   const fileRef = useRef(null);
   const [bases, setBases] = useState([]);
   const [rawCol, setRawCol] = useState(() => pending.valueCol || "");

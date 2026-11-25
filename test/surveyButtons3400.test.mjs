@@ -65,5 +65,5 @@ test("each method's pane has its help page; the EM chooser offers FDEM 1D and TE
 
 test("the three import paths take the method from the button", () => {
   assert.equal((src.match(/methodWithHint\(guessSurveyMethodFrom\(/g) || []).length, 3);
-  assert.match(src, /<button type="button" onClick=\{\(\) => setMethodHint\(null\)\}[^\n]*\{tr\("Import without a method"\)\}/);
+  assert.match(src, /<button data-btn-own="" type="button" onClick=\{\(\) => setMethodHint\(null\)\}[^\n]*\{tr\("Import without a method"\)\}/);
 });

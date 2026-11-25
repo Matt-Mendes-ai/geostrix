@@ -51,7 +51,7 @@ const METHODS = {
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
-export default function InversionPanel({ pBtn, numInput, inPane = false, resultSlot = null }) { // inPane: TASKS.csv #458
+export default function InversionPanel({ numInput, inPane = false, resultSlot = null }) { // inPane: TASKS.csv #458
   const { layers, customLayers /* #2950 */, terrain: projectTerrain /* #2638 — the run may use its own ground, below */, project, surfaceStructures, getProjectToken, startProjectJob /* #3953 */, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain, goToModule } = useStore(); // goToModule: #1429 // addTerrain: #1589
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
@@ -538,7 +538,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
               })()}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span>{terrain ? "✓ " + tr("Terrain: {name}.", { name: terrain.name || tr("loaded") }) : "○ " + tr("Terrain: none yet. Fetch one, import a DEM, or make one from the samples and collars, so the inversion knows which cells are underground.")}</span>
-                {!terrain && <button type="button" onClick={() => { goToModule("maps"); requestModuleAction("maps-terrain"); }} style={{ ...pBtn, width: "auto", padding: "2px 8px", margin: 0 }}>{tr("Go to Maps › Terrain")}</button>}
+                {!terrain && <button className="gs-btn gs-btn--sm" type="button" onClick={() => { goToModule("maps"); requestModuleAction("maps-terrain"); }}>{tr("Go to Maps › Terrain")}</button>}
               </div>
             </div>
           )}
@@ -626,7 +626,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   <span style={lbl}>{tr("Thin to one per")}</span><NumberInput allowEmpty min={0} value={thin} onChange={(v) => setThin((v == null ? "" : String(v)))} style={inp} /> m
                   {num(thin) > 0 && <span style={small}>{tr("→ {n} stations", { n: thinStationIndices(xs, ys, num(thin)).length.toLocaleString() })}</span>}
                   {thinSuggestion && !(num(thin) >= thinSuggestion.spacing) && (
-                    <button type="button" onClick={() => setThin(String(thinSuggestion.spacing))} style={{ ...small, marginLeft: 6, padding: "1px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}
+                    <button className="gs-btn gs-btn--sm" style={{ marginLeft: 6 }} type="button" onClick={() => setThin(String(thinSuggestion.spacing))}
                       title={tr("{rows} stations is over the {MAX_STATIONS} an inversion takes", { rows: rows.length.toLocaleString(), MAX_STATIONS: MAX_STATIONS.toLocaleString() })}>{tr("Thin to {spacing} m", { spacing: thinSuggestion.spacing })}</button>
                   )}
                 </div>
@@ -636,7 +636,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 {[["strength", tr("Strength (nT)")], ["inclination", tr("Inclination (°)")], ["declination", tr("Declination (° true)")]].map(([k, l]) => (
                   <div key={k} style={row}><span style={lbl}>{l}</span><NumberInput allowEmpty value={field[k]} onChange={(v) => setField((p) => ({ ...p, [k]: (v == null ? "" : String(v)), source: "entered by user" }))} style={inp} /></div>
                 ))}
-                <button onClick={computeIgrf} disabled={!field.date || !rows.length || crsUnset} style={{ ...pBtn, marginTop: 7, marginBottom: 0, opacity: field.date && rows.length && !crsUnset ? 1 : 0.5 }} title={tr("Fill the three values from the IGRF-14 model for the survey date at the survey centre. Your survey report's values take precedence.")}>
+                <button className="gs-btn gs-btn--block" style={{ marginTop: 7, marginBottom: 0 }} onClick={computeIgrf} disabled={!field.date || !rows.length || crsUnset} title={tr("Fill the three values from the IGRF-14 model for the survey date at the survey centre. Your survey report's values take precedence.")}>
                   <Compass size={14} />{" "}{tr("Compute from IGRF-14 for the survey date")}</button>
                 {crsUnset && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("IGRF needs the survey's real-world location, and the project CRS isn't set: set it in the status bar first.")}</div>}{/* #2238 */}
                 {field.source && <div style={{ ...small, marginTop: 4 }}>{tr("Source: {source}", { source: field.source })}</div>}
@@ -649,7 +649,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 <div style={row}><span style={lbl}>{tr("+ percent of value")}</span><NumberInput allowEmpty min={0} value={unc.percent} onChange={(v) => setUnc((p) => ({ ...p, percent: (v == null ? "" : String(v)) }))} style={inp} /> %</div>
                 <div style={row} title={tr("Cell size in the core of the model. Around half the station spacing is usual; smaller cells cost memory (data x cells).")}>
                   <span style={lbl}>{tr("Core cell")}</span><NumberInput allowEmpty min={1} value={mesh.coreCell} onChange={(v) => setMesh((p) => ({ ...p, coreCell: (v == null ? "" : String(v)) }))} style={inp} /> m
-                  {coreHint && !mesh.coreCell && <button onClick={() => { setMesh((p) => ({ ...p, coreCell: String(coreHint.cell) })); if (coreHint.lineSpacing && !(num(thin) > 0)) setThin(String(coreHint.cell)); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{coreHint.lineSpacing ? tr("≈ quarter line spacing") : tr("≈ half spacing")}</button>}
+                  {coreHint && !mesh.coreCell && <button className="gs-btn gs-btn--sm" onClick={() => { setMesh((p) => ({ ...p, coreCell: String(coreHint.cell) })); if (coreHint.lineSpacing && !(num(thin) > 0)) setThin(String(coreHint.cell)); }}>{coreHint.lineSpacing ? tr("≈ quarter line spacing") : tr("≈ half spacing")}</button>}
                 </div>
                 {coreHint?.lineSpacing && !mesh.coreCell && <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("Readings {s} m apart on lines {l} m apart: the core cell follows the lines ({c} m, a quarter of their spacing) and readings are thinned to it.", { s: spacing.toFixed(spacing < 10 ? 1 : 0), l: Math.round(coreHint.lineSpacing), c: coreHint.cell })}</div>}{/* #1590 */}
                 <div style={row} title={tr("How deep below the stations the model extends. Potential-field data lose resolution quickly with depth.")}><span style={lbl}>{tr("Model depth")}</span><NumberInput allowEmpty min={1} value={mesh.depth} onChange={(v) => setMesh((p) => ({ ...p, depth: (v == null ? "" : String(v)) }))} style={inp} /> m</div>
@@ -757,17 +757,17 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   {terrain
                     ? (coverage && <span style={{ color: coverage.pct < 90 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{coverage.pct >= 99.95 ? tr("The terrain covers every station.") : tr("The terrain covers {pct}% of the stations; the others would be left out.", { pct: Math.round(coverage.pct) }) /* #2247 — 'the others' only when there are some */}</span>)
                     : <span style={{ color: "var(--color-warn-text)" }}>{tr("No terrain yet: an inversion needs one to know which cells are underground.")}</span>}
-                  {(!terrain || (coverage && coverage.pct < 90)) && !(runGround && runGround.survey === activeSurvey) && <div><button onClick={groundFromStations} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>{tr("Ground from the stations' own elevations…")}</button></div>}
+                  {(!terrain || (coverage && coverage.pct < 90)) && !(runGround && runGround.survey === activeSurvey) && <div><button className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0 }} onClick={groundFromStations}>{tr("Ground from the stations' own elevations…")}</button></div>}
                   {runGround && runGround.survey === activeSurvey && ( /* #2638 */
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                      {projectTerrain && <button onClick={() => { setRunGround(null); setGroundNote(null); }} style={{ ...pBtn, width: "auto", margin: 0, padding: "2px 8px" }}>{tr("Use the project's terrain instead")}</button>}
-                      <button onClick={groundToProject} style={{ ...pBtn, width: "auto", margin: 0, padding: "2px 8px" }}>{tr("Make it the project's terrain…")}</button>
+                      {projectTerrain && <button className="gs-btn gs-btn--sm" onClick={() => { setRunGround(null); setGroundNote(null); }}>{tr("Use the project's terrain instead")}</button>}
+                      <button className="gs-btn gs-btn--sm" onClick={groundToProject}>{tr("Make it the project's terrain…")}</button>
                     </div>
                   )}
                   {groundNote && <div style={{ marginTop: 4 }}>{groundNote}</div>}
                 </div>
               )}
-              <button onClick={() => doPlan("inversion")} disabled={planBusy || running || methodClash} style={{ ...pBtn, marginTop: 8, marginBottom: 4 }}><Gauge size={14} /> {planBusy ? tr("Estimating…") : tr("Estimate size and memory")}</button>
+              <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 4 }} onClick={() => doPlan("inversion")} disabled={planBusy || running || methodClash}><Gauge size={14} /> {planBusy ? tr("Estimating…") : tr("Estimate size and memory")}</button>
               {plan && (
                 <div style={{ ...small, marginBottom: 6 }} aria-live="polite">
                   {tr("{nData} stations × {v}{nActiveEst} underground cells", { nData: plan.nData.toLocaleString(), v: plan.octree ? "" : "~", nActiveEst: plan.nActiveEst.toLocaleString() })}{" "}
@@ -782,7 +782,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   {plan.notes?.map((n) => <div key={n} style={{ marginTop: 3 }}>⚠ {n}</div>)}
                 </div>
               )}
-              <button onClick={runInversion} disabled={running || planBusy || !!invertBlocked} title={invertBlocked || undefined} style={{ ...pBtn, marginBottom: 4, opacity: running || invertBlocked ? 0.5 : 1 }}><Play size={14} />{" "}{tr("Invert")}</button>
+              <button className="gs-btn gs-btn--block" style={{ marginBottom: 4 }} onClick={runInversion} disabled={running || planBusy || !!invertBlocked} title={invertBlocked || undefined}><Play size={14} />{" "}{tr("Invert")}</button>
 
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setPlate((p) => ({ ...p, open: !p.open }))} aria-expanded={plate.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
                 {plate.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Test a body (forward model)")}</div>
@@ -792,9 +792,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   {[["cx", tr("Centre easting")], ["cy", tr("Centre northing")], ["cz", tr("Centre elevation")], ["dipDirection", tr("Dip direction (°)")], ["dip", tr("Dip (°)")], ["strikeLength", tr("Strike length (m)")], ["dipExtent", tr("Down-dip extent (m)")], ["thickness", tr("Thickness (m)")], ["contrast", M ? M.contrastLabel : tr("Contrast")]].map(([k, l]) => (
                     <div key={k} style={row}><span style={lbl}>{l}</span><NumberInput allowEmpty value={plate[k]} onChange={(v) => setPlate((p) => ({ ...p, [k]: (v == null ? "" : String(v)) }))} style={inp} /></div>
                   ))}
-                  {(surfaceStructures || []).length > 0 && <button onClick={nearestOrientation} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Use nearest outcrop measurements for dip")}</button>}
+                  {(surfaceStructures || []).length > 0 && <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={nearestOrientation}>{tr("Use nearest outcrop measurements for dip")}</button>}
                   <label style={{ ...row, cursor: "pointer" }} title={tr("Runs the same plate at dips 10°-90° and shows the misfit for each. A flat curve means these data cannot tell the dip.")}><input type="checkbox" checked={plate.sweep} onChange={(e) => setPlate((p) => ({ ...p, sweep: e.target.checked }))} />{" "}{tr("Dip sweep (10°–90°)")}</label>
-                  <button onClick={runForward} disabled={running || planBusy} style={{ ...pBtn, marginTop: 6, marginBottom: 0, opacity: running ? 0.5 : 1 }}><Activity size={14} />{" "}{tr("Forward model")}</button>
+                  <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={runForward} disabled={running || planBusy}><Activity size={14} />{" "}{tr("Forward model")}</button>
                 </div>
               )}
 
@@ -830,9 +830,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                         : tr("Susceptibilities in SI; the background is the rock around the model. Typical: sediments under 0.001, felsic 0.001–0.01, mafic 0.01–0.1. Remanence is not modelled.")}</div>
                       {geoMedians?.needUnits && <div style={small}>{tr("A susceptibility log is loaded: choose its units under the drillhole constraints in the inversion settings to see each unit's median here.")}</div>}
                       {geoMedians?.by && Object.keys(geoMedians.by).length > 0 && (
-                        <button onClick={() => setGeo((g) => ({ ...g, props: { ...g.props, ...Object.fromEntries(Object.entries(geoMedians.by).map(([k, v]) => [k, String(+v.median.toPrecision(3))])) } }))} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }} title={tr("Fills each unit that has log samples with their median; a median of a few samples is weak. Units without samples stay as entered.")}>{tr("Use the log medians")}</button>
+                        <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={() => setGeo((g) => ({ ...g, props: { ...g.props, ...Object.fromEntries(Object.entries(geoMedians.by).map(([k, v]) => [k, String(+v.median.toPrecision(3))])) } }))} title={tr("Fills each unit that has log samples with their median; a median of a few samples is weak. Units without samples stay as entered.")}>{tr("Use the log medians")}</button>
                       )}
-                      <button onClick={runGeoForward} disabled={running || planBusy} style={{ ...pBtn, marginTop: 6, marginBottom: 0, opacity: running ? 0.5 : 1 }}><Activity size={14} />{" "}{tr("Forward model the geology")}</button>
+                      <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={runGeoForward} disabled={running || planBusy}><Activity size={14} />{" "}{tr("Forward model the geology")}</button>
                     </>)}
                   </>)}
                 </div>
@@ -843,7 +843,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 {sfOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Which contacts can this survey see?")}</div>
               {sfOpen && (
                 <React.Suspense fallback={<div style={small}>{tr("Loading…")}</div>}>
-                  <StructFitPanel method={method} unit={M?.unit || ""} keptScope={keptScope} prepareForward={() => prepare("structfit")} unc={unc} setUnc={setUnc} field={field} ui={{ small, inp, row, lbl, pBtn }} />
+                  <StructFitPanel method={method} unit={M?.unit || ""} keptScope={keptScope} prepareForward={() => prepare("structfit")} unc={unc} setUnc={setUnc} field={field} ui={{ small, inp, row, lbl }} />
                 </React.Suspense>
               )}
 
@@ -851,7 +851,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 <div style={{ marginTop: 8, padding: "7px 9px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                   <div style={{ color: "var(--color-text)" }}>{job.meta.label}: {prog.stage === "iterating" && prog.iter ? tr("iteration {iter} of {maxIter}", { iter: prog.iter, maxIter: prog.maxIter }) : prog.message || prog.stage || "starting"}</div>
                   {prog.phi_d != null && <div style={small}>{tr("Misfit {v}× the target", { v: (prog.phi_d / prog.target).toFixed(2) })}</div>}
-                  <button onClick={() => cancelInversionJob()} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}><Square size={12} />{" "}{tr("Cancel")}</button>
+                  <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} onClick={() => cancelInversionJob()}><Square size={12} />{" "}{tr("Cancel")}</button>
                 </div>
               )}
               {job && !running && job.error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 6 }}>{job.error}</div>}
@@ -886,7 +886,7 @@ function FitView({ last, method, mapSize = 78 }) {
           const add = () => { const pts = st.map((s, i) => ({ x: s[0], y: s[1], z: s[2], value: pred[i], _src: name, line: `L${Math.round(s[0])}` })); setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, pts).rows })); updateGeophysSurvey(name, { method: method === "grav" ? "grav" : "mag", units: SM[method === "grav" ? "grav" : "mag"].units, predicted: true }); setAddedPlanned(true); };
           return (<div style={small}>
             {tr("Predicted anomaly over the {n} planned stations: {lo} to {hi} {unit} (peak-to-peak {pp} {unit}). Worth walking if that clearly exceeds the noise and diurnal residual.", { n: st.length.toLocaleString(), lo: Number.isFinite(lo) ? lo.toFixed(1) : "—", hi: Number.isFinite(hi) ? hi.toFixed(1) : "—", pp: Number.isFinite(hi - lo) ? (hi - lo).toFixed(1) : "—", unit })}
-            {" "}<button onClick={add} disabled={addedPlanned} style={{ ...small, cursor: "pointer", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)" }}>{addedPlanned ? tr("Added ✓") : tr("Add the predicted anomaly as a survey")}</button>
+            {" "}<button className="gs-btn gs-btn--sm" onClick={add} disabled={addedPlanned}>{addedPlanned ? tr("Added ✓") : tr("Add the predicted anomaly as a survey")}</button>
           </div>);
         })()}
         {!last.meta?.plannedGrid && runs.length === 1 && result.body !== "model" && <div style={small}>{tr("RMS about the mean {v} {unit}; after the plate and a base level of {v2} {unit}: {v3} {unit} ({plateCells} cells). Nearer zero: this body explains more.", { v: result.rmsObserved?.toFixed(2), unit, v2: runs[0].baseLevel?.toFixed(2), v3: runs[0].rmsResidual?.toFixed(2), plateCells: runs[0].plateCells })}</div>}

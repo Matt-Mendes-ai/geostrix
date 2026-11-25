@@ -57,7 +57,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
             </select>
           </div>
           {guess && <div style={{ marginTop: -2, marginBottom: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.35 }}>{tr("From its name or unit it looks like {method}.", { method: tr(SURVEY_METHODS[guess].label) })}{" "}
-            <button type="button" onClick={() => onUpdate(r.id, { surveyMethod: guess, ...(r.unit ? {} : { unit: SURVEY_METHODS[guess].units }) })} style={{ background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", fontSize: "inherit" }}>{tr("Set it")}</button></div>}
+            <button data-btn-own="" type="button" onClick={() => onUpdate(r.id, { surveyMethod: guess, ...(r.unit ? {} : { unit: SURVEY_METHODS[guess].units }) })} style={{ background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", fontSize: "inherit" }}>{tr("Set it")}</button></div>}
         </>);
       })()}
       <div style={row}>
@@ -80,14 +80,14 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
       {decades > 1 && style.stretch !== "log" && (
         <div style={{ ...row, color: "var(--color-text-caption)", fontSize: "var(--font-size-xs)" }}>{/* #2851 — the suggestion the Stretch list makes, one click away */}
           <span>{tr("The values span {n} decades: on this stretch most of the grid sits in the lowest colours.", { n: decades.toFixed(1) })}</span>
-          <button type="button" style={{ ...inputStyle, cursor: "pointer", flexShrink: 0 }} onClick={() => apply({ stretch: "log" })}>{tr("Use a log scale")}</button>
+          <button className="gs-btn gs-btn--sm" style={{ flexShrink: 0 }} type="button" onClick={() => apply({ stretch: "log" })}>{tr("Use a log scale")}</button>
         </div>
       )}
       {floor && floor.share >= FLOOR_SHARE_MIN && <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.35 }}>{tr("{p}% of the cells equal the minimum, {v}: a floor value (no response), not a low reading. ‘Histogram equalized’ spreads the colours over the rest.", { p: Math.round(floor.share * 100), v: rangeValueText(floor.min) })}</div>}{/* #2851 */}
       {signed.straddles && !(style.palette === "diverging" && style.stretch === "custom" && style.min === -style.max) && (
         <div style={{ ...row, color: "var(--color-text-caption)", fontSize: "var(--font-size-xs)" }}>{/* #2555 */}
           <span>{tr("The values run both sides of zero: a diverging ramp centred on zero shows highs and lows alike.")}</span>
-          <button type="button" style={{ ...inputStyle, cursor: "pointer", flexShrink: 0 }} onClick={() => apply({ palette: "diverging", stretch: "custom", min: -sig4(signed.symMax), max: sig4(signed.symMax) })}>{tr("Diverging ±{m}", { m: sig4(signed.symMax) })}</button>
+          <button className="gs-btn gs-btn--sm" style={{ flexShrink: 0 }} type="button" onClick={() => apply({ palette: "diverging", stretch: "custom", min: -sig4(signed.symMax), max: sig4(signed.symMax) })}>{tr("Diverging ±{m}", { m: sig4(signed.symMax) })}</button>
         </div>
       )}
       {style.stretch === "custom" && (

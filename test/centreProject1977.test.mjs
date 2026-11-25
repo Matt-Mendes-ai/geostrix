@@ -8,7 +8,7 @@ const s = readFileSync(new URL("../src/components/BasemapView.jsx", import.meta.
 
 test("the button: labelled, shown in a picker with a project area or wherever the project location is known", () => {
   assert.match(s, /const canRecenter = \(mode === "draw" && !!initialBboxLonLat\) \|\| \(Number\.isFinite\(lon\) && Number\.isFinite\(lat\)\);/);
-  assert.match(s, /\{canRecenter && \(\n\s*<button onClick=\{recenter\} title=\{tr\("Centre on project location"\)\}[^\n]*<Crosshair size=\{14\} \/>\{tr\("Centre on project"\)\}<\/button>/);
+  assert.match(s, /\{canRecenter && \(\n\s*<button className="gs-btn gs-btn--sm" onClick=\{recenter\} title=\{tr\("Centre on project location"\)\}[^\n]*<Crosshair size=\{14\} \/>\{tr\("Centre on project"\)\}<\/button>/);
 });
 
 test("it fits the project area in a picker and does not leave the Locate view zoomed far out", () => {

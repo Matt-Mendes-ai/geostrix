@@ -3,7 +3,7 @@ import AreaChooser, { useFetchArea } from "./AreaChooser.jsx"; // TASKS.csv #395
 import { X, Globe, Loader2, Download } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, panel, header, label as labelStyle, sel, inp, btn } from "../lib/modalStyles.js";
+import { overlay, panel, header, label as labelStyle, sel, inp } from "../lib/modalStyles.js";
 import { fetchWmsLayers, fetchWmsMapAsRaster, fetchWfsFeatureTypes, fetchWfsFeaturesAsBoundary, defaultWmsArea, wfsTruncationText, pickWfsStyleField, WMS_DETAIL, wmsImageSize, wmsPixelMetres, wmsTilePlan, WMS_DEFAULT_MAX_REQUEST } from "../lib/webLayers.js";
 import { buildLayer, autoColorFor } from "../lib/mapLayerBuild.js";
 import { autoCategories } from "../lib/mapLayers.js";
@@ -136,7 +136,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
       <div style={panel({ width: 560, maxHeight: "85vh" })} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600 }}><Globe size={14} />{" "}{tr("Add web layer (WMS / WFS)")}</div>
-          <button onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
+          <button data-btn-own="" onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Point this at an OGC service URL, as in QGIS. A WMS imports as a raster drape for a chosen area; a WFS as a Map layer that keeps its attributes, or as boundary lines.")}</div>
@@ -162,7 +162,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
               style={{ ...inp, flex: 1 }}
               onKeyDown={(e) => { if (e.key === "Enter") fetchCapabilities(); }}
             />
-            <button onClick={() => fetchCapabilities()} disabled={!url.trim() || loadingCaps} style={{ ...btn(true), width: "auto", padding: "0 12px", display: "flex", alignItems: "center", gap: 6, opacity: url.trim() && !loadingCaps ? 1 : 0.5 }}>
+            <button className="gs-btn" onClick={() => fetchCapabilities()} disabled={!url.trim() || loadingCaps}>
               {loadingCaps ? <Loader2 size={14} className="spin" /> : null}{" "}{tr("Fetch layers")}</button>
           </div>
           {capsError && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-solid)" }}>{capsError}</div>}
@@ -208,7 +208,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
           {result && <div style={{ fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : result.warn ? "var(--color-warn-text)" : "var(--color-danger-solid)" }}>{result.text}</div>}
 
           {selectedLayer && (
-            <button onClick={doImport} disabled={busy || (service === "wms" && !bboxLonLat)} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.6 : 1 }}>
+            <button className="gs-btn gs-btn--primary" style={{ width: "100%" }} onClick={doImport} disabled={busy || (service === "wms" && !bboxLonLat)}>
               {busy ? <Loader2 size={14} className="spin" /> : <Download size={14} />} {busy ? (wmsProgress ? tr("Fetching {done}/{total}…", wmsProgress) : tr("Importing…")) : tr("Import this layer")}
             </button>
           )}

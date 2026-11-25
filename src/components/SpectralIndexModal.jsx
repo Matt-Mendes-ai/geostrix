@@ -182,7 +182,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
   };
 
   const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
-  const tab = (m, text) => <button onClick={() => { setMode(m); setError(null); if (m === "file") pickSensor(sensor); else if (m === "fetch") pickSource(source); }} style={{ ...btn(mode === m), padding: "6px 12px", flex: 1 }} aria-pressed={mode === m}>{text}</button>;
+  const tab = (m, text) => <button data-btn-own="" onClick={() => { setMode(m); setError(null); if (m === "file") pickSensor(sensor); else if (m === "fetch") pickSource(source); }} style={{ ...btn(mode === m), padding: "6px 12px", flex: 1 }} aria-pressed={mode === m}>{text}</button>;
   const canRun = !parsed.error && !busy && (fetchMode ? !!scene : !!file && !unmapped.length);
   return (
     <div style={overlay}>{/* TASKS.csv #968 — no backdrop close (#387: it holds a file, a scene, band choices); Esc or Close */}
@@ -212,7 +212,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8, ...small }}>{tr("From")}{" "}<input type="date" value={dates.from} onChange={(e) => setDates((d) => ({ ...d, from: e.target.value }))} style={sel} aria-label={tr("From date")} />{tr("to")}{" "}<input type="date" value={dates.to} onChange={(e) => setDates((d) => ({ ...d, to: e.target.value }))} style={sel} aria-label={tr("To date")} />{tr("cloud under")}{" "}<NumberInput min={0} max={100} allowEmpty value={maxCloud === "" || maxCloud == null ? null : maxCloud} onChange={(n) => setMaxCloud(n == null ? "" : String(n))} style={{ ...sel, width: 56 }} aria-label={tr("Maximum cloud cover")} />%
                 </div>
               )}
-              <button onClick={search} disabled={!area || busy} style={{ ...btn(false), padding: "7px 12px", marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, opacity: !area || busy ? 0.5 : 1 }}><Search size={14} />{" "}{tr("Find scenes")}</button>
+              <button className="gs-btn" style={{ marginTop: 8 }} onClick={search} disabled={!area || busy}><Search size={14} />{" "}{tr("Find scenes")}</button>
               {scenes && scenes.length > 0 && (
                 <select value={sceneId} onChange={(e) => setSceneId(e.target.value)} style={{ ...sel, width: "100%", marginTop: 8 }} aria-label={tr("Scene")} size={Math.min(6, scenes.length)}>
                   {scenes.map((s) => <option key={s.id} value={s.id}>{tr("{date} — {v}% cloud, covers {v2}% of the area", { date: s.date, v: Number(s.cloud).toFixed(s.cloud < 10 ? 1 : 0), v2: Math.round(100 * s.coverage) })}{s.source === "aster_tir" ? ` · ${monthName(s.month)}, ${s.day === false ? tr("night") : tr("day")}${s.inSeason ? "" : ", " + tr("outside the clear months")}` /* #4052 */ : ""}</option>)}
@@ -238,7 +238,7 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
           ) : (
             <div>
               <div style={label}>{tr("1. Multiband GeoTIFF")}</div>
-              <button onClick={() => fileInput.current.click()} style={{ ...btn(false), padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} /> {file ? tr("Choose another file…") : tr("Choose a file…")}</button>
+              <button className="gs-btn" onClick={() => fileInput.current.click()}><Upload size={14} /> {file ? tr("Choose another file…") : tr("Choose a file…")}</button>
               <input ref={fileInput} type="file" accept=".tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
               {file && <div style={{ ...small, marginTop: 6 }}>{tr("{name}: {bands} bands, {width} × {height} px.", { name: file.file.name, bands: file.bands, width: file.width.toLocaleString(), height: file.height.toLocaleString() })}{file.bits === 8 && reflective ? " " + tr("8-bit values: a picture or raw counts, not surface reflectance.") : ""}</div>}
               {file && reflective && ( /* TASKS.csv #928 */
@@ -319,9 +319,9 @@ export default function SpectralIndexModal({ epsg, tie = null, defaultElevation,
           {colourNote && <div role="status" style={small}>{colourNote}</div>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
             {progress && <span style={small}>{tr("Reading band {v} of {n}…", { v: Math.min(progress.d + 1, progress.n), n: progress.n })}</span>}
-            {fetchMode && source === "sentinel2" && onDrape && <button onClick={showColour} disabled={!scene || busy} title={tr("The red, green and blue bands of this scene over the area, as a layer named with its date: shows what the index saw (snow, cloud, shadow).")} style={{ ...btn(false), padding: "7px 14px", opacity: scene && !busy ? 1 : 0.5 }}>{tr("Show the scene in true colour")}</button>}
-            <button onClick={onClose} style={{ ...btn(false), padding: "7px 14px" }}>{tr("Cancel")}</button>
-            <button onClick={run} disabled={!canRun} style={{ ...btn(true), padding: "7px 14px", opacity: canRun ? 1 : 0.5 }}>{busy ? (fetchMode ? tr("Fetching…") : tr("Computing…")) : fetchMode ? tr("Fetch and make the index") : tr("Make the index raster")}</button>
+            {fetchMode && source === "sentinel2" && onDrape && <button className="gs-btn" onClick={showColour} disabled={!scene || busy} title={tr("The red, green and blue bands of this scene over the area, as a layer named with its date: shows what the index saw (snow, cloud, shadow).")}>{tr("Show the scene in true colour")}</button>}
+            <button className="gs-btn" onClick={onClose}>{tr("Cancel")}</button>
+            <button className="gs-btn gs-btn--primary" onClick={run} disabled={!canRun}>{busy ? (fetchMode ? tr("Fetching…") : tr("Computing…")) : fetchMode ? tr("Fetch and make the index") : tr("Make the index raster")}</button>
           </div>
           </>)}
         </div>
