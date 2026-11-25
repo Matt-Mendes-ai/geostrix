@@ -47,7 +47,9 @@ export function StepBar({ steps, at, onAt, label }) {
   );
 }
 
-export default function StepDialog({ title, onClose, steps, at, onAt, help = null, error = null, extra = null, width = "min(1120px, 96vw)" }) {
+// zIndex: a dialog that must stand above another open dialog (the CRS question over the import's column matching, #3951); cancelLabel: the first step's
+// way out when it is not a cancel ("Decide later" on an unset CRS). Both optional (TASKS.csv #4073, side 2).
+export default function StepDialog({ title, onClose, steps, at, onAt, help = null, error = null, extra = null, width = "min(1120px, 96vw)", zIndex = null, cancelLabel = null }) {
   const [helpOpen, setHelpOpen] = React.useState(false);
   useEscapeKey(() => (helpOpen ? setHelpOpen(false) : onClose()));
   useFocusTrap();
@@ -56,7 +58,7 @@ export default function StepDialog({ title, onClose, steps, at, onAt, help = nul
   const reserveHint = steps.some((s) => "hint" in s); // a dialog with a hint keeps its slot, so the dialog does not change height as the hint comes and goes
   const go = () => { if (p.onClick) p.onClick(); else onAt(Math.min(steps.length - 1, i + 1)); };
   return (
-    <div style={overlay}>
+    <div style={zIndex != null ? { ...overlay, zIndex } : overlay}>
       <div style={{ width, maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}
         role="dialog" aria-modal="true" aria-label={title} data-step-dialog data-step={step.key} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" }}>
@@ -83,7 +85,7 @@ export default function StepDialog({ title, onClose, steps, at, onAt, help = nul
           </div>
         )}
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          {i > 0 ? <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={() => onAt(i - 1)}>{tr("Back")}</button> : <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{tr("Cancel")}</button>}
+          {i > 0 ? <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={() => onAt(i - 1)}>{tr("Back")}</button> : <button type="button" className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{cancelLabel || tr("Cancel")}</button>}
           <button type="button" className="gs-btn gs-btn--primary" style={{ flex: 2 }} disabled={!!p.disabled} onClick={go}>{p.label}</button>
         </div>
       </div>
