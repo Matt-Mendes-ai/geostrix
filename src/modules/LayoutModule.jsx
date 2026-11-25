@@ -1367,7 +1367,7 @@ export default function LayoutModule() {
     const legend = elements.find((el) => el.id === legendId);
     if (!legend) return;
     const say = auto ? () => {} : setSyncNotice;
-    if (!legend.boundViewportId) { say(tr("Pick a bound viewport or cross-section above first.")); return; }
+    if (!legend.boundViewportId) { say(tr("Pick a bound viewport or cross-section first.")); return; }
     const vp = elements.find((el) => el.id === legend.boundViewportId);
     if (!vp) { say(tr("That viewport/section no longer exists on this page — pick a different one.")); return; }
     // #3959 — the column breaks stay; a legend split from another (part B) is refilled with its own group(s) only
@@ -1607,55 +1607,70 @@ export default function LayoutModule() {
             {(sel.type === "text" || sel.type === "title" || sel.type === "legend") && (
               <FrameControls sel={sel} updateSelected={updateSelected} />
             )}
-            {sel.type === "table" && ( /* TASKS.csv #911 */
-              <>
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Table title")}<input value={sel.title || ""} onChange={(e) => updateSelected({ title: e.target.value })} style={inp} /></label>
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Note under the table")}<textarea rows={3} value={sel.note || ""} onChange={(e) => updateSelected({ note: e.target.value })} style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} /></label>{/* TASKS.csv #936 */}
+            {sel.type === "table" && (() => { // TASKS.csv #911; #4070 follow-up — the table's panel as steps (Rows, Columns, Text), the frame in Fine-tune
+              const lab = { fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 };
+              const collarsSrc = sel.source === "collars", samplesSrc = sel.source === "samples";
+              const keptText = tr("A copy from {from}: send it again to update it.", { from: sel.from || tr("Best intercepts") }); // the collar and sample tables follow the project: Help, Layout > Tables
+              const lookStep = (<>
+                <label style={{ ...lab, flex: "none" }}>{tr("Table title")}<input value={sel.title || ""} onChange={(e) => updateSelected({ title: e.target.value })} style={inp} /></label>
+                <label style={{ ...lab, flex: "none" }}>{tr("Note under the table")}<textarea rows={3} value={sel.note || ""} onChange={(e) => updateSelected({ note: e.target.value })} style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} /></label>{/* TASKS.csv #936 */}
+                <label style={{ ...lab, flex: "none" }}>{tr("Text size (pt)")}<NumberInput min="5" max="14" step="0.5" value={sel.fontPt || printPt.small} onChange={asEvent((e) => updateSelected({ fontPt: Math.max(5, Math.min(14, Number(e.target.value) || printPt.small)) }))} style={inp} /></label>
+                {!collarsSrc && !samplesSrc && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{keptText}</div>}
+              </>);
+              const fine = (<MoreFold summary={tr("Fine-tune…")} data-fine-tune="table"><FrameControls sel={sel} updateSelected={updateSelected} /></MoreFold>);
+              const samplesStep = samplesSrc && ( /* TASKS.csv #1869 — the element, a threshold, the rows */
                 <div style={{ display: "flex", gap: 6 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Text size (pt)")}<NumberInput min="5" max="14" step="0.5" value={sel.fontPt || printPt.small} onChange={asEvent((e) => updateSelected({ fontPt: Math.max(5, Math.min(14, Number(e.target.value) || printPt.small)) }))} style={inp} /></label>
-                  {sel.source === "collars" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<NumberInput min="1" step="1" value={sel.maxRows || 40} onChange={asEvent((e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 40)) }))} style={inp} /></label>}
+                  <label style={lab}>{tr("Element")}<select value={sel.symbol || ""} onChange={(e) => updateSelected({ symbol: e.target.value })} style={inp}>{(surfaceElements || []).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}</select></label>
+                  <label style={lab}>{tr("At or above")}<NumberInput allowEmpty value={sel.threshold ?? ""} placeholder={tr("all")} onChange={asEvent((e) => updateSelected({ threshold: e.target.value === "" ? null : Number(e.target.value) }))} style={inp} /></label>
+                  <label style={lab}>{tr("Rows at most")}<NumberInput min="1" step="1" value={sel.maxRows || 25} onChange={asEvent((e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 25)) }))} style={inp} /></label>
                 </div>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
-                  {sel.source === "collars" ? tr("Kept up to date with the project's collars, sorted by hole; holes beyond the row limit are counted in the last line.") : sel.source === "samples" ? tr("Kept up to date with the project's surface samples, highest first; samples beyond the row limit are counted in the last line.") /* #1869 */ : tr("A copy of the results when it was sent (from {from}); send it again to update it.", { from: sel.from || tr("Best intercepts") })}</div>
-                {sel.source === "samples" && ( /* TASKS.csv #1869 — the element, a threshold, the rows */
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Element")}<select value={sel.symbol || ""} onChange={(e) => updateSelected({ symbol: e.target.value })} style={inp}>{(surfaceElements || []).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}</select></label>
-                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("At or above")}<NumberInput allowEmpty value={sel.threshold ?? ""} placeholder={tr("all")} onChange={asEvent((e) => updateSelected({ threshold: e.target.value === "" ? null : Number(e.target.value) }))} style={inp} /></label>
-                    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<NumberInput min="1" step="1" value={sel.maxRows || 25} onChange={asEvent((e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 25)) }))} style={inp} /></label>
+              );
+              if (!collarsSrc) return (
+                <StepPane key={sel.id} id="layout-table" helpPage="layout" label={tr("Table")} fineTune={fine}
+                  steps={[...(samplesSrc ? [{ key: "rows", label: tr("Rows"), question: tr("Which rows?"), body: samplesStep }] : []), { key: "text", label: tr("Text"), question: tr("What does it say?"), body: lookStep }]} />
+              );
+              // TASKS.csv #1638 — an appendix of every hole: a first row, a filter, continuation pages
+              const sl = collarTableSlice(sortedCollars(tableCollars || []), { firstRow: sel.firstRow, maxRows: sel.maxRows, filter: sel.holeFilter });
+              const conts = sl.after > 0 ? continuationTables(sel, sl.total) : [];
+              // TASKS.csv #3411 — not offered when its two halves cannot fit the doubled frame even at 5 pt: said here, not under the frame afterwards
+              const extraCols = (sel.extraCols || []).filter(Boolean), tableCols = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)"), tr("Dip"), tr("Depth (m)"), ...extraCols];
+              const noSplit = sel.split !== 2 && !splitHalvesFit({ columns: tableCols, rows: collarTableCells(collarTableSlice(sortedCollars(tableCollars || []), { firstRow: sel.firstRow, maxRows: (Number(sel.maxRows) || 40) * 2, filter: sel.holeFilter }).rows, extraCols), fontPt: sel.fontPt || printPt.small, widthPx: Math.min(A4.w - 80, (Number(sel.w) || 520) * 2) - 12 - 2 * (Number(sel.frameWidth) || 0), measure: measureTableText(layoutFontStack(sel.fontFamily)) }).fits;
+              const choices = collarTableFieldChoices(tableCollars);
+              const rowsStep = (<>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <label style={lab}>{tr("First row")}<NumberInput min="1" step="1" value={sel.firstRow || 1} onChange={asEvent((e) => updateSelected({ firstRow: Math.max(1, Math.round(Number(e.target.value) || 1)) }))} style={inp} /></label>
+                  <label style={lab}>{tr("Rows at most")}<NumberInput min="1" step="1" value={sel.maxRows || 40} onChange={asEvent((e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 40)) }))} style={inp} /></label>
+                </div>
+                <label style={{ ...lab, flex: "none" }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value, firstRow: 1 })} style={inp} /></label>
+                {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("A space ends a term: did you mean {term}? (_ stands for a space in a value.)", { term: sg })}</div> : null; })()}{/* TASKS.csv #3716 (3) — the collar table's box says it as the drill plan's does */}
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
+              </>);
+              const columnsStep = (<>
+                {choices.length > 0 && ( /* TASKS.csv #2717 — collar fields as extra columns */
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Also as columns:")}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 2 }}>{choices.map((k) => (
+                      <label key={k} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={(sel.extraCols || []).includes(k)} onChange={(e) => updateSelected({ extraCols: e.target.checked ? [...(sel.extraCols || []), k] : (sel.extraCols || []).filter((x) => x !== k) })} />{k}</label>
+                    ))}</div>
                   </div>
                 )}
-                {sel.source === "collars" && (() => { // TASKS.csv #1638 — an appendix of every hole: a first row, a filter, continuation pages
-                  const sl = collarTableSlice(sortedCollars(tableCollars || []), { firstRow: sel.firstRow, maxRows: sel.maxRows, filter: sel.holeFilter });
-                  const conts = sl.after > 0 ? continuationTables(sel, sl.total) : [];
-                  // TASKS.csv #3411 — not offered when its two halves cannot fit the doubled frame even at 5 pt: said here, not under the frame afterwards
-                  const extraCols = (sel.extraCols || []).filter(Boolean), tableCols = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)"), tr("Dip"), tr("Depth (m)"), ...extraCols];
-                  const noSplit = sel.split !== 2 && !splitHalvesFit({ columns: tableCols, rows: collarTableCells(collarTableSlice(sortedCollars(tableCollars || []), { firstRow: sel.firstRow, maxRows: (Number(sel.maxRows) || 40) * 2, filter: sel.holeFilter }).rows, extraCols), fontPt: sel.fontPt || printPt.small, widthPx: Math.min(A4.w - 80, (Number(sel.w) || 520) * 2) - 12 - 2 * (Number(sel.frameWidth) || 0), measure: measureTableText(layoutFontStack(sel.fontFamily)) }).fits;
-                  return (<>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("First row")}<NumberInput min="1" step="1" value={sel.firstRow || 1} onChange={asEvent((e) => updateSelected({ firstRow: Math.max(1, Math.round(Number(e.target.value) || 1)) }))} style={inp} /></label>
-                      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value, firstRow: 1 })} style={inp} /></label>
-                    </div>
-                    {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A space ends a term: did you mean {term}? (_ stands for a space in a value.)", { term: sg })}</div> : null; })()}{/* TASKS.csv #3716 (3) — the collar table's box says it as the drill plan's does */}
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
-                    {/* TASKS.csv #2770 — two table columns per page: twice the rows at the same height, twice the width (up to the sheet's) */}
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: noSplit ? "var(--color-text-muted)" : "var(--color-text-secondary)", marginBottom: noSplit ? 2 : 8, cursor: noSplit ? "default" : "pointer" }} title={tr("Rows read down the left column, then the right; the row limit doubles at the same height, so a long list takes half the pages.")}>
-                      <input type="checkbox" disabled={noSplit} checked={sel.split === 2} onChange={(e) => { const on = e.target.checked, lim = Math.max(1, Math.round(Number(sel.maxRows) || 40)), w = Number(sel.w) || 520; updateSelected(on ? { split: 2, maxRows: lim * 2, w: Math.min(A4.w - 80, w * 2), ...growInPlace(elements.filter((x) => x.id !== sel.id), elementBox(sel), Math.min(A4.w - 80, w * 2), A4) /* TASKS.csv #3865 — kept on the sheet */ } : { split: 1, maxRows: Math.max(1, Math.ceil(lim / 2)), w: Math.max(260, Math.round(w / 2)) }); }} />
-                      {tr("Two table columns side by side")}
-                    </label>
-                    {noSplit && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Drop a column, or keep one and let the rest carry on to the next page: two halves with these columns do not fit even at 5 pt.")}</div>}
-                    {(() => { const choices = collarTableFieldChoices(tableCollars); return choices.length > 0 && ( /* TASKS.csv #2717 — collar fields as extra columns */
-                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8 }}>{tr("Also as columns:")}
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 2 }}>{choices.map((k) => (
-                          <label key={k} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={(sel.extraCols || []).includes(k)} onChange={(e) => updateSelected({ extraCols: e.target.checked ? [...(sel.extraCols || []), k] : (sel.extraCols || []).filter((x) => x !== k) })} />{k}</label>
-                        ))}</div>
-                      </div>
-                    ); })()}
-                    {conts.length > 0 && <button onClick={() => addPagesOnPaper(addLayoutPages, setLayoutPageFormat, conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t], batch: `collars_${sel.id}` })), activePage?.format /* #3370 — the table's own paper */)} className="gs-btn gs-btn--block" style={{ marginBottom: 8 }}>{tr("Continue on {n} new page(s)", { n: conts.length })}</button>}
-                  </>);
-                })()}
-                <FrameControls sel={sel} updateSelected={updateSelected} />
-              </>
-            )}
+                {/* TASKS.csv #2770 — two table columns per page: twice the rows at the same height, twice the width (up to the sheet's) */}
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: noSplit ? "var(--color-text-muted)" : "var(--color-text-secondary)", cursor: noSplit ? "default" : "pointer" }} title={tr("Rows read down the left column, then the right; the row limit doubles at the same height, so a long list takes half the pages.")}>
+                  <input type="checkbox" disabled={noSplit} checked={sel.split === 2} onChange={(e) => { const on = e.target.checked, lim = Math.max(1, Math.round(Number(sel.maxRows) || 40)), w = Number(sel.w) || 520; updateSelected(on ? { split: 2, maxRows: lim * 2, w: Math.min(A4.w - 80, w * 2), ...growInPlace(elements.filter((x) => x.id !== sel.id), elementBox(sel), Math.min(A4.w - 80, w * 2), A4) /* TASKS.csv #3865 — kept on the sheet */ } : { split: 1, maxRows: Math.max(1, Math.ceil(lim / 2)), w: Math.max(260, Math.round(w / 2)) }); }} />
+                  {tr("Two table columns side by side")}
+                </label>
+                {noSplit && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Drop a column, or keep one and let the rest carry on to the next page: two halves with these columns do not fit even at 5 pt.")}</div>}
+              </>);
+              return (
+                <StepPane key={sel.id} id="layout-table" helpPage="layout" label={tr("Table")} fineTune={fine}
+                  steps={[
+                    { key: "rows", label: tr("Rows"), question: tr("Which rows?"), body: rowsStep },
+                    { key: "columns", label: tr("Columns"), question: tr("Which columns?"), body: columnsStep },
+                    { key: "text", label: tr("Text"), question: tr("What does it say?"), body: lookStep },
+                  ]}
+                  action={conts.length > 0 ? { label: tr("Continue on {n} new page(s)", { n: conts.length }), step: 2, attrs: { "data-table-continue": "" },
+                    onClick: () => addPagesOnPaper(addLayoutPages, setLayoutPageFormat, conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t], batch: `collars_${sel.id}` })), activePage?.format /* #3370 — the table's own paper */) } : undefined} />
+              );
+            })()}
             {sel.type === "scale" && (() => { // TASKS.csv #1635 — what the bar measures
               const ts = scaleBarTargets(elements);
               return (<>
@@ -1856,7 +1871,7 @@ export default function LayoutModule() {
                   <Plus size={12} />{" "}{tr("Add row")}</button>
               </>);
               return (
-                <StepPane key={sel.id} id="layout-legend" label={tr("Legend")} top={<div style={{ marginTop: 4 }} />}
+                <StepPane key={sel.id} id="layout-legend" helpPage="layout" label={tr("Legend")} top={<div style={{ marginTop: 4 }} />}
                   steps={[
                     { key: "source", label: tr("Source"), question: tr("Where from?"), body: sourceStep },
                     ...(sizeStep ? [{ key: "size", label: tr("Size"), question: tr("How big?"), body: sizeStep }] : []),
@@ -2006,7 +2021,7 @@ export default function LayoutModule() {
                 </MoreFold>
               );
               return (
-                <StepPane key={sel.id} id="layout-drillplan" label={tr("Drill plan")} fineTune={fine}
+                <StepPane key={sel.id} id="layout-drillplan" helpPage="layout" label={tr("Drill plan")} fineTune={fine}
                   steps={[
                     { key: "frame", label: tr("Frame"), question: tr("What does it show?"), body: frameStep },
                     { key: "holes", label: tr("Holes"), question: tr("Which holes?"), body: holesStep },
@@ -2119,7 +2134,6 @@ export default function LayoutModule() {
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Grid spacing is {gridMeters} m on the ground, following that viewport.", { gridMeters })}</div>
         )}
 
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 20, lineHeight: 1.5 }}>{tr("Add a view with Current view or Theme view on the ribbon, or Snapshot in StrixViewer.")}</div>
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
@@ -2726,7 +2740,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
   );
   return (
     <div style={{ marginTop: 4 }}>
-      <StepPane key={sel.id} id="layout-viewport" label={tr("Viewport")}
+      <StepPane key={sel.id} id="layout-viewport" helpPage="layout" label={tr("Viewport")}
         steps={[{ key: "view", label: tr("View"), question: tr("Which view?"), body: viewStep }, { key: "scale", label: tr("Scale"), question: tr("What scale?"), body: scaleStep }]}
         action={{ label: sel.refreshing ? tr("Rendering…") : tr("Refresh"), onClick: onRefresh, disabled: sel.refreshing, icon: <RefreshCw size={14} />, title: tr("Capture again from the theme, the scale and the frame."), attrs: { "data-viewport-refresh": "" } }}
         result={{ key: sel.capturedAt || null, body: resultBody }} fineTune={fine} />

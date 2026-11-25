@@ -1552,7 +1552,7 @@ export default function GeochemModule() {
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Calculated element")}</div>
               <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
-                <StepPane id="geochem-calc" label={tr("Calculated element")} fineTune={fine}
+                <StepPane id="geochem-calc" helpPage="import-assays" label={tr("Calculated element")} fineTune={fine}
                   steps={[{ key: "formula", label: tr("Formula"), question: tr("What is it?"), body: formulaStep }, { key: "name", label: tr("Name"), question: tr("What is it called?"), body: nameStep }]}
                   action={{ label: tr("Add"), onClick: add, attrs: { "data-calc-add": "" } }} />
               </div>

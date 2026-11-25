@@ -51,7 +51,7 @@ import { numberColumnsLeft } from "../lib/valueGuess.js"; // TASKS.csv #2889
 import { recoveryColumns } from "../lib/recoveryCalc.js"; // TASKS.csv #2891
 import { codeOverlap, otherCodeSystem } from "../lib/codeOverlap.js"; // TASKS.csv #2893
 import { densityUnitDoubt } from "../lib/densityNote.js"; // TASKS.csv #3529
-import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
+import DialogHelpCard from "./DialogHelpCard.jsx"; // TASKS.csv #4070 — the dialog's ? card
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
 
 
@@ -523,7 +523,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   ];
   const heading = tr("Import {fileName}", { fileName: modal.fileName });
   return <StepDialog title={heading} onClose={onCancel} steps={flow} at={at} onAt={setAt} width="min(760px, 94vw)" zIndex={Z_IMPORT} /* TASKS.csv #3688 — above Data QC and the other dialogs (all 60) */
-    extra={<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(modal.target === "sg" ? "import-density" : "import-drillholes")} aria-label={tr("Help: {name}", { name: tr("Import drillhole data") })} title={tr("Help for this tool (F1, works offline)")}>?</button>} />;
+    help={<DialogHelpCard page={modal.target === "sg" ? "import-density" : "import-drillholes"} lines={[tr("Rows with no hole id, depth or value are left out: Data QC counts them.")]} />} />;
 }
 
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };

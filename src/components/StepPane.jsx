@@ -9,6 +9,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { t as tr } from "../lib/i18n.js";
 
+import { openHelp } from "../lib/help.js";
 import { requestStep, takeStep, STEP_EVENT } from "../lib/stepRequest.js"; // a step asked for from outside the pane (lib/stepRequest.js)
 export { requestStep };
 
@@ -21,7 +22,8 @@ const muted = { color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)
 // label: the pane's name (translated); start: the step a pane opens on the first time ("result" for a pane whose last step is the list the user opens it for; default the first);
 // message: what the last action said (an import's note, an error), shown under the step bar inside the step rather than above the bar, so a long one does not push
 // the steps down (TASKS.csv #4070, side 2; StepDialog's hint / error slot for panes): a node, a string (a note), or { text, level: "error" | "warn" | "info" }
-export default function StepPane({ id, label, steps, action, result, fineTune, top, start = 0, message = null }) {
+// helpPage: a Help page id, for a pane with no header of its own (the inline panes of the Layout and Geochem sidebars): a "?" at the end of the step bar opens it
+export default function StepPane({ id, label, steps, action, result, fineTune, top, start = 0, message = null, helpPage = null }) {
   const resultLabel = result?.label || tr("Result");
   const all = result ? [...steps, { key: "result", label: resultLabel, body: result.body }] : steps;
   const last = all.length - 1;
@@ -56,7 +58,7 @@ export default function StepPane({ id, label, steps, action, result, fineTune, t
             const isResult = result && i === last, off = isResult && !resultReady, on = i === at;
             return (
               <button key={s.key} type="button" role="tab" aria-selected={on} disabled={off} onClick={() => setAt(i)} data-btn-own=""
-                title={off ? result.offTitle || tr("After the first run") : s.label} aria-label={`${i + 1}. ${s.label}`}
+                title={off ? result.offTitle || tr("After a run") : s.label} aria-label={`${i + 1}. ${s.label}`}
                 style={{ flex: 1, minWidth: 0, height: 24, borderRadius: 12, cursor: off ? "default" : "pointer", fontSize: "var(--font-size-xs)", fontWeight: 600, padding: "0 4px",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   border: `${on ? 2 : 1}px solid ${on ? "var(--btn-primary-border)" : "var(--color-border)"}`,
@@ -66,6 +68,8 @@ export default function StepPane({ id, label, steps, action, result, fineTune, t
               </button>
             );
           })}
+          {helpPage && <button type="button" data-btn-own="" data-step-help={helpPage} onClick={() => openHelp(helpPage)} aria-label={`? ${label}`}
+            style={{ flex: "none", width: 24, height: 24, borderRadius: 12, padding: 0, cursor: "pointer", fontSize: "var(--font-size-xs)", fontWeight: 600, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text-secondary)" }}>?</button>}
         </div>
       )}
       {message != null && message !== "" && message !== false && <StepMessage message={message} />}
@@ -85,7 +89,7 @@ export default function StepPane({ id, label, steps, action, result, fineTune, t
       {!one && (
         <div style={{ display: "flex", justifyContent: "space-between", gap: 6, margin: "8px 0" }}>
           <button type="button" className="gs-btn gs-btn--sm" onClick={() => setAt(onResult ? 0 : at - 1)} disabled={at === 0} style={at === 0 ? { visibility: "hidden" } : undefined}>
-            {onResult ? tr("Change") : tr("Back")}
+            {tr("Back")}
           </button>
           {at < last && !(result && at + 1 === last && !resultReady) && at !== actionAt && (
             <button type="button" className="gs-btn gs-btn--sm" onClick={() => setAt(at + 1)}>{tr("Next")}</button>

@@ -20,7 +20,9 @@ const En = ({ children }) => <span lang="en" dir="ltr">{children}</span>;
 // TASKS.csv #3899 — detail kept behind a closed "More" (a page's, a field's or a warning's `more`); search still reads it
 function More({ text }) {
   if (!text) return null;
-  return <details style={{ marginTop: 3 }}><summary style={{ cursor: "pointer", color: "var(--color-info)", fontSize: "var(--font-size-xs)" }}>{tr("More")}</summary><div {...EN} style={{ marginTop: 2 }}>{text}</div></details>;
+  // one idea per paragraph: a blank line in the text starts a new one
+  const paras = String(text).split(/\n\n+/);
+  return <details style={{ marginTop: 3 }}><summary style={{ cursor: "pointer", color: "var(--color-info)", fontSize: "var(--font-size-xs)" }}>{tr("More")}</summary>{paras.map((p, i) => <div key={i} {...EN} style={{ marginTop: i === 0 ? 2 : 6 }}>{p}</div>)}</details>;
 }
 const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-info)", cursor: "pointer", textAlign: "left", fontSize: "inherit", font: "inherit" };
 

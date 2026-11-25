@@ -1064,7 +1064,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         top={<>
       <div style={row}>
         <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
-          {!defs.length && <option value="">{tr("No explicit surfaces yet")}</option>}
+          {!defs.length && <option value="">{tr("No surfaces yet")}</option>}
           {defs.map((d) => { const l = (d.lines || []).length + sectionLinesOf(d, sections).length; /* section lines too: #1691 */ return <option key={d.id} value={d.id}>{d.name} ({tr(l === 1 ? "{p} picks, {l} line" : "{p} picks, {l} lines", { p: d.picks.length, l })}){layerLabel(d) !== d.name ? ` · ${layerLabel(d)}` : ""}</option>; })}
         </select>
         <button onClick={newSurface} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("+ New")}</button>
@@ -1369,8 +1369,8 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <input type="checkbox" checked={!!def.cutAtTerrain} disabled={!hasTerrain} onChange={(e) => update({ cutAtTerrain: e.target.checked })} />{hasTerrain ? tr("Cut at the terrain") : tr("Cut at the terrain (no terrain loaded)")}
         </label>
           </>) },
-        ] : [{ key: "picks", label: tr("Picks"), body: null }]}
-        fineTune={def ? <MoreFold summary={tr("More…")} data-fine-tune="explicit">
+        ] : [{ key: "picks", label: tr("Picks"), question: tr("Which surface?"), body: null }]}
+        fineTune={def ? <MoreFold summary={tr("Fine-tune…")} data-fine-tune="explicit">
         {(def.log || []).length > 0 && ( // TASKS.csv #878
           <details style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, color: "var(--color-text-secondary)" }}>
             <summary style={{ cursor: "pointer" }}>{tr("History ({n} changes)", { n: def.log.length })}</summary>

@@ -111,7 +111,7 @@ export default function SampleGridPanel({ setNotices }) {
       <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} onClick={() => setOpen((o) => !o)} aria-expanded={open}>{tr("Grid an element to a raster…")}</button>
       {open && el && (
         <div style={{ marginTop: 6, padding: 8, border: "1px solid var(--color-border)", borderRadius: 6 }}>
-          <StepPane id="geochem-grid" label={tr("Grid to raster")}
+          <StepPane id="geochem-grid" helpPage="import-assays" label={tr("Grid to raster")}
             steps={[{ key: "what", label: tr("What"), body: whatStep }, { key: "how", label: tr("How"), body: howStep }]}
             action={{ label: busy ? tr("Working…") : tr("Grid to raster"), onClick: run, disabled: !!busy, attrs: { "data-grid-run": "" } }}
             result={{ key: done?.key ?? null, body: done ? <StepNumbers rows={done.rows} /> : null }} />

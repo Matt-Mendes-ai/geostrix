@@ -14,11 +14,11 @@ const D = {
   StartDialogs: { steps: ["ground", "data"], reach: ["onFiles={onGroundFiles}", "onFiles={importFiles}", "setNoDrill(", "setStartOptOut(", '"data-start-next": ""', '"data-start-done": ""', "onClick: next", "onClick: finish",
     'cancelLabel={tr("Close")}', "zIndex={Z}", '"data-start-dialog": step', "onDrop: (e) => { e.preventDefault(); e.stopPropagation(); }"] },
   ImportMappingModal: { steps: ["columns", "options"], reach: ["setTarget(e.target.value)", "setMapping(", "<CoordSetsNote", "<CollarElevationChoice", "<LogChannelsBox", "<MineralPercentBox", "<RowFilterBox", "<SourceCrsField",
-    "azimuthRef: k", "localGridOn", "onClick={() => setAt(1)}", 'openHelp(modal.target === "sg" ? "import-density" : "import-drillholes")', "onClick: onCommit, disabled: blocked", "zIndex={Z_IMPORT}"] },
+    "azimuthRef: k", "localGridOn", "onClick={() => setAt(1)}", 'page={modal.target === "sg" ? "import-density" : "import-drillholes"}', "onClick: onCommit, disabled: blocked", "zIndex={Z_IMPORT}"] },
   AssayImportModal: { steps: ["columns", "elements", "values"], reach: ["setMapping(key, e.target.value)", "qc: { ...modal.qc, [key]: e.target.value }", "extraCols:", "setMethod(e.target.value)", "<RowFilterBox", "setAll(true)", "setAll(false)",
     "toggleEl(e.symbol)", "setHeader(e.symbol, ev.target.value)", "setCustomUnit(", "setUnit(e.symbol, ev.target.value)", "setKeepOxide(", "removeEl(e.symbol)", "addOthers(", "onClick={addElement}", "onClick={onQcLinks}",
     "setUnits(", "setAllOxide(true)", "overLimitCodes:", 'negativeMode: "bdl"', 'negativeMode: "missing"', 'zeroMode: "bdl"', 'zeroMode: "real"', 'blankMode: "missing"', 'blankMode: "bdl"', "keepRepeats:", "numberedRepeats:",
-    'openHelp("import-assays")', "onClick: onCommit, disabled: busyOrWaiting", "zIndex={Z_IMPORT}"] },
+    'page="import-assays"', "onClick: onCommit, disabled: busyOrWaiting", "zIndex={Z_IMPORT}"] },
 };
 
 for (const [f, d] of Object.entries(D)) {
