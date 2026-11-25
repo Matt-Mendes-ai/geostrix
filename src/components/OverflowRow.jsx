@@ -15,7 +15,9 @@ const OverflowRow = React.forwardRef(function OverflowRow({ items }, ref) {
     const from = Number(ref?.current?.getAttribute("data-overflow-from"));
     if (!(from >= 0)) return;
     const r = btn.getBoundingClientRect();
-    setMenu({ from, top: Math.round(r.bottom) + 2, right: Math.max(4, window.innerWidth - Math.round(r.right)) });
+    // under the button, growing toward the middle of the window: right-aligned when the button is in the right half, left-aligned in the left half (the row mirrors in Arabic)
+    const end = r.left > window.innerWidth / 2;
+    setMenu({ from, top: Math.round(r.bottom) + 2, end, x: end ? Math.max(4, window.innerWidth - Math.round(r.right)) : Math.max(4, Math.round(r.left)) });
   };
   return (
     <div className="ge-tool-actions" ref={ref}>
@@ -40,7 +42,7 @@ function ActionMenu({ menu, onClose, children }) {
     return () => { window.removeEventListener("mousedown", down); window.removeEventListener("keydown", key); window.removeEventListener("resize", onClose); };
   }, [onClose]);
   return createPortal(
-    <div ref={box} role="menu" className="ge-tool-menu" style={{ top: menu.top, right: menu.right }} onClick={(e) => { if (e.target.closest?.("button")) setTimeout(onClose, 0); }}>
+    <div ref={box} role="menu" className="ge-tool-menu" style={{ top: menu.top, ...(menu.end ? { right: menu.x } : { left: menu.x }) }} onClick={(e) => { if (e.target.closest?.("button")) setTimeout(onClose, 0); }}>
       {children}
     </div>, document.body);
 }

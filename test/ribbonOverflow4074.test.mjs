@@ -124,6 +124,11 @@ test("the wiring: groups carry a More menu, the top bar an OverflowRow, the seco
   assert.match(app, /fitRowByOverflow\(\{/);
   assert.match(css, /\.ge-ribbon-items > \[data-ovf\] \{ display: none; \}/);
   assert.match(css, /\.ge-tool-actions > \[data-ovf\] \{ display: none; \}/);
+  // Arabic mirrors the bar: the ⋯ sits at the window's left edge, so its menu is anchored to the side the button is on (never always to its right edge, which ran off screen)
+  const ovr = read("../src/components/OverflowRow.jsx");
+  assert.match(ovr, /const end = r\.left > window\.innerWidth \/ 2;/);
+  assert.match(ovr, /\.\.\.\(menu\.end \? \{ right: menu\.x \} : \{ left: menu\.x \}\)/);
+  assert.match(app, /fitRowByOverflow\(\{ keep: 0,/, "the last action may go into the menu too: in French at the largest text the tabs alone fill a 900 px bar");
   assert.ok(existsSync(new URL("../scripts/audit-ribbon.mjs", import.meta.url)));
   assert.match(read("../scripts/audit-ribbon.mjs"), /LOST/);
   assert.ok(readdirSync(new URL("../src/components/", import.meta.url)).includes("OverflowRow.jsx"));

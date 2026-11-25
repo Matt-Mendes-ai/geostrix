@@ -188,7 +188,7 @@ export default function App() {
     for (const step of TOOLBAR_FIT_STEPS) { if (el.scrollWidth <= el.clientWidth + 1) break; el.classList.add(step); }
     // TASKS.csv #4074 — still too wide with every step taken (1,366 px: KMZ was cut off): the last actions go into the ⋯ menu, never dropped
     if (actions && el.scrollWidth > el.clientWidth + 1) {
-      fitRowByOverflow({ fits: () => el.scrollWidth <= el.clientWidth + 1, visible: () => shownCount(actions), hideLast: () => { hideLastTool(actions); trimSeparators(actions); } });
+      fitRowByOverflow({ keep: 0, fits: () => el.scrollWidth <= el.clientWidth + 1, visible: () => shownCount(actions), hideLast: () => { hideLastTool(actions); trimSeparators(actions); } });
     }
   }, []);
   useEffect(() => {
