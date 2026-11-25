@@ -33,6 +33,8 @@ import { eventPickOptions, defaultEventOption } from "../lib/downholeEvents.js";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1550
 import { toCsv, FORMULA_LEAD, crsCell } from "../lib/tabular.js"; // TASKS.csv #1082; crsCell: #1053
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4070
 import { usePaneIntent } from "../lib/guide/usePaneIntent.js"; import { explicitIntent } from "../lib/guide/paneIntent.js"; // TASKS.csv #4033
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
@@ -857,7 +859,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         const at = !w ? "" : w.hole ? tr("{hole} at {md} m", { hole: w.hole, md: Number(w.md).toFixed(1) }) : w.src === "pick" ? tr("a 3D point") : w.src === "section" ? tr("a line on section {s}", { s: w.ref }) : tr("a line point");
         const loo = q.looRmsM != null ? ` ${q.looConstructed ? tr("Leave-one-out over the {n} observed inputs: each predicted from everything else, the {m} constructed guide points included, misses by {rms} m RMS, worst {max} m ({at}).", { n: q.looObserved, m: q.looConstructed, rms: q.looRmsM.toFixed(1), max: q.looMaxM.toFixed(1), at }) : tr("Leave-one-out: each input predicted from the others misses by {rms} m RMS, worst {max} m ({at}).", { rms: q.looRmsM.toFixed(1), max: q.looMaxM.toFixed(1), at })}` : q.looSkipped ? ` ${tr("Leave-one-out not computed above {n} points.", { n: LOO_MAX_POINTS })}` : "";
         const beyond = ` ${tr("{p} % of the surface lies beyond the inputs and is extrapolated (up to {d} m from the nearest).", { p: Math.round(q.beyondPct), d: Math.round(q.furthestM) })}${res.supportHull && q.beyondPct >= 0.5 ? ` ${tr("The extrapolated part is drawn darker.")}` : ""}`; // #977
-        setStatus({ ok: true, built: true, text: tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.", { n: res.n, picks: ep.picks, lines: ep.lines, ms }) + loo + beyond + " " + tr("{frame}{cut}", {
+        // TASKS.csv #4070 — the status is long (every thing that went into the build): the pane shows the first sentence and how much is extrapolated; the whole text (the leave-one-out miss, what went in) is its tooltip
+        const first = tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.", { n: res.n, picks: ep.picks, lines: ep.lines, ms });
+        const short = first + ` ${tr("{p} % beyond the inputs: extrapolated.", { p: Math.round(q.beyondPct) })}`;
+        setStatus({ ok: true, built: true, short, text: first + loo + beyond + " " + tr("{frame}{cut}", {
           frame: res.frame.steep ? tr("Modelled over its best-fit plane (dips {d}°).", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
         }) + (() => { const dxf = (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId === "dxf").length, drawn = (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId !== "dxf").length; return (drawn ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: drawn })}` : "") + (dxf ? ` ${tr("Includes {k} string(s) imported from DXF.", { k: dxf })}` : ""); })() /* #1959 — a DXF string is not a digitized line */ + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
@@ -1045,18 +1050,18 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   };
 
   // TASKS.csv #864 — the fold-outs open by themselves once they hold something
-  const unitOpen = !!def && (unitCount > 1 || !!def.layer || contactOf(def) === "lower" || (!!def.unit && def.unit !== def.name));
   const digOpen = !!def && (!!(def.lines || []).length || digDrawing);
   const mapOpen = !!def?.mapContacts?.length;
-  const settingsOpen = !!def && (def.margin != null || def.extent === "hull" /* #2921 */ || (!!def.shape && def.shape !== "auto") || (!!def.resolution && def.resolution !== 80));
   const dxfStrings = def ? (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId === "dxf").length : 0; // #2057, as the build line counts them (#1959)
   const lineHint = def ? tr("To draw this surface on a section: StrixViewer > Draw section, pick \"{name}\" under Explicit surfaces, draw the line, then Save contacts. The surface passes exactly through each line.", { name: def.name }) : ""; // TASKS.csv #884
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-        {tr("A surface exactly through your own picks: contacts clicked in the 3D view and lines drawn on sections with its name. It rebuilds as you pick.")}{" "}{tr("Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.") /* TASKS.csv #870 */}{" "}{tr("Downhole structure measurements count only with the downhole dip guide (below the picks); otherwise the dip comes from the picks and lines alone.") /* TASKS.csv #982 / #1002 */}
-      </div>
+      {/* TASKS.csv #4070 (Matt's layout C, 2026-11-24: steps, like the Guide) — the surface as steps, one shown at a time: 1 Picks (contacts clicked in 3D, the logged tops, edit, undo, the list),
+          2 Lines (drawn on sections, digitized on an image, from the geological map), 3 Unit (unit, layer, contact; the fault block it is trimmed at), 4 Shape (the mesh). It rebuilds as you pick,
+          so there is no run button and no Result step: its status stays under the chooser. The explanations moved to tooltips and Help; History and the pile tools are under More. */}
+      <StepPane id="explicit" label={tr("Explicit surface")}
+        top={<>
       <div style={row}>
         <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
           {!defs.length && <option value="">{tr("No explicit surfaces yet")}</option>}
@@ -1065,20 +1070,33 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         <button onClick={newSurface} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("+ New")}</button>
       </div>
       {def && (<>
+        {seedNote && <div role="status" title={seedNote} style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{seedNote.split(/(?<=[.!?]) /)[0]}</div>}{/* #4070 — the first sentence; the whole note is its tooltip */}
+        {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
+          <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-warn-text)" }}>
+            {tr("Several picks on one hole: {list}. A contact crosses a hole once unless folded or faulted.", { list: [...dupHoles].map(([h, n]) => `${h} (${n})`).join(", ") })}{" "}
+            <button onClick={keepShallowest} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Keep the shallowest pick on each hole")}</button>
+          </div>
+        )}
+        {shownStatus && <div role="status" title={shownStatus.short ? shownStatus.text : undefined} style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: shownStatus.ok ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{shownStatus.short || shownStatus.text}</div>}{/* shownStatus: #3115 */}
+        {ep?.moved > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{tr("{n} pick(s) moved up to {d} m with the holes' current traces.", { n: ep.moved, d: ep.maxMove.toFixed(1) })}</div>}{/* TASKS.csv #888 */}
+      </>)}
+        </>}
+        steps={def ? [
+          { key: "picks", label: tr("Picks"), question: tr("Where does it pass?"), body: (<>
         <div style={row}>
           <input type="color" value={def.color} onChange={(e) => update({ color: e.target.value })} aria-label={tr("Colour")} style={{ width: 28, height: 24, padding: 0, border: "none", background: "none" }} />
           <button data-btn-own="" onClick={() => { setEditing(false); setDigDrawing(false); setDigPts([]); setPickFor(pickFor === def.id && !digDrawing ? null : def.id); }} aria-pressed={pickFor === def.id && !digDrawing}
             style={{ ...pBtn, flex: 1, marginBottom: 0, justifyContent: "center", ...(pickFor === def.id && !digDrawing ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>
-            <Crosshair size={14} />{" "}{pickFor === def.id && !digDrawing ? tr("Picking — click contacts in 3D (click to stop)") : tr("Pick contacts in 3D")}
+            <Crosshair size={14} />{" "}{pickFor === def.id && !digDrawing ? tr("Picking: click contacts in 3D") : tr("Pick contacts in 3D")}
           </button>
         </div>
         {seedInfo && seedInfo.holes.length > 0 && ( // TASKS.csv #871 — start from the logged tops, then edit
           <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>
-            {tr("{a} of {b} holes that log {unit} have a pick on this surface.", { a: seedInfo.holes.filter((h) => pickedHoles.has(h)).length, b: seedInfo.holes.length, unit: seedUnit })}{" "}
-            {seedInfo.base && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} ends on a logged unit, the same points as the implicit tool's \"Base of {unit}\". Check them; move or delete outliers.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged base of {unit}", { unit: seedUnit })}</button>}{/* #1684 */}
-            {!seedInfo.base && contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit, not at a hole start, under casing or overburden, or after a gap. Check them; move or delete outliers.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
-            {!seedInfo.base && contactOf(def) === "lower" && seedInfo.tops.some((t) => Number.isFinite(t.end) && !pickedHoles.has(t.hole_id)) && <button onClick={seedBases} title={tr("One pick per hole where {unit} ends: the base of the same logged run as its top. Check them, then move or delete the outliers.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged bases of {unit}", { unit: seedUnit })}</button>}{/* #3771 */}
-            {!seedInfo.base && contactOf(def) !== "lower" && absentNew.length > 0 && <button onClick={seedAbsent} title={tr("Holes going from a unit above {unit} straight to one below: {unit} is absent there, so its top is that contact. Without these picks, nothing holds the surface there.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px", marginLeft: 4 }}>{tr("Add {n} zero-thickness pick(s) where {unit} is missing", { n: absentNew.length, unit: seedUnit })}</button>}{/* #2921 */}
+            {tr("{a} of {b} holes logging {unit} have a pick.", { a: seedInfo.holes.filter((h) => pickedHoles.has(h)).length, b: seedInfo.holes.length, unit: seedUnit })}{" "}
+            {seedInfo.base && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} ends on a logged unit. Check them; move or delete outliers.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged base of {unit}", { unit: seedUnit })}</button>}{/* #1684 */}
+            {!seedInfo.base && contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit. Check them.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
+            {!seedInfo.base && contactOf(def) === "lower" && seedInfo.tops.some((t) => Number.isFinite(t.end) && !pickedHoles.has(t.hole_id)) && <button onClick={seedBases} title={tr("One pick per hole where {unit} ends. Check them.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged bases of {unit}", { unit: seedUnit })}</button>}{/* #3771 */}
+            {!seedInfo.base && contactOf(def) !== "lower" && absentNew.length > 0 && <button onClick={seedAbsent} title={tr("Holes going straight from the unit above {unit} to one below: {unit} is absent there.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px", marginLeft: 4 }}>{tr("Add {n} zero-thickness pick(s) where {unit} is missing", { n: absentNew.length, unit: seedUnit })}</button>}{/* #2921 */}
           </div>
         )}
         {eventOpts.length > 0 && eventOpt && ( // TASKS.csv #2317 — depth picks (regolith events) as this surface's picks
@@ -1090,124 +1108,19 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <button onClick={seedEvents} disabled={eventOpt.tops.every((t) => pickedHoles.has(t.hole_id))} title={tr("One pick per hole at this code's logged depth (the shallowest if logged twice). Holes already picked on this surface are left as they are.")} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add picks")}</button>
           </div>
         )}
-        {(def.log || []).length > 0 && ( // TASKS.csv #878
-          <details style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, color: "var(--color-text-secondary)" }}>
-            <summary style={{ cursor: "pointer" }}>{tr("History ({n} changes)", { n: def.log.length })}</summary>
-            <div style={{ maxHeight: 140, overflowY: "auto", marginTop: 4, lineHeight: 1.4 }}>
-              {[...def.log].reverse().slice(0, 50).map((e, i) => <div key={i}><span style={{ color: "var(--color-text-muted)" }}>{e.at.slice(0, 16).replace("T", " ")}</span> {e.what}</div>)}
-            </div>
-            <button onClick={keepVersion} disabled={!def.surfaceId || !sc.meshes.current[def.surfaceId]} title={tr("Copy this build to the surface list as a frozen version (it does not rebuild); this surface is marked as superseding it.")} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{tr("Keep this build as a version")}</button>
-            {keptNote && <div role="status" style={{ marginTop: 3 }}>{keptNote}</div>}
-          </details>
-        )}
-        {pileTop && ( // TASKS.csv #2921 — the order from the holes, against the next explicit top up
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, cursor: "pointer" }} title={tr("{k} of {n} holes logging both put {u} above {x}. On: this surface is lowered onto \"{upper}\" wherever it would rise above it. Off: only checked after each build.", { u: pileTop.unit, x: seedUnit, k: pileTop.rel.agree, n: pileTop.rel.of, upper: pileTop.name })}>
-            <input type="checkbox" checked={!!def.keepOrder} onChange={(e) => update({ keepOrder: e.target.checked })} style={{ marginTop: 2 }} />
-            <span>{tr("Keep under {upper}", { upper: pileTop.name })}</span>
-          </label>
-        )}
-        {pileBase && ( // TASKS.csv #3113 — the thickness map down to the next explicit top under this one
-          <div style={{ marginBottom: 6 }}>
-            <button onClick={isopachMap} title={tr("A map of the vertical distance from this top down to \"{lower}\" (the next top in the holes' order), with the volume, in Maps > GeoTIFF / GXF and StrixViewer.", { lower: pileBase.name })}
-              className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Thickness map down to {lower}", { lower: pileBase.name })}</button>
-            {isoNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: isoNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{isoNote.text}</div>}
-            {(keptBelow.length > 0 || pileRun) && ( // TASKS.csv #3115
-              <button onClick={rebuildPile} disabled={!!pileRun} title={tr("Opens each top under this one in turn, top-down ({list}), so those kept under the top above rebuild against its current surface.", { list: pileBelow.map((t) => t.name).join(", ") })}
-                className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{pileRun ? tr("Rebuilding {name} ({i} of {n})…", { name: pileRun.names[pileRun.i], i: pileRun.i + 1, n: pileRun.ids.length }) : tr("Rebuild the pile under it ({n} tops)", { n: pileBelow.length })}</button>
-            )}
-            {pileNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: pileNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{pileNote.text}</div>}
-          </div>
-        )}
-        {seedNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{seedNote}</div>}
-        {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
-          <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-warn-text)" }}>
-            {tr("Several picks on one hole: {list}. A contact crosses a hole once unless folded or faulted; put a repeated unit on another layer or surface.", { list: [...dupHoles].map(([h, n]) => `${h} (${n})`).join(", ") })}{" "}
-            <button onClick={keepShallowest} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Keep the shallowest pick on each hole")}</button>
-          </div>
-        )}
-        {shownStatus && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: shownStatus.ok ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{shownStatus.text}</div>}{/* shownStatus: #3115 */}
-        {ep?.moved > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{tr("{n} pick(s) on holes moved up to {d} m with the holes' current traces (a survey, collar or desurvey method changed).", { n: ep.moved, d: ep.maxMove.toFixed(1) })}</div>}{/* TASKS.csv #888 */}
-        {/* TASKS.csv #883 — every pick says where it landed (a click on the terrain or another surface is not a contact) */}
-        {def.picks.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Last pick: {what}", { what: pickLabel(def.picks[def.picks.length - 1]) })}</div>}
-        {/* TASKS.csv #863 — after a build, what the surface is for */}
-        {shownStatus?.built && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Next, under Generated surfaces: Solid blocks from surfaces fills the units between your contacts, and Link into a solid closes a body from section outlines. StrixViewer > Draw section shows this surface cut.")}</div>}
-        {/* TASKS.csv #830 / #831 / #832 — unit, layer, upper / lower contact */}
-        <details open={unitOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
-          <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Unit, layer and contact")}</summary>
-        <div style={row}>
-          <span style={{ width: 34, flexShrink: 0 }}>{tr("Unit")}</span>
-          <select value={curUnit} onChange={(e) => (e.target.value === NEW_UNIT ? newUnit() : assignUnit(e.target.value))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Unit this surface bounds")}
-            title={tr("The modelling unit this surface is a contact of. Solid blocks from surfaces fills the units between their contacts.")}>
-            {!allUnits.includes(curUnit) && <option value={curUnit}>{curUnit}</option>}
-            {allUnits.map((u) => <option key={u} value={u}>{u}</option>)}
-            {/* TASKS.csv #1547 (review #1497, Lawyers) — the logged lithology codes too, so 'Add the logged tops' is one choice away (with no
-                Modelling codes yet the picker offered only the surface's own name, the groups and 'New unit...') */}
-            {loggedUnits.some((u) => !allUnits.includes(u)) && <optgroup label={tr("Logged codes")}>{loggedUnits.filter((u) => !allUnits.includes(u)).map((u) => <option key={`log_${u}`} value={u}>{u}</option>)}</optgroup>}
-            <option value={NEW_UNIT}>{tr("New unit…")}</option>
-          </select>
-          <select value={def.layer || ""} onChange={(e) => { update({ layer: e.target.value }); setUnitNote(null); }} style={{ ...smallSel, width: 78, flexShrink: 0 }} aria-label={tr("Layer")}
-            title={tr("When the unit occurs as several separate layers in the stack, give each a letter (A, B, C…): each becomes its own unit in the blocks.")}>
-            <option value="">{tr("One layer")}</option>
-            {layerOpts.map((l) => <option key={l} value={l}>{tr("Layer {l}", { l })}</option>)}
-          </select>
-        </div>
-        <div style={row} role="radiogroup" aria-label={tr("Contact")}>
-          {[["upper", "Upper contact", "This surface is the top of {unit}: the unit lies below it."], ["lower", "Lower contact", "This surface is the base of {unit}: the unit lies above it."]].map(([k, label, hint]) => {
-            const on = contactOf(def) === k;
-            return <button data-btn-own="" key={k} role="radio" aria-checked={on} title={tr(hint, { unit: layerLabel(def) })} onClick={() => update({ contact: k })}
-              style={{ ...pBtn, flex: 1, marginBottom: 0, justifyContent: "center", padding: "4px 6px", ...(on ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>{tr(label)}</button>;
-          })}
-        </div>
-        {unitCount > 1 && (
-          <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
-            <div style={{ color: "var(--color-text-muted)" }}>{unitInfo.layers.map((l) => tr("{layer}: {u} upper, {d} lower", { layer: l.layer ? `${curUnit} ${l.layer}` : curUnit, u: l.upper.length, d: l.lower.length })).join(" · ")}</div>
-            <button onClick={splitUnit} title={tr("Letters this unit's surfaces A, B, C… from the top down: each upper contact starts a layer, each lower contact closes the one above.")}
-              className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Split {unit} into layers by elevation", { unit: curUnit })}</button>
-            {unitNote && <div role="status" style={{ marginTop: 3, color: "var(--color-text-secondary)" }}>{unitNote}</div>}
-            {thicknessPairs.length > 0 && <button onClick={measureThickness} title={tr("The unit's vertical thickness, upper to lower contact, wherever both exist: minimum, mean, maximum, and where the base rises above the top.")}
-              className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Thickness between top and base")}</button>}{/* TASKS.csv #896 */}
-            {thickNote && <div role="status" style={{ marginTop: 3, color: thickNote.crossing ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{thickNote.text}</div>}
-          </div>
-        )}
-        </details>
-        {/* TASKS.csv #861 — a fault block: this surface is trimmed at a fault, keeping one side */}
-        <details open={!!def.boundedBy} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
-          <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Fault block")}</summary>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 4 }}>{tr("Model a faulted contact as one surface per block: pick each block's contacts on its own surface and trim it at the fault. The picks carry the throw; nothing is moved.")}</div>
-          <div style={row}>
-            <select value={def.boundedBy?.surfaceId || ""} onChange={(e) => update({ boundedBy: e.target.value ? { surfaceId: e.target.value, side: def.boundedBy?.side || 1 } : null })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Trim at the fault")}>
-              <option value="">{tr("Not trimmed at a fault")}</option>
-              {/* TASKS.csv #2237 (review #2013) — 'Top of IMZ' (a contact) sat in one list with the faults: the faults apart, the other surfaces
-                  after them under their own heading (an imported or untyped surface can still bound a block) */}
-              {[[true, tr("Faults")], [false, tr("Other surfaces (not typed as faults)")]].map(([isFault, label]) => {
-                const list = faultChoices.filter((x) => (x.type === "fault") === isFault);
-                return list.length ? <optgroup key={label} label={label}>{list.map((x) => <option key={x.id} value={x.id}>{surfaceNames.get(x.id) ?? x.name}</option>)}</optgroup> : null;
-              })}{/* #1550: the fault type was a ' · fault' suffix */}
-            </select>
-          </div>
-          {def.boundedBy && (<>
-            <div style={row}>
-              <select value={String(def.boundedBy.side)} onChange={(e) => update({ boundedBy: { ...def.boundedBy, side: Number(e.target.value) } })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Side to keep")}>
-                <option value="1">{sideLabels.plus}</option>
-                <option value="-1">{sideLabels.minus}</option>
-              </select>
-            </div>
-            <button onClick={otherBlock} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("New surface for the other block")}</button>
-          </>)}
-        </details>
         <button data-btn-own="" onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
-          title={tr("Drag a pick: on a hole it slides along it (snapping to logged contacts if Snap is on); elsewhere up and down, or sideways with Shift. Alt + click deletes a pick or line point.")}
+          title={tr("Drag a pick: along a hole, or up and down elsewhere (Shift: sideways). Alt + click deletes.")}
           style={{ ...pBtn, marginBottom: 6, justifyContent: "center", opacity: def.picks.length || (def.lines || []).length ? 1 : 0.5, ...(editing ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>
-          <Move size={14} />{" "}{editing ? tr("Editing — drag a pick or a line point (click to stop)") : tr("Edit picks and lines")}
+          <Move size={14} />{" "}{editing ? tr("Editing: drag a pick or line point") : tr("Edit picks and lines")}
         </button>
         {/* TASKS.csv #913 — say how to delete; the deletion's confirmation (the line-tools hint shows only with section-image lines) */}
-        {editing && !(def.lines || []).length && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, margin: "-2px 0 6px", color: "var(--color-text-secondary)" }}>{toolHint || tr("Alt + click a pick to delete it, on a hole or anywhere else.")}</div>}
+        {editing && !(def.lines || []).length && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, margin: "-2px 0 6px", color: "var(--color-text-secondary)" }}>{toolHint || tr("Alt + click a pick to delete it.")}</div>}
         <label style={{ ...row, cursor: "pointer" }} title={tr("A click on a hole snaps to the nearest logged contact within {m} m down-hole; untick to take the exact point clicked.", { m: SNAP_REACH_M })}>
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to logged contacts")}
         </label>
         {(sc.structure || []).length > 0 && (<> {/* TASKS.csv #1002 */}
-          <label style={{ ...row, cursor: "pointer" }} title={tr("At each hole pick, the nearest core reading of the chosen type within the window adds constructed lines along its dip and strike, so the surface leaves the hole at that attitude.")}>
-            <input type="checkbox" checked={!!def.downholeGuide?.on} onChange={(e) => update({ downholeGuide: { windowM: 3, reachM: 25, type: "contact", ...(def.downholeGuide || {}), on: e.target.checked } })} />{tr("Downhole dip guide: shape the surface at each pick by the core measurement there")}
+          <label style={{ ...row, cursor: "pointer" }} title={tr("The nearest core reading adds lines along its dip and strike at each hole pick.")}>
+            <input type="checkbox" checked={!!def.downholeGuide?.on} onChange={(e) => update({ downholeGuide: { windowM: 3, reachM: 25, type: "contact", ...(def.downholeGuide || {}), on: e.target.checked } })} />{tr("Downhole dip guide")}
           </label>
           {def.downholeGuide?.on && (
             <div style={{ ...row, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
@@ -1239,17 +1152,32 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <button onClick={async () => { if (!await confirmDestructive(tr("Delete the explicit surface \"{name}\" with its picks and lines?", { name: def.name }), { undoable: true })) return; setPickFor(null); onRemove(def); setSelId(""); }} title={tr("Delete this explicit surface and its mesh")} aria-label={tr("Delete this explicit surface and its mesh")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px" }}><Trash2 size={14} /></button>
         </div>
         {exportNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, color: "var(--color-text-secondary)" }}>{exportNote}</div>}{/* #880 */}
-        <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
+        {/* TASKS.csv #883 — every pick says where it landed (a click on the terrain or another surface is not a contact) */}
+        {def.picks.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Last pick: {what}", { what: pickLabel(def.picks[def.picks.length - 1]) })}</div>}
+        <div role="button" tabIndex={0} aria-expanded={picksOpen} onClick={() => setShowPicks(!picksOpen)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowPicks(!picksOpen); }} style={{ cursor: "pointer", fontSize: "var(--font-size-xs)", marginBottom: 4 }}>
+          {picksOpen ? "▾" : "▸"} {tr("Picks ({n})", { n: def.picks.length })}
+        </div>
+        {picksOpen && def.picks.map((p) => (
+          <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
+            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {dupHoles.has(p.hole_id) ? "⚠ " : ""}{pickLabel(p)}
+            </span>
+            <button data-btn-own="" onClick={() => update({ picks: def.picks.filter((q) => q.id !== p.id) })} aria-label={tr("Remove this pick")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
+          </div>
+        ))}
+          </>) },
+          { key: "lines", label: tr("Lines"), question: tr("Which lines hold it?"), body: (<>
+        <div title={lineHint} style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
           {/* TASKS.csv #2057 (review #2013) — 'No section lines yet' beside 'Includes 2 string(s) imported from DXF': the DXF strings are hard lines too, counted apart */}
-          {ep.lines ? tr("{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).", { lines: ep.lines, sections: ep.sections, sp: Math.round(ep.spacing || LINE_SPACING) })
+          {ep.lines ? tr("{lines} section line(s) on {sections} section(s): hard lines, a point every {sp} m.", { lines: ep.lines, sections: ep.sections, sp: Math.round(ep.spacing || LINE_SPACING) })
             : dxfStrings ? tr(dxfStrings === 1 ? "No lines drawn on sections yet; {n} string imported from DXF is a hard line of this surface." : "No lines drawn on sections yet; {n} strings imported from DXF are hard lines of this surface.", { n: dxfStrings })
-            : tr("No section lines yet.")}{" "}<span style={{ color: "var(--color-text-muted)" }}>{lineHint}</span>
+            : tr("No section lines yet.")}
         </div>
         {/* TASKS.csv #824 — digitize contacts on a section image in the 3D view */}
         <details open={digOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
           <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Digitize a section image")}</summary>
           {!images.length ? (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a hand-drawn or scanned cross-section and georeference it (StrixViewer sidebar > Section images) to draw this surface's contact on it here.")}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import and georeference a section image (StrixViewer sidebar > Section images) to draw on it.")}</div>
           ) : (<>
             <div style={row}>
               <select value={digImage?.id || ""} onChange={(e) => { setDigImageId(e.target.value); setDigPts([]); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Section image")}>
@@ -1290,7 +1218,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         <details open={mapOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
           <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("From the geological map")}</summary>
           {!polys.length ? (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (Geological Mapping > Geology map) to use its contacts as hard lines where this surface meets the ground.")}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (Geological Mapping > Geology map) first.")}</div>
           ) : (<>
             <div style={row}>
               <select value={mapLayer?.id || ""} onChange={(e) => { setMapLayerId(e.target.value); setMapField(""); setPairKey(""); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Map layer")}>
@@ -1340,34 +1268,95 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
               )}
               <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, color: "var(--color-text-muted)" }}>
                 {tr("{n} line(s) on the terrain.", { n: mapPart.lines.length })}
-                {mapPart.guides ? ` ${tr("Dip guide: {m} point(s) from measurements, {f} from the contact's own trace, {s} without a usable dip (no guide there).", { m: mapPart.guides.measured, f: mapPart.guides.fitted, s: mapPart.guides.skipped })}` : ""}
+                {mapPart.guides ? ` ${tr("Dip guide: {m} from measurements, {f} from the trace, {s} without a dip.", { m: mapPart.guides.measured, f: mapPart.guides.fitted, s: mapPart.guides.skipped })}` : ""}
                 {mapPart.guides?.otherUnitReadings ? ` ${tr("{n} bedding reading(s) in other units not used.", { n: mapPart.guides.otherUnitReadings })}` : ""}
                 {mapPart.guides?.acrossFaultPoints ? ` ${tr("At {n} point(s) a reading across a mapped fault was not used.", { n: mapPart.guides.acrossFaultPoints })}` : ""}
-                {mapPart.guides?.disagree ? <span style={{ color: "var(--color-warn-text)" }}>{` ${tr("At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.", { n: mapPart.guides.disagree, d: mapPart.guides.maxDisagreeDeg })}`}</span> : null}{/* #872 */}
+                {mapPart.guides?.disagree ? <span style={{ color: "var(--color-warn-text)" }}>{` ${tr("At {n} point(s) bedding and the contact's trace dip differ by over 30° (up to {d}°).", { n: mapPart.guides.disagree, d: mapPart.guides.maxDisagreeDeg })}`}</span> : null}{/* #872 */}
                 {mapPart.missing ? ` ${hasTerrain ? tr("{k} mapped contact(s) not found on the map or the terrain.", { k: mapPart.missing }) : tr("Load a terrain to place the mapped contacts.")}` : ""}
               </div>
             </>)}
           </>)}
         </details>
-        <details open={settingsOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
-          <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Surface settings")}</summary>
-        <div style={row} title={tr("Auto: 15 % of the inputs' shorter span. Everything beyond the inputs is extrapolated, not data.") /* TASKS.csv #870 */}>
+          </>) },
+          { key: "unit", label: tr("Unit"), question: tr("Which unit and side?"), body: (<>
+        <div style={row}>
+          <span style={{ width: 34, flexShrink: 0 }}>{tr("Unit")}</span>
+          <select value={curUnit} onChange={(e) => (e.target.value === NEW_UNIT ? newUnit() : assignUnit(e.target.value))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Unit this surface bounds")}
+            title={tr("The unit this surface bounds.")}>
+            {!allUnits.includes(curUnit) && <option value={curUnit}>{curUnit}</option>}
+            {allUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+            {/* TASKS.csv #1547 (review #1497, Lawyers) — the logged lithology codes too, so 'Add the logged tops' is one choice away (with no
+                Modelling codes yet the picker offered only the surface's own name, the groups and 'New unit...') */}
+            {loggedUnits.some((u) => !allUnits.includes(u)) && <optgroup label={tr("Logged codes")}>{loggedUnits.filter((u) => !allUnits.includes(u)).map((u) => <option key={`log_${u}`} value={u}>{u}</option>)}</optgroup>}
+            <option value={NEW_UNIT}>{tr("New unit…")}</option>
+          </select>
+          <select value={def.layer || ""} onChange={(e) => { update({ layer: e.target.value }); setUnitNote(null); }} style={{ ...smallSel, width: 78, flexShrink: 0 }} aria-label={tr("Layer")}
+            title={tr("A letter for each separate layer of the unit.")}>
+            <option value="">{tr("One layer")}</option>
+            {layerOpts.map((l) => <option key={l} value={l}>{tr("Layer {l}", { l })}</option>)}
+          </select>
+        </div>
+        <div style={row} role="radiogroup" aria-label={tr("Contact")}>
+          {[["upper", "Upper contact", "This surface is the top of {unit}: the unit lies below it."], ["lower", "Lower contact", "This surface is the base of {unit}: the unit lies above it."]].map(([k, label, hint]) => {
+            const on = contactOf(def) === k;
+            return <button data-btn-own="" key={k} role="radio" aria-checked={on} title={tr(hint, { unit: layerLabel(def) })} onClick={() => update({ contact: k })}
+              style={{ ...pBtn, flex: 1, marginBottom: 0, justifyContent: "center", padding: "4px 6px", ...(on ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>{tr(label)}</button>;
+          })}
+        </div>
+        {unitCount > 1 && (
+          <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
+            <div style={{ color: "var(--color-text-muted)" }}>{unitInfo.layers.map((l) => tr("{layer}: {u} upper, {d} lower", { layer: l.layer ? `${curUnit} ${l.layer}` : curUnit, u: l.upper.length, d: l.lower.length })).join(" · ")}</div>
+            <button onClick={splitUnit} title={tr("Letters its surfaces A, B, C from the top down.")}
+              className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Split {unit} into layers by elevation", { unit: curUnit })}</button>
+            {unitNote && <div role="status" style={{ marginTop: 3, color: "var(--color-text-secondary)" }}>{unitNote}</div>}
+            {thicknessPairs.length > 0 && <button onClick={measureThickness} title={tr("Minimum, mean and maximum thickness, top to base.")}
+              className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Thickness between top and base")}</button>}{/* TASKS.csv #896 */}
+            {thickNote && <div role="status" style={{ marginTop: 3, color: thickNote.crossing ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{thickNote.text}</div>}
+          </div>
+        )}
+        {/* TASKS.csv #861 — a fault block: this surface is trimmed at a fault, keeping one side */}
+        <details open={!!def.boundedBy} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
+          <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }} title={tr("One surface per fault block, trimmed at the fault; nothing is moved.")}>{tr("Fault block")}</summary>
+          <div style={row}>
+            <select value={def.boundedBy?.surfaceId || ""} onChange={(e) => update({ boundedBy: e.target.value ? { surfaceId: e.target.value, side: def.boundedBy?.side || 1 } : null })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Trim at the fault")}>
+              <option value="">{tr("Not trimmed at a fault")}</option>
+              {/* TASKS.csv #2237 (review #2013) — 'Top of IMZ' (a contact) sat in one list with the faults: the faults apart, the other surfaces
+                  after them under their own heading (an imported or untyped surface can still bound a block) */}
+              {[[true, tr("Faults")], [false, tr("Other surfaces (not typed as faults)")]].map(([isFault, label]) => {
+                const list = faultChoices.filter((x) => (x.type === "fault") === isFault);
+                return list.length ? <optgroup key={label} label={label}>{list.map((x) => <option key={x.id} value={x.id}>{surfaceNames.get(x.id) ?? x.name}</option>)}</optgroup> : null;
+              })}{/* #1550: the fault type was a ' · fault' suffix */}
+            </select>
+          </div>
+          {def.boundedBy && (<>
+            <div style={row}>
+              <select value={String(def.boundedBy.side)} onChange={(e) => update({ boundedBy: { ...def.boundedBy, side: Number(e.target.value) } })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Side to keep")}>
+                <option value="1">{sideLabels.plus}</option>
+                <option value="-1">{sideLabels.minus}</option>
+              </select>
+            </div>
+            <button onClick={otherBlock} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("New surface for the other block")}</button>
+          </>)}
+        </details>
+          </>) },
+          { key: "shape", label: tr("Shape"), question: tr("How is it meshed?"), body: (<>
+        <div style={row} title={tr("Auto: 15 % of the shorter span. Beyond the inputs it is extrapolated.") /* TASKS.csv #870 */}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Extend beyond picks")}</span>
           <NumberInput min={0} step={10} allowEmpty value={def.margin ?? null} placeholder={tr("auto")} onChange={(n) => update({ margin: n })} style={{ ...numInput, width: 64 }} aria-label={tr("Extend beyond picks")} /><span>m</span>
         </div>
-        <label style={{ ...row, cursor: "pointer" }} title={tr("Off: a rectangle over the inputs plus the margin. On: the mesh stops at the inputs' outline plus the margin, so less is extrapolated.")}>{/* #2921 */}
+        <label style={{ ...row, cursor: "pointer" }} title={tr("On: the mesh stops at the inputs' outline plus the margin.")}>{/* #2921 */}
           <input type="checkbox" checked={def.extent === "hull"} onChange={(e) => update({ extent: e.target.checked ? "hull" : "box" })} />{tr("Stop at the inputs' outline (plus the margin)")}
         </label>
-        <div style={row} title={tr("Automatic: lines on sections decide (an overall dip under 45° gives elevation over the map); otherwise the points' best-fit plane (steeper than 30°: over that plane)")}>
+        <div style={row} title={tr("Automatic: from the section lines, else the best-fit plane.")}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Shape")}</span>
           <select value={def.shape || "legacy"} onChange={(e) => update({ shape: e.target.value })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Shape")}>
             {!def.shape && <option value="legacy">{tr("As built (best-fit plane)")}</option>}
             <option value="auto">{tr("Automatic")}</option><option value="map">{tr("Elevation over the map")}</option><option value="plane">{tr("Over its own plane (steep)")}</option>
           </select>
         </div>
-        {def.shape && def.shape !== "legacy" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 6px 126px", lineHeight: 1.35 }}>{def.shape === "map" ? tr("Elevation over the map: one height per map point — contacts that are flat-lying to moderately dipping.") : def.shape === "plane" ? tr("Over its own plane: steep contacts, dykes and faults.") : tr("Automatic: chosen from the lines on sections and the picks.")}</div>}{/* #892 */}
+        {def.shape && def.shape !== "legacy" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 6px 126px", lineHeight: 1.35 }}>{def.shape === "map" ? tr("Elevation over the map: one height per map point; flat-lying to moderately dipping.") : def.shape === "plane" ? tr("Over its own plane: steep contacts, dykes and faults.") : tr("Automatic: chosen from the lines on sections and the picks.")}</div>}{/* #892 */}
         {/* TASKS.csv #1958 — a point file or a pit survey as it is: a TIN, not a fitted surface */}
-        <label style={{ ...row, cursor: "pointer" }} title={tr("An unsmoothed Delaunay TIN in plan through every pick and line vertex, nothing beyond the points (a triangle with an edge over ten times the median is left out). For pit or trench surveys, spot heights or DXF points.")}>
+        <label style={{ ...row, cursor: "pointer" }} title={tr("An unsmoothed TIN through every pick and line vertex; nothing beyond them.")}>
           <input type="checkbox" checked={!!def.tin} onChange={(e) => update({ tin: e.target.checked })} />{tr("Triangulate the points as they are (no fit, no extrapolation)")}
         </label>
         <div style={row}>
@@ -1379,19 +1368,38 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         <label style={{ ...row, cursor: hasTerrain ? "pointer" : "default", opacity: hasTerrain ? 1 : 0.5 }}>
           <input type="checkbox" checked={!!def.cutAtTerrain} disabled={!hasTerrain} onChange={(e) => update({ cutAtTerrain: e.target.checked })} />{hasTerrain ? tr("Cut at the terrain") : tr("Cut at the terrain (no terrain loaded)")}
         </label>
-        </details>
-        <div role="button" tabIndex={0} aria-expanded={picksOpen} onClick={() => setShowPicks(!picksOpen)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowPicks(!picksOpen); }} style={{ cursor: "pointer", fontSize: "var(--font-size-xs)", marginBottom: 4 }}>
-          {picksOpen ? "▾" : "▸"} {tr("Picks ({n})", { n: def.picks.length })}
-        </div>
-        {picksOpen && def.picks.map((p) => (
-          <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
-            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {dupHoles.has(p.hole_id) ? "⚠ " : ""}{pickLabel(p)}
-            </span>
-            <button data-btn-own="" onClick={() => update({ picks: def.picks.filter((q) => q.id !== p.id) })} aria-label={tr("Remove this pick")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
+          </>) },
+        ] : [{ key: "picks", label: tr("Picks"), body: null }]}
+        fineTune={def ? <MoreFold summary={tr("More…")} data-fine-tune="explicit">
+        {(def.log || []).length > 0 && ( // TASKS.csv #878
+          <details style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, color: "var(--color-text-secondary)" }}>
+            <summary style={{ cursor: "pointer" }}>{tr("History ({n} changes)", { n: def.log.length })}</summary>
+            <div style={{ maxHeight: 140, overflowY: "auto", marginTop: 4, lineHeight: 1.4 }}>
+              {[...def.log].reverse().slice(0, 50).map((e, i) => <div key={i}><span style={{ color: "var(--color-text-muted)" }}>{e.at.slice(0, 16).replace("T", " ")}</span> {e.what}</div>)}
+            </div>
+            <button onClick={keepVersion} disabled={!def.surfaceId || !sc.meshes.current[def.surfaceId]} title={tr("Copy this build to the surface list as a frozen version (it does not rebuild); this surface is marked as superseding it.")} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{tr("Keep this build as a version")}</button>
+            {keptNote && <div role="status" style={{ marginTop: 3 }}>{keptNote}</div>}
+          </details>
+        )}
+        {pileTop && ( // TASKS.csv #2921 — the order from the holes, against the next explicit top up
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, cursor: "pointer" }} title={tr("{k} of {n} holes logging both put {u} above {x}. On: this surface is lowered onto \"{upper}\" wherever it would rise above it. Off: only checked after each build.", { u: pileTop.unit, x: seedUnit, k: pileTop.rel.agree, n: pileTop.rel.of, upper: pileTop.name })}>
+            <input type="checkbox" checked={!!def.keepOrder} onChange={(e) => update({ keepOrder: e.target.checked })} style={{ marginTop: 2 }} />
+            <span>{tr("Keep under {upper}", { upper: pileTop.name })}</span>
+          </label>
+        )}
+        {pileBase && ( // TASKS.csv #3113 — the thickness map down to the next explicit top under this one
+          <div style={{ marginBottom: 6 }}>
+            <button onClick={isopachMap} title={tr("A map of the vertical distance from this top down to \"{lower}\" (the next top in the holes' order), with the volume, in Maps > GeoTIFF / GXF and StrixViewer.", { lower: pileBase.name })}
+              className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Thickness map down to {lower}", { lower: pileBase.name })}</button>
+            {isoNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: isoNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{isoNote.text}</div>}
+            {(keptBelow.length > 0 || pileRun) && ( // TASKS.csv #3115
+              <button onClick={rebuildPile} disabled={!!pileRun} title={tr("Opens each top under this one in turn, top-down ({list}), so those kept under the top above rebuild against its current surface.", { list: pileBelow.map((t) => t.name).join(", ") })}
+                className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{pileRun ? tr("Rebuilding {name} ({i} of {n})…", { name: pileRun.names[pileRun.i], i: pileRun.i + 1, n: pileRun.ids.length }) : tr("Rebuild the pile under it ({n} tops)", { n: pileBelow.length })}</button>
+            )}
+            {pileNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: pileNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{pileNote.text}</div>}
           </div>
-        ))}
-      </>)}
+        )}
+        </MoreFold> : null} />
     </div>
   );
 }

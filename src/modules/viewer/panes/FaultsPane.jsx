@@ -11,7 +11,7 @@ const FaultsPanel = lazy(() => import("../FaultsPanel.jsx")); // TASKS.csv #4006
 export default function FaultsPane({ paneHeader, props, toolPane }) {
   return (<>
 {toolPane === "faults" && (<>{/* TASKS.csv #4006 — every fault tool in one pane; it reads the props this component already has */}
-        {paneHeader("Faults", SquareSplitVertical, "model")}
+        {paneHeader("Faults", SquareSplitVertical, "model", true /* #4070 */)}
         <Suspense fallback={null}><FaultsPanel {...props} pBtn={pBtn} /></Suspense>
         </>)}
   </>);

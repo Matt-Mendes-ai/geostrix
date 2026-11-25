@@ -14,7 +14,6 @@
 // matched by name.
 import React, { useEffect, useMemo, useState } from "react";
 import { ArrowDownToLine } from "./icons.js";
-import InfoButton from "./InfoButton.jsx";
 import { extractMapContacts, STRUCTURE_CLASS_LABELS } from "../lib/mapLayers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -22,7 +21,7 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '
 
 const DEFAULT_CLASSES = ["bedding", "foliation", "contact", "cleavage"];
 
-export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures, terrain, pBtn, onProject, mapConstraint, setMapConstraint, busy }) {
+export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures, terrain, onProject, mapConstraint, setMapConstraint, busy }) {
   const polygonLayers = mapLayers.filter((l) => l.geomType === "polygon" && l.styleField);
   const [layerId, setLayerId] = useState("");
   const [contactKey, setContactKey] = useState("");
@@ -67,10 +66,8 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
 
   return (
     <>
-      <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 5 }}>{tr("Project surface geology")}<InfoButton title={tr("Project surface geology")} width={400} text={tr("Takes a mapped contact between two units of an imported geology map below the ground. Project to depth: the trace is draped on the terrain and swept down-dip to the depth you set (vertical depth). The dip comes from the ticked outcrop measurements within the search radius, else the typed dip. Use in implicit model: adds the trace and nearby measurements to the next \"Implicit surface\" run. A contact is where two units meet within the snap tolerance; the map's edge never counts.")} />
-      </div>
       {!polygonLayers.length ? (
-        <div style={{ ...small, marginBottom: 10 }}>{tr("Import a polygon geology map in Geological Mapping > Geology map to project its contacts underground.")}</div>
+        <div style={{ ...small, marginBottom: 10 }}>{tr("Import a polygon geology map: Geological Mapping > Geology map.")}</div>
       ) : (
         <>
           <select value={layer?.id || ""} onChange={(e) => { setLayerId(e.target.value); setContactKey(""); }} style={sel}>
@@ -96,7 +93,7 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
                 </span>
               );
             })}
-            {!allRows.length && <span style={small}>{tr("No surface structures imported — the typed dip below is used everywhere.")}</span>}
+            {!allRows.length && <span style={small}>{tr("No outcrop measurements: the typed dip is used.")}</span>}
           </div>
           <div style={row}>{tr("Search radius")}{" "}<NumberInput min={10} step={50} value={radius} onChange={(v) => setRadius(String(v))} style={num} /> m
           </div>
@@ -117,7 +114,7 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
           {mapConstraint && !constraintOn && (
             <div style={{ ...small, marginBottom: 6 }}>{tr("A different mapped contact ({v}) is currently set for the implicit model.", { v: mapConstraint.units?.map(labelFor).join(" | ") })}</div>
           )}
-          {!terrain && <div style={{ ...small, marginBottom: 8 }}>{tr("Load a terrain surface first — the contact's elevation comes from draping it on the DTM.")}</div>}
+          {!terrain && <div style={{ ...small, marginBottom: 8 }}>{tr("Load a terrain first.")}</div>}
         </>
       )}
     </>

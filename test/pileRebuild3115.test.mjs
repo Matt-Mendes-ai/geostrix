@@ -39,6 +39,6 @@ test("the status line is the selected surface's own (opening a current top no lo
   const p = readFileSync(new URL("../src/components/ExplicitSurfacePanel.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(p, /if \(status !== statusSeen\.current\) \{ statusSeen\.current = status; if \(status && def\?\.id\) statusOf\.current\.set\(def\.id, status\); \}/);
   assert.match(p, /const shownStatus = def \? statusOf\.current\.get\(def\.id\) \?\? null : null;/);
-  assert.match(p, /\{shownStatus && <div role="status"[^\n]*\{shownStatus\.text\}<\/div>\}/);
+  assert.match(p, /\{shownStatus && <div role="status"[^\n]*\{shownStatus\.short \|\| shownStatus\.text\}<\/div>\}/);
   assert.doesNotMatch(p, /\{status && <div role="status"/, "the shared status is not rendered directly");
 });

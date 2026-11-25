@@ -9,7 +9,7 @@ import { Suspense } from "react";
 export default function ExplicitPane({ ExplicitSurfacePanel, askPrompt, explicitPickFor, explicitScene, explicitSnap, explicitSurfaces, explicitTrend, implicitMeshesRef, implicitSurfaces, lithoGroups, litho_units, mapLayers, modellingCodeList, paneHeader, removeImplicitSurface, sectionImages, sections, setDigitizeImageId, setExplicitLogged, setExplicitPickFor, setExplicitSnap, setExplicitSurfaces, surfaceStructures, terrain, toolPane, topsOfUnit, tracesSeq }) {
   return (<>
 {toolPane === "explicit" && (<>
-        {paneHeader("Explicit surface", PenTool, "model")}
+        {paneHeader("Explicit surface", PenTool, "model", true /* #4070 */)}
         <Suspense fallback={null}>
           <ExplicitSurfacePanel surfaces={implicitSurfaces} /* #861 */ tracesSeq={tracesSeq} /* #888 */ trend={explicitTrend} /* #881 */ topsOfUnit={topsOfUnit} /* #871 */ defs={explicitSurfaces || []} setDefs={setExplicitLogged} /* #878 */ sections={sections} terrain={terrain} mapLayers={mapLayers} surfaceStructures={surfaceStructures} /* #817 */ sectionImages={sectionImages} onDigitizeImage={setDigitizeImageId} /* #824 */ unitChoices={[...modellingCodeList.map((c) => c.name), ...lithoGroups.map((g) => g.name)]} loggedUnits={litho_units} /* #1547 */ /* #831 */ pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
             scene={explicitScene} /* #901 — memoized below the props */
