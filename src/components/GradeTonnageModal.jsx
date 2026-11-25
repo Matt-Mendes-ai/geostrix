@@ -4,11 +4,9 @@ import { shellComparison } from "../lib/shellCompare.js"; // TASKS.csv #3679
 // exploration-target cautionary statement beside it and a stamped CSV. The sums are lib/gradeTonnage.js.
 import { unsampledWord } from "../lib/holeType.js"; // TASKS.csv #3513
 import React, { useMemo, useState } from "react";
-import { X, Download } from "./icons.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js";
+import { Download } from "./icons.js";
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073
+import MoreFold from "./MoreFold.jsx";
 import { t as tr, fmtNum } from "../lib/i18n.js";
 import { saveFile } from "../lib/desktop.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3597
@@ -47,8 +45,6 @@ const compact = (v) => (v == null || !Number.isFinite(v) ? "—" : new Intl.Numb
 
 // setModels (#3014 part b): the set's other members when the model is an Estimation result not yet added (else they are found in the project)
 export default function GradeTonnageModal({ model, epsg, onClose, setModels = null }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
   const unit = valueUnit(model), metal = metalOf(unit);
   const element = model.params?.element || null, mcols = metalColumns(metal, element); // #1577
   const unitL = element && unit ? gradeUnitLabel(element, unit) : unit; // TASKS.csv #2218 — the label (g/t for gold in ppm); unit stays for the sums and the CSV — kg and troy oz for a precious metal, t otherwise
@@ -240,13 +236,19 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
   const th = { textAlign: "end", padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 600, borderBottom: "1px solid var(--color-border)" };
   const td = { textAlign: "end", padding: "3px 8px", fontVariantNumeric: "tabular-nums" };
   const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-base)" };
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div role="dialog" aria-modal="true" aria-label={tr("Grade-tonnage")} onClick={(e) => e.stopPropagation()} style={{ width: "min(640px, 94vw)", minWidth: "min(480px, 94vw)", maxWidth: "96vw", resize: "horizontal" /* #3594: drag its corner wider for a set's metal columns (15 with a density model); fit-content stretched the notes and chart across the window */, maxHeight: "90vh", overflowY: "auto", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>{tr("Grade-tonnage: {name}", { name: model.name })}</div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-tonnage")} aria-label={tr("Help: {name}", { name: tr("Grade-tonnage") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
-        </div>
+  // TASKS.csv #4073 — the dialog as steps on the shared StepDialog (Cutoffs, Report, Result): what to count, where, then the table and curve with Export CSV as the one gold primary.
+  const [stepAt, setStepAt] = useState(0);
+  const col = { display: "flex", flexDirection: "column", gap: 8, width: "100%" };
+  const helpCard = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-accent-dark)", marginBottom: 6, cursor: "pointer" }}>{tr("How it works")}</summary>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr(EXPLORATION_TARGET_CAUTION)}</div>
+      <button data-btn-own="" type="button" className="gs-btn gs-btn--sm" style={{ marginTop: 6 }} onClick={() => openHelp("grade-tonnage")} aria-label={tr("Help: {name}", { name: tr("Grade-tonnage") })} title={tr("Help for this tool (F1, works offline)")}>{tr("Help")}</button>{/* TASKS.csv #3452 — the help page of the tool */}
+    </details>
+  );
+  const steps = [
+    { key: "cutoffs", label: tr("Cutoffs"), primary: { label: tr("Next: report") }, render: () => (
+      <div style={col}>
         <AssayStaleBadge params={model.params} text />{/* TASKS.csv #3686 — the model was made from assays that have changed since */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 260 }}>{tr("Cutoffs ({unit})", { unit: unitL || tr("no unit stated") })}
@@ -258,6 +260,7 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           {sgLayer && <button type="button" className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }} title={(sgLayer.holes ? tr("The length-weighted mean of the {n} Specific gravity rows of the {h} holes this model was estimated from, {min} to {max}. One value for every block.", { n: sgLayer.n, h: sgLayer.holes, min: sgLayer.min, max: sgLayer.max }) : tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: sgLayer.n, min: sgLayer.min, max: sgLayer.max })) + (sgLayer.methods ? " " + sgMethodsText(sgLayer.methods) : "")} onClick={() => { setDensity(String(sgLayer.mean)); setFromSg(true); }}>{sgLayer.holes ? tr("Use the SG of this model's holes ({v})", { v: sgLayer.mean }) : tr("Use the SG layer's mean ({v})", { v: sgLayer.mean })}</button>}{/* #3595 */}
           {sgLayer?.left > 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("{n} density value(s) outside {min}–{max} t/m³ left out of the mean (the range is set in Data QC).", { n: fmtNum(sgLayer.left), min: sgLayer.range.min, max: sgLayer.range.max })}</span> /* TASKS.csv #3587 — the tonnage line says how many */}
         </div>
+        <MoreFold summary={tr("Fine-tune…")}>
         {/* TASKS.csv #3297 (#2637's rest) — the density used here kept with the saved block model: a DENSITY column per block in its exports */}
         {updateVoxelModel && model.id != null && voxelModels.some((m) => m.id === model.id) && (rho || byModel || byCode) && (
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
@@ -295,7 +298,10 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
             {layerCodesOrdered.length > 30 && <button type="button" onClick={() => setAllCodes((v) => !v)} className="gs-btn gs-btn--sm" style={{ width: "auto", cursor: "pointer" }}>{allCodes ? tr("Show the first 30") : tr("Show all {n}", { n: layerCodesOrdered.length })}</button>}{/* #3013 */}
           </div>
         )}
-        {/* TASKS.csv #1949 — inside a closed solid; #1957 — bench by bench */}
+        </MoreFold>
+      </div>) },
+    { key: "report", label: tr("Report"), primary: { label: tr("Next: result") }, render: () => (
+      <div style={col}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 8, fontSize: "var(--font-size-sm)" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Inside the solid")}
             <select value={solidId} onChange={(e) => setSolidId(e.target.value)} style={{ ...inp, maxWidth: 220 }} aria-label={tr("Solid to report inside")}><option value="">{solids.length ? tr("— the whole model —") : tr("— no closed solid in the project —")}</option>{solids.map((s) => <option key={s.id} value={s.id}>{s.name}{s.closure === "artificial" ? ` · ${tr("closed artificially")}` : ""}</option>)}</select></label>
@@ -306,10 +312,15 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           {byBench && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Datum (m)")}<NumberInput allowEmpty value={benchDatum} onChange={(v) => setBenchDatum(v == null ? "" : String(v))} placeholder="0" style={{ ...inp, width: 80 }} aria-label={tr("Bench datum")} /></label>}
           {byBench && cutoffs.length > 1 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("at cutoff")}<select value={benchCut ?? ""} onChange={(e) => setBenchCutoff(e.target.value)} style={inp} aria-label={tr("Cutoff of the bench table")}>{cutoffs.map((c) => <option key={c} value={c}>{sig(c)}</option>)}</select></label>}
         </div>
+        <MoreFold summary={tr("Cautions and details")}>
         {solid && inside && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{insideMode === "share"
           ? tr("Inside \"{name}\": {a} block(s) wholly inside, {b} partly (counted by the share of each inside, from 2 × 2 × 2 sample points), {c} outside.", { name: solid.name, a: inside.inside, b: inside.partial, c: inside.outside })
           : tr("Inside \"{name}\": {a} block(s) counted whole by their centre, {c} outside; a block the surface cuts is wholly in or wholly out here.", { name: solid.name, a: inside.inside, c: inside.outside })}{closureNote(solid)}</div>}
         {byBench && !(Number(benchH) > 0) && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>{tr("Enter the bench height: the floors sit at the datum plus whole benches.")}</div>}
+        </MoreFold>
+      </div>) },
+    { key: "result", label: tr("Result"), primary: { label: <><Download size={14} /> {tr("Export CSV")}</>, onClick: exportCsv, disabled: !rows.length }, render: () => (
+      <div style={col}>
         {byBench && benchRows.length > 0 && (
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
             <thead><tr>
@@ -357,6 +368,23 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
               {noDensCol && <td style={td}>{fmt(r.noDensityBlocks || 0)}</td>}{/* #3270 */}
             </tr>))}</tbody>
         </table>
+        {hasSupport && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6 }}><input type="checkbox" checked={interpOnly} onChange={(e) => setInterpOnly(e.target.checked)} />{tr("Only blocks classed interpolated")}</label>}
+        {rows.length > 1 && (
+          <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={tr("Grade-tonnage curve")} style={{ display: "block", marginBottom: 8 }} dir="ltr">
+            <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="#94a1b0" /><line x1={L} y1={T} x2={L} y2={H - B} stroke="#94a1b0" /><line x1={W - R} y1={T} x2={W - R} y2={H - B} stroke="#94a1b0" />
+            <polyline fill="none" stroke="#2f6fe0" strokeWidth="2" points={rows.map((r, i) => `${sx(xs[i])},${sq(qty[i])}`).join(" ")} />
+            <polyline fill="none" stroke="#c0392b" strokeWidth="2" strokeDasharray="5 3" points={rows.map((r, i) => `${sx(xs[i])},${sg(gr[i])}`).join(" ")} />
+            <text x={L - 4} y={T + 8} fontSize="10" textAnchor="end" fill="#2f6fe0">{compact(q1)}</text>
+            <text x={L - 4} y={H - B} fontSize="10" textAnchor="end" fill="#2f6fe0">0</text>
+            <text x={W - R + 4} y={T + 8} fontSize="10" fill="#c0392b">{compact(g1)}</text>
+            <text x={L} y={H - 10} fontSize="10" fill="#55606e">{sig(x0)}</text>
+            <text x={W - R} y={H - 10} fontSize="10" textAnchor="end" fill="#55606e">{sig(x1)}</text>
+            <text x={(L + W - R) / 2} y={H - 4} fontSize="10" textAnchor="middle" fill="#55606e">{tr("cutoff ({unit})", { unit: unitL || "?" })}</text>
+            <text x={L + 6} y={T + 10} fontSize="10" fill="#2f6fe0">{tonnesOn ? tr("tonnes") : tr("volume (m³)")}</text>
+            <text x={W - R - 6} y={T + 10} fontSize="10" textAnchor="end" fill="#c0392b">{tr("mean grade")}</text>
+          </svg>
+        )}
+        <MoreFold summary={tr("Cautions and details")}>
         {modelUse && <div style={{ fontSize: "var(--font-size-sm)", color: modelUse.f && !rho ? "var(--color-warn-text)" : "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3012 */}{tr("Density from the block model \"{name}\" on the same blocks: {k} block(s) take its value (mean {m} t/m³), {f} take {d} (none there, or outside {lo}-{hi} t/m³).", { name: densityModel.name, k: fmtNum(modelUse.k), m: modelUse.mean == null ? "—" : modelUse.mean.toFixed(2), f: fmtNum(modelUse.f), d: rho ? tr("the Density field ({rho} t/m³)", { rho }) : tr("no density and are counted apart, in the No density column") /* #3270 */, lo: densityRange.min, hi: densityRange.max })}</div>}
         {untypedCodes.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{/* #3013 */}{(() => { const list = untypedCodes.slice(0, 12).map(([c, n]) => tr("{code} ({n} blocks)", { code: c, n: fmtNum(n) })).join(", ") + (untypedCodes.length > 12 ? ", …" : ""); return rho ? tr("No density typed for {list}: their blocks take the default ({rho} t/m³).", { list, rho }) : tr("No density typed for {list}: with no default density typed, their blocks have a volume but no tonnes.", { list }); })()}</div>}
         {densityUse && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{/* #2550 */}{tr("Density by {layer}, the nearest logged interval within {r} m: {list}.", { layer: densityLayer === "weath" ? tr("Weathering") : densityLayer === "litho" ? tr("Lithology") : tr("Alteration"), r: Math.round(reachM), list: densityUse.map((d) => tr("{code} {rho} t/m³ ({n} blocks)", { code: d.code ?? tr("the default"), rho: d.rho ?? "—", n: d.n })).join("; ") })}{!tonnesOn ? " " + tr("Enter the default density to show the tonnes.") : ""}</div>}
@@ -375,7 +403,6 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
           {" "}{pooled.domain ? tr("Domain: {d}.", { d: pooled.domain }) : pooled.volume ? tr("Inside {v} only.", { v: pooled.volume }) : tr("One domain: no geology model or domain bounds the estimate, so every hole's grade informs every block it reaches.")}
           {sgLayer?.methods && fromSg ? " " + sgMethodsText(sgLayer.methods) : ""}
         </div>}
-        {hasSupport && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6 }}><input type="checkbox" checked={interpOnly} onChange={(e) => setInterpOnly(e.target.checked)} />{tr("Only blocks classed interpolated")}</label>}
         {hasSupport && !interpOnly && lowSupport && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported): the tonnage rests on grades the drilling does not surround.")}</div>}
         {insideByDefault && ( /* TASKS.csv #3706 */
           <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.5, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -389,33 +416,15 @@ export default function GradeTonnageModal({ model, epsg, onClose, setModels = nu
             <button type="button" onClick={() => setSolidId(shellCmp.id)} className="gs-btn gs-btn--sm">{tr("Report inside it")}</button>
           </div>
         )}
-        {rows.length > 1 && (
-          <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={tr("Grade-tonnage curve")} style={{ display: "block", marginBottom: 8 }} dir="ltr">
-            <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="#94a1b0" /><line x1={L} y1={T} x2={L} y2={H - B} stroke="#94a1b0" /><line x1={W - R} y1={T} x2={W - R} y2={H - B} stroke="#94a1b0" />
-            <polyline fill="none" stroke="#2f6fe0" strokeWidth="2" points={rows.map((r, i) => `${sx(xs[i])},${sq(qty[i])}`).join(" ")} />
-            <polyline fill="none" stroke="#c0392b" strokeWidth="2" strokeDasharray="5 3" points={rows.map((r, i) => `${sx(xs[i])},${sg(gr[i])}`).join(" ")} />
-            <text x={L - 4} y={T + 8} fontSize="10" textAnchor="end" fill="#2f6fe0">{compact(q1)}</text>
-            <text x={L - 4} y={H - B} fontSize="10" textAnchor="end" fill="#2f6fe0">0</text>
-            <text x={W - R + 4} y={T + 8} fontSize="10" fill="#c0392b">{compact(g1)}</text>
-            <text x={L} y={H - 10} fontSize="10" fill="#55606e">{sig(x0)}</text>
-            <text x={W - R} y={H - 10} fontSize="10" textAnchor="end" fill="#55606e">{sig(x1)}</text>
-            <text x={(L + W - R) / 2} y={H - 4} fontSize="10" textAnchor="middle" fill="#55606e">{tr("cutoff ({unit})", { unit: unitL || "?" })}</text>
-            <text x={L + 6} y={T + 10} fontSize="10" fill="#2f6fe0">{tonnesOn ? tr("tonnes") : tr("volume (m³)")}</text>
-            <text x={W - R - 6} y={T + 10} fontSize="10" textAnchor="end" fill="#c0392b">{tr("mean grade")}</text>
-          </svg>
-        )}
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 6 }}>
           {tonnesOn && <>{tr("Tonnes and metal are shown to three significant figures (hover a figure for the exact sum; the CSV keeps it whole): they are conceptual.")}{" "}</>}{/* #3284 */}
           {perBlock && rows.some((r) => r.tonnes != null) ? tr("Mean grade is tonnage-weighted (volume times density) over blocks with a density at or above each cutoff; blocks with none are left out of the row.") : tr("Mean grade is volume-weighted over the blocks at or above each cutoff.")}{/* #3270 */}{means && means.some((r) => r.means.some((x) => x.covered != null && x.covered < 0.9995)) ? ` ${tr("* the element's estimate did not reach every block of that volume; the mean is over the blocks it has.")}` : ""}{merged ? ` ${tr("Blocks merged on import count only the share of the block the model filled (COVERAGE).")}` : ""}{!rho && !perBlock ? ` ${tr("Enter a density to get tonnes: no default is assumed.")}` : !rho && (noDensCol || noDensBench) ? ` ${tr("Enter a Density to give the blocks with none a value: no default is assumed.")}` : ""}{/* #3270 */}
         </div>
+        </MoreFold>
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "7px 9px", lineHeight: 1.5, marginBottom: 10 }}>
-          {tr(EXPLORATION_TARGET_CAUTION)} {tr(NOT_A_RESOURCE)}
+          {tr(NOT_A_RESOURCE)}{" "}<MoreFold summary={tr("Why")} style={{ display: "inline-block", marginBottom: 0 }}>{tr(EXPLORATION_TARGET_CAUTION)}</MoreFold>
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={exportCsv} disabled={!rows.length} className="gs-btn">
-            <Download size={14} />{" "}{tr("Export CSV")}</button>
-        </div>
-      </div>
-    </div>
-  );
+      </div>) },
+  ];
+  return <StepDialog title={tr("Grade-tonnage: {name}", { name: model.name })} width="min(640px, 94vw)" panelStyle={{ minWidth: "min(480px, 94vw)", maxWidth: "96vw", resize: "horizontal" /* #3594: drag its corner wider for a set's metal columns */ }} onClose={onClose} steps={steps} at={stepAt} onAt={setStepAt} help={helpCard} />;
 }

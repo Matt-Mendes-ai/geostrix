@@ -26,5 +26,6 @@ test("wiring: the launcher uses them; the dialog can be widened by dragging its 
   assert.match(l, /const models = useMemo\(\(\) => tonnageModels\(voxelModels\), \[voxelModels\]\);/);
   assert.match(l, /const model = models\.find\(\(m\) => key\(m\) === id\) \|\| openingModel\(models\);/);
   const d = readFileSync(new URL("../src/components/GradeTonnageModal.jsx", import.meta.url), "utf8");
-  assert.match(d, /width: "min\(640px, 94vw\)", minWidth: "min\(480px, 94vw\)", maxWidth: "96vw", resize: "horizontal"/);
+  assert.match(d, /width="min\(640px, 94vw\)" panelStyle=\{\{ minWidth: "min\(480px, 94vw\)", maxWidth: "96vw", resize: "horizontal"/); // #4073: through StepDialog's panelStyle
+  assert.match(readFileSync(new URL("../src/components/StepDialog.jsx", import.meta.url), "utf8"), /position: "relative", \.\.\.panelStyle \}\}/);
 });
