@@ -1,7 +1,7 @@
 {
  "note": "Recorded by scripts/button-roles.mjs --update-baseline (#4069). No file may have more <button>s without a .gs-btn role class than its number; lower it after migrating.",
- "total": 1170,
- "withoutRole": 919,
+ "total": 1174,
+ "withoutRole": 916,
  "byFile": {
   "src/App.jsx": 28,
   "src/components/AddWebLayerModal.jsx": 3,
@@ -112,7 +112,7 @@
   "src/components/PlannedHoleParts.jsx": 11,
   "src/components/PlannedHolePattern.jsx": 3,
   "src/components/PlannedHoleTargeting.jsx": 4,
-  "src/components/PredictivePanel.jsx": 11,
+  "src/components/PredictivePanel.jsx": 8,
   "src/components/ProbableGradePanel.jsx": 4,
   "src/components/ProjectCrsModal.jsx": 5,
   "src/components/ProjectKmzDialog.jsx": 3,

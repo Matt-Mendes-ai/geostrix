@@ -361,13 +361,13 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
             {confirmInstall && !inst?.phase ? (
               <>
                 <span style={{ flex: 1 }}>{cpu?.avx === false ? tr("Download anyway?") : tr("Download{v} now?", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</span>
-                <button type="button" style={btn(true)} onClick={async () => { setConfirmInstall(false); setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>{tr("Download{v}", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</button>
-                <button type="button" style={btn(false)} onClick={() => setConfirmInstall(false)}>{tr("Not now")}</button>
+                <button type="button" className="gs-btn gs-btn--primary gs-btn--sm" onClick={async () => { setConfirmInstall(false); setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>{tr("Download{v}", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</button>
+                <button type="button" className="gs-btn gs-btn--sm" onClick={() => setConfirmInstall(false)}>{tr("Not now")}</button>
               </>
             ) : inst?.phase ? (
               <>
                 <span style={{ flex: 1 }}>{inst.phase === "unpack" ? tr("Unpacking…") : tr("Downloading {v} of {v2}", { v: fmtMB(inst.got), v2: fmtMB(inst.total) })}</span>
-                {inst.phase === "download" && <button type="button" style={btn(false)} onClick={() => addonCancelInstall()}>{tr("Cancel")}</button>}
+                {inst.phase === "download" && <button type="button" className="gs-btn gs-btn--sm" onClick={() => addonCancelInstall()}>{tr("Cancel")}</button>}
               </>
             ) : (
               <button type="button" style={btn(modelableHoles > 0 /* #1845: not the primary action with nothing to model */, !st.url && !st.browser)} disabled={!st.url} onClick={() => setConfirmInstall(true)}>{tr("Install predictive modelling…")}</button>
@@ -387,16 +387,16 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
                 {confirmInstall && !inst?.phase ? (
                   <>
                     <span style={{ flex: 1 }}>{tr("Download{v} now?", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</span>
-                    <button type="button" style={btn(true)} onClick={async () => { setConfirmInstall(false); setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>{tr("Download{v}", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</button>
-                    <button type="button" style={btn(false)} onClick={() => setConfirmInstall(false)}>{tr("Not now")}</button>
+                    <button type="button" className="gs-btn gs-btn--primary gs-btn--sm" /* gs-primary-alt: the update confirmation replaces the install one */ onClick={async () => { setConfirmInstall(false); setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>{tr("Download{v}", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</button>
+                    <button type="button" className="gs-btn gs-btn--sm" onClick={() => setConfirmInstall(false)}>{tr("Not now")}</button>
                   </>
                 ) : inst?.phase ? (
                   <>
                     <span style={{ flex: 1 }}>{inst.phase === "unpack" ? tr("Unpacking…") : tr("Downloading {v} of {v2}", { v: fmtMB(inst.got), v2: fmtMB(inst.total) })}</span>
-                    {inst.phase === "download" && <button type="button" style={btn(false)} onClick={() => addonCancelInstall()}>{tr("Cancel")}</button>}
+                    {inst.phase === "download" && <button type="button" className="gs-btn gs-btn--sm" onClick={() => addonCancelInstall()}>{tr("Cancel")}</button>}
                   </>
                 ) : (
-                  <button type="button" style={btn(false, !!job)} disabled={!!job} onClick={() => setConfirmInstall(true)}>{tr("Update to {v}…", { v: st.latestVersion })}</button>
+                  <button type="button" className="gs-btn gs-btn--sm" disabled={!!job} onClick={() => setConfirmInstall(true)}>{tr("Update to {v}…", { v: st.latestVersion })}</button>
                 )}
               </div>
               {inst?.error && <div style={{ marginTop: 6, color: "var(--color-danger-fg)" }}>{inst.error}</div>}
