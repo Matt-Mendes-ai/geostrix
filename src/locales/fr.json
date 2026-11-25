@@ -15675,5 +15675,18 @@
   "Which kind of EM survey?": "Quel type de levé EM ?",
   "Along lines (SkyTEM, Workbench, .xyz, a CSV per gate): decays and the decay constant.": "Le long de lignes (SkyTEM, Workbench, .xyz, un CSV par fenêtre) : décroissances et constante de décroissance.",
   "Conductivity with depth under each sounding (1D).": "Conductivité selon la profondeur sous chaque sondage (1D).",
-  "One channel in a table, as a point survey.": "Une voie dans un tableau, comme levé de points."
+  "One channel in a table, as a point survey.": "Une voie dans un tableau, comme levé de points.",
+  "Next: search": "Suivant : recherche",
+  "Search": "Recherche",
+  "Next: blocks": "Suivant : blocs",
+  "Next: run": "Suivant : exécuter",
+  "Run again": "Relancer",
+  "Cautions and details": "Précautions et détails",
+  "Next: model": "Suivant : modèle",
+  "Next: rules": "Suivant : règles",
+  "Rules": "Règles",
+  "Next: result": "Suivant : résultat",
+  "Next: estimate": "Suivant : estimer",
+  "Cutoffs": "Teneurs de coupure",
+  "Next: report": "Suivant : rapport"
 }

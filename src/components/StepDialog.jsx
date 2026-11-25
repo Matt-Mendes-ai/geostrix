@@ -9,7 +9,7 @@
 //   - a hint (one short sentence saying what is missing, or what to do) and an error, both shown under the step.
 // The parts are exported too, with the shared styles, so a dialog that cannot be steps yet looks like the same family.
 // steps: [{ key, label, render: () => node, primary: { label, onClick?, disabled?, attrs? }, hint?: string }] (labels already translated); at / onAt: the step index, owned by the dialog
-// (it needs to know it); help: node | null (a <details open>); error: string | null; title: the dialog's name; extra: header controls before the Help button.
+// (it needs to know it); panelStyle: extra panel styles merged last (a resizable dialog); help: node | null (a <details open>); error: string | null; title: the dialog's name; extra: header controls before the Help button.
 import React from "react";
 import { X } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -51,7 +51,7 @@ export function StepBar({ steps, at, onAt, label }) {
 // way out when it is not a cancel ("Decide later" on an unset CRS); overlayProps: spread on the overlay (the first-run wizard swallows a file dropped
 // beside its drop area, so the 3D view under it does not import it); a step's primary.attrs: spread on the gold button (data-start-next / data-start-done,
 // which the tests and the Guide find it by, as StepPane's action does, #4070). All optional (TASKS.csv #4073, side 2).
-export default function StepDialog({ title, onClose, steps, at, onAt, help = null, error = null, extra = null, width = "min(1120px, 96vw)", zIndex = null, cancelLabel = null, overlayProps = null }) {
+export default function StepDialog({ title, onClose, steps, at, onAt, help = null, error = null, extra = null, width = "min(1120px, 96vw)", zIndex = null, cancelLabel = null, overlayProps = null, panelStyle = null }) {
   const [helpOpen, setHelpOpen] = React.useState(false);
   useEscapeKey(() => (helpOpen ? setHelpOpen(false) : onClose()));
   useFocusTrap();
@@ -61,7 +61,7 @@ export default function StepDialog({ title, onClose, steps, at, onAt, help = nul
   const go = () => { if (p.onClick) p.onClick(); else onAt(Math.min(steps.length - 1, i + 1)); };
   return (
     <div style={zIndex != null ? { ...overlay, zIndex } : overlay} {...overlayProps}>
-      <div style={{ width, maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}
+      <div style={{ width, maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", ...panelStyle }}
         role="dialog" aria-modal="true" aria-label={title} data-step-dialog data-step={step.key} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" }}>
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{title}</div>

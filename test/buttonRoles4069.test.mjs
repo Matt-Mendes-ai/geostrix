@@ -74,5 +74,5 @@ test("the migrated surfaces carry the roles: the import dialogs' Import is the p
   assert.match(im, /primary: importPrimary/);
   assert.match(im, /return <StepDialog title=\{heading\} onClose=\{onCancel\}/);
   assert.match(f("../src/modules/viewer/guided/GuideBar.jsx"), /className="gs-btn gs-btn--primary gs-btn--sm"/);
-  assert.match(f("../src/components/GradeEstimationModal.jsx"), /className=\{result \? "gs-btn" : "gs-btn gs-btn--primary"\}/);
+  assert.match(f("../src/components/GradeEstimationModal.jsx"), /<StepDialog title=/); // #4073: Run, then Add as block model, is the shell's one primary
 });

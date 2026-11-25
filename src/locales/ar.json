@@ -15675,5 +15675,18 @@
   "Which kind of EM survey?": "أي نوع من المسح الكهرومغناطيسي؟",
   "Along lines (SkyTEM, Workbench, .xyz, a CSV per gate): decays and the decay constant.": "على طول الخطوط (SkyTEM أو Workbench أو .xyz أو CSV لكل بوابة): منحنيات التلاشي وثابت التلاشي.",
   "Conductivity with depth under each sounding (1D).": "الموصلية مع العمق تحت كل سبر (أحادي البعد).",
-  "One channel in a table, as a point survey.": "قناة واحدة في جدول، كمسح نقطي."
+  "One channel in a table, as a point survey.": "قناة واحدة في جدول، كمسح نقطي.",
+  "Next: search": "التالي: البحث",
+  "Search": "البحث",
+  "Next: blocks": "التالي: الكتل",
+  "Next: run": "التالي: التشغيل",
+  "Run again": "أعد التشغيل",
+  "Cautions and details": "تنبيهات وتفاصيل",
+  "Next: model": "التالي: النموذج",
+  "Next: rules": "التالي: القواعد",
+  "Rules": "القواعد",
+  "Next: result": "التالي: النتيجة",
+  "Next: estimate": "التالي: التقدير",
+  "Cutoffs": "حدود القطع",
+  "Next: report": "التالي: التقرير"
 }
