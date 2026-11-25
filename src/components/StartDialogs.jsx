@@ -20,6 +20,7 @@ import { tieOf } from "../lib/localGridTie.js";
 import { panel, rowBtn } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell
+import DialogHelpCard from "./DialogHelpCard.jsx"; // TASKS.csv #4070 — the dialog's ? card
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3887 — the First steps guide
 import { DropPicture } from "./DropDiagram.jsx"; // TASKS.csv #3939 — pictures first
 import { Rotate3d, Boxes, FileText } from "lucide-react"; // TASKS.csv #3939 — the card's three lines
@@ -290,5 +291,6 @@ export default function StartDialogs({ reason = "launch", onClose, goTo, onOpenP
     ) },
   ];
   return <StepDialog title={heading} onClose={onClose} steps={flow} at={step - 1} onAt={(i) => (i === 1 ? next() : setStep(1))} width="min(560px, calc(100vw - 32px))" zIndex={Z} cancelLabel={tr("Close")}
+    help={<DialogHelpCard page="first-project" lines={[tr("No terrain? GeoStrix can make one.")]} />}
     overlayProps={{ "data-start-dialog": step, onDragOver: (e) => { e.preventDefault(); e.stopPropagation(); }, onDrop: (e) => { e.preventDefault(); e.stopPropagation(); } }} />;
 }

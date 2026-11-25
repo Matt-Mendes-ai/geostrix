@@ -41,7 +41,7 @@ test("Explicit surface: Picks, Lines, Unit and Shape steps; every setting and to
   const x = read("../src/components/ExplicitSurfacePanel.jsx");
   assert.match(x, /<StepPane id="explicit" label=\{tr\("Explicit surface"\)\}/);
   for (const k of ['key: "picks"', 'key: "lines"', 'key: "unit"', 'key: "shape"']) assert.ok(x.includes(k), k);
-  assert.match(x, /<MoreFold summary=\{tr\("More…"\)\} data-fine-tune="explicit">/);
+  assert.match(x, /<MoreFold summary=\{tr\("Fine-tune…"\)\} data-fine-tune="explicit">/);
   const reach = ["update({ boundedBy", "update({ color", "update({ contact", "update({ cutAtTerrain", "update({ dipGuide", "update({ downholeGuide", "update({ extent", "update({ keepOrder", "update({ layer", "update({ lines",
     "update({ mapContacts", "update({ margin", "update({ picks", "update({ resolution", "update({ shape", "update({ tin",
     "exportInputs(", "faceImage", "isopachMap", "keepShallowest", "keepVersion", "measureThickness", "newSurface", "otherBlock", "rebuildPile", "redo", "seedAbsent", "seedBases", "seedEvents", "seedTops", "splitUnit", "undo",
@@ -55,6 +55,6 @@ test("Explicit surface: Picks, Lines, Unit and Shape steps; every setting and to
 test("the three panes' new strings are in every language", () => {
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(read(`../src/locales/${lang}.json`));
-    for (const k of ["Where does it pass?", "Which lines hold it?", "Which unit and side?", "How is it meshed?", "Correlate hole to hole on a panel.", "Which evidence?", "Which faults?", "Other fault tools…", "In the ribbon: {tools}."]) assert.ok(d[k], `${lang}: ${k}`);
+    for (const k of ["Where does it pass?", "Which lines hold it?", "Which unit and side?", "How is it meshed?", "Which panel?", "Which surface?", "Which evidence?", "Which faults?", "Other fault tools…", "In the ribbon: {tools}."]) assert.ok(d[k], `${lang}: ${k}`);
   }
 });

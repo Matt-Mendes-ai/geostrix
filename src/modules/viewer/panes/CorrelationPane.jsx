@@ -17,7 +17,7 @@ export default function CorrelationPane({ SurfaceGeologyProjection, collars, emp
         {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}{/* TASKS.csv #3606 — said first, as Implicit surface does */}
         <StepPane id="correlation" label={tr("Section correlation")}
           steps={[
-            { key: "fence", label: tr("Fence"), question: tr("Correlate hole to hole on a panel."), body: (
+            { key: "fence", label: tr("Fence"), question: tr("Which panel?"), body: (
               <button
                 onClick={() => setFenceOpen(true)}
                 disabled={!collars.length}

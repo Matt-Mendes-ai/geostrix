@@ -10,6 +10,7 @@
 const gradeText = (v) => (Number.isFinite(v) ? (v !== 0 && Math.abs(v) < 0.01 ? String(Number(v.toPrecision(3))) : v.toFixed(3)) : "—"); // TASKS.csv #1213, as Grade statistics
 import React, { useMemo } from "react";
 import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
+import DialogHelpCard from "./DialogHelpCard.jsx"; // TASKS.csv #4070 — the dialog's ? card
 import { saveFile } from "../lib/desktop.js";
 import { LAYER_META } from "../lib/layers.js";
 import { valueIn } from "../lib/geochem.js";
@@ -107,7 +108,7 @@ export default function ProjectReportModal({ store, onClose }) {
     ) },
   ];
 
-  return <StepDialog title={heading} onClose={onClose} steps={steps} at={0} onAt={() => {}} cancelLabel={tr("Close")} width="min(560px, 92vw)" overlayProps={backdropProps(onClose)} />;
+  return <StepDialog title={heading} onClose={onClose} steps={steps} at={0} onAt={() => {}} cancelLabel={tr("Close")} help={<DialogHelpCard lines={[tr("Counts and statistics of what is loaded.")]} />} width="min(560px, 92vw)" overlayProps={backdropProps(onClose)} />;
 }
 
 function StatCard({ label: l, value }) {

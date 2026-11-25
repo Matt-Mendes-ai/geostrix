@@ -1610,7 +1610,7 @@ export default function LayoutModule() {
             {sel.type === "table" && (() => { // TASKS.csv #911; #4070 follow-up — the table's panel as steps (Rows, Columns, Text), the frame in Fine-tune
               const lab = { fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 };
               const collarsSrc = sel.source === "collars", samplesSrc = sel.source === "samples";
-              const keptText = tr("A copy of the results when it was sent (from {from}); send it again to update it.", { from: sel.from || tr("Best intercepts") }); // the collar and sample tables follow the project: Help, Layout > Tables
+              const keptText = tr("A copy from {from}: send it again to update it.", { from: sel.from || tr("Best intercepts") }); // the collar and sample tables follow the project: Help, Layout > Tables
               const lookStep = (<>
                 <label style={{ ...lab, flex: "none" }}>{tr("Table title")}<input value={sel.title || ""} onChange={(e) => updateSelected({ title: e.target.value })} style={inp} /></label>
                 <label style={{ ...lab, flex: "none" }}>{tr("Note under the table")}<textarea rows={3} value={sel.note || ""} onChange={(e) => updateSelected({ note: e.target.value })} style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} /></label>{/* TASKS.csv #936 */}
@@ -1626,7 +1626,7 @@ export default function LayoutModule() {
                 </div>
               );
               if (!collarsSrc) return (
-                <StepPane key={sel.id} id="layout-table" help="layout" label={tr("Table")} fineTune={fine}
+                <StepPane key={sel.id} id="layout-table" helpPage="layout" label={tr("Table")} fineTune={fine}
                   steps={[...(samplesSrc ? [{ key: "rows", label: tr("Rows"), question: tr("Which rows?"), body: samplesStep }] : []), { key: "text", label: tr("Text"), question: tr("What does it say?"), body: lookStep }]} />
               );
               // TASKS.csv #1638 — an appendix of every hole: a first row, a filter, continuation pages
@@ -1661,7 +1661,7 @@ export default function LayoutModule() {
                 {noSplit && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Drop a column, or keep one and let the rest carry on to the next page: two halves with these columns do not fit even at 5 pt.")}</div>}
               </>);
               return (
-                <StepPane key={sel.id} id="layout-table" help="layout" label={tr("Table")} fineTune={fine}
+                <StepPane key={sel.id} id="layout-table" helpPage="layout" label={tr("Table")} fineTune={fine}
                   steps={[
                     { key: "rows", label: tr("Rows"), question: tr("Which rows?"), body: rowsStep },
                     { key: "columns", label: tr("Columns"), question: tr("Which columns?"), body: columnsStep },
@@ -1871,7 +1871,7 @@ export default function LayoutModule() {
                   <Plus size={12} />{" "}{tr("Add row")}</button>
               </>);
               return (
-                <StepPane key={sel.id} id="layout-legend" help="layout" label={tr("Legend")} top={<div style={{ marginTop: 4 }} />}
+                <StepPane key={sel.id} id="layout-legend" helpPage="layout" label={tr("Legend")} top={<div style={{ marginTop: 4 }} />}
                   steps={[
                     { key: "source", label: tr("Source"), question: tr("Where from?"), body: sourceStep },
                     ...(sizeStep ? [{ key: "size", label: tr("Size"), question: tr("How big?"), body: sizeStep }] : []),
@@ -2021,7 +2021,7 @@ export default function LayoutModule() {
                 </MoreFold>
               );
               return (
-                <StepPane key={sel.id} id="layout-drillplan" help="layout" label={tr("Drill plan")} fineTune={fine}
+                <StepPane key={sel.id} id="layout-drillplan" helpPage="layout" label={tr("Drill plan")} fineTune={fine}
                   steps={[
                     { key: "frame", label: tr("Frame"), question: tr("What does it show?"), body: frameStep },
                     { key: "holes", label: tr("Holes"), question: tr("Which holes?"), body: holesStep },
@@ -2134,7 +2134,6 @@ export default function LayoutModule() {
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Grid spacing is {gridMeters} m on the ground, following that viewport.", { gridMeters })}</div>
         )}
 
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 20, lineHeight: 1.5 }}>{tr("Add a view with Current view or Theme view on the ribbon, or Snapshot in StrixViewer.")}</div>
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
@@ -2741,7 +2740,7 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
   );
   return (
     <div style={{ marginTop: 4 }}>
-      <StepPane key={sel.id} id="layout-viewport" help="layout" label={tr("Viewport")}
+      <StepPane key={sel.id} id="layout-viewport" helpPage="layout" label={tr("Viewport")}
         steps={[{ key: "view", label: tr("View"), question: tr("Which view?"), body: viewStep }, { key: "scale", label: tr("Scale"), question: tr("What scale?"), body: scaleStep }]}
         action={{ label: sel.refreshing ? tr("Rendering…") : tr("Refresh"), onClick: onRefresh, disabled: sel.refreshing, icon: <RefreshCw size={14} />, title: tr("Capture again from the theme, the scale and the frame."), attrs: { "data-viewport-refresh": "" } }}
         result={{ key: sel.capturedAt || null, body: resultBody }} fineTune={fine} />

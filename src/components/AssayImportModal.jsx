@@ -11,7 +11,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { pointReadings } from "../lib/pxrfPoints.js"; // TASKS.csv #1653
 import { pxrfSignature } from "../lib/pxrfSignature.js"; // TASKS.csv #2198
 import RowFilterBox from "./RowFilterBox.jsx"; // TASKS.csv #2391 — the row filter of the drillhole import (#2330), here too
-import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
+import DialogHelpCard from "./DialogHelpCard.jsx"; // TASKS.csv #4070 — the dialog's ? card
 import { assayTextColumns, assayUsedColumns, chosenExtraColumns } from "../lib/assayExtraFields.js"; // TASKS.csv #3728
 import { otherNumericColumns, customAssayEntry, nameAndUnit } from "../lib/assayOtherColumns.js"; // TASKS.csv #3923
 
@@ -424,7 +424,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   ];
   const heading = tr(modal.isPxrf ? "Import pXRF: {fileName}" : "Import assays: {fileName}", { fileName: modal.fileName });
   return <StepDialog title={heading} onClose={onCancel} steps={flow} at={at} onAt={setAt} width="min(720px, 94vw)" zIndex={Z_IMPORT} /* TASKS.csv #3688 — above Data QC and the other dialogs (all 60) */
-    extra={<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("import-assays")} aria-label={tr("Help: {name}", { name: tr("Import assays") })} title={tr("Help for this tool (F1, works offline)")}>?</button>} />;
+    help={<DialogHelpCard page="import-assays" lines={[tr("A blank is not zero: it is left out of grades.")]} />} />;
 }
 
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };

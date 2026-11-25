@@ -55,10 +55,12 @@ test("the page's numbers are the app's: the dogleg rule and the plausible densit
 
 test("a '?' in the drillhole import, the assay import and Data QC opens its page; the density dialog opens the density page", () => {
   const m = read("../src/components/ImportMappingModal.jsx"), a = read("../src/components/AssayImportModal.jsx"), q = read("../src/components/DataQCModal.jsx");
-  assert.match(m, /onClick=\{\(\) => openHelp\(modal\.target === "sg" \? "import-density" : "import-drillholes"\)\}/);
-  assert.match(a, /onClick=\{\(\) => openHelp\("import-assays"\)\}/);
+  // #4070 — the two import dialogs show a short card under their ? with a link to the page (DialogHelpCard); Data QC opens its page from its own button
+  assert.match(m, /<DialogHelpCard page=\{modal\.target === "sg" \? "import-density" : "import-drillholes"\}/);
+  assert.match(a, /<DialogHelpCard page="import-assays"/);
   assert.match(q, /onClick=\{\(\) => openHelp\("data-qc"\)\}/);
-  for (const s of [m, a, q]) assert.match(s, /import \{ openHelp \} from "\.\.\/lib\/help\.js"/);
+  assert.match(q, /import \{ openHelp \} from "\.\.\/lib\/help\.js"/);
+  assert.match(read("../src/components/DialogHelpCard.jsx"), /openHelp\(page\)/);
 });
 
 test("no page mentions a backlog number or a person's name; every page is in Canadian spelling", () => {
