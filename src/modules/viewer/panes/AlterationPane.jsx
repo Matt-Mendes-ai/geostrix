@@ -69,7 +69,7 @@ export default function AlterationPane({ altCustomLayers, implicitSurfaces, altE
         </div>
                 </>) },
               ]}
-              action={{ label: alterationBusy ? tr("Building the halo envelope…") : tr("Build halo"), onClick: () => () => runAlterationModel(alterationTarget, { unloggedZero: altSource.layer === "alt" && !!altSource.unloggedZero } /* #2380 */, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null, vocab: !!(altSource.field && altSource.vocab), minLabel: altSource.minLabel || null /* #2230 */ }), disabled: !alterationTarget || alterationBusy, icon: <Layers3 size={14} />,
+              action={{ label: alterationBusy ? tr("Building the halo envelope…") : tr("Build halo"), onClick: () => runAlterationModel(alterationTarget, { unloggedZero: altSource.layer === "alt" && !!altSource.unloggedZero } /* #2380 */, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null, vocab: !!(altSource.field && altSource.vocab), minLabel: altSource.minLabel || null /* #2230 */ }), disabled: !alterationTarget || alterationBusy, icon: <Layers3 size={14} />,
                 title: tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)") }}
               result={{ key: ar?.key ?? null, body: ar && <StepNumbers rows={[
                 { label: tr("Samples inside"), value: `${Number(ar.altered).toLocaleString()} / ${Number(ar.samples).toLocaleString()}`, title: ar.target },

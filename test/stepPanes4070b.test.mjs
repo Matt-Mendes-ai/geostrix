@@ -90,6 +90,11 @@ test("Lithology groups: one step (which codes belong together), + New group as t
   reachable(b, ["askPrompt(", "addLithoGroup(", "removeLithoGroup(", "updateLithoGroup(", "setExpandedLithoGroupId(", "caseVariantGroups(", "subdivisionGroups(", "groupOverlaps(", "<LithoSuggestBox", "No groups yet."]);
 });
 
+test("a pane's StepPane action is a handler, not a function that returns one (found live on Harry: the halo's click did nothing)", () => {
+  for (const id of ["vein", "alteration", "implicit", "structural", "gradeEst", "groups"]) assert.doesNotMatch(block(id), /onClick: \(\) => \(\) =>/, id);
+  assert.match(block("alteration"), /onClick: \(\) => runAlterationModel\(alterationTarget/);
+});
+
 test("the six panes' new strings are in every language", async () => {
   const { readFileSync } = await import("node:fs");
   for (const lang of ["es", "pt", "fr", "ar"]) {
