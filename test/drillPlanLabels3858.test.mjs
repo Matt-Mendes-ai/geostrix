@@ -101,7 +101,7 @@ test("the drawing: labelled with the intercept, marked on the trace, the holes w
 test("wiring: the panel's choices and the 7,500 fit scale", () => {
   const L = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.match(L, /const SCALE_PRESETS = \[500, 1000, 1500, 2000, 2500, 5000, 7500, 10000,/);
-  assert.match(L, /<option value="room">\{tr\("Only holes with room beside the collar"\)\}<\/option>/);
+  assert.match(L, /<option value="room">\{tr\("Only where there is room"\)\}<\/option>/);
   assert.match(L, /colourByKind\(sel\.colourBy\)\.kind === "bi" && <label/);
   const D = readFileSync(new URL("../src/components/DrillPlanElement.jsx", import.meta.url), "utf8");
   assert.match(D, /leaders: el\.labels !== "room"/);

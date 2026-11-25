@@ -89,6 +89,7 @@ import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import DropDiagram from "../components/DropDiagram.jsx"; // TASKS.csv #3939
 import MoreFold from "../components/MoreFold.jsx"; // TASKS.csv #3939
+import StepPane from "../components/StepPane.jsx"; // TASKS.csv #4070 part 4 — the calculated-element form as steps
 import { symbolPresent } from "../lib/calcUndo.js"; // TASKS.csv #3110
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
@@ -1478,8 +1479,8 @@ export default function GeochemModule() {
         <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", margin: "10px 0 4px" }}>
           {surfaceSamples.length ? tr("{surfaceSamples} samples · {surfaceElements} elements", { surfaceSamples: surfaceSamples.length, surfaceElements: surfaceElements.length }) : tr("No surface samples loaded")}
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel workbook (.xlsx: the sheet with most element columns) anywhere here. \"pxrf\"/\"xrf\" in the name goes to pXRF; x/y with no from / to opens as surface samples; anything else as assays.")}</div>
-        {assayElements.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>{tr("Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.")}</div>}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel file anywhere here.")}</div>
+        {assayElements.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>{tr("Classifications are a first pass.")}</div>}
 
         <SampleGridPanel setNotices={setNotices} />{/* TASKS.csv #1622 — a soil grid */}
 
@@ -1492,31 +1493,7 @@ export default function GeochemModule() {
           const treo = onSurface ? null : treoPreset(assayElements); // TASKS.csv #3923 — total rare earth oxides from the REEs the project holds
           const presets = [...CALC_PRESETS, ...(oxTotal ? [oxTotal] : []), ...(treo ? [treo] : [])];
           const aliasNames = onSurface ? [] : oxideAliases(assayElements).map((a) => a.name);
-          return (
-          <>
-            <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Calculated element")}</div>
-              <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
-                {assayElements.length > 0 && surfaceElements.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Data source")}<select value={onSurface ? "surface" : "assays"} onChange={(e) => setCalc((c) => ({ ...c, source: e.target.value, msg: null }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Data source")}><option value="assays">{tr("Drillhole assays")}</option><option value="surface">{tr("Surface samples")}</option></select></label>}
-                <select value="" onChange={(e) => { if (e.target.value === "__equivalent") { setCalc((c) => ({ source: c?.source, name: "", expr: "", unit: "index", preset: null, eq: { base: suggestedBase(calcEls), rows: {} }, msg: null })); return; } /* #3923 */ const p = presets.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: freeCalcName(p.name, calcEls) /* #3923 — not the name of an imported column */, expr: p.expr, unit: p.unit || "index" /* an oxide preset: its unit, #2357 */, preset: p, msg: { ok: true, preset: true, text: `${tr(p.label)}. ${tr(p.unitNote)}.${p.units ? " " + tr("Read in {list}, converted from the stored units where they differ.", { list: Object.entries(p.units).map(([s, u]) => `${s} ${u}`).join(", ") }) : ""}` } })); }} /* preset / units: #2500 */ style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
-                  <option value="">{tr("Preset… (or write your own below)")}</option>
-                  <option value="__equivalent">{tr("Metal equivalent (you type the prices and recoveries)…")}</option>
-                  {presets.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => calcEls.some((e) => e.symbol === s))}>{tr(p.label)}{p.needs.every((s) => calcEls.some((e) => e.symbol === s)) ? "" : tr(" — needs {list}", { list: p.needs.join(", ") })}</option>)}
-                </select>
-                {calc.eq && <EquivalentBuilder elements={calcEls} eq={calc.eq} result={equivalentFromInputs(calc.eq, calcEls)} onChange={(next) => { const d = equivalentFromInputs(next, calcEls); setCalc((c) => ({ ...c, eq: next, eqMeta: d.ready ? d.meta : null, ...(d.ready ? { expr: d.expr, unit: d.unit, name: c.nameTouched ? c.name : freeCalcName(d.name, calcEls), preset: null, msg: null } : { expr: "" }) })); }} />}{/* TASKS.csv #3923 */}
-                <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value, nameTouched: true }))} placeholder={tr("Name, e.g. AI")} aria-label={tr("Calculated element name")} style={{ fontSize: "var(--font-size-sm)" }} />
-                {/* TASKS.csv #1749 (review #1645, Copley) — a metal-equivalent (CuEq, AuEq) is a grade, not an index: with a grade unit its estimate can be priced in the pit shell */}
-                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes its formula's grade unit, % or g/t, so its estimate can be priced in the pit shell.")}>{[...new Set(["index", "%", "g/t", "ppm", "ppb", ...((calc.source === "surface" ? surfaceElements : assayElements).map((e) => e.unit).filter((u) => u && unitBasis(u).oxide)) /* #3160 — the oxide units the project stores */, ...(calc.unit ? [calc.unit] : [])])].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
-                <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value, eqMeta: null }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
-                {!presetUnitsFor(calc.preset, calc.expr) && mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements) && ( /* TASKS.csv #3219 — a ratio of elements stored in different units */
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}><input type="checkbox" checked={!!calc.readPpm} onChange={(e) => setCalc((c) => ({ ...c, readPpm: e.target.checked }))} />{tr("Read these elements in ppm: the formula divides elements stored in different units ({list})", { list: Object.keys(mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements)).map((sym) => `${sym} ${((calc.source === "surface" ? surfaceElements : assayElements).find((e) => e.symbol === sym) || {}).unit || ""}`).join(", ") })}</label>
-                )}
-                {aliasNames.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Oxide names work too, in % through the import's factors: {list}.", { list: aliasNames.slice(0, 12).join(", ") + (aliasNames.length > 12 ? " …" : "") })}</div>}{/* #2914 */}
-                <div style={{ color: "var(--color-text-muted)" }}>{tr("Elements are read in their stored units ({v}{v2}). Rows missing any element in the formula get no value.", { v: calcEls.slice(0, 6).map((e) => `${e.symbol} ${gradeUnitLabel(e.symbol, e.unit)}`).join(", "), v2: calcEls.length > 6 ? ", …" : "" })}</div>
-                {calc.msg && (calc.msg.preset && calc.preset && !presetUnitsFor(calc.preset, calc.expr) /* #2619 — the preset's promise no longer holds */
-                  ? <div style={{ color: "var(--color-warn-text)" }}>{tr("The formula was edited, so it is no longer the {label} preset: the elements are read in their stored units ({v}), with no conversion.", { label: tr(calc.preset.label), v: calcEls.filter((e) => new RegExp(`(^|[^A-Za-z0-9_])${e.symbol}(?![A-Za-z0-9_])`).test(calc.expr)).map((e) => `${e.symbol} ${gradeUnitLabel(e.symbol, e.unit)}`).join(", ") /* the formula's own elements */ })}</div>
-                  : <div style={{ color: calc.msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-icon-strong)" }}>{calc.msg.text}</div>)}
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button className="gs-btn gs-btn--block" style={{ flex: 1 }} onClick={() => {
+          const add = () => {
                     try {
                       if (onSurface) { // #1799 — stored on the surface samples like an imported element: plan map, thresholds, grade stats take it
                         const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index", { readUnits: presetUnitsFor(calc.preset, calc.expr) || (calc.readPpm ? mixedUnitReads(calc.expr, surfaceElements) : null) /* #3219 */ }); // #2500; presetUnitsFor: #2619
@@ -1538,9 +1515,46 @@ export default function GeochemModule() {
                       if (calc.eqMeta) setNotices((p) => [...p, notice("Metal equivalent from the prices and recoveries you typed: {text}. Nothing was filled in for you.", { text: calc.eqMeta.text })]); // #3923
                       setCalc(null);
                     } catch (err) { setCalc((c) => ({ ...c, msg: { ok: false, text: err.message } })); }
-                  }}>{tr("Add")}</button>
-                  <button className="gs-btn gs-btn--block" style={{ flex: 1 }} onClick={() => setCalc(null)}>{tr("Cancel")}</button>
-                </div>
+          };
+          const msgNode = (<>
+                {calc.msg && (calc.msg.preset && calc.preset && !presetUnitsFor(calc.preset, calc.expr) /* #2619 — the preset's promise no longer holds */
+                  ? <div style={{ color: "var(--color-warn-text)" }}>{tr("The formula was edited, so it is no longer the {label} preset: the elements are read in their stored units ({v}), with no conversion.", { label: tr(calc.preset.label), v: calcEls.filter((e) => new RegExp(`(^|[^A-Za-z0-9_])${e.symbol}(?![A-Za-z0-9_])`).test(calc.expr)).map((e) => `${e.symbol} ${gradeUnitLabel(e.symbol, e.unit)}`).join(", ") /* the formula's own elements */ })}</div>
+                  : <div style={{ color: calc.msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-icon-strong)" }}>{calc.msg.text}</div>)}
+          </>);
+          const formulaStep = (<>
+                {assayElements.length > 0 && surfaceElements.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Data source")}<select value={onSurface ? "surface" : "assays"} onChange={(e) => setCalc((c) => ({ ...c, source: e.target.value, msg: null }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Data source")}><option value="assays">{tr("Drillhole assays")}</option><option value="surface">{tr("Surface samples")}</option></select></label>}
+                <select value="" onChange={(e) => { if (e.target.value === "__equivalent") { setCalc((c) => ({ source: c?.source, name: "", expr: "", unit: "index", preset: null, eq: { base: suggestedBase(calcEls), rows: {} }, msg: null })); return; } /* #3923 */ const p = presets.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: freeCalcName(p.name, calcEls) /* #3923 — not the name of an imported column */, expr: p.expr, unit: p.unit || "index" /* an oxide preset: its unit, #2357 */, preset: p, msg: { ok: true, preset: true, text: `${tr(p.label)}. ${tr(p.unitNote)}.${p.units ? " " + tr("Read in {list}, converted from the stored units where they differ.", { list: Object.entries(p.units).map(([s, u]) => `${s} ${u}`).join(", ") }) : ""}` } })); }} /* preset / units: #2500 */ style={{ fontSize: "var(--font-size-sm)", width: "100%", minWidth: 0 }} aria-label={tr("Preset")}>
+                  <option value="">{tr("Preset…")}</option>
+                  <option value="__equivalent">{tr("Metal equivalent…")}</option>
+                  {presets.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => calcEls.some((e) => e.symbol === s))}>{tr(p.label)}{p.needs.every((s) => calcEls.some((e) => e.symbol === s)) ? "" : tr(" — needs {list}", { list: p.needs.join(", ") })}</option>)}
+                </select>
+                {calc.eq && <EquivalentBuilder elements={calcEls} eq={calc.eq} result={equivalentFromInputs(calc.eq, calcEls)} onChange={(next) => { const d = equivalentFromInputs(next, calcEls); setCalc((c) => ({ ...c, eq: next, eqMeta: d.ready ? d.meta : null, ...(d.ready ? { expr: d.expr, unit: d.unit, name: c.nameTouched ? c.name : freeCalcName(d.name, calcEls), preset: null, msg: null } : { expr: "" }) })); }} />}{/* TASKS.csv #3923 */}
+                <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value, eqMeta: null }))} rows={3} placeholder={tr("Formula, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace", width: "100%", minWidth: 0, boxSizing: "border-box" }} />
+                {!presetUnitsFor(calc.preset, calc.expr) && mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements) && ( /* TASKS.csv #3219 — a ratio of elements stored in different units */
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}><input type="checkbox" checked={!!calc.readPpm} onChange={(e) => setCalc((c) => ({ ...c, readPpm: e.target.checked }))} />{tr("Read these elements in ppm: the formula divides elements stored in different units ({list})", { list: Object.keys(mixedUnitReads(calc.expr, calc.source === "surface" ? surfaceElements : assayElements)).map((sym) => `${sym} ${((calc.source === "surface" ? surfaceElements : assayElements).find((e) => e.symbol === sym) || {}).unit || ""}`).join(", ") })}</label>
+                )}
+            {msgNode}
+          </>);
+          const nameStep = (<>
+                <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value, nameTouched: true }))} placeholder={tr("Name, e.g. AI")} aria-label={tr("Calculated element name")} style={{ fontSize: "var(--font-size-sm)", width: "100%", minWidth: 0, boxSizing: "border-box" }} />
+                {/* TASKS.csv #1749 (review #1645, Copley) — a metal-equivalent (CuEq, AuEq) is a grade, not an index: with a grade unit its estimate can be priced in the pit shell */}
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes % or g/t, so it can be priced in the pit shell.")}>{[...new Set(["index", "%", "g/t", "ppm", "ppb", ...((calc.source === "surface" ? surfaceElements : assayElements).map((e) => e.unit).filter((u) => u && unitBasis(u).oxide)) /* #3160 — the oxide units the project stores */, ...(calc.unit ? [calc.unit] : [])])].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
+            {msgNode}
+          </>);
+          const fine = (<>
+            <MoreFold summary={tr("Fine-tune…")} data-fine-tune="calc">
+                {aliasNames.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Oxide names work too: {list}.",{ list: aliasNames.slice(0, 12).join(", ") + (aliasNames.length > 12 ? " …" : "") })}</div>}{/* #2914 */}
+                <div style={{ color: "var(--color-text-muted)" }}>{tr("Read in stored units ({v}{v2}). A row missing an element gets no value.",{ v: calcEls.slice(0, 6).map((e) => `${e.symbol} ${gradeUnitLabel(e.symbol, e.unit)}`).join(", "), v2: calcEls.length > 6 ? ", …" : "" })}</div>
+            </MoreFold>
+            <button type="button" className="gs-btn gs-btn--quiet" onClick={() => setCalc(null)}>{tr("Cancel")}</button>
+          </>);
+          return (
+          <>
+            <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Calculated element")}</div>
+              <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
+                <StepPane id="geochem-calc" label={tr("Calculated element")} fineTune={fine}
+                  steps={[{ key: "formula", label: tr("Formula"), question: tr("What is it?"), body: formulaStep }, { key: "name", label: tr("Name"), question: tr("What is it called?"), body: nameStep }]}
+                  action={{ label: tr("Add"), onClick: add, attrs: { "data-calc-add": "" } }} />
               </div>
           </>
           );

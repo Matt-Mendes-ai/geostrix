@@ -34,7 +34,7 @@ import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #3932 —
 import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #3912 — the Add menu's All-tools items
 import { tableTextFit, collarTableCells, splitHalvesFit } from "../lib/collarTable.js"; // TASKS.csv #3374; collarTableCells / splitHalvesFit: #3411
 import { collarTableSlice, continuationTables, collarsWithSurveyAttitude, continuationPageIndex, collarTableFieldChoices, defaultCollarTableFields, splitTableRows, suspectIdsOf, elevationCell, elevationNotes } from "../lib/collarTable.js"; // elevation*: #3023 // splitTableRows: #2770; // field columns: #2717; // continuationPageIndex: #2718 // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
-import { fitDrillPlan, filterHoles, filterSuggestion, allHolesSteep, STEEP_DIP, turnedFrameFit, labelBackdrop, plannedAsCollars, holesToFit, showsPlanned, planTraces, colourByKind /* #3858 */ } from "../lib/drillPlan.js"; // planTraces: #3367; // planned: #2259; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
+import { fitDrillPlan, filterHoles, filterSuggestion, allHolesSteep, turnedFrameFit, labelBackdrop, plannedAsCollars, holesToFit, showsPlanned, planTraces, colourByKind /* #3858 */ } from "../lib/drillPlan.js"; // planTraces: #3367; // planned: #2259; // labelBackdrop: #2738; // TASKS.csv #1639; allHolesSteep: #2473; turnedFrameFit: #2305
 import { useHoleVisibility, holeVisibilityNow, hiddenIn, checkedOnly } from "../lib/holeVisibilityShare.js"; // TASKS.csv #3605
 import DrillPlanColourControls from "../components/DrillPlanColourControls.jsx"; // TASKS.csv #2473
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
@@ -66,6 +66,7 @@ const PX_PER_PT = 96 / 72;
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import LayoutStartCard from "../components/LayoutStartCard.jsx"; // TASKS.csv #3939 — the first screen, pictures first
 import MoreFold from "../components/MoreFold.jsx"; // TASKS.csv #3939
+import StepPane, { StepNumbers } from "../components/StepPane.jsx"; // TASKS.csv #4070 part 4 — the viewport's side panel as steps
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #947
 import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
@@ -1722,13 +1723,10 @@ export default function LayoutModule() {
             {/* Legend editing (TASKS.csv — "edit all elements", per the Castilla example the user
                 referenced: add/rename/recolor/remove/reorder rows). Previously el.items was a fixed
                 array set at creation with no way to touch it afterward. */}
-            {"items" in sel && (
-              <div style={{ marginTop: 4 }}>
-                {/* "The legend should be able to load the lithologies present in the view attached to
-                    it." Bind this legend to one of the page's viewport elements, then pull the
-                    lithology units actually visible in that viewport's saved theme (color + name via
-                    the same colorForLithology/UNIT_NAMES the 3D viewer itself uses). */}
-                {sel.type === "legend" && (() => { /* TASKS.csv #3395 — the legend's height and its columns, as its width */
+            {"items" in sel && (() => { // TASKS.csv #4070 part 4 — a legend / key as steps: Source (bind + Load), Size, Rows
+              // "The legend should be able to load the lithologies present in the view attached to it." Bind this legend to one of the page's viewport elements, then pull the
+              // lithology units actually visible in that viewport's saved theme (colour + name via the same colorForLithology/UNIT_NAMES the 3D viewer itself uses).
+                const sizeStep = sel.type === "legend" ? (() => { /* TASKS.csv #3395 — the legend's height and its columns, as its width */
                   const fit = legendLayout(sel, A4.w, A4.h), mm = (px) => Math.round((px / PX_PER_MM) * 10) / 10;
                   // turning the box on with a bound 3D view: its codes are loaded in full, the box decides what shows
                   const allCodes = () => { if (sel.codesPerLayer == null && elements.some((e) => e.id === sel.boundViewportId && e.type === "viewport")) syncLegendFromView(sel.id, { perGroup: "all" }); };
@@ -1750,14 +1748,15 @@ export default function LayoutModule() {
                           </div></label>
                       </div>
                       <div style={{ fontSize: "var(--font-size-xs)", color: fit.box && fit.left ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>
-                        {fit.box && fit.left > 0 ? tr("{n} row(s) do not fit in this box: make it taller, add a column or widen it.", { n: fit.left })
-                          : fit.box ? tr("The rows fill {c} column(s) top to bottom; drag the bottom edge for its height.", { c: fit.cols })
-                          : tr("Give it a height or a number of columns to size it yourself; blank, it grows with its rows and flows into columns on the sheet.")}
+                        {fit.box && fit.left > 0 ? tr("{n} row(s) do not fit: make it taller, add a column or widen it.", { n: fit.left })
+                          : fit.box ? tr("The rows fill {c} column(s).", { c: fit.cols })
+                          : tr("Blank: it grows with its rows.")}
                         {Number(sel.h) > 0 && <>{" "}<button type="button" onClick={() => updateSelected({ h: undefined })} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit to its rows")}</button></>}
                       </div>
                     </div>
                   );
-                })()}
+              })() : null;
+              const sourceStep = (<>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Bound viewport / cross-section")}<select value={sel.boundViewportId || ""} onChange={(e) => updateSelected({ boundViewportId: e.target.value || null })} style={{ ...inp, marginTop: 4 }}>
                     <option value="">{tr("— none —")}</option>
                     {elements.filter((el) => el.type === "viewport").map((el, i) => (
@@ -1783,9 +1782,11 @@ export default function LayoutModule() {
                 )}
                 {legendSyncState(sel, elements.find((el) => el.id === sel.boundViewportId)) === "stale" && ( /* TASKS.csv #2471 */
                   <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", margin: "4px 0 8px", lineHeight: 1.4 }}>
-                    {tr("Load from view to update these rows: the viewport was refreshed after they were loaded and edited, so they were kept.")}</div>
+                    {tr("The view was refreshed since these rows were edited: Load from view to update them.")}</div>
                 )}
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
+              </>);
+              const rowsStep = (<>
                 {!!(sel.codeOrder || sel.loadedGroups?.length) && (() => { /* TASKS.csv #3199 — a recorded code order can be forgotten */
                   // the groups this legend orders: its own record, or one of its loaded groups that a legend of the project records
                   const groups = orderedGroupsOf(sel, projectCodeOrders(layoutPages, activeLayoutPageId, elements, sel.id));
@@ -1800,7 +1801,7 @@ export default function LayoutModule() {
                   };
                   return (
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", margin: "4px 0 8px", lineHeight: 1.4 }}>
-                      <span>{tr("Code order set with the arrows for {groups}: every legend loaded from a view takes it.", { groups: groups.join(", ") })}</span>
+                      <span title={tr("Every legend loaded from a view takes it.")}>{tr("Code order set for {groups}.", { groups: groups.join(", ") })}</span>
                       <button type="button" onClick={clear} className="gs-btn gs-btn--sm" title={tr("Forget the order on this page's legends; the rows stay as they are until the next Load from view")}>{tr("Clear the set order")}</button>
                       {pagesHoldingOrder(layoutPages, activeLayoutPageId, groups).length > 0 && <button type="button" onClick={() => { undoCheckpoint?.(); mapLayoutPagesElements((els) => clearCodeOrders(els, groups)); setSyncNotice(tr("Cleared on every page's legends. Load from view lists the codes in their default order again.")); }} className="gs-btn gs-btn--sm" title={tr("Forget the order on the legends of every page of this project")}>{tr("Clear it on every page")}</button> /* #3331 */}
                     </div>
@@ -1853,8 +1854,16 @@ export default function LayoutModule() {
                 })()}
                 <button onClick={() => updateSelected({ items: [...sel.items, ["Item", "#55606e"]] })} className="gs-btn gs-btn--block" style={{ marginTop: 2 }}>
                   <Plus size={12} />{" "}{tr("Add row")}</button>
-              </div>
-            )}
+              </>);
+              return (
+                <StepPane key={sel.id} id="layout-legend" label={tr("Legend")} top={<div style={{ marginTop: 4 }} />}
+                  steps={[
+                    { key: "source", label: tr("Source"), question: tr("Where from?"), body: sourceStep },
+                    ...(sizeStep ? [{ key: "size", label: tr("Size"), question: tr("How big?"), body: sizeStep }] : []),
+                    { key: "rows", label: tr("Rows"), question: tr("Which rows?"), body: rowsStep },
+                  ]} />
+              );
+            })()}
             {sel.type === "viewport" && (
               <ViewportControls crsUnset={project?.crsSet === false} steepHoles={!!(sel.planView && sel.trueScale && allHolesSteep(tableCollars, holesInFrame(sel, tableCollars)))} /* #2473 */
                 legendReloaded={elements.some((el) => el.type === "legend" && el.boundViewportId === sel.id && el.autoReloaded && el.loadedCapturedAt === sel.capturedAt)} /* #2471 */
@@ -1920,71 +1929,90 @@ export default function LayoutModule() {
                 real-world scale — nothing to assign here, silently (no button shown at all), same as
                 before. */}
             {/* TASKS.csv #19 — shape/annotation property editors */}
-            {sel.type === "drillplan" && (() => { // TASKS.csv #1639 — the drill plan's scale, extent, labels and colours
+            {sel.type === "drillplan" && (() => { // TASKS.csv #1639 — the drill plan's scale, extent, labels and colours; #4070 part 4 — as steps (Frame, Holes, Colour), the rest in Fine-tune
               const traces = planTraces(tableCollars || [], survey, project?.desurveyMethod); // #3367 — kept per collars / survey / method
               const dd = drillPlanDrawing(sel, tableCollars || [], assays, assayElements, plannedHoles, traces, project?.desurveyMethod, project?.displayUnits /* #3382 */); // assays: #2473; plannedHoles: #2259
-              return (<>
+              const lab = { fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 };
+              const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 };
+              const frameStep = (<>
                 {dd.keyBox?.under > 0 && ( /* TASKS.csv #3376 — every corner of the frame holds a hole: the key covers some */
-                  <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("The key covers {n} hole(s) whichever corner it takes: make the frame larger, or move the plan's centre so a corner is clear.", { n: dd.keyBox.under })}</div>
+                  <div role="status" style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The key covers {n} hole(s): enlarge the frame or move the centre.", { n: dd.keyBox.under })}</div>
                 )}
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Scale 1 :")}<select value={String(sel.scale)} onChange={(e) => updateSelected({ scale: Number(e.target.value) })} style={{ ...inp, marginTop: 4 }}>
-                  {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
-                </select></label>
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Any scale: 1 : 6,000 and 1 : 7,500 are not in the list.")}>{/* TASKS.csv #3611 — a typed scale, as the section picture has */}
-                  {tr("Typed scale 1 :")}<NumberInput min="1" step="100" value={Math.round(sel.scale) || ""} onChange={asEvent((e) => { const v = Number(e.target.value); if (v >= 1) updateSelected({ scale: v }); })} style={{ ...inp, marginBottom: 0, flex: 1, minWidth: 0 }} />
-                </label>
-                <button type="button" onClick={() => { updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM }); reorderSelected("back"); /* TASKS.csv #3707 — behind the page's title, north arrow, scale bar, title block and credit, which it covered */ }} title={tr("The frame fills the page inside 10 mm margins, behind the title, north arrow, scale bar, title block and credit.")} className="gs-btn gs-btn--block" style={{ width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<NumberInput allowEmpty min="0" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={asEvent((e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) }))} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
-                <div style={{ display: "flex", gap: 6 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<NumberInput value={Math.round(sel.centre?.x || 0)} onChange={asEvent((e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } }))} style={inp} /></label>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre N")}<NumberInput value={Math.round(sel.centre?.y || 0)} onChange={asEvent((e) => updateSelected({ centre: { ...sel.centre, y: Number(e.target.value) } }))} style={inp} /></label>
-                </div>
-                <button onClick={() => { const fit = fitDrillPlan(holesToFit(sel, tableCollars || [], plannedHoles) /* #2259 */, sel.w, sel.h, SCALE_PRESETS, traces /* #3367 */); if (fit) updateSelected(fit); }} className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 8 }}><Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
+                <label style={lab} title={tr("Any scale: type 1 : 6,000 or 1 : 7,500, which the list lacks.")}>{tr("Scale 1 :")}{/* TASKS.csv #3611 — a typed scale, as the section picture has */}
+                  <select value={String(sel.scale)} onChange={(e) => updateSelected({ scale: Number(e.target.value) })} style={{ ...inp, marginTop: 4 }}>
+                    {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
+                  </select></label>
+                <button onClick={() => { const fit = fitDrillPlan(holesToFit(sel, tableCollars || [], plannedHoles) /* #2259 */, sel.w, sel.h, SCALE_PRESETS, traces /* #3367 */); if (fit) updateSelected(fit); }} className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 8 }}><Maximize2 size={14} />{" "}{tr("Fit the holes")}</button>
                 {(() => { const t = turnedFrameFit(filterHoles(tableCollars || [], sel.holeFilter), sel.w, sel.h, SCALE_PRESETS, traces /* #3367 */); return t && sel.scale >= t.from ? ( /* TASKS.csv #2305 — the holes run the other way: offer the turned frame */
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The holes run the other way: this frame turned ({w} × {h} mm) fits them at 1 : {scale}.", { w: Math.round(t.w / PX_PER_MM), h: Math.round(t.h / PX_PER_MM), scale: t.scale.toLocaleString() })}{" "}
+                  <div style={note}>{tr("Turned ({w} × {h} mm) the frame fits them at 1 : {scale}.", { w: Math.round(t.w / PX_PER_MM), h: Math.round(t.h / PX_PER_MM), scale: t.scale.toLocaleString() })}{" "}
                     <button type="button" onClick={() => updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre })} className="gs-btn gs-btn--block" style={{ display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame")}</button>
                     {(sel.x + t.w > A4.w - 10 || sel.y + t.h > A4.h - 10) && (A4.w > A4.h) === (t.w < t.h) && <>{" "}{/* TASKS.csv #3383 (2) — a 127 x 201 mm frame hung 28 mm off an A4 landscape sheet */}
                       {tr("Turned, it runs off this page: turn the page as well.")}{" "}
                       <button type="button" onClick={() => { const P = { w: A4.h, h: A4.w }; changePageFormat({ ...pageFormat, orientation: pageFormat.orientation === "landscape" ? "portrait" : "landscape" }); updateSelected({ w: t.w, h: t.h, scale: t.scale, centre: t.centre, ...(sel.x + t.w > P.w - 10 || sel.y + t.h > P.h - 10 ? { x: 40, y: 60 } : {}) }); }} className="gs-btn gs-btn--block" style={{ display: "inline-flex", marginBottom: 0, padding: "1px 6px" }}>{tr("Turn the frame and the page")}</button></>}
                   </div>) : null; })()}
+                <button type="button" onClick={() => { updateSelected({ x: 10 * PX_PER_MM, y: 10 * PX_PER_MM, w: A4.w - 20 * PX_PER_MM, h: A4.h - 20 * PX_PER_MM }); reorderSelected("back"); /* TASKS.csv #3707 — behind the page's title, north arrow, scale bar, title block and credit, which it covered */ }} title={tr("The frame fills the page inside 10 mm margins, behind the title, north arrow, scale bar, title block and credit.")} className="gs-btn gs-btn--block" style={{ width: "100%", justifyContent: "center", marginBottom: 6 }}>{tr("Fill the page")}</button>{/* TASKS.csv #3611 */}
+              </>);
+              const holesStep = (<>
                 {(sel.onlyChecked || hiddenIn(tableCollars, holeVisibilityNow()) > 0) && ( /* TASKS.csv #3605 */
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}><input type="checkbox" checked={!!sel.onlyChecked} onChange={(e) => updateSelected({ onlyChecked: e.target.checked })} />{tr("Only the {shown} of {total} holes checked in StrixViewer", { shown: ((tableCollars || []).length - hiddenIn(tableCollars, holeVisibilityNow())).toLocaleString(), total: (tableCollars || []).length.toLocaleString() })}</label>
+                  <label style={{ ...lab, display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={!!sel.onlyChecked} onChange={(e) => updateSelected({ onlyChecked: e.target.checked })} />{tr("Only the {shown} of {total} holes checked in StrixViewer", { shown: ((tableCollars || []).length - hiddenIn(tableCollars, holeVisibilityNow())).toLocaleString(), total: (tableCollars || []).length.toLocaleString() })}</label>
                 )}
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} title={tr("Text in the hole id, or a collar field such as year=2024 (every field term must match)")} /* #2141 */ onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
-                {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("A space ends a term: did you mean {term}? (_ stands for a space in a value.)", { term: sg })}</div> : null; })()}{/* TASKS.csv #3601 */}
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Labels")}<select value={sel.labels || "all"} onChange={(e) => updateSelected({ labels: e.target.value })} style={{ ...inp, marginTop: 4 }}>
-                  <option value="all">{tr("Every hole, with a leader where there is no room beside it")}</option>{/* TASKS.csv #3858 */}
-                  <option value="room">{tr("Only holes with room beside the collar")}</option>
+                <label style={lab}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} title={tr("Text in the hole id, or a collar field such as year=2024 (every field term must match)")} /* #2141 */ onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
+                {(() => { const sg = sel.holeFilter ? filterSuggestion(tableCollars, sel.holeFilter) : null; return sg ? <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{tr("A space ends a term: did you mean {term}?", { term: sg })}</div> : null; })()}{/* TASKS.csv #3601 */}
+                <label style={lab}>{tr("Labels")}<select value={sel.labels || "all"} onChange={(e) => updateSelected({ labels: e.target.value })} style={{ ...inp, marginTop: 4 }}>
+                  <option value="all">{tr("Every hole")}</option>{/* TASKS.csv #3858 — with a leader where there is no room beside it */}
+                  <option value="room">{tr("Only where there is room")}</option>
                   <option value="none">{tr("None")}</option>
                 </select></label>
-                {sel.labels !== "none" && colourByKind(sel.colourBy).kind === "bi" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Label with")}<select value={sel.labelWith || "id"} onChange={(e) => updateSelected({ labelWith: e.target.value })} style={{ ...inp, marginTop: 4 }}>
-                  <option value="id">{tr("The hole id")}</option>
-                  <option value="bi">{tr("The id and its best intercept (m @ grade), marked on the trace")}</option>
-                </select></label>}{/* TASKS.csv #3858 — the rule is the colour key's (cut-off, dilution, minimum) */}
-                {sel.labels !== "none" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Label only holes containing")}<input type="text" value={sel.labelFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ labelFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>}
-                {plannedHoles.length > 0 && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("The program's planned holes, dashed in the planned colour and labelled '(planned)', as in the 3D view and on sections")}>
+                {plannedHoles.length > 0 && <label style={{ ...lab, display: "flex", alignItems: "center", gap: 6 }} title={tr("The program's planned holes, dashed in the planned colour and labelled '(planned)', as in the 3D view and on sections")}>
                   <input type="checkbox" checked={showsPlanned(sel)} onChange={(e) => updateSelected({ showPlanned: e.target.checked })} />{tr("Show the planned holes ({n} in the frame)", { n: dd.planned.length })}</label>}{/* TASKS.csv #2259 */}
-                <DrillPlanColourControls sel={sel} updateSelected={updateSelected} collars={tableCollars || []} assayElements={assayElements} colouring={dd.colouring} inp={inp} />{/* TASKS.csv #2473 — replaces the series tick */}
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Text size (pt)")}<NumberInput min="5" max="12" step="0.5" value={sel.fontPt || 7} onChange={asEvent((e) => updateSelected({ fontPt: Math.max(5, Math.min(12, Number(e.target.value) || 7)) }))} style={{ ...inp, marginTop: 4 }} /></label>
-                {(dd.keyOriginal.title || dd.keyOriginal.rows.length > 0) && (() => { /* TASKS.csv #3415 — the key's lines, editable like a legend's rows; a blank box is the plan's own wording */
-                  const ke = sel.keyEdits || {}, edited = !!(ke.title || ke.note || Object.values(ke.rows || {}).some(Boolean));
-                  const setEdit = (k, v) => updateSelected({ keyEdits: { ...ke, [k]: v } }), setRow = (orig, v) => updateSelected({ keyEdits: { ...ke, rows: { ...(ke.rows || {}), [orig]: v } } });
-                  const box = { ...inp, marginTop: 2, marginBottom: 4 };
-                  return (
-                    <details style={{ marginBottom: 8 }} open={edited || undefined}>
-                      <summary style={{ cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Edit the key's lines")}{edited ? " •" : ""}</summary>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0", lineHeight: 1.4 }}>{tr("Type a line to replace the plan's wording; clear it to go back. A line keeps your wording while its class stays.")}</div>
-                      {dd.keyOriginal.title && <input type="text" aria-label={tr("Key title")} value={ke.title || ""} placeholder={dd.keyOriginal.title} onChange={(e) => setEdit("title", e.target.value)} style={box} />}
-                      {dd.keyOriginal.note && <input type="text" aria-label={tr("Key note")} value={ke.note || ""} placeholder={dd.keyOriginal.note} onChange={(e) => setEdit("note", e.target.value)} style={box} />}
-                      {dd.keyOriginal.rows.slice(0, 14).map((orig) => <input key={orig} type="text" aria-label={orig} value={(ke.rows || {})[orig] || ""} placeholder={orig} onChange={(e) => setRow(orig, e.target.value)} style={box} />)}
-                      {dd.keyOriginal.rows.length > 14 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("({n} more not listed)", { n: dd.keyOriginal.rows.length - 14 })}</div>}
-                      {edited && <button type="button" onClick={() => updateSelected({ keyEdits: null })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Back to the plan's own wording")}</button>}
-                    </details>
-                  );
-                })()}
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{dd.labels.skipped || dd.labels.placed.some((l) => l.leader) ? tr("{n} hole(s) in the frame; {p} of {l} labelled, {k} of them with a leader; {s} without a label (named on the sheet).", { n: dd.holes.length, p: dd.labels.placed.length, l: dd.labelled, k: dd.labels.placed.filter((l) => l.leader).length, s: dd.labels.skipped }) : tr("{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).", { n: dd.holes.length, p: dd.labels.placed.length, l: dd.labelled, s: dd.labels.skipped })} {(dd.caption ? `${dd.caption}. ` : "") + tr("Drawn from the collars and surveys, not the 3D view; the sheet says how the traces were drawn. Insert > Scale bar binds to it.") /* #3367 */}</div>
-                <FrameControls sel={sel} updateSelected={updateSelected} />
+                <StepNumbers rows={[
+                  { label: tr("Holes in the frame"), value: dd.holes.length.toLocaleString() },
+                  { label: tr("Labelled"), value: `${dd.labels.placed.length.toLocaleString()} / ${dd.labelled.toLocaleString()}`, title: tr("Drawn from the collars and surveys, not the 3D view; the sheet says how the traces were drawn.") /* #3367 */ },
+                  dd.labels.placed.some((l) => l.leader) && { label: tr("With a leader"), value: dd.labels.placed.filter((l) => l.leader).length.toLocaleString() },
+                  dd.labels.skipped > 0 && { label: tr("No room for a label"), value: dd.labels.skipped.toLocaleString(), level: "some", title: tr("Named on the sheet.") },
+                ]} />
               </>);
+              const fine = (
+                <MoreFold summary={tr("Fine-tune…")} data-fine-tune="drillplan">
+                  <label style={{ ...lab, display: "flex", alignItems: "center", gap: 6 }}>{tr("Typed scale 1 :")}<NumberInput min="1" step="100" value={Math.round(sel.scale) || ""} onChange={asEvent((e) => { const v = Number(e.target.value); if (v >= 1) updateSelected({ scale: v }); })} style={{ ...inp, marginBottom: 0, flex: 1, minWidth: 0 }} /></label>
+                  <label style={{ ...lab, display: "flex", alignItems: "center", gap: 6 }} title={tr("The coordinate grid's spacing in metres. Blank: about five lines across the frame; 0: no grid.")}>{tr("Grid (m)")}<NumberInput allowEmpty min="0" value={sel.gridM ?? ""} placeholder={tr("auto")} onChange={asEvent((e) => updateSelected({ gridM: e.target.value === "" ? undefined : Number(e.target.value) }))} style={{ width: 80 }} aria-label={tr("Grid spacing (m)")} /></label>{/* #2301 */}
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <label style={{ ...lab, flex: 1 }}>{tr("Centre E")}<NumberInput value={Math.round(sel.centre?.x || 0)} onChange={asEvent((e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } }))} style={inp} /></label>
+                    <label style={{ ...lab, flex: 1 }}>{tr("Centre N")}<NumberInput value={Math.round(sel.centre?.y || 0)} onChange={asEvent((e) => updateSelected({ centre: { ...sel.centre, y: Number(e.target.value) } }))} style={inp} /></label>
+                  </div>
+                  {sel.labels !== "none" && colourByKind(sel.colourBy).kind === "bi" && <label style={lab}>{tr("Label with")}<select value={sel.labelWith || "id"} onChange={(e) => updateSelected({ labelWith: e.target.value })} style={{ ...inp, marginTop: 4 }}>
+                    <option value="id">{tr("The hole id")}</option>
+                    <option value="bi">{tr("The id and its best intercept (m @ grade), marked on the trace")}</option>
+                  </select></label>}{/* TASKS.csv #3858 — the rule is the colour key's (cut-off, dilution, minimum) */}
+                  {sel.labels !== "none" && <label style={lab}>{tr("Label only holes containing")}<input type="text" value={sel.labelFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ labelFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>}
+                  <label style={lab}>{tr("Text size (pt)")}<NumberInput min="5" max="12" step="0.5" value={sel.fontPt || 7} onChange={asEvent((e) => updateSelected({ fontPt: Math.max(5, Math.min(12, Number(e.target.value) || 7)) }))} style={{ ...inp, marginTop: 4 }} /></label>
+                  {(dd.keyOriginal.title || dd.keyOriginal.rows.length > 0) && (() => { /* TASKS.csv #3415 — the key's lines, editable like a legend's rows; a blank box is the plan's own wording */
+                    const ke = sel.keyEdits || {}, edited = !!(ke.title || ke.note || Object.values(ke.rows || {}).some(Boolean));
+                    const setEdit = (k, v) => updateSelected({ keyEdits: { ...ke, [k]: v } }), setRow = (orig, v) => updateSelected({ keyEdits: { ...ke, rows: { ...(ke.rows || {}), [orig]: v } } });
+                    const box = { ...inp, marginTop: 2, marginBottom: 4 };
+                    return (
+                      <details style={{ marginBottom: 8 }} open={edited || undefined}>
+                        <summary style={{ cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Edit the key's lines")}{edited ? " •" : ""}</summary>
+                        <div style={{ ...note, margin: "4px 0" }}>{tr("A typed line replaces the plan's wording; clear it to go back.")}</div>
+                        {dd.keyOriginal.title && <input type="text" aria-label={tr("Key title")} value={ke.title || ""} placeholder={dd.keyOriginal.title} onChange={(e) => setEdit("title", e.target.value)} style={box} />}
+                        {dd.keyOriginal.note && <input type="text" aria-label={tr("Key note")} value={ke.note || ""} placeholder={dd.keyOriginal.note} onChange={(e) => setEdit("note", e.target.value)} style={box} />}
+                        {dd.keyOriginal.rows.slice(0, 14).map((orig) => <input key={orig} type="text" aria-label={orig} value={(ke.rows || {})[orig] || ""} placeholder={orig} onChange={(e) => setRow(orig, e.target.value)} style={box} />)}
+                        {dd.keyOriginal.rows.length > 14 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("({n} more not listed)", { n: dd.keyOriginal.rows.length - 14 })}</div>}
+                        {edited && <button type="button" onClick={() => updateSelected({ keyEdits: null })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Back to the plan's own wording")}</button>}
+                      </details>
+                    );
+                  })()}
+                  <FrameControls sel={sel} updateSelected={updateSelected} />
+                </MoreFold>
+              );
+              return (
+                <StepPane key={sel.id} id="layout-drillplan" label={tr("Drill plan")} fineTune={fine}
+                  steps={[
+                    { key: "frame", label: tr("Frame"), question: tr("What does it show?"), body: frameStep },
+                    { key: "holes", label: tr("Holes"), question: tr("Which holes?"), body: holesStep },
+                    { key: "colour", label: tr("Colour"), question: tr("Coloured by?"), body: <DrillPlanColourControls sel={sel} updateSelected={updateSelected} collars={tableCollars || []} assayElements={assayElements} colouring={dd.colouring} inp={inp} /> /* TASKS.csv #2473 — replaces the series tick */ },
+                  ]} />
+              );
             })()}
             {sel.type === "rect" && (
               <>
@@ -2030,7 +2058,7 @@ export default function LayoutModule() {
         {templatesOpen && <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("Templates")}</div>}
         {templatesOpen && ( /* TASKS.csv #1868 — starter templates first, then this project's, then Import */
           <div style={{ marginBottom: 8, padding: 6, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", padding: "2px 7px" }}>{tr("Starter templates: a neatline, a figure title and a title block at the paper size named; add the map or section view after.")}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", padding: "2px 7px" }}>{tr("Starter templates: a neatline, title and title block.")}</div>
             {STOCK_TEMPLATES.map((t) => <div key={t.id} role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => loadTemplate({ ...t, stock: true })} style={{ padding: "5px 7px", fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer", borderRadius: 4 }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>{tr(t.name)}</div>)}
             {layoutTemplates.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", padding: "6px 7px 2px", borderTop: "1px solid var(--color-border)", marginTop: 4 }}>{tr("Saved in this project")}</div>}
           <div style={{ maxHeight: 180, overflowY: "auto" }}>
@@ -2085,14 +2113,13 @@ export default function LayoutModule() {
           </select>
         </label>
         {gridBoundViewportId && !metersPerPx && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("This viewport hasn't been rendered yet — use \"Refresh from theme\" on it once to get a real-world scale to bind to.")}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Refresh that viewport once to get a scale to bind to.")}</div>
         )}
         {metersPerPx && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Grid spacing is locked to {gridMeters}m in the real world using this viewport's current scale — recomputes automatically whenever it's refreshed or rebound.", { gridMeters })}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Grid spacing is {gridMeters} m on the ground, following that viewport.", { gridMeters })}</div>
         )}
 
-        <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("Adding views")}</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>{tr("Use")}{" "}<b>{tr("Current view")}</b>{" "}{tr("or")}{" "}<b>{tr("Theme view")}</b>{" "}{tr("on this tab's ribbon,")}{" "}<b>{tr("Snapshot")}</b>{" "}{tr("on StrixViewer ribbon (Output), or a cross-section pop-out's snapshot button, to put a view on the page below; drag it to place and resize it.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 20, lineHeight: 1.5 }}>{tr("Add a view with Current view or Theme view on the ribbon, or Snapshot in StrixViewer.")}</div>
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
@@ -2426,13 +2453,15 @@ function TitleBlockControls({ sel, updateSelected }) {
 // TASKS.csv #1480 (review #1352) — a strip log at an exact depth scale: its height sized so a metre of hole is 1/N m of paper (the width
 // follows), and what that is in millimetres per 10 m, the way a printed log is read
 const DEPTH_PRESETS = [200, 500, 1000, 2000, 2500, 5000, 10000];
-function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit = null, onWhole = null, onRedraw = null }) { // split / onSplit / onWhole: #3372; onRedraw: #3873 (a)
+function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit = null, onWhole = null, onRedraw = null }) { // split / onSplit / onWhole: #3372; onRedraw: #3873 (a); #4070 part 4 — the numbers first, one short line per warning
   const [custom, setCustom] = useState(false);
+  const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 };
+  const warn = { ...note, color: "var(--color-warn-text)" };
   if (sel.slice) { // TASKS.csv #3372 — one page of a split log: its depths, and the whole log again
     const s = sel.slice, f = (v) => Number(Number(v).toFixed(1)).toLocaleString();
     return (
       <div style={{ marginTop: 4, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>
-        {tr("Page {i} of {n} of this strip log, {from}-{to} m, at 1 : {d}.", { i: s.page, n: s.of, from: f(s.from), to: f(s.to), d: Math.round(depthScaleDenom(sel) || 0).toLocaleString() })}
+        {tr("Page {i} of {n}, {from}-{to} m, at 1 : {d}.", { i: s.page, n: s.of, from: f(s.from), to: f(s.to), d: Math.round(depthScaleDenom(sel) || 0).toLocaleString() })}
         {s.page === 1 && onWhole && <> {" "}<button type="button" onClick={onWhole} title={tr("Put the whole log back on this page as one picture. The other pages stay: delete them from one of them, in one action.")} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Whole log again")}</button></>}
       </div>
     );
@@ -2442,10 +2471,14 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
   const choice = custom ? "custom" : preset ? String(preset) : "";
   const aspect = sel.aspect || (sel.naturalW && sel.naturalH ? sel.naturalW / sel.naturalH : 1);
   const setScale = (k) => { if (!(k > 0)) return; const h = depthHeightForScale(sel, k); updateSelected({ h, w: h * aspect }); };
+  const pt = sel.naturalH > 0 && sel.h > 0 ? (9.5 * (sel.h / sel.naturalH) * 72) / 96 : null; // TASKS.csv #1641 — the size its 9.5 px labels print at here
+  const adv = d > 0 ? redrawAdvice(sel, d) : null; // TASKS.csv #3861 — a scale that enlarges the picture past what it was drawn at cannot be split: it has to be sent again at that scale
+  const enlarged = !!(adv && adv.enlarge > 1.15);
+  const splitOk = !!(split && !split.error && split.pages?.length > 1);
   return (
     <div style={{ marginTop: 4, marginBottom: 6 }}>
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 4 }}
-        title={tr("Plot this strip log at an exact depth scale: its height is set so a metre of hole is 1/N of a metre on paper.")}>{tr("Depth 1 :")}
+        title={tr("An exact depth scale: its height is set so a metre of hole is 1/N of a metre on paper.")}>{tr("Depth 1 :")}
         <select value={choice} aria-label={tr("Strip log depth scale")} onChange={(e) => {
           const v = e.target.value;
           if (v === "custom") { setCustom(true); return; }
@@ -2461,35 +2494,29 @@ function DepthScaleControls({ sel, pageH, updateSelected, split = null, onSplit 
             onChange={(v) => setScale(v)} style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
-      {d > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("{mm} mm of paper per 10 m of hole", { mm: +(10000 / d).toPrecision(3) })}</div>}
-      {/* TASKS.csv #1641 — the size its 9.5 px labels print at here (the strip log window's advice used to stay behind in the 3D View) */}
-      {sel.naturalH > 0 && sel.h > 0 && (() => { const pt = (9.5 * (sel.h / sel.naturalH) * 72) / 96; return (
-        <div style={{ fontSize: "var(--font-size-xs)", color: pt < 6 ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{pt < 6
-          ? tr("Its labels print at about {pt} pt at this size: give it more height, or send a shorter depth range from the strip log window.", { pt: pt.toFixed(1) })
-          : tr("Its labels print at about {pt} pt.", { pt: pt.toFixed(1) })}</div>
-      ); })()}
-      {(() => { // TASKS.csv #3861 — a scale that enlarges the picture past what it was drawn at cannot be split: it has to be sent again at that scale
-        const adv = d > 0 && !sel.slice ? redrawAdvice(sel, d) : null;
-        if (adv && adv.enlarge > 1.15 && !(split && !split.error && split.pages?.length > 1)) return (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Send it again from the strip log window at Vertical scale {need} px/m ('Add to Layout'): drawn at {now} px/m, at 1 : {d} it is enlarged {x} times, labels about {pt} pt.", { now: +adv.ppmNow.toPrecision(3), d: n.toLocaleString(), x: +adv.enlarge.toFixed(1), pt: adv.pt.toFixed(0), need: +adv.ppmNeeded.toPrecision(3) })}</div>
-        );
-        return sel.h > pageH ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Use a larger depth scale (1 : N, bigger N) or a taller page: at this scale the log is taller than the page.")}</div> : null;
-      })()}
-      {(() => { const adv = d > 0 && !sel.slice && onRedraw ? redrawAdvice(sel, d) : null; return adv && adv.enlarge > 1.15 ? (<div style={{ marginTop: 4 }}>{/* TASKS.csv #3873 (a) */}<button type="button" onClick={() => onRedraw(adv.ppmNeeded)} title={tr("Open this strip log in StrixViewer as it was sent, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture.")} className="gs-btn gs-btn--block">{tr("Draw it again at {need} px/m", { need: +adv.ppmNeeded.toPrecision(3) })}</button></div>) : null; })()}{/* TASKS.csv #3873 (a) — also when a split is offered: the enlarged picture prints its labels far over size */}
-      {split && !split.error && split.pages?.length > 1 && (split.wanted || split.small) && ( /* TASKS.csv #3372 — at the page's width */
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.4, marginTop: 4 }}>{split.wanted
-          ? tr("At 1 : {want} the log is {mm} mm wide, wider than the page; at 1 : {d} it fits the page's width, with its labels at about {pt} pt.", { want: Math.round(split.wanted).toLocaleString(), mm: Math.round((split.wantedW * 25.4) / 96), d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })
-          : tr("At 1 : {d}, the page's width, its labels print at about {pt} pt.", { d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })}</div>
+      {d > 0 && <StepNumbers rows={[
+        { label: tr("Paper per 10 m"), value: tr("{mm} mm", { mm: +(10000 / d).toPrecision(3) }) },
+        pt != null && { label: tr("Labels print at"), value: tr("{pt} pt", { pt: pt.toFixed(1) }), level: pt < 6 ? "some" : undefined, title: pt < 6 ? tr("Too small: make it taller, or send a shorter depth range.") : undefined },
+      ]} />}
+      {enlarged && !splitOk && <div style={warn}>{tr("Drawn at {now} px/m, enlarged {x} times at this scale.", { now: +adv.ppmNow.toPrecision(3), x: +adv.enlarge.toFixed(1) })}</div>}
+      {!enlarged && sel.h > pageH && <div style={warn}>{tr("Taller than the page: use a larger scale number or a taller page.")}</div>}
+      {enlarged && onRedraw && ( /* TASKS.csv #3873 (a) — also when a split is offered: the enlarged picture prints its labels far over size */
+        <button type="button" onClick={() => onRedraw(adv.ppmNeeded)} title={tr("Open this strip log in StrixViewer as it was sent, at the px per metre this depth scale needs; its 'Add to Layout' replaces this picture.")} className="gs-btn gs-btn--block">{tr("Draw it again at {need} px/m", { need: +adv.ppmNeeded.toPrecision(3) })}</button>
       )}
-      {split && !split.error && split.pages?.length > 1 && onSplit && ( /* TASKS.csv #3372 */
-        <button type="button" onClick={onSplit} title={tr("Lay the log out over new pages at this depth scale, each repeating the track headers and axis captions; the key stays on this page.")} className="gs-btn gs-btn--block" style={{ marginTop: 6 }}>
+      {splitOk && (split.wanted || split.small) && ( /* TASKS.csv #3372 — at the page's width */
+        <div style={note}>{split.wanted
+          ? tr("At 1 : {want} the log is {mm} mm wide; at 1 : {d} it fits the page.", { want: Math.round(split.wanted).toLocaleString(), mm: Math.round((split.wantedW * 25.4) / 96), d: split.denom.toLocaleString() })
+          : tr("At 1 : {d}, the page's width, labels print at about {pt} pt.", { d: split.denom.toLocaleString(), pt: sliceLabelPt(split.k).toFixed(1) })}</div>
+      )}
+      {splitOk && onSplit && ( /* TASKS.csv #3372 */
+        <button type="button" onClick={onSplit} title={tr("Lay the log out over new pages at this depth scale, each repeating the track headers and axis captions; the key stays on this page.")} className="gs-btn gs-btn--primary gs-btn--block" style={{ marginTop: 6 }}>
           {tr("Split over {n} pages at 1 : {d}", { n: split.pages.length, d: Math.round(split.denom).toLocaleString() })}</button>
       )}
-      {split?.error === "too-wide" && !split.wanted && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginTop: 4 }}>{tr("At 1 : {d} the log is {mm} mm wide, wider than the page: a larger depth scale or a wider page fits it.", { d: Math.round(split.denom).toLocaleString(), mm: Math.round((split.w * 25.4) / 96) })}</div>}
+      {split?.error === "too-wide" && !split.wanted && <div style={warn}>{tr("At 1 : {d} the log is {mm} mm wide, wider than the page.", { d: Math.round(split.denom).toLocaleString(), mm: Math.round((split.w * 25.4) / 96) })}</div>}
     </div>
   );
 }
-function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = null }) {
+function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = null }) { // #4070 part 4 — the numbers first, one short line per warning
   const [custom, setCustom] = useState(false);
   const [resnapNote, setResnapNote] = useState(""); // #1485
   const d = sectionScaleDenom(sel), n = d ? Math.round(d) : 0;
@@ -2498,10 +2525,13 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
   // #2483 (3) — onResize: its bound scale bar and legend below / right of it move with its new edge (layoutPlace followResize)
   const setScale = (k) => { if (!(k > 0)) return; const w = sectionWidthForScale(sel, k); (onResize || updateSelected)({ w, h: w / (sel.aspect || (sel.naturalW && sel.naturalH ? sel.naturalW / sel.naturalH : 1)) }); };
   const tooBig = sel.w > pageW || sel.h > pageH;
+  const pt = sectionTextPt(sel), showPt = pt != null && !sel.planMap; // TASKS.csv #1485 — the plot scale changes the geometry, not the type: say what the text prints at
+  const off = showPt && Math.abs(pt - 7) > 1;
+  const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 };
   return (
     <div style={{ marginTop: 4, marginBottom: 6 }}>
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 4 }}
-        title={tr("Plot this section at an exact horizontal scale: the snapshot is sized on the page so its length along the section is at 1 : N.")}>{tr("Scale 1 :")}
+        title={tr("An exact horizontal scale: the snapshot is sized so its length along the section is at 1 : N.")}>{tr("Scale 1 :")}
         <select value={choice} aria-label={tr("Section plot scale")} onChange={(e) => {
           const v = e.target.value;
           if (v === "custom") { setCustom(true); return; }
@@ -2517,109 +2547,63 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected, onResize = nu
             onChange={(v) => setScale(v)} style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
-      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{sectionScaleText(sel)}</div>
-      {sel.numbersRounded > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(sel.numbersRounded === 1 ? "1 long number in this snapshot's labels was rounded to 4 significant figures, as grades now print." : "{n} long numbers in this snapshot's labels were rounded to 4 significant figures, as grades now print.", { n: sel.numbersRounded })}</div>}{/* #2603 */}
-      {(() => { // TASKS.csv #1485 — the plot scale changes the geometry, not the type: say what the text prints at, and take the snapshot again for this width
-        const pt = sectionTextPt(sel); if (pt == null || sel.planMap) return null;
-        const off = Math.abs(pt - 7) > 1;
-        return (
-          <div style={{ fontSize: "var(--font-size-xs)", color: off ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>
-            {off ? tr("Its smallest text prints at about {pt} pt at this width (the snapshot was drawn for about 7 pt).", { pt }) : tr("Its smallest text prints at about {pt} pt.", { pt })}
-            {(off || sel.sectionTabId) && (sel.sectionTabId /* #2603 — offered on every section snapshot, not only when the text size is off */
-              ? <> <button type="button" onClick={() => { const ok = sendSectionResnap({ tabId: sel.sectionTabId, elementId: sel.id, textFactor: sectionTextFactor(sel) }); setResnapNote(ok ? tr("Asked the section window to snapshot again with the text at print size. If the section is closed, open it again and snapshot from there.") : tr("Could not reach the section window.")); }} className="gs-btn gs-btn--sm" style={{ width: "auto", marginTop: 4 }}>{tr("Re-snapshot with the text at print size")}</button></>
-              : <> {tr("Open the section again and snapshot it from there to get the text at print size.")}</>)}
-            {resnapNote && <div style={{ marginTop: 3 }}>{resnapNote}</div>}
-          </div>
-        );
-      })()}
-      {tooBig && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.")}</div>}
+      <StepNumbers rows={[
+        { label: tr("Scale"), value: sectionScaleText(sel), title: sel.mapsView ? tr("A Maps view as it was when sent, north up: send it again from Maps to change it. Resizing it changes its scale.") /* #3194 */ : sel.planMap ? tr("A Geochem plan map as it was when sent: make a new one from Geochem > Plan map to change it. Resizing it changes its scale.") : tr("A drawing of the section as it was when taken: take a new snapshot from the cross-section window to change it. The scale runs along the section; resizing changes it.") },
+        showPt && { label: tr("Smallest text prints at"), value: tr("{pt} pt", { pt }), level: off ? "some" : undefined, title: off ? tr("The snapshot was drawn for about 7 pt at its own width.") : undefined },
+      ]} />
+      {showPt && (off || sel.sectionTabId) && ( // TASKS.csv #1485 / #2603 — take the snapshot again for this width (offered on every section snapshot, not only when the text size is off)
+        sel.sectionTabId
+          ? <button type="button" onClick={() => { const ok = sendSectionResnap({ tabId: sel.sectionTabId, elementId: sel.id, textFactor: sectionTextFactor(sel) }); setResnapNote(ok ? tr("Asked the section window to snapshot again. If it is closed, open it and snapshot from there.") : tr("Could not reach the section window.")); }} className="gs-btn gs-btn--block" title={tr("Snapshot again with the text at print size")}>{tr("Re-snapshot with the text at print size")}</button>
+          : <div style={note}>{tr("Open the section again and snapshot it from there to get the text at print size.")}</div>
+      )}
+      {resnapNote && <div style={note}>{resnapNote}</div>}
+      {sel.numbersRounded > 0 && <div style={note}>{tr(sel.numbersRounded === 1 ? "1 long number in its labels was rounded to 4 significant figures." : "{n} long numbers in its labels were rounded to 4 significant figures.", { n: sel.numbersRounded })}</div>}{/* #2603 */}
+      {tooBig && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Larger than the page at this scale: choose a larger scale number, a larger page, or the other orientation.")}</div>}
       {sel.mapsView && <MapRedrawControl sel={sel} /> /* #3491 */}
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{sel.mapsView ? tr("A Maps view as it was when sent, north up: send it again from Maps to change it. Resizing it changes its scale.") /* #3194 */ : sel.planMap ? tr("A Geochem plan map as it was when sent: make a new one from Geochem > Plan map to change it. Resizing it changes its scale.") : tr("A drawing of the section as it was when taken: take a new snapshot from the cross-section window to change it. The scale runs along the section; resizing changes it.")}</div>
     </div>
   );
 }
 
+// TASKS.csv #4070 part 4 (Matt's layout C, 2026-11-24) — a viewport's side panel as steps: View, Scale -> Refresh -> the Result in numbers; the frame, the printed scale,
+// the grid and the two "assign to this view" buttons are the Fine-tune fold. The explanations are in Help (Layout > Viewport); each warning keeps one short line.
 function ViewportControls({ steepHoles = false, legendReloaded = false, sel, themes, updateSelected, onRefresh, onLiveView = null, onRebind, onEnter, onFit, onFitAll = null, onCentre = null, noHoleInFrame = false, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true, crsUnset = false }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
-  // TASKS.csv #69 — the "~" prefix and hedge text below only apply to a perspective capture (the
-  // ordinary, pre-#69 default) — sel.trueScale means the LAST capture was rendered with an
-  // orthographic camera (see startViewportRender/ViewerModule's capture effect), which makes
-  // worldHeightAtTarget an exact figure, not an estimate at one particular distance.
+  // TASKS.csv #69 — sel.trueScale: the LAST capture used an orthographic camera, so the scale is exact, not an estimate at one distance
   const scaleText = viewportScaleText(sel); // #906 / #961
   const oblique = obliqueCapture(sel); // TASKS.csv #946
   const frameChanged = !!(sel.capW && sel.capH && (Math.round(sel.w) !== Math.round(sel.capW) || Math.round(sel.h) !== Math.round(sel.capH))); // #906
   const gridOk = utmGridReady(sel); // TASKS.csv #399
-  return (
-    <div style={{ marginTop: 4 }}>
-      {sel.samplesUnplaced > 0 && ( // TASKS.csv #1864 — the 3D view could not place these, so no capture holds them
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr(sel.samplesUnplaced === 1 ? "{n} surface sample is not in this frame: it lies over a terrain void. Geochem > Plan map draws every sample by X / Y." : "{n} surface samples are not in this frame: they lie over a terrain void. Geochem > Plan map draws every sample by X / Y.", { n: sel.samplesUnplaced.toLocaleString() })}</div>
-      )}
-      {/* TASKS.csv #2716 — a page with frames at several scales: each frame can print its own scale in its corner */}
-      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: scaleText ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: "pointer" }}
-        title={scaleText ? tr("Print this frame's scale ({s}) in its lower-right corner: for a page with maps at several scales, where one {scale} cannot name them all.", { s: scaleText }) : tr("Capture the view first: the scale comes from the capture.")}>
-        <input type="checkbox" disabled={!scaleText} checked={!!sel.scaleCaption && !!scaleText} onChange={(e) => updateSelected({ scaleCaption: e.target.checked })} />{tr("Print its scale in the frame")}
-      </label>
-      {/* TASKS.csv #2760 — the page's maps are at several scales and this one does not print its own: say so (one {scale} cannot name them all) */}
-      {scaleText && !sel.scaleCaption && others.some((o) => { const t = viewportScaleText(o); return t && t !== scaleText; }) && (
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>
-          {tr("This page's maps are at different scales ({list}): tick this on each so every frame states its own.", { list: [...new Set([scaleText, ...others.map(viewportScaleText).filter(Boolean)])].join(", ") })}{" "}
-          <button type="button" onClick={() => updateSelected({ scaleCaption: true })} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Print it")}</button>
-        </div>
-      )}
-      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
-        title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport.")}>
-        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM; #2484: nor is MGA / any other projection: the caption names the grid */}{gridOk && sel.utmGrid && (
-          <NumberInput min="1" placeholder={tr("auto")} value={sel.utmGridStep || ""} onChange={asEvent((e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 }))}
-            aria-label={tr("Grid spacing (m)")} title={tr("Grid spacing in metres (blank = automatic)")} style={{ width: 60, marginLeft: "auto", fontSize: "var(--font-size-sm)" }} />
-        )}
-      </label>
-      {!gridOk && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("A coordinate grid needs a top-down, true-scale capture.") /* #2484 */}</div>}
-      {gridOk && sel.utmGrid && sel.utmGridStep > 0 && (() => { // TASKS.csv #1488 — a spacing too tight to read is drawn wider, and said so
-        const g = legibleGridStep(sel.utmGridStep, metresPerPagePx(sel));
-        return g.bumped ? <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.", { typed: sel.utmGridStep.toLocaleString(), mm: g.mm.toFixed(1), step: g.step.toLocaleString() })}</div> : null;
-      })()}
-      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Theme")}<select value={sel.themeId || ""} onChange={(e) => onRebind(e.target.value || null)} style={inp}>
-          {/* TASKS.csv — "add a viewport with the current view, not only when saving a theme." A
-              viewport can now exist with no bound theme at all (themeId: null) — "Refresh from theme"
-              below still works for it (re-captures whatever's live right now), it just has nothing to
-              rebind BACK to if the user picks this option again later. */}
+  const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 };
+  const warn = { ...note, color: "var(--color-warn-text)" };
+  const small = { fontSize: "var(--font-size-xs)", padding: "1px 6px" };
+  const lab = { fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" };
+  const ground = sel.fixedScale > 0 && sel.capturedFixedScale === sel.fixedScale && !oblique ? groundFrameSize(sel.fixedScale, sel) : null;
+  const viewStep = (
+    <div>
+      <label style={lab}>{tr("Theme")}<select value={sel.themeId || ""} onChange={(e) => onRebind(e.target.value || null)} style={inp}>
+          {/* TASKS.csv — "add a viewport with the current view, not only when saving a theme": a viewport can have no bound theme (themeId: null) */}
           <option value="">{tr("— current view (no theme) —")}</option>
           {themes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </label>
-      <button onClick={onRefresh} disabled={sel.refreshing} className="gs-btn gs-btn--block" style={{ opacity: sel.refreshing ? 0.6 : 1 }}>
-        <RefreshCw size={14} /> {sel.refreshing ? tr("Rendering…") : tr("Refresh from theme")}
-      </button>
-      {/* TASKS.csv #2471 — when the picture was taken: the 3D view may have changed since */}
-      {sel.capturedAt > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("Captured {when}. Changes in the 3D view since then show after a refresh.", { when: new Date(sel.capturedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) })}{legendReloaded ? " " + tr("The bound legend reloaded with the refreshed viewport.") : ""}</div>}
-      {/* TASKS.csv #198 (part 3) — QGIS-style "enter" a viewport: switches to the 3D View tab with
-          this viewport's theme/camera live, ready for real orbit/pan/zoom, instead of an instant
-          re-render. See startInteractiveViewportEdit above and ViewerModule's interactive-session
-          banner for the other half of this flow. */}
-      <button onClick={onEnter} disabled={sel.refreshing} title={tr("Switch to the StrixViewer tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here")} className="gs-btn gs-btn--block" style={{ opacity: sel.refreshing ? 0.6 : 1 }}>
-        <LogIn size={14} />{" "}{tr("Enter & adjust view…")}</button>
+      {/* TASKS.csv #198 (part 3) — QGIS-style "enter" a viewport: the 3D View tab with this viewport's theme / camera live, then bring the new angle back here */}
+      <button onClick={onEnter} disabled={sel.refreshing} title={tr("Orbit, pan and zoom this viewport's camera in StrixViewer, then bring the new angle back here.")} className="gs-btn gs-btn--block" style={{ opacity: sel.refreshing ? 0.6 : 1 }}>
+        <LogIn size={14} />{" "}{tr("Adjust the view…")}</button>
       {/* TASKS.csv #3145 — a view set here is kept by Refresh, Fit and a scale change; this goes back to the live 3D View */}
       {!sel.themeId && sel.viewState?.adjusted && onLiveView && (
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame keeps the view you set in 'Enter & adjust view': Refresh, Fit and a scale change use it.")}{" "}
+        <div style={note}>{tr("Keeping the view you set.")}{" "}
           <button className="gs-btn gs-btn--sm" style={{ marginTop: 4 }} onClick={onLiveView} disabled={sel.refreshing}>{tr("Use the live 3D view again")}</button>
         </div>
       )}
-      {sel.fixedScale > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("Set Scale to \"free (as framed)\" to use the 3D view's zoom: at the fixed 1:{s} only where you centre it counts.", { s: Number(sel.fixedScale).toLocaleString() })}</div>}{/* TASKS.csv #1486 */}
-      {/* TASKS.csv #1486 — what the zoom in 'Enter & adjust view' framed, when it was far from the fixed scale: one click uses it */}
-      {sel.fixedScale > 0 && sel.adjustZoomScale > 0 && Math.abs(sel.adjustZoomScale / sel.fixedScale - 1) > 0.05 && (() => { const z = roundScale(sel.adjustZoomScale); return (
-        <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Your zoom in the 3D view framed about 1:{z}; the frame kept 1:{s}.", { z: z.toLocaleString(), s: Number(sel.fixedScale).toLocaleString() })}{" "}
-          <button className="gs-btn gs-btn--sm" style={{ marginTop: 4 }} onClick={() => { updateSelected({ adjustZoomScale: null }); onRescale(z); }}>{tr("Use 1:{z}", { z: z.toLocaleString() })}</button>
-        </div>); })()}
-      {/* TASKS.csv #69 — true-scale (orthographic) capture. Takes effect on the NEXT refresh, not
-          retroactively on the image already captured — toggling it alone doesn't re-render. */}
-      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }}>
-        <input type="checkbox" checked={!!sel.trueScale} onChange={(e) => updateSelected({ trueScale: e.target.checked })} />{tr("True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.")}</label>
-      {/* TASKS.csv #398 / #907 — the plot scale. The frame's size on the paper is the ground it shows at 1:N (#906:
-          the capture is drawn at the frame's own aspect), centred where the camera looks or, with Fit, on the data. */}
-      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 4 }}
-        title={tr("Plot this viewport at an exact scale (true scale): resize the frame for more or less ground, then refresh.")}>{tr("Scale 1 :")}
+    </div>
+  );
+  const scaleStep = (
+    <div>
+      {/* TASKS.csv #398 / #907 — the plot scale. The frame's size on the paper is the ground it shows at 1:N (#906: the capture is drawn at the frame's own aspect), centred where the camera looks or, with Fit, on the data. */}
+      <label style={{ display: "flex", alignItems: "center", gap: 6, ...lab, marginBottom: 4 }}
+        title={tr("An exact scale: resize the frame for more or less ground. Free uses the 3D view's own zoom.")}>{tr("Scale 1 :")}
         <select value={scaleChoice} aria-label={tr("Plot scale")} onChange={(e) => {
           const v = e.target.value;
           if (v === "") { setCustomScale(false); onRescale(0); } // #1007 — applied at once
@@ -2637,80 +2621,115 @@ function ViewportControls({ steepHoles = false, legendReloaded = false, sel, the
             style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
+      <button onClick={onFit} disabled={sel.refreshing} title={hasHoles ? tr("Fit this view's drillholes (or surface samples / boundaries) to the frame at a round scale, centred, and refresh") : tr("Fit the visible block models (else surface samples, map layers or boundaries) to the frame at a round scale, centred, and refresh")} className="gs-btn gs-btn--block" style={{ opacity: sel.refreshing ? 0.6 : 1 }}>
+        <Maximize2 size={14} />{" "}{hasHoles ? tr("Fit the holes") : tr("Fit the data")}</button>
+      {sel.fitInfo && sel.fitInfo.scale === sel.fixedScale && ( /* TASKS.csv #2132 — what the fit framed */
+        <div style={sel.fitInfo.drilledScale ? warn : note}>
+          {sel.fitInfo.of > 0 /* #3371 — the holes the view shows */
+            ? tr("Fitted the {n} hole(s) this view shows, of {all}, at 1:{scale}.", { n: sel.fitInfo.holes.toLocaleString(), all: sel.fitInfo.of.toLocaleString(), scale: sel.fitInfo.scale.toLocaleString() })
+            : tr("Fitted {n} hole(s) at 1:{scale}.", { n: sel.fitInfo.holes.toLocaleString(), scale: sel.fitInfo.scale.toLocaleString() })}
+          {sel.fitInfo.of > 0 && onFitAll && <> <button type="button" onClick={onFitAll} disabled={sel.refreshing} className="gs-btn gs-btn--sm" style={small}>{tr("Fit all {n}", { n: sel.fitInfo.of.toLocaleString() })}</button></>}
+          {sel.fitInfo.allHoles && sel.fitInfo.hidden > 0 && <> {tr("{k} of them are hidden in this view.", { k: sel.fitInfo.hidden.toLocaleString() })}{" "}
+            <button type="button" onClick={onFit} disabled={sel.refreshing} className="gs-btn gs-btn--sm" style={small}>{tr("Fit the {n} shown", { n: (sel.fitInfo.holes - sel.fitInfo.hidden).toLocaleString() })}</button></>}
+          {sel.fitInfo.drilledScale > 0 && " " + tr("{k} are assumed vertical (no survey) and widen the frame; the rest fit at 1:{s}.", { k: sel.fitInfo.assumed.toLocaleString(), s: sel.fitInfo.drilledScale.toLocaleString() })}{/* #2304 — only when they do */}
+          {sel.fitInfo.turnedScale > 0 && sel.w !== sel.h && <> {tr("Turned ({w} × {h} mm) they would fit at 1:{s}.", { w: Math.round(sel.h / PX_PER_MM), h: Math.round(sel.w / PX_PER_MM), s: sel.fitInfo.turnedScale.toLocaleString() })}{" "}
+            <button type="button" onClick={() => updateSelected({ w: sel.h, h: sel.w, fitInfo: null })} className="gs-btn gs-btn--sm" style={small}>{tr("Turn the frame")}</button></>}{/* #2737 — then Fit again */}
+        </div>
+      )}
       {others.length > 0 && ( /* TASKS.csv #912 — an overview (inset) map */
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }} title={tr("Draw another viewport's ground extent on this one, as on an inset location map. Both need a top-down, true-scale capture.")}>{tr("Show the extent of")}
+        <label style={lab} title={tr("Draw another viewport's ground extent on this one, as on an inset location map. Both need a top-down, true-scale capture.")}>{tr("Show the extent of")}
           <select value={sel.overviewOf || ""} onChange={(e) => updateSelected({ overviewOf: e.target.value || null })} style={inp}>
             <option value="">{tr("— none —")}</option>
             {others.map((o) => <option key={o.id} value={o.id}>{viewportName(o, allViewports.findIndex((v) => v.id === o.id), themes)}</option>)}
           </select>
         </label>
       )}
-      {sel.overviewOf && !overviewPolygon(sel, others.find((o) => o.id === sel.overviewOf)) && (
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>{tr("The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.")}</div>
-      )}
-      <button onClick={onFit} disabled={sel.refreshing} title={hasHoles ? tr("Fit this view's drillholes (or surface samples / boundaries) to the frame at a round scale, centred, and refresh") : tr("Fit the visible block models (else surface samples, map layers or boundaries) to the frame at a round scale, centred, and refresh")} className="gs-btn gs-btn--block" style={{ opacity: sel.refreshing ? 0.6 : 1 }}>
-        <Maximize2 size={14} />{" "}{hasHoles ? tr("Fit the holes at a round scale") : tr("Fit the data at a round scale")}</button>
-      {sel.fitInfo && sel.fitInfo.scale === sel.fixedScale && ( /* TASKS.csv #2132 — what the fit framed */
-        <div style={{ fontSize: "var(--font-size-xs)", color: sel.fitInfo.drilledScale ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
-          {sel.fitInfo.of > 0 /* #3371 — the holes the view shows */
-            ? tr("Fitted the {n} hole(s) this view shows, of {all}, at 1:{scale}.", { n: sel.fitInfo.holes.toLocaleString(), all: sel.fitInfo.of.toLocaleString(), scale: sel.fitInfo.scale.toLocaleString() })
-            : tr("Fitted {n} hole(s) at 1:{scale}.", { n: sel.fitInfo.holes.toLocaleString(), scale: sel.fitInfo.scale.toLocaleString() })}
-          {sel.fitInfo.of > 0 && onFitAll && <> <button type="button" onClick={onFitAll} disabled={sel.refreshing} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit all {n}", { n: sel.fitInfo.of.toLocaleString() })}</button></>}
-          {sel.fitInfo.allHoles && sel.fitInfo.hidden > 0 && <> {tr("{k} of them are hidden in this view.", { k: sel.fitInfo.hidden.toLocaleString() })}{" "}
-            <button type="button" onClick={onFit} disabled={sel.refreshing} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Fit the {n} shown", { n: (sel.fitInfo.holes - sel.fitInfo.hidden).toLocaleString() })}</button></>}
-          {sel.fitInfo.drilledScale > 0 && " " + tr("Set the scale by hand, or remove those collars: {k} of them are assumed vertical (no survey or azimuth / dip) and widen the frame; the rest fit at 1:{s}.", { k: sel.fitInfo.assumed.toLocaleString(), s: sel.fitInfo.drilledScale.toLocaleString() })}{/* #2304 — only when they do */}
-          {sel.fitInfo.turnedScale > 0 && sel.w !== sel.h && <> {tr("They run the other way: the frame turned ({w} × {h} mm) would show them at 1:{s}.", { w: Math.round(sel.h / PX_PER_MM), h: Math.round(sel.w / PX_PER_MM), s: sel.fitInfo.turnedScale.toLocaleString() })}{" "}
-            <button type="button" onClick={() => updateSelected({ w: sel.h, h: sel.w, fitInfo: null })} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Turn the frame")}</button></>}{/* #2737 — then Fit again */}
-        </div>
-      )}
-      {steepHoles && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Use Insert > Drill plan for a collar map (coloured by a field or grade): every hole here is steeper than {d}°, so a top-down view shows points.", { d: STEEP_DIP })}</div>}{/* TASKS.csv #2473 */}
-      {sel.fixedScale > 0 && (
-        <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
-          {sel.capturedFixedScale === sel.fixedScale
-            ? oblique ? tr("Set the 3D view to Top and refresh for a map at this scale: 1 : {fixedScale} is in the oblique view's plane.", { fixedScale: sel.fixedScale.toLocaleString() })
-            : tr("Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.", { fixedScale: sel.fixedScale.toLocaleString(), w: Math.round(groundFrameSize(sel.fixedScale, sel).w).toLocaleString(), h: Math.round(groundFrameSize(sel.fixedScale, sel).h).toLocaleString() })
-            : tr("Refresh to capture at this scale.")}</div>
-      )}
+      {sel.overviewOf && !overviewPolygon(sel, others.find((o) => o.id === sel.overviewOf)) && <div style={warn}>{tr("Both viewports need a top-down, true-scale capture.")}</div>}
+      {steepHoles && <div style={note}>{tr("Every hole is steep: use Insert > Drill plan for a collar map.")}</div>}{/* TASKS.csv #2473 */}
+      {/* TASKS.csv #1486 — what the zoom in 'Adjust the view' framed, when it was far from the fixed scale: one click uses it */}
+      {sel.fixedScale > 0 && sel.adjustZoomScale > 0 && Math.abs(sel.adjustZoomScale / sel.fixedScale - 1) > 0.05 && (() => { const z = roundScale(sel.adjustZoomScale); return (
+        <div style={{ ...note, fontSize: "var(--font-size-sm)" }}>{tr("Your zoom framed about 1:{z}; the frame kept 1:{s}.", { z: z.toLocaleString(), s: Number(sel.fixedScale).toLocaleString() })}{" "}
+          <button className="gs-btn gs-btn--sm" style={{ marginTop: 4 }} onClick={() => { updateSelected({ adjustZoomScale: null }); onRescale(z); }}>{tr("Use 1:{z}", { z: z.toLocaleString() })}</button>
+        </div>); })()}
       {noHoleInFrame && onCentre && ( /* TASKS.csv #3371 — 1:15,000 kept the centre of every collar: blank ground, and nothing said so */
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={warn}>
           {tr("None of the holes this view shows is inside the frame at this scale.")}{" "}
-          <button type="button" onClick={onCentre} disabled={sel.refreshing} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px" }}>{tr("Centre on the holes")}</button>
+          <button type="button" onClick={onCentre} disabled={sel.refreshing} className="gs-btn gs-btn--sm" style={small}>{tr("Centre on the holes")}</button>
         </div>
       )}
-      {frameChanged && (
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.")}</div>
+      {sel.samplesUnplaced > 0 && ( // TASKS.csv #1864 — the 3D view could not place these, so no capture holds them
+        <div style={warn}>{tr(sel.samplesUnplaced === 1 ? "{n} surface sample is over a terrain void, so not in this frame." : "{n} surface samples are over a terrain void, so not in this frame.", { n: sel.samplesUnplaced.toLocaleString() })}</div>
       )}
-      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<NumberInput value={sel.rotation || 0} onChange={asEvent((e) => updateSelected({ rotation: Number(e.target.value) || 0 }))} style={inp} />
+      {sel.fixedScale > 0 && sel.capturedFixedScale !== sel.fixedScale && <div style={warn}>{tr("Refresh to capture at this scale.")}</div>}
+      {oblique && sel.fixedScale > 0 && sel.capturedFixedScale === sel.fixedScale && <div style={warn}>{tr("Set the 3D view to Top and refresh for a map at this scale.")}</div>}
+      {frameChanged && <div style={warn}>{tr("The frame was resized: refresh to capture it at this size.")}</div>}
+      {/* TASKS.csv #69 — true-scale (orthographic) capture: takes effect on the NEXT refresh, not on the image already captured */}
+      <label style={{ display: "flex", alignItems: "center", gap: 6, ...lab, marginBottom: 4, cursor: "pointer" }} title={tr("Orthographic: the scale is exact across the whole image, not just at the camera's focus. Refresh to apply.")}>
+        <input type="checkbox" checked={!!sel.trueScale} onChange={(e) => updateSelected({ trueScale: e.target.checked })} />{tr("True scale")}</label>
+    </div>
+  );
+  const resultBody = (
+    <div>
+      <StepNumbers rows={[
+        { label: oblique ? tr("Scale in the view plane") : sel.trueScale ? tr("Scale") : tr("Approx. scale"), value: scaleText || "—", title: oblique ? tr("Set the 3D view to Top for a map scale: in an oblique view distances are foreshortened.") : sel.trueScale ? undefined : tr("Tick True scale and refresh for an exact figure: this one is estimated at the camera target.") },
+        ground && { label: tr("Frame shows"), value: tr("{w} × {h} m", { w: Math.round(ground.w).toLocaleString(), h: Math.round(ground.h).toLocaleString() }) },
+        sel.capturedAt > 0 && { label: tr("Captured"), value: new Date(sel.capturedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) },
+      ]} />
+      {legendReloaded && <div style={note}>{tr("The bound legend reloaded with the refreshed viewport.")}</div>}
+    </div>
+  );
+  const fine = (
+    <MoreFold summary={tr("Fine-tune…")} data-fine-tune="viewport">
+      <label style={{ display: "flex", alignItems: "center", gap: 6, ...lab, fontSize: "var(--font-size-sm)", color: scaleText ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: "pointer" }}
+        title={scaleText ? tr("Print this frame's scale ({s}) in its lower-right corner: for a page with maps at several scales, where one {scale} cannot name them all.", { s: scaleText }) : tr("Capture the view first: the scale comes from the capture.")}>
+        <input type="checkbox" disabled={!scaleText} checked={!!sel.scaleCaption && !!scaleText} onChange={(e) => updateSelected({ scaleCaption: e.target.checked })} />{tr("Print its scale in the frame")}
+      </label>
+      {/* TASKS.csv #2760 — the page's maps are at several scales and this one does not print its own: say so (one {scale} cannot name them all) */}
+      {scaleText && !sel.scaleCaption && others.some((o) => { const t = viewportScaleText(o); return t && t !== scaleText; }) && (
+        <div style={{ ...warn, marginTop: -4 }}>
+          {tr("This page's maps are at different scales ({list}).", { list: [...new Set([scaleText, ...others.map(viewportScaleText).filter(Boolean)])].join(", ") })}{" "}
+          <button type="button" onClick={() => updateSelected({ scaleCaption: true })} className="gs-btn gs-btn--sm" style={small}>{tr("Print it")}</button>
+        </div>
+      )}
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
+        title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("A coordinate grid needs a top-down, true-scale capture.") /* #2484 */}>
+        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("Coordinate grid (labelled)") /* #2300: local metres are not UTM; #2484: nor is MGA / any other projection: the caption names the grid */}{gridOk && sel.utmGrid && (
+          <NumberInput min="1" placeholder={tr("auto")} value={sel.utmGridStep || ""} onChange={asEvent((e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 }))}
+            aria-label={tr("Grid spacing (m)")} title={tr("Grid spacing in metres (blank = automatic)")} style={{ width: 60, marginLeft: "auto", fontSize: "var(--font-size-sm)" }} />
+        )}
+      </label>
+      {gridOk && sel.utmGrid && sel.utmGridStep > 0 && (() => { // TASKS.csv #1488 — a spacing too tight to read is drawn wider, and said so
+        const g = legibleGridStep(sel.utmGridStep, metresPerPagePx(sel));
+        return g.bumped ? <div role="status" style={{ ...warn, marginTop: -4 }}>{tr("{typed} m is too close to read at this scale: drawn every {step} m.", { typed: sel.utmGridStep.toLocaleString(), step: g.step.toLocaleString() })}</div> : null;
+      })()}
+      <label style={lab}>{tr("Rotation (°)")}<NumberInput value={sel.rotation || 0} onChange={asEvent((e) => updateSelected({ rotation: Number(e.target.value) || 0 }))} style={inp} />
       </label>
       <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Frame width")}<NumberInput min="0" value={sel.frameWidth ?? 1} onChange={asEvent((e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...inp, marginTop: 4 }} />
+        <label style={{ ...lab, flex: 1 }}>{tr("Frame width")}<NumberInput min="0" value={sel.frameWidth ?? 1} onChange={asEvent((e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...inp, marginTop: 4 }} />
         </label>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.frameColor || INK} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+        <label style={lab}>{tr("Colour")}<input type="color" value={sel.frameColor || INK} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
       </div>
-      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Frame style")}<select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
+      <label style={lab}>{tr("Frame style")}<select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
           <option value="solid">{tr("Solid")}</option>
           <option value="dashed">{tr("Dashed")}</option>
           <option value="double">{tr("Double")}</option>
         </select>
       </label>
-      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>
-        {oblique ? tr("Scale in the view plane") : sel.trueScale ? tr("Scale") : tr("Approx. scale")}: <span style={{ color: "var(--color-text)" }}>{scaleText || "—"}</span><br />
-        <span style={{ color: "var(--color-text-muted)" }}>
-          {oblique
-            ? tr("Set the 3D view to Top and refresh for a map scale: in an oblique view distances are foreshortened.")
-            : sel.trueScale
-            ? tr("Orthographic capture — this ratio is exact across the whole image, not just at one distance.")
-            : tr("Check \"True scale\" above and refresh for an exact figure: this is estimated at the camera target and drifts nearer or farther in perspective.")}
-        </span>
-      </div>
-      <button onClick={onSyncScaleBar} disabled={!scaleText} className="gs-btn gs-btn--block" style={{ opacity: scaleText ? 1 : 0.5 }}>
+      <button onClick={onSyncScaleBar} disabled={!scaleText} title={tr("The page's scale bar takes this view's scale.")} className="gs-btn gs-btn--block" style={{ opacity: scaleText ? 1 : 0.5 }}>
         <Ruler size={14} />{" "}{tr("Assign scale bar to this view")}</button>
       {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
-      {/* TASKS.csv #67 — cameraAzimuthDeg is computed in ViewerModule.jsx (see that comment for the
-          worked-through, numerically-checked derivation of the CSS rotation angle). */}
-      <button onClick={onSyncNorth} disabled={sel.cameraAzimuthDeg == null} className="gs-btn gs-btn--block" style={{ opacity: sel.cameraAzimuthDeg == null ? 0.5 : 1 }}>
+      {/* TASKS.csv #67 — cameraAzimuthDeg is computed in ViewerModule.jsx (see that comment for the worked-through, numerically-checked derivation of the CSS rotation angle). */}
+      <button onClick={onSyncNorth} disabled={sel.cameraAzimuthDeg == null} title={tr("The page's north arrow takes this view's direction.")} className="gs-btn gs-btn--block" style={{ opacity: sel.cameraAzimuthDeg == null ? 0.5 : 1 }}>
         <Compass size={14} />{" "}{tr("Sync north arrow")}</button>
+    </MoreFold>
+  );
+  return (
+    <div style={{ marginTop: 4 }}>
+      <StepPane key={sel.id} id="layout-viewport" label={tr("Viewport")}
+        steps={[{ key: "view", label: tr("View"), question: tr("Which view?"), body: viewStep }, { key: "scale", label: tr("Scale"), question: tr("What scale?"), body: scaleStep }]}
+        action={{ label: sel.refreshing ? tr("Rendering…") : tr("Refresh"), onClick: onRefresh, disabled: sel.refreshing, icon: <RefreshCw size={14} />, title: tr("Capture again from the theme, the scale and the frame."), attrs: { "data-viewport-refresh": "" } }}
+        result={{ key: sel.capturedAt || null, body: resultBody }} fineTune={fine} />
     </div>
   );
 }

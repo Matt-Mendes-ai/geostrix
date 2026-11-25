@@ -28,7 +28,7 @@ test("1 : 1,000 needs 3.78 px per metre; a log drawn at 0.72 px/m would be enlar
 test("wiring: the depth panel says to send it again instead of 'a larger depth scale'", () => {
   const m = read("../src/modules/LayoutModule.jsx");
   assert.match(m, /redrawAdvice\(sel, d\)/);
-  assert.match(m, /Send it again from the strip log window at Vertical scale \{need\} px\/m/);
-  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))["Send it again from the strip log window at Vertical scale {need} px/m ('Add to Layout'): drawn at {now} px/m, at 1 : {d} it is enlarged {x} times, labels about {pt} pt."], l);
+  assert.match(m, /Drawn at \{now\} px\/m, enlarged \{x\} times at this scale\./);
+  for (const l of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${l}.json`))["Drawn at {now} px/m, enlarged {x} times at this scale."], l);
   assert.ok(pageWidthDenom);
 });

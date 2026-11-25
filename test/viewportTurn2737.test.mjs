@@ -13,7 +13,7 @@ test("the fit works out the turned frame's scale with width and height swapped",
 });
 
 test("the note under Fit says so and turns the frame on a click", () => {
-  assert.match(m, /sel\.fitInfo\.turnedScale > 0 && sel\.w !== sel\.h && <> \{tr\("They run the other way: the frame turned \(\{w\} × \{h\} mm\) would show them at 1:\{s\}\."/);
+  assert.match(m, /sel\.fitInfo\.turnedScale > 0 && sel\.w !== sel\.h && <> \{tr\("Turned \(\{w\} × \{h\} mm\) they would fit at 1:\{s\}\."/);
   assert.match(m, /onClick=\{\(\) => updateSelected\(\{ w: sel\.h, h: sel\.w, fitInfo: null \}\)\}/);
 });
 

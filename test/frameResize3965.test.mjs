@@ -91,7 +91,7 @@ test("Layout: the handles and typed W / H ask for the capture once the size sett
 });
 
 test("the note under a resized frame says what it shows, in every language", () => {
-  const key = "The frame was resized: its old picture is enlarged to fill it until it is captured again at this size.";
+  const key = "The frame was resized: refresh to capture it at this size.";
   assert.ok(rd("modules/LayoutModule.jsx").includes(`tr("${key}")`));
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(rd(`locales/${lang}.json`));

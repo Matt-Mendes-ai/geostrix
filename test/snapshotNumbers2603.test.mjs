@@ -34,7 +34,7 @@ test("a grade label with no room inside the plot is left out, not printed across
   const s = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(s, /within: \[PAD, W - PAD, PAD, H - PAD\] \/\* #2603/);
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(l, /\(off \|\| sel\.sectionTabId\) && \(sel\.sectionTabId/);
+  assert.match(l, /\(off \|\| sel\.sectionTabId\) && \([^\n]*\n\s*sel\.sectionTabId/);
   assert.match(l, /roundLongNumbersInSnapshot\(el\.src\)/);
 });
 

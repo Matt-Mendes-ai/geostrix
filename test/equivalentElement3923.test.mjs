@@ -67,6 +67,6 @@ test("#3923 the starting base metal, and the panel's wiring", () => {
   assert.match(g, /expr: e\.target\.value, eqMeta: null/, "a hand edit of the formula ends the record of the inputs");
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const j = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
-    for (const k of ["Metal equivalent (you type the prices and recoveries)…", "Pick the base metal.", "Metals added to it"]) assert.ok(j[k], `${lang}: ${k}`);
+    for (const k of ["Metal equivalent…","Pick the base metal.", "Metals added to it"]) assert.ok(j[k], `${lang}: ${k}`);
   }
 });
