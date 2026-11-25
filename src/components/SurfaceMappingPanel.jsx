@@ -13,6 +13,7 @@ import { Eye, EyeOff, Trash2, Map as MapIcon, Compass, ChevronDown, ChevronRight
 import { requestPlanZoom } from "../lib/planZoom.js"; // TASKS.csv #2793
 import { useStore } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
+import { openHelp } from "../lib/help.js"; // TASKS.csv #4070 part 5 — the tab home's "?"
 import { parseShapefileZip, parseShapefileParts, listZipNames, readZipEntries } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { reprojectXY, getProj4DefSync, crsName, pointTransform, turnGridBearing, bearingTurn } from "../lib/reproject.js";
@@ -71,6 +72,8 @@ export function skipReasons(w = {}, names = {}) { // names: the rows skipped for
   ].filter(Boolean).join("; ");
 }
 
+// the "?" the pane header gives a tool pane, here for the tab's home (both lists under one roof, no header)
+const HelpLink = ({ id, name }) => <button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(id)} aria-label={tr("Help: {name}", { name })}>?</button>; // the name is the tooltip a screen reader gets; a sighted user has the pane headers' wording
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
     project, terrain, projectIsEmpty, setEpsg, // #607
@@ -648,7 +651,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     <>
       {importReview && <MapImportReview rows={importReview.rows} onCancel={() => importReview.resolve(null)} onConfirm={(on) => importReview.resolve(on)} />}
       {part !== "structures" && (<>
-      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Map layers")}<InfoButton title={tr("Map layers")} text={tr("Import a geology map, alteration or outcrop polygons, fault traces or sample points and drape them on the terrain, coloured by an attribute. A QGIS style (.qml) reuses your map's colours. Layers are reprojected into the project's EPSG ({v}). Contacts can be projected underground in 3D Modelling.", { v: project?.epsg ?? "?" })} />
+      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Map layers")}<InfoButton title={tr("Map layers")} text={tr("Import a geology map, alteration or outcrop polygons, fault traces or sample points and drape them on the terrain, coloured by an attribute. A QGIS style (.qml) reuses your map's colours. Layers are reprojected into the project's EPSG ({v}). Contacts can be projected underground in 3D Modelling.", { v: project?.epsg ?? "?" })} />{part == null && <HelpLink id="geology-map" name={tr("Geology map")} />}
       </div>
       <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml,.tab,.map,.id,.dat,.mif,.mid,.gpx,.geojson,.json,.kml,.kmz" multiple style={{ display: "none" }}
         onChange={(e) => { importMaps(e.target.files); e.target.value = ""; }} />
@@ -839,7 +842,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {msgBox(mapMsg)}
       </>)}
       {part !== "maps" && (<>
-      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV or MapInfo point table (easting, northing, dip, and dip direction or strike). Each is a disc in the measured plane, coloured by type; rows without elevation sit on the terrain. 3D Modelling uses them to set contact dips.")} />
+      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV or MapInfo point table (easting, northing, dip, and dip direction or strike). Each is a disc in the measured plane, coloured by type; rows without elevation sit on the terrain. 3D Modelling uses them to set contact dips.")} />{part == null && <HelpLink id="outcrop-structures" name={tr("Outcrop structures")} />}
       </div>
       <input ref={structInput} type="file" accept=".csv,.txt,.xlsx,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
         onChange={(e) => { readStructCsv(e.target.files); e.target.value = ""; }} />

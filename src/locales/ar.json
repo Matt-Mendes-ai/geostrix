@@ -15722,5 +15722,12 @@
   "inside": "داخل",
   "Next: setup": "التالي: الإعداد",
   "Bodies": "الأجسام",
-  "Location": "الموقع"
+  "Location": "الموقع",
+  "Conceptual: not a mine plan, a Reserve or a Resource.": "تصوري: ليس خطة منجم ولا احتياطيًا ولا مورِدًا.",
+  "Add hole": "إضافة حفرة",
+  "Building surfaces…": "جارٍ بناء الأسطح…",
+  "Build surfaces": "بناء الأسطح",
+  "New group": "مجموعة جديدة",
+  "Building structures…": "جارٍ بناء البنى…",
+  "Build structures": "بناء البنى"
 }

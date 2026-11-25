@@ -15722,5 +15722,12 @@
   "inside": "dentro",
   "Next: setup": "Próximo: ajustes",
   "Bodies": "Corpos",
-  "Location": "Localização"
+  "Location": "Localização",
+  "Conceptual: not a mine plan, a Reserve or a Resource.": "Conceitual: não é um plano de lavra, uma Reserva nem um Recurso.",
+  "Add hole": "Adicionar furo",
+  "Building surfaces…": "Construindo superfícies…",
+  "Build surfaces": "Construir superfícies",
+  "New group": "Novo grupo",
+  "Building structures…": "Construindo estruturas…",
+  "Build structures": "Construir estruturas"
 }

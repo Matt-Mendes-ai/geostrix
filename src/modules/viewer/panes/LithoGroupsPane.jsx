@@ -100,7 +100,7 @@ export default function LithoGroupsPane({ addLithoGroup, askPrompt, emptyPaneHin
         })}
             </>) },
           ]}
-          action={{ label: tr("+ New group"), onClick: () => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); }), title: tr("New lithology group") }} />
+          action={{ label: tr("New group"), onClick: () => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); }), title: tr("New lithology group") }} />
 
         {/* TASKS.csv #139 — fence/panel diagram. Deliberately sits immediately ABOVE the implicit
             modelling tools because it is the lighter-weight companion to them: three holes on a line

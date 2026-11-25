@@ -40,7 +40,7 @@ export default function StructuralPane({ implicitSurfaces, emptyPaneHint, gempyT
         </div>
                 </>) },
               ]}
-              action={{ label: implicitBusy ? tr("Running…") : tr("Run"), onClick: () => runStructuralModel(structuralTarget), disabled: !structuralTarget || implicitBusy, icon: <Layers3 size={14} aria-hidden="true" />,
+              action={{ label: implicitBusy ? tr("Building structures…") : tr("Build structures"), onClick: () => runStructuralModel(structuralTarget), disabled: !structuralTarget || implicitBusy, icon: <Layers3 size={14} aria-hidden="true" />,
                 title: gempyTitle(!struct_types.length ? tr("No structure picks with an orientation yet.") : !structuralTarget ? tr("Choose a structure type first.") : null) }}
               result={{ key: sr?.runId ?? null, body: sr && <StepNumbers rows={[
                 { label: tr("Surfaces"), value: sr.n.toLocaleString(), title: sr.names.join(", ") },
