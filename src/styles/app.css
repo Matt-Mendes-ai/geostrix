@@ -81,6 +81,34 @@
   --color-terrain: #b4b4b4;
   --color-terrain-line: #767676;
 
+  /* TASKS.csv #4069 — BUTTON ROLES, "GeoStrix gold" (Matt's choice, option C): the main action in the logo's gold with dark text, a white outlined secondary, a
+     borderless quiet one, an outlined danger one, a flat disabled one, an outlined icon button. Blue stays for links and the focus ring. One primary per dialog.
+     Mirrored value for value in src/lib/theme.js (`buttons`); test/buttonRoles4069.test.mjs checks that and the WCAG AA contrast of every text pair
+     (a disabled control is exempt from AA by the standard). The classes are .gs-btn below. */
+  --btn-primary-bg: #e2a63c;
+  --btn-primary-bg-hover: #d99b2d;
+  --btn-primary-bg-active: #c98f2a;
+  --btn-primary-text: #3a2a06;
+  --btn-primary-border: #c98f2a;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-bg-hover: #f4f5f7;
+  --btn-secondary-bg-active: #e6e8eb;
+  --btn-secondary-text: #1a2028;
+  --btn-secondary-border: #c7ccd3;
+  --btn-quiet-text: #8a6a1f;
+  --btn-quiet-bg-hover: #fdf8ec;
+  --btn-quiet-bg-active: #fbf3e1;
+  --btn-danger-bg: #ffffff;
+  --btn-danger-bg-hover: #fdeceb;
+  --btn-danger-text: #b23a2e;
+  --btn-danger-border: #e3b4ae;
+  --btn-disabled-bg: #f4f5f7;
+  --btn-disabled-text: #9aa5b3;
+  --btn-disabled-border: #e6e8eb;
+  --btn-icon-text: #55606e;
+  --btn-radius: 6px;
+  --btn-weight: 500;
+
   /* TASKS.csv #305 — TYPE SCALE. Second axis of the same design system the colors above established,
      and deliberately built on the same mechanism (custom properties on :root, mirrored in
      src/lib/theme.js) rather than inventing a new one.
@@ -273,6 +301,28 @@ input, select { font-family: inherit; }
 /* TASKS.csv #1297 — one focus ring for every control (ribbon buttons, tabs, sidebar selects and inputs had three), one disabled look where no style sets its own */
 button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, [role="button"]:focus-visible, [role="menuitem"]:focus-visible, [role="tab"]:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0.55; cursor: default; }
+/* TASKS.csv #4069 — the button roles. .gs-btn alone is the SECONDARY (white, outlined); add one role class for another. A size / layout class beside it: --sm (dense panels),
+   --block (a full-width sidebar row, what pBtn was), --icon (a square outlined icon button). The focus ring is the blue one above, on every role. */
+.gs-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 14px; border: 1px solid var(--btn-secondary-border); border-radius: var(--btn-radius);
+  background: var(--btn-secondary-bg); color: var(--btn-secondary-text); font-family: inherit; font-size: var(--font-size-base); font-weight: var(--btn-weight); line-height: 1.25; text-align: center;
+  cursor: pointer; transition: background-color 0.12s, border-color 0.12s; }
+.gs-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--btn-secondary-bg-hover); }
+.gs-btn:active:not(:disabled):not([aria-disabled="true"]) { background: var(--btn-secondary-bg-active); }
+.gs-btn--primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); border-color: var(--btn-primary-border); }
+.gs-btn--primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--btn-primary-bg-hover); }
+.gs-btn--primary:active:not(:disabled):not([aria-disabled="true"]) { background: var(--btn-primary-bg-active); }
+.gs-btn--quiet { background: transparent; color: var(--btn-quiet-text); border-color: transparent; }
+.gs-btn--quiet:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--btn-quiet-bg-hover); }
+.gs-btn--quiet:active:not(:disabled):not([aria-disabled="true"]) { background: var(--btn-quiet-bg-active); }
+.gs-btn--danger { background: var(--btn-danger-bg); color: var(--btn-danger-text); border-color: var(--btn-danger-border); }
+.gs-btn--danger:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--btn-danger-bg-hover); }
+.gs-btn--danger:active:not(:disabled):not([aria-disabled="true"]) { background: var(--btn-danger-bg-hover); }
+.gs-btn--icon { padding: 0; width: 28px; height: 28px; color: var(--btn-icon-text); }
+.gs-btn--icon.gs-btn--sm { width: 24px; height: 24px; }
+.gs-btn--sm { padding: 4px 9px; font-size: var(--font-size-sm); gap: 5px; }
+.gs-btn--block { display: flex; width: 100%; justify-content: flex-start; gap: 7px; padding: 8px 10px; margin-bottom: 6px; text-align: start; }
+.gs-btn:disabled, .gs-btn[aria-disabled="true"] { background: var(--btn-disabled-bg); color: var(--btn-disabled-text); border-color: var(--btn-disabled-border); opacity: 1; cursor: default; }
+.gs-btn--quiet:disabled, .gs-btn--quiet[aria-disabled="true"] { background: transparent; border-color: transparent; }
 .ge-ribbon-label { display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 /* Small inline setting next to a ribbon button (e.g. the section buffer while drawing). */
 .ge-ribbon-inline { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: calc(54px + 3 * var(--text-bump)); font-size: var(--font-size-xs); color: var(--color-text-secondary); }

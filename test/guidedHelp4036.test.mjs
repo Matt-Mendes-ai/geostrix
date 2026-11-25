@@ -33,7 +33,7 @@ test("#4036 its text says what the guide does: the seven steps, in the guide's o
 test("#4036 the step view has a Help button beside Skip that opens the card", () => {
   const g = read("src/modules/viewer/guided/GuideSteps.jsx");
   assert.match(g, /import \{ openHelp \} from "\.\.\/\.\.\/\.\.\/lib\/help\.js";/);
-  assert.match(g, /<button type="button" style=\{small\} onClick=\{\(\) => openHelp\("guided-model"\)\}>\{tr\("Help"\)\}<\/button>[^\n]*\n\s+\{s\.state !== "done" && \(s\.state !== "skipped" \|\| userSkipped\) && <button type="button" style=\{small\} onClick=\{\(\) => store\.setGuideSkipped\?\.\(id, !userSkipped\)\}>/); // Skip only where it means something: #4037
+  assert.match(g, /<button type="button" className="gs-btn gs-btn--sm" onClick=\{\(\) => openHelp\("guided-model"\)\}>\{tr\("Help"\)\}<\/button>[^\n]*\n\s+\{s\.state !== "done" && \(s\.state !== "skipped" \|\| userSkipped\) && <button type="button" className="gs-btn gs-btn--sm" onClick=\{\(\) => store\.setGuideSkipped\?\.\(id, !userSkipped\)\}>/); // Skip only where it means something: #4037
   for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`src/locales/${lang}.json`))["Help"], lang);
 });
 

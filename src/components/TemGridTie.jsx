@@ -12,17 +12,16 @@ export default function TemGridTie({ data, onTied }) {
   const [err, setErr] = useState(null);
   const lg = data?.localGrid;
   if (!lg) return null;
-  if (data.placed === "project") return <div style={{ ...note, marginBottom: 6 }}>{tr("Placed on the project's local grid as the file gives it.")}</div>;
-  const f = (v) => Math.round(v).toLocaleString();
+  if (data.placed === "project") return <div style={{ ...note, marginBottom: 6 }}>{tr("Placed on the project's local grid.")}</div>;
   const tie = () => { try { tieTemToMap(data, text); setErr(null); onTied(); } catch (e) { setErr(e?.message || String(e)); } };
   return (
     <div style={{ marginBottom: 8 }}>
       {data.placed === "tie" && data.tie
-        ? <div role="status" style={note}>{tr("Tied to the map with {n} control points: scale {scale}, rotation {rot}°, fit {rms} m.", { n: data.tie.n, scale: data.tie.scale.toFixed(4), rot: data.tie.rotationDeg.toFixed(2), rms: data.tie.rmsM.toFixed(1) })}</div>
-        : <div role="alert" style={{ ...note, color: "var(--color-warn-text)" }}>{tr("This file's coordinates are on a local grid (eastings {x0} to {x1}, northings {y0} to {y1}), not on a map coordinate system. Tie the grid to the map before mapping or inverting it: enter two or more control points, one per line, as grid east, grid north, map east, map north (the map coordinates in the project's coordinate system).", { x0: f(lg.x[0]), x1: f(lg.x[1]), y0: f(lg.y[0]), y1: f(lg.y[1]) })}</div>}
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} spellCheck={false} placeholder={"50000 3000 452000 7544000" + String.fromCharCode(10) + "52600 3000 454600 7544000"} style={{ ...smallSel, width: "100%", fontFamily: "monospace", resize: "vertical", marginTop: 4 }} aria-label={tr("Control points of the file's local grid")} />
+        ? <div role="status" style={note}>{tr("Tied: scale {scale}, rotation {rot}°, fit {rms} m.", { scale: data.tie.scale.toFixed(4), rot: data.tie.rotationDeg.toFixed(2), rms: data.tie.rmsM.toFixed(1) })}</div>
+        : <div role="alert" style={{ ...note, color: "var(--color-warn-text)" }}>{tr("On a local grid: enter 2 or more control points (grid E, N, map E, N) to tie it.")}</div>}
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} spellCheck={false} placeholder={"50000 3000 452000 7544000" + String.fromCharCode(10) + "52600 3000 454600 7544000"} style={{ ...smallSel, width: "100%", fontFamily: "monospace", resize: "vertical", marginTop: 4 }} aria-label={tr("Control points")} />
       {err && <div role="alert" style={{ ...note, color: "var(--color-warn-text)" }}>{err}</div>}
-      <button type="button" onClick={tie} style={{ ...pBtn, justifyContent: "center", marginTop: 4 }}>{data.placed === "tie" ? tr("Tie again with these points") : tr("Tie the file to the map")}</button>
+      <button type="button" onClick={tie} style={{ ...pBtn, justifyContent: "center", marginTop: 4 }}>{data.placed === "tie" ? tr("Tie again") : tr("Tie to the map")}</button>
     </div>
   );
 }

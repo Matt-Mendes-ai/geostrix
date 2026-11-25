@@ -76,7 +76,7 @@ test("the .utm.stn station file has no header: station, map east, map north, ele
   assert.equal(parseStationFile(ew.replace(/\t[\d.]+(\r\n)/g, "\t0$1"), "x.utm.stn").lines.x[0].z, null);
   // the plain .stn is on the local grid: refused, saying which file to use
   const local = Array.from({ length: 10 }, (_, i) => `${52600 + i * 100}\t${52600 + i * 100}\t44100\t0`).join("\n");
-  assert.throws(() => parseStationFile(local, "Line_44100N.stn"), /on a local grid, not in map coordinates: use the station file that is in map coordinates \(Zonge's \.utm\.stn\)/);
+  assert.throws(() => parseStationFile(local, "Line_44100N.stn"), /stations are on a local grid\. Use the \.utm\.stn file/);
   // the files that were readable before still are
   assert.ok(parseStationFile("STN,X,Y,Z\n0,100000,5000000,10\n100,100100,5000000,11\n", "a.csv").lines[""]);
   assert.throws(() => parseStationFile("not a station file\nat all\n", "b.txt"), /has no line stations GeoStrix can read/);
@@ -104,6 +104,6 @@ test("wired: the panel names the IP column for what it is, says so in its notice
   const p = read("../src/components/DcipPanel.jsx");
   assert.match(p, /ipKind/);
   assert.match(p, /IP phase/);
-  for (const k of ["{name} gives the stations on a local grid, not in map coordinates: use the station file that is in map coordinates (Zonge's .utm.stn)."])
+  for (const k of ["{name}: stations are on a local grid. Use the .utm.stn file."])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
 });

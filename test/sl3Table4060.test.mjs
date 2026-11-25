@@ -80,9 +80,8 @@ test("layout A: the names on H1000, the data from the third field, the padding t
   const t = parseTableText(collars);
   assert.deepEqual(t.headers, ["Project", "SiteID", "Prospect", "SiteType", "EOHDepth", "Collar_mE", "Collar_mN", "CollarRL", "CollarGrid", "SurveyDip_0m", "SurveyAzi_0m", "SurveyGrid"]);
   assert.equal(t.rows.length, 3); assert.equal(t.rows[0].SiteID, "DH-13-001"); assert.equal(t.rows[0].Collar_mE, 450000); assert.equal(t.rows[1].SurveyAzi_0m, 90);
-  assert.match(t.note, /Read as a Queensland SL3 table \(3 rows, 12 columns; the column names are on record H1000\)/);
-  assert.match(t.note, /Coordinates: GDA94, zone 54 \(from the header block\)/);
-  assert.match(t.note, /The azimuths are magnetic \(column SurveyGrid\): choose the declination when you map the survey\./);
+  assert.match(t.note, /SL3 table: 3 rows, 12 columns\./);
+  assert.match(t.note, /Coordinates: GDA94, zone 54\./);
 });
 
 test("layout B: the names on H1001, the units from the first D row as 'Au (ppm)', values with < and > kept, the standards marked", () => {
@@ -92,8 +91,8 @@ test("layout B: the names on H1001, the units from the first D row as 'Au (ppm)'
   const t = parseTableText(geochem);
   assert.equal(t.rows.length, 5, "the units row is not a sample");
   assert.equal(t.rows[1]["Au (ppm)"], "<0.01"); assert.equal(t.rows[3]["Ag (ppm)"], ">100"); assert.equal(t.rows[0]["Cu (ppm)"], 120);
-  assert.match(t.note, /2 inline certified reference standard\(s\) \(OREAS-68a\) are marked as standards, not samples\./);
-  assert.match(t.note, /the units too/);
+  assert.match(t.note, /2 reference standard\(s\) marked as QC \(OREAS-68a\)/);
+  assert.match(t.note, /with units/);
   // the type of a standard row says so; the sample rows keep their medium; the QC columns are found as the assay import finds them
   assert.equal(t.rows[2].Type, "Standard"); assert.equal(t.rows[0].Type, "Core");
   const cols = qcColumns(t.headers, t.rows);
@@ -134,8 +133,22 @@ test("the importer's column guess finds an SL3 collar table's own names (SiteID,
 test("wired: the table reader converts first and adds the notes; keys in every language", () => {
   const s = read("../src/lib/tabular.js");
   assert.match(s, /const sl3 = sl3ToTable\(text\);/); assert.match(s, /note: \[note, sl3, pre, sp\]/);
-  for (const k of ["Read as a Queensland SL3 table ({n} rows, {m} columns; the column names are on record H{h}{u}).", ", the units too", "Coordinates: {v} (from the header block).", "zone {z}",
-    "The azimuths are magnetic (column {c}): choose the declination when you map the survey.", "The azimuths are on the grid or true north (column {c}), not magnetic.",
-    "{n} inline certified reference standard(s) ({names}) are marked as standards, not samples."])
+  for (const k of ["SL3 table: {n} rows, {m} columns{u}.", ", with units", "Coordinates: {v}.", "zone {z}",
+    "{n} reference standard(s) marked as QC ({names})."])
     for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))[k], `${lang}: ${k.slice(0, 40)}`);
+});
+
+test("a Grid / SurveyGrid column of north words presets the azimuth reference (magnetic for 'Mag'), the dialog says why; a grid NAME there does not", async () => {
+  const { detectAzimuthRef } = await import("../src/lib/azimuthRef.js");
+  const t = parseTableText(collars);
+  const d = detectAzimuthRef(t.headers, t.rows);
+  assert.equal(d.ref, "magnetic"); assert.equal(d.col, "SurveyGrid");
+  assert.equal(detectAzimuthRef(["Hole_ID", "Dip", "Azimuth", "Grid"], [{ Grid: "Mag" }, { Grid: "mag" }]).ref, "magnetic");
+  assert.equal(detectAzimuthRef(["Hole_ID", "Azimuth", "Grid"], [{ Grid: "Grid" }]).ref, "grid");
+  assert.equal(detectAzimuthRef(["Hole_ID", "Azimuth", "Grid"], [{ Grid: "MGA94_54" }, { Grid: "MGA94_54" }]), null, "a grid name is no north word");
+  assert.equal(detectAzimuthRef(["Hole_ID", "Azimuth", "Grid"], [{ Grid: "Mag" }, { Grid: "True" }]).mixed, true);
+  const m = read("../src/components/ImportMappingModal.jsx");
+  assert.match(m, /Set from its \{col\} column: magnetic north\. Change if wrong\./);
+  assert.match(m, /magnetic azimuths need it to work out the declination/, "the survey date stays required (#2895)");
+  for (const lang of ["es", "pt", "fr", "ar"]) assert.ok(JSON.parse(read(`../src/locales/${lang}.json`))["Set from its {col} column: magnetic north. Change if wrong."], lang);
 });

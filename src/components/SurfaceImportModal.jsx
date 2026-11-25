@@ -104,7 +104,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
           {/* TASKS.csv #1670 (review #1646, Kodiak) — a soil program's field sheet and assay sheet, joined here by sample ID */}
           {onJoinFile && (
             <div style={{ marginBottom: 10, marginInlineStart: 130 }}>
-              <button type="button" onClick={() => joinRef.current?.click()} style={{ ...sel, cursor: "pointer", background: "var(--color-bg-subtle)" }}
+              <button type="button" onClick={() => joinRef.current?.click()} className="gs-btn gs-btn--sm" style={{ cursor: "pointer", background: "var(--color-bg-subtle)" }}
                 title={tr("For data in two files (a field sheet and the lab's assays): the other file's columns are added to these rows where sample IDs match.")}>{tr("Add columns from another file (by sample ID)…")}</button>
               <input ref={joinRef} type="file" accept=".csv,.txt,.xlsx,.xls" style={{ display: "none" }} aria-label={tr("File to join by sample ID")} onChange={(e) => { const f = e.target.files[0]; if (f) onJoinFile(f); e.target.value = ""; }} />
               {modal.joinNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", marginTop: 4, lineHeight: 1.4, color: modal.joinNote.warn ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{modal.joinNote.text}</div>}
@@ -203,14 +203,14 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
             <button
               onClick={addElement}
               disabled={!addSymbol.trim() || !addHeader}
-              style={{ ...btn(true), width: "auto", padding: "6px 10px", fontSize: "var(--font-size-sm)", opacity: (addSymbol.trim() && addHeader) ? 1 : 0.5 }}
+              className="gs-btn" style={{ width: "auto", padding: "6px 10px", fontSize: "var(--font-size-sm)", opacity: (addSymbol.trim() && addHeader) ? 1 : 0.5 }}
             >{tr("Add")}</button>
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
-          <button onClick={onCommit} style={{ ...btn(true), flex: 2 }} disabled={!modal.mapping.x || !modal.mapping.y /* TASKS.csv #847 — Z is optional since #606 */}>{tr("Import {checkedCount} {v}", { checkedCount, v: tr(checkedCount === 1 ? "element" : "elements") })}</button>
+          <button onClick={onCancel} className="gs-btn" style={{ flex: 1 }}>{tr("Cancel")}</button>
+          <button onClick={onCommit} className="gs-btn gs-btn--primary" style={{ flex: 2 }} disabled={!modal.mapping.x || !modal.mapping.y /* TASKS.csv #847 — Z is optional since #606 */}>{tr("Import {checkedCount} {v}", { checkedCount, v: tr(checkedCount === 1 ? "element" : "elements") })}</button>
         </div>
       </div>
     </div>
@@ -221,4 +221,3 @@ const panel = { width: "min(680px, 92vw)", maxHeight: "86vh", background: "var(-
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });

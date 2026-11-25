@@ -1062,12 +1062,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           {!defs.length && <option value="">{tr("No explicit surfaces yet")}</option>}
           {defs.map((d) => { const l = (d.lines || []).length + sectionLinesOf(d, sections).length; /* section lines too: #1691 */ return <option key={d.id} value={d.id}>{d.name} ({tr(l === 1 ? "{p} picks, {l} line" : "{p} picks, {l} lines", { p: d.picks.length, l })}){layerLabel(d) !== d.name ? ` · ${layerLabel(d)}` : ""}</option>; })}
         </select>
-        <button onClick={newSurface} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("+ New")}</button>
+        <button onClick={newSurface} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("+ New")}</button>
       </div>
       {def && (<>
         <div style={row}>
           <input type="color" value={def.color} onChange={(e) => update({ color: e.target.value })} aria-label={tr("Colour")} style={{ width: 28, height: 24, padding: 0, border: "none", background: "none" }} />
-          <button onClick={() => { setEditing(false); setDigDrawing(false); setDigPts([]); setPickFor(pickFor === def.id && !digDrawing ? null : def.id); }} aria-pressed={pickFor === def.id && !digDrawing}
+          <button data-btn-own="" onClick={() => { setEditing(false); setDigDrawing(false); setDigPts([]); setPickFor(pickFor === def.id && !digDrawing ? null : def.id); }} aria-pressed={pickFor === def.id && !digDrawing}
             style={{ ...pBtn, flex: 1, marginBottom: 0, justifyContent: "center", ...(pickFor === def.id && !digDrawing ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>
             <Crosshair size={14} />{" "}{pickFor === def.id && !digDrawing ? tr("Picking — click contacts in 3D (click to stop)") : tr("Pick contacts in 3D")}
           </button>
@@ -1075,10 +1075,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         {seedInfo && seedInfo.holes.length > 0 && ( // TASKS.csv #871 — start from the logged tops, then edit
           <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>
             {tr("{a} of {b} holes that log {unit} have a pick on this surface.", { a: seedInfo.holes.filter((h) => pickedHoles.has(h)).length, b: seedInfo.holes.length, unit: seedUnit })}{" "}
-            {seedInfo.base && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} ends on a logged unit, the same points as the implicit tool's \"Base of {unit}\". Check them; move or delete outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged base of {unit}", { unit: seedUnit })}</button>}{/* #1684 */}
-            {!seedInfo.base && contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit, not at a hole start, under casing or overburden, or after a gap. Check them; move or delete outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
-            {!seedInfo.base && contactOf(def) === "lower" && seedInfo.tops.some((t) => Number.isFinite(t.end) && !pickedHoles.has(t.hole_id)) && <button onClick={seedBases} title={tr("One pick per hole where {unit} ends: the base of the same logged run as its top. Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged bases of {unit}", { unit: seedUnit })}</button>}{/* #3771 */}
-            {!seedInfo.base && contactOf(def) !== "lower" && absentNew.length > 0 && <button onClick={seedAbsent} title={tr("Holes going from a unit above {unit} straight to one below: {unit} is absent there, so its top is that contact. Without these picks, nothing holds the surface there.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px", marginLeft: 4 }}>{tr("Add {n} zero-thickness pick(s) where {unit} is missing", { n: absentNew.length, unit: seedUnit })}</button>}{/* #2921 */}
+            {seedInfo.base && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} ends on a logged unit, the same points as the implicit tool's \"Base of {unit}\". Check them; move or delete outliers.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged base of {unit}", { unit: seedUnit })}</button>}{/* #1684 */}
+            {!seedInfo.base && contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit, not at a hole start, under casing or overburden, or after a gap. Check them; move or delete outliers.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
+            {!seedInfo.base && contactOf(def) === "lower" && seedInfo.tops.some((t) => Number.isFinite(t.end) && !pickedHoles.has(t.hole_id)) && <button onClick={seedBases} title={tr("One pick per hole where {unit} ends: the base of the same logged run as its top. Check them, then move or delete the outliers.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged bases of {unit}", { unit: seedUnit })}</button>}{/* #3771 */}
+            {!seedInfo.base && contactOf(def) !== "lower" && absentNew.length > 0 && <button onClick={seedAbsent} title={tr("Holes going from a unit above {unit} straight to one below: {unit} is absent there, so its top is that contact. Without these picks, nothing holds the surface there.", { unit: seedUnit })} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px", marginLeft: 4 }}>{tr("Add {n} zero-thickness pick(s) where {unit} is missing", { n: absentNew.length, unit: seedUnit })}</button>}{/* #2921 */}
           </div>
         )}
         {eventOpts.length > 0 && eventOpt && ( // TASKS.csv #2317 — depth picks (regolith events) as this surface's picks
@@ -1087,7 +1087,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <select aria-label={tr("Depth picks to add")} value={eventOpt.key} onChange={(e) => setEventKey(e.target.value)} style={smallSel}>
               {eventOpts.map((o) => <option key={o.key} value={o.key}>{tr("{code} in {layer} ({n} holes)", { code: o.code, layer: o.layerName, n: o.holes })}</option>)}
             </select>
-            <button onClick={seedEvents} disabled={eventOpt.tops.every((t) => pickedHoles.has(t.hole_id))} title={tr("One pick per hole at this code's logged depth (the shallowest if logged twice). Holes already picked on this surface are left as they are.")} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add picks")}</button>
+            <button onClick={seedEvents} disabled={eventOpt.tops.every((t) => pickedHoles.has(t.hole_id))} title={tr("One pick per hole at this code's logged depth (the shallowest if logged twice). Holes already picked on this surface are left as they are.")} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add picks")}</button>
           </div>
         )}
         {(def.log || []).length > 0 && ( // TASKS.csv #878
@@ -1096,7 +1096,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <div style={{ maxHeight: 140, overflowY: "auto", marginTop: 4, lineHeight: 1.4 }}>
               {[...def.log].reverse().slice(0, 50).map((e, i) => <div key={i}><span style={{ color: "var(--color-text-muted)" }}>{e.at.slice(0, 16).replace("T", " ")}</span> {e.what}</div>)}
             </div>
-            <button onClick={keepVersion} disabled={!def.surfaceId || !sc.meshes.current[def.surfaceId]} title={tr("Copy this build to the surface list as a frozen version (it does not rebuild); this surface is marked as superseding it.")} style={{ ...pBtn, width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{tr("Keep this build as a version")}</button>
+            <button onClick={keepVersion} disabled={!def.surfaceId || !sc.meshes.current[def.surfaceId]} title={tr("Copy this build to the surface list as a frozen version (it does not rebuild); this surface is marked as superseding it.")} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{tr("Keep this build as a version")}</button>
             {keptNote && <div role="status" style={{ marginTop: 3 }}>{keptNote}</div>}
           </details>
         )}
@@ -1109,11 +1109,11 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         {pileBase && ( // TASKS.csv #3113 — the thickness map down to the next explicit top under this one
           <div style={{ marginBottom: 6 }}>
             <button onClick={isopachMap} title={tr("A map of the vertical distance from this top down to \"{lower}\" (the next top in the holes' order), with the volume, in Maps > GeoTIFF / GXF and StrixViewer.", { lower: pileBase.name })}
-              style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Thickness map down to {lower}", { lower: pileBase.name })}</button>
+              className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Thickness map down to {lower}", { lower: pileBase.name })}</button>
             {isoNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: isoNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{isoNote.text}</div>}
             {(keptBelow.length > 0 || pileRun) && ( // TASKS.csv #3115
               <button onClick={rebuildPile} disabled={!!pileRun} title={tr("Opens each top under this one in turn, top-down ({list}), so those kept under the top above rebuild against its current surface.", { list: pileBelow.map((t) => t.name).join(", ") })}
-                style={{ ...pBtn, width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{pileRun ? tr("Rebuilding {name} ({i} of {n})…", { name: pileRun.names[pileRun.i], i: pileRun.i + 1, n: pileRun.ids.length }) : tr("Rebuild the pile under it ({n} tops)", { n: pileBelow.length })}</button>
+                className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{pileRun ? tr("Rebuilding {name} ({i} of {n})…", { name: pileRun.names[pileRun.i], i: pileRun.i + 1, n: pileRun.ids.length }) : tr("Rebuild the pile under it ({n} tops)", { n: pileBelow.length })}</button>
             )}
             {pileNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginTop: 3, color: pileNote.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{pileNote.text}</div>}
           </div>
@@ -1122,7 +1122,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
           <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-warn-text)" }}>
             {tr("Several picks on one hole: {list}. A contact crosses a hole once unless folded or faulted; put a repeated unit on another layer or surface.", { list: [...dupHoles].map(([h, n]) => `${h} (${n})`).join(", ") })}{" "}
-            <button onClick={keepShallowest} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Keep the shallowest pick on each hole")}</button>
+            <button onClick={keepShallowest} className="gs-btn gs-btn--block" style={{ width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Keep the shallowest pick on each hole")}</button>
           </div>
         )}
         {shownStatus && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: shownStatus.ok ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{shownStatus.text}</div>}{/* shownStatus: #3115 */}
@@ -1154,7 +1154,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         <div style={row} role="radiogroup" aria-label={tr("Contact")}>
           {[["upper", "Upper contact", "This surface is the top of {unit}: the unit lies below it."], ["lower", "Lower contact", "This surface is the base of {unit}: the unit lies above it."]].map(([k, label, hint]) => {
             const on = contactOf(def) === k;
-            return <button key={k} role="radio" aria-checked={on} title={tr(hint, { unit: layerLabel(def) })} onClick={() => update({ contact: k })}
+            return <button data-btn-own="" key={k} role="radio" aria-checked={on} title={tr(hint, { unit: layerLabel(def) })} onClick={() => update({ contact: k })}
               style={{ ...pBtn, flex: 1, marginBottom: 0, justifyContent: "center", padding: "4px 6px", ...(on ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>{tr(label)}</button>;
           })}
         </div>
@@ -1162,10 +1162,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
             <div style={{ color: "var(--color-text-muted)" }}>{unitInfo.layers.map((l) => tr("{layer}: {u} upper, {d} lower", { layer: l.layer ? `${curUnit} ${l.layer}` : curUnit, u: l.upper.length, d: l.lower.length })).join(" · ")}</div>
             <button onClick={splitUnit} title={tr("Letters this unit's surfaces A, B, C… from the top down: each upper contact starts a layer, each lower contact closes the one above.")}
-              style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Split {unit} into layers by elevation", { unit: curUnit })}</button>
+              className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Split {unit} into layers by elevation", { unit: curUnit })}</button>
             {unitNote && <div role="status" style={{ marginTop: 3, color: "var(--color-text-secondary)" }}>{unitNote}</div>}
             {thicknessPairs.length > 0 && <button onClick={measureThickness} title={tr("The unit's vertical thickness, upper to lower contact, wherever both exist: minimum, mean, maximum, and where the base rises above the top.")}
-              style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Thickness between top and base")}</button>}{/* TASKS.csv #896 */}
+              className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Thickness between top and base")}</button>}{/* TASKS.csv #896 */}
             {thickNote && <div role="status" style={{ marginTop: 3, color: thickNote.crossing ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{thickNote.text}</div>}
           </div>
         )}
@@ -1192,10 +1192,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
                 <option value="-1">{sideLabels.minus}</option>
               </select>
             </div>
-            <button onClick={otherBlock} style={{ ...pBtn, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("New surface for the other block")}</button>
+            <button onClick={otherBlock} className="gs-btn gs-btn--block" style={{ marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("New surface for the other block")}</button>
           </>)}
         </details>
-        <button onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
+        <button data-btn-own="" onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
           title={tr("Drag a pick: on a hole it slides along it (snapping to logged contacts if Snap is on); elsewhere up and down, or sideways with Shift. Alt + click deletes a pick or line point.")}
           style={{ ...pBtn, marginBottom: 6, justifyContent: "center", opacity: def.picks.length || (def.lines || []).length ? 1 : 0.5, ...(editing ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>
           <Move size={14} />{" "}{editing ? tr("Editing — drag a pick or a line point (click to stop)") : tr("Edit picks and lines")}
@@ -1229,14 +1229,14 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           </label>
         )}
         <div style={row}>
-          <button onClick={() => update({ picks: def.picks.slice(0, -1) })} disabled={!def.picks.length} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: def.picks.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo last pick")}</button>
+          <button onClick={() => update({ picks: def.picks.slice(0, -1) })} disabled={!def.picks.length} className="gs-btn gs-btn--block" style={{ flex: 1, marginBottom: 0, opacity: def.picks.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo last pick")}</button>
           {/* TASKS.csv #892 — Undo / Redo always here (they used to appear only once a line existed), Ctrl+Z named */}
-          <button onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl+Z) — picks, lines and settings")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canUndo ? 1 : 0.5 }}>{tr("Undo")}</button>
-          <button onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl+Y)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canRedo ? 1 : 0.5 }}>{tr("Redo")}</button>
-          <button onClick={(e) => exportInputs(e.shiftKey)} title={tr("Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("CSV")}</button>{/* TASKS.csv #880 */}
-          <button onClick={() => dxfInputRef.current?.click()} title={tr("Import interpretation strings from a DXF: open 3D strings become hard lines, points become picks, and closed strings on a saved section become outlines for Link into a solid.")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("DXF")}</button>
+          <button onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl+Z) — picks, lines and settings")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canUndo ? 1 : 0.5 }}>{tr("Undo")}</button>
+          <button onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl+Y)")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canRedo ? 1 : 0.5 }}>{tr("Redo")}</button>
+          <button onClick={(e) => exportInputs(e.shiftKey)} title={tr("Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("CSV")}</button>{/* TASKS.csv #880 */}
+          <button onClick={() => dxfInputRef.current?.click()} title={tr("Import interpretation strings from a DXF: open 3D strings become hard lines, points become picks, and closed strings on a saved section become outlines for Link into a solid.")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("DXF")}</button>
           <input ref={dxfInputRef} type="file" accept=".dxf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importDxfStrings(f); e.target.value = ""; }} />{/* TASKS.csv #875 */}
-          <button onClick={async () => { if (!await confirmDestructive(tr("Delete the explicit surface \"{name}\" with its picks and lines?", { name: def.name }), { undoable: true })) return; setPickFor(null); onRemove(def); setSelId(""); }} title={tr("Delete this explicit surface and its mesh")} aria-label={tr("Delete this explicit surface and its mesh")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}><Trash2 size={14} /></button>
+          <button onClick={async () => { if (!await confirmDestructive(tr("Delete the explicit surface \"{name}\" with its picks and lines?", { name: def.name }), { undoable: true })) return; setPickFor(null); onRemove(def); setSelId(""); }} title={tr("Delete this explicit surface and its mesh")} aria-label={tr("Delete this explicit surface and its mesh")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px" }}><Trash2 size={14} /></button>
         </div>
         {exportNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, color: "var(--color-text-secondary)" }}>{exportNote}</div>}{/* #880 */}
         <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
@@ -1255,9 +1255,9 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
               <select value={digImage?.id || ""} onChange={(e) => { setDigImageId(e.target.value); setDigPts([]); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Section image")}>
                 {images.map((im) => <option key={im.id} value={im.id}>{im.name}</option>)}
               </select>
-              <button onClick={faceImage} title={tr("Turn the view square on to this section image")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("Look square on")}</button>
+              <button onClick={faceImage} title={tr("Turn the view square on to this section image")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("Look square on")}</button>
             </div>
-            <button onClick={() => (digDrawing ? (finishLine(), stopDigitizing()) : startDigitizing())} aria-pressed={digDrawing}
+            <button data-btn-own="" onClick={() => (digDrawing ? (finishLine(), stopDigitizing()) : startDigitizing())} aria-pressed={digDrawing}
               style={{ ...pBtn, marginBottom: 4, justifyContent: "center", ...(digDrawing ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>
               <Pencil size={14} />{" "}{digDrawing ? tr("Drawing — click to stop") : tr("Draw contact lines on it")}
             </button>
@@ -1270,7 +1270,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             {(def.lines || []).map((ln, i) => (
               <div key={ln.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr("Line {i} on {image} · {n} points", { i: i + 1, image: sectionImages.find((im) => im.id === ln.imageId)?.name || tr("(image removed)"), n: ln.pts.length })}</span>
-                <button onClick={() => update({ lines: def.lines.filter((x) => x.id !== ln.id) })} aria-label={tr("Remove this line")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
+                <button data-btn-own="" onClick={() => update({ lines: def.lines.filter((x) => x.id !== ln.id) })} aria-label={tr("Remove this line")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
               </div>
             ))}
             {!!(def.lines || []).length && (<>
@@ -1278,7 +1278,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, margin: "4px 0" }} role="group" aria-label={tr("Line tools")}>
                 {[["move", "Move points", "Drag a point to move it; Alt + click deletes it (a pick on a hole too)."], ["insert", "Insert point", "Click on a line to add a point there."], ["split", "Split", "Click a point in the middle of a line to cut it in two."], ["join", "Join", "Click the end of one line, then the end of another: they become one line."], ["extend", "Extend", "Click the end of a line, then the line it should reach (another line on the same image, or the ground): it is lengthened, or trimmed, to meet it."]].map(([k, label, hint]) => {
                   const on = editing && lineTool === k;
-                  return <button key={k} title={tr(hint)} aria-pressed={on} onClick={() => { setLineTool(k); pendRef.current = null; setToolHint(tr(hint)); if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setPickFor(null); setEditing(true); }}
+                  return <button data-btn-own="" key={k} title={tr(hint)} aria-pressed={on} onClick={() => { setLineTool(k); pendRef.current = null; setToolHint(tr(hint)); if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setPickFor(null); setEditing(true); }}
                     style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", ...(on ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>{tr(label)}</button>;
                 })}
               </div>
@@ -1307,12 +1307,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
               </select>
               <button disabled={!pair || !hasTerrain} title={hasTerrain ? tr("This mapped contact, draped on the terrain, becomes a hard line of the surface") : tr("Needs a terrain: the contact is placed on the ground")}
                 onClick={() => { const c = { layerId: mapLayer.id, field: unitField, units: pair.units }; if (!(def.mapContacts || []).some((x) => x.layerId === c.layerId && x.field === c.field && x.units.join("|") === c.units.join("|"))) update({ mapContacts: [...(def.mapContacts || []), c] }); }}
-                style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: pair && hasTerrain ? 1 : 0.5 }}>{tr("+ Add")}</button>
+                className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "5px 8px", opacity: pair && hasTerrain ? 1 : 0.5 }}>{tr("+ Add")}</button>
             </div>
             {(def.mapContacts || []).map((c, i) => (
               <div key={`${c.layerId}|${c.units.join("|")}`} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.units.join(" | ")} · {polys.find((l) => l.id === c.layerId)?.name || tr("(layer removed)")}</span>
-                <button onClick={() => update({ mapContacts: def.mapContacts.filter((_, j) => j !== i) })} aria-label={tr("Remove this mapped contact")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
+                <button data-btn-own="" onClick={() => update({ mapContacts: def.mapContacts.filter((_, j) => j !== i) })} aria-label={tr("Remove this mapped contact")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
               </div>
             ))}
             {!!def.mapContacts?.length && (<>
@@ -1388,7 +1388,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {dupHoles.has(p.hole_id) ? "⚠ " : ""}{pickLabel(p)}
             </span>
-            <button onClick={() => update({ picks: def.picks.filter((q) => q.id !== p.id) })} aria-label={tr("Remove this pick")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
+            <button data-btn-own="" onClick={() => update({ picks: def.picks.filter((q) => q.id !== p.id) })} aria-label={tr("Remove this pick")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
           </div>
         ))}
       </>)}

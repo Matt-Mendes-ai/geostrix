@@ -12,8 +12,6 @@ import { nextFor } from "../../../lib/guide/guideFailures.js";
 import { ACT_LABELS, ROUTE_LABELS, runAct, explicitUnit } from "./guideActs.js";
 
 const muted = { color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" };
-const small = { padding: "4px 10px", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-sm)" };
-const main = { ...small, border: "1px solid var(--color-tier-basic)", background: "var(--color-tier-basic)", color: "var(--color-bg)", fontWeight: 600 };
 const DOT = { done: "var(--color-success-fg)", next: "var(--color-tier-basic)", waiting: "var(--color-border)", skipped: "var(--color-text-muted)" };
 const STATE_WORD = { done: "Done", next: "Next", waiting: "Waiting", skipped: "Skipped" };
 
@@ -32,7 +30,7 @@ export function nextAfterFailure(notices, since) {
 }
 
 function Door({ act, arg, env, primary, label }) {
-  return <button type="button" style={primary ? main : small} onClick={() => runAct(act, arg, env)}>{label || tr(ACT_LABELS[act])}</button>;
+  return <button type="button" className={primary ? "gs-btn gs-btn--primary gs-btn--sm" : "gs-btn gs-btn--sm"} onClick={() => runAct(act, arg, env)}>{label || tr(ACT_LABELS[act])}</button>;
 }
 function Rows({ rows, env }) {
   return (rows || []).map((r, i) => (
@@ -60,7 +58,7 @@ export default function GuideSteps({ store, api, setTool, toBar, viewId, setView
   return (<>
     <div role="tablist" aria-label={tr("Start here")} style={{ display: "flex", gap: 4, margin: "2px 0 10px" }}>
       {status.steps.map((x, i) => (
-        <button key={x.id} type="button" role="tab" aria-selected={x.id === id} onClick={() => go(x.id)} title={`${tr(GUIDE_STEPS[i].title)}: ${tr(STATE_WORD[x.state])}`}
+        <button data-btn-own="" key={x.id} type="button" role="tab" aria-selected={x.id === id} onClick={() => go(x.id)} title={`${tr(GUIDE_STEPS[i].title)}: ${tr(STATE_WORD[x.state])}`}
           aria-label={`${i + 1}. ${tr(GUIDE_STEPS[i].title)}: ${tr(STATE_WORD[x.state])}`}
           style={{ flex: 1, height: 22, borderRadius: 11, cursor: "pointer", fontSize: "var(--font-size-xs)", fontWeight: 600, border: `2px solid ${x.id === id ? "var(--color-text)" : DOT[x.state]}`, background: x.state === "done" || x.state === "next" ? DOT[x.state] : "var(--color-bg)", color: x.state === "done" || x.state === "next" ? "var(--color-bg)" : "var(--color-text-secondary)" }}>
           {x.state === "done" ? "✓" : i + 1}
@@ -84,12 +82,12 @@ export default function GuideSteps({ store, api, setTool, toBar, viewId, setView
       {next.length > 0 && (
         <div role="status" style={{ marginTop: 12, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Next")}</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{next.map((n, i) => <button key={i} type="button" style={i ? small : main} onClick={() => runAct(n.act.id, n.act, env)}>{tr(n.label, n.vars)}</button>)}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{next.map((n, i) => <button key={i} type="button" className={i ? "gs-btn gs-btn--sm" : "gs-btn gs-btn--primary gs-btn--sm"} onClick={() => runAct(n.act.id, n.act, env)}>{tr(n.label, n.vars)}</button>)}</div>
         </div>
       )}
       <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", gap: 6 }}>
-        <button type="button" style={small} onClick={() => openHelp("guided-model")}>{tr("Help")}</button>{/* TASKS.csv #4036 */}
-        {s.state !== "done" && (s.state !== "skipped" || userSkipped) && <button type="button" style={small} onClick={() => store.setGuideSkipped?.(id, !userSkipped)}>{userSkipped ? tr("Undo") : tr("Skip")}</button>}
+        <button type="button" className="gs-btn gs-btn--sm" onClick={() => openHelp("guided-model")}>{tr("Help")}</button>{/* TASKS.csv #4036 */}
+        {s.state !== "done" && (s.state !== "skipped" || userSkipped) && <button type="button" className="gs-btn gs-btn--sm" onClick={() => store.setGuideSkipped?.(id, !userSkipped)}>{userSkipped ? tr("Undo") : tr("Skip")}</button>}
       </div>
     </div>
   </>);
@@ -104,7 +102,7 @@ function Routes({ facts, asks, guide, store, env }) {
   return (<>
     {routes.length > 1 && <div role="radiogroup" aria-label={tr("Compute or draw?")} style={{ display: "grid", gap: 6, marginBottom: 8 }}>
       {routes.map((r) => (
-        <button key={r} type="button" role="radio" aria-checked={r === chosen} onClick={() => store.setGuideRoute?.(r)}
+        <button data-btn-own="" key={r} type="button" role="radio" aria-checked={r === chosen} onClick={() => store.setGuideRoute?.(r)}
           style={{ textAlign: "start", padding: "8px 10px", borderRadius: 6, cursor: "pointer", background: "var(--color-bg)", color: "var(--color-text)", border: `${r === chosen ? 2 : 1}px solid ${r === chosen ? "var(--color-tier-basic)" : "var(--color-border)"}` }}>
           <div style={{ fontWeight: 600 }}>{tr(ROUTE_LABELS[r])}{r === sug.route && <span style={{ ...muted, fontWeight: 400, marginInlineStart: 8 }}>{tr("Suggested")}</span>}</div>
           {r === sug.route && sug.reason && <div style={muted}>{sug.reason}</div>}

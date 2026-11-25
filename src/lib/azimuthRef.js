@@ -33,6 +33,9 @@ export const AZIMUTH_REFS = {
 // 4-6 m, with no question asked. -> { ref: "grid" | "true" | "magnetic", col, mixed } from the rows' values, or null with no
 // such column (or no value it recognizes). mixed: more than one north in the file (the dialog must ask).
 const AZ_REF_COLS = ["azimuthtype", "azimuth_type", "aztype", "az_type", "azimuthref", "azimuth_ref", "azref", "az_ref", "northref", "north_ref", "northtype", "north_type", "azimuthnorth", "azimuth_north"];
+// TASKS.csv #4060 — Queensland's SL3 tables carry the north in a column called Grid / SurveyGrid ('Mag', 'Grid', 'True'): a north word there is the azimuths' reference.
+// A grid NAME in a column of that name (MGA94_54) is not a north word and leaves the question to the other rules.
+const AZ_REF_GRID_COLS = ["grid", "surveygrid", "survey_grid", "azimuthgrid", "azimuth_grid"];
 const azRefOf = (v) => {
   const s = String(v ?? "").trim().toLowerCase().replace(/[\s_-]+/g, "");
   if (!s) return null;
@@ -105,7 +108,11 @@ function correctedColumns(headers, rows) {
 }
 
 export function detectAzimuthRef(headers, rows) {
-  const col = (headers || []).find((h) => AZ_REF_COLS.includes(String(h).trim().toLowerCase()));
+  let col = (headers || []).find((h) => AZ_REF_COLS.includes(String(h).trim().toLowerCase()));
+  if (!col) { // #4060 — a Grid / SurveyGrid column counts only when its values are north words
+    const g = (headers || []).find((h) => AZ_REF_GRID_COLS.includes(String(h).trim().toLowerCase()));
+    if (g && (rows || []).some((r) => azRefOf(r?.[g]))) col = g;
+  }
   if (!col) {
     // #2154 — a grid-name column: any filled value means grid azimuths (in that grid), unless it is a north word
     const gcol = (headers || []).find((h) => GRID_NAME_COLS.test(String(h).trim()));

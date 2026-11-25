@@ -41,10 +41,9 @@ export function faultTools() {
 }
 
 export default function FaultsPanel(props) {
-  const { pBtn, faultCandidates, mapLayers, sections, implicitSurfaces, surfaceStructures, stackFaults } = props;
+  const { faultCandidates, mapLayers, sections, implicitSurfaces, surfaceStructures, stackFaults } = props;
   const { layers = {}, activeTabId } = useStore() || {}; // every logged interval layer (the pane's own `layers` are the units being modelled)
   const inv = useMemo(() => faultInventory({ faultCandidates, mapLayers, sections, implicitSurfaces, surfaceStructures, stackFaults, layers }), [faultCandidates, mapLayers, sections, implicitSurfaces, surfaceStructures, stackFaults, layers]);
-  const small = { ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 8px", flex: "0 0 auto" };
   const tools = faultTools();
   return (
     <div data-faults-pane="" style={{ fontSize: "var(--font-size-sm)" }}>
@@ -60,7 +59,7 @@ export default function FaultsPanel(props) {
             return (
               <div key={r.id} data-fault-tool={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", borderTop: "1px solid var(--color-divider)" }}>
                 <div style={{ flex: 1, minWidth: 0, fontWeight: 500 }}>{r.name}{has && <span style={{ ...note, marginLeft: 6 }}>{has}</span>}</div>
-                {r.open && <button type="button" style={small} onClick={() => r.open(props)}>{tr("Open")}</button>}
+                {r.open && <button type="button" className="gs-btn gs-btn--sm" onClick={() => r.open(props)}>{tr("Open")}</button>}
               </div>
             );
           })}

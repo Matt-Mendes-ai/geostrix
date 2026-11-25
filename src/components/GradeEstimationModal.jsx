@@ -1013,7 +1013,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             {flatProposal && !proposalApplied && ( /* TASKS.csv #2418 — offered, from these holes; never applied by itself */
               <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 {tr("These holes look flat-lying: {v}% of {n} holes are within 5° of vertical, drilled over {d} m of depth across {w} m (the holes {sp} m apart, sampled over a median {span} m). Suggested flat search: {r} m across, {h} m up and down, on {c} × {c} × {ch} m cells.", { v: Math.round(flatProposal.vertical * 100), n: flatProposal.holes, d: Math.round(flatProposal.depthM), w: Math.round(flatProposal.widthM).toLocaleString(), span: Math.round(flatProposal.spanM), sp: Math.round(flatProposal.spacingM), /* #3011 */ r: flatProposal.radius, h: flatProposal.reachV, c: flatProposal.cell, ch: flatProposal.cellHeight })}{" "}
-                <button type="button" onClick={() => { cellTouched.current = true; cellTyped.current = true; searchTouched.current = true /* #3684: chosen, kept */; setAutoCell(null); setSearchRadius(flatProposal.radius); setFlatReach(flatProposal.reachV); setCellSize(flatProposal.cell); setCellHeight(flatProposal.cellHeight); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use it")}</button>
+                <button type="button" onClick={() => { cellTouched.current = true; cellTyped.current = true; searchTouched.current = true /* #3684: chosen, kept */; setAutoCell(null); setSearchRadius(flatProposal.radius); setFlatReach(flatProposal.reachV); setCellSize(flatProposal.cell); setCellHeight(flatProposal.cellHeight); }} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use it")}</button>
               </div>
             )}
             {spacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(spacing.sites === 2 ? "Holes: the two drill sites are {near} m apart. A block counts only if both holes lie within its search radius (Min distinct holes)." : "Holes: {sites} drill sites, the nearest {near} m apart, typically {median} m from the next (up to {far} m). A block counts only if two holes lie within its search radius (Min distinct holes).", { sites: spacing.sites, near: Math.round(spacing.nearestM), median: Math.round(spacing.medianM), far: Math.round(spacing.farthestM) })}</div>}{/* #1738 */}
@@ -1031,7 +1031,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
             )}
             {searchFromSpacing && searchTouched.current && Number(searchRadius) !== searchFromSpacing && !flatTrend && ( /* #3684 — a typed radius is kept, and said */
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Search radius {r} m as typed; from these holes' spacing it would be {p} m.", { r: searchRadius, p: searchFromSpacing })}{" "}
-                <button type="button" onClick={() => { searchTouched.current = false; setSearchRadius(searchFromSpacing); }} style={{ fontSize: "var(--font-size-xs)" }}>{tr("Use {p} m", { p: searchFromSpacing })}</button>
+                <button type="button" onClick={() => { searchTouched.current = false; setSearchRadius(searchFromSpacing); }} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-xs)" }}>{tr("Use {p} m", { p: searchFromSpacing })}</button>
               </div>
             )}
             {searchFromSpacing && !searchTouched.current && searchRadius === searchFromSpacing && ellTrend && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(searchFrom.at === "samples" ? "Search radius {r} m along the trend: the long axis of a {a} × {b} × {c} m ellipsoid, the volume of a {s} m sphere (2.5 times the {m} m typical distance to the nearest sample of another hole)." : "Search radius {r} m along the trend: the long axis of a {a} × {b} × {c} m ellipsoid, the volume of a {s} m sphere (2.5 times the {m} m typical spacing).", (() => { const ax = ellipsoidAxesM(searchFromSpacing, ellTrend.ratios); return { r: searchFromSpacing, a: Math.round(ax[0]), b: Math.round(ax[1]), c: Math.round(ax[2]), s: sphereFromSpacing, m: Math.round(searchFrom.medianM) }; })())}</div>}
@@ -1169,7 +1169,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
           {gradeShell && !shellId && (
             <div role="note" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, lineHeight: 1.45, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
               {tr("The grade shell \"{name}\" ({el} at or above {cutoff} {unit}) is in the model. Restricted to it, only samples inside inform blocks inside; unrestricted, grade spreads from the holes across the whole grid.", { name: gradeShell.name, el: symbol, cutoff: gradeShell.cutoff, unit: gradeUnitLabel(symbol, unit) })}{" "}
-              <button type="button" onClick={() => { setShellPick(""); setShellDefaultOff(false); }} style={{ fontSize: "var(--font-size-sm)" }}>{tr("Restrict to it")}</button>
+              <button type="button" onClick={() => { setShellPick(""); setShellDefaultOff(false); }} className="gs-btn gs-btn--sm" style={{ fontSize: "var(--font-size-sm)" }}>{tr("Restrict to it")}</button>
             </div>
           )}
           {volumeShells.length > 0 && (
@@ -1245,9 +1245,9 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   : tr(", {n} within {r} m of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", r: reachRadius })) : "") + (overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "") })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
-                  {Number.isFinite(fitCell) && fitCell > 0 && <button type="button" onClick={() => { cellTouched.current = true; cellTyped.current = true; setCellSize(fitCell); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>}
+                  {Number.isFinite(fitCell) && fitCell > 0 && <button type="button" onClick={() => { cellTouched.current = true; cellTyped.current = true; setCellSize(fitCell); }} className="gs-btn" style={{ padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>}
                   {matched && <span style={{ color: "var(--color-text-secondary)" }}>{tr("The matched model's grid has more blocks in reach than the budget, and its block size is fixed: match a coarser model, shorten the search radius, or use 'Fit to the drilling' with a cell that fits.")}</span>}{/* #2416 */}
-                  {Number.isFinite(fitCellMax) && fitCellMax > 0 && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Largest budget + {fitCellMax} m blocks", { fitCellMax })}</button>}
+                  {Number.isFinite(fitCellMax) && fitCellMax > 0 && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} className="gs-btn" style={{ padding: "2px 8px" }}>{tr("Largest budget + {fitCellMax} m blocks", { fitCellMax })}</button>}
                 </span>
               )}
             </div>
@@ -1276,17 +1276,17 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               {tr("{collarsWithoutDepth} of {collars} collar(s) have no recorded length and no survey record — they contribute nothing to the grid's depth extent.", { collarsWithoutDepth, collars: collars.length })}</div>
           )}
 
-          <button onClick={run} disabled={!bounds || overLimit || reachPending || running || !symbol || !uns.ready /* #2417 */} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol || !uns.ready) ? 0.5 : 1 }}>
+          <button onClick={run} disabled={!bounds || overLimit || reachPending || running || !symbol || !uns.ready /* #2417 */} className={result ? "gs-btn" : "gs-btn gs-btn--primary"} /* gs-primary-alt: the Add button below is the primary once there is a result */ style={{ alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol || !uns.ready) ? 0.5 : 1 }}>
             <Play size={14} /> {running ? (stage ? tr("Running {el}… {v}", { el: stage, v: progress != null ? Math.round(progress * 100) + "%" + timeLeft(progress) : "" }) /* #3014 */ : tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" + timeLeft(progress) : "" })) : tr("Run estimation")}
           </button>
-          {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>{tr("Cancel")}</button>}
+          {running && <button type="button" onClick={cancelRun} className="gs-btn" style={{ alignSelf: "flex-start", padding: "6px 14px" }}>{tr("Cancel")}</button>}
 
           {weakFitAsk && !running && ( /* TASKS.csv #3273 */
             <div role="alertdialog" aria-label={tr("Weak variogram fit")} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>
               {tr("The variogram fitted to these composites is weak (r² {r}): nugget {n}, sill {s}, range {range} m. Kriging with it would rest the weights on a guess.", { r: weakFitAsk.rSquared.toFixed(2), n: `${fmtSemi(weakFitAsk.nugget)}${logValues ? "" : ` ${gradeUnitLabel(symbol, unit)}²`}`, s: `${fmtSemi(weakFitAsk.sill)}${logValues ? "" : ` ${gradeUnitLabel(symbol, unit)}²`}`, range: Math.round(weakFitAsk.range) })}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
-                <button type="button" style={{ ...btn(true), padding: "5px 12px" }} onClick={() => { setWeakFitAsk(null); setMethod("idw2"); setRerun((k) => k + 1); }}>{tr("Estimate by inverse distance (power 2)")}</button>
-                <button type="button" style={{ ...btn(false), padding: "5px 12px" }} onClick={() => { setWeakFitAsk(null); weakFitAccepted.current = true; setRerun((k) => k + 1); }}>{tr("Krige with it anyway")}</button>
+                <button type="button" className="gs-btn gs-btn--primary" /* gs-primary-alt: this question replaces the form while it is open */ style={{ padding: "5px 12px" }} onClick={() => { setWeakFitAsk(null); setMethod("idw2"); setRerun((k) => k + 1); }}>{tr("Estimate by inverse distance (power 2)")}</button>
+                <button type="button" className="gs-btn" style={{ padding: "5px 12px" }} onClick={() => { setWeakFitAsk(null); weakFitAccepted.current = true; setRerun((k) => k + 1); }}>{tr("Krige with it anyway")}</button>
               </div>
               <div style={{ marginTop: 4, color: "var(--color-text-secondary)" }}>{tr("Or read the variogram in the Variogram tool and send its model here with 'Use this model in Estimation'.")}</div>
             </div>
@@ -1410,8 +1410,8 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
                   <input placeholder={modelName.trim() ? "" : resultName() /* #1737 — the name the result will get, not the form's current settings */} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
-                  <button type="button" onClick={() => setGtOpen(true)} style={{ ...btn(false), padding: "7px 12px", width: "auto" }} title={tr("Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)")}>{tr("Grade-tonnage…")}</button>{/* #1577 */}
-                  <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : result.params?.set ? tr("Add the set ({n} block models)", { n: result.params.set.elements.length }) /* #3014 */ : result.supportCounts ? tr("Add as block model ({pct}% interpolated)", { pct: Math.round((100 * result.supportCounts.interpolated) / Math.max(1, result.blocksEstimated)) }) : tr("Add as block model")}</button>{/* pct: TASKS.csv #1573 */}
+                  <button type="button" onClick={() => setGtOpen(true)} className="gs-btn" style={{ padding: "7px 12px", width: "auto" }} title={tr("Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)")}>{tr("Grade-tonnage…")}</button>{/* #1577 */}
+                  <button onClick={addToProject} className="gs-btn gs-btn--primary" style={{ padding: "7px 12px" }}>{added ? tr("Added ✓") : result.params?.set ? tr("Add the set ({n} block models)", { n: result.params.set.elements.length }) /* #3014 */ : result.supportCounts ? tr("Add as block model ({pct}% interpolated)", { pct: Math.round((100 * result.supportCounts.interpolated) / Math.max(1, result.blocksEstimated)) }) : tr("Add as block model")}</button>{/* pct: TASKS.csv #1573 */}
                   {added && result.params?.set && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{el} is shown; the set's other elements are added hidden: they share the blocks, so show one at a time.", { el: result.params.element || symbol })}</span>}{/* #3286 (5) */}
                 </div>
               )}
@@ -1421,14 +1421,14 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
                   no new display code at all. */}
               {result.supportCounts && result.blocksEstimated > 0 && (
                 <div style={{ marginTop: 6 }}>
-                  <button onClick={addSupportModel} style={{ ...btn(false), padding: "7px 12px", width: "auto" }}>
+                  <button onClick={addSupportModel} className="gs-btn" style={{ padding: "7px 12px", width: "auto" }}>
                     {addedSupport ? tr("Added ✓") : tr("Add Data Support Index as a separate block model")}
                   </button>
                 </div>
               )}
               {result.variogram && result.blocksEstimated > 0 && (
                 <div style={{ marginTop: 6 }}>
-                  <button onClick={addKvModel} style={{ ...btn(false), padding: "7px 12px", width: "auto" }} title={tr("Kriging variance: how well the samples' layout constrains each block under this variogram. It ignores the grades, so it is not an error bar on the estimate.")}>
+                  <button onClick={addKvModel} className="gs-btn" style={{ padding: "7px 12px", width: "auto" }} title={tr("Kriging variance: how well the samples' layout constrains each block under this variogram. It ignores the grades, so it is not an error bar on the estimate.")}>
                     {addedKv ? tr("Added ✓") : tr("Add kriging variance as a separate block model")}
                   </button>
                 </div>
@@ -1451,7 +1451,7 @@ export default function GradeEstimationModal({ modelArea = null /* #2544 */, ass
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
+          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -1462,4 +1462,3 @@ const panel = { width: "min(760px, 95vw)", maxHeight: "90vh", background: "var(-
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const fieldLabel = { fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", flexDirection: "column", gap: 4 };
 const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: "var(--font-size-base)", fontFamily: "inherit", width: 150 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });

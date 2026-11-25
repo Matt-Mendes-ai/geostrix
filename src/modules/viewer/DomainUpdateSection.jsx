@@ -90,7 +90,7 @@ export default function DomainUpdateSection({ ctx, symbol, cutoff, iso, isAssay,
         </label>
       </div>
       {budgetNote && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginBottom: 6 }}>{tr("The block budget ({budget}) makes {cell} m cells over this domain, not the {asked} m asked: raise the budget above for a finer update.", { budget: budgetNote.budget.toLocaleString(), cell: budgetNote.cell, asked: budgetNote.asked })}</div>}
-      <button type="button" onClick={run} disabled={!can} style={{ ...buttonStyle, opacity: can ? 1 : 0.5, cursor: can ? "pointer" : "default" }}>{busy ? tr("Running…") : tr("Update the domain")}</button>
+      <button type="button" onClick={run} disabled={!can} className="gs-btn gs-btn--block" style={{ opacity: can ? 1 : 0.5 }}>{busy ? tr("Running…") : tr("Update the domain")}</button>
     </div>
   );
 }

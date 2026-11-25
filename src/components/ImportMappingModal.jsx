@@ -152,7 +152,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import {fileName}", { fileName: modal.fileName })}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{rowCount} rows detected · match each field to a column below", { rowCount: modal.rowCount })}</div>
           </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(modal.target === "sg" ? "import-density" : "import-drillholes")} aria-label={tr("Help: {name}", { name: tr("Import drillhole data") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3528 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(modal.target === "sg" ? "import-density" : "import-drillholes")} aria-label={tr("Help: {name}", { name: tr("Import drillhole data") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} /></span>
         </div>
 
         <div style={{ padding: 16, overflowY: "auto" }}>
@@ -282,7 +282,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               <button
                 onClick={addCustomField}
                 disabled={!addColumn || !addName.trim()}
-                style={{ ...btn(true), width: "auto", padding: "6px 10px", fontSize: "var(--font-size-base)", opacity: (addColumn && addName.trim()) ? 1 : 0.5 }}
+                className="gs-btn" style={{ width: "auto", padding: "6px 10px", fontSize: "var(--font-size-base)", opacity: (addColumn && addName.trim()) ? 1 : 0.5 }}
               >{tr("Add")}</button>
             </div>
           </div>
@@ -401,7 +401,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           {["collars", "survey", "structure"].includes(modal.target) && (modal.target !== "collars" || modal.mapping?.azimuth) /* #3542 — no azimuth column, no north to choose */ && (
             <div style={{ marginTop: 14 }}>
               <div style={label}>{tr("Azimuths in this file are measured from")}</div>
-              {modal.azimuthRefFrom && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Set from the file's {col} column.", { col: modal.azimuthRefFrom })}</div>}{/* #1647 */}
+              {modal.azimuthRefFrom && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{modal.azimuthRef === "magnetic" ? tr("Set from its {col} column: magnetic north. Change if wrong.", { col: modal.azimuthRefFrom }) : tr("Set from the file's {col} column.", { col: modal.azimuthRefFrom })}</div>}{/* #1647; #4060 — said why magnetic is chosen */}
               {modal.azimuthRefShare && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Change to grid north if that is what these azimuths are: true north is chosen because {n} of {of} stations name a gyro ({others} on the rest).", { n: modal.azimuthRefShare.n.toLocaleString(), of: modal.azimuthRefShare.of.toLocaleString(), others: modal.azimuthRefShare.others.join(", ") })}</div>}{/* #3734 */}
               {modal.azimuthToolsCol && !modal.azimuthRefFrom && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("The file's {col} column names both gyro and magnetic tools, which read different norths: choose the north these azimuths are in.", { col: modal.azimuthToolsCol })}</div>}{/* #3209 */}
               {modal.azimuthRefAlso?.length > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("{col} is read of the azimuth columns {list}: pick another as the Azimuth column above, and set its north below, to read it.", { list: [modal.azimuthRefFrom, ...modal.azimuthRefAlso.map((a) => a.col)].join(", "), col: modal.azimuthRefFrom })}</div>}{/* #2154 */}
@@ -518,16 +518,16 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               {missingRequired.some((f) => f.key === "hole_id") && modal.file && looksLikeStationTable(modal.headers) && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                   <span style={{ flex: 1 }}>{tr("No hole column: if these are survey stations (X, Y and a measurement), import them under Geophysics > Point survey.")}</span>
-                  <button type="button" onClick={() => { const file = modal.file; onCancel(); goToModule("geophysics"); requestModuleAction("geophysics-drop", { files: [file] }); }} style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer", whiteSpace: "nowrap" }}>{tr("Import as survey stations")}</button>
+                  <button type="button" onClick={() => { const file = modal.file; onCancel(); goToModule("geophysics"); requestModuleAction("geophysics-drop", { files: [file] }); }} className="gs-btn gs-btn--sm" style={{ whiteSpace: "nowrap" }}>{tr("Import as survey stations")}</button>
                 </div>
               )}
               {needsDate && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr("Type the survey date above: magnetic azimuths need it to work out the declination.")}</div>}{/* #2895 */}
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
+                <button onClick={onCancel} className="gs-btn" style={{ flex: 1 }}>{tr("Cancel")}</button>
                 <button
                   onClick={onCommit} data-autofocus /* TASKS.csv #3533 — Enter accepts the guesses; focus no longer opens on Close */
                   disabled={blocked} // 0 rows: TASKS.csv #2431 — the row filter keeps none; the survey date: #2895
-                  style={{ ...btn(true), flex: 2, opacity: blocked ? 0.5 : 1, cursor: blocked ? "not-allowed" : "pointer" }}
+                  className="gs-btn gs-btn--primary" style={{ flex: 2, opacity: blocked ? 0.5 : 1, cursor: blocked ? "not-allowed" : "pointer" }}
                   title={importCount(modal) === 0 ? tr("The row filter keeps no row: tick at least one value under Rows.") : undefined}
                 >{tr("Import {rowCount} rows", { rowCount: importCount(modal) })}</button>
               </div>
@@ -548,4 +548,3 @@ const td = { padding: "5px 8px", color: "var(--color-text-strong)", whiteSpace: 
 const thMapped = { ...th, color: "var(--color-accent-dark)", fontWeight: 600, background: "#fbf1d9", borderBottom: "2px solid var(--color-accent)" };
 const tdMapped = { ...td, background: "#fdf7ea" };
 const mappedCaption = { fontSize: "var(--font-size-xs)", fontWeight: 400, color: "#a9873f", textTransform: "none", letterSpacing: 0, marginTop: 1 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
