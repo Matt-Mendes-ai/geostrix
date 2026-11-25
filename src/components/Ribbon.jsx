@@ -168,20 +168,34 @@ export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick
 // could not run only in the sidebar's message list, 13,700 px down below 446 hole rows (the toast over the view fades).
 // The newest message since this pane opened shows under its header until dismissed; mount it with key={the pane} so
 // opening another pane starts from its own first message.
-export function PaneNotice({ notices }) {
+// TASKS.csv #4070 — compact (the step panes): the message as one line, its first sentence, with the whole text one click away; a run's 150-word
+// data-support message filled the Grade shell pane above its own tools
+export const firstSentence = (text, maxWords = 14) => {
+  const s = String(text || "").trim(), m = s.match(/^.*?[.!?:;](?=\s|$)/), head = (m ? m[0] : s).replace(/[:;]$/, "");
+  const w = head.split(/\s+/);
+  return w.length > maxWords ? `${w.slice(0, maxWords).join(" ")}…` : head.length < s.length ? `${head}…` : head;
+};
+export function PaneNotice({ notices, compact = false }) {
   const [from, setFrom] = useState(() => notices.length);
   const [all, setAll] = useState(false); // TASKS.csv #1542 — a run's several lines (fit per surface, each violation), not only its last
+  const [open, setOpen] = useState(false); // #4070 — compact: the whole text shown
   if (notices.length < from) setFrom(notices.length); // the list was cleared or swapped (another project tab)
   if (notices.length <= from) return null;
   const n = notices[notices.length - 1], err = noticeLevel(n) === "error", count = notices.length - from;
+  const short = compact && !open && !all; // #4070 — one line: the first sentence, the whole text in its tooltip and one click away ("…")
+  const line = short ? firstSentence(noticeText(n)) : null, cut = short && (line !== String(noticeText(n) || "").trim() || count > 1);
   return (
-    <div className="ge-pane-notice" role="status" style={{ display: "flex", gap: 6, alignItems: "flex-start", margin: "0 0 10px", padding: "6px 8px", borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45,
+    <div className="ge-pane-notice" role="status" style={{ display: "flex", gap: 6, alignItems: short ? "center" : "flex-start", margin: short ? "0 0 8px" : "0 0 10px", padding: short ? "4px 8px" : "6px 8px", borderRadius: short ? 12 : 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45,
       background: err ? "var(--color-danger-bg)" : "var(--color-bg)", color: err ? "var(--color-danger-text)" : "var(--color-text)", border: `1px solid ${err ? "var(--color-danger-border, var(--color-border))" : "var(--color-border)"}` }}>
+      {short ? (<>
+        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={noticeText(n)}>{line}</span>
+        {cut && <button type="button" className="gs-btn gs-btn--quiet gs-btn--sm" style={{ padding: "0 6px" }} onClick={() => setOpen(true)} aria-expanded={false} title={t("More")}>…</button>}
+      </>) : (
       <span style={{ flex: 1, minWidth: 0, maxHeight: all ? 260 : undefined, overflowY: all ? "auto" : undefined }}>
         {all ? notices.slice(from).map((m, i) => <div key={i} style={{ marginBottom: 3 }}>{noticeText(m)}{m?.more && <details style={{ marginTop: 2 }}><summary style={{ cursor: "pointer" }}>{t("More")}</summary>{m.more}</details>}</div>) : noticeText(n)}
         {!all && n?.more && <details style={{ marginTop: 3 }}><summary style={{ cursor: "pointer" }}>{t("More")}</summary><div style={{ maxHeight: 200, overflowY: "auto" }}>{n.more}</div></details>}{/* TASKS.csv #3986 — a notice's details */}
         {count > 1 && <span role="button" tabIndex={0} onClick={() => setAll((a) => !a)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAll((a) => !a); } }} style={{ display: "block", marginTop: 3, color: "var(--color-accent)", cursor: "pointer" }}>{all ? t("Show the last one") : t("Show all {n} messages since this pane opened", { n: count })}</span>}
-      </span>
+      </span>)}
       <button data-btn-own="" type="button" className="ge-pane-close" onClick={() => setFrom(notices.length)} aria-label={t("Dismiss message")} title={t("Dismiss")}><X size={12} /></button>
     </div>
   );

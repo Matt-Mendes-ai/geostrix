@@ -122,8 +122,9 @@ test("wiring: the stack run builds a layer-cake in place of the GemPy solve, wit
   assert.match(r, /\.\.\.\(cake \? \{ engine: "layercake" \} : \{ offerCake: true \/\* #3086: the cake takes faults \*\/, pinchFor \}\)/);
   assert.match(r, /tool: cakeRun \? "stratigraphic stack \(layer-cake\)"/);
   const p = fs.readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8");
-  assert.match(p, /onClick=\{\(\) => runStackModel\(stackUnits, \{ method: stackMethod \}\)\}/);
-  assert.match(p, /<option value="layercake">\{tr\("Layer-cake \(flat-lying\) — tops as elevation grids, kept in order"\)\}<\/option>/);
+  // TASKS.csv #4070 — the stack as steps: the Run is the pane's action, the method a choice of the Method step (its full name in the tooltip)
+  assert.match(p, /onClick: \(\) => runStackModel\(stackUnits, \{ method: stackMethod \}\)/);
+  assert.match(p, /\{ value: "layercake", label: tr\("Flat-lying"\), title: `\$\{tr\("Layer-cake \(flat-lying\) — tops as elevation grids, kept in order"\)\}/);
 });
 
 test("speed: the grid no finer than half the hole spacing; the ground read once per block column", async () => {

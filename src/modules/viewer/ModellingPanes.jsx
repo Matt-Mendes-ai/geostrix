@@ -36,6 +36,9 @@ import GeochemCompositingNote from "../../components/GeochemCompositingNote.jsx"
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
 import MoreFold from "../../components/MoreFold.jsx"; // TASKS.csv #3939
+import StepPane, { StepChoices, StepNumbers, requestStep } from "../../components/StepPane.jsx"; // TASKS.csv #4070 — the panes as steps
+import { elementCounts, quickCutoffs, shareAbove, shapeOf, shapeSettings, shellResult, stackResult } from "../../lib/paneSteps.js"; // TASKS.csv #4070
+import { computeMeshVolume } from "../../lib/volumetrics.js"; // TASKS.csv #4070 — the Result step's volume
 import { betaReferenceCounts } from "../../lib/coreOrientation.js"; // TASKS.csv #2055
 import { holeClusters, onlyTheseHoles } from "../../lib/holeClusters.js"; // TASKS.csv #2056
 import { groupOverlaps, groupOfCode, caseVariantGroups, subdivisionGroups } from "../../lib/lithoGroups.js"; // TASKS.csv #1685; caseVariantGroups: #2386; subdivisionGroups: #2928
@@ -426,8 +429,19 @@ export default function ModellingPanes(props) {
   const tracedHoles = useMemo(() => new Set((tracesRef?.current || []).filter((t) => t?.pts?.length >= 2).map((t) => t.hole_id)).size, [tracesSeq]); // #2053
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
   // the intervals whose numeric field is at or above a value (Silicification intensity >= 2)
-  const { customLayers: customLayersAll = [], layers: storeLayers = {}, geochemThresholds = [] /* #2689 */, project: storeProject /* #3116 */ } = useStore();
+  const { customLayers: customLayersAll = [], layers: storeLayers = {}, geochemThresholds = [] /* #2689 */, project: storeProject /* #3116 */, addVoxelModel /* #4070 */ } = useStore();
   const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers: customLayersAll, logValidRange: storeProject?.logValidRange /* #3116 */ }), [layers, customLayersAll, storeProject?.logValidRange]); // TASKS.csv #1741
+  // TASKS.csv #4070 — the Grade shell's steps: the elements by sample count (the rows the run reads: QC left out unless included, pXRF never) and
+  // the chosen element's or log's positive values in the holes the run uses, for its quick cut-offs and the share at or above the cut-off
+  const shellStep = useMemo(() => {
+    if (toolPane !== "shell") return null;
+    const rows = numericIncludeQAQC ? shellAreaAssays.filter((a) => a.source !== "pXRF") : excludeQAQC(shellAreaAssays);
+    const ns = findNumericSource(numericSymbol, { layers, customLayers: customLayersAll, logValidRange: storeProject?.logValidRange });
+    const base = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : null;
+    const src = ns ? (modelArea === "checked" ? restrictRowsToHoles(base, visibleHoles) : base) : rows;
+    const vals = src.map((a) => a.values?.[ns ? ns.symbol : numericSymbol]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
+    return { counts: elementCounts(rows, shellSymbols), vals, quick: quickCutoffs(vals) };
+  }, [toolPane, shellAreaAssays, shellSymbols, numericSymbol, numericIncludeQAQC, layers, customLayersAll, storeProject?.logValidRange, modelArea, visibleHoles]);
   const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
   const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
   // TASKS.csv #2540 (2) (review #2486, WA lithium) — the halo opened on an empty 'Alteration' layer: start on the first layer that has codes
@@ -514,11 +528,12 @@ export default function ModellingPanes(props) {
       return;
     }
     const s = stackIntent(it);
-    if (s.addAll) { setAddAllStart({ ...s.addAll }); setAddAllOpen(true); setTimeout(() => document.querySelector("[data-add-all]")?.scrollIntoView({ block: "nearest" }), 80); }
+    if (s.addAll) { requestStep("stack", "units"); /* #4070 — the step it is on */ setAddAllStart({ ...s.addAll }); setAddAllOpen(true); setTimeout(() => document.querySelector("[data-add-all]")?.scrollIntoView({ block: "nearest" }), 80); }
     if (s.faults) {
       const known = new Set((faultCandidates || []).map((c) => c.key));
       const add = s.faults.filter((k) => known.has(k) && !stackFaults.includes(k)).slice(0, Math.max(0, 6 - stackFaults.length));
       if (add.length) setStackFaults((p) => [...p, ...add.filter((k) => !p.includes(k))]);
+      requestStep("stack", "faults"); // #4070 — the Faults step
       setTimeout(() => { const el = document.querySelector("[data-stack-faults]"); el?.scrollIntoView({ block: "center" }); el?.nextElementSibling?.focus?.(); }, 80);
     }
   });
@@ -535,11 +550,17 @@ export default function ModellingPanes(props) {
   const areaClusters = useMemo(() => holeClusters(loggedInArea), [loggedInArea]);
   // TASKS.csv #3268 (review #3195, Galore Creek) — the note was only in Model settings, which the Simple ribbon hides: a first Run in Simple spanned
   // 9 clusters over 29 km unwarned. The same note, with its buttons, heads the Implicit surface and Strat. stack panes too.
-  const clusterNote = () => (areaClusters && areaClusters.clusters.length > 1 ? (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
+  const clusterBody = () => (areaClusters && areaClusters.clusters.length > 1 ? (<div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 6, lineHeight: 1.4 }}>{/* #2056 */}
           {(layers.litho || []).length ? tr("The {n} logged holes in the model area lie in {k} clusters over {g} m apart: one model would span the gaps between them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) : tr("The {n} holes in the model area lie in {k} clusters over {g} m apart: one model would span the gaps between them. Model one cluster at a time:", { n: loggedInArea.length, k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() }) /* #3606: no lithology logged, so not "logged holes" */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{areaClusters.clusters.slice(0, 6).map((c) => (
             <button key={c.ids[0]} type="button" title={c.ids.join(", ")} onClick={() => { setVisibleHoles(onlyTheseHoles(collars, c.ids)); setModelArea("checked"); setHoleFilter?.(""); }} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr(c.n === 1 ? "Around E {e}, N {nn} ({first})" : "Around E {e}, N {nn}: {n} holes over {s} km", { first: c.ids[0], n: c.n, e: Math.round(c.cx / 100) * 100, nn: Math.round(c.cy / 100) * 100, s: Math.max(0.1, c.spanM / 1000).toFixed(1) }) /* #2928 (3): a place, not one hole id */}</button>))}</div>
         </div>) : null);
+  // TASKS.csv #4070 — in a step pane, one line that opens to the note and its cluster buttons (the note took 60 words above the stack's steps)
+  const clusterNote = (compact = false) => {
+    const b = clusterBody();
+    return b && compact ? (<details style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6 }}><summary style={{ cursor: "pointer" }}>
+      {tr("{k} clusters of holes, over {g} m apart: model one at a time", { k: areaClusters.clusters.length, g: Math.round(areaClusters.gapM).toLocaleString() })}</summary>{b}</details>) : b;
+  };
   // TASKS.csv #1844 (review #1646, Kodiak) — a disabled GemPy Run button said only 'Runs in GeoStrix's Python engine…' (the status bar read
   // 'Py: idle', ready): its title now says first what is missing, or that a model is running
   const gempyTitle = (missing) => (implicitBusy ? tr("A model is already running.") : missing || tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"));
@@ -1015,14 +1036,17 @@ export default function ModellingPanes(props) {
 
         </>)}
         {toolPane === "stack" && (<>
-        {paneHeader("Stratigraphic stack", Layers, "model")}
-        {clusterNote() /* #3268 */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models several units' top contacts in one run so they cannot cross: add units below, youngest (shallowest) first. Model veins and dykes with the Vein / dyke tool.")}</div>
-        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}
-        {/* TASKS.csv #810 — the stack reads the same option; it had no checkbox, so drawn contacts were dropped unseen */}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
-          <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
-        </label>
+        {paneHeader("Stratigraphic stack", Layers, "model", true /* #4070 */)}
+        {(() => { /* TASKS.csv #4070 (Matt's layout C) — the stack as steps: 1 Units (youngest first), 2 Faults, 3 Method -> Run, 4 Result in numbers; the
+             explanations moved to the choices' tooltips and Help */
+          const sr = stackResult(implicitSurfaces), cake = stackMethod === "layercake", packages = stackBreaks.some((b) => stackUnits.slice(0, -1).includes(b));
+          const m = (x) => (x == null ? "—" : `${x} m`);
+          return (
+            <StepPane id="stack" label={tr("Stratigraphic stack")}
+              top={<>{clusterNote(true) /* #3268; one line (#4070) */}
+                {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the StrixViewer tab (Add layer › Lithology), or load the sample project."))}</>}
+              steps={[
+                { key: "units", label: tr("Units"), question: tr("Which units, youngest first?"), body: (<>
         {leftOutNote}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{/* #4022: wraps rather than squeeze the list to "Add a" */}
           <select aria-label={tr("Add a unit to the stack")} value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: "1 1 120px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
@@ -1100,8 +1124,9 @@ export default function ModellingPanes(props) {
           </Fragment>
           );
         })}
-        {/* TASKS.csv #360 — faults solved WITH the stack: contacts either side become offset blocks */}
-        <div data-stack-faults="" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Each fault is solved with the stack: contacts either side become offset blocks, not one surface ramped across it. Faults come from Structure planes, one per type and name.")}>{tr("Faults that offset the stack")}</div>
+                </>) },
+                { key: "faults", label: tr("Faults"), question: tr("Faults that offset it?"), hint: tr("Each fault is solved with the stack: contacts either side become offset blocks, not one surface ramped across it. Faults come from Structure planes, one per type and name.") /* #360 */, body: (<>
+                  <div data-stack-faults="" />{/* #4033: the Guide's door lands here and focuses the list below */}
         <select value="" onChange={(e) => { const k = e.target.value; if (k && !stackFaults.includes(k) && stackFaults.length < 6) setStackFaults((p) => [...p, k]); }} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label={tr("Add a fault that offsets the stack")}>
           <option value="">{faultCandidates.length ? tr("Add a fault…") : tr("No structure picks with dip / dip direction")}</option>
           {/* TASKS.csv #1225 — bedding and fractures are not faults: apart, for a geologist who knows a code the name does not show */}
@@ -1138,39 +1163,38 @@ export default function ModellingPanes(props) {
           );
         })}
         {stackFaults.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Each fault runs through the whole model box (GemPy cannot end a fault where its picks stop). By default a fault offsets every unit and no other fault.")}</div>}
-        {/* TASKS.csv #2905 — the method: GemPy, or a layer-cake for a flat-lying pile (Matt's decision 2026-11-12) */}
-        <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }}>{tr("Method")}
-          <select value={stackMethod} onChange={(e) => setStackMethod(e.target.value)} aria-label={tr("Stack method")} style={{ display: "block", width: "100%", marginTop: 2, fontSize: "var(--font-size-sm)" }}>
-            <option value="gempy">{tr("GemPy (implicit) — folded or steep ground")}</option>
-            <option value="layercake">{tr("Layer-cake (flat-lying) — tops as elevation grids, kept in order")}</option>
-          </select>
+                </>) },
+                { key: "method", label: tr("Method"), question: tr("How do the units lie?"), body: (<>{/* TASKS.csv #2905 — GemPy, or a layer-cake for a flat-lying pile (Matt's decision 2026-11-12) */}
+                  <StepChoices label={tr("Stack method")} value={stackMethod} onChange={setStackMethod} columns={2} options={[
+                    { value: "gempy", label: tr("Folded or steep"), title: tr("GemPy (implicit) — folded or steep ground") },
+                    { value: "layercake", label: tr("Flat-lying"), title: `${tr("Layer-cake (flat-lying) — tops as elevation grids, kept in order")} ${tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness, so tops never cross. An unconformity starts a new layer-cake. A fault in the stack splits it into fault blocks, each a layer-cake of its own.")}` },
+                  ]} />
+                  {!cake && packages && <div style={{ fontSize: "var(--font-size-sm)", marginTop: 6 }} title={tr("Packages: units between unconformities stay parallel and each package truncates those below; a unit missing inside a package cannot pinch out. Surfaces flatten past their contacts: compare the predicted map with yours.")}>{tr("Packages between unconformities")}</div>}
+                  {!cake && !packages && (<>
+                    <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, margin: "8px 0 4px" }} title={tr("Erode: each younger unit truncates everything below, and a unit missing in a hole pinches out there. Conformable: one shared field, so surfaces stay parallel and every unit keeps a thickness.")}>{tr("Unit relationship")}</div>
+                    <StepChoices label={tr("Unit relationship")} value={stackRelation} onChange={setStackRelation} columns={2} options={[
+                      { value: "erode", label: tr("Erode"), title: `${tr("Erode — younger units truncate older (unconformity)")} ${tr("Erosional: each unit truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it cuts contacts that should drape.")}` },
+                      { value: "onlap", label: tr("Conformable"), title: `${tr("Conformable — one shared field (units keep a thickness everywhere, cannot pinch out)")} ${tr("Conformable: one shared field, so surfaces stay parallel and never cross. A unit missing in some holes cannot pinch out: use Erode for discontinuous units.")}}` },
+                    ]} />
+                  </>)}
+                </>) },
+              ]}
+              action={{ label: implicitBusy ? tr("Running…") : tr(stackUnits.length === 1 ? "Run stack ({n} unit)" : "Run stack ({n} units)", { n: stackUnits.length }), onClick: () => runStackModel(stackUnits, { method: stackMethod }),
+                disabled: stackUnits.length < 2 || implicitBusy, icon: <Layers3 size={14} />, title: gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : stackUnits.length < 2 ? tr("Choose at least two units for the stack first.") : null) }}
+              result={{ key: sr?.runId ?? null, body: sr && <StepNumbers rows={[
+                { label: tr("Surfaces"), value: sr.n.toLocaleString(), title: sr.names.join(", ") },
+                { label: tr("Typical miss"), value: m(sr.typicalMissM), title: tr("How far the surfaces pass from the logged contacts, typically") },
+                { label: tr("Worst miss"), value: m(sr.worstMissM) },
+                sr.left ? { label: tr("Contacts left out"), value: `${sr.left.toLocaleString()} / ${sr.of.toLocaleString()}`, level: "some" } : null,
+              ]} /> }}
+              fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="stack">
+        {/* TASKS.csv #810 — the stack reads the same option; it had no checkbox, so drawn contacts were dropped unseen */}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
+          <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
         </label>
-        {stackMethod === "layercake" ? (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
-            {tr("Layer-cake: the first top is an elevation grid through its picks, and each lower top is the one above minus the unit's thickness, so tops never cross. An unconformity starts a new layer-cake. A fault in the stack splits it into fault blocks, each a layer-cake of its own.")}
-          </div>
-        ) : stackBreaks.some((b) => stackUnits.slice(0, -1).includes(b)) ? (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0", lineHeight: 1.45 }}>{tr("Packages: units between unconformities stay parallel and each package truncates those below; a unit missing inside a package cannot pinch out. Surfaces flatten past their contacts: compare the predicted map with yours.")}</div>
-        ) : (<>
-        <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Erode: each younger unit truncates everything below, and a unit missing in a hole pinches out there. Conformable: one shared field, so surfaces stay parallel and every unit keeps a thickness.")}>{tr("Unit relationship")}<select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
-            <option value="erode">{tr("Erode — younger units truncate older (unconformity)")}</option>
-            <option value="onlap">{tr("Conformable — one shared field (units keep a thickness everywhere, cannot pinch out)")}</option>
-          </select>
-        </label>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
-          {stackRelation === "erode"
-            ? tr("Erosional: each unit truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it cuts contacts that should drape.")
-            : tr("Conformable: one shared field, so surfaces stay parallel and never cross. A unit missing in some holes cannot pinch out: use Erode for discontinuous units.")}
-        </div>
-        </>)}
-        <button
-          onClick={() => runStackModel(stackUnits, { method: stackMethod })}
-          disabled={stackUnits.length < 2 || implicitBusy}
-          title={gempyTitle(!collars.length ? tr("No holes with collars yet: import collars first.") : stackUnits.length < 2 ? tr("Choose at least two units for the stack first.") : null)}
-          className="gs-btn gs-btn--block" style={{ marginTop: 4, opacity: stackUnits.length >= 2 && !implicitBusy ? 1 : 0.5, cursor: stackUnits.length >= 2 && !implicitBusy ? "pointer" : "default" }}
-        ><Layers3 size={14} /> {implicitBusy ? tr("Running…") : tr(stackUnits.length === 1 ? "Run stack ({n} unit)" : "Run stack ({n} units)", { n: stackUnits.length })}</button>
-
-
+              </MoreFold>} />
+          );
+        })()}
         </>)}
         {toolPane === "faults" && (<>{/* TASKS.csv #4006 — every fault tool in one pane; it reads the props this component already has */}
         {paneHeader("Faults", SquareSplitVertical, "model")}
@@ -1330,16 +1354,107 @@ export default function ModellingPanes(props) {
             Generated surfaces list below like any GemPy surface. */}
         </>)}
         {toolPane === "shell" && (<>
-        {paneHeader("Grade shell", Gem, "model")}
-        {/* TASKS.csv #269 — standing, unmissable framing. The QP review's explicit recommendation was
-            NOT to add a Measured/Indicated/Inferred classifier (that is a QP's professional judgement,
-            and deriving a regulatory label from a search radius would launder a parameter choice into
-            a regulatory term). The real live risk is the opposite one: the app emitted confident
-            tonnages with zero classification context. This is the fix — framing, not features.
-            TASKS.csv #674 — it said "no anisotropy", untrue since #650 lets the shell follow a structural trend. */}
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
-          <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("An interpolated envelope to visualize and target mineralization, with no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC; do not report it publicly as one.")}</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Builds a wireframe of everything at or above a cutoff grade.")}</div>
+        {paneHeader("Grade shell", Gem, "model", true /* #4070 — the run's messages as one line, the whole text one click away */)}
+        {(() => {
+          const symbols = shellSymbols; // #1744 — lab elements only
+          const numSrc = findNumericSource(numericSymbol, { layers, customLayers: customLayersAll }); // #1741 — a downhole log or a numeric layer field
+          const sym = numericSymbol || symbols[0] || numericSources[0]?.key || "";
+          const unit = numSrc ? numSrc.unit : (assayElements.find((e) => e.symbol === sym)?.unit || "ppm");
+          const canRun = (symbols.length > 0 || numericSources.length > 0) && collars.length > 0 && !numericBusy && Number.isFinite(numericCutoff);
+          // TASKS.csv #4070 (Matt's layout C, 2026-11-24) — the pane as steps: 1 Element (by sample count), 2 Cut-off (P90 suggested, quick values, the
+          // share above), 3 Shape -> Generate, 4 Result in numbers; every other setting, as it was, in Fine-tune. The explanations are in Help.
+          // TASKS.csv #1736 (review #1645, Copley) — a cap and a cutoff belong to their element: Au's 0.078 cap and Cu's 1000 cutoff were kept
+          // across a switch. The cap is cleared; the cutoff is proposed as the new element's P90 of lab assays (pXRF left out).
+          const pickElement = (next) => {
+            setNumericSymbol(next); setNumericCapValue(NaN); shellCapAuto.current = { symbol: null, value: null }; /* #3650 — a pick is never an emptied box */ if (!findNumericSource(next, { layers, customLayers: customLayersAll })) rememberElement("gradeShell", next); // #2552
+            proposeShellCutoff(next); // #3272 — the holes the run uses; logValidRange (#3116) is applied inside
+          };
+          const cutUnit = PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit;
+          const top = (shellStep?.counts || []).filter((c) => c.n > 0).slice(0, 5), rest = symbols.filter((s) => !top.some((c) => c.symbol === s));
+          const above = shareAbove(shellStep?.vals, numericCutoff), quick = shellStep?.quick;
+          const gt = trendFor("gradeShell"), flatOn = Number(numericFlatReach) > 0;
+          const setShape = (k) => { const s = shapeSettings(k); setShellMode(s.shellMode); if (s.planeSearch != null) setShellPlaneSearch(s.planeSearch); };
+          const lastShell = [...implicitSurfaces].reverse().find((s) => s.params?.tool === "numeric grade shell");
+          const lastMesh = lastShell ? implicitMeshesRef.current?.[lastShell.id] : null;
+          const res = lastShell ? shellResult(lastShell, (() => { try { return lastMesh?.geometry ? computeMeshVolume(lastMesh.geometry) : null; } catch { return null; } })()) : null;
+          const pct = (x) => `${Math.round(100 * x)} %`;
+          const addShellBlocks = async () => { // the last shell's own cells as a block model, as the AI tool add_grade_shell_blocks does (#3932)
+            const C = await import("../../lib/lastShellCells.js");
+            const r = C.shellBlockModel(C.lastShellCells(), { surfaces: implicitSurfaces });
+            if (!r.ok) { setNotices((p) => [...p, errorNotice(r.error)]); return; }
+            addVoxelModel(r.model);
+            setNotices((p) => [...p, tr("Added \"{name}\" as a block model ({n} blocks).", { name: r.model.name, n: r.cells.toLocaleString() })]);
+          };
+          return (
+            <StepPane id="shell" label={tr("Grade shell")}
+              top={<div role="note" title={tr("An interpolated envelope to visualize and target mineralization, with no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC; do not report it publicly as one.")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6 }}><strong>{tr("Not a resource estimate.")}</strong>{/* TASKS.csv #269 — framing, not features; one line now (#4070), the rest in its tooltip and Help */}</div>}
+              steps={[
+                { key: "element", label: tr("Element"), question: tr("Which element?"), body: (<>
+                  {top.length > 0 && <StepChoices label={tr("Element")} value={sym} onChange={pickElement} options={top.map((c) => ({ value: c.symbol, label: `${c.symbol} (${gradeUnitLabel(c.symbol, assayElements.find((e) => e.symbol === c.symbol)?.unit || "ppm")})`, sub: c.n.toLocaleString(), title: tr("{n} samples in the holes the shell uses", { n: c.n.toLocaleString() }) }))} />}
+                  {(rest.length > 0 || numericSources.length > 0 || !top.length) && (
+                    <select value={top.some((c) => c.symbol === sym) ? "" : sym} onChange={(e) => { if (e.target.value) pickElement(e.target.value); }} aria-label={tr("Other element or log")} title={tr("Assay element, downhole log or numeric layer field to model")} style={{ ...smallSel, width: "100%", marginTop: 4 }} disabled={!symbols.length && !numericSources.length}>
+                      {top.length > 0 && <option value="">{tr("Other…")}</option>}
+                      {symbols.length === 0 && numericSources.length === 0 && <option value="">{tr("— no assays —")}</option>}
+                      {rest.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, assayElements.find((e) => e.symbol === s)?.unit || "ppm")})</option>)}{/* #2218 */}
+                      {numericSources.length > 0 && <optgroup label={tr("Downhole logs and numeric layers")}>{numericSources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.unitLabel || s.unit})</option>)}</optgroup>}{/* #1741 */}
+                    </select>)}
+                  {numSrc && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }} title={numSrc.logScale ? tr("{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.", { label: numSrc.label, n: numSrc.n.toLocaleString() }) : tr("{label}: {n} readings, values as logged; the cutoff is in the same units.", { label: numSrc.label, n: numSrc.n.toLocaleString() })}>{tr("{n} readings", { n: numSrc.n.toLocaleString() })}</div>}{/* #1741 */}
+                </>) },
+                { key: "cutoff", label: tr("Cut-off"), question: tr("Shell above what grade?"), hint: shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value ? (shellCutoffAuto.floor ? tr("Cutoff {v}: the 90th percentile of the {symbol} values above the detection floor, since {pct}% of the {n} values are the half-limit {floor}. Type your own.", { v: shellCutoffAuto.value, pct: Math.round(shellCutoffAuto.floor.share * 100), n: shellCutoffAuto.n.toLocaleString(), floor: shellCutoffAuto.floor.value, symbol: sym }) /* #3788 */ : shellCutoffAuto.onOpen ? tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym }) : tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })) : undefined /* #3025 (6); onOpen: #3272 */, body: (<>
+                  <label style={{ ...miniField, display: "block", marginBottom: 6 }} title={tr("Iso-value: the shell encloses every interpolated cell at or above this grade.{v}", { v: PRECIOUS_METALS.has(sym) && unit === "ppm" ? tr(" Displayed as g/t; stored as ppm — numerically identical for a solid (1 g/t = 1 ppm).") : "" })}>{tr("Cutoff ({unit})", { unit: cutUnit })}
+                  <NumberInput allowEmpty value={Number.isFinite(numericCutoff) ? numericCutoff : null} onChange={(v) => setNumericCutoff(v == null ? NaN : v)} style={{ ...smallSel, width: "100%" }} />
+                </label>
+                  {quick && <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>{[["P75", quick.p75], ["P90", quick.p90], ["P95", quick.p95]].map(([k, v]) => (
+                    <button key={k} type="button" className="gs-btn gs-btn--sm" aria-pressed={numericCutoff === v} onClick={() => setNumericCutoff(v)} title={k === "P90" ? tr("Suggested: the 90th percentile of the samples") : undefined}
+                      style={{ fontWeight: numericCutoff === v ? 600 : 400, borderColor: numericCutoff === v ? "var(--btn-primary-border)" : undefined }}>{`${k} ${v}`}</button>))}</div>}
+                  {above != null && <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("{p} of the samples at or above", { p: pct(above) })}</div>}
+              {!numSrc && cutoffPct(numericCutoff, sym, unit) != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("{v} ppm {symbol} is {p} %.", { v: numericCutoff.toLocaleString(), symbol: sym, p: +cutoffPct(numericCutoff, sym, unit).toPrecision(4) })}</div>}{/* #3272 */}
+              {!numSrc && (() => { const offers = drillThresholdOffers(geochemThresholds, sym, unit).slice(0, 4); return offers.length ? ( /* TASKS.csv #2689 (#2675 part 2) — saved drill thresholds offered as shell levels, never applied */
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center", marginBottom: 6 }}>
+                  <span>{tr("Saved threshold:")}</span>
+                  {offers.map((o) => <button key={o.key} type="button" onClick={() => setNumericCutoff(o.value)} className="gs-btn gs-btn--sm" style={{ cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the shell level.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
+                </div>) : null; })()}
+              <ShellCapNote assays={shellAreaAssays /* #3272 — the holes the run uses */} symbol={sym} unit={unit} assayElements={assayElements} includeQAQC={numericIncludeQAQC} isAssay={!numSrc && symbols.includes(sym)} capValue={numericCapValue} setCapValue={setNumericCapValue} autoRef={shellCapAuto /* #3272 */} cutoff={numericCutoff /* #3781 */} />{/* #2222 */}
+                </>) },
+                { key: "shape", label: tr("Shape"), question: tr("What shape?"), body: (<>
+                  {gt || flatOn ? <div style={{ fontSize: "var(--font-size-sm)" }}>{gt ? tr("Along the trend \"{name}\" (Model settings)", { name: gt.name }) : tr("A flat search (Fine-tune)")}</div>
+                    : <StepChoices label={tr("Shape")} value={shapeOf(shellMode, shellPlaneSearch)} onChange={setShape} columns={3} options={[
+                      { value: "tight", label: tr("Tight"), title: tr("Follows the composites closely, in a sphere around each") },
+                      { value: "smooth", label: tr("Smooth"), title: tr("An envelope: one or a few smooth bodies that keep the dilution between good intervals") },
+                      { value: "trend", label: tr("Along a trend"), title: tr("Tight, searched along the plane of the composites at the cut-off") },
+                    ]} />}
+                  {shellMode === "auto" && !gt && !flatOn && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Now: Automatic (Fine-tune)")}</div>}
+              {numericBudgetHint && !numericBudgetHint.advice && numericBudgetHint.needed > 0 && ( /* #3651 — not a 'ran at' note */
+                <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("At {cell} m cells this extent needs {needed} blocks — over the {budget}-block budget.", { cell: numericBudgetHint.cell, needed: numericBudgetHint.needed.toLocaleString(), budget: numericBudgetHint.budget.toLocaleString() })}<div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Use {n} m cells", { n: numericBudgetHint.fit })}</button>
+                    {numericBudgetHint.budget < (numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) && (
+                      <button type="button" onClick={() => { setNumericMaxBlocks(numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) /* #3581: the largest this computer allows */; setNumericCellSize(numericBudgetHint.fitMax); setNumericBudgetHint(null); }} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Largest budget + {n} m cells", { n: numericBudgetHint.fitMax })}</button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {/* TASKS.csv #292 — warn before the work, not after (pattern from #209). */}
+              {!(numericSearchRadius > 0) && (
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("Set a real search radius: without one, every cell is estimated from the whole dataset and the run can take a minute or more (its progress and Cancel are in the status bar).")}</div>
+              )}
+                </>) },
+              ]}
+              action={{ label: numericBusy ? tr("Running…") : (sym ? tr("Generate {el} shell", { el: numSrc ? numSrc.label : sym }) : tr("Generate grade shell")), onClick: runNumericModel, disabled: !canRun, icon: <Shapes size={14} />,
+                title: symbols.length || numericSources.length ? (collars.length ? tr("Interpolate grades onto a grid and extract the cutoff iso-surface") : tr("Load collars first")) : tr("Import assays first") }}
+              result={{ key: lastShell?.id ?? null, body: res && (<>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>{lastShell.name}</div>
+                <StepNumbers rows={[
+                  { label: tr("Volume"), value: res.volumeM3 != null ? `${Math.round(res.volumeM3).toLocaleString()} m³` : tr("open"), title: res.open ? tr("The shell stays open where the data runs out, so it has no volume (Fine-tune: close it)") : undefined },
+                  res.above ? { label: tr("Composites inside"), value: `${res.inside.toLocaleString()} / ${res.above.toLocaleString()}`, level: res.insideLow ? "high" : null, title: tr("Composites at or above the cut-off that the shell holds") } : null,
+                  res.beyond != null ? { label: tr("Beyond the drilling"), value: pct(res.beyond), level: res.beyondLevel === "low" ? null : res.beyondLevel, title: tr("Share of its volume over one hole spacing from any sample") } : null,
+                  res.interpolated != null ? { label: tr("Surface interpolated"), value: pct(res.interpolated), level: res.interpolated < 0.5 ? "some" : null, title: tr("Share of its surface bracketed by samples from two or more holes") } : null,
+                ]} />
+                <button type="button" className="gs-btn gs-btn--sm" onClick={addShellBlocks} style={{ marginBottom: 6 }}>{tr("Add as block model")}</button>
+              <DomainUpdateSection ctx={{ implicitSurfaces, implicitMeshesRef, implicitGroupRef, originRef, setImplicitSurfaces, setNotices, assays, assayElements, collars, survey, desurveyMethod, numericIncludeQAQC, numericCompositeLength, numericMinCoverage, numericCellSize, numericMaxBlocks }}
+                symbol={sym} cutoff={numericCutoff} iso={shellEnvIso} isAssay={!numSrc && symbols.includes(sym)} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4, marginBottom: 8, fontSize: "var(--font-size-sm)" }}
+                fieldStyle={miniField} selectStyle={smallSel} buttonStyle={{ ...pBtn, marginBottom: 0 }} />{/* TASKS.csv #3673 phase 2 */}
+              </>) }}
+              fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="shell">
         {/* TASKS.csv #3939 — the method and what it honours, behind a closed More */}
         <MoreFold style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Interpolation onto a grid (by the method chosen below), then an iso-surface at the cutoff. Runs in-app, no Python engine.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
               shared search-ellipsoid/anisotropy/domain machinery. The domain and the anisotropy trend
@@ -1347,42 +1462,6 @@ export default function ModellingPanes(props) {
               filter deliberately still isn't, and the panel says so instead of leaving the difference
               for the user to discover. */}
           {" "}{tx("It honours the model domain and the structural trend chosen for grade shells (Model settings → Structural trends). It does {not} apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported contact picks, and dropping isolated assays would delete grade rather than improve the shell.", { not: <strong>{tr("not")}</strong> })}</MoreFold>
-        {(() => {
-          const symbols = shellSymbols; // #1744 — lab elements only
-          const numSrc = findNumericSource(numericSymbol, { layers, customLayers: customLayersAll }); // #1741 — a downhole log or a numeric layer field
-          const sym = numericSymbol || symbols[0] || numericSources[0]?.key || "";
-          const unit = numSrc ? numSrc.unit : (assayElements.find((e) => e.symbol === sym)?.unit || "ppm");
-          const canRun = (symbols.length > 0 || numericSources.length > 0) && collars.length > 0 && !numericBusy && Number.isFinite(numericCutoff);
-          return (
-            <>
-              <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <label style={{ ...miniField }} title={tr("Assay element, downhole log or numeric layer field to model")}>{tr("Element")}<select value={sym} onChange={(e) => {
-                    // TASKS.csv #1736 (review #1645, Copley) — a cap and a cutoff belong to their element: Au's 0.078 cap and Cu's 1000 cutoff were kept
-                    // across a switch. The cap is cleared; the cutoff is proposed as the new element's P90 of lab assays (pXRF left out).
-                    const next = e.target.value;
-                    setNumericSymbol(next); setNumericCapValue(NaN); shellCapAuto.current = { symbol: null, value: null }; /* #3650 — a pick is never an emptied box */ if (!findNumericSource(next, { layers, customLayers: customLayersAll })) rememberElement("gradeShell", next); // #2552
-                    proposeShellCutoff(next); // #3272 — the holes the run uses; logValidRange (#3116) is applied inside
-                  }} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length && !numericSources.length}>
-                    {symbols.length === 0 && numericSources.length === 0 && <option value="">{tr("— no assays —")}</option>}
-                    {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, assayElements.find((e) => e.symbol === s)?.unit || "ppm")})</option>)}{/* #2218 */}
-                    {numericSources.length > 0 && <optgroup label={tr("Downhole logs and numeric layers")}>{numericSources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.unitLabel || s.unit})</option>)}</optgroup>}{/* #1741 */}
-                  </select>
-                </label>
-                {/* TASKS.csv #270 (LOW-1) — every geologist and every press release says g/t, never ppm.
-                    Numerically identical for a solid, but a cutoff typo of one order of magnitude is a
-                    real risk, so show the unit the user actually thinks in and keep ppm in the tooltip. */}
-                <label style={{ ...miniField }} title={tr("Iso-value: the shell encloses every interpolated cell at or above this grade.{v}", { v: PRECIOUS_METALS.has(sym) && unit === "ppm" ? tr(" Displayed as g/t; stored as ppm — numerically identical for a solid (1 g/t = 1 ppm).") : "" })}>{tr("Cutoff ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
-                  <NumberInput allowEmpty value={Number.isFinite(numericCutoff) ? numericCutoff : null} onChange={(v) => setNumericCutoff(v == null ? NaN : v)} style={{ ...smallSel, width: "100%" }} />
-                </label>
-              </div>
-              {shellCutoffAuto && shellCutoffAuto.symbol === sym && numericCutoff === shellCutoffAuto.value && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{shellCutoffAuto.floor ? tr("Cutoff {v}: the 90th percentile of the {symbol} values above the detection floor, since {pct}% of the {n} values are the half-limit {floor}. Type your own.", { v: shellCutoffAuto.value, pct: Math.round(shellCutoffAuto.floor.share * 100), n: shellCutoffAuto.n.toLocaleString(), floor: shellCutoffAuto.floor.value, symbol: sym }) /* #3788 */ : shellCutoffAuto.onOpen ? tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values in the holes the shell uses, proposed for the element it opened on. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym }) : tr("Cutoff {v}: the 90th percentile of the {n} {symbol} values, proposed when {symbol} was chosen. Type your own.", { v: shellCutoffAuto.value, n: shellCutoffAuto.n.toLocaleString(), symbol: sym })}</div>}{/* #3025 (6); onOpen: #3272 */}
-              {!numSrc && cutoffPct(numericCutoff, sym, unit) != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("{v} ppm {symbol} is {p} %.", { v: numericCutoff.toLocaleString(), symbol: sym, p: +cutoffPct(numericCutoff, sym, unit).toPrecision(4) })}</div>}{/* #3272 */}
-              {!numSrc && (() => { const offers = drillThresholdOffers(geochemThresholds, sym, unit).slice(0, 4); return offers.length ? ( /* TASKS.csv #2689 (#2675 part 2) — saved drill thresholds offered as shell levels, never applied */
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", alignItems: "center", marginBottom: 6 }}>
-                  <span>{tr("Saved threshold:")}</span>
-                  {offers.map((o) => <button key={o.key} type="button" onClick={() => setNumericCutoff(o.value)} className="gs-btn gs-btn--sm" style={{ cursor: "pointer", padding: "1px 6px" }} title={tr("{rule}{pop}, decided {date}. Click to use it as the shell level.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+Number(o.value).toPrecision(4)}</button>)}
-                </div>) : null; })()}
-              {numSrc && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{numSrc.logScale ? tr("{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.", { label: numSrc.label, n: numSrc.n.toLocaleString() }) : tr("{label}: {n} readings, values as logged; the cutoff is in the same units.", { label: numSrc.label, n: numSrc.n.toLocaleString() })}</div>}{/* #1741 */}
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                 <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{numericCellHeight > 0 && !trendFor("gradeShell") ? tr("Cell E × N (m)") : tr("Cell (m)")}<NumberInput min="0.5" value={numericCellSize} onChange={(v) => { setNumericCellSize(v); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
@@ -1492,7 +1571,6 @@ export default function ModellingPanes(props) {
                 <label style={{ ...miniField }} title={tr("A cell is estimated only if samples from at least this many different holes fall within its search radius. 1 lets a single hole fill a whole sphere; 2 or 3 is usual.")}>{tr("Min holes")}<NumberInput min="1" step="1" value={numericMinHoles} onChange={(v) => setNumericMinHoles(Math.round(v))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
-              <ShellCapNote assays={shellAreaAssays /* #3272 — the holes the run uses */} symbol={sym} unit={unit} assayElements={assayElements} includeQAQC={numericIncludeQAQC} isAssay={!numSrc && symbols.includes(sym)} capValue={numericCapValue} setCapValue={setNumericCapValue} autoRef={shellCapAuto /* #3272 */} cutoff={numericCutoff /* #3781 */} />{/* #2222 */}
               {/* TASKS.csv #266 — QC inserts were excluded from Best Intercepts / Compositing / Grade
                   Statistics but reached the grade shell unfiltered. */}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("QC samples (standards, blanks, duplicates, found by hole_id naming) are left out by default, as in the other grade panels; otherwise a field duplicate counts twice.")}>
@@ -1527,29 +1605,7 @@ export default function ModellingPanes(props) {
                   </div>
                 </div>
               )}
-              {numericBudgetHint && !numericBudgetHint.advice && numericBudgetHint.needed > 0 && ( /* #3651 — not a 'ran at' note */
-                <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("At {cell} m cells this extent needs {needed} blocks — over the {budget}-block budget.", { cell: numericBudgetHint.cell, needed: numericBudgetHint.needed.toLocaleString(), budget: numericBudgetHint.budget.toLocaleString() })}<div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Use {n} m cells", { n: numericBudgetHint.fit })}</button>
-                    {numericBudgetHint.budget < (numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) && (
-                      <button type="button" onClick={() => { setNumericMaxBlocks(numericBudgetHint.maxBudget || BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]) /* #3581: the largest this computer allows */; setNumericCellSize(numericBudgetHint.fitMax); setNumericBudgetHint(null); }} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Largest budget + {n} m cells", { n: numericBudgetHint.fitMax })}</button>
-                    )}
-                  </div>
-                </div>
-              )}
-              {/* TASKS.csv #292 — warn before the work, not after (pattern from #209). */}
-              {!(numericSearchRadius > 0) && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("Set a real search radius: without one, every cell is estimated from the whole dataset and the run can take a minute or more (its progress and Cancel are in the status bar).")}</div>
-              )}
-              <button
-                onClick={runNumericModel}
-                disabled={!canRun}
-                title={symbols.length || numericSources.length ? (collars.length ? tr("Interpolate grades onto a grid and extract the cutoff iso-surface") : tr("Load collars first")) : tr("Import assays first")}
-                className="gs-btn gs-btn--block" style={{ marginBottom: 8, opacity: canRun ? 1 : 0.5, cursor: canRun ? "pointer" : "default" }}
-              ><Shapes size={14} /> {numericBusy ? tr("Running…") : (sym ? tr("Generate {el} shell", { el: numSrc ? numSrc.label : sym }) : tr("Generate grade shell"))}</button>
-              <DomainUpdateSection ctx={{ implicitSurfaces, implicitMeshesRef, implicitGroupRef, originRef, setImplicitSurfaces, setNotices, assays, assayElements, collars, survey, desurveyMethod, numericIncludeQAQC, numericCompositeLength, numericMinCoverage, numericCellSize, numericMaxBlocks }}
-                symbol={sym} cutoff={numericCutoff} iso={shellEnvIso} isAssay={!numSrc && symbols.includes(sym)} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4, marginBottom: 8, fontSize: "var(--font-size-sm)" }}
-                fieldStyle={miniField} selectStyle={smallSel} buttonStyle={{ ...pBtn, marginBottom: 0 }} />{/* TASKS.csv #3673 phase 2 */}
-            </>
+              </MoreFold>} />
           );
         })()}
 

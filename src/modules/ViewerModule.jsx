@@ -1139,7 +1139,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const surfaceTopRef = useRef(false); // TASKS.csv #3046 (4) — a map reads north up: the tab's first visit opens in Top view (as the Top button)
   useEffect(() => { if (mode !== "surface" || surfaceTopRef.current || !camState.current || !cameraRef.current?.__update) return; surfaceTopRef.current = true; camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }, [mode]);
   const paneProps = (id) => ({ active: toolPane === id, expanded: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) }); // expanded: #595
-  const paneHeader = (title, icon, tone) => <><TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} /><PaneNotice key={toolPane} notices={notices} /></>; // #1602
+  const paneHeader = (title, icon, tone, compact) => <><TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} /><PaneNotice key={toolPane} notices={notices} compact={compact} /></>; // #1602; compact: the step panes (#4070)
   // TASKS.csv #572 — a modelling pane with nothing to model says what to load, instead of an empty "Choose…" select
   const emptyPaneHint = (text) => <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", marginBottom: 8, lineHeight: 1.4 }}>{text}</div>;
   // TASKS.csv #155 — QGIS-style toolbar (view mode only, this pass): which of the Grid/Themes

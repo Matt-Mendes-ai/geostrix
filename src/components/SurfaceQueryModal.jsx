@@ -170,7 +170,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
         </div>
 
         {!surfaces.length ? (
-          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>{tr("No generated surfaces yet. Build one with the implicit-modelling tools on the Modelling tab (a lithology contact, an alteration or grade shell, a fault) and it appears here.")}</div>
+          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>{tr("No generated surfaces yet: build one in 3D Modelling.")}</div>
         ) : (
           <>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
