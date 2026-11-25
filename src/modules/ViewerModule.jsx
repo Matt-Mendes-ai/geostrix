@@ -6890,34 +6890,26 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <Suspense fallback={null}><UndrilledZonesPane solids={closedShellsForEstimation()} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ /></Suspense>
         )}
         {toolPane === "plan" && (<>
-        {paneHeader("Planned drillholes", Target, "model")}
-        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>{tr("Planned drillholes ({n})", { n: plannedHoles.length })}</span>
-          {plannedHoles.length > 0 && (
-            <FileBarChart2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => exportPlannedHoles("csv"), tr("Export all planned holes to CSV"))} />
-          )}
-        </div>
-        <PlannedHoleAddForm presetTarget={planTarget} noTerrain={!terrain} groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null} /* #1835 */ onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} surfaces={pierceSurfaces} /* #3962 */ collars={collars} epsg={project?.epsg} survey={survey} />
-        {plannedHoles.length === 0 ? (
-          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("No planned holes yet: add a collar position and design orientation above. A planned hole is a dashed orange line, in 3D, on sections, plans and the rig KML.")}</div>
-        ) : (
-          <div style={{ marginTop: 8 }}>
-            {plannedHoles.map((hole) => (
-              <PlannedHoleRow key={hole.id} hole={hole} onUpdate={updatePlannedHole} onRemove={removePlannedHole} collars={collars} survey={survey} />
-            ))}
-          </div>
-        )}
-        {plannedHoles.length > 0 && (<>
-          <button onClick={() => exportPlannedHoles("csv")} className="gs-btn gs-btn--block" style={{ marginTop: 8 }} title={tr("Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north (today's declination)")}><FileBarChart2 size={14} />{" "}{tr(plannedHoles.length === 1 ? "Export {n} planned hole to CSV" : "Export {n} planned holes to CSV", { n: plannedHoles.length })}</button>
-          {/* TASKS.csv #397 */}
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => exportPlannedHoles("kml")} className="gs-btn gs-btn--block" style={{ flex: 1, justifyContent: "center" }} title={tr("Google Earth / phone maps: collars and collar-to-toe lines")}>{tr("KML")}</button>
-            <button onClick={() => exportPlannedHoles("gpx")} className="gs-btn gs-btn--block" style={{ flex: 1, justifyContent: "center" }} title={tr("Handheld GPS: collar waypoints")}>{tr("GPX")}</button>
-          </div>
-        </>)}
-        {plannedHoles.length > 0 && (
-          <PlannedHoleChecks plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} surfaces={pierceSurfaces} onExportPierces={exportPiercePoints} />
-        )}
+        {paneHeader("Planned drillholes", Target, "model", true /* #4070 part 3: the form is a StepPane (components/PlannedHoleParts.jsx): Collar, Direction, the holes */)}
+        <PlannedHoleAddForm presetTarget={planTarget} noTerrain={!terrain} groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null} /* #1835 */ onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} surfaces={pierceSurfaces} /* #3962 */ collars={collars} epsg={project?.epsg} survey={survey}
+          resultBody={<>
+            <div style={{ marginTop: 2 }}>
+              {plannedHoles.map((hole) => (
+                <PlannedHoleRow key={hole.id} hole={hole} onUpdate={updatePlannedHole} onRemove={removePlannedHole} collars={collars} survey={survey} />
+              ))}
+            </div>
+            {plannedHoles.length > 0 && (<>
+              <button onClick={() => exportPlannedHoles("csv")} className="gs-btn gs-btn--block" style={{ marginTop: 8 }} title={tr("Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north (today's declination)")}><FileBarChart2 size={14} />{" "}{tr(plannedHoles.length === 1 ? "Export {n} planned hole to CSV" : "Export {n} planned holes to CSV", { n: plannedHoles.length })}</button>
+              {/* TASKS.csv #397 */}
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => exportPlannedHoles("kml")} className="gs-btn gs-btn--block" style={{ flex: 1, justifyContent: "center" }} title={tr("Google Earth / phone maps: collars and collar-to-toe lines")}>{tr("KML")}</button>
+                <button onClick={() => exportPlannedHoles("gpx")} className="gs-btn gs-btn--block" style={{ flex: 1, justifyContent: "center" }} title={tr("Handheld GPS: collar waypoints")}>{tr("GPX")}</button>
+              </div>
+            </>)}
+            {plannedHoles.length > 0 && (
+              <PlannedHoleChecks plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} surfaces={pierceSurfaces} onExportPierces={exportPiercePoints} />
+            )}
+          </>} />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         </>)}

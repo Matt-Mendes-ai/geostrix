@@ -49,6 +49,6 @@ test("the pane offers the copies, makes the copy on the first polygon and says s
   assert.match(p, /<option key=\{l\.id\} value=\{`copy:\$\{l\.id\}`\}>\{tr\("Copy of \\"\{name\}\\" \(\{field\}\)"/);
   assert.match(p, /if \(!target && copySrc\) \{ \/\/ #2682 — the copy, never the imported layer itself\s+target = drawnCopyOf\(copySrc, mapLayers\);\s+id = addMapLayer\(target\); setLayerPick\(id\);/);
   assert.doesNotMatch(p, /updateMapLayer\(copySrc/);
-  assert.match(p, /<button type="button" onClick=\{\(\) => finish\(\)/); // Finish: the click event is not closedOnFirst (it dropped the last corner)
-  assert.doesNotMatch(p, /onClick=\{finish\}/);
+  assert.match(p, /onClick: \(\) => finish\(\)/); // Finish (the pane's StepPane action, #4070): the click event is not closedOnFirst (it dropped the last corner)
+  assert.doesNotMatch(p, /onClick=\{finish\}|onClick: finish[,} ]/);
 });

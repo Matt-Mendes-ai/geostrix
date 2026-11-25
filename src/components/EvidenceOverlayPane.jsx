@@ -15,6 +15,8 @@ import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { defaultEvidenceEnds, gradeEndsFromSamples, topScoreShare, rampIsLog /* #2975 */ } from "../lib/evidenceEnds.js"; // TASKS.csv #1565; gradeEndsFromSamples: #2099; topScoreShare: #2448
 import { topCells, holesInCells /* #2964 */ } from "../lib/evidence.js"; // TASKS.csv #1456
 import EndInOreList from "./EndInOreList.jsx"; // TASKS.csv #2965 — holes that stopped in ore
+import MoreFold from "./MoreFold.jsx";
+import StepPane, { StepNumbers } from "./StepPane.jsx"; // TASKS.csv #4070 part 3
 import { pointOnTrace } from "../lib/desurvey.js"; // TASKS.csv #2964 — each training sample's place, for the hole counts
 import { evidenceCoverage, LOW_COVERAGE, scoreBlockers } from "../lib/evidence.js"; // TASKS.csv #2252
 import { drilledTrainingMask, evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, indexRecipe, indexReport, indexNote, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, scoreTop /* #1731 */, rocAuc, kdeEvidence /* #2001 */, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
@@ -42,6 +44,7 @@ import { modelListName } from "../lib/modelListName.js"; // TASKS.csv #1839
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 || v === 0 ? v.toFixed(d) : v.toPrecision(2)); // a small cutoff keeps its digits, not "-0.00"
 const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); // what a number input can hold
 let nextId = 1;
+let evSeq = 0; // numbers each result, for the Result step (#4070)
 // TASKS.csv #3436 / #3438 — the Level in words: its RL band and / or its depth-below-collar band
 const rnd = (v) => (v != null ? Math.round(v).toLocaleString() : "…");
 const levelBandText = (level) => [level.zMin != null || level.zMax != null ? tr("RL {a} to {b} m", { a: rnd(level.zMin), b: rnd(level.zMax) }) : "", level.dMin != null || level.dMax != null ? tr("{a} to {b} m below the collar", { a: rnd(level.dMin), b: rnd(level.dMax) }) : ""].filter(Boolean).join(", ");
@@ -588,16 +591,21 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   };
   const toTif = async (which) => { const tx = await import("../lib/tiedExport.js"); const ex = await tx.exportCrs(project); if (!ex) return; /* #1021; #2322 — a tied local grid: resampled through its tie */ const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...tx.gridBandsToWorld({ ...grid, bands: [{ values: score }] }, ex.tie), epsg: ex.epsg })); };
 
+  const resKey = useMemo(() => (result ? ++evSeq : null), [result]); // TASKS.csv #4070 part 3 — a new result opens the Result step
+  const nums = result && [
+    { label: tr("Cells scored"), value: `${result.nValid.toLocaleString()} / ${result.n.toLocaleString()}`, title: tr("Fuzzy score on {v} of {n} cells (the rest lack evidence).", { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() }) },
+    result.wofe && { label: tr("Occurrence cells"), value: result.wofe.ND.toLocaleString(), level: result.wofe.ND < 10 ? "some" : undefined },
+    result.wofe && { label: tr("Posterior / known"), value: result.wofe.post.ratio.toFixed(2), level: result.wofe.post.ratio < 0.85 ? "some" : undefined, title: tr("Conditional independence check: the posterior predicts {e} occurrences for {d} known (ratio {r}).", { e: result.wofe.post.expected.toFixed(1), d: result.wofe.ND, r: result.wofe.post.ratio.toFixed(2) }) },
+    result.auc && result.auc.fuzzy != null && { label: tr("ROC-AUC"), value: result.auc.post != null ? `${result.auc.fuzzy.toFixed(2)} / ${result.auc.post.toFixed(2)}` : result.auc.fuzzy.toFixed(2) },
+  ];
   return (
     <>
       <TaskPaneHeader title={tr("Evidence overlay")} helpId="evidence-overlay" icon={Layers} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)" }}>
-        {/* TASKS.csv #1458 (review #1352, Silvertip) — said plainly: the score ranks places in plan; a target 300-1,300 m deep gets its depth
-            from the holes and models themselves, not from this map */}
-        <div style={note}>{tr("Plan view: each evidence is one value per map cell. The score ranks places in plan; the depth to drill comes from the holes and models.")}{drillZ && layers.some((l) => DRILL_KINDS.has(l.kind)) ? " " + tr("The drillhole evidence here comes from holes between {top} and {bottom} m RL.", { top: Math.round(drillZ[1]).toLocaleString(), bottom: Math.round(drillZ[0]).toLocaleString() }) : ""}</div>
-        <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : gridArea === "samples" ? tr(" (the surface samples)") : gridArea === "drilling" ? tr(" (the drilling)") : gridArea === "model" ? tr(" (the block models)") : gridArea === "box" ? tr(" (the typed box)") : gridArea === "checked" && holeArea ? tr(" (the checked holes)") : gridArea.startsWith("holes:") && holeArea ? tr(" (the holes where {pick})", { pick: gridArea.slice(6) }) /* TASKS.csv #3824 (6) — 'zone = Contact' was labelled the data's extent */ : tr(" (the data's extent)") /* area: #1450 */ }) : noGridText()}{grid && grid.from !== "terrain" && sampleCore.dropped > 0 ? tr(" {n} surface sample(s) far from the rest are outside it.", { n: sampleCore.dropped }) : ""}</div>
-        {/* TASKS.csv #1450 — the area and the cell size the scores are computed on */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        {/* TASKS.csv #4070 part 3 (Matt's layout C): one question per step, Compute as the one gold primary, the score's numbers in Result, the cell / level / combine settings in Fine-tune */}
+        <StepPane id="evidence" label={tr("Evidence overlay")}
+          steps={[
+            { key: "area", label: tr("Area"), question: tr("Which area?"), body: (<>
           <label style={row}>{tr("Area")}<select value={gridArea} onChange={(e) => { setGridArea(e.target.value); setResult(null); }} style={sel} aria-label={tr("Grid area")}>
             <option value="all">{terrain ? tr("the terrain / every source") : tr("every source")}</option>
             {extents.samples && <option value="samples">{tr("the surface samples")}</option>}
@@ -607,11 +615,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             {extents.model && <option value="model">{tr("the block models' footprint")}</option>}{/* #1834 */}
             <option value="box">{tr("a box (typed)")}</option>
           </select></label>
-          <label style={row} title={tr("Blank = automatic: the longest side / 500, coarsened at the cell limit. A soil grid at 25-50 m wants a cell about half its spacing.")}>{tr("Cell (m)")}<NumberInput allowEmpty min="1" step="5" value={gridCell} placeholder={tr("auto")} onChange={(v) => { setGridCell(v == null ? "" : String(v)); setResult(null); }} style={{ ...sel, width: 64 }} aria-label={tr("Grid cell size (m)")} /></label>
-          <label style={row} title={tr("Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.")}>{tr("Level RL (m)")}<NumberInput allowEmpty step="10" value={levelText[0]} placeholder={tr("from")} onChange={(v) => setLevelAt(0, v)} style={{ ...sel, width: 64 }} aria-label={tr("Level from (m RL)")} />–<NumberInput allowEmpty step="10" value={levelText[1]} placeholder={tr("to")} onChange={(v) => setLevelAt(1, v)} style={{ ...sel, width: 64 }} aria-label={tr("Level to (m RL)")} /></label>
-          <label style={row} title={tr("Blank = every depth. Metres vertically below each hole's collar, for collars at different elevations: the same depth band of every hole.")}>{/* TASKS.csv #3438 */}{tr("Depth below collar (m)")}<NumberInput allowEmpty step="10" min="0" value={levelText[2]} placeholder={tr("from")} onChange={(v) => setLevelAt(2, v)} style={{ ...sel, width: 64 }} aria-label={tr("Depth from (m below the collar)")} />–<NumberInput allowEmpty step="10" min="0" value={levelText[3]} placeholder={tr("to")} onChange={(v) => setLevelAt(3, v)} style={{ ...sel, width: 64 }} aria-label={tr("Depth to (m below the collar)")} /></label>
-          {(levelPending || levelBusy) && <div role="status" style={{ ...note, marginTop: 2 }}>{levelBusy ? tr("Reading the hole-based cards at the new Level…") : tr("The Level is applied when you press Enter or leave the field.")}</div>}{/* #2575 */}{/* #2326 */}
-        </div>
+        <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : gridArea === "samples" ? tr(" (the surface samples)") : gridArea === "drilling" ? tr(" (the drilling)") : gridArea === "model" ? tr(" (the block models)") : gridArea === "box" ? tr(" (the typed box)") : gridArea === "checked" && holeArea ? tr(" (the checked holes)") : gridArea.startsWith("holes:") && holeArea ? tr(" (the holes where {pick})", { pick: gridArea.slice(6) }) /* TASKS.csv #3824 (6) — 'zone = Contact' was labelled the data's extent */ : tr(" (the data's extent)") /* area: #1450 */ }) : noGridText()}{grid && grid.from !== "terrain" && sampleCore.dropped > 0 ? tr(" {n} surface sample(s) far from the rest are outside it.", { n: sampleCore.dropped }) : ""}</div>
         {gridArea === "box" && (
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             {[tr("West (E)"), tr("South (N)"), tr("East (E)"), tr("North (N)")].map((lab, i) => (
@@ -620,6 +624,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
           </div>
         )}
         {grid && cellTyped && Math.round(grid.dx) > Math.round(cellTyped) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The {c} m cell would exceed the grid's cell limit over this area, so it was coarsened to {d} m. A smaller area keeps it.", { c: cellTyped, d: Math.round(grid.dx) })}</div>}
+            </>) },
+            { key: "evidence", label: tr("Evidence"), question: tr("What counts as evidence?"), body: (<>
         {sources.length > 15 && <input type="search" value={evQuery} onChange={(e) => setEvQuery(e.target.value)} placeholder={tr("Search the {n} evidence sources…", { n: sources.length })} aria-label={tr("Search the evidence sources")} style={{ ...sel, width: "100%" }} />}{/* #2654 */}
         <select value="" onChange={(e) => { const k = e.target.value; if (k.startsWith("gtpick:")) setGtPick({ symbol: k.slice(7), how: "gt", cut: "" }); else if (k.startsWith("gtlpick:")) { const s0 = sources.find((x) => x.key === k); setGtPick({ layer: { ref: s0.ref, name: s0.name }, how: "gt", cut: "" }); } /* #2781 */ else addLayer(k); }} style={sel} aria-label={tr("Add evidence")} disabled={!grid || !sources.length}>
           <option value="">{evQuery.trim() ? tr("+ add evidence… ({n} found)", { n: filterSources(sources, evQuery).length }) : tr("+ add evidence…")}</option>
@@ -709,17 +715,10 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             {l.endsFrom && !l.endsEdited && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.35 }}>{l.endsFrom.kind === "assays" && l.lowest ? tr("Each 25 m bin maps its lowest value (favourable when low). Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out); set your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), sym: l.ref }) /* #2578 */ : l.endsFrom.kind === "assays" && l.endsFrom.highFrom === "mapped" ? tr("Ends: the {a}th percentile of {n} {sym} assays (QC left out) and the 90th of the {m} values this card maps (each bin's highest), above the assays' {b}th. Set your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), m: (l.endsFrom.m || 0).toLocaleString(), sym: l.ref }) /* #2448 */ : l.endsFrom.kind === "assays" ? tr("Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), sym: l.ref }) : tr("Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1] })}</div>}{/* #2099 */}
           </div>
         ))}
-        {layers.length > 0 && (
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <label style={row}>{tr("Combine")}<select value={operator} onChange={(e) => setOperator(e.target.value)} style={sel}>{FUZZY_OPERATORS.map((o) => <option key={o} value={o}>{tr({ and: "fuzzy AND (min)", or: "fuzzy OR (max)", product: "algebraic product", sum: "algebraic sum", gamma: "gamma" }[o])}</option>)}</select></label>
-            {operator === "gamma" && <label style={row}>γ<NumberInput min="0" max="1" step="0.05" value={gamma} onChange={(v) => setGamma(Math.max(0, Math.min(1, v ?? 0)))} style={{ ...sel, width: 60 }} /></label>}
-            {/* TASKS.csv #1555 — one membership of exactly 0 zeroes the product, and so AND, product and gamma, whatever the other evidence says */}
-            <label style={{ ...row, cursor: "pointer" }} title={tr("Memberships run 0.01 to 0.99, so one evidence at its lowest cannot veto a cell under AND, product or gamma. Off, a 0 membership scores the cell 0.")}><input type="checkbox" checked={floor > 0} onChange={(e) => { setFloor(e.target.checked ? 0.01 : 0); setResult(null); }} />{tr("no single evidence vetoes a cell (0.01–0.99)")}</label>
-          </div>
-        )}
-        {traces.size > 0 && labElements.length > 0 && <EndInOreList assays={cleanAssays} elements={labElements} units={assayUnits} traces={traces} collars={collars} survey={survey} onPlanTo={onPlanTo} sel={sel} pBtn={pBtn} note={note} />}{/* #2965 */}
+        {grid && !layers.length && sources.length > 0 && <div style={note}>{tr("Add at least one evidence from the list above, then Compute.")}</div>}
+            </>) },
+            { key: "occurrences", label: tr("Occurrences"), question: tr("Known occurrences? (optional)"), body: (<>
         <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ color: "var(--color-text-secondary)" }}>{tr("Known occurrences (optional, for weights of evidence)")}</div>
           <select value={training.source} onChange={(e) => { const source = e.target.value, list = source === "collars" ? labElements : source === "samples" ? surfaceElements : null; setTraining((t) => ({ ...t, source, ...(source === "collars" && list?.length ? { symbol: occurrenceSymbol(layers, list, t.symbol) } /* #2656 — the first grade card's element */ : list && list.length && !list.some((x) => x.symbol === t.symbol) ? { symbol: list[0].symbol } : {}) })); }} style={sel} aria-label={tr("Known occurrences")}>{/* symbol: #1836 — a surface element for samples, a lab element for holes */}
             <option value="none">{tr("none")}</option>
             {pointLayers.length > 0 && <option value="layer">{tr("a point map layer")}</option>}
@@ -739,20 +738,12 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
           )}
           {training.source !== "none" && <div style={note}>{tr(trainingPoints.length === 1 ? "{n} occurrence point." : "{n} occurrence points.", { n: trainingPoints.length }) /* #1734 */}{training.source === "collars" && pxrfAssays.length ? " " + tr("Lab assays only: the {n} pXRF readings are not occurrences.", { n: pxrfAssays.length.toLocaleString() }) : ""}{circular ? " " + tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.") : ""}</div>}{/* pXRF: #1723 */}
         </div>
-        <button type="button" className="gs-btn gs-btn--block" style={{ ...(grid && layers.length ? null : { opacity: 0.5, cursor: "default" }) }} onClick={compute} disabled={!grid || !layers.length}>{tr("Compute")}</button>
-        {grid && !layers.length && sources.length > 0 && <div style={note}>{tr("Add at least one evidence from the list above, then Compute.")}</div>}
-        {msg && <div style={note}>{msg}</div>}
-        {msg && cover && cover.forMsg === msg && ( // #1563 — the score cannot be seen under these from here; one click hides them (the 3D View's eyes bring them back)
-          <div style={{ ...note, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span>{tr("It lies under {list} in plan.", { list: [...cover.rasters, ...cover.models].map((x) => `\"${x.name}\"`).join(", ") })}</span>
-            <button type="button" className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }} onClick={() => { cover.rasters.forEach((r) => updateRaster(r.id, { visible: false })); cover.models.forEach((m) => updateVoxelModel(m.id, { visible: false })); setCover(null); setMsg(tr("Hid {n} layer(s) over the score; show them again with their eyes in StrixViewer.", { n: cover.rasters.length + cover.models.length })); }}>
-              {tr("Hide those {n}", { n: cover.rasters.length + cover.models.length })}</button>
-          </div>
-        )}
-        {result && (
-          <>
+            </>) },
+          ]}
+          action={{ label: tr("Compute"), onClick: compute, disabled: !grid || !layers.length }}
+          result={{ key: resKey, body: result && (<>
+            <StepNumbers rows={nums} />
             {result.blockers?.length > 0 && <div role="alert" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>{layers.length === 1 ? tr("Only {v} cells have a value of {label} ({p}%): only those are scored. A wider reach on the card scores more of the grid.", { v: result.nValid.toLocaleString(), label: result.blockers[0].label, p: (result.blockers[0].coverage * 100).toFixed(result.blockers[0].coverage < 0.01 ? 2 : 1) }) /* #2978 (2) — one evidence: nothing to combine */ : tr("Only the {v} cells with every evidence are scored (fewest values: {list}). Use fuzzy OR or the algebraic sum, which skip a missing evidence, or remove those.", { /* #3348 (9) — it said 'empty or nearly so' of a score filling those cells */ v: result.nValid.toLocaleString(), list: result.blockers.map((b) => `${b.label} (${(b.coverage * 100).toFixed(b.coverage < 0.01 ? 2 : 1)}%)`).join(", ") })}</div>}{/* #2252 */}
-            <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack evidence).", /* #1734 */ { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewMisses ? " " + tr("{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.", { h: result.fewMisses.hits, n: result.fewMisses.drilled }) : ""}{result.fewPoints != null ? " " + tr(result.fewPoints === 1 ? "Only {k} occurrence cell: weights of evidence need at least 3." : "Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) /* #1734 */ + (result.cover && result.cover.inGrid < result.cover.points ? " " + tr(result.cover.inGrid === 0 ? "All {n} occurrence point(s) lie outside this grid: choose an Area that holds them (every source, or the surface samples)." : "{m} of the {n} occurrence point(s) lie outside this grid.", { n: result.cover.points.toLocaleString(), m: (result.cover.points - result.cover.inGrid).toLocaleString() }) : result.cover && result.cover.droppedCells > 0 ? " " + tr("{d} occurrence cell(s) lie where an evidence has no value and are not used.", { d: result.cover.droppedCells.toLocaleString() }) : "") /* #2103 */ : ""}</div>
             {result.nValid > 0 && result.atMin / result.nValid > 0.5 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(floor > 0 ? "{p}% of the scored cells sit at the lowest score ({v}), so the top cells are only those no evidence vetoed, not the most favourable. Widen the 0 = points, or combine with OR / algebraic sum." : "{p}% of the scored cells sit at the lowest score ({v}), so the top cells are only those no evidence vetoed, not the most favourable. Turn on the 0.01–0.99 floor, widen the 0 = points, or combine with OR / algebraic sum.", { p: Math.round((100 * result.atMin) / result.nValid), v: fmt(result.minScore) }) /* #2457 (2) / #2585 (1) — no "turn on the floor" when it is on */}</div>}{/* #1555 */}
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               <button type="button" className="gs-btn gs-btn--block" style={{ opacity: result.nValid ? 1 : 0.5 }} disabled={!result.nValid} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
@@ -760,19 +751,32 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
             </div>
             {result.topShare && result.topShare.share > 1 / 3 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct} % of the scored cells are at the top score ({top}) and cannot be told apart. Raise a card's 1 = point.", { pct: Math.round(result.topShare.share * 100), top: fmt(result.topShare.top, 3) })}</div>}{/* #2448 */}
             <TopPlaces score={result.fuzzy} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} cardPts={result.cardPts} cardCols={result.cardCols} level={result.level} levelUsed={result.levelUsed} /* #1456; cardPts / level: #2326; levelUsed: #3333; cardCols: #3822 */ />
+            {result.wofe && (<>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  <button type="button" className="gs-btn gs-btn--block" onClick={() => toMap("posterior")}>{tr("Posterior → map")}</button>
+                  <button type="button" className="gs-btn gs-btn--block" onClick={() => toMap("posteriorSd")} title={tr("The posterior's standard deviation from the weights' own uncertainty (missing evidence not included): where it is large beside the posterior, the score is not sure.")}>{tr("Its standard deviation → map")}</button>{/* #2001 */}
+                  <button type="button" className="gs-btn gs-btn--block" style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={() => toTif("posterior")}><Download size={12} />GeoTIFF</button>
+                </div>
+                <TopPlaces score={result.wofe.post.prob} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} posterior cardPts={result.cardPts} cardCols={result.cardCols} level={result.level} levelUsed={result.levelUsed} /* #1456; #2326; #3333; #3822 */ />
+            </>)}
+            {result.wofe && (<>
+                {result.circular && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.")}</div>}{/* #1836 */}
+                {result.wofe.mostAreHits && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Use a stricter rule (a higher cut-off or more metres): {p} % of the drilled cells are occurrences, so the posterior cannot rank them.", { p: Math.round((100 * result.wofe.ND) / result.wofe.N) })}</div>}{/* #2964 */}
+                {result.wofe.ND < 10 && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.")}</div>}{/* #1452 */}
+            </>)}
+            {drillOnly && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The score exists only within {reach} m of the holes the cards read: it ranks drilled ground, not untested targets. Add a surface evidence to score beyond them.", { reach: Math.round(drillPad) })}{/* #3348 (10) — it said all {n} holes when the grade cards read fewer */}</div>}{/* #1727 */}
+            <MoreFold summary={tr("Details")} data-fine-tune="evidence-details">
+        <div style={note}>{tr("Plan view: each evidence is one value per map cell. The score ranks places in plan; the depth to drill comes from the holes and models.")}{drillZ && layers.some((l) => DRILL_KINDS.has(l.kind)) ? " " + tr("The drillhole evidence here comes from holes between {top} and {bottom} m RL.", { top: Math.round(drillZ[1]).toLocaleString(), bottom: Math.round(drillZ[0]).toLocaleString() }) : ""}</div>
+            <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack evidence).", /* #1734 */ { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewMisses ? " " + tr("{h} of the {n} drilled cells hold a hole over the cut-off: weights of evidence need at least 3 without one to weigh against.", { h: result.fewMisses.hits, n: result.fewMisses.drilled }) : ""}{result.fewPoints != null ? " " + tr(result.fewPoints === 1 ? "Only {k} occurrence cell: weights of evidence need at least 3." : "Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) /* #1734 */ + (result.cover && result.cover.inGrid < result.cover.points ? " " + tr(result.cover.inGrid === 0 ? "All {n} occurrence point(s) lie outside this grid: choose an Area that holds them (every source, or the surface samples)." : "{m} of the {n} occurrence point(s) lie outside this grid.", { n: result.cover.points.toLocaleString(), m: (result.cover.points - result.cover.inGrid).toLocaleString() }) : result.cover && result.cover.droppedCells > 0 ? " " + tr("{d} occurrence cell(s) lie where an evidence has no value and are not used.", { d: result.cover.droppedCells.toLocaleString() }) : "") /* #2103 */ : ""}</div>
             {!result.wofe && result.wofeNone && ( /* TASKS.csv #2098 */
               <div style={{ ...note, color: "var(--color-warn-text)", marginTop: 4 }}>{tr("Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.", { d: result.wofeNone.ND, list: result.wofeNone.rows.map((r) => `${r.label} (${r.ndHere ?? 0} of them where it has a value)`).join("; ") })}</div>
             )}
-            {result.wofe && (
-              <>
+              {result.wofe && (<>
                 <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{result.wofe.drilled /* #2446 */
                   ? tr("Weights of evidence over the {n} drilled cells (with a {sym} sample, in {h} holes): {d} with a sample at or over the cut-off (in {hh} holes), {m} without. Undrilled ground is not counted as barren; the posterior is the chance a hole drilled in a cell would meet the cut-off.", { n: result.wofe.N.toLocaleString(), sym: result.wofe.symbol, d: result.wofe.ND.toLocaleString(), m: (result.wofe.N - result.wofe.ND).toLocaleString(), h: (result.wofe.holes?.any ?? 0).toLocaleString(), hh: (result.wofe.holes?.hit ?? 0).toLocaleString() }) /* #2618 */
                   : tr("Weights of evidence: {d} occurrence cells in {n} cells", { d: result.wofe.ND, n: result.wofe.N.toLocaleString() })}</div>
                 {result.cover && (result.cover.droppedCells > 0 || result.cover.inGrid < result.cover.points) && <div style={{ ...note, marginTop: 2, color: result.cover.droppedShare > 0.25 ? "var(--color-warn-text)" : undefined }}>{tr("{p} occurrence points in {c} cells; {d} cell(s) lie outside the area where every evidence has a value and are not used ({pct} %).{v}", { p: result.cover.points.toLocaleString(), c: result.cover.cells.toLocaleString(), d: result.cover.droppedCells.toLocaleString(), pct: Math.round(result.cover.droppedShare * 100), v: result.cover.inGrid < result.cover.points ? " " + tr("{m} point(s) are outside the grid.", { m: (result.cover.points - result.cover.inGrid).toLocaleString() }) : "" })}</div>}{/* #1558 */}
                 {result.wofe.anyMissing && <div style={{ ...note, marginTop: 2 }}>{tr("An evidence adds nothing (weight 0) where it has no value, so drill evidence alone cannot score past the drilled ground.")}</div>}{/* #1556 */}
-                {result.circular && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.")}</div>}{/* #1836 */}
-                {result.wofe.mostAreHits && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Use a stricter rule (a higher cut-off or more metres): {p} % of the drilled cells are occurrences, so the posterior cannot rank them.", { p: Math.round((100 * result.wofe.ND) / result.wofe.N) })}</div>}{/* #2964 */}
-                {result.wofe.ND < 10 && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.")}</div>}{/* #1452 */}
                 {result.wofe.rows.map((r, i) => { // wrapped lines, not a table: the sidebar is narrow
                   // TASKS.csv #1566 (review #1497, Lawyers) — a negative contrast: the occurrences sit on the other side of the cutoff, so the
                   // card's 'favourable when high' (or low) is the wrong way round for the fuzzy score. It was printed bold like strong
@@ -794,19 +798,36 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
                   );
                 })}
                 <div style={{ ...note, color: result.wofe.post.ratio < 0.85 ? "var(--color-warn-text)" : undefined }}>{tr("Conditional independence check: the posterior predicts {e} occurrences for {d} known (ratio {r}).", { e: result.wofe.post.expected.toFixed(1), d: result.wofe.ND, r: result.wofe.post.ratio.toFixed(2) })}{result.wofe.post.ratio < 0.85 ? " " + tr("Under 0.85: the layers double-count each other; the posterior is too high.") : ""}</div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  <button type="button" className="gs-btn gs-btn--block" onClick={() => toMap("posterior")}>{tr("Posterior → map")}</button>
-                  <button type="button" className="gs-btn gs-btn--block" onClick={() => toMap("posteriorSd")} title={tr("The posterior's standard deviation from the weights' own uncertainty (missing evidence not included): where it is large beside the posterior, the score is not sure.")}>{tr("Its standard deviation → map")}</button>{/* #2001 */}
-                  <button type="button" className="gs-btn gs-btn--block" style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={() => toTif("posterior")}><Download size={12} />GeoTIFF</button>
-                </div>
-                <TopPlaces score={result.wofe.post.prob} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} posterior cardPts={result.cardPts} cardCols={result.cardCols} level={result.level} levelUsed={result.levelUsed} /* #1456; #2326; #3333; #3822 */ />
-              </>
-            )}
+              </>)}
             {(result.pa || result.paPost) && <PAPlot fuzzy={result.pa} post={result.paPost} />}
             {result.auc && result.auc.fuzzy != null && <div style={note}>{result.auc.post != null ? tr("ROC-AUC on the occurrence cells: fuzzy {a}, posterior {b} (0.5 is chance; on the points the map was made from, so optimistic).", { a: result.auc.fuzzy.toFixed(2), b: result.auc.post.toFixed(2) }) : tr("ROC-AUC on the occurrence cells: fuzzy {a} (0.5 is chance; on the points the map was made from, so optimistic).", { a: result.auc.fuzzy.toFixed(2) })}</div>}{/* TASKS.csv #2001 */}
-            {drillOnly && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The score exists only within {reach} m of the holes the cards read: it ranks drilled ground, not untested targets. Add a surface evidence to score beyond them.", { reach: Math.round(drillPad) })}{/* #3348 (10) — it said all {n} holes when the grade cards read fewer */}</div>}{/* #1727 */}
             <div style={note}>{tr("Treat the score as a ranking of where to look, not a probability of a deposit. Weights rest on few points (± shown), assume independent layers, and are circular when occurrences are the drilled targets.")}</div>
-          </>
+            </MoreFold>
+          </>) }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="evidence">
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <label style={row} title={tr("Blank = automatic: the longest side / 500, coarsened at the cell limit. A soil grid at 25-50 m wants a cell about half its spacing.")}>{tr("Cell (m)")}<NumberInput allowEmpty min="1" step="5" value={gridCell} placeholder={tr("auto")} onChange={(v) => { setGridCell(v == null ? "" : String(v)); setResult(null); }} style={{ ...sel, width: 64 }} aria-label={tr("Grid cell size (m)")} /></label>
+          <label style={row} title={tr("Blank = every depth. On a deposit drilled from underground, the hole-based cards otherwise project every depth onto one plan.")}>{tr("Level RL (m)")}<NumberInput allowEmpty step="10" value={levelText[0]} placeholder={tr("from")} onChange={(v) => setLevelAt(0, v)} style={{ ...sel, width: 64 }} aria-label={tr("Level from (m RL)")} />–<NumberInput allowEmpty step="10" value={levelText[1]} placeholder={tr("to")} onChange={(v) => setLevelAt(1, v)} style={{ ...sel, width: 64 }} aria-label={tr("Level to (m RL)")} /></label>
+          <label style={row} title={tr("Blank = every depth. Metres vertically below each hole's collar, for collars at different elevations: the same depth band of every hole.")}>{/* TASKS.csv #3438 */}{tr("Depth below collar (m)")}<NumberInput allowEmpty step="10" min="0" value={levelText[2]} placeholder={tr("from")} onChange={(v) => setLevelAt(2, v)} style={{ ...sel, width: 64 }} aria-label={tr("Depth from (m below the collar)")} />–<NumberInput allowEmpty step="10" min="0" value={levelText[3]} placeholder={tr("to")} onChange={(v) => setLevelAt(3, v)} style={{ ...sel, width: 64 }} aria-label={tr("Depth to (m below the collar)")} /></label>
+          {(levelPending || levelBusy) && <div role="status" style={{ ...note, marginTop: 2 }}>{levelBusy ? tr("Reading the hole-based cards at the new Level…") : tr("The Level is applied when you press Enter or leave the field.")}</div>}{/* #2575 */}{/* #2326 */}
+            </div>
+        {layers.length > 0 && (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={row}>{tr("Combine")}<select value={operator} onChange={(e) => setOperator(e.target.value)} style={sel}>{FUZZY_OPERATORS.map((o) => <option key={o} value={o}>{tr({ and: "fuzzy AND (min)", or: "fuzzy OR (max)", product: "algebraic product", sum: "algebraic sum", gamma: "gamma" }[o])}</option>)}</select></label>
+            {operator === "gamma" && <label style={row}>γ<NumberInput min="0" max="1" step="0.05" value={gamma} onChange={(v) => setGamma(Math.max(0, Math.min(1, v ?? 0)))} style={{ ...sel, width: 60 }} /></label>}
+            {/* TASKS.csv #1555 — one membership of exactly 0 zeroes the product, and so AND, product and gamma, whatever the other evidence says */}
+            <label style={{ ...row, cursor: "pointer" }} title={tr("Memberships run 0.01 to 0.99, so one evidence at its lowest cannot veto a cell under AND, product or gamma. Off, a 0 membership scores the cell 0.")}><input type="checkbox" checked={floor > 0} onChange={(e) => { setFloor(e.target.checked ? 0.01 : 0); setResult(null); }} />{tr("no single evidence vetoes a cell (0.01–0.99)")}</label>
+          </div>
+        )}
+        {traces.size > 0 && labElements.length > 0 && <EndInOreList assays={cleanAssays} elements={labElements} units={assayUnits} traces={traces} collars={collars} survey={survey} onPlanTo={onPlanTo} sel={sel} pBtn={pBtn} note={note} />}{/* #2965 */}
+          </MoreFold>} />
+        {msg && <div style={note}>{msg}</div>}
+        {msg && cover && cover.forMsg === msg && ( // #1563 — the score cannot be seen under these from here; one click hides them (the 3D View's eyes bring them back)
+          <div style={{ ...note, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <span>{tr("It lies under {list} in plan.", { list: [...cover.rasters, ...cover.models].map((x) => `\"${x.name}\"`).join(", ") })}</span>
+            <button type="button" className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }} onClick={() => { cover.rasters.forEach((r) => updateRaster(r.id, { visible: false })); cover.models.forEach((m) => updateVoxelModel(m.id, { visible: false })); setCover(null); setMsg(tr("Hid {n} layer(s) over the score; show them again with their eyes in StrixViewer.", { n: cover.rasters.length + cover.models.length })); }}>
+              {tr("Hide those {n}", { n: cover.rasters.length + cover.models.length })}</button>
+          </div>
         )}
       </div>
     </>

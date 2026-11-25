@@ -49,7 +49,7 @@ test("wiring: (3) the import says the upward holes; (5) the declination; (9) (10
   const e = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.ok(!e.includes("so the score is empty or nearly so") && !e.includes("All the evidence comes from the {n} drillholes"));
   const u = readFileSync(new URL("../src/components/UndrilledZonesPane.jsx", import.meta.url), "utf8");
-  assert.ok(u.includes("{choices.open.length > 0 && !unit && <div style={note}>{tr(OPEN_ROUTE"));
+  assert.ok(u.includes("{choices.open.length > 0 && !unit && <div style={note} title={tr(OPEN_ROUTE")); // #4070: the routes are the tooltip of a one-line note
   const keys = ["{n} hole(s) with a positive dip among negative ones were added as upward holes: {list}. Check them.", " (declination {d}° {ew}, IGRF, {date})", "Dip / Length start from the {n} drilled holes (median), Az from the mean direction of the {m} inclined ones{spread}; each hole added is kept for the next.", " (they point many ways: check it)",
     "The score exists only within {reach} m of the holes the cards read: it ranks drilled ground, not untested targets. Add a surface evidence to score beyond them.",
     "Only the {v} cells with every evidence are scored (fewest values: {list}). Use fuzzy OR or the algebraic sum, which skip a missing evidence, or remove those."];

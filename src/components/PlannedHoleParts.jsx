@@ -25,6 +25,8 @@ const ProbableGradePanel = lazyModal(() => import("./ProbableGradePanel.jsx"));
 const ProbableGradePlot = lazyModal(() => import("./ProbableGradePlot.jsx"));
 import CollarPicker from "./CollarPicker.jsx"; // TASKS.csv #2104
 import PlannedHolePattern from "./PlannedHolePattern.jsx"; // TASKS.csv #2449 — a line / grid of holes
+import MoreFold from "./MoreFold.jsx";
+import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 part 3
 import { plannedHolesFromRows } from "../lib/plannedImport.js"; // TASKS.csv #2651
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2702
 import { parseTableText } from "../lib/tabular.js"; // TASKS.csv #2651
@@ -80,7 +82,7 @@ const PAST_TARGET_M = 30;
 const appliedPicks = new WeakSet();
 // TASKS.csv #2257 — a handed-over target is used once, too: reopening the pane refilled Target E / N / Elev with a zone already planned
 const appliedPresets = new WeakSet();
-export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null, survey = null, surfaces = [] }) {
+export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null, survey = null, surfaces = [], resultBody = null /* #4070: the holes, the last step */ }) {
   // TASKS.csv #2450 — the starting azimuth, dip and length from the drilled holes (median), else az 0 / dip -60 / 100 m as before
   const seed = useMemo(() => drilledDefaults(collars, survey || []), [collars, survey]);
   const [draft, setDraft] = useState(() => ({ name: "", x: "", y: "", z: "", azimuth: seed?.azimuth ?? 0, dip: seed?.dip ?? -60, length: seed?.length ?? 100 }));
@@ -114,6 +116,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   const [fromCollarId, setFromCollarId] = useState("");
   const [target, setTarget] = useState({ x: "", y: "", z: "" });
   const lastPreset = useRef(null);
+  const [aimOpen, setAimOpen] = useState(false); // TASKS.csv #4070 part 3 — the aim-at-a-target fold, open when a target arrives
   const [upward, setUpward] = useState(false);
   // TASKS.csv #2651 — planned holes from a CSV: the rig sheet's columns (name, E, N, Elev, azimuth, dip, length), GeoStrix's own export included
   const importRef = useRef(null);
@@ -157,7 +160,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     if (!presetTarget || presetTarget === lastPreset.current || appliedPresets.has(presetTarget)) return;
     lastPreset.current = presetTarget; appliedPresets.add(presetTarget);
     const r = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : ""); // #1456 — an overlay's place has no elevation: left blank to type
-    setTarget({ x: r(presetTarget.x), y: r(presetTarget.y), z: r(presetTarget.z) });
+    setTarget({ x: r(presetTarget.x), y: r(presetTarget.y), z: r(presetTarget.z) }); setAimOpen(true); // #4070: a target handed over opens the aim fold
   }, [presetTarget]);
   const set = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
   // TASKS.csv #2257 — a typed collar is a new one: the notes about the solved / picked one (above the collar, the picked Elev) go
@@ -250,7 +253,10 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     setFromCollarId(""); setTarget({ x: "", y: "", z: "" }); setZSource("typed"); setCollarNote(null); setPickInForm(false); setUpward(false); // #1838; upward: #2257
   };
   return (<>
-    <div style={{ padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+    {/* TASKS.csv #4070 part 3 (Matt's layout C): where the hole starts, which way it goes, + Add hole as the one gold primary, the holes (list, exports, checks) as the last step, the north reference / CSV / pattern in Fine-tune */}
+    <StepPane id="plan" label={tr("Planned drillholes")} start={plannedSoFar.length ? "result" : 0}
+      steps={[
+        { key: "collar", label: tr("Collar"), question: tr("Where does the hole start?"), body: (<>
       <input placeholder={nameOffer ? tr("Hole name (blank: {id})", { id: nameOffer }) : tr("Hole name (optional)")} value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
       {collars.length > 0 && (
         <CollarPicker ids={collars.map((c) => c.hole_id)} value={fromCollarId} onChange={applyFromCollar} first={tr("Collar (E/N/Elev): custom, typed below")} ariaLabel={tr("Planned hole collar")}
@@ -270,6 +276,19 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         </div>
       )}
       {!groundAt && !underground && (zOffer || /collars/.test(zSource)) && <CollarLevelsNote collars={collars} survey={survey} />}{/* #2584; survey: #3634 */}
+      <div style={{ display: "flex", gap: 5 }}>
+        <button
+          onClick={onStartPick}
+          data-btn-own="" style={{ flex: 1, background: pickMode ? "var(--color-primary)" : miniBtn.background, border: pickMode ? "1px solid var(--color-primary)" : miniBtn.border, color: pickMode ? "var(--color-bg)" : miniBtn.color }}
+          title={tr("Click, then click anywhere in the 3D view to place a hole there")}
+        >
+          {pickMode ? tr("Click on the view…") : tr("Pick on view")}
+        </button>
+      </div>
+      {/* TASKS.csv #1182 — with no terrain a click on empty space gets its Elev from a flat plane at the data's origin, and that value reached the rig sheet's CSV and GPX unmarked */}
+      {noTerrain && pickedPoint && pickInForm && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{pickedPoint.fromModel && pickedPoint.onCollarSurface && !underground ? tr("You clicked a {model} over the ground: E / N and Elev are where the click's line meets the ground interpolated between the nearest collars. Check them, or load a terrain.", { model: tr(pickedPoint.fromModel) }) /* TASKS.csv #3697 */ : pickedPoint.fromHole && pickedPoint.onCollarSurface && !underground ? tr("You clicked hole {id}, under the ground: E / N and Elev are where the click's line meets the ground interpolated between the nearest collars. Check them, or load a terrain.", { id: pickedPoint.fromHole }) /* TASKS.csv #3652 */ : pickedPoint.onRaster && pickedPoint.onCollarSurface && !underground ? tr("No terrain: E / N are the map cell you clicked; Elev is the ground interpolated between the nearest collars. Check it, or load a terrain.") /* #2447 */ : pickedPoint.onCollarSurface && !underground ? tr("No terrain: E / N and Elev are where your click meets the ground interpolated between the nearest collars. Check them, or load a terrain.") /* #2574 */ : zSource.startsWith("the ground interpolated") ? tr(underground ? "No terrain, underground collars: Elev is on a drill level, not the ground (a flat plane gives {p} m). Type its RL, or load a terrain." /* #2253 */ : "No terrain: Elev is the ground interpolated between the nearest collars (a flat plane gives {p} m). Check it, or load a terrain.", { p: Math.round(pickedPoint.z) }) : tr("No terrain: a picked Elev is whatever the click hit, or a flat plane through the data. Check it, or load a terrain.")}</div>}{/* #2100 */}
+        </>) },
+        { key: "direction", label: tr("Direction"), question: tr("Which way does it go?"), body: (<>
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
         <NumField label={tr("Az°")} value={draft.azimuth} onChange={(v) => set("azimuth", v)} limit={wrapAz} />
         <NumField label={tr("Dip°")} value={draft.dip} onChange={(v) => set("dip", v)} limit={limitDip} />
@@ -280,32 +299,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         <div role="note" style={{ fontSize: "var(--font-size-xs)", color: underground ? "var(--color-text-secondary)" : "var(--color-warn-text)", marginBottom: 5, lineHeight: 1.4 }}>{underground ? tr("A positive dip points UP (negative = down): normal from an underground collar.") : tr("A positive dip points UP (negative = down): this hole would rise from the collar into the air. For a hole going down at {d}°, type -{d}.", { d: Number(draft.dip) })}</div>
       )}
       {shallow && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 5, lineHeight: 1.4 }}>{tr("Dip {d}° is shallow: flatter than about {s}° a rig is hard to set up and the hole wanders. Use a dip you can drill, and solve the collar for it below.", { d: draft.dip, s: -SHALLOW_DIP_DEG })}</div>}{/* #1835 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #1729 */}
-        <label>{tr("Azimuth from")} <select value={azRef} onChange={(e) => setAzRef(e.target.value)} aria-label={tr("North reference of the azimuth")} style={{ fontSize: "var(--font-size-xs)" }}>
-          <option value="grid">{tr("grid north")}</option><option value="true">{tr("true north")}</option><option value="magnetic">{tr("magnetic north (today)")}</option>
-        </select></label>
-        {azRef !== "grid" && (azOffset && gridAz != null ? <span>{tr("= {g}° grid at this collar", { g: gridAz })}{Number.isFinite(azOffset.declination) ? tr(" (declination {d}° {ew}, IGRF, {date})", { d: Math.abs(Math.round(azOffset.declination * 100) / 100), ew: azOffset.declination >= 0 ? "E" : "W", date: today }) : ""}{/* #3348 (5) */}</span> : <span style={{ color: "var(--color-warn-text)" }}>{tr("Enter the collar and a project CRS to convert it.")}</span>)}
-      </div>
-      <div style={{ display: "flex", gap: 5 }}>
-        <button
-          onClick={onStartPick}
-          data-btn-own="" style={{ flex: 1, background: pickMode ? "var(--color-primary)" : miniBtn.background, border: pickMode ? "1px solid var(--color-primary)" : miniBtn.border, color: pickMode ? "var(--color-bg)" : miniBtn.color }}
-          title={tr("Click, then click anywhere in the 3D view to place a hole there")}
-        >
-          {pickMode ? tr("Click on the view…") : tr("Pick on view")}
-        </button>
-        <button onClick={submit} disabled={!canAdd} title={canAdd ? undefined : tr("+ Add hole needs E, N and Elev as numbers, and a length above 0.")} className="gs-btn gs-btn--sm" style={{ flex: 1 }}>{tr("+ Add hole")}</button>
-      </div>
-      <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>{/* #2651 */}
-        <input ref={importRef} type="file" accept=".csv,.txt,.tsv" style={{ display: "none" }} onChange={(e) => { importCsv(e.target.files?.[0]); e.target.value = ""; }} />
-        <button type="button" onClick={() => importRef.current?.click()} className="gs-btn gs-btn--sm" style={{ flex: 1 }} title={tr("Planned holes from a CSV: E, N, Elev, azimuth (grid), dip and length; name, type, notes, target and lift / drift are read if present.")}>{tr("Import CSV…")}</button>
-      </div>
-      {importMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: importMsg.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4, marginBottom: 5 }}>{importMsg.text}</div>}
-      {/* TASKS.csv #2449 — a line or grid of holes from the E / N above, with the Az / Dip / Length above */}
-      <PlannedHolePattern start={{ x: draft.x, y: draft.y, z: draft.z }} orient={!isNaN(Number(draft.azimuth)) && draft.azimuth !== "" && !isNaN(Number(draft.dip)) && draft.dip !== "" && Number(draft.length) > 0 && azOffset && gridAz != null ? { azimuth: azRef === "grid" ? Number(draft.azimuth) : gridAz, dip: Number(draft.dip), length: Number(draft.length) } : null}
-        ground={underground ? null : groundFill} groundLabel={groundAt ? "the terrain under the hole" : (x, y) => collarFillSource(fillAt(x, y))} onAdd={onAdd} btn={miniBtn} />{/* #3335 — the collar ground as judged; each hole's own words */}
-      {/* TASKS.csv #1182 — with no terrain a click on empty space gets its Elev from a flat plane at the data's origin, and that value reached the rig sheet's CSV and GPX unmarked */}
-      {noTerrain && pickedPoint && pickInForm && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{pickedPoint.fromModel && pickedPoint.onCollarSurface && !underground ? tr("You clicked a {model} over the ground: E / N and Elev are where the click's line meets the ground interpolated between the nearest collars. Check them, or load a terrain.", { model: tr(pickedPoint.fromModel) }) /* TASKS.csv #3697 */ : pickedPoint.fromHole && pickedPoint.onCollarSurface && !underground ? tr("You clicked hole {id}, under the ground: E / N and Elev are where the click's line meets the ground interpolated between the nearest collars. Check them, or load a terrain.", { id: pickedPoint.fromHole }) /* TASKS.csv #3652 */ : pickedPoint.onRaster && pickedPoint.onCollarSurface && !underground ? tr("No terrain: E / N are the map cell you clicked; Elev is the ground interpolated between the nearest collars. Check it, or load a terrain.") /* #2447 */ : pickedPoint.onCollarSurface && !underground ? tr("No terrain: E / N and Elev are where your click meets the ground interpolated between the nearest collars. Check them, or load a terrain.") /* #2574 */ : zSource.startsWith("the ground interpolated") ? tr(underground ? "No terrain, underground collars: Elev is on a drill level, not the ground (a flat plane gives {p} m). Type its RL, or load a terrain." /* #2253 */ : "No terrain: Elev is the ground interpolated between the nearest collars (a flat plane gives {p} m). Check it, or load a terrain.", { p: Math.round(pickedPoint.z) }) : tr("No terrain: a picked Elev is whatever the click hit, or a flat plane through the data. Check it, or load a terrain.")}</div>}{/* #2100 */}
+      <MoreFold summary={tr("Aim at a target…")} data-fine-tune="plan-aim" open={aimOpen}>
       <div style={{ borderTop: "1px solid var(--color-border)", marginTop: 7, paddingTop: 7 }}>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Solve azimuth/dip/length to hit a target from the E/N/Elev above (the length runs {m} m past it; the target is kept on the hole)", { m: PAST_TARGET_M })}</div>
         <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
@@ -350,7 +344,27 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         )}
         {collarNote && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: collarNote.warn ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarNote.text}</div>}
       </div>
-    </div>
+      </MoreFold>
+        </>) },
+      ]}
+      action={{ label: tr("+ Add hole"), onClick: submit, disabled: !canAdd, title: canAdd ? undefined : tr("+ Add hole needs E, N and Elev as numbers, and a length above 0.") }}
+      result={{ key: plannedSoFar.length || null, label: tr("Holes"), offTitle: tr("After the first hole"), body: resultBody }}
+      fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="plan">
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #1729 */}
+        <label>{tr("Azimuth from")} <select value={azRef} onChange={(e) => setAzRef(e.target.value)} aria-label={tr("North reference of the azimuth")} style={{ fontSize: "var(--font-size-xs)" }}>
+          <option value="grid">{tr("grid north")}</option><option value="true">{tr("true north")}</option><option value="magnetic">{tr("magnetic north (today)")}</option>
+        </select></label>
+        {azRef !== "grid" && (azOffset && gridAz != null ? <span>{tr("= {g}° grid at this collar", { g: gridAz })}{Number.isFinite(azOffset.declination) ? tr(" (declination {d}° {ew}, IGRF, {date})", { d: Math.abs(Math.round(azOffset.declination * 100) / 100), ew: azOffset.declination >= 0 ? "E" : "W", date: today }) : ""}{/* #3348 (5) */}</span> : <span style={{ color: "var(--color-warn-text)" }}>{tr("Enter the collar and a project CRS to convert it.")}</span>)}
+      </div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>{/* #2651 */}
+        <input ref={importRef} type="file" accept=".csv,.txt,.tsv" style={{ display: "none" }} onChange={(e) => { importCsv(e.target.files?.[0]); e.target.value = ""; }} />
+        <button type="button" onClick={() => importRef.current?.click()} className="gs-btn gs-btn--sm" style={{ flex: 1 }} title={tr("Planned holes from a CSV: E, N, Elev, azimuth (grid), dip and length; name, type, notes, target and lift / drift are read if present.")}>{tr("Import CSV…")}</button>
+      </div>
+      {importMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: importMsg.warn ? "var(--color-warn-text)" : "var(--color-text-secondary)", lineHeight: 1.4, marginBottom: 5 }}>{importMsg.text}</div>}
+      {/* TASKS.csv #2449 — a line or grid of holes from the E / N above, with the Az / Dip / Length above */}
+      <PlannedHolePattern start={{ x: draft.x, y: draft.y, z: draft.z }} orient={!isNaN(Number(draft.azimuth)) && draft.azimuth !== "" && !isNaN(Number(draft.dip)) && draft.dip !== "" && Number(draft.length) > 0 && azOffset && gridAz != null ? { azimuth: azRef === "grid" ? Number(draft.azimuth) : gridAz, dip: Number(draft.dip), length: Number(draft.length) } : null}
+        ground={underground ? null : groundFill} groundLabel={groundAt ? "the terrain under the hole" : (x, y) => collarFillSource(fillAt(x, y))} onAdd={onAdd} btn={miniBtn} />{/* #3335 — the collar ground as judged; each hole's own words */}
+      </MoreFold>} />
     {/* TASKS.csv #3962 — with no planned hole yet the pane shows no checks, where the panel otherwise sits: the drill program must be reachable
         on a project with none (live, P3), so it is here until the first hole is added, with the visible surfaces as targets */}
     {(plannedSoFar || []).length === 0 && <ProbableGradePanel plannedHoles={[]} collars={collars} survey={survey || []} voxelModels={storeModels || []} desurveyMethod={storeDesurvey} surfaces={surfaces} />}
