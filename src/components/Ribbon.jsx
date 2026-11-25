@@ -12,7 +12,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 import { createPortal } from "react-dom";
-import { X } from "./icons.js";
+import { X, Ellipsis } from "./icons.js";
+import { clearOverflow, fitByOverflow, hideLastTool, shownCount } from "../lib/overflowFit.js"; // TASKS.csv #4074 — the last tools of a group go into its More menu
 import { t } from "../lib/i18n.js"; // TASKS.csv #786 — every tab's ribbon labels, captions and tooltips translated here
 import { helpIdForPane, openHelp } from "../lib/help.js"; // TASKS.csv #1966 — the "?" of a tool pane
 import { noticeText, noticeLevel } from "../lib/notices.js"; // TASKS.csv #1602
@@ -48,7 +49,7 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
     const el = innerRef.current;
     if (!el) return;
     const groups = [...el.querySelectorAll(":scope > .ge-ribbon-group")];
-    groups.forEach((g) => g.removeAttribute("data-compact"));
+    groups.forEach((g) => { g.removeAttribute("data-compact"); clearOverflow(g.querySelector(":scope > .ge-ribbon-items")); });
     el.removeAttribute("data-snug"); el.removeAttribute("data-tight"); el.removeAttribute("data-wrap");
     // TASKS.csv #1187, #1293 — narrower labelled buttons before any label is given up: 16 of Geochem's 27 tools were bare icons at 1,424 px
     if (el.scrollWidth > el.clientWidth + 1) el.setAttribute("data-snug", "");
@@ -57,9 +58,17 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
       groups[i].setAttribute("data-compact", "");
     }
     // TASKS.csv #1292 — Geochem has 27 tools: icon-only was still 114 px too wide at 1,024 px and ran under the mode toggle.
-    // Tighter buttons, then as a last resort a second row (taller, never hidden: every tool stays clickable).
+    // Tighter buttons, then (TASKS.csv #4074) a group's last tools into its More menu, never dropped. The second row this used to try
+    // (data-wrap) sat under a band of fixed height, so its tools were cut off at 1,366 px: Jensen on the Geochem ribbon.
     if (el.scrollWidth > el.clientWidth + 1) el.setAttribute("data-tight", "");
-    if (el.scrollWidth > el.clientWidth + 1) el.setAttribute("data-wrap", "");
+    if (el.scrollWidth > el.clientWidth + 1) {
+      const holders = groups.filter((g) => getComputedStyle(g).display !== "none").map((g) => g.querySelector(":scope > .ge-ribbon-items")).filter((h) => h && h.querySelector(":scope > [data-more-wrap]"));
+      fitByOverflow({
+        fits: () => el.scrollWidth <= el.clientWidth + 1,
+        groups: () => holders.map((h) => ({ width: h.parentElement.offsetWidth, visible: shownCount(h) })),
+        hideLast: (i) => hideLastTool(holders[i]),
+      });
+    }
   };
   useLayoutEffect(() => {
     const el = innerRef.current;
@@ -83,7 +92,7 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
       {hidden > 0 && (
         <div className="ge-ribbon-group ge-ribbon-more">
           <div className="ge-ribbon-items">
-            <button data-btn-own="" type="button" className="ge-ribbon-btn" onClick={() => setMode("advanced")} title={t("Show every tool on this tab (Advanced mode — switch back any time from the top bar)")}>
+            <button data-btn-own="" type="button" className="ge-ribbon-btn" onClick={() => setMode("advanced")} title={t("Show every tool on this tab (switches to All tools).")}>
               <span className="ge-ribbon-more-count">+{hidden}</span>
               <span className="ge-ribbon-label">{t("Show all")}</span>{/* #1221 — it switches the mode; "more tools" read as a menu */}
             </button>
@@ -95,13 +104,55 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
 }
 
 // advanced (#748): the whole group is hidden in Simple mode
+// TASKS.csv #4074 — every tool of a group stays reachable at any width: when the band cannot fit (Ribbon fit), the group's last tools are hidden in
+// the band (data-ovf) and this group's "More" button opens them in a menu under it. Each child sits in its own slot, so the n-th slot is the n-th
+// child and the menu can show the same elements again (a copy of a button, its popover with it); a ref a child was given is left to the band's copy.
 export function RibbonGroup({ label, children, advanced = false }) {
+  const holder = useRef(null);
+  const [menu, setMenu] = useState(null); // while open: where the menu sits and the first tool in it
+  const { mode } = useUiMode();
+  const kids = React.Children.toArray(children);
+  const openMenu = (btn) => {
+    if (menu) { setMenu(null); return; }
+    const from = Number(holder.current?.getAttribute("data-overflow-from"));
+    if (!(from >= 0)) return;
+    const r = btn.getBoundingClientRect();
+    setMenu({ from, top: Math.round(r.bottom) + 2, x: r.left > window.innerWidth / 2 ? window.innerWidth - Math.round(r.right) : Math.round(r.left), end: r.left > window.innerWidth / 2 });
+  };
   return (
     <div className={`ge-ribbon-group${advanced ? " ge-adv" : ""}`} role="group" aria-label={t(label)}>
-      <div className="ge-ribbon-items">{children}</div>
+      <div className="ge-ribbon-items" ref={holder}>
+        {kids.map((c, i) => <div key={c.key ?? i} className="ge-ribbon-slot">{c}</div>)}
+        <div className="ge-ribbon-more-wrap" data-more-wrap="">
+          <button data-btn-own="" type="button" className="ge-ribbon-btn ge-ribbon-more-btn" aria-haspopup="menu" aria-expanded={!!menu} title={t("More")}
+            onClick={(e) => openMenu(e.currentTarget)}>
+            <Ellipsis size={22} strokeWidth={1.7} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
       <div className="ge-ribbon-caption" title={t(label)}>{t(label)}</div>
+      {menu && <RibbonMenu menu={menu} simple={mode === "simple"} onClose={() => setMenu(null)}>
+        {kids.slice(menu.from).map((c, i) => <div key={c.key ?? i} role="none">{c.props?.buttonRef ? React.cloneElement(c, { buttonRef: undefined }) : c}</div>)}
+      </RibbonMenu>}
     </div>
   );
+}
+
+// The More menu: under the button, over the band, closed by a click elsewhere, Escape, a resize, or choosing a tool (a tool that opens its own popover keeps it open).
+function RibbonMenu({ menu, simple, onClose, children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const down = (e) => { if (ref.current && !ref.current.contains(e.target) && !e.target.closest?.(".ge-ribbon-more-btn")) onClose(); };
+    const key = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("mousedown", down); window.addEventListener("keydown", key); window.addEventListener("resize", onClose);
+    return () => { window.removeEventListener("mousedown", down); window.removeEventListener("keydown", key); window.removeEventListener("resize", onClose); };
+  }, [onClose]);
+  const style = { top: menu.top, ...(menu.end ? { right: menu.x } : { left: menu.x }) };
+  return createPortal(
+    <div ref={ref} role="menu" className={`ge-ribbon-menu${simple ? " ge-ribbon-simple" : ""}`} style={style}
+      onClick={(e) => { const b = e.target.closest?.(".ge-ribbon-btn"); if (b && !b.hasAttribute("aria-expanded")) setTimeout(onClose, 0); }}>
+      {children}
+    </div>, document.body);
 }
 
 // Icon colours by kind of action — the friendly, colour-coded look of an office ribbon, from a small fixed

@@ -37,11 +37,12 @@ test("#1276 every section the 3D view opens says so when it is refused", () => {
   assert.match(src, /r\?\.refused/);
 });
 
-test("#1292 the ribbon has stages after icon-only: tighter, then a second row", () => {
+test("#1292 the ribbon has stages after icon-only: tighter, then a More menu", () => {
   const rib = fs.readFileSync(new URL("../src/components/Ribbon.jsx", import.meta.url), "utf8");
   const css = fs.readFileSync(new URL("../src/styles/app.css", import.meta.url), "utf8");
   assert.match(rib, /el\.setAttribute\("data-tight", ""\)/);
-  assert.match(rib, /el\.setAttribute\("data-wrap", ""\)/);
+  assert.match(rib, /fitByOverflow\(\{/); // #4074 — a group's last tools go into its More menu; the second row (data-wrap) sat under a fixed-height band and cut tools off
+  assert.doesNotMatch(rib, /el\.setAttribute\("data-wrap", ""\)/);
   assert.match(css, /\.ge-ribbon-inner\[data-tight\] \.ge-ribbon-btn/);
   assert.match(css, /\.ge-ribbon-inner\[data-wrap\]/);
 });
