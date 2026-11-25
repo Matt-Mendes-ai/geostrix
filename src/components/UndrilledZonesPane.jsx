@@ -18,7 +18,7 @@ import { traceSpacing, effectiveSpacing } from "../lib/traceSpacing.js"; // TASK
 import { collarsForGround } from "../lib/collarGround.js"; // TASKS.csv #3582
 import { collarsLookUnderground } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars (collarGround, in the worker since #2258); #2249: unless they are underground
 import { unitSupport } from "../lib/unitSupport.js"; // TASKS.csv #1725 — a one-hole / extrapolated shell is said
-import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { runUndrilledZonesAsync } from "../lib/undrilledZonesClient.js"; // TASKS.csv #2258 — off the UI thread
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
@@ -186,7 +186,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
           <span>{tr("Count only the assayed parts of holes")}<span style={{ ...note, display: "block" }}>{tr("Off: every metre drilled tests the ground, assayed or not.")}</span></span></label>
         <label style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={withPlanned} onChange={(e) => setWithPlanned(e.target.checked)} disabled={!plannedHoles.length} />
           {tr("Count planned holes as drilled ({n})", { n: plannedHoles.length })}</label>
-        <button onClick={run} disabled={!unit || busy || !(coverM > 0)} style={{ ...pBtn, justifyContent: "center", opacity: unit && !busy && coverM > 0 ? 1 : 0.5, marginBottom: 0 }}>{busy ? tr("Measuring…") : tr("Find undrilled zones")}</button>
+        <button onClick={run} disabled={!unit || busy || !(coverM > 0)} className="gs-btn gs-btn--block" style={{ justifyContent: "center", opacity: unit && !busy && coverM > 0 ? 1 : 0.5, marginBottom: 0 }}>{busy ? tr("Measuring…") : tr("Find undrilled zones")}</button>
         {msg && <div role="status" style={{ ...note, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
         {result && (
           <div style={{ display: "flex", flexDirection: "column", gap: 5, border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
@@ -200,17 +200,16 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
             {result.groundFrom === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
             {result.ignored.zones > 0 && <div style={note}>{tr(result.ignored.zones === 1 ? "1 gap under {m} ({v}) left out." : "{n} gaps under {m} ({v}) left out.", { n: result.ignored.zones, v: mm3(result.ignored.cells * result.cellVolume), m: mm3(result.minZoneM3 ?? 0) }) /* #2256 — the size it was cut at */}</div>}
             {result.zones.slice(0, 8).map((z, i) => (
-              <div key={i} style={{ ...note, color: "var(--color-text-secondary)" }}>{onPlanTo && <button onClick={() => onPlanTo(z.target || z.centre)} style={planBtn} title={tr("Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve")}>{/* #1724 */}{tr("Plan a hole to here")}</button>}{z.target ? tr("{i}. {v}: a hole aims at E {x}, N {y}, elevation {z} (the zone's point farthest from the drilling).", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.target.x).toLocaleString(), y: Math.round(z.target.y).toLocaleString(), z: Math.round(z.target.z).toLocaleString() }) /* #2580 — the point handed over, not the centroid */ : tr("{i}. {v} around E {x}, N {y}, elevation {z}", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.centre.x).toLocaleString(), y: Math.round(z.centre.y).toLocaleString(), z: Math.round(z.centre.z).toLocaleString() })}</div>
+              <div key={i} style={{ ...note, color: "var(--color-text-secondary)" }}>{onPlanTo && <button onClick={() => onPlanTo(z.target || z.centre)} className="gs-btn gs-btn--sm" style={{ float: "right", marginLeft: 6 }} title={tr("Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve")}>{/* #1724 */}{tr("Plan a hole to here")}</button>}{z.target ? tr("{i}. {v}: a hole aims at E {x}, N {y}, elevation {z} (the zone's point farthest from the drilling).", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.target.x).toLocaleString(), y: Math.round(z.target.y).toLocaleString(), z: Math.round(z.target.z).toLocaleString() }) /* #2580 — the point handed over, not the centroid */ : tr("{i}. {v} around E {x}, N {y}, elevation {z}", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.centre.x).toLocaleString(), y: Math.round(z.centre.y).toLocaleString(), z: Math.round(z.centre.z).toLocaleString() })}</div>
             ))}
             {result.zones.length > 8 && <div style={note}>{tr("… and {n} more.", { n: result.zones.length - 8 })}</div>}
             <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: result.cellZM > 0 && Math.abs(result.cellZM - result.cellM) > 1e-6 ? `${+result.cellM.toFixed(2)} × ${+result.cellM.toFixed(2)} × ${+result.cellZM.toFixed(2)}` : +result.cellM.toFixed(2) /* #2966 */ })}{result.holes.assumed ? " " + tr("{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.", { n: result.holes.assumed }) : ""}{result.holes.proposed ? " " + tr("{n} collar(s) whose status is proposed are not counted.", { n: result.holes.proposed }) : ""}</div>
             {result.inputs?.assayedOnly && <div style={note}>{tr("Only the assayed parts of holes were counted: {k} of the {n} drilled holes have no assay.", { k: result.holes.unassayed || 0, n: result.holes.holesDrilled || result.holes.drilled })}</div>}{/* #3345 */}{/* #2097 */}
             {result.cellM > result.coverM && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Type a smaller block size if the box allows: {b} m blocks are coarser than the {c} m coverage distance, so coverage shifts with the grid.", { b: +result.cellM.toFixed(2), c: result.coverM })}</div>}{/* #1568 */}
-            {result.zones.length > 0 && <button onClick={add} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Add the zones to the 3D view")}</button>}
+            {result.zones.length > 0 && <button onClick={add} className="gs-btn gs-btn--block" style={{ justifyContent: "center", marginBottom: 0 }}>{tr("Add the zones to the 3D view")}</button>}
           </div>
         )}
       </div>
     </>
   );
 }
-const planBtn = { float: "right", marginLeft: 6, padding: "1px 6px", fontSize: "var(--font-size-xs)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer", color: "var(--color-text-secondary)" }; // #1456

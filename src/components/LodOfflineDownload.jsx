@@ -41,7 +41,7 @@ export default function LodOfflineDownload({ rasters, usedBytes = 0, onDone }) {
     onDone?.();
   };
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
-  if (!open) return <button type="button" onClick={() => setOpen(true)} style={{ ...small, background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Download for offline use…")}</button>;
+  if (!open) return <button data-btn-own="" type="button" onClick={() => setOpen(true)} style={{ ...small, background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer", padding: 0 }}>{tr("Download for offline use…")}</button>;
   const busy = state && !state.finished;
   return (
     <div style={{ ...small, display: "flex", flexDirection: "column", gap: 4, width: "100%", marginTop: 4 }}>
@@ -56,9 +56,9 @@ export default function LodOfflineDownload({ rasters, usedBytes = 0, onDone }) {
         ? (state.cancelled ? tr("Stopped: {done} of {n} tiles kept.", { done: state.done.toLocaleString(), n: state.n.toLocaleString() }) : tr("Done: {got} of {n} tiles kept on this computer{failed}.", { got: state.got.toLocaleString(), n: state.n.toLocaleString(), failed: state.failed ? tr(" ({k} could not be read)", { k: state.failed.toLocaleString() }) : "" }))
         : tr("Reading {done} of {n} tiles…", { done: state.done.toLocaleString(), n: state.n.toLocaleString() })}</div>}
       <div style={{ display: "flex", gap: 8 }}>
-        {!busy && <button type="button" onClick={run} disabled={!plan || tooBig || !plan.tiles.length}>{tr("Download")}</button>}
-        {busy && <button type="button" onClick={() => { cancel.current = true; }}>{tr("Stop")}</button>}
-        {!busy && <button type="button" onClick={() => { setOpen(false); setState(null); }}>{tr("Close")}</button>}
+        {!busy && <button className="gs-btn gs-btn--sm" type="button" onClick={run} disabled={!plan || tooBig || !plan.tiles.length}>{tr("Download")}</button>}
+        {busy && <button className="gs-btn gs-btn--sm" type="button" onClick={() => { cancel.current = true; }}>{tr("Stop")}</button>}
+        {!busy && <button className="gs-btn gs-btn--sm" type="button" onClick={() => { setOpen(false); setState(null); }}>{tr("Close")}</button>}
       </div>
     </div>
   );

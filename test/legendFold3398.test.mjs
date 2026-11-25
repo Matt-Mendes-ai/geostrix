@@ -31,7 +31,7 @@ test("wiring: the choices saved through onConfig (the view's figure settings), a
   assert.match(o, /const saved = typeof config\.legendCollapsed === "boolean" \? config\.legendCollapsed : null, collapsed = saved \?\? autoCollapsed;/);
   assert.match(o, /const toggleLegend = \(v\) => \{ auto\.current\.user = true; setCollapsed\(v\); onConfig\?\.\(\(f\) => \(\{ \.\.\.f, legendCollapsed: v \}\)\); \};/);
   assert.match(o, /const toggleGroup = \(key\) => onConfig\?\.\(\(f\) => \{ const set = new Set\(f\.legendFolded \|\| \[\]\); if \(!set\.delete\(key\)\) set\.add\(key\); return \{ \.\.\.f, legendFolded: \[\.\.\.set\] \}; \}\);/);
-  assert.match(o, /\{onConfig && it\.gkey && <button type="button" onClick=\{\(\) => toggleGroup\(it\.gkey\)\} aria-expanded=\{!it\.folded\}/);
+  assert.match(o, /\{onConfig && it\.gkey && <button data-btn-own="" type="button" onClick=\{\(\) => toggleGroup\(it\.gkey\)\} aria-expanded=\{!it\.folded\}/);
   assert.match(o, /\{!it\.folded && <div style=\{\{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2\.5 \}\}>/);
   assert.match(o, /tr\("Legend \(\{n\} rows\)", \{ n: itemTotal \+ allRamps\.length \+ images\.length \}\)/);
   assert.match(o, /const itemTotal = \(allGroups \|\| \[\]\)\.reduce/, "the collapsed title counts every row, folded or not");

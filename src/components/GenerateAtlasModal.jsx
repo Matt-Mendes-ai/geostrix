@@ -5,7 +5,7 @@ import { assayTrackRange } from "../lib/striplogSvg.js"; // TASKS.csv #2605
 import { X, LayoutGrid, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, panel, header, label as labelStyle, sel, btn } from "../lib/modalStyles.js";
+import { overlay, panel, header, label as labelStyle, sel } from "../lib/modalStyles.js";
 import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS, atlasRecaptureItems, hasAtlasTokens, tracedCollar, isStripLogImage } from "../lib/atlas.js"; // hasAtlasTokens: #1777; tracedCollar / isStripLogImage: #2136
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1644
 import { utmGridReady } from "../lib/layoutGeometry.js"; // TASKS.csv #1644
@@ -136,7 +136,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
       <div style={panel({ width: 480, maxHeight: "85vh" })} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600 }}><LayoutGrid size={14} />{" "}{tr("Generate atlas")}</div>
-          <button onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
+          <button data-btn-own="" onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Make one Layout page per item below from the CURRENT page; each {v} in a text or title is filled in per item. Tokens here: {v2}.", { v: "{token}", v2: tokens.map((t) => `{${t}}`).join(", ") })}{" "}{tr("The page's own placeholders ({project}, {date}, {scale}, {crs}...) are filled on every generated page as well; the older double-brace form still works.")}</div>{/* #1777 — one syntax: single braces */}
@@ -215,8 +215,8 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
               {bottomPad > 0 && <div style={{ height: bottomPad }} />}
             </div>
           </div>
-          {result && <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><div style={{ flex: 1, fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>{ranOn && <button onClick={onClose} style={{ ...btn(false), flex: "none" }}>{tr("Close")}</button>}</div>}{/* Close: #3180 */}
-          <button onClick={generate} disabled={busy || !selectedCount || ranOn === selectedIds /* #3180 — the same selection was just generated */} title={ranOn === selectedIds ? tr("These pages were just generated. Change the selection to make others.") : undefined} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy || !selectedCount || ranOn === selectedIds ? 0.6 : 1 }}>
+          {result && <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><div style={{ flex: 1, fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>{ranOn && <button onClick={onClose} className="gs-btn" style={{ flex: "none" }}>{tr("Close")}</button>}</div>}{/* Close: #3180 */}
+          <button onClick={generate} disabled={busy || !selectedCount || ranOn === selectedIds /* #3180 — the same selection was just generated */} title={ranOn === selectedIds ? tr("These pages were just generated. Change the selection to make others.") : undefined} className="gs-btn gs-btn--primary" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy || !selectedCount || ranOn === selectedIds ? 0.6 : 1 }}>
             {busy ? <Loader2 size={14} className="spin" /> : <LayoutGrid size={14} />}
             {busy ? (progress ? tr("Generating {done}/{total}…", { done: progress.done, total: progress.total }) : tr("Generating…")) : tr(selectedCount === 1 ? "Generate {selectedCount} page" : "Generate {selectedCount} pages", { selectedCount })}
           </button>

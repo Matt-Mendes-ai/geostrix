@@ -163,14 +163,14 @@ export default function SpatialAnalysis({ points, surveys = [], onClose }) {
             {shapeReady && askFirst && !running && <div>{tr("{n} points to tessellate: it runs in the background and can take a while on a large survey.", { n: sliced.length.toLocaleString() })}</div>}
             {shapeReady && !running && (askFirst || error || held) && (
               <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" onClick={run} disabled={sliced.length < 3} style={{ ...btn, width: "auto", padding: "6px 16px" }}>{tr("Run")}</button>
+                <button type="button" onClick={run} disabled={sliced.length < 3} className="gs-btn gs-btn--block" style={{ width: "auto", padding: "6px 16px" }}>{tr("Run")}</button>
               </div>
             )}
             {running && (
               <div role="status" style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <progress value={progress.phase === "cells" ? progress.done : undefined} max={progress.total || 1} style={{ width: 220 }} />
                 <span>{phaseText(progress)}</span>
-                <button type="button" onClick={cancel} style={{ ...btn, width: "auto", padding: "4px 12px" }}>{tr("Cancel")}</button>
+                <button type="button" onClick={cancel} className="gs-btn gs-btn--block" style={{ width: "auto", padding: "4px 12px" }}>{tr("Cancel")}</button>
               </div>
             )}
             {error && <div style={{ color: "var(--color-danger-text, var(--color-warn-text))" }}>{tr("The tessellation failed: {error}", { error })}</div>}
@@ -204,9 +204,9 @@ export default function SpatialAnalysis({ points, surveys = [], onClose }) {
               {stats.declusteredStd !== null && <StatRow label={tr("Declustered std dev")} value={fmt(stats.declusteredStd)} />}
               <StatRow label={tr("Total tessellated area")} value={stats.totalArea.toLocaleString(undefined, { maximumFractionDigits: 0 }) + (isMetricProjectedEpsg(project?.epsg) ? " m²" : "") /* #2247 — the unit */} />
 
-              <button onClick={exportCSV} style={btn}>
+              <button onClick={exportCSV} className="gs-btn gs-btn--block">
                 <Download size={14} />{" "}{tr("Export cells (CSV)")}</button>
-              {shape?.is3D && <button type="button" onClick={() => setResult(null)} style={btn}>{tr("Change the elevation range")}</button>}
+              {shape?.is3D && <button type="button" onClick={() => setResult(null)} className="gs-btn gs-btn--block">{tr("Change the elevation range")}</button>}
             </div>
           </div>
         )}
@@ -226,4 +226,3 @@ function StatRow({ label, value, highlight }) {
 
 const panel = { width: "min(880px, 94vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--color-border)" };
-const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };

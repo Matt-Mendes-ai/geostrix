@@ -84,13 +84,12 @@ export default function ImageTiePointCanvas({ image, points, onAdd, onMove, maxS
     else if (e.key === "0") { e.preventDefault(); setView({ zoom: 1, cx: image.width / 2, cy: image.height / 2 }); }
   };
 
-  const btn = { width: 28, height: 26, border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-base)", lineHeight: 1 };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-        <button type="button" style={btn} onClick={() => zoomAt(1.5)} aria-label={tr("Zoom in")} title={tr("Zoom in (+)")}>+</button>
-        <button type="button" style={btn} onClick={() => zoomAt(1 / 1.5)} aria-label={tr("Zoom out")} title={tr("Zoom out (−)")}>−</button>
-        <button type="button" style={{ ...btn, width: "auto", padding: "0 8px" }} onClick={() => setView({ zoom: 1, cx: image.width / 2, cy: image.height / 2 })} title={tr("Whole image (0)")}>{tr("Fit")}</button>
+        <button type="button" className="gs-btn gs-btn--sm" style={{ width: 28, height: 26, padding: 0 }} onClick={() => zoomAt(1.5)} aria-label={tr("Zoom in")} title={tr("Zoom in (+)")}>+</button>
+        <button type="button" className="gs-btn gs-btn--sm" style={{ width: 28, height: 26, padding: 0 }} onClick={() => zoomAt(1 / 1.5)} aria-label={tr("Zoom out")} title={tr("Zoom out (−)")}>−</button>
+        <button type="button" className="gs-btn gs-btn--sm" style={{ height: 26, width: "auto", padding: "0 8px" }} onClick={() => setView({ zoom: 1, cx: image.width / 2, cy: image.height / 2 })} title={tr("Whole image (0)")}>{tr("Fit")}</button>
         <span style={{ fontVariantNumeric: "tabular-nums" }}>×{view.zoom.toFixed(view.zoom < 10 ? 1 : 0)}</span>
         <span>{tr("· scroll to zoom, drag to pan, drag a point to move it")}</span>
       </div>

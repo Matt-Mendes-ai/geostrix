@@ -27,13 +27,13 @@ export default function SourceCrsField({ value, onChange, defaultText, label = "
         <span style={{ flex: 1, minWidth: 0, color: set || mine ? "var(--color-text)" : "var(--color-text-secondary)", ...(set || mine ? null : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }) }} title={set || mine ? undefined : defaultText /* #1301 — one line; the whole sentence on hover */}>
           {mine ? mineText : set ? <>{name || tr("Unrecognized CRS")} <span style={{ color: "var(--color-text-muted)" }}>{tr("· EPSG:{value}", { value })}</span></> : defaultText}
         </span>
-        {(set || mine) && <button type="button" style={linkBtn} onClick={() => { onChange(""); setOpen(false); }} title={tr("Back to the default")}>{tr("Reset")}</button>}
-        <button type="button" style={linkBtn} onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? tr("Close") : tr("Change")}</button>
+        {(set || mine) && <button data-btn-own="" type="button" style={linkBtn} onClick={() => { onChange(""); setOpen(false); }} title={tr("Back to the default")}>{tr("Reset")}</button>}
+        <button data-btn-own="" type="button" style={linkBtn} onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? tr("Close") : tr("Change")}</button>
       </div>
       {open && (
         <div style={{ marginTop: 6 }}>
           {mineGrid && ( /* #2684 */
-            <button type="button" style={{ ...linkBtn, display: "block", marginBottom: 6, ...(mineGrid.kind === "none" ? { color: "var(--color-text-faint)", cursor: "default" } : null) }}
+            <button data-btn-own="" type="button" style={{ ...linkBtn, display: "block", marginBottom: 6, ...(mineGrid.kind === "none" ? { color: "var(--color-text-faint)", cursor: "default" } : null) }}
               disabled={mineGrid.kind === "none"} aria-pressed={mine}
               title={mineGrid.kind === "none" ? tr("This project has no mine grid beside its CRS: set one up under Maps > Project CRS first.") : mineGrid.kind === "local" ? tr("The file's x / y are the project's own local-grid numbers: they are kept as they are.") : tr("The file's x / y are on the project's mine grid: they are brought into the project CRS through the grid's tie.")}
               onClick={() => { onChange(MINE_SOURCE); setOpen(false); }}>

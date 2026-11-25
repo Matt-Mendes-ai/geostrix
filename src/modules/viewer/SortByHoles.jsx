@@ -19,12 +19,11 @@ export default function SortByHoles({ stackUnits, plan, label, setStackUnits, pB
   useEffect(() => { if (stackUnits.length < 2) setPreview(false); }, [stackUnits.length]);
   if (stackUnits.length < 2) return null;
   const apply = () => { setStackUnits([...plan.order]); setPreview(false); };
-  const small = { ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 8px" };
   const open = !!plan && preview;
   return (
     <div data-sort-by-holes="" style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-        <button type="button" style={small} onClick={() => setPreview((v) => !v)} aria-expanded={open}
+        <button type="button" className="gs-btn gs-btn--sm" onClick={() => setPreview((v) => !v)} aria-expanded={open}
           title={tr("Put the units in the order the holes log them, youngest first, changing as little as it can. You see the moves before anything changes.")}>{tr("Sort by the holes")}</button>
       </div>
       {open && (
@@ -38,8 +37,8 @@ export default function SortByHoles({ stackUnits, plan, label, setStackUnits, pB
           {plan.contradictions.length > 0 && <div role="note" style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Not settled by the holes (kept as you set them): {list}.", { list: plan.contradictions.slice(0, 4).map((c) => contradictionText(c, label)).join("; ") })}</div>}
           {!plan.same && <div style={note}>{tr("A marked unconformity goes with its unit.")}</div>}
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-            {!plan.same && <button type="button" style={{ ...small, fontWeight: 600 }} onClick={apply}>{tr("Apply")}</button>}
-            <button type="button" style={small} onClick={() => setPreview(false)}>{plan.same ? tr("Close") : tr("Cancel")}</button>
+            {!plan.same && <button type="button" className="gs-btn gs-btn--sm" style={{ fontWeight: 600 }} onClick={apply}>{tr("Apply")}</button>}
+            <button type="button" className="gs-btn gs-btn--sm" onClick={() => setPreview(false)}>{plan.same ? tr("Close") : tr("Cancel")}</button>
           </div>
         </div>
       )}
