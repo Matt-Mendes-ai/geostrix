@@ -1,7 +1,7 @@
 {
  "note": "Recorded by scripts/button-roles.mjs --update-baseline (#4069). No file may have more <button>s without a .gs-btn role class than its number; lower it after migrating.",
- "total": 1185,
- "withoutRole": 385,
+ "total": 1189,
+ "withoutRole": 376,
  "byFile": {
   "src/components/AddWebLayerModal.jsx": 3,
   "src/components/AlterationBoxModal.jsx": 2,
@@ -44,7 +44,6 @@
   "src/components/RasterPictureLegend.jsx": 3,
   "src/components/SampleGridPanel.jsx": 2,
   "src/components/SectionEditModal.jsx": 2,
-  "src/components/SectionGeorefModal.jsx": 9,
   "src/components/SectionImageVerticalModal.jsx": 7,
   "src/components/SectionOverview.jsx": 2,
   "src/components/SectionTabs.jsx": 2,
