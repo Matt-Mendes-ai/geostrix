@@ -43,7 +43,7 @@ GeoStrix had several traits that push that score up:
 | **No version information** on the Python engine | An executable with no company, product, description or version looks anonymous. | **Fixed:** it now carries the same identity as GeoStrix.exe (Matt Mendes, GeoStrix, version, MIT). |
 | **PyInstaller's stock icon** | Another "generic packed program" signal. | **Fixed:** uses the GeoStrix icon. |
 | **UPX packing** | UPX-compressed executables are a strong malware indicator. | **Guaranteed off:** the build passes `--noupx`. |
-| **Self-extracting installer** (NSIS) | Installers unpack and write many files, which behavioural monitors (Bitdefender's Advanced Threat Control) watch closely. | **Mitigated:** every release now also ships a portable `.zip` that needs no installer. |
+| **Self-extracting installer** (NSIS) | Installers unpack and write many files, which behavioural monitors (Bitdefender's Advanced Threat Control) watch closely. | **Mitigated:** the installer asks for no administrator rights if you choose “Only for me”; releases up to v0.2.13 also shipped a portable `.zip`, which no longer exists (TASKS.csv #4099). |
 
 None of these fixes, signing included, *guarantees* that no antivirus will ever flag a new release — each
 vendor uses its own heuristics and they change. They remove the most common triggers, and signing lets
@@ -68,7 +68,7 @@ on the maintainer's PC, with SimplySign Desktop connected,
     git checkout v<version>
     powershell -ExecutionPolicy Bypass -File scripts\sign-release.ps1
 
-signs GeoStrix.exe and the Python engine, packages the installer and zip from that same app, signs the
+signs GeoStrix.exe and the Python engine, packages the installer from that same app, signs the
 installer, its uninstaller and its elevation helper (timestamped by Certum), checks every signature,
 regenerates `latest.yml` and `SHA256SUMS.txt` from the signed files and, after a confirmation, publishes.
 `-DryRun` does everything except upload. If signing is ever unavailable, setting the repository variable
@@ -96,9 +96,7 @@ Each release lists SHA-256 checksums in `SHA256SUMS.txt` so a report can referen
    signed (the dialog names the publisher); older ones are unsigned.
 4. If the installer does nothing, or disappears: open your antivirus (e.g. Bitdefender → Protection →
    Antivirus → Quarantine / Notifications), restore the file, and add an exception for it.
-5. Alternative with no installer: download `GeoStrix-<version>-win.zip`, **Unblock the .zip first** (same
-   Properties → Unblock; otherwise every extracted file inherits the download mark), extract it anywhere (e.g.
-   `Documents\GeoStrix`), and run `GeoStrix.exe`. The first launch can take several seconds while the
-   antivirus scans the new files. (The portable copy does not auto-update; use the installer for that.)
+5. No administrator rights: run the installer and choose “Only for me”. (Releases up to v0.2.13 also had a portable `GeoStrix-<version>-win.zip`; later releases do not. A copy still running from an old
+   zip cannot update itself: GeoStrix tells you when a new version is out and points you to the installer.)
 6. Also works: install any version that runs, then use Help → Check for Updates — in-app updates are not
    held by SmartScreen.

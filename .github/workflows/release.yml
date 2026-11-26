@@ -140,12 +140,12 @@ jobs:
         # anyone (and an antivirus false-positive report) confirm a download is the exact file built here.
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
-          $files = Get-ChildItem release -File | Where-Object { ($_.Name -like 'GeoStrix*' -and $_.Name -match '\.(exe|zip|blockmap)$') -or $_.Name -eq 'latest.yml' } # not builder-debug.yml / unpacked dirs
+          $files = Get-ChildItem release -File | Where-Object { ($_.Name -like 'GeoStrix*' -and $_.Name -match '\.(exe|blockmap)$') -or $_.Name -eq 'latest.yml' } # not builder-debug.yml / unpacked dirs
           foreach ($f in $files) { Copy-Item $f.FullName (Join-Path out ($f.Name -replace ' ', '-')) }
           foreach ($required in @('GeoStrix-Setup-*.exe', 'GeoStrix-Setup-*.exe.blockmap', 'latest.yml')) {
             if (-not (Get-ChildItem out -Filter $required)) { Write-Error "Build produced no file matching '$required'"; exit 1 }
           }
-          $lines = Get-ChildItem out -File | Where-Object { $_.Name -match '\.(exe|zip)$' } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
+          $lines = Get-ChildItem out -File | Where-Object { $_.Name -match '\.exe$' } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
           $lines | Set-Content -Path out\SHA256SUMS.txt -Encoding ascii
           Get-ChildItem out | ForEach-Object { Write-Host "$($_.Length)`t$($_.Name)" }
           Get-Content out\SHA256SUMS.txt
@@ -206,12 +206,12 @@ jobs:
           $ErrorActionPreference = 'Continue'
           gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" 2>&1 | Out-Null
           if ($LASTEXITCODE -ne 0) {
-            gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --title "${{ github.ref_name }}" --notes "Download **GeoStrix-Setup-*.exe** below (Windows 10 / 11, 64-bit), or the portable **GeoStrix-*-win.zip**. Checksums: SHA256SUMS.txt.`n`n[Code signing policy](https://github.com/${{ github.repository }}/blob/master/CODE_SIGNING.md) · [Privacy policy](https://geostrix.com/privacy) · [geostrix.com](https://geostrix.com)" --verify-tag
+            gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --title "${{ github.ref_name }}" --notes "Download **GeoStrix-Setup-*.exe** below (Windows 10 / 11, 64-bit). No administrator rights? Choose 'Only for me' when installing. Checksums: SHA256SUMS.txt.`n`n[Code signing policy](https://github.com/${{ github.repository }}/blob/master/CODE_SIGNING.md) · [Privacy policy](https://geostrix.com/privacy) · [geostrix.com](https://geostrix.com)" --verify-tag
           } else {
             Write-Host "Release ${{ github.ref_name }} already exists - uploading into it."
           }
 
-      - name: Upload the installer, zip, blockmap, latest.yml and checksums
+      - name: Upload the installer, blockmap, latest.yml and checksums
         # latest.yml goes LAST: an updater that reads it must find the installer it names already there.
         run: |
           $files = Get-ChildItem out -File | Where-Object { $_.Name -ne 'latest.yml' } | ForEach-Object { $_.FullName }
