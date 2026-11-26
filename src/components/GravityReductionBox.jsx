@@ -10,6 +10,8 @@ import { surveyKey } from "../lib/geophysSurveys.js";
 import { replaceSurveyPoints } from "../lib/geophysSurveyTools.js"; // TASKS.csv #3590
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4089 — the standing notes behind More
+import ShortNote from "./ShortNote.jsx"; // TASKS.csv #4089 — a run's long note as its first sentence
 import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the surveys land only in the project they were made for
 
@@ -88,7 +90,7 @@ export default function GravityReductionBox({ survey, rows, epsg, terrain, setLa
           <option value="wgs84">{tr("WGS84, at each station's height")}</option>
           <option value="grs67">{tr("GRS67 and 0.3086 mGal/m (Canadian gravity database)")}</option>
         </select></label>}
-      {input === "observed" && <div style={note}>{tr("Match a public survey's convention before comparing or merging: the Geological Survey of Canada uses GRS67 and 0.3086 mGal/m, 0.8-0.9 mGal above WGS84.")}</div>}
+      {input === "observed" && <MoreFold style={{ ...note, marginBottom: 0 }}>{tr("Match a public survey's convention before comparing or merging: the Geological Survey of Canada uses GRS67 and 0.3086 mGal/m, 0.8-0.9 mGal above WGS84.")}</MoreFold>}{/* #4089 */}
       {input === "observed" && !looksAbsolute && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("These values (median {m}) do not look like absolute gravity, which is about 978,000-983,000 mGal.", { m: Math.round(median).toLocaleString() })}</div>}
       <label style={lbl}>{tr("Bouguer correction")}
         <select value={correction} onChange={(e) => setCorrection(e.target.value)} style={{ ...numInput, width: "auto" }} aria-label={tr("Bouguer correction")}>
@@ -97,12 +99,13 @@ export default function GravityReductionBox({ survey, rows, epsg, terrain, setLa
           <option value="topo" disabled={!terrain}>{tr("the terrain's prisms (complete)")}</option>
         </select></label>
       {correction !== "none" && <label style={lbl}>{tr("Density (kg/m³)")}<NumberInput allowEmpty min={1000} max={4000} step={10} value={density} onChange={(v) => setDensity((v == null ? "" : String(v)))} style={{ ...numInput, width: 70 }} aria-label={tr("Density (kg/m³)")} /></label>}
-      <div style={note}>{tr("2,670 kg/m³ is the conventional crustal density; use the rocks' own where known. The terrain prisms run from sea level to the ground.")}</div>
+      {correction !== "none" && <MoreFold style={{ ...note, marginBottom: 0 }}>{tr("2,670 kg/m³ is the conventional crustal density; use the rocks' own where known. The terrain prisms run from sea level to the ground.")}</MoreFold>}{/* #4089 */}
       {twice && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Labelled a Bouguer anomaly: a Bouguer correction would remove the plate twice. If it is free-air, change the survey's method above, or tick below.")}</div>}
       {twice && <label style={{ ...lbl, justifyContent: "flex-start" }}><input type="checkbox" checked={anyway} onChange={(e) => setAnyway(e.target.checked)} />{tr("These readings are a free-air anomaly: reduce them")}</label>}
       {!busy ? <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={run} disabled={twice && !anyway}>{tr("Reduce")}</button>
         : <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}><span style={{ ...note, marginTop: 0, flex: 1 }}>{busy}</span><button className="gs-btn" type="button" onClick={() => abort.current?.abort()}>{tr("Cancel")}</button></div>}
-      {msg && <div role="status" style={{ ...note, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-text)" }}>{msg.text}</div>}
+      {msg && (msg.ok ? <ShortNote text={msg.text} style={{ ...note, color: "var(--color-text-secondary)" }} /> /* #4089 — a run's long note: its first sentence */
+        : <div role="status" style={{ ...note, color: "var(--color-danger-text)" }}>{msg.text}</div>)}
     </div>
   );
 }

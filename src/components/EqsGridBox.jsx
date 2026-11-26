@@ -11,6 +11,8 @@ import { surveyKey } from "../lib/geophysSurveys.js";
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #3321 — a 3D cloud is not a field measured on one surface
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4089 — the standing notes behind More
+import ShortNote from "./ShortNote.jsx"; // TASKS.csv #4089 — a run's long note as its first sentence
 import { useStartProjectJob } from "../lib/store.jsx"; // TASKS.csv #3953 — the stable starter only (no re-render on store writes)
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the grid lands only in the project it was made for
 
@@ -103,13 +105,16 @@ export default function EqsGridBox({ survey, rows, units = "", method = null /* 
         <span>{tr("Source depth (m)")}</span><NumberInput allowEmpty min={0} value={depth} placeholder={String(depthDefault)} aria-label={tr("Equivalent-source depth below the readings")} title={tr("How far below the readings the sources sit: shallower fits short anomalies, deeper smooths. Blank: 1.2 × the station spacing ({s} m), or the cell if larger.", { s: sug?.spacingM != null ? Math.round(sug.spacingM) : "?" })} onChange={(v) => setDepth((v == null ? "" : String(v)))} style={numInput} />
         <span>{tr("Blank beyond (m)")}</span><NumberInput allowEmpty min={0} value={blank} placeholder={String(sug?.blankM ?? 3 * cellM)} aria-label={tr("Equivalent-source blanking distance")} onChange={(v) => setBlank((v == null ? "" : String(v)))} style={numInput} />
       </div>
-      <div style={note}>{noZ ? tr("{n} of the readings have no elevation, so all are taken at one height and the grid is a continuation from it.", { n: (pts.length - withZ).toLocaleString() }) : tr("Blank: the grid follows the readings' surface. An elevation gives a level grid; above the highest reading ({z} m) it is smoother, showing deeper sources.", { z: Number.isFinite(zMax) ? Math.ceil(zMax) : "?" })}</div>
+      {/* #4089 — the caution (no elevations) stays seen; the standing note on the grid's elevation is behind More */}
+      {noZ ? <div style={note}>{tr("{n} of the readings have no elevation, so all are taken at one height and the grid is a continuation from it.", { n: (pts.length - withZ).toLocaleString() })}</div>
+        : <MoreFold style={{ ...note, marginBottom: 0 }}>{tr("Blank: the grid follows the readings' surface. An elevation gives a level grid; above the highest reading ({z} m) it is smoother, showing deeper sources.", { z: Number.isFinite(zMax) ? Math.ceil(zMax) : "?" })}</MoreFold>}
       {busy ? (
         <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center" }}><span style={{ flex: 1 }}>{busy}</span><button className="gs-btn" type="button" onClick={() => abort.current?.abort()}>{tr("Cancel")}</button></div>
       ) : (
         <button className="gs-btn gs-btn--block" style={{ marginTop: 6, marginBottom: 0 }} type="button" onClick={run}>{tr("Grid with equivalent sources")}</button>
       )}
-      {msg && <div role="status" style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-danger-text)" }}>{msg.text}</div>}
+      {msg && (msg.info ? <ShortNote text={msg.text} style={{ ...note, color: "var(--color-text-secondary)" }} /> /* #4089 — a run's long note: its first sentence */
+        : <div role="status" style={{ ...note, color: "var(--color-danger-text)" }}>{msg.text}</div>)}
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { terrainElevationAt } from "../lib/inversion.js";
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4089 — the intro and the filled-in settings behind folds
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const minutes = (s) => (s < 90 ? tr("{s} s", { s: Math.round(s) }) : s < 5400 ? tr("{m} min", { m: Math.round(s / 60) }) : tr("{h} h", { h: (s / 3600).toFixed(1) }));
@@ -134,7 +135,7 @@ export default function Dcip3dArrayPanel({ numInput }) {
   return (
     <div style={{ marginTop: 14 }}>
       <div className="ge-section-label">{tr("3D survey from electrode coordinates")}</div>
-      <div style={small}>{tr("Inverts a 3D array whose readings give every electrode's coordinates (C1, C2, P1, P2). Each reading keeps the contractor's geometric factor.")}</div>
+      <MoreFold style={{ ...small, marginBottom: 0 }}>{tr("Inverts a 3D array whose readings give every electrode's coordinates (C1, C2, P1, P2). Each reading keeps the contractor's geometric factor.")}</MoreFold>{/* #4089 */}
       <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => fileRef.current?.click()} disabled={running}><Upload size={14} />{" "}{tr("Read a 3D array file…")}</button>
       <input ref={fileRef} type="file" accept=".txt,.csv,.dat,.xyz" style={{ display: "none" }} onChange={(e) => { read(e.target.files?.[0]); e.target.value = ""; }} aria-label={tr("3D array file")} />
       {readMsg && <div role="status" style={{ ...small, marginTop: 6, color: readMsg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{readMsg.text}</div>}
@@ -160,31 +161,28 @@ export default function Dcip3dArrayPanel({ numInput }) {
           </div>
           <div style={row} title={tr("Smallest cell, at the electrodes (half as tall). Cost grows quickly as it shrinks.")}><span style={lbl}>{tr("Cell size (m)")}</span><NumberInput allowEmpty min={5} value={o.core} placeholder={String(sug.core)} onChange={(v) => set("core", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Cell size (m)")} /><span style={small}>{tr("receiver dipole {d} m", { d: parsed.dipoleM })}</span></div>
           <div style={row} title={tr("How deep the fine cells reach under the electrodes.")}><span style={lbl}>{tr("Depth (m)")}</span><NumberInput allowEmpty min={10} value={o.depth} placeholder={String(sug.depth)} onChange={(v) => set("depth", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Depth (m)")} /></div>
-          <div style={row}><span style={lbl}>{tr("Uncertainty")}</span><NumberInput allowEmpty min={0} value={o.pct} placeholder="%" onChange={(v) => set("pct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty (%)")} /><NumberInput allowEmpty min={0} value={o.floor} placeholder={tr("floor Ω·m")} onChange={(v) => set("floor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty floor (ohm·m)")} /></div>
-          {parsed.rhoErr && <label style={{ ...row, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}><input type="checkbox" checked={o.fileErr} onChange={(e) => set("fileErr", e.target.checked)} />{tr("Each reading's uncertainty is at least its own error from the file (median {p} % of the value)", { p: relErr != null ? relErr.toFixed(1) : "?" })}</label>}
-          {hasIp && (
-            <>
-              <label style={{ ...row, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}><input type="checkbox" checked={o.useIp} onChange={(e) => set("useIp", e.target.checked)} />{tr("Invert the chargeability too")}</label>
-              {o.useIp && (
-                <>
-                  <div style={row} title={tr("ms keeps Mx as the file gives it, to compare with a contractor model made from the same Mx; mV/V divides by the window length.")}><span style={lbl}>{tr("Chargeability in")}</span>
-                    <select value={o.ipUnits} onChange={(e) => set("ipUnits", e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Chargeability units")}>
-                      <option value="ms">{tr("ms, as the file (comparable with the contractor's model)")}</option>
-                      <option value="mVV" disabled={!parsed.mxWindowMs}>{parsed.mxWindowMs ? tr("mV/V (Mx × 1000 / {w} ms)", { w: parsed.mxWindowMs[1] - parsed.mxWindowMs[0] }) : tr("mV/V (needs the window in the file)")}</option>
-                    </select>
-                  </div>
-                  <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><NumberInput allowEmpty min={0} value={o.ipPct} placeholder="%" onChange={(v) => set("ipPct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Chargeability uncertainty (%)")} /><NumberInput allowEmpty min={0} value={o.ipFloor} placeholder={tr("floor {u}", { u: ipUnitLabel })} onChange={(v) => set("ipFloor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Chargeability uncertainty floor")} /></div>
-                </>
-              )}
-            </>
-          )}
-          <div style={row} title={tr("Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.005} value={o.cutoff} onChange={(v) => set("cutoff", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Support cutoff")} /></div>
-          <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
+          {hasIp && <label style={{ ...row, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}><input type="checkbox" checked={o.useIp} onChange={(e) => set("useIp", e.target.checked)} />{tr("Invert the chargeability too")}</label>}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             <button className="gs-btn" style={{ flex: 1 }} onClick={estimate} disabled={running}><Box size={14} />{" "}{tr("Estimate")}</button>
             <button className="gs-btn" style={{ flex: 1 }} onClick={run} disabled={running || !plan?.ok} title={plan ? "" : tr("Estimate first")}><Play size={14} />{" "}{tr("Invert in 3D")}</button>
             {running && job?.meta?.dcip3d && <button className="gs-btn" onClick={() => cancelInversionJob()}>{tr("Cancel")}</button>}
           </div>
+          {/* TASKS.csv #4089 — the settings with a filled-in answer, behind Fine-tune… below the run buttons */}
+          <MoreFold summary={tr("Fine-tune…")} data-fine-tune="dcip3d-array" style={{ marginTop: 6, marginBottom: 0 }}>
+            <div style={row}><span style={lbl}>{tr("Uncertainty")}</span><NumberInput allowEmpty min={0} value={o.pct} placeholder="%" onChange={(v) => set("pct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty (%)")} /><NumberInput allowEmpty min={0} value={o.floor} placeholder={tr("floor Ω·m")} onChange={(v) => set("floor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty floor (ohm·m)")} /></div>
+            {parsed.rhoErr && <label style={{ ...row, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}><input type="checkbox" checked={o.fileErr} onChange={(e) => set("fileErr", e.target.checked)} />{tr("Each reading's uncertainty is at least its own error from the file (median {p} % of the value)", { p: relErr != null ? relErr.toFixed(1) : "?" })}</label>}
+            {hasIp && o.useIp && (<>
+                      <div style={row} title={tr("ms keeps Mx as the file gives it, to compare with a contractor model made from the same Mx; mV/V divides by the window length.")}><span style={lbl}>{tr("Chargeability in")}</span>
+                        <select value={o.ipUnits} onChange={(e) => set("ipUnits", e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Chargeability units")}>
+                          <option value="ms">{tr("ms, as the file (comparable with the contractor's model)")}</option>
+                          <option value="mVV" disabled={!parsed.mxWindowMs}>{parsed.mxWindowMs ? tr("mV/V (Mx × 1000 / {w} ms)", { w: parsed.mxWindowMs[1] - parsed.mxWindowMs[0] }) : tr("mV/V (needs the window in the file)")}</option>
+                        </select>
+                      </div>
+                      <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><NumberInput allowEmpty min={0} value={o.ipPct} placeholder="%" onChange={(v) => set("ipPct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Chargeability uncertainty (%)")} /><NumberInput allowEmpty min={0} value={o.ipFloor} placeholder={tr("floor {u}", { u: ipUnitLabel })} onChange={(v) => set("ipFloor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Chargeability uncertainty floor")} /></div>
+            </>)}
+            <div style={row} title={tr("Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.005} value={o.cutoff} onChange={(v) => set("cutoff", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Support cutoff")} /></div>
+            <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
+          </MoreFold>
           {plan && (
             <div style={{ ...small, marginTop: 6, color: plan.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>
               {tr("{readings} readings, {electrodes} electrodes; mesh {cells} cells ({active} below ground). Memory about {ram} GB; time about {t} on a typical laptop.", {
@@ -196,7 +194,7 @@ export default function Dcip3dArrayPanel({ numInput }) {
           {made && Object.keys(made).length > 0 && (
             <div style={{ marginTop: 10, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
               <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)" }}>{tr("Compare with a loaded model")}</div>
-              <div style={small}>{tr("Load the contractor's model under Block models (UBC mesh with .con / .res and .chg), then pick it here. Targeting › Voxel ranges hides either one.")}</div>
+              <MoreFold style={{ ...small, marginBottom: 0 }}>{tr("Load the contractor's model under Block models (UBC mesh with .con / .res and .chg), then pick it here. Targeting › Voxel ranges hides either one.")}</MoreFold>{/* #4089 */}
               {Object.keys(made).map((field) => {
                 const opts = others(field), c = compare(field);
                 return (
