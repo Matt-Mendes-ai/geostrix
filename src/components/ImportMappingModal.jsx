@@ -56,6 +56,7 @@ import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '
 
 
 export const Z_IMPORT = 62; // TASKS.csv #3688 / #4073 — above the other dialogs (60), below the CRS question (64)
+const MAP_FILE = /\.(shp|zip|gpkg|kml|kmz|geojson|json|gpx)$/i; // TASKS.csv #4097 — a map file, which Geophysics > Point survey does not read
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
   const { project: storeProject, layers: storeLayers, goToModule, collars: storeCollars } = useStore(); // #2492; layers: #2893; goToModule: #2848; collars: #2659
@@ -241,7 +242,14 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 </div>
               )}
               {/* TASKS.csv #2848 — no hole column but X / Y and a measurement: survey stations, which Geophysics > Point survey imports */}
-              {missingRequired.some((f) => f.key === "hole_id") && modal.file && looksLikeStationTable(modal.headers) && (
+              {/* TASKS.csv #4097 — a map file's points (a station shapefile): Point survey reads no shapefile, so they go to Map layers */}
+              {missingRequired.some((f) => f.key === "hole_id") && modal.file && MAP_FILE.test(modal.file.name || "") && (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                  <span style={{ flex: 1 }}>{tr("No hole column: a map file's points go to Map layers.")}</span>
+                  <button type="button" onClick={() => { const file = modal.file; onCancel(); requestModuleAction("import-as-map-layer", { file }); }} className="gs-btn gs-btn--sm" style={{ whiteSpace: "nowrap" }}>{tr("Add to Map layers")}</button>
+                </div>
+              )}
+              {missingRequired.some((f) => f.key === "hole_id") && modal.file && !MAP_FILE.test(modal.file.name || "") && looksLikeStationTable(modal.headers) && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                   <span style={{ flex: 1 }}>{tr("No hole column: if these are survey stations (X, Y and a measurement), import them under Geophysics > Point survey.")}</span>
                   <button type="button" onClick={() => { const file = modal.file; onCancel(); goToModule("geophysics"); requestModuleAction("geophysics-drop", { files: [file] }); }} className="gs-btn gs-btn--sm" style={{ whiteSpace: "nowrap" }}>{tr("Import as survey stations")}</button>
@@ -490,10 +498,10 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   return tie
                     ? <div role="note" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Converted to the local grid's north through its tie to EPSG:{epsg} (grid rotation {rot}°), at each hole's collar.", { epsg: tie.epsg, rot: tie.rotationDeg.toFixed(2) })}</div>
                     : <div role="alert" style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{storeProject?.localGrid
-                      ? tr("Tie the local grid first (Maps > Coordinates): its north is not known, so these azimuths would be left as they are in the file.")
+                      ? tr("Tie the local grid first (Maps > Coordinates): until then these azimuths are kept as in the file.")
                       : modal.target === "collars" // #2900 (1) — a collar import asks for the CRS first, and the azimuths are converted then
                         ? tr("The project has no coordinate system yet: importing these collars asks for it first, and these azimuths are then converted to grid north.")
-                        : tr("Choose the project CRS first: without it these azimuths cannot be turned to grid north and are left as they are in the file.")}</div>;
+                        : tr("Choose the project CRS first: until then these azimuths are kept as in the file.")}</div>;
                 })()}
                 {/* TASKS.csv #490 — which grid "grid north" is. Collars: the Source CRS above (their azimuths are
                     turned with their coordinates). Survey / structure files have no coordinates: pick the CRS here. */}

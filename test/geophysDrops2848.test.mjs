@@ -23,7 +23,7 @@ test("#2848 wiring: the bare viewport forwards drops, the tab imports them, the 
   assert.match(g, /onDrop=\{\(e\) => \{ e\.preventDefault\(\); setDragOver\(false\); dropFiles\(Array\.from\(e\.dataTransfer\.files \|\| \[\]\)\); \}\}/);
   assert.match(g, /if \(csvs\.length \|\| xyzs\.length\) setGeoPane\("points"\);/);
   const m = read("../src/components/ImportMappingModal.jsx");
-  assert.match(m, /missingRequired\.some\(\(f\) => f\.key === "hole_id"\) && modal\.file && looksLikeStationTable\(modal\.headers\)/);
+  assert.match(m, /missingRequired\.some\(\(f\) => f\.key === "hole_id"\) && modal\.file && !MAP_FILE\.test\(modal\.file\.name \|\| ""\) && looksLikeStationTable\(modal\.headers\)/); // #4097: a map file's points go to Map layers instead
   assert.match(m, /goToModule\("geophysics"\); requestModuleAction\("geophysics-drop", \{ files: \[file\] \}\);/);
 });
 

@@ -11,9 +11,24 @@ export function medianLonLat(points) {
 // (.prj, GeoPackage, a srid column with one value), the user is asked whether to make it the project CRS.
 // Returns the EPSG code to adopt, or null to keep the current one. `confirm` is injectable for tests.
 import { crsName, isGeographicCrs } from "./reproject.js";
-import { crsCandidatesAt } from "./projectCrs.js";
+import { crsCandidatesAt, utmZoneOf } from "./projectCrs.js";
 import { t as tr } from "./i18n.js";
 import { askConfirm } from "./confirmDialog.js"; // TASKS.csv #3957
+
+// TASKS.csv #4096 (Main's guard rails) — a project whose CRS was never set takes a file's declared CRS without a question (#615); a map
+// layer in latitude / longitude (a report-area outline in GDA2020 degrees, found live in #4056) made the whole project geographic, and the
+// collars after it met a project in degrees. The metric CRS of the layer's place instead: crsCandidatesAt(centre)[0], only when the box
+// [x0, y0, x1, y1] is in degrees, at most 6 degrees wide and inside one UTM zone and hemisphere. A box too big for one zone, or none,
+// gives null: the caller keeps today's behaviour (the declared CRS, then the degrees banner, #1148), never a wrong zone.
+// -> { code, name } or null
+export function metricCrsForExtent(declaredEpsg, box) {
+  if (!isGeographicCrs(Number(declaredEpsg)) || !Array.isArray(box) || box.length !== 4 || !box.every(Number.isFinite)) return null;
+  const [x0, y0, x1, y1] = box;
+  if ([x0, x1].some((v) => Math.abs(v) > 180) || [y0, y1].some((v) => Math.abs(v) > 90)) return null; // not degrees (#2678)
+  if (x1 - x0 > 6 || utmZoneOf(x0) !== utmZoneOf(x1) || (y0 < 0) !== (y1 < 0)) return null; // more than one zone
+  const m = crsCandidatesAt((x0 + x1) / 2, (y0 + y1) / 2)[0];
+  return m ? { code: m.code, name: m.name } : null;
+}
 
 export function shouldOfferCrs({ isEmpty, currentEpsg, declaredEpsg }) {
   const cur = Number(currentEpsg), d = Number(declaredEpsg);

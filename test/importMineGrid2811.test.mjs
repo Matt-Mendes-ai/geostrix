@@ -44,7 +44,7 @@ test("the dialog offers the mine grid for collars and for 'Grid of'; the import 
   assert.match(d, /label=\{tr\("Grid of"\)\}[\s\S]{0,200}mineGrid=\{mineSourceOf\(storeProject\)/);
   const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /const mineSrc = isMineSource\(sourceEpsg\), srcEpsg = mineSrc \? "" : sourceEpsg;/);
-  assert.match(p, /const declaredEpsg = rowCodes\.length === 1 && \(!srcEpsg/, "the CRS adopted when nothing is loaded is never 'mine'");
+  assert.match(p, /const declaredEpsg = declaredCollarEpsg\(rows\.map\(\(r\) => r\._rowEpsg\), srcEpsg\);/, "the CRS adopted when nothing is loaded is never 'mine'"); // #4096: srcEpsg, not sourceEpsg
   assert.match(p, /if \(mineSrc\) mineNote = collarsOnMineGrid\(rows, liveProject/);
   assert.equal((p.match(/if \(mineSrc && !r\._rowEpsg\) return; \/\/ #2811/g) || []).length, 2, "both reprojection passes leave the mine-grid rows alone");
   assert.match(p, /importModal\.sourceEpsg && !isMineSource\(importModal\.sourceEpsg\)/, "the local-grid transform check does not take 'mine' for a CRS");
