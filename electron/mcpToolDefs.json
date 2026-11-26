@@ -955,5 +955,160 @@
     "_meta": {
       "geostrix/long": true
     }
+  },
+  {
+    "name": "grid_hole_values",
+    "description": "Makes a change in GeoStrix: grids a value into a raster with the pane that does it, as a person would. source 'holes': one value per drillhole (the highest assay, its length-weighted mean, or the depth of the first value over a threshold; or for a coded log such as lithology the thickness, depth or elevation of chosen codes) placed at the collar or at the intercept down the desurveyed hole, gridded, and drawn in the Maps plan with each hole's value. source 'surface': one element of the surface samples (soil, stream, rock chip), optionally of one medium. Inverse distance, minimum curvature or natural neighbour; the pane's own cell size and blanking from the sample spacing unless given, log10 by default for trace elements. A run the pane would not start (fewer than three values, a threshold missing, a cell too small) is refused with the pane's own words. It runs in GeoStrix with no network use (after about 20 seconds the answer is 'started' with a job_id; check it with job_status). It adds a raster and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "holes",
+            "surface"
+          ],
+          "description": "What to grid: a value per drillhole, or a surface-sample element."
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "holes: an assay element's symbol, a numeric downhole log's name or a coded log's name (project_summary and list_layers give them). surface: the surface element's symbol (list_rasters_surveys gives them)."
+        },
+        "statistic": {
+          "type": "string",
+          "enum": [
+            "max",
+            "mean",
+            "firstOver",
+            "thick",
+            "top",
+            "base",
+            "topRL",
+            "baseRL"
+          ],
+          "description": "holes only. For an assay or numeric log: max (highest value), mean (length-weighted) or firstOver (depth of the first value over 'threshold'). For a coded log: thick, top, base (depth) or topRL, baseRL (elevation). Without it the pane's own."
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "description": "holes, firstOver: the value the depth is measured to, in the element's unit."
+        },
+        "codes": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "description": "holes, a coded log: the logged codes to grid."
+        },
+        "placed_at": {
+          "type": "string",
+          "enum": [
+            "collar",
+            "intercept"
+          ],
+          "description": "holes: where each value is placed. Without it the pane's own (the intercept when the holes are fans)."
+        },
+        "depth_as": {
+          "type": "string",
+          "enum": [
+            "along",
+            "vertical"
+          ],
+          "description": "holes, a depth statistic: down the hole or vertical."
+        },
+        "medium": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "surface: one sampling medium (list_rasters_surveys gives them). Without it all of them."
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "idw",
+            "mincurv",
+            "natneigh"
+          ],
+          "description": "Inverse distance (the default), minimum curvature or natural neighbour."
+        },
+        "cell_m": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The cell size in metres. Without it the pane's own, from the sample spacing."
+        },
+        "blank_m": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Cells farther than this from every sample stay empty. Without it the pane's own."
+        },
+        "log": {
+          "type": "boolean",
+          "description": "Grid log10 values (shown back in the unit). Without it the pane's own: on for ppm and ppb elements."
+        }
+      },
+      "required": [
+        "source",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "geostrix/long": true
+    }
+  },
+  {
+    "name": "anomaly_score",
+    "description": "Makes a change in GeoStrix: scores how unusual each sample's whole composition is, with the Multivariate anomaly score dialog opened in GeoStrix (a robust Mahalanobis distance on log ratios), and writes the score as one new calculated element: a column on the drill assays (the lab rows, without QC samples and pXRF) or on the surface samples (one sampling type, or all together). The elements are the dialog's own defaults read from the data (a value on most samples, few below detection) unless named; at least three are needed. The answer gives the samples scored, the elements used, how many lie above the 97.5 % line, the three most unusual samples and, word for word in substance, that the score ranks composition and is not a probability of mineralization. A column already in use is never replaced. It runs in GeoStrix with no network use and can take seconds on a big table (after about 20 seconds the answer is 'started' with a job_id; check it with job_status). The toast's Undo in GeoStrix takes the column out again.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "assays",
+            "surface"
+          ],
+          "description": "Which samples. Without it the dialog's own (the drill assays when there are any, else the surface samples)."
+        },
+        "medium": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "surface only: one sampling type, or 'all' for all types together. Without it the dialog's own."
+        },
+        "elements": {
+          "type": "array",
+          "maxItems": 40,
+          "items": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "description": "The elements to score on (at least three). Without them the dialog's own defaults."
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "The new column's name: letters, digits and underscores. Without it MCD_score (a number is added if that is in use)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "geostrix/long": true
+    }
   }
 ]

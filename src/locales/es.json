@@ -13627,7 +13627,6 @@
   "{client}: {what}": "{client}: {what}",
   "added section '{name}'": "agregó la sección '{name}'",
   "added the Layout page '{name}'": "agregó la lámina '{name}'",
-  "added a Best intercepts page ({n} intercepts of {symbol})": "agregó una lámina de mejores intersecciones ({n} intersecciones de {symbol})",
   "QC samples (standards, blanks, duplicates) are excluded.": "Se excluyen las muestras de control (estándares, blancos, duplicados).",
   "added the satellite image '{name}'": "agregó la imagen satelital '{name}'",
   "added the terrain '{name}'": "agregó el terreno '{name}'",
@@ -14853,7 +14852,6 @@
   "Drag the line to move the section.": "Arrastre la línea para mover la sección.",
   "built the surface '{name}'": "construyó la superficie '{name}'",
   "built the {symbol} grade shell": "construyó la envolvente de ley de {symbol}",
-  "added the model's blocks as the block model '{name}'": "agregó los bloques del modelo como el modelo de bloques '{name}'",
   "Selected mesh": "Malla seleccionada",
   "{n} meshes selected": "{n} mallas seleccionadas",
   "Delete": "Eliminar",
@@ -15044,8 +15042,6 @@
   "Only {n} holes log {v}: a halo needs three or more.": "Solo {n} sondajes registran {v}: un halo necesita tres o más.",
   "Every alteration interval logged is {v}: with no other alteration logged, nothing closes the halo between the holes.": "Todos los intervalos de alteración registrados son {v}: sin otra alteración registrada, nada cierra el halo entre los sondajes.",
   "{v} is logged in {n} holes; the other alteration logged closes the halo between them.": "{v} está registrado en {n} sondajes; la otra alteración registrada cierra el halo entre ellos.",
-  "estimated {symbol} into the block model '{name}'": "estimó {symbol} en el modelo de bloques '{name}'",
-  "added the grade shell's cells as the block model '{name}'": "agregó las celdas de la envolvente de ley como el modelo de bloques '{name}'",
   "built the vein '{name}'": "construyó la veta '{name}'",
   "built the alteration halo '{name}'": "construyó el halo de alteración '{name}'",
   "A bar beside the trace, its length following the value": "Una barra junto a la traza, de largo según el valor",
@@ -15937,5 +15933,10 @@
   "Open {name}": "Abrir {name}",
   "Search…": "Buscar…",
   "Search samples": "Buscar muestras",
-  "Sample projects": "Proyectos de muestra"
+  "Sample projects": "Proyectos de muestra",
+  "added the score column '{name}'": "agregó la columna de puntaje '{name}'",
+  "added the model's blocks as block model '{name}'": "agregó los bloques del modelo como modelo de bloques '{name}'",
+  "estimated {symbol} into block model '{name}'": "estimó {symbol} en el modelo de bloques '{name}'",
+  "added the grade shell's cells as block model '{name}'": "agregó las celdas de la envolvente de ley como modelo de bloques '{name}'",
+  "added a Best intercepts page ({n} of {symbol})": "agregó una lámina de mejores intersecciones ({n} de {symbol})"
 }

@@ -8,7 +8,7 @@ import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #139
 import React, { useState, useRef, useMemo, useEffect, Suspense } from "react";
 import { useLatestCallback } from "../lib/useLatestCallback.js"; // TASKS.csv #3931
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
-import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
+import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #4093
 import { joinBySampleId } from "../lib/surfaceJoin.js"; // TASKS.csv #1670
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
 import { structureRowsFromSamples } from "../lib/structureTable.js"; // TASKS.csv #3869 (#3842)
@@ -230,6 +230,7 @@ export default function GeochemModule() {
   const [catchmentsOpen, setCatchmentsOpen] = useState(false); // TASKS.csv #845
   const [plannerOpen, setPlannerOpen] = useState(false); // TASKS.csv #844
   const [plannerTab, setPlannerTab] = useState(null); // TASKS.csv #4042 — "streams" when opened from the terrain (Maps > Terrain, its row's menu, Catchments)
+  useModuleAction(["mcp-anomaly-score"], (_a, p) => { setMcdOpen(true); requestModuleAction("mcp-mcd-run", p); }); // TASKS.csv #4093 (batch 5): anomaly_score opens the Multivariate anomaly score dialog and runs it (components/useMcpAnomaly.js)
   useModuleAction(["plan-stream-sites"], () => { setPlannerOpen(false); setPlannerTab("streams"); setTimeout(() => setPlannerOpen(true), 0); });
   const [publicOpen, setPublicOpen] = useState(false); // TASKS.csv #846
   const [domainsOpen, setDomainsOpen] = useState(false); // TASKS.csv #852
