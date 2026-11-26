@@ -128,3 +128,35 @@ export function faultPlaneMeshes({ spec, extent = "box", marginM = 200, other = 
   const sheets = out.filter((s) => s.indices.length);
   return { ok: true, sheets, empty: out.length - sheets.length, unassigned: r.unassigned.length, dropped: r.dropped };
 }
+
+/**
+ * TASKS.csv #4103 — an order 2 / 3 surface from a line traced over the relief (lib/traceFit.js fitTraceSurface): a grid in the surface's own plane (strike, down dip) lifted to its
+ * polynomial height, cut as the sheeted planes are: "finite" -> the ellipse around the evidence plus the margin; "box" -> the model box; "until" -> the box, on the side of `other`
+ * (world positions / indices) the evidence is on; always at the ground when there is one. points: the fault's evidence (world). -> { positions, indices } (flat), empty when nothing is inside
+ */
+export function polynomialSurfaceMesh({ surface, points, extent = "box", marginM = 200, other = null, box = null, ground = null, cells = 48 }) {
+  const loc = points.map((p) => surface.localOf(p));
+  const lo = (i) => arrMin(loc.map((q) => q[i])), hi = (i) => arrMax(loc.map((q) => q[i]));
+  let u0 = lo(0) - marginM, u1 = hi(0) + marginM, v0 = lo(1) - Math.max(marginM, (hi(0) - lo(0)) / 4), v1 = hi(1) + Math.max(marginM, (hi(0) - lo(0)) / 4);
+  if (extent !== "finite" && box) {
+    const corners = []; for (const x of [box.x0, box.x1]) for (const y of [box.y0, box.y1]) for (const z of [box.z0, box.z1]) corners.push(surface.localOf({ x, y, z }));
+    u0 = arrMin(corners.map((q) => q[0])); u1 = arrMax(corners.map((q) => q[0])); v0 = arrMin(corners.map((q) => q[1])); v1 = arrMax(corners.map((q) => q[1]));
+  }
+  const plane = { normal: surface.frame.n, centroid: surface.centre };
+  const verts = [], tris = [];
+  for (let j = 0; j <= cells; j++) for (let i = 0; i <= cells; i++) verts.push(surface.pointAt(u0 + ((u1 - u0) * i) / cells, v0 + ((v1 - v0) * j) / cells));
+  const id = (i, j) => j * (cells + 1) + i;
+  for (let j = 0; j < cells; j++) for (let i = 0; i < cells; i++) tris.push([id(i, j), id(i + 1, j), id(i + 1, j + 1)], [id(i, j), id(i + 1, j + 1), id(i, j + 1)]);
+  const below = ground ? (p) => { const g = ground(p.x, p.y); return !Number.isFinite(g) || p.z <= g + 1; } : null;
+  const inBox = box && extent !== "finite" ? (p) => p.x >= box.x0 && p.x <= box.x1 && p.y >= box.y0 && p.y <= box.y1 && p.z >= box.z0 && p.z <= box.z1 : null;
+  const side = extent === "until" ? keepInsideWorld({ extent, plane, other }) : null;
+  const inside = extent === "finite" ? keepInsideWorld({ extent, points, plane, marginM }) : null;
+  const keep = (p) => (!inBox || inBox(p)) && (!below || below(p)) && (!side || side(p)) && (!inside || inside(p));
+  const map = new Map(), positions = [], indices = [];
+  for (const t of tris) {
+    const c = { x: (verts[t[0]].x + verts[t[1]].x + verts[t[2]].x) / 3, y: (verts[t[0]].y + verts[t[1]].y + verts[t[2]].y) / 3, z: (verts[t[0]].z + verts[t[1]].z + verts[t[2]].z) / 3 };
+    if (!keep(c)) continue;
+    for (const i of t) { if (!map.has(i)) { map.set(i, positions.length / 3); positions.push(verts[i].x, verts[i].y, verts[i].z); } indices.push(map.get(i)); }
+  }
+  return { positions, indices };
+}
