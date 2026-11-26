@@ -86,7 +86,7 @@ export function veinResult(surfaces) {
   const p = v[v.length - 1].params;
   return { key: p.generatedAt || null, target: p.target, surfaces: v.filter((s) => s.params.generatedAt === p.generatedAt && s.params.target === p.target).length,
     intercepts: p.intercepts, meanM: p.trueThicknessMeanM, minM: p.trueThicknessMinM, maxM: p.trueThicknessMaxM, dip: p.dip, dipDir: p.dipDir, shape: p.shape,
-    source: p.attitudeSource, rmsM: p.contactResidualRmsM, pinchOut: !!p.pinchOut };
+    source: p.attitudeSource, rmsM: p.contactResidualRmsM, pinchOut: !!p.pinchOut, line: p.tracedLine || null /* TASKS.csv #4103 — a vein surface from a traced line: no intercepts, no thickness */ };
 }
 
 // the Alteration pane's Result step: the newest halo or unit body (indicator envelope) -> { key, target, samples, altered, farShare, beyondShare, closure,

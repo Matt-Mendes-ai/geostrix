@@ -5,7 +5,8 @@
 import { roleForLithology } from "./layers.js";
 
 // words that make a map line, a structure type or a note read as a fault (Model from map's own test, #817)
-export const FAULT_TEXT = /fault|thrust|shear/i;
+// TASKS.csv #4103 — also the Portuguese, Spanish and French names a Google Earth or QGIS user gives such a line: falha, falla, filão (filao), veta, faille
+export const FAULT_TEXT = /fault|thrust|shear|falha|falla|fil[aã]o|\bveta\b|faille/i;
 // a logged code or note that reads as a fault zone: the lithology roles (fault, gouge...) and the structure-zone codes; a breccia alone is not a
 // fault (a hydrothermal breccia is not), a fault breccia is
 export const FAULT_CODE = /^(fl|flt|fz|fltz|fltbx|gge|gouge|shz|sz)$|fault|gouge|shear|mylonit|cataclas/i;

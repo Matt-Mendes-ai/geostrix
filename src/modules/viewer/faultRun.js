@@ -3,7 +3,8 @@
 // each sheet a surface of its own with what it was built from and its fit. Moved out of FaultBuilder.jsx unchanged (planeOf and the body of buildPlanes); nothing is solved
 // (no sidecar), so it answers at once. React-free.
 import { t as tr } from "../../lib/i18n.js";
-import { faultBox, downDipReach, faultPlaneMeshes } from "./faultGather.js";
+import { faultBox, downDipReach, faultPlaneMeshes, polynomialSurfaceMesh } from "./faultGather.js";
+import { fitTraceSurface } from "../../lib/traceFit.js"; // TASKS.csv #4103
 import { normalOf } from "../../lib/sheetedPlanes.js";
 import { terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { colorForStructure } from "../../lib/layers.js";
@@ -36,6 +37,25 @@ export function buildFaultPlanes({ faults, extent, marginM, gapM, other = null, 
   for (const f of faults) {
     if (!f.spec) continue;
     if (!f.spec.ok) { msgs.push(f.spec.why === "no-orientation" ? tr("{name}: points on one line; give a dip.", { name: f.name }) : tr("{name}: no evidence placed.", { name: f.name })); continue; }
+    // TASKS.csv #4103 — a fault with a line traced over the relief at order 2 or 3: ONE polynomial surface through the fault's points (the highest order asked), not flat sheets
+    const order = Math.max(1, ...f.items.filter((it) => it.kind === "traced").map((it) => it.fit?.order || 1));
+    if (order > 1) {
+      const surf = fitTraceSurface(f.spec.points, order, { vertices: f.items.reduce((n, it) => n + (it.fit?.vertices || it.points.length), 0) });
+      const mesh = surf.ok ? polynomialSurfaceMesh({ surface: surf, points: f.spec.points, extent, marginM, other: other ? { positions: other.vertices || other.positions, indices: other.indices } : null, box, ground }) : null;
+      if (mesh?.indices.length) {
+        const kinds = {}; for (const it of f.items) kinds[it.kind] = (kinds[it.kind] || 0) + 1;
+        const name = `Fault: ${f.name}`, c = surf.centre, mid = surf.normalAt(c.x, c.y, c.z);
+        const fit = { points: surf.n, typicalMissM: Math.round(surf.rms * 100) / 100, worstMissM: Math.round(surf.worst * 100) / 100 };
+        const id = addSurface?.({
+          name, positions: mesh.positions, indices: mesh.indices, color: colorForStructure("FLT"), opacity: 0.7, type: "fault",
+          params: { tool: `Faults pane: order ${order} surface`, contactFit: fit, inputs: { points: f.spec.points.map((p) => [p.x, p.y, p.z, 0]), orientations: [] },
+            faultEvidence: { kinds, items: f.items.map((it) => it.name).slice(0, 30), extent, ...(extent === "finite" ? { marginM } : {}), ...(other ? { endsAt: other.name } : {}), guess: f.spec.guess, shape: "polynomial", order, caution: surf.caution, dip: Math.round(mid.dip), dipDir: Math.round(mid.dipDir) } },
+        });
+        made.push({ id, name, fault: f.name, sheet: 1, sheets: 1, dip: Math.round(mid.dip), dipDir: Math.round(mid.dipDir), fit, folded: false, guess: !!f.spec.guess, order });
+        continue;
+      }
+      msgs.push(tr("{name}: no order {n} surface fits here; the plane was built.", { name: f.name, n: order }));
+    }
     const d = dips[f.i], given = f.spec.said.some((x) => x.key === "user-dip") && Number.isFinite(d?.dip) && Number.isFinite(d?.dipDir) ? normalOf(d.dip, d.dipDir) : null;
     const res = faultPlaneMeshes({ spec: f.spec, extent, marginM, other: other ? { positions: other.vertices || other.positions, indices: other.indices } : null, box, ground, gapM, normal: given });
     if (!res.ok || !res.sheets.length) { msgs.push(tr("{name}: nothing inside its extent.", { name: f.name })); continue; }

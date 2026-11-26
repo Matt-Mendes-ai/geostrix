@@ -73,7 +73,7 @@ export function fitPlane(points) {
   const flat = !(spread0 > 1e-6) || spread1 < Math.max(1, 0.02 * spread0); // the points lie along a line (one draped trace, one hole): no plane
   const dip = deg(Math.acos(Math.min(1, Math.abs(n[2]))));
   const dipDir = norm360(deg(Math.atan2(n[0], n[1])));
-  return { centroid: c, normal: n, dip, dipDir, rms: Math.sqrt(Math.max(0, values[2])), flat, n: P.length };
+  return { centroid: c, normal: n, dip, dipDir, rms: Math.sqrt(Math.max(0, values[2])), flat, n: P.length, spread: [spread0, spread1] /* TASKS.csv #4103 — the standard deviations along the two in-plane axes (lib/traceFit.js's dip error) */ };
 }
 
 // a mapped fault's dip: the map's own (a dip attribute), else the nearest outcrop fault within 500 m (its side too), else the type's default
@@ -181,7 +181,7 @@ export function faultSpec(items, { dip = null, dipDir = null } = {}) {
     } else return { ok: false, points, orientations, plane, guess: true, why: "no-orientation", said };
   }
   const kinds = new Set(items.map((it) => it.kind)), holes = items.reduce((n, it) => n + (it.holes || 0), 0);
-  const guess = points.length < GUESS_POINTS || (kinds.size === 1 && (kinds.has("pick") || kinds.has("logged")) && holes < 2);
+  const guess = points.length < GUESS_POINTS || (kinds.size === 1 && (kinds.has("pick") || kinds.has("logged")) && holes < 2) || items.some((it) => it.kind === "traced" && (it.fit?.usedMapDip || it.fit?.problems?.length)); // #4103 — a traced line whose dip is the map's / default, or poorly constrained, is a guess
   if (guess) said.push({ key: "guess", vars: { n: points.length } });
   return { ok: true, points, orientations, plane, guess, said };
 }

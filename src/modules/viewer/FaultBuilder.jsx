@@ -11,6 +11,9 @@ import { smallSel } from "../../lib/sidebarStyles.js";
 import NumberInput from "../../components/NumberInput.jsx";
 import StepPane from "../../components/StepPane.jsx"; // TASKS.csv #4070 — the builder as steps
 import { faultSpec } from "../../lib/faultEvidence.js";
+import { traceLines, tracedEvidence } from "../../lib/traceFit.js"; // TASKS.csv #4103 — a line traced over the relief, any imported line
+import { terrainGroundAt } from "../../lib/viewer/geomath.js";
+import TraceFitBlock from "./TraceFitBlock.jsx";
 import { gatherFaultEvidence, keepInsideWorld, downDipReach } from "./faultGather.js";
 import { planeOf, buildFaultPlanes, FAULT_CHECK_M } from "./faultRun.js"; // TASKS.csv #4053 — the sheeted-planes build, shared with an AI app's build_fault
 import { buildMeshQuery, closestPointOnMesh } from "../../lib/meshQuery.js";
@@ -18,8 +21,8 @@ import { colorForStructure } from "../../lib/layers.js";
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const warn = { ...note, color: "var(--color-warn-text)" };
-const KINDS = ["pick", "logged", "outcrop", "mapped", "drawn", "string"];
-const kindName = (k) => ({ pick: tr("Oriented fault picks"), logged: tr("Logged fault intervals"), outcrop: tr("Outcrop fault measurements"), mapped: tr("Mapped fault lines"), drawn: tr("Drawn fault lines"), string: tr("Section fault strings") })[k];
+const KINDS = ["pick", "logged", "outcrop", "mapped", "drawn", "string", "traced"];
+const kindName = (k) => ({ pick: tr("Oriented fault picks"), logged: tr("Logged fault intervals"), outcrop: tr("Outcrop fault measurements"), mapped: tr("Mapped fault lines"), drawn: tr("Drawn fault lines"), string: tr("Section fault strings"), traced: tr("Lines you chose") })[k];
 const MAX_FAULTS = 6;
 const LINE_KINDS = new Set(["mapped", "drawn", "string"]);
 // "{n} point" / "{n} points" etc.: each form its own key
@@ -32,7 +35,15 @@ const count = (n, what) => ({
 export default function FaultBuilder(props) {
   const { tracesRef, tracesSeq, mapLayers, sections, terrain, surfaceStructures, originRef, implicitSurfaces, runStructuralModel, implicitBusy, setStackFaults, stackFaults, addWorldMeshSurface, fineTune } = props;
   const { layers = {}, generatedSurfaces = [] } = useStore() || {};
-  const items = useMemo(() => gatherFaultEvidence({ traces: tracesRef?.current || [], layers, surfaceStructures, mapLayers, sections, terrain }), [tracesSeq, tracesRef, layers, surfaceStructures, mapLayers, sections, terrain]); // tracesSeq: the traces' version (tracesRef is a ref)
+  const gathered = useMemo(() => gatherFaultEvidence({ traces: tracesRef?.current || [], layers, surfaceStructures, mapLayers, sections, terrain }), [tracesSeq, tracesRef, layers, surfaceStructures, mapLayers, sections, terrain]); // tracesSeq: the traces' version (tracesRef is a ref)
+  // TASKS.csv #4103 — any imported line, chosen here whatever its attributes: draped on the terrain (or its own altitudes), a plane fitted through it, optionally a surface of order 2 or 3
+  const [traceSel, setTraceSel] = useState([]); // [{ id, order (1 | 2 | 3), heights ("auto" | "terrain"), mapDip }]
+  const allLines = useMemo(() => traceLines(mapLayers), [mapLayers]);
+  const traced = useMemo(() => {
+    const ground = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : () => NaN;
+    return traceSel.map((sel) => { const line = allLines.find((l) => l.id === sel.id); return line ? { sel, line, res: tracedEvidence(line, { ground, order: sel.order, heights: sel.heights, mapDip: sel.mapDip }) } : null; }).filter(Boolean);
+  }, [traceSel, allLines, terrain]);
+  const items = useMemo(() => [...gathered, ...traced.filter((t) => t.res.ok).map((t) => t.res.item)], [gathered, traced]);
   const [off, setOff] = useState({}); // kind -> true: not used
   const [assign, setAssign] = useState({}); // item id -> fault index (0..), or -1: left out; unset: fault 0
   const [names, setNames] = useState([tr("Fault {n}", { n: 1 })]);
@@ -105,8 +116,37 @@ export default function FaultBuilder(props) {
   };
 
   const nOk = faults.filter((f) => f.spec?.ok).length;
+  const setSel = (id, patch) => setTraceSel((p) => p.map((q) => (q.id === id ? { ...q, ...patch } : q)));
+  const dropLine = (id) => { setTraceSel((p) => p.filter((q) => q.id !== id)); setAssign((p) => { const { [id]: _gone, ...rest } = p; return rest; }); };
+  const pickLine = (id) => {
+    if (!id) return;
+    const free = faults.findIndex((f) => !f.items.length), target = free >= 0 ? free : Math.min(names.length, MAX_FAULTS - 1); // the first fault with nothing in it, else a new one
+    if (target >= names.length) setNames((p) => [...p, tr("Fault {n}", { n: p.length + 1 })]);
+    setTraceSel((p) => [...p, { id, order: 1, heights: "auto", mapDip: false }]);
+    setAssign((p) => ({ ...p, [id]: target }));
+  };
+  // one chosen line's fit, in words, with its choices (TraceFitBlock, shared with the Vein / dyke pane)
+  const tracedBlock = (it) => {
+    const t = traced.find((q) => q.line.id === it.id);
+    return <TraceFitBlock id={it.id} name={it.name} fit={it.fit} sel={t?.sel || {}} hasZ={!!t?.line.hasZ} setSel={(patch) => setSel(it.id, patch)} onRemove={() => dropLine(it.id)} />;
+  };
+  const traceFailures = traced.filter((t) => !t.res.ok);
+  const linePicker = allLines.length ? (
+    <div data-trace-pick="" style={{ marginTop: 6 }}>
+      <select value="" onChange={(e) => pickLine(e.target.value)} style={{ ...smallSel, width: "100%" }} aria-label={tr("Use a line…")}>
+        <option value="">{tr("Use a line…")}</option>
+        {allLines.filter((l) => !traceSel.some((q) => q.id === l.id)).map((l) => <option key={l.id} value={l.id}>{tr("{name} — {layer}, {km} km", { name: l.name, layer: l.layerName, km: (l.lengthM / 1000).toFixed(1) })}</option>)}
+      </select>
+      {traceFailures.map((t) => (
+        <div key={t.line.id} style={{ ...warn, display: "flex", gap: 6, alignItems: "center" }}>
+          <span style={{ flex: 1 }}>{t.res.why === "few" ? tr("{name}: fewer than three points to fit.", { name: t.line.name }) : tr("{name}: no height: no altitudes on the line and no terrain.", { name: t.line.name })}</span>
+          <button type="button" className="gs-btn gs-btn--sm" onClick={() => dropLine(t.line.id)}>{tr("Remove the line")}</button>
+        </div>
+      ))}
+    </div>
+  ) : null;
   const kindRows = (<>
-    {!items.length && <div style={note}>{tr("No fault evidence yet.")}</div>}
+    {!items.length && !traceFailures.length && <div style={note}>{tr("No fault evidence yet.")}</div>}
     {KINDS.filter((k) => byKind[k].length).map((k) => (
       <div key={k} data-fault-kind={k} style={{ marginTop: 4 }}>
         <label style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 500 }} title={!off[k] && LINE_KINDS.has(k) && byKind[k].length > 1 ? tr("Each line starts left out: give it its fault.") : undefined}>
@@ -115,7 +155,7 @@ export default function FaultBuilder(props) {
         </label>
         {!off[k] && <div style={{ maxHeight: 140, overflowY: "auto", paddingLeft: 18 }}>
           {byKind[k].map((it) => (
-            <div key={it.id} data-fault-item={it.id} style={{ display: "flex", alignItems: "center", gap: 6, ...note, color: "var(--color-text-secondary)" }}>
+            <React.Fragment key={it.id}><div data-fault-item={it.id} style={{ display: "flex", alignItems: "center", gap: 6, ...note, color: "var(--color-text-secondary)" }}>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.name}>
                 {it.name} · {it.points.length === 1 ? tr("{n} point", { n: 1 }) : tr("{n} points", { n: it.points.length })}{it.orientations.length ? ` · ${tr("{n} with a dip", { n: it.orientations.length })}` : ""}{it.dipSource === "default" ? ` · ${tr("default dip {d}°", { d: it.orientations[0]?.dip })}` : ""}{it.level != null ? ` · ${tr("RL {z} m", { z: it.level })}` : ""}
               </span>
@@ -124,11 +164,12 @@ export default function FaultBuilder(props) {
                 {names.length < MAX_FAULTS && <option value={names.length}>{tr("New fault")}</option>}
                 <option value={-1}>{tr("Leave out")}</option>
               </select>
-            </div>
+            </div>{it.kind === "traced" && tracedBlock(it)}</React.Fragment>
           ))}
         </div>}
       </div>
     ))}
+    {linePicker}
   </>);
   const faultCards = faults.filter((f) => f.items.length).map((f) => (
     <div key={f.i} data-fault={f.i} style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--color-divider)" }}>
