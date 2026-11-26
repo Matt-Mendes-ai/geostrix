@@ -155,10 +155,11 @@ export function parseTemReceiver(text, opts = {}) {
   if (!gt && tStart && tEnd && tStart.length === gates.length && tEnd.length === gates.length) gt = tStart.map((v, i) => +((v + tEnd[i]) / 2).toPrecision(6));
   // coordinates: in the file, or from the line
   let positions = "file", positionNote = null;
+  // TASKS.csv #4081 — the loop's corners in map coordinates, kept on the result (a GSV survey's .tx file holds the same corners as each .tem's LV1X ... words)
+  const loop = loopCorners(header) || (loops && loops.length >= 3 && loops.every(([x, y]) => Math.abs(x) > 1e4 || Math.abs(y) > 1e4) ? loops : null);
   if (opts.placeLines === false) positions = ci.east < 0 || ci.north < 0 ? "none" : "file";
   else if (ci.east < 0 || ci.north < 0 || !stations.some((s) => Number.isFinite(s.x) && Number.isFinite(s.y))) { // no columns, or every position "*" (Zonge .amr, #4076)
     positions = "line";
-    const loop = loopCorners(header) || (loops && loops.length >= 3 && loops.every(([x, y]) => Math.abs(x) > 1e4 || Math.abs(y) > 1e4) ? loops : null);
     const hows = new Set(), axes = new Set(), byLine = new Map();
     for (const st of stations) (byLine.get(st.line) || byLine.set(st.line, []).get(st.line)).push(st);
     for (const [lineKey, list] of byLine) {
@@ -173,5 +174,6 @@ export function parseTemReceiver(text, opts = {}) {
   let widths = null;
   if (gt && tWidth && tWidth.length === gates.length) widths = tWidth;
   else if (gt && tStart && tEnd && tStart.length === gates.length && tEnd.length === gates.length) widths = tStart.map((v, i) => +(tEnd[i] - v).toPrecision(6));
-  return { header, title: title2, family, columns: cols, config: header.CONFIG || header.ARRAY || null, times: gt, gates, components, assumedComponent: ci.comp < 0, adcLeftOut, stations, units, rows, positions, positionNote, hasTimes: !!gt, widths, timesListed: (times || tStart || []).length, hasStation: ci.stn >= 0, skipped };
+  return { header, title: title2, family, columns: cols, config: header.CONFIG || header.ARRAY || null, times: gt, gates, components, assumedComponent: ci.comp < 0, adcLeftOut, stations, units, rows, positions, positionNote, hasTimes: !!gt, widths, timesListed: (times || tStart || []).length, hasStation: ci.stn >= 0, skipped,
+    loop: loop ? loop.map(([x, y], i) => ({ x, y, z: Number.isFinite(num(header[`LV${i + 1}Z`])) ? num(header[`LV${i + 1}Z`]) : null })) : null };
 }

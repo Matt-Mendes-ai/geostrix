@@ -10561,7 +10561,6 @@
   "No GOCAD TSurf with triangles in this file{v}.": "Não há nenhum TSurf do GOCAD com triângulos neste arquivo{v}.",
   " (it holds {list})": " (ele contém {list})",
   "no GOCAD PLine with segments in it": "não contém nenhuma PLine do GOCAD com segmentos",
-  "Imported \"{name}\" as {n} boundary layer(s) ({lines} line(s)) with their own elevations — edit or remove them under Geophysics → Boundaries. GOCAD coordinates are assumed to already be in the project's coordinate system{v}.": "“{name}” foi importado como {n} camada(s) de limites ({lines} linha(s)) com as próprias cotas — edite ou remova em Geofísica → Limites. Assume-se que as coordenadas GOCAD já estão no sistema de coordenadas do projeto{v}.",
   " (the file names \"{crs}\")": " (o arquivo indica “{crs}”)",
   "{name}: couldn't read GOCAD ({message}).": "{name}: não foi possível ler o GOCAD ({message}).",
   "{names}: GOCAD point sets are read as point surveys: drop them on the Geophysics tab, or use Geophysics > Point survey > Import survey.": "{names}: conjuntos de pontos GOCAD são lidos como levantamentos de pontos: solte-os na aba Geofísica, ou use Geofísica > Levantamento de pontos > Importar levantamento.",
@@ -15809,7 +15808,6 @@
   "Ticked first: the elements with a value on 90 % of the samples and few below detection or on the detection floor.": "Marcados no início: os elementos com valor em 90 % das amostras e poucos abaixo da detecção ou no piso de detecção.",
   "Values in {unit}; click a column to pick its rule.": "Valores em {unit}; clique numa coluna para escolher sua regra.",
   "{n} {medium} sites; background {bg} {unit} ({how}); anomalous from {thr} {unit} ({rule}).": "{n} sítios de {medium}; fundo {bg} {unit} ({how}); anômalo a partir de {thr} {unit} ({rule}).",
-  "\"{name}\" is a SMARTem IP (TIP) file: electrode positions, apparent resistivity and chargeability, not a TEM survey. Open it in the DC / IP line pane.": "\"{name}\" é um arquivo SMARTem de IP (TIP): posições dos eletrodos, resistividade aparente e cargabilidade, não um levantamento TEM. Abra-o no painel Linha DC / IP.",
   "This is a TQIPdb plot-point table of a {array} survey: only pole-dipole plot points can be turned back into electrode positions.": "Esta é uma tabela de pontos de plotagem TQIPdb de um levantamento {array}: somente os pontos de plotagem de polo-dipolo podem ser convertidos de volta em posições de eletrodos.",
   "TQIPdb plot-point table: {n} readings, pole-dipole with a {a} m dipole{v}. The table gives plot points and n-levels, not electrodes: the current pole is taken at the {side} end of each array. If the survey ran the other way the readings are mirrored; the raw dump of the line gives the electrode positions.": "Tabela de pontos de plotagem TQIPdb: {n} leituras, polo-dipolo com dipolo de {a} m{v}. A tabela traz pontos de plotagem e níveis n, não eletrodos: o polo de corrente é tomado na extremidade de {side} de cada arranjo. Se o levantamento foi feito no sentido contrário, as leituras ficam espelhadas; o despejo bruto da linha traz as posições dos eletrodos.",
   " (the array is not stated: read as pole-dipole)": " (o arranjo não é indicado: lido como polo-dipolo)",
@@ -15838,5 +15836,9 @@
   "{name}: a CSAMT average with no station table.": "{name}: uma média CSAMT sem tabela de estações.",
   "{name} is not a Zonge CSAMT average.": "{name} não é uma média CSAMT da Zonge.",
   "SI, rebuilt from Zonge CSAMT apparent resistivity and phase (scalar Ex / Hy)": "SI, reconstruídas a partir da resistividade aparente e da fase CSAMT da Zonge (escalar Ex / Hy)",
-  "CSAMT positions are the .stn's (or each station's $Rx.Center) as X / Y in {crs}: the files name no coordinate system.": "As posições CSAMT são as do .stn (ou o $Rx.Center de cada estação) como X / Y em {crs}: os arquivos não nomeiam um sistema de coordenadas."
+  "CSAMT positions are the .stn's (or each station's $Rx.Center) as X / Y in {crs}: the files name no coordinate system.": "As posições CSAMT são as do .stn (ou o $Rx.Center de cada estação) como X / Y em {crs}: os arquivos não nomeiam um sistema de coordenadas.",
+  "Imported \"{name}\": {n} boundary layer(s), {lines} line(s), under Geophysics → Boundaries. Coordinates taken as the project's{v}.{w}": "\"{name}\" importado: {n} camada(s) de limites, {lines} linha(s), em Geofísica → Limites. Coordenadas tomadas como as do projeto{v}.{w}",
+  "no Surpac lines": "nenhuma linha do Surpac",
+  "{n} single point(s) skipped.": "{n} ponto(s) isolado(s) ignorado(s).",
+  "\"{name}\" is a SMARTem IP (TIP) file, not TEM: open it in the DC / IP line pane.": "\"{name}\" é um arquivo IP do SMARTem (TIP), não TEM: abra-o no painel de linhas DC / IP."
 }

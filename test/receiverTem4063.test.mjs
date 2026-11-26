@@ -98,7 +98,7 @@ test("SMARTem V: no coordinates (the line's number and the stations), the second
 test("SMARTem24 export: coordinates in the file, the three components from C, a loop comment; a Fixed_Loop file is read as a ground line", () => {
   const d = readTemText(smartemExport(), "d.tem");
   assert.equal(d.n, 2); assert.deepEqual(d.components, ["Z", "X", "Y"]); assert.match(d.source, /fixed_loop/);
-  assert.equal(d.x[0], 307870); assert.equal(d.x[1], 307895); assert.deepEqual(d.notes, []);
+  assert.equal(d.x[0], 307870); assert.equal(d.x[1], 307895); assert.deepEqual(d.notes, ["Loop: 4 corners."]); // #4081 — the loop's map corners are kept and said
   assert.equal(d.gateTimes(d.groups[0]).length, NG);
 });
 

@@ -264,8 +264,20 @@ export function makeImportPipeline(ctx, h) {
         if (!plines.length) throw new Error(tr("no GOCAD PLine with segments in it"));
         for (const o of plines) addBoundary({ name: o.name, polylines: o.lines, closedFlags: o.lines.map(() => false), useVertexZ: true, elevation: defaultElevation });
         const crs = gocadCrsText(plines[0].crs);
-        setNotices((p) => [...p, notice("Imported \"{name}\" as {n} boundary layer(s) ({lines} line(s)) with their own elevations — edit or remove them under Geophysics → Boundaries. GOCAD coordinates are assumed to already be in the project's coordinate system{v}.", { name: file.name, n: plines.length, lines: plines.reduce((s, o) => s + o.lines.length, 0), v: crs ? tr(" (the file names \"{crs}\")", { crs }) : "" })]);
+        setNotices((p) => [...p, notice("Imported \"{name}\": {n} boundary layer(s), {lines} line(s), under Geophysics → Boundaries. Coordinates taken as the project's{v}.{w}", { name: file.name, n: plines.length, lines: plines.reduce((s, o) => s + o.lines.length, 0), v: crs ? tr(" (the file names \"{crs}\")", { crs }) : "", w: "" })]);
       } catch (err) { setNotices((p) => [...p, errorNotice(tr("{name}: couldn't read GOCAD ({message}).", { name: file.name, message: err.message }))]); }
+      return;
+    }
+    // TASKS.csv #4081 — a Surpac string file (.str): one boundary layer per string number, the points' own elevations kept
+    if (/\.str$/.test(name)) {
+      try {
+        const { isSurpacStr, parseSurpacStr } = await import("../../lib/surpacStr.js");
+        const text = await file.text();
+        const r = isSurpacStr(text, file.name) ? parseSurpacStr(text, file.name.replace(/\.str$/i, "")) : null;
+        if (!r?.specs.length) throw new Error(tr("no Surpac lines")); // not a Surpac file, or single points only
+        for (const sp of r.specs) addBoundary({ ...sp, elevation: defaultElevation });
+        setNotices((p) => [...p, notice("Imported \"{name}\": {n} boundary layer(s), {lines} line(s), under Geophysics → Boundaries. Coordinates taken as the project's{v}.{w}", { name: file.name, n: r.specs.length, lines: r.segments, v: "", w: r.spots ? " " + tr("{n} single point(s) skipped.", { n: r.spots }) : "" })]);
+      } catch (err) { setNotices((p) => [...p, errorNotice(`${file.name}: ${err.message}`)]); } // #739
       return;
     }
     if (/\.dxf$/.test(name)) {
@@ -1292,7 +1304,7 @@ export function makeImportPipeline(ctx, h) {
     // TASKS.csv #600 (40958Z) — grids (.tif/.gxf), CAD lines / solids (.dxf) and .obj solids dropped here used to
     // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modelling buttons
     // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
-    const direct = grouped.files.filter((f) => /\.(tiff?|gxf|grd|ers|dxf|obj|ts|gp|pl)$/i.test(f.name)); // grd: #1347; ers: #4066 (its data file is paired by rasterFileSet); ts / gp / pl: GOCAD, #1992
+    const direct = grouped.files.filter((f) => /\.(tiff?|gxf|grd|ers|dxf|obj|ts|gp|pl|str)$/i.test(f.name)); // grd: #1347; ers: #4066 (its data file is paired by rasterFileSet); ts / gp / pl: GOCAD, #1992; str: Surpac, #4081
     // TASKS.csv #2901 — a world file / .prj / Geosoft .xml with the raster of the same name goes with it (a .prj or .xml with no .shp is among `unmatched`)
     const rasterSides = rasterFileSet([...grouped.files, ...grouped.unmatched]);
     const sideUsed = new Set(rasterSides.images.flatMap((i) => [i.world, i.xml, i.prj, i.data].filter(Boolean))); // data: an ER Mapper data file, #4066
@@ -1348,7 +1360,7 @@ export function makeImportPipeline(ctx, h) {
     const skippedNames = [...grouped.files.filter((f) => !handledName(f)), ...grouped.unmatched].map((f) => f.name);
     { // TASKS.csv #3737 — a skipped file that reads as a text table (.sur, .tx ...) is named as one, with the way in
       const tableLike = [];
-      for (const f of grouped.files.filter((x) => !handledName(x) && !/\.(csv|xlsx|zip|shp|gpkg|kml|kmz|las|tiff?|gxf|grd|dxf|obj|ts|gp|pl)$/i.test(x.name))) { try { if (looksLikeTextTable(await f.slice(0, 4000).text())) tableLike.push(f.name); } catch { /* unreadable: left as skipped */ } }
+      for (const f of grouped.files.filter((x) => !handledName(x) && !/\.(csv|xlsx|zip|shp|gpkg|kml|kmz|las|tiff?|gxf|grd|dxf|obj|ts|gp|pl|str)$/i.test(x.name))) { try { if (looksLikeTextTable(await f.slice(0, 4000).text())) tableLike.push(f.name); } catch { /* unreadable: left as skipped */ } }
       if (tableLike.length) setNotices((p) => [...p, notice("{names}: looks like a text table. Rename it to .csv (comma, tab, semicolon or space separated) to import it here.", { names: tableLike.slice(0, 4).join(", ") + (tableLike.length > 4 ? " …" : "") })]);
     }
     const skippedNotice = () => (skippedNames.length ? notice("{skipped} unrecognized file(s) skipped: {names}.", { skipped: skippedNames.length, names: skippedNames.slice(0, 4).join(", ") + (skippedNames.length > 4 ? " …" : "") }) : notice("{skipped} unrecognized file(s) skipped.", { skipped }));

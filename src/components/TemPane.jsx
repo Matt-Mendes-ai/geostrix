@@ -16,6 +16,7 @@ import TemInvertPanel from "./TemInvertPanel.jsx"; // TASKS.csv #3440 step 3 —
 import TemGridTie from "./TemGridTie.jsx"; // TASKS.csv #4058 — a file on a local grid asks for its tie to the map
 import { t as tr } from "../lib/i18n.js";
 import { zongeRefusal } from "../lib/zonge.js"; // TASKS.csv #4076 — Zonge files meant for another pane, said
+import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #4081 — a loop-only .tx, said
 import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 — the lines as steps
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
@@ -131,6 +132,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
     try {
       const text = await file.text();
       { const no = zongeRefusal(text, file.name, "tem"); if (no) { setMsg({ info: false, text: no }); setBusy(false); return; } } // TASKS.csv #4076 — a Zonge file for another pane, a raw / .chn / .mde / .zdb: named
+      { const no = unreadableFormatAdvice(file.name); if (no) { setMsg({ info: false, text: no }); setBusy(false); return; } } // TASKS.csv #4081 — a loop-only .tx: named
       const d = readTemText(text, file.name);
       if (d.localGrid && project?.crsSet === false && project?.localGrid) d.placed = "project"; // #4058 — a local-grid project takes a local-grid file as it is
       // positions into the project CRS: a Workbench file's own EPSG; a Geosoft .xyz or CSV's X / Y are taken as the project's

@@ -90,7 +90,7 @@ export function readTemText(text, name = "TEM") {
 }
 function readTemTextCore(text, name) {
   // TASKS.csv #4077 — a SMARTem24 TIP file is induced polarisation, not TEM: said, with where to open it (it used to be read as TEM, its IP decay as channels)
-  if (isSmartemTipText(text)) throw new Error(tr("\"{name}\" is a SMARTem IP (TIP) file: electrode positions, apparent resistivity and chargeability, not a TEM survey. Open it in the DC / IP line pane.", { name }));
+  if (isSmartemTipText(text)) throw new Error(tr("\"{name}\" is a SMARTem IP (TIP) file, not TEM: open it in the DC / IP line pane.", { name }) /* #4081 — shorter */);
   let source, columns, get, line, epsg = null, header = null, maxwell = null;
   if (isCronePemSurface(text) || isReceiverTem(text)) { // TASKS.csv #4058 — a station's Z, X and Y rows become the channel sets Z_CH, X_CH, Y_CH of one station row (Z first: the decay and the 1D inversion read it)
     maxwell = isCronePemSurface(text) ? parseCronePemSurface(text, name) : parseTemReceiver(text); // #4079 — a Crone surface PEM / STP profile: its stations at their <Pnn> positions, its loop

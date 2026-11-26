@@ -1358,6 +1358,7 @@ const READABLE_EXT = new Set([".csv", ".txt", ".tsv", ".xyz", ".dat", ".zip", ".
   ".las", ".xlsx", ".kml", ".kmz",
   ".tab", ".map", ".id", // TASKS.csv #818 / #819 — MapInfo TAB (.dat is above); the Perk-Rocky sample is MapInfo
   ".ers", // TASKS.csv #4066 — an ER Mapper header (text); its data file is allowed below (ersSides), as named by it
+  ".str", // TASKS.csv #4081 — Surpac string file (text)
   ".vo", ".pl"]); // TASKS.csv #2725 — GOCAD Voxet header, GOCAD PLine (both text)
 // TASKS.csv #2725 — a Voxet's side files (PROP_FILE, often extension-less), allowed only as named by a .vo read below: voxetSideFiles.js
 const voxetSides = require("./voxetSideFiles.js").createVoxetSideRegistry();
