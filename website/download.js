@@ -3,11 +3,11 @@
 // The page's language (<html lang>) picks the wording: en, es, pt-BR, fr or ar.
 const LANG = document.documentElement.lang || "en";
 const TEXT = {
-  en: { version: (v, mb) => `Version ${v} · Windows 10 / 11 (64-bit) · ${mb} MB`, downloads: (n) => `Downloaded ${n} times from GitHub (all versions, including updates).`, badge: (n) => `${n} downloads from GitHub (incl. updates)` },
-  es: { version: (v, mb) => `Versión ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Descargado ${n} veces desde GitHub (todas las versiones, incluidas las actualizaciones).`, badge: (n) => `${n} descargas desde GitHub (incl. actualizaciones)` },
-  pt: { version: (v, mb) => `Versão ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Baixado ${n} vezes do GitHub (todas as versões, incluindo atualizações).`, badge: (n) => `${n} downloads pelo GitHub (incl. atualizações)` },
-  fr: { version: (v, mb) => `Version ${v} · Windows 10 / 11 (64 bits) · ${mb} Mo`, downloads: (n) => `Téléchargé ${n} fois depuis GitHub (toutes versions, mises à jour comprises).`, badge: (n) => `${n} téléchargements sur GitHub (mises à jour comprises)` },
-  ar: { version: (v, mb) => `الإصدار ${v} · Windows 10 / 11 (64 بت) · ${mb} ميغابايت`, downloads: (n) => `تم تنزيله ${n} مرة من GitHub (جميع الإصدارات، بما فيها التحديثات).`, badge: (n) => `${n} تنزيلًا من GitHub (مع التحديثات)` },
+  en: { version: (v, mb) => `Version ${v} · Windows 10 / 11 (64-bit) · ${mb} MB`, downloads: (n) => `Downloaded ${n} times from GitHub (all versions, including updates).`, badge: (n) => `${n} downloads (incl. updates)` },
+  es: { version: (v, mb) => `Versión ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Descargado ${n} veces desde GitHub (todas las versiones, incluidas las actualizaciones).`, badge: (n) => `${n} descargas (incl. actualizaciones)` },
+  pt: { version: (v, mb) => `Versão ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Baixado ${n} vezes do GitHub (todas as versões, incluindo atualizações).`, badge: (n) => `${n} downloads (incl. atualizações)` },
+  fr: { version: (v, mb) => `Version ${v} · Windows 10 / 11 (64 bits) · ${mb} Mo`, downloads: (n) => `Téléchargé ${n} fois depuis GitHub (toutes versions, mises à jour comprises).`, badge: (n) => `${n} téléchargements (mises à jour comprises)` },
+  ar: { version: (v, mb) => `الإصدار ${v} · Windows 10 / 11 (64 بت) · ${mb} ميغابايت`, downloads: (n) => `تم تنزيله ${n} مرة من GitHub (جميع الإصدارات، بما فيها التحديثات).`, badge: (n) => `${n} تنزيلًا (مع التحديثات)` },
 };
 const T = TEXT[LANG.slice(0, 2)] || TEXT.en;
 
