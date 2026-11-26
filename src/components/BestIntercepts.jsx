@@ -133,6 +133,8 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
   };
   const [maxInternalDilution, setMaxInternalDilution] = useKeptState(keptScope, "bi.dilution", 2); // kept: #3223
   const [minLength, setMinLength] = useKeptState(keptScope, "bi.minLength", 0);
+  const [showAll, setShowAll] = useState(false); // TASKS.csv #4102 — the first 20 rows of the table (the CSV and the Layout table have them all); Show all lists the rest
+  const SHOW_FIRST = 20;
   const [perHole, setPerHole] = useState(false); // TASKS.csv #2419 — the intercepts summed per hole (total downhole length, grade × length)
   // TASKS.csv #3562 — the project's Specific gravity layer, when it has readings: 'Weight grades by' length or length × density. #3565 — the table's order and a hole filter.
   const densityRange = densityRangeOf(project), density = useMemo(() => densityLookup(layers?.sg, densityRange), [layers?.sg, densityRange.min, densityRange.max]); // the project's density range: #3682
@@ -292,7 +294,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
   // TASKS.csv #3565 — grade × length and each 'Also show' column with one number of decimals (204.09, 11.306, 14.962 and 0.07751, 41.77, 3.085 read ragged)
   const glFmt = useMemo(() => columnFormat(results.map((r) => dg(interceptGradeLength(r)))), [results, pct]);
   const exFmt = useMemo(() => Object.fromEntries(shownExtras.map((s) => [s, spreadFormat(results.map((r) => (r.extras?.[s] == null ? null : s === symbol ? dg(r.extras[s]) : r.extras[s])))])), [results, shownExtras, symbol, pct]);
-  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(results.length, RESULT_ROW_H, { containerHeight: 380 });
+  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(showAll ? results.length : Math.min(results.length, SHOW_FIRST), RESULT_ROW_H, { containerHeight: 380 });
   // TASKS.csv #3160 (#2925 (9), review #2876) — 'Total per hole' took 2.3 s on its first click: every hole's row was drawn (and summed again
   // on each render). The totals are kept with the results and the rows windowed as the intercepts' are
   const holeRows = useMemo(() => { // #3566 — with the 'Also show' elements' means
@@ -300,7 +302,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
     const ex = holeExtraMeans(results, shownExtras);
     return holeTotalsDisplay(holeTotals(results), dg).map((h) => ({ ...h, extras: ex.get(h.hole_id) || {} }));
   }, [perHole, results, pct, shownExtras]); // #3218 — in the shown unit (dg reads pct)
-  const hv = useVirtualRows(holeRows.length, RESULT_ROW_H, { containerHeight: 380 });
+  const hv = useVirtualRows(showAll ? holeRows.length : Math.min(holeRows.length, SHOW_FIRST), RESULT_ROW_H, { containerHeight: 380 });
   // #3566 — the interval table's number format (decimals from the largest value of each column), not three decimals everywhere
   const hGT = useMemo(() => columnFormat(holeRows.map((h) => h.gt)), [holeRows]), hGrade = useMemo(() => columnFormat(holeRows.map((h) => h.meanGrade)), [holeRows]);
   const hExtra = useMemo(() => Object.fromEntries(shownExtras.map((s) => [s, columnFormat(holeRows.map((h) => (h.extras?.[s] == null ? null : s === symbol ? dg(h.extras[s]) : h.extras[s])))])), [holeRows, shownExtras, symbol, pct]);
@@ -412,8 +414,9 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Best intercepts")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays} intervals loaded.{v}", { assays: assays.length, v: qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
-            <div style={{ fontSize: "var(--font-size-sm)", color: topCutStored != null ? "var(--color-text-muted)" : "var(--color-warn-text)", marginTop: 2 }}>{cutNote}{" "}{tr("Lengths are downhole, along the hole.")}{concentrated > 0 ? " " + tr("{n} intercept(s) have half their metal in two samples (last column).", { n: concentrated.toLocaleString() }) : ""}</div>{/* #3747 */}
+            {/* TASKS.csv #4102 — the intro, "Lengths are downhole" and the uncut caution are in the "?" card; what is said here is true of THIS data */}
+            {qaqcExcludedCount > 0 && !includeQAQC && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }).trim()}</div>}
+            {(topCutStored != null || concentrated > 0) && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{topCutStored != null ? cutNote : ""}{concentrated > 0 ? (topCutStored != null ? " " : "") + tr("{n} intercept(s) have half their metal in two samples (last column).", { n: concentrated.toLocaleString() }) : ""}</div>}{/* #3747 */}
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
@@ -551,7 +554,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             </div>
           </MoreFold>
 
-          {ranked.length > 0 && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>{tr("Hole contains")}<input type="search" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ ...inp, width: 150 }} aria-label={tr("Show only the holes whose name contains")} placeholder={tr("hole name")} />{holeFilter.trim() && <span>{tr("{n} of {total} intercepts", { n: results.length.toLocaleString(), total: ranked.length.toLocaleString() })}</span>}<span style={{ color: "var(--color-text-muted)" }}>{tr("Click a column heading to sort; the CSV and the Layout table follow this order.")}</span></label>}{/* #3565 */}
+          {ranked.length > 0 && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>{tr("Hole contains")}<input type="search" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ ...inp, width: 150 }} aria-label={tr("Show only the holes whose name contains")} placeholder={tr("hole name")} />{holeFilter.trim() && <span>{tr("{n} of {total} intercepts", { n: results.length.toLocaleString(), total: ranked.length.toLocaleString() })}</span>}</label>}{/* #3565 */}
           {results.length > 0 && (() => { const c = interceptCount(results); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{/* TASKS.csv #2200 — how many, with the filters above */}{c.n === 1 ? tr("1 intercept, in 1 hole") : c.holes === 1 ? tr("{n} intercepts, in 1 hole", { n: c.n.toLocaleString() }) : tr("{n} intercepts, in {holes} holes", { n: c.n.toLocaleString(), holes: c.holes.toLocaleString() })}</div>; })()}
           {results.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Each hole's intercepts summed: downhole length, grade × length and 'Also show' means. For a 2D map: 3D Modelling › Estimation › Grade × thickness in plan.")}><input type="checkbox" checked={perHole} onChange={(e) => setPerHole(e.target.checked)} />{tr("Total per hole")}</label>}{/* #2419 */}
           {perHole && results.length > 0 && (() => { const hs = holeRows; return (
@@ -561,6 +564,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                 <tbody>{hv.topPad > 0 && <tr style={{ height: hv.topPad }}><td colSpan={5 + shownExtras.length} style={{ padding: 0, border: "none" }} /></tr>}{hs.slice(hv.startIndex, hv.endIndex).map((h) => <tr key={h.hole_id} style={{ height: RESULT_ROW_H, boxSizing: "border-box" }}><td style={td}>{h.hole_id}</td><td style={td}>{h.intercepts}</td><td style={td}>{h.thicknessM.toFixed(2)}</td><td style={td}>{hGT(h.gt)}</td><td style={td}>{h.meanGrade == null ? "—" : hGrade(h.meanGrade)}</td>{shownExtras.map((s) => <td key={s} style={td}>{h.extras?.[s] == null ? "—" : hExtra[s]((s === symbol ? dg(h.extras[s]) : h.extras[s]))}</td>)}</tr>)}{hv.bottomPad > 0 && <tr style={{ height: hv.bottomPad }}><td colSpan={5 + shownExtras.length} style={{ padding: 0, border: "none" }} /></tr>}</tbody>
               </table>
             </div>); })()}
+          {perHole && results.length > 0 && !showAll && holeRows.length > SHOW_FIRST && <button type="button" className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setShowAll(true)}>{tr("Show all {n}", { n: holeRows.length.toLocaleString() })}</button>}
           {perHole && results.length > 0 ? null : symbols.length === 0 ? (
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No assay elements loaded — import assays first.")}</div>
           ) : results.length === 0 ? (
@@ -640,6 +644,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
               </table>
             </div>
           )}
+          {!perHole && results.length > SHOW_FIRST && !showAll && <button type="button" className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setShowAll(true)}>{tr("Show all {n}", { n: results.length.toLocaleString() })}</button>}{/* TASKS.csv #4102 */}
 
           {inclRow?.including && <div role="region" aria-label={tr("Including lines")} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 10px" }}>{/* #3565 — every 'including' line of one intercept */}
             <div style={{ fontWeight: 600 }}>{tr("{hole} {from}–{to} m: including", { hole: inclRow.hole_id, from: inclRow.from.toFixed(2), to: inclRow.to.toFixed(2) })}</div>
@@ -654,7 +659,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                   results.stats.overlappingRows > 0 ? tr("{overlappingRows} row(s) overlap another in the same hole: each metre counts once, differing {symbol} results are averaged (⚠ in the table)", { overlappingRows: results.stats.overlappingRows, symbol }) : null,
                   results.stats.negativeValues > 0 ? tr("{negativeValues} negative {symbol} value(s) treated as not assayed (negative numbers are detection-limit or no-data codes, not grades)", { negativeValues: results.stats.negativeValues, symbol }) : null,
                 ].filter(Boolean).join(". ") })}</div>
-            )}{tr("Intercepts never average below the cutoff. \"≥\": the grade holds an over-range result.")}{" "}{sortKey === "gl" && sortDesc ? tr("Sorted by grade × length (best intercepts first).") : tr("In the order of the column heading clicked.")}{" "}{weightNote}{hasBelowDet ? ` ${tr("Below-detection assay values are already substituted at half the detection limit (same convention as the plots).")}` : ""}{" "}{tr("This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.")}{/* #3562 weighting named; #3579 below-detection only where there is some */}</div>
+            )}{weightedOn && noDensitySamples > 0 ? weightNote : null}{/* #3562 weighting: only where a sample has no density; the rest (never below the cutoff, the sort order, below detection, screening only) is in the "?" card: #4102 */}
 
         </div>
 

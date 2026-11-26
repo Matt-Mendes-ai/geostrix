@@ -178,7 +178,7 @@ export default [
       { name: "Dogleg over", gist: "bend rate that is listed", what: "The bend rate (degrees per 30 m) above which a bend is listed.", more: "How to choose: Deviated holes bend 3 to 7° per 30 m; set it from your own drilling. A hole's bends are one row, its sharpest. A bend under 2° is within a survey tool's reading and is not counted; 20° per 30 m or more, over at least 5°, is an error." },
       { name: "Density (t/m³)", what: "The densities this project accepts; a density outside them is left out of tonnages.", more: `How to choose: Raise the top for barite or massive sulphide. Kept with the project; 1 to 6 until changed. The tonnage tools (${MINE_DESIGN_ENABLED ? "Grade-tonnage, Pit shell, Stopes, a solid's tonnage" : "Grade-tonnage, a solid's tonnage"}) say how many densities they left out.` },
       { name: "Collar vs terrain over", gist: "how far off the ground", what: "How far (m) a collar may sit off the terrain before it is listed.", more: "How to choose: Above your terrain model's own error. The button beside it sets those collars on the terrain; Undo puts them back." },
-      { name: "Filter by category", what: "Shows one category only (Collars, Survey, a layer, Assays…)." },
+      { name: "Show", what: "Opens a check's rows: the interval, Table to open it, Find to see the hole, Checked to mark it as seen." },
       { name: "Export CSV", gist: "every issue, with its header", what: "Saves every issue, with the project, thresholds and desurvey method in a header.", more: "How to choose: Use it to send the list to the data's owner." },
       { name: "Re-run", what: "Runs the checks again on the data as it is now." },
     ],
@@ -194,7 +194,7 @@ export default [
       steps: [
         "Open the Macpass sample and click Data QC in StrixViewer's ribbon.",
         "Read the counts at the top; the list is worst first.",
-        "Filter by category to read the survey bends, then Specific gravity and Assays.",
+        "Show a check to read its rows: the survey bends, then Specific gravity and Assays.",
         "Export CSV to save the list, or Re-run after changing a file.",
       ],
     },

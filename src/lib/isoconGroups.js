@@ -30,3 +30,17 @@ export function groupMeans(rows, symbols, valueOf, require = [], isLt = null) {
 }
 
 export const MIN_GROUP_N = 3; // a mean of fewer samples is shown greyed, as unreliable
+
+// TASKS.csv #4102 — the assay intervals grouped by the code of a log: [{ code, ids }], the most intervals first. codeOf(a) is the code an interval overlaps most (lib/sampleLithology codeAt);
+// an interval with no code is in no group. rows: [{ a, id }].
+export function codeGroups(rows, codeOf) {
+  const m = new Map();
+  for (const { a, id } of rows) { const c = codeOf(a); if (c == null || c === "") continue; (m.get(c) || m.set(c, []).get(c)).push(id); }
+  return [...m].map(([code, ids]) => ({ code, ids })).sort((x, y) => y.ids.length - x.ids.length || String(x.code).localeCompare(String(y.code)));
+}
+// A code's intervals into one group, or out of it when they all are already; going in takes them out of the other group (a code is in one group at a time). Sets in, sets out.
+export function switchCode(ids, mine, other) {
+  const all = ids.every((id) => mine.has(id)), m = new Set(mine), o = new Set(other);
+  for (const id of ids) { if (all) m.delete(id); else { m.add(id); o.delete(id); } }
+  return { mine: m, other: o };
+}

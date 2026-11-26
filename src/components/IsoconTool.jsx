@@ -11,7 +11,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1521 — the logs, for "add by filter"
 import { labAssays } from "../lib/qaqc.js"; // TASKS.csv #2348 — lab grades only (#1673)
-import { sharedImmobile, groupMeans, MIN_GROUP_N } from "../lib/isoconGroups.js"; // TASKS.csv #2348
+import { sharedImmobile, groupMeans, MIN_GROUP_N, codeGroups, switchCode } from "../lib/isoconGroups.js"; // TASKS.csv #2348
 import { domainLayerChoices, foldDomainRows } from "../lib/domainLayers.js"; // #1521; foldDomainRows: #2787
 import { codeIndex, codeAt } from "../lib/sampleLithology.js"; // TASKS.csv #2766 — the shared rule for a sample's code
 import { holesMatching } from "../lib/holeFilter.js"; // #1521
@@ -94,6 +94,17 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
     }).map((r) => r.id);
   }, [rows, flt, domainRows, domainRows2, elementUnits]);
   const addMatches = (setSet) => setSet((prev) => new Set([...prev, ...matchIds]));
+  // TASKS.csv #4102 — the groups by a log code, with counts: pick a layer, then each code is one line (how many assay intervals carry it) with a Precursor and an Altered switch;
+  // the interval-by-interval list and the other filters are behind a fold. A code is in one group at a time (switching it on removes it from the other).
+  const [byLayer, setByLayer] = useState(() => (domainChoices.find((c) => c.key === "alt") || domainChoices.find((c) => c.key === "litho") || {}).key || "");
+  const byRows = useMemo(() => { const r = domainChoices.find((c) => c.key === byLayer)?.rows; return r ? foldDomainRows(r).rows : null; }, [domainChoices, byLayer]);
+  const byCodes = useMemo(() => {
+    if (!byRows) return [];
+    const ix = codeIndex(byRows);
+    return codeGroups(rows, (a) => codeAt(ix, a.hole_id, a.from, a.to));
+  }, [byRows, rows]);
+  const switchP = (ids) => { const r = switchCode(ids, precursorIds, alteredIds); setPrecursorIds(r.mine); setAlteredIds(r.other); };
+  const switchA = (ids) => { const r = switchCode(ids, alteredIds, precursorIds); setAlteredIds(r.mine); setPrecursorIds(r.other); };
 
   // Average each element (in ppm, via valueIn) across a selected group of intervals. #2348 — by default over the samples that carry every
   // immobile element both groups have (one set of samples for the whole mass balance), each mean with its n
@@ -151,6 +162,40 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
   const groupsStep = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Check intervals into a")}{" "}<b style={{ color: "var(--color-success-fg)" }}>{tr("precursor")}</b>{" "}{tr("group (the least-altered rock) and an")}{" "}<b style={{ color: "var(--color-danger-fg)" }}>{tr("altered")}</b>{" "}{tr("group. Each is averaged in ppm.")}</div>
+      {domainChoices.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{/* TASKS.csv #4102 */}
+          <select value={byLayer} onChange={(e) => setByLayer(e.target.value)} style={sel} aria-label={tr("Layer")}>
+            <option value="">{tr("— pick a layer —")}</option>{domainChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </select>
+          {byLayer && (byCodes.length === 0
+            ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("No intervals match.")}</div>
+            : <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
+                <thead><tr style={{ color: "var(--color-text-muted)", textAlign: "start" }}><th style={th}>{tr("Code")}</th><th style={th}>{tr("Intervals")}</th><th style={th} /></tr></thead>
+                <tbody>{byCodes.map(({ code, ids }) => {
+                  const inP = ids.every((id) => precursorIds.has(id)), inA = ids.every((id) => alteredIds.has(id));
+                  return (
+                    <tr key={code} style={{ borderTop: "1px solid var(--color-border)" }}>
+                      <td style={td}>{code}</td><td style={td}>{ids.length.toLocaleString()}</td>
+                      <td style={{ ...td, display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                        <button type="button" className="gs-btn gs-btn--sm" aria-pressed={inP} onClick={() => switchP(ids)} style={inP ? { borderColor: "var(--color-success-fg)", color: "var(--color-success-fg)" } : undefined}>{tr("Precursor")}</button>
+                        <button type="button" className="gs-btn gs-btn--sm" aria-pressed={inA} onClick={() => switchA(ids)} style={inA ? { borderColor: "var(--color-danger-fg)", color: "var(--color-danger-fg)" } : undefined}>{tr("Altered")}</button>
+                      </td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table>
+            </div>)}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)" }}>
+        <span style={{ color: "var(--color-success-fg)" }}>{tr("Precursor")} <b>{precursorIds.size.toLocaleString()}</b></span>
+        <span style={{ color: "var(--color-danger-fg)" }}>{tr("Altered")} <b>{alteredIds.size.toLocaleString()}</b></span>
+        <button disabled={!precursorIds.size} onClick={() => setPrecursorIds(new Set())} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Clear precursor")}</button>
+        <button disabled={!alteredIds.size} onClick={() => setAlteredIds(new Set())} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Clear altered")}</button>
+      </div>
+      <MoreFold summary={tr("By interval…")} data-fine-tune="isocon-intervals">{/* TASKS.csv #4102 — the filter, the second condition and the interval-by-interval lists */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <input
             placeholder={tr("Filter by hole ID…")}
             value={filterText}
@@ -182,8 +227,6 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
               <span>{tr("{n} intervals match", { n: matchIds.length.toLocaleString() })}</span>
               <button disabled={!matchIds.length} onClick={() => addMatches(setPrecursorIds)} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Add to precursor")}</button>
               <button disabled={!matchIds.length} onClick={() => addMatches(setAlteredIds)} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Add to altered")}</button>
-              <button disabled={!precursorIds.size} onClick={() => setPrecursorIds(new Set())} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Clear precursor")}</button>
-              <button disabled={!alteredIds.size} onClick={() => setAlteredIds(new Set())} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }}>{tr("Clear altered")}</button>
             </div>
           </div>
 
@@ -191,6 +234,8 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
             <IntervalList title={tr("Precursor")} color="#8fd9ab" rows={filtered} idSet={precursorIds} onToggle={(id) => toggle(precursorIds, setPrecursorIds, id)} n={precursor?.n} />
             <IntervalList title={tr("Altered")} color="#e08a8a" rows={filtered} idSet={alteredIds} onToggle={(id) => toggle(alteredIds, setAlteredIds, id)} n={altered?.n} />
           </div>
+      </div>
+      </MoreFold>
     </div>
   );
   const immobileStep = () => (

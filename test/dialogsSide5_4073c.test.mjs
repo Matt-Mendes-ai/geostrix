@@ -15,7 +15,7 @@ const stepOf = (s, key) => { const a = s.indexOf(`{ key: "${key}"`), b = s.index
 
 const D = {
   DataQCModal: { steps: ["issues", "limits"], help: true,
-    reach: ["toggleSeverity(sev)", "setCategoryFilter(e.target.value)", "setHideChecked(e.target.checked)", "openDataTable(qcTableRequest(issue))", "onZoomHole(issue.holeId)", "toggleChecked(issue)",
+    reach: ["toggleSeverity(sev)", "<QcCheck", "setHideChecked(e.target.checked)", "openDataTable(qcTableRequest(issue))", "onZoomHole(issue.holeId)", "toggleChecked(issue)",
       "applyDensity(t, dMax)", "applyDensity(dMin, t)", "setDoglegWarn(v)", "setTerrainThreshold(v)", "onClick={requestCollarZFromTerrain}", "onClick={snapToTerrain}", "onClick={exportIssues}",
       "onClick: check", 'openHelp("data-qc")', "onClick={() => setAt(1)}", "overlayProps={backdropProps(onCancel)}", 'cancelLabel={tr("Close")}', "Ctrl+Z undoes it."],
     seen: { limits: ["A density outside this range is left out of the tonnage mean."], issues: ["Checking {n} holes…", "No issues match the current filters."] } },

@@ -44,7 +44,7 @@ test("the field names are the dialogs' own labels, word for word", () => {
   assert.ok(assay.includes("Not assayed — left out of grades (intercepts, composites, statistics) and reported as unsampled metres"));
   assert.ok(a.includes("Not assayed — left out of grades (intercepts, composites, statistics) and reported as unsampled metres"));
   const qc = pageById("data-qc").fields.map((f) => f.name);
-  for (const n of ["Dogleg over", "Collar vs terrain over", "Filter by category", "Export CSV", "Re-run"]) { assert.ok(qc.includes(n), `help names ${n}`); assert.ok(q.includes(`tr("${n}")`), `dialog says ${n}`); }
+  for (const n of ["Dogleg over", "Collar vs terrain over", "Show", "Export CSV", "Re-run"]) { assert.ok(qc.includes(n), `help names ${n}`); assert.ok(q.includes(`tr("${n}")`), `dialog says ${n}`); }
 });
 
 test("the page's numbers are the app's: the dogleg rule and the plausible density range", async () => {
