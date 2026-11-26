@@ -13652,7 +13652,6 @@
   "drew the holes in one colour": "desenhou os furos em uma só cor",
   "coloured the holes by {field}": "coloriu os furos por {field}",
   "showed the {symbol} grades along the holes": "mostrou os teores de {symbol} ao longo dos furos",
-  "showed the {layer} log along the holes": "mostrou o registro {layer} ao longo dos furos",
   "showed {layers}": "mostrou {layers}",
   "hid {layers}": "ocultou {layers}",
   "opened the section '{name}'": "abriu a seção '{name}'",
@@ -15901,5 +15900,7 @@
   "Potential fields cannot fix a depth: this never says where a contact is.": "Campos potenciais não fixam uma profundidade: isto nunca diz onde está um contato.",
   "Undo lasts this session only: once saved, an edit is permanent.": "Desfazer dura só esta sessão: depois de salva, uma edição é permanente.",
   "{n} pierce point(s), {z} of them holes with no intercept (read as 0).": "{n} ponto(s) de interseção, {z} deles furos sem interseção (lidos como 0).",
-  "{vertices} vertices under the brush.": "{vertices} vértices sob o pincel."
+  "{vertices} vertices under the brush.": "{vertices} vértices sob o pincel.",
+  "saved {symbol}'s {rule} threshold": "salvou o limiar {rule} de {symbol}",
+  "showed the {layer} log": "mostrou o registro {layer}"
 }

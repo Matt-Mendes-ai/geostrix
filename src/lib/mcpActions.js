@@ -51,6 +51,8 @@ export const ACTIONS = {
   async run_drill_planner(a, s, ctx) { return (await import("./drillPlanner/mcpPlanner.js")).run_drill_planner(a, s, ctx); },
   async add_program_holes(a, s) { return (await import("./drillPlanner/mcpPlanner.js")).add_program_holes(a, s); },
   async set_planned_hole_status(a, s) { return (await import("./drillPlanner/mcpPlanner.js")).set_planned_hole_status(a, s); },
+  // TASKS.csv #4093 (batch 5, piece A) — saves one of suggest_thresholds' rules as an element's anomaly threshold (the Thresholds pane's own record); refuses to replace a saved one
+  async set_threshold(a, s) { return (await import("./mcpGeo.js")).setThreshold(a, s); },
   // a new section: two points in the project's coordinates, or through a hole in its own plane (as the hole's 'Section through' does); never replaces one
   async make_section(a, s) {
     const hasPts = a.from !== undefined || a.to !== undefined;
@@ -116,7 +118,7 @@ export const ACTIONS = {
   async colour_holes(a, s) {
     const r = await viaModule(s, "viewer", "mcp-view", { op: "colour", by: a.by, name: a.name });
     if (!r.ok) return r;
-    const say = a.by === "none" ? tr("drew the holes in one colour") : a.by === "field" ? tr("coloured the holes by {field}", { field: r.name }) : a.by === "element" ? tr("showed the {symbol} grades along the holes", { symbol: r.name }) : tr("showed the {layer} log along the holes", { layer: r.name });
+    const say = a.by === "none" ? tr("drew the holes in one colour") : a.by === "field" ? tr("coloured the holes by {field}", { field: r.name }) : a.by === "element" ? tr("showed the {symbol} grades along the holes", { symbol: r.name }) : tr("showed the {layer} log", { layer: r.name });
     return { ok: true, tracked: false, data: { changed: r.changed, name: r.name }, say, revert: r.revert };
   },
   async show_layers(a, s) {

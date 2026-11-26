@@ -775,5 +775,80 @@
       "idempotentHint": false,
       "openWorldHint": false
     }
+  },
+  {
+    "name": "list_rasters_surveys",
+    "description": "Read-only. The grids and images, point surveys and surface samples the open project holds, and the anomaly thresholds already saved: each raster's id, name, kind (grid or picture), survey method, unit, cells and who made it (a filter, a gridding); each point survey's name, method and points; the surface samples' count, media and elements. Lists are cut at 100. Use it to name things for the other tools.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "suggest_thresholds",
+    "description": "Read-only. The Thresholds pane's candidate rules for one element: for each population (a sampling medium, or all the assays) the value of each rule (percentiles, median + 2 MAD, Tukey fence, probability-plot break... on log axes; mean + 2 SD and the break on the values for a major element), the rules a population cannot reach, the rule the pane would open on, and the threshold already saved. These are candidate rules from the data, not facts: the geologist decides what is anomalous. It only reads: saving one is set_threshold.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "description": "The element's symbol, as a surface-sample or an assay element."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "surface",
+            "drill"
+          ],
+          "description": "Which data: the surface samples (soil, stream, rock chip) or the drill assays. Without it the surface samples, else the drill assays."
+        }
+      },
+      "required": [
+        "element"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "set_threshold",
+    "description": "Makes a change in GeoStrix: saves one of suggest_thresholds' rules as an element's anomaly threshold, the record the Thresholds pane saves (one value per population, the rule, its date), which the anomaly maps print in their legends. Nothing is replaced: if a threshold is already saved for the element (and source) the call is refused, and the user changes it in Thresholds. A rule a population cannot reach is refused with the reason. One Undo in GeoStrix takes it back.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "element": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "description": "The element's symbol."
+        },
+        "rule": {
+          "type": "string",
+          "maxLength": 24,
+          "description": "A rule id suggest_thresholds gave (for example median2mad or p95)."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "surface",
+            "drill"
+          ],
+          "description": "Which data: the surface samples or the drill assays. Without it the surface samples, else the drill assays."
+        }
+      },
+      "required": [
+        "element",
+        "rule"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
   }
 ]

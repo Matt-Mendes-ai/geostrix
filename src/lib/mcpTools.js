@@ -8,6 +8,7 @@ import { holeTraces } from "./evidenceSources.js";
 import { corridorRuns, distToSegment, signedOffset } from "./sectionCorridor.js";
 import { dipPrinted } from "./dipText.js";
 import { suggestTrend } from "./mcpTrend.js"; // TASKS.csv #3932 batch 2 — the trend helper's suggestion, read-only
+import { listRastersSurveys, suggestThresholds } from "./mcpGeo.js"; // TASKS.csv #4093 (batch 5, piece A) — the rasters / surveys / samples a project holds, and the Thresholds pane's candidate rules; read-only
 import { guideStatusTool } from "./mcpGuide.js"; // TASKS.csv #4053 (batch 4) — where the project is in guided modelling
 import { list_drill_programs, get_drill_program, explain_hole, predict_hole } from "./drillPlanner/mcpPlanner.js"; // TASKS.csv #3962 (P5) — the drill planner's reads
 
@@ -168,6 +169,8 @@ const TOOLS = {
   },
 };
 // TASKS.csv #3932 batch 2 — the trend helper's candidates with their strength and reasons; element optional (without it the grades are not read)
+TOOLS.list_rasters_surveys = (snap) => listRastersSurveys(snap);
+TOOLS.suggest_thresholds = (snap, a) => suggestThresholds(snap, a);
 TOOLS.suggest_trend = (snap, a) => suggestTrend(snap, a.element != null ? elementOrFail(snap, a.element).symbol : null);
 const sectionOut = (s) => ({ name: str(s.name, 120), id: s.id, from: { easting: r3(s.ax, 1), northing: r3(s.ay, 1) }, to: { easting: r3(s.bx, 1), northing: r3(s.by, 1) }, azimuth: r3(s.azimuth, 1), length_m: r3(Math.hypot(s.bx - s.ax, s.by - s.ay), 1), corridor_half_width_m: r3(Number(s.corridor), 1) });
 

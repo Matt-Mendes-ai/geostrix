@@ -33,6 +33,7 @@ function project() {
     project: { name: "Test project", epsg: 26909, crsSet: true }, desurveyMethod: "minimum_curvature",
     collars: [{ hole_id: "DH-23-001", x: 1000, y: 2000, z: 300, azimuth: 0, dip: -90, length: 100, attrs: { Type: "DD" } }, { hole_id: "DH-23-002", x: 1100, y: 2000, z: 305, azimuth: 90, dip: -60, length: 80, attrs: { Type: "RC" } }],
     survey: [], assayElements: [{ symbol: "Au", unit: "ppm" }],
+    surfaceElements: [{ symbol: "Cu", unit: "ppm" }], surfaceSamples: Array.from({ length: 24 }, (_, i) => ({ id: `S${i}`, medium: "soil", x: 1000 + i * 10, y: 2000, values: { Cu: 20 + i * 3 + (i % 5) } })), geochemThresholds: [],
     assays: [[0, 1, 0.5], [1, 2, 2], [2, 3, 3]].map(([from, to, Au]) => ({ hole_id: "DH-23-001", from, to, values: { Au } })),
     layers: { litho: [{ hole_id: "DH-23-001", from: 0, to: 2, value: "AND" }] }, sections: [], codeDictionary: {},
     layoutPages: [{ id: "p1", name: "Page 1", elements: [] }], activeLayoutPageId: "p1", rasters: [], terrain: null,
@@ -42,6 +43,7 @@ function project() {
     upsertSection: (x) => { s.sections = [...s.sections, x]; }, deleteSection: (id) => { s.sections = s.sections.filter((x) => x.id !== id); },
     addLayoutPages: (pages) => { const ids = pages.map((_, i) => `new_${i}`); s.layoutPages = [...s.layoutPages, ...pages.map((p, i) => ({ ...p, id: ids[i] }))]; return ids; },
     deleteLayoutPage: () => {}, removeRaster: () => {}, removeTerrain: () => {},
+    setGeochemThresholds: (fn) => { s.geochemThresholds = typeof fn === "function" ? fn(s.geochemThresholds) : fn; },
   });
   return s;
 }
@@ -86,6 +88,7 @@ const CALLS = [ // each change tool with arguments its schema accepts
   ["build_alteration", { code: "SER" }],
   ["build_fault", { name: "Shear", evidence: ["pick", "logged"], extent: "finite", margin_m: 150 }], // #4053 batch 4
   ["model_from_map", { relation: "Conformable", faults: "auto" }],
+  ["set_threshold", { element: "Cu", rule: "p95" }], // #4093 batch 5
 ];
 
 test("#3932 through the PowerShell relay, as Claude Desktop starts it: every change tool refused with the switch off (the window never sees one), then each done with it on", { skip: !win32 && "PowerShell bridge: Windows only" }, async () => {
