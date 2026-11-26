@@ -1,0 +1,16 @@
+holes: 9 (RC_DDT, RC), grid MGA94_54 -> EPSG:28354
+survey: 102 stations, grid azimuths from the database (NAT_Grid_ID MGA94_54), magnetic kept
+litho.csv: 477 intervals, 0 overlapping
+alt.csv: 141 intervals, 0 overlapping
+sulphides.csv: 183 intervals, 0 overlapping
+veins.csv: 166 intervals, 0 overlapping
+assays.csv: 1199 intervals, 0 overlapping
+  assays: 1703 rows in the table, 504 NS (not sampled) and 0 superseded left out, 41832 -555 cells blanked, 49 element columns; kinds CHIP, CORE, COMP
+qaqc.csv: 321 QC samples (Blank 87, Standard 153, FDup 11, LDup 70), 49 of 49 elements with a unit confirmed (the rest left out)
+pxrf.csv: 557 intervals, 0 overlapping
+  pxrf: 1171 readings, 614 with a value over 100 % left out, codes -100000 / -10 blanked, 29 elements kept
+magsus.csv: 4696 readings (SI-03)
+rocks.csv: 10 rock chips (geology only), 10 with east and north swapped back
+downhole EM: 6 files for 4 holes, 2 plates (DXF)
+EM ION_MLEM_2017: 27 stations (INLOOP), nearest to each hole 55 / 165 / 158 / 142 / 820 / 839 / 146 / 145 / 737 m
+sample size: 4.26 MB in 26 files
