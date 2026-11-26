@@ -13652,12 +13652,9 @@
   "drew the holes in one colour": "رسم الثقوب بلون واحد",
   "coloured the holes by {field}": "لوّن الثقوب حسب {field}",
   "showed the {symbol} grades along the holes": "أظهر محتوى {symbol} على طول الثقوب",
-  "showed the {layer} log along the holes": "أظهر سجل {layer} على طول الثقوب",
   "showed {layers}": "أظهر {layers}",
   "hid {layers}": "أخفى {layers}",
-  "opened the section '{name}'": "فتح المقطع '{name}'",
   "zoomed to {hole}": "قرّب العرض إلى {hole}",
-  "fitted the view to the data": "ضبط العرض على البيانات",
   "turned the view to the top": "أدار العرض إلى الأعلى (مسقط أفقي)",
   "turned the view to the bottom": "أدار العرض إلى الأسفل",
   "Changes made by AI apps": "التغييرات التي أجرتها تطبيقات الذكاء الاصطناعي",
@@ -15901,5 +15898,10 @@
   "Potential fields cannot fix a depth: this never says where a contact is.": "لا تحدد الحقول الكامنة عمقًا: هذا لا يقول أبدًا أين يقع التماس.",
   "Undo lasts this session only: once saved, an edit is permanent.": "التراجع يدوم هذه الجلسة فقط: بعد الحفظ يصبح التعديل دائمًا.",
   "{n} pierce point(s), {z} of them holes with no intercept (read as 0).": "{n} نقطة اختراق، منها {z} ثقوب بلا تقاطع (تُقرأ 0).",
-  "{vertices} vertices under the brush.": "{vertices} رأسًا تحت الفرشاة."
+  "{vertices} vertices under the brush.": "{vertices} رأسًا تحت الفرشاة.",
+  "saved {symbol}'s {rule} threshold": "حفظ عتبة {rule} للعنصر {symbol}",
+  "showed the {layer} log": "أظهر سجل {layer}",
+  "added the raster '{name}'": "أضاف الشبكة النقطية '{name}'",
+  "fitted the view": "ضبط العرض",
+  "opened section '{name}'": "فتح المقطع '{name}'"
 }

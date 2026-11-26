@@ -70,6 +70,7 @@ import { groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.c
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput, gridValuesToRasterInput, snappedGridExtent, uniqueName } from "../lib/idw.js"; // uniqueName: #2562; gridValuesToRasterInput, snappedGridExtent: #2846, #2872
 import { surveySplineRequest, splineFinish, gridMethodTag } from "../lib/surveyGrid.js"; // TASKS.csv #2846
+import { useMcpGrid } from "../components/useMcpGrid.js"; // TASKS.csv #4093 (batch 5) — grid_survey
 import { gridSurveyAsync } from "../lib/surveyGridClient.js"; // #2846 — minimum curvature in a worker
 import { idwGridAsync } from "../lib/idwGridClient.js"; // TASKS.csv #3444 — IDW in a worker, with progress and Cancel
 import { MINCURV_MAX_CELLS, SPLINE_MAX_CELLS } from "../lib/sampleGrid.js"; // #2846
@@ -938,6 +939,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   useModuleAction(["open-macrostrat"], () => { if (forcePane === "web") openMacrostrat(); });
   // TASKS.csv #3932 — an AI app's fetch_terrain (the download was already asked for and allowed in GeoStrix's main process): Copernicus GLO-30 over the area
   // the picker would open on; refused when a terrain is loaded (no overwrite)
+  // TASKS.csv #4093 (batch 5) — grid_survey: the Point survey pane's own Grid step, driven as a person would (components/useMcpGrid.js)
+  useMcpGrid(() => ({ geoPane, setGeoPane, measuredList, idwKey, setIdwSurvey, setLegendSurvey, idwMethod, setIdwMethod, idwCellText, setIdwCellText, idwBusy, rasters, error, setError }));
   useModuleAction(["mcp-terrain-run"], async (_a, p) => {
     if (forcePane !== "terrain") return;
     const reply = (r) => { try { p?.reply?.(r); } catch { /* gone */ } };
@@ -2692,7 +2695,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 </div>
                 {idwBusy && <div role="status" style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}><span style={{ flex: 1 }}>{idwBusy}</span>{idwMethod !== "spline" && <button className="gs-btn" type="button" onClick={() => idwCancel.current?.()}>{tr("Cancel")}</button>}</div>}
                 <button className="gs-btn gs-btn--primary gs-btn--block" style={{ marginBottom: 0, justifyContent: "center" }} /* #4070 part 2: the Grid step's one gold primary */
-                  disabled={!!idwBusy}
+                  disabled={!!idwBusy} data-mcp="grid-run"
                   onClick={async () => {
                     const pts = idwSlice; // #1783 — a 3D cloud: the chosen depth slice
                     if (!pts.length) { setError(tr("No points in that elevation slice.")); return; }

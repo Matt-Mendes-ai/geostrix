@@ -13652,12 +13652,9 @@
   "drew the holes in one colour": "dibujó los sondajes en un solo color",
   "coloured the holes by {field}": "coloreó los sondajes por {field}",
   "showed the {symbol} grades along the holes": "mostró las leyes de {symbol} a lo largo de los sondajes",
-  "showed the {layer} log along the holes": "mostró el registro {layer} a lo largo de los sondajes",
   "showed {layers}": "mostró {layers}",
   "hid {layers}": "ocultó {layers}",
-  "opened the section '{name}'": "abrió la sección '{name}'",
   "zoomed to {hole}": "acercó la vista a {hole}",
-  "fitted the view to the data": "ajustó la vista a los datos",
   "turned the view to the top": "giró la vista hacia arriba (planta)",
   "turned the view to the bottom": "giró la vista hacia abajo",
   "Changes made by AI apps": "Cambios hechos por aplicaciones de IA",
@@ -15901,5 +15898,10 @@
   "Potential fields cannot fix a depth: this never says where a contact is.": "Los campos potenciales no pueden fijar una profundidad: esto nunca dice dónde está un contacto.",
   "Undo lasts this session only: once saved, an edit is permanent.": "Deshacer dura solo esta sesión: una vez guardada, una edición es permanente.",
   "{n} pierce point(s), {z} of them holes with no intercept (read as 0).": "{n} punto(s) de intersección, {z} de ellos sondajes sin intersección (leídos como 0).",
-  "{vertices} vertices under the brush.": "{vertices} vértices bajo el pincel."
+  "{vertices} vertices under the brush.": "{vertices} vértices bajo el pincel.",
+  "saved {symbol}'s {rule} threshold": "guardó el umbral {rule} de {symbol}",
+  "showed the {layer} log": "mostró el registro {layer}",
+  "added the raster '{name}'": "agregó el ráster '{name}'",
+  "fitted the view": "ajustó la vista",
+  "opened section '{name}'": "abrió la sección '{name}'"
 }

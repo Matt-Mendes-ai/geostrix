@@ -26,6 +26,8 @@ const norm360 = (a) => ((a % 360) + 360) % 360;
 const r1 = (v) => Math.round(v * 10) / 10;
 const short = (v, n) => String(v ?? "").slice(0, n);
 const fail = (error) => ({ ok: false, error });
+const rasterSay = (name) => tr("added the raster '{name}'", { name }); // TASKS.csv #4093 — the two raster tools say it the same way (one string)
+const rasterRevert = (ids) => (st) => { for (const id of ids) if ((st?.rasters || []).some((x) => x.id === id)) st.removeRaster(id); };
 // a name not already used by one of `taken` (names): 'A-A', then 'A-A (2)' ... (nothing is overwritten)
 export function freeName(want, taken) {
   const used = new Set((taken || []).map((x) => String(x).toLowerCase()));
@@ -51,6 +53,26 @@ export const ACTIONS = {
   async run_drill_planner(a, s, ctx) { return (await import("./drillPlanner/mcpPlanner.js")).run_drill_planner(a, s, ctx); },
   async add_program_holes(a, s) { return (await import("./drillPlanner/mcpPlanner.js")).add_program_holes(a, s); },
   async set_planned_hole_status(a, s) { return (await import("./drillPlanner/mcpPlanner.js")).set_planned_hole_status(a, s); },
+  // TASKS.csv #4093 (batch 5, piece B) — one of the Raster pane's grid filters (derivatives, continuation, tilt, analytic signal, RTP / RTE) on a grid, as a new raster; the pane's own run (RasterModule runFilter)
+  // in a worker, no network. Rasters are not in the undo history: the toast's Undo takes out exactly the raster added.
+  async filter_raster(a, s) {
+    const r = await viaModule(s, "maps", "mcp-filter-raster", { raster: a.raster, filter: a.filter, height: a.height, inclination: a.inclination, declination: a.declination, date: a.date }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const ids = r.ids || [];
+    const { ok, ids: _ids, ...rest } = r;
+    return { ok: true, tracked: false, data: { ...rest, id: ids[0] || null }, say: rasterSay(r.name), revert: rasterRevert(ids) };
+  },
+  // TASKS.csv #4093 (batch 5, piece B) — a point survey gridded to a raster by the Point survey pane's own Grid step (IDW or minimum curvature, the pane's cell and blanking defaults unless named); no network.
+  // The toast's Undo takes out exactly the raster added.
+  async grid_survey(a, s) {
+    const r = await viaModule(s, "geophysics", "mcp-grid-run", { survey: a.survey, method: a.method, cell_m: a.cell_m }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const ids = r.ids || [];
+    const { ok, ids: _ids, ...rest } = r;
+    return { ok: true, tracked: false, data: { ...rest, id: ids[0] || null }, say: rasterSay(r.name), revert: rasterRevert(ids) };
+  },
+  // TASKS.csv #4093 (batch 5, piece A) — saves one of suggest_thresholds' rules as an element's anomaly threshold (the Thresholds pane's own record); refuses to replace a saved one
+  async set_threshold(a, s) { return (await import("./mcpGeo.js")).setThreshold(a, s); },
   // a new section: two points in the project's coordinates, or through a hole in its own plane (as the hole's 'Section through' does); never replaces one
   async make_section(a, s) {
     const hasPts = a.from !== undefined || a.to !== undefined;
@@ -116,7 +138,7 @@ export const ACTIONS = {
   async colour_holes(a, s) {
     const r = await viaModule(s, "viewer", "mcp-view", { op: "colour", by: a.by, name: a.name });
     if (!r.ok) return r;
-    const say = a.by === "none" ? tr("drew the holes in one colour") : a.by === "field" ? tr("coloured the holes by {field}", { field: r.name }) : a.by === "element" ? tr("showed the {symbol} grades along the holes", { symbol: r.name }) : tr("showed the {layer} log along the holes", { layer: r.name });
+    const say = a.by === "none" ? tr("drew the holes in one colour") : a.by === "field" ? tr("coloured the holes by {field}", { field: r.name }) : a.by === "element" ? tr("showed the {symbol} grades along the holes", { symbol: r.name }) : tr("showed the {layer} log", { layer: r.name });
     return { ok: true, tracked: false, data: { changed: r.changed, name: r.name }, say, revert: r.revert };
   },
   async show_layers(a, s) {
@@ -129,7 +151,7 @@ export const ACTIONS = {
     if ((a.view === "hole" || a.view === "section") && !a.target) return fail(`'target' is needed with view: '${a.view}' (a ${a.view === "hole" ? "hole id" : "section name"}).`);
     const r = await viaModule(s, "viewer", "mcp-view", { op: "view", view: a.view, target: a.target });
     if (!r.ok) return r;
-    const say = a.view === "section" ? tr("opened the section '{name}'", { name: r.name }) : a.view === "hole" ? tr("zoomed to {hole}", { hole: r.name }) : a.view === "fit" ? tr("fitted the view to the data") : a.view === "top" ? tr("turned the view to the top") : tr("turned the view to the bottom");
+    const say = a.view === "section" ? tr("opened section '{name}'", { name: r.name }) : a.view === "hole" ? tr("zoomed to {hole}", { hole: r.name }) : a.view === "fit" ? tr("fitted the view") : a.view === "top" ? tr("turned the view to the top") : tr("turned the view to the bottom");
     return { ok: true, tracked: false, data: { changed: r.changed, name: r.name }, say, ...(r.revert ? { revert: r.revert } : {}) };
   },
   // the network tools: the download was asked for in GeoStrix's main process (a native box, every time) before the call reached this window. Each runs the pane's own fetch
