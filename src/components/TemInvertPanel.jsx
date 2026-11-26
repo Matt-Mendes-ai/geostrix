@@ -11,6 +11,7 @@ import { SURVEY_METHODS, surveyKey } from "../lib/geophysSurveys.js";
 import { runTem1dJob, saveFile } from "../lib/desktop.js";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js";
+import { loopEquivalentRadius } from "../lib/cronePem.js"; // TASKS.csv #4079 — a fixed loop in the file sets the ground loop's radius
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
@@ -122,11 +123,12 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
   const rxc = useMemo(() => rxColumn(data.columns), [data]);
   const tiltc = useMemo(() => tiltColumns(data.columns), [data]); // #3502
   const stdGuess = useMemo(() => (noiseMats[0] ? stdKindGuess(noiseMats[0]) : "relative"), [noiseMats]);
+  const loopA = useMemo(() => { const r = loopEquivalentRadius(data.loop); return r ? Math.round(r * 10) / 10 : null; }, [data]); // #4079 — a surface PEM file's loop: the ground central loop of its own size
   const fresh = () => ({
-    key, geom: "vmd", r: 13, a: 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", coil2: true, lateral: 0, useTilt: !!(tiltc.pitch || tiltc.roll), heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
+    key, geom: loopA ? "loop" : "vmd", r: 13, a: loopA || 20, area: 314, h: 30, rz: 0, rzCol: rxc && hc ? rxc : "", filters: "", coil2: true, lateral: 0, useTilt: !!(tiltc.pitch || tiltc.roll), heightsCol: hc || "", timeZero: tz.zero, unit: ug.unit, useStd: noiseMats.every(Boolean), stdKind: stdGuess, errRel: 5, every: 1,
     layers: { n: 20, first: 3, bottom: 300 },
     priorText: "", freeH: false, hSd: 1, freeRz: false, rzSd: 0.5, // TASKS.csv #1987 (1 m: on the USGS SkyTEM file 3 m let the height take up a 4 m bias)
-    wave: groups.map((g, k) => { const p = groups.length > 1 ? (k === 0 ? "airLow" : "airHigh") : "airHigh"; return { preset: p, onMs: WAVEFORM_PRESETS[p].onMs, rampUs: WAVEFORM_PRESETS[p].rampUs, table: "", baseFreq: "", shiftUs: "", frontUs: "", widthsUs: "" }; }),
+    wave: groups.map((g, k) => { const p = loopA ? "ground" : groups.length > 1 ? (k === 0 ? "airLow" : "airHigh") : "airHigh"; return { preset: p, onMs: WAVEFORM_PRESETS[p].onMs, rampUs: WAVEFORM_PRESETS[p].rampUs, table: "", baseFreq: "", shiftUs: "", frontUs: "", widthsUs: "" }; }),
     result: null, pick: null, sel: null,
   });
   const [st, setSt] = useState(() => (LAST && LAST.key === key ? LAST : fresh()));

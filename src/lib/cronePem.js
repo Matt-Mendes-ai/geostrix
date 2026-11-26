@@ -116,6 +116,15 @@ export function parseCronePemSurface(text, fileName = "") {
   };
 }
 
+// the radius of the circle with the loop's area (shoelace over its corners), in metres, or null: a fixed loop as the ground central loop of the 1D inversion
+export function loopEquivalentRadius(loop) {
+  if (!loop || loop.length < 3) return null;
+  let a = 0;
+  for (let i = 0; i < loop.length; i++) { const p = loop[i], q = loop[(i + 1) % loop.length]; a += p.x * q.y - q.x * p.y; }
+  const area = Math.abs(a) / 2;
+  return area > 0 ? Math.sqrt(area / Math.PI) : null;
+}
+
 // a loop's extent for a note: its corners' span in x and y (metres), or null
 export function loopSpan(loop) {
   if (!loop || loop.length < 3) return null;

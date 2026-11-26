@@ -20,6 +20,8 @@ import StepPane from "./StepPane.jsx"; // TASKS.csv #4070 — the lines as steps
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
+// TASKS.csv #4079 — a Crone .STP is a step response (nT): the profile and decay plots stay, the decay constant and the 1D inversion (dB/dt arithmetic) are not offered, and this says why where their buttons were
+const STEP_REASON = () => tr("Step response (nT): tau and the 1D inversion need dB/dt.");
 const rowS = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
 // early gates purple, late gates yellow (viridis anchors)
 const VIR = ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"];
@@ -82,13 +84,14 @@ function Decay({ times, vals, fit }) {
   );
 }
 
-export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, rasters, project, setEpsg, projectIsEmpty, onClose }) {
+export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, addBoundary, rasters, project, setEpsg, projectIsEmpty, onClose }) {
   const [st, setSt] = useState(() => LAST);
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
   const save = (next) => { LAST = next; setSt(next); };
   const data = st?.data;
+  const stepResp = !!data?.stepResponse; // TASKS.csv #4079 — a Crone .STP is the step response (nT): a decay constant and a 1D inversion are dB/dt arithmetic, so they are not offered for it
   const needsTie = !!data?.localGrid && !data.placed; // TASKS.csv #4058 — a local-grid file stays off the map until it is tied
   // TASKS.csv #3441 — a two-moment file whose header states both moments' gate times can be read as ONE decay (the gates of both, by time)
   const joinable = useMemo(() => {
@@ -122,7 +125,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
   const sel = st?.sel ?? line?.idx[0] ?? null;
   const vals = useMemo(() => (mat && sel != null ? Array.from(mat.v.subarray(sel * mat.m, sel * mat.m + mat.m)) : null), [mat, sel]);
   const masked = useMemo(() => (noiseOpts && vals ? maskNoisy(vals, noiseMat ? noiseMat.v.subarray(sel * noiseMat.m, sel * noiseMat.m + noiseMat.m) : null, noiseOpts) : null), [noiseOpts, vals, noiseMat, sel]);
-  const fit = useMemo(() => (times && vals ? decayTau(times, masked ? masked.values : vals) : null), [times, vals, masked]);
+  const fit = useMemo(() => (!stepResp && times && vals ? decayTau(times, masked ? masked.values : vals) : null), [times, vals, masked, stepResp]);
 
   const open = async (file) => {
     if (!file) return;
@@ -144,7 +147,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
       save({ data: d, g, timesText: t ? t.join(" ") : "", line: L[0]?.key, sel: null, posNote: d.epsg ? (target && Number(d.epsg) !== Number(target) ? tr("Positions reprojected from EPSG:{a} to the project's {crs}.", { a: d.epsg, crs: `${crsName(target) || "?"} (EPSG:${target})` }) : "") : tr("Positions from the file's {x} / {y}, taken as the project's coordinates: the file does not say its coordinate system.", { x: d.xCol, y: d.yCol }) });
       setMsg({ info: true, text: [
         tr("{name} ({src}): {n} stations on {l} line(s); channels {ch} ({m} gates).", { name: file.name, src: d.source, n: d.n.toLocaleString(), l: L.length, ch: d.groups[g].prefix, m: d.groups[g].cols.length }),
-        t ? tr("Gate times read from the file: {a} to {b} ms.", { a: fmt(t[0]), b: fmt(t[t.length - 1]) }) : tr("The file does not state its gate times: type them below (ms, one per gate) to fit the decay constant."),
+        t ? tr("Gate times read from the file: {a} to {b} ms.", { a: fmt(t[0]), b: fmt(t[t.length - 1]) }) : tr("No gate times in the file: type them below (ms, one per gate)."),
         ...(d.notes || []), // #4063
         d.components?.length > 1 ? tr("Components {c}: {first} first; the others are kept.", { c: d.components.join(", "), first: d.components[0] }) : "", // #4058
       ].filter(Boolean).join(" ") });
@@ -196,6 +199,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
         {data && (<>
         {st.posNote && <div style={{ ...note, marginBottom: 6 }}>{st.posNote}</div>}
         <TemGridTie data={data} onTied={() => save({ ...st, data: { ...data } })} />{/* #4058 */}
+        {data.loop && addBoundary && !data.localGrid && <button className="gs-btn gs-btn--sm" type="button" onClick={() => addBoundary({ name: tr("Loop: {name}", { name: data.name }), polylines: [data.loop.map((p) => ({ x: p.x, y: p.y }))], closedFlags: [true], elevation: Math.round(data.loop.reduce((s, p) => s + p.z, 0) / data.loop.length) })} style={{ marginBottom: 6 }}>{tr("Draw the loop")}</button>}{/* TASKS.csv #4079 — a surface PEM file's transmitter loop as a boundary line in 3D */}
         <div style={rowS}><span>{tr("Channels")}</span>
           <select value={st.g} onChange={(e) => { if (e.target.value === "join") { save({ ...st, g: "join" }); return; } const g = Number(e.target.value), t = data.gateTimes(data.groups[g]); save({ ...st, g, timesText: t ? t.join(" ") : st.timesText }); }} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("TEM channel group")}>
             {data.groups.map((g, i) => <option key={g.prefix} value={i}>{tr("{name} ({m} gates)", { name: g.prefix, m: g.cols.length })}{g.aux ? ` — ${tr("uncertainty")}` : g.role === "time" ? ` — ${tr("gate times")}` : g.role === "model" ? ` — ${tr("model")}` : ""}</option>)}
@@ -227,13 +231,13 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
           <select value={line?.key} onChange={(e) => save({ ...st, line: e.target.value, sel: null })} style={smallSel} aria-label={tr("TEM line")}>{lines.map((l) => <option key={l.key} value={l.key}>{l.key} ({l.idx.length})</option>)}</select>
         </div>}
         {line && mat && <Profiles line={line} mat={mat} sel={sel} onPick={(i) => save({ ...st, sel: i })} />}
-        <div style={{ ...note, margin: "3px 0 8px" }}>{tr("Early gates purple, late yellow (log scale). Click a station for its decay.")}</div>
+        <div style={{ ...note, margin: "3px 0 8px" }}>{tr("Early gates purple, late yellow. Click a station.")}</div>
         {sel != null && vals && (<>
           <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 4 }}>{tr("Station {i}: {x} E, {y} N", { i: sel + 1, x: fmt(data.x[sel]), y: fmt(data.y[sel]) })}</div>
           {times ? <Decay times={times} vals={vals} fit={fit} /> : <div style={note}>{tr("Type the gate times to draw the decay.")}</div>}
-          {times && <div style={{ ...note, marginTop: 3 }}>{fit ? tr("Decay constant tau = {tau} ms, from gates {a} to {b} ({t0} to {t1} ms, r² {r2}).", { tau: fmt(fit.tau), a: fit.from + 1, b: fit.to + 1, t0: fmt(times[fit.from]), t1: fmt(times[fit.to]), r2: fit.r2.toFixed(3) }) : tr("No decay constant here: fewer than three positive late readings, or they do not fall.")}{masked?.dropped ? " " + tr("{n} reading(s) in the noise were left out.", { n: masked.dropped }) : ""}</div>}
+          {times && !stepResp && <div style={{ ...note, marginTop: 3 }}>{fit ? tr("Decay constant tau = {tau} ms, from gates {a} to {b} ({t0} to {t1} ms, r² {r2}).", { tau: fmt(fit.tau), a: fit.from + 1, b: fit.to + 1, t0: fmt(times[fit.from]), t1: fmt(times[fit.to]), r2: fit.r2.toFixed(3) }) : tr("No decay constant: fewer than three positive late readings that fall.")}{masked?.dropped ? " " + tr("{n} reading(s) in the noise were left out.", { n: masked.dropped }) : ""}</div>}
         </>)}
-        <button className="gs-btn gs-btn--primary gs-btn--block" style={{ justifyContent: "center", marginTop: 8 }} type="button" disabled={!times || needsTie} onClick={mapTau} title={needsTie ? tr("Tie the grid first.") : times ? undefined : tr("Type the gate times first")}>{tr("Map the decay constant (tau)")}</button>
+        {stepResp ? <div role="note" style={{ ...note, marginTop: 8 }}>{STEP_REASON()}</div> : <button className="gs-btn gs-btn--primary gs-btn--block" style={{ justifyContent: "center", marginTop: 8 }} type="button" disabled={!times || needsTie} onClick={mapTau} title={needsTie ? tr("Tie the grid first.") : times ? undefined : tr("Type the gate times first")}>{tr("Map the decay constant (tau)")}</button>}
         <div style={rowS}>
           <select value={st.gate ?? ""} onChange={(e) => save({ ...st, gate: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Gate to add as a point survey")}>
             <option value="">{tr("Add one gate as a point survey…")}</option>
@@ -242,7 +246,7 @@ export default function TemPane({ setLayers, updateGeophysSurvey, addRaster, ras
           <button className="gs-btn gs-btn--sm" type="button" disabled={st.gate == null || needsTie} onClick={() => addGate(st.gate)}>{tr("Add")}</button>
         </div>
           </>) }] : []),
-          ...(data && !needsTie && (isJoin || group.role === "data" || (!group.role && !group.aux)) ? [{ key: "invert", label: tr("Inversion"), question: tr("Invert the decays in 1D?"), body: (<>
+          ...(data && !needsTie && (isJoin || group.role === "data" || (!group.role && !group.aux)) ? [{ key: "invert", label: tr("Inversion"), question: tr("Invert the decays in 1D?"), body: stepResp ? <div role="note" style={note}>{STEP_REASON()}</div> : (<>
           <TemInvertPanel /* TASKS.csv #3501 — keyed by the file and its channel set: switching from one moment to both joined remounts the
               panel (its state holds a waveform per moment; reused for two moments it read the second's as undefined and closed the tab) */ key={`${data.name}|${isJoin ? `${joinable.ga.prefix}+${joinable.gb.prefix}` : group.prefix}`} data={data} groups={isJoin ? [joinable.ga, joinable.gb] : [group]} timesOf={(g) => (isJoin ? (g === joinable.ga ? joinable.ta : joinable.tb) : times)} line={line} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} />
           </>) }] : []),
