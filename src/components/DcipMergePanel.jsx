@@ -80,7 +80,7 @@ export default function DcipMergePanel({ numInput }) {
   return (
     <div style={{ marginTop: 14 }}>
       <div className="ge-section-label">{tr("Merge lines into 3D")}</div>
-      <div style={small}>{tr("Interpolates the inverted lines into one block model where two or more lines are within the radius: a guide between sections, not a 3D inversion.")}</div>
+      <div style={small}>{tr("Interpolates inverted lines into one block model where two or more are within the radius: a guide, not a 3D inversion.")}</div>
       {kinds.length > 1 && (
         <div style={row}><span style={lbl}>{tr("Property")}</span>
           <select value={kind} onChange={(e) => setKind(e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Property to merge")}>

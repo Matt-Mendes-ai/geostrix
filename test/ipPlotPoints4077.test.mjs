@@ -40,7 +40,7 @@ test("TQIPdb plot-point table: electrodes rebuilt from the plot point, the n-lev
   assert.equal(p.ipKind, "chargeability");
   assert.equal(p.spacing, 50);
   assert.equal(p.readings.length, 18);
-  assert.match(r.note, /pole-dipole with a 50 m dipole/);
+  assert.match(r.note, /pole-dipole, 50 m dipole/);
   assert.match(r.note, /lower-coordinate/);
 });
 
@@ -57,7 +57,7 @@ test("TQIPdb plot-point table: a header block cut short still reads (dipole from
   const r = parseDcipWhitespaceText(text);
   assert.equal(r.rows.length, 18);
   assert.deepEqual([r.rows[0].A, r.rows[0].M, r.rows[0].N], [1000, 1100, 1200]);
-  assert.match(r.note, /not stated: read as pole-dipole/);
+  assert.match(r.note, /array not stated: pole-dipole/);
   assert.equal(tqipdbLineName(text), "6174400");
   assert.equal(lineTagOf(text), "6174400"); // placed from the number (a northing: an east-west line)
 });
@@ -74,7 +74,7 @@ test("TQIPdb plot-point table: map eastings are placed from the line's name", ()
 
 test("TQIPdb plot-point table: another array is said, not guessed", () => {
   const r = parseDcipWhitespaceText(plotTable({ array: "DPDP" }));
-  assert.match(r.error, /DPDP survey/);
+  assert.match(r.error, /not DPDP/);
   assert.equal(r.rows.length, 0);
   // a table with the same columns is not mistaken for another file
   assert.equal(isTqipdbPlot("Line, Easting, Res, Mx\n1,2,3,4\n"), false);

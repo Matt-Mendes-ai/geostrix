@@ -13,6 +13,7 @@ import { electrodeFile } from "../lib/dcipElectrodes.js"; // TASKS.csv #4065 —
 import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineTagOf, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, dataReachM, smoothReachLine, ipRequest, ipKindOfColumn } from "../lib/dcip.js"; // ipKindOfColumn: TASKS.csv #4059 — an IP phase column is not a chargeability // ipRequest: TASKS.csv #2704
 import { renderDcipSectionPng, sig3, rampRange } from "../lib/dcipSectionImage.js"; // sig3: #322; rampRange: #2073
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
+import { isTqipdbPlot, isZongeGdd, flipPoleRows, flipPoleReadings } from "../lib/tqipdbPlot.js"; // TASKS.csv #4082 — which end the pole stood at, for a plot-point table; the raw Zonge dump
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
@@ -169,13 +170,14 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
         : await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
       // TASKS.csv #600 — contractor TDIP files (.dat / .ipg): metadata lines, then a whitespace-separated table;
       // #826 — a Res2DInv .dat (positional header, electrodes from the array type) is tried first
-      if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) {
+      let plotSide = null; // TASKS.csv #4082 — a TQIPdb plot-point table: which end the current pole is taken at
+      if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m || isZongeGdd(textAll) || isTqipdbPlot(textAll)) { // a raw Zonge dump / plot table first: its own header can look like a table of electrodes
         const text = decodeTableBytes(await f.arrayBuffer()).text;
         // TASKS.csv #1326 — plot points, not electrodes: the survey's .IPG files are the readings
         if (/^\s*\$\$DATA\$\$/.test(text)) throw new Error(tr("this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead."));
         const r = parseRes2dinv(text) || parseDcipWhitespaceText(text);
         if (r?.error) throw new Error(r.error); // #1660 — a 3D survey, said
-        if (r) t = { headers: r.headers, rows: r.rows, note: r.note };
+        if (r) { t = { headers: r.headers, rows: r.rows, note: r.note }; plotSide = r.poleSide || null; }
       }
       // TASKS.csv #4065 — electrodes written as map coordinates (a MIMDAS Geosoft file, a SMARTem TIP export) or a UBC-2D observation file: read into this reader's
       // distances along a line, the line placed by its two ends; a file with several lines keeps each of them
@@ -194,17 +196,17 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
       // TASKS.csv #634 — a different line's file starts unplaced: the previous line's position (and stations) used to
       // carry over, silently putting e.g. 8575E on 9000E's coordinates. Reloading the same file keeps it.
       if (f.name !== file?.name) setLine((l) => ({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null, pts: null, positions: l.positions }));
-      setFile({ name: f.name, headers: t.headers, rows: t.rows });
+      setFile({ name: f.name, headers: t.headers, rows: t.rows, ...(plotSide ? { plot: { poleSide: plotSide } } : {}) });
       setMapping(m);
       { const pl = placedPts ? placementOf(placedPts) : null; if (pl) setLine((l) => ({ ...l, ...pl })); } // #4065
       const p = m.a && m.m && m.rho ? parseDcipRows(t.rows, m) : null;
       if (p?.spacing) setOpts((o) => ({ ...o, cell: o.cell || String(+(p.spacing / 2).toFixed(2)), depth: o.depth || String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) })); // #680
       // TASKS.csv #2026 (review #2013, Woodjam) — one line file was read into the pane but not kept, while several files at once were: the
       // same rule now (kept unplaced, as the multi-file import keeps a line it cannot place); a line already in the project is left as it is
-      const keptName = f.name.replace(/\.(csv|txt|dat|ipg|ipd|ip|avg)$/i, "");
+      const keptName = f.name.replace(/\.(csv|txt|dat|ipg|ipd|ip|avg|gdd)$/i, "");
       const newlyKept = !!(p?.readings.length && !(dcipLines || []).some((l) => l.name === keptName));
       const placedNow = placedPts ? placementOf(placedPts) : null; // #4065 — a line placed by its electrodes or its name is kept placed, and its message does not say to place it
-      if (newlyKept) { const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : ""; saveDcipLine({ name: keptName, readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, ...(p.err ? { err: p.err } : {}), line: placedNow || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() }); }
+      if (newlyKept) { const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : ""; saveDcipLine({ name: keptName, readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, ...(p.err ? { err: p.err } : {}), line: placedNow || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString(), ...(plotSide ? { poleSide: plotSide } : {}) }); }
       setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? (p.ipKind === "phase" ? tr(", IP phase") : tr(", with chargeability")) : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: "" /* #2704 — a missing chargeability no longer skips a row */ }) : "" }) + (p.noIp ? " " + (p.ipKind === "phase" ? tr("{n} reading(s) have no IP phase: left out of that model.", { n: p.noIp }) : tr("{n} reading(s) have a resistivity but no chargeability: the resistivity model uses them, the chargeability model leaves them out.", { n: p.noIp })) /* #2704 */ : "") + (p.ipKind === "phase" ? " " + tr("{col} is read as IP phase (mrad), not chargeability. The inversion treats it as an IP proxy.", { col: m.ip }) /* #4059 */ : "") /* #2076 */ + (t.note ? " " + t.note : "") + (newlyKept && !placedNow ? " " + tr("Kept in the project as \"{name}\" (place it on the map before inverting).", { name: keptName }) : "") } // #1974; kept: #2026
         : { ok: false, text: tr("Choose the columns for A, M and the apparent resistivity in the lists above.") });
     } catch (e) { setMsg({ ok: false, text: tr("Could not read {name}: {message}", { name: f.name, message: e.message }) }); }
@@ -229,13 +231,14 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
     { const no = zongeRefusal(text, f.name, "dcip"); if (no) throw new Error(no); } // TASKS.csv #4076
     if (zongeKind(text) === "cr") { const z = crAvgToTable(text, f.name); return [{ ...parseDcipRows(z.rows, guessDcipColumns(z.headers)), lineTag: z.lineName }]; }
     let t = await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
-    if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) { const r = parseRes2dinv(text) || parseDcipWhitespaceText(text); if (r?.error) throw new Error(r.error); if (r) t = r; } // #1660
+    let plotSide = null; // #4082
+    if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m || isZongeGdd(text) || isTqipdbPlot(text)) { const r = parseRes2dinv(text) || parseDcipWhitespaceText(text); if (r?.error) throw new Error(r.error); if (r) { t = r; plotSide = r.poleSide || null; } } // #1660
     const el = electrodeFile(text, f.name, t, { lineTag: lineTagOf(text) }); // TASKS.csv #4065 — returns the file's lines
     if (el?.error) throw new Error(el.error);
     if (el?.lines) return el.lines.map((L) => ({ ...parseDcipRows(L.rows, guessDcipColumns(L.headers)), lineTag: null, name: L.name, pts: L.pts }));
     const m = guessDcipColumns(t.headers);
     if (!m.a || !m.m || !m.rho) throw new Error(tr("no electrode and apparent-resistivity columns found."));
-    return [{ ...parseDcipRows(t.rows, m), lineTag: lineTagOf(text) }]; // lineTag: #2020
+    return [{ ...parseDcipRows(t.rows, m), lineTag: lineTagOf(text), ...(plotSide ? { poleSide: plotSide } : {}) }]; // lineTag: #2020
   };
   const onFiles = async (fileList) => {
     const all = Array.from(fileList || []);
@@ -264,11 +267,11 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
       try {
         for (const p of await readLineFile(f)) { // #4065 — a file can hold several lines
         if (!p.readings.length) throw new Error(tr("no usable readings."));
-        const name = p.name || f.name.replace(/\.(csv|txt|dat|ipg|avg)$/i, "");
+        const name = p.name || f.name.replace(/\.(csv|txt|dat|ipg|ipd|ip|avg|gdd)$/i, "");
         const placed = (p.pts ? placementOf(p.pts) : null) || linePlacement(name, files, to) || (p.lineTag ? linePlacement(p.lineTag, files, to) : null); // #2020 — the header's LINE: tag; #4065 — the file's own electrode coordinates
         if (!placed) unplaced.push(name);
         const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
-        saveDcipLine({ name, readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, ...(p.err ? { err: p.err } : {}), line: placed || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() });
+        saveDcipLine({ name, ...(p.poleSide ? { poleSide: p.poleSide } : {}), readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, ...(p.err ? { err: p.err } : {}), line: placed || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() });
         kept++; readings += p.readings.length;
         }
       } catch (e) { problems.push(`${f.name}: ${e.message}`); }
@@ -281,13 +284,24 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
     ].filter(Boolean).join(" ") });
   };
   // TASKS.csv #322 — keep the line (normalised readings + placement + settings) in the project file
-  const lineName = file ? file.name.replace(/\.(csv|txt|dat|ipg|avg)$/i, "") : "";
+  const lineName = file ? file.name.replace(/\.(csv|txt|dat|ipg|ipd|ip|avg|gdd)$/i, "") : "";
+  // TASKS.csv #4082 — a TQIPdb plot-point table gives plot points, not electrodes: which end the current pole stood at is the reader's choice (the raw dump of the line says). Moving it
+  // mirrors every reading about its plot point (flipPoleRows); a line already kept in the project follows, and an inverted section of the old geometry is dropped
+  const changePoleSide = async (side) => {
+    if (!file?.plot || side === file.plot.poleSide) return;
+    const saved = (dcipLines || []).find((l) => l.name === lineName);
+    if (saved?.section && !await confirmDestructive(tr("Move the pole? Its inverted section is removed."), { recover: tr("invert the line again.") })) return;
+    setFile({ ...file, rows: flipPoleRows(file.rows, mapping), plot: { poleSide: side } });
+    if (saved) saveDcipLine({ name: lineName, poleSide: side, readings: flipPoleReadings(saved.readings), section: null });
+    setLast((l) => (l?.name === lineName ? null : l));
+    setMsg({ ok: true, text: tr("Pole: {end}.", { name: lineName, end: side === "high" ? tr("higher-coordinate end") : tr("lower-coordinate end") }) });
+  };
   const keepLine = (extra = {}) => saveDcipLine({ name: lineName, readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, ipKind: parsed.ipKind, ...(parsed.err ? { err: parsed.err } : {}), line: { ...line }, opts: { ...opts }, savedAt: new Date().toISOString(), ...extra });
   const loadSaved = (id) => {
     const e = dcipLines.find((l) => l.id === id);
     if (!e) return;
     const { file: f, mapping: m } = savedLineToFile(e);
-    setFile(f); setMapping(m); setLine({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null, ...e.line }); setOpts((o) => ({ ...o, ...e.opts }));
+    setFile(e.poleSide ? { ...f, plot: { poleSide: e.poleSide } } : f); setMapping(m); setLine({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null, ...e.line }); setOpts((o) => ({ ...o, ...e.opts }));
     const sl = e.section?.line;
     const sg = sl ? lineGeometry([sl.x0, sl.y0].map(Number), [sl.x1, sl.y1].map(Number), Number(sl.scale) || 1) : null;
     setLast(e.section && sg ? { result: e.section.result, geom: sg, name: e.name, restored: e.section.ranAt, thick: Number(e.section.opts?.cell) || Number(e.opts?.cell) || null, obs: { readings: e.readings, rho: e.rho, ip: e.ip } } : null); // obs: #683
@@ -338,7 +352,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
     if (!parsed || !parsed.readings.length) problems.push(tr("Import a line with A, M and apparent-resistivity columns."));
     if (!geom) problems.push(tr("Place the line: load its GPS / station file, or type two points on it (position and x / y)."));
     if (!(num(opts.cell) > 0) || !(num(opts.depth) > num(opts.cell))) problems.push(tr("Enter the cell size and model depth."));
-    if (!(num(opts.pct) > 0) && !(num(opts.floor) > 0)) problems.push(tr("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading."));
+    if (!(num(opts.pct) > 0) && !(num(opts.floor) > 0)) problems.push(tr("Enter the resistivity uncertainty (% and / or a floor): how far you trust each reading."));
     if (parsed?.ip && !(num(opts.ipPct) > 0) && !(num(opts.ipFloor) > 0)) problems.push(parsed.ipKind === "phase" ? tr("Enter the IP phase uncertainty (%, floor mrad).") : tr("Enter the chargeability uncertainty (% and / or a floor in mV/V)."));
     // TASKS.csv #564 — a percent of 0 mV/V is 0: that reading would get zero uncertainty (infinite weight)
     else if (parsed?.ip && !(num(opts.ipFloor) > 0) && parsed.ip.some((v) => v != null && !(Math.abs(v) > 0))) { const nz = parsed.ip.filter((v) => v != null && !(Math.abs(v) > 0)).length; problems.push(parsed.ipKind === "phase" ? tr("{n} IP phase reading(s) are 0 mrad: enter a floor too.", { n: nz }) : tr("{n} chargeability reading(s) are 0 mV/V: a percent alone gives them no uncertainty. Enter a floor in mV/V as well.", { n: nz })); } // v != null: a missing one is not used (#2704)
@@ -358,7 +372,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
           const prof = terrainProfile(terrain, lineGeom, a, b, 400);
           if (prof) { f = slopeToHorizontalFromProfile(prof); posNote = tr("slope distances converted to horizontal along the terrain"); }
         }
-        if (!f) problems.push(tr("Positions chained along the ground need the ground's shape to convert them: load the line stations (with coordinates) or a terrain under the line."));
+        if (!f) problems.push(tr("Positions chained along the ground need its shape: load the line stations (with coordinates) or a terrain."));
         else { const c = readingsToHorizontal(parsed.readings, f); readingsH = c.readings; posNote += tr(" (largest shift {maxShift} m)", { maxShift: c.maxShift.toFixed(1) }); }
       }
       const flatH = readingsH.flat().filter((v) => v != null);
@@ -446,7 +460,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
           {pick && <button className="gs-btn gs-btn--icon gs-btn--sm" onClick={async () => { const e = dcipLines.find((l) => l.id === pick); if (!await confirmDestructive(tr("Remove the saved line \"{name}\"{inv} from the project?", { name: e?.name || "", inv: e?.section ? tr(" and its inversion result") : "" }), { recover: e?.section ? tr("re-import the line file and run the inversion again.") : tr("re-import the line file.") })) return; removeDcipLine(pick); setPick(""); }} /* confirm: #322 */ title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")}><Trash2 size={14} /></button>}
         </div>
       )}
-      <input ref={fileRef} type="file" multiple accept=".csv,.txt,.dat,.ipg,.arw,.gpx,.wpt,.xyz,.dc,.ip,.ipd,.avg,.stn" style={{ display: "none" }} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
+      <input ref={fileRef} type="file" multiple accept=".csv,.txt,.dat,.ipg,.arw,.gpx,.wpt,.xyz,.dc,.ip,.ipd,.gdd,.avg,.stn" style={{ display: "none" }} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
       {/* TASKS.csv #1348 — a contractor's UBC-GIF DCIP2D inversion (dcinv2d.msh + dcinv2d.con / ipinv2d.chg), placed along its line */}
       <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => ubcRef.current?.click()} title={tr("The mesh (dcinv2d.msh) with its .con and / or .chg model, the topography file and the line's station file to place it")}><Upload size={14} />{" "}{tr("Import a UBC DCIP2D inversion (mesh + model)…")}</button>
       <div style={{ ...small, marginTop: 4 }}>{tr("One 2D line only. A UBC 3D mesh goes to Block models; a cloud of apparent values (X Y Z value) to Point survey.")}</div>{/* TASKS.csv #3812 */}
@@ -473,6 +487,15 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
               </select>
             </div>
           ); })}
+          {file.plot && ( // TASKS.csv #4082 — a plot-point table: where was the current pole?
+            <div style={row}>
+              <span style={lbl}>{tr("Pole at the")}</span>
+              <select value={file.plot.poleSide} onChange={(e) => changePoleSide(e.target.value)} data-pole-side="" style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Pole at the")}>
+                <option value="low">{tr("lower-coordinate end")}</option>
+                <option value="high">{tr("higher-coordinate end")}</option>
+              </select>
+            </div>
+          )}
           {parsed?.err && (
             // TASKS.csv #683 — what a receiver writes in its error column differs (IRIS-style SD: the deviation of the
             // chargeability or of the voltage between stacks), so GeoStrix does not guess: it is used only once chosen
@@ -539,7 +562,7 @@ export default function DcipPanel({ numInput, resultSlot = null }) {
             return deep > (num(opts.depth) || 0) + 1 ? (
               <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("The data plot down to {deep} m (pseudo-depth: half the largest current-to-potential separation).", { deep })}{" "}
                 <button className="gs-btn gs-btn--sm" type="button" onClick={() => setOpts((o) => ({ ...o, depth: String(deep), voxExtrapolated: true }))}>{tr("Model to {deep} m", { deep })}</button>
-                {" "}{tr("Below the depth of investigation the cells are extrapolated by the inversion, not seen by the data, and a deeper mesh takes longer to run.")}</div>
+                {" "}{tr("Below the depth of investigation the cells are extrapolated, not seen by the data; a deeper mesh runs longer.")}</div>
             ) : null;
           })()}
           {running && <button className="gs-btn gs-btn--block" style={{ marginTop: 6 }} onClick={() => cancelInversionJob()}>{tr("Cancel")}</button>}
@@ -654,7 +677,7 @@ function Pseudosection({ parsed, large = false }) {
           <text x={f.left + BW + 6} y={7 + FS * 0.35} style={tick}>{sc.log ? tr("{unit}, log scale", { unit: sc.unit }) : sc.unit}</text>
         </svg>
       )}
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.35 }}>{tr("Each reading sits midway between the current electrode(s) and the potential dipole's centre, at half their separation. Other programs differ: compare shapes, not depths.")}{sc && sc.usable < vals.length ? " " + tr("{n} reading(s) with no usable value are grey.", { n: vals.length - sc.usable }) : ""}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.35 }}>{tr("Each reading sits midway between the current electrode(s) and the potential dipole's centre, at half their separation. Compare shapes, not depths.")}{sc && sc.usable < vals.length ? " " + tr("{n} reading(s) with no usable value are grey.", { n: vals.length - sc.usable }) : ""}</div>
     </div>
   );
 }

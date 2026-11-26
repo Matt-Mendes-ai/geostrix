@@ -10,7 +10,7 @@ import { terrainElevationAt } from "./inversion.js";
 import { median } from "./arrayStats.js"; // TASKS.csv #1114
 import { supportEnvelope } from "./supportEnvelope.js"; // TASKS.csv #681 — the shown / hidden rule in the CSV
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { isTqipdbPlot, parseTqipdbPlot, tqipdbLineName } from "./tqipdbPlot.js"; // TASKS.csv #4077 — Zonge TQIPdb plot-point tables
+import { isTqipdbPlot, parseTqipdbPlot, tqipdbLineName, isZongeGdd, parseZongeGdd } from "./tqipdbPlot.js"; // TASKS.csv #4077 — Zonge TQIPdb plot-point tables
 
 const norm = (h) => String(h).trim().replace(/^["']+|["']+$/g, "").toLowerCase().replace(/[\s()\[\]./-]+/g, "_").replace(/_+$/, ""); // #4065: a quoted header ("F1x")
 // TASKS.csv #600 — contractor TDIP files (IRIS / Geosoft-style .dat / .ipg, e.g. a BC ARIS pole-dipole survey):
@@ -37,8 +37,9 @@ const ALIASES = {
 // infinity. Finds the header line (the first one naming an A and an M electrode column), splits the rest on
 // whitespace, keeps rows with the header's column count. Returns { headers, rows, note } or null when the text
 // has no such header (then it is read as an ordinary CSV).
-export const threeDError = (n, offline) => tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. Read it with \"3D survey from electrode coordinates\" at the end of this pane, or load the contractor's 3D model under Block models.", { n, offline }); // #1660 / #1784
+export const threeDError = (n, offline) => tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. Read it with \"3D survey from electrode coordinates\" below, or load the contractor's 3D model under Block models.", { n, offline }); // #1660 / #1784
 export function parseDcipWhitespaceText(text) {
+  if (isZongeGdd(text)) return parseZongeGdd(text); // TASKS.csv #4082 — a raw Zonge dump: the electrodes as recorded, the repeats averaged
   if (isTqipdbPlot(text)) return parseTqipdbPlot(text); // TASKS.csv #4077 — Zonge TQIPdb "Line PltPt Nlevel Res Mx": plot points, the electrodes rebuilt from the array
   const lines = String(text).split(/\r?\n/);
   const isA = (t) => ALIASES.a.includes(norm(t)), isM = (t) => ALIASES.m.includes(norm(t));
