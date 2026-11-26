@@ -57,7 +57,9 @@ test("Grid a per-hole value: What, Where, How on a StepPane, Grid to raster the 
   assert.match(hv, /<StepPane id="maps-hole-value"/);
   for (const k of ['key: "what"', 'key: "where"', 'key: "how"']) assert.ok(hv.includes(k), k);
   assert.match(hv, /action=\{\{ label: tr\("Grid to raster"\), onClick: run/);
-  assert.deepEqual(missing(hv, ["setSourceId(", "setCodes(", "setStat(", "setThreshold(", "setPlaceAtChoice(", "setDepthAs(", "setMethod(", "setCell(", "setBlank(", "setLogChoice(", "<StepNumbers"]), []);
+  // the step bodies are functions: built eagerly they read source.id while the panel is closed (source null) and crashed the Maps tab (found live, #4088)
+  for (const k of ["const whatStep = () =>", "const whereStep = () =>", "const howStep = () =>", "body: whatStep()", "body: whereStep()", "body: howStep()"]) assert.ok(hv.includes(k), k);
+  assert.deepEqual(missing(hv, ["setSourceId(","setCodes(", "setStat(", "setThreshold(", "setPlaceAtChoice(", "setDepthAs(", "setMethod(", "setCell(", "setBlank(", "setLogChoice(", "<StepNumbers"]), []);
 });
 
 test("Isocon: Groups, Immobile and Result, Export as the result's primary, 'only samples with every immobile element' in Fine-tune", () => {

@@ -107,7 +107,7 @@ export default function HoleValueGridPanel() {
   };
   // TASKS.csv #4088 (side 4, Main's list) — the inline panel as steps like the soil grid's: What (the value, per hole), Where (placed at, depth), How (method, cell, blank), then
   // Grid to raster as the one gold primary and a Result in numbers; the explanations that crowded it are tooltips and the Help page.
-  const whatStep = (
+  const whatStep = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <label style={lbl}>{tr("Value")}<select value={source.id} onChange={(e) => { setSourceId(e.target.value); setLogChoice(null); }} aria-label={tr("Per-hole value source")} style={inp}>
         {sources.map((s) => <option key={s.id} value={s.id}>{s.unit ? `${s.label || s.symbol} (${s.unitLabel || gradeUnitLabel(s.symbol, s.unit)})` : s.label || s.symbol}</option>)}{/* label: #3116 — a log's range / despike said */}
@@ -132,7 +132,7 @@ export default function HoleValueGridPanel() {
       {st === "firstOver" && threshold === "" && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("Type the threshold.")}</div>}{/* TASKS.csv #3459 */}
     </div>
   );
-  const whereStep = (
+  const whereStep = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <label style={lbl}>{tr("Placed at")}<select value={placeAt} onChange={(e) => setPlaceAtChoice(e.target.value)} aria-label={tr("Where each hole's value is placed")} style={inp}>
         <option value="collar">{tr("The collar")}</option><option value="intercept">{tr("The intercept")}</option>
@@ -144,7 +144,7 @@ export default function HoleValueGridPanel() {
       {advice && advice.padHoles > 0 && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: placeAt === "collar" && advice.apart > 0 ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{placeAt === "intercept" ? (placeAtChoice ? "" : tr("{n} of {total} holes share {k} collar points and their values part by over a cell, so they are placed at their intercepts.", { n: advice.padHoles.toLocaleString(), total: advice.holes.toLocaleString(), k: advice.pads.toLocaleString() })) : tr("{n} of {total} holes share {k} collar points: combined, one cell for each pad.", { n: advice.padHoles.toLocaleString(), total: advice.holes.toLocaleString(), k: advice.pads.toLocaleString() })}</div>}{/* TASKS.csv #3826 */}
     </div>
   );
-  const howStep = (
+  const howStep = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <label style={lbl}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} aria-label={tr("Gridding method")} style={inp}>
         <option value="idw">{tr("IDW")}</option><option value="mincurv">{tr("Minimum curvature")}</option><option value="natneigh">{tr("Natural neighbour")}</option>
@@ -163,7 +163,7 @@ export default function HoleValueGridPanel() {
       {open && source && (
         <div style={{ marginTop: 6, padding: 8, border: "1px solid var(--color-border)", borderRadius: 6 }}>
           <StepPane id="maps-hole-value" helpPage="import-assays" label={tr("Grid a per-hole value")}
-            steps={[{ key: "what", label: tr("What"), body: whatStep }, { key: "where", label: tr("Where"), body: whereStep }, { key: "how", label: tr("How"), body: howStep }]}
+            steps={[{ key: "what", label: tr("What"), body: whatStep() }, { key: "where", label: tr("Where"), body: whereStep() }, { key: "how", label: tr("How"), body: howStep() }]}
             action={{ label: tr("Grid to raster"), onClick: run, disabled: samples.length < 3, attrs: { "data-grid-run": "" } }}
             message={msg ? { text: msg.text, level: msg.err ? "error" : "info" } : null}
             result={{ key: done?.key ?? null, body: done ? <StepNumbers rows={done.rows} /> : null }} />
