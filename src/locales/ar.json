@@ -5330,7 +5330,6 @@
   "Show assay elements": "إظهار عناصر التحاليل",
   "Hide {symbol} — right-click for more": "إخفاء {symbol} — انقر بزر الفأرة الأيمن للمزيد",
   "Show {symbol}": "إظهار {symbol}",
-  "{assays} intervals loaded via Geochem module": "{assays} فترة محمّلة عبر وحدة الجيوكيمياء",
   "Map layers{v}": "طبقات الخرائط{v}",
   "Show": "إظهار",
   "Section images{v}": "صور المقاطع{v}",
@@ -5911,6 +5910,7 @@
   "Orientations from": "الاتجاهات من",
   "no outcrop measurements imported — the contacts' own dips are used": "لم تُستورد قياسات مكاشف — تُستخدم ميول التماسات نفسها",
   "Faults": "الصدوع",
+  "More display options": "مزيد من خيارات العرض",
   "Design lines for drifts, tunnels, ramps and declines: straights and curves, each at its own grade. No ventilation or geotechnical check.": "خطوط تصميم للأنفاق والمنحدرات: مستقيمات ومنحنيات لكل منها ميلها. لا فحص تهوية ولا جيوتقني.",
   "Enter the start elevation (Z): the project has no terrain or collars. Clicks are taken on that level.": "أدخل منسوب البداية (Z): المشروع بلا تضاريس أو فوهات. تُؤخذ النقرات عند هذا المستوى.",
   "Z {z} is the median collar elevation, used for clicks until the start is placed; it then takes the ground under it.": "Z {z} هو المنسوب الوسيط للفوهات، يُستخدم للنقرات حتى تُحدَّد البداية؛ ثم يأخذ الأرض تحته.",
@@ -15932,5 +15932,6 @@
   "Epithermal Au-Ag": "Au-Ag فوق حراري",
   "Mount Raymond (Geological Survey of Canada, Canadian Geoscience Map 71, northern Yukon): 1:50 000 bedrock mapping only — map units, faults, folds and 119 planar measurements on a terrain — nothing synthesized.": "Mount Raymond (هيئة المسح الجيولوجي الكندية، Canadian Geoscience Map 71، شمال يوكون): خريطة صخور الأساس بمقياس 1:50 000 فقط (وحدات الخريطة والصدوع والطيات و119 قياساً مستوياً على تضاريس)؛ لا شيء مُصطنع.",
   "WA zinc-copper (WAMEX report A77713): 32 holes from 2007 on sulphide prospects in felsic volcanic rocks, with logs and assays, and 157 soil and 46 stream-sediment samples — nothing synthesized.": "زنك-نحاس من أستراليا الغربية (تقرير WAMEX رقم A77713): 32 ثقباً من عام 2007 في مواقع كبريتيدات ضمن صخور بركانية فلسية، مع السجلات والتحاليل، و157 عيّنة تربة و46 عيّنة رواسب مجارٍ؛ لا شيء مُصطنع.",
-  "WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit, with lithology, weathering, assays and specific gravity — nothing synthesized.": "رصاص-فضة-زنك من أستراليا الغربية (تقرير WAMEX رقم A91581): 99 ثقباً ضحلاً من عام 2010 في راسب تستضيفه صخور كربوناتية، مع الليثولوجيا والتجوية والتحاليل والثقل النوعي؛ لا شيء مُصطنع."
+  "WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit, with lithology, weathering, assays and specific gravity — nothing synthesized.": "رصاص-فضة-زنك من أستراليا الغربية (تقرير WAMEX رقم A91581): 99 ثقباً ضحلاً من عام 2010 في راسب تستضيفه صخور كربوناتية، مع الليثولوجيا والتجوية والتحاليل والثقل النوعي؛ لا شيء مُصطنع.",
+  "{assays} intervals loaded": "{assays} فترة محمّلة"
 }
