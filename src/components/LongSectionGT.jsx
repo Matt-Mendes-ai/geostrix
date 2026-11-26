@@ -10,6 +10,7 @@ import { sectionFrame, projectPierces, sectionGrids, sectionGridsOK, sectionSpac
 import { layoutLongSection, drawLongSection } from "../lib/longSectionFigure.js";
 import { imagePdf, dataUrlBytes } from "../lib/imagePdf.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4090 — the how behind a closed More
 
 const KIND_WORD = { true: "true", horizontal: "horizontal", downhole: "downhole" }; // in the figure (English, as every export)
 
@@ -101,17 +102,18 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
           <option value="distance">{tr("a distance from the nearest pierce point")}</option>
         </select></label>
         {maskKind === "distance" && <label style={field}>{tr("Distance (m)")}<NumberInput min="0" allowEmpty value={maskText === "" || maskText == null ? null : maskText} placeholder={radiusM ? String(radiusM) : ""} onChange={(n) => { setMaskText(n == null ? "" : String(n)); setFig(null); }} style={inp} aria-label={tr("Mask distance (m)")} /></label>}
-        <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }}><input type="checkbox" checked={labels} onChange={(e) => { setLabels(e.target.checked); setFig(null); }} />{tr("Label the pierce points with their hole ids")}</label>{/* #3123 */}
+        <label style={{ ...field, flexDirection: "row", alignItems: "center", gap: 5 }}><input type="checkbox" checked={labels} onChange={(e) => { setLabels(e.target.checked); setFig(null); }} />{tr("Label with hole ids")}</label>{/* #3123 */}
         <button type="button" disabled={frame.error || points.length < 2 || !cellM || !radiusM} onClick={draw} className="gs-btn gs-btn--primary">{tr("Draw the long section")}</button>
       </div>
       {frame.error === "azimuth" && <div style={note}>{tr("Type the azimuth along strike: none is chosen for you.")}</div>}
       {!frame.error && (
-        <div style={note}>
-          {tr("{n} pierce point(s) on the section ({z} hole(s) assayed with no intercept, read as 0), each at its intercepts' length-weighted mid-point, projected on the vertical plane along {s}°.", { n: points.length, z: (zeros || []).length, s: Math.round(frame.strikeAz) })}
-          {" "}{tr("Thickness: {k}; GT is the grade times that thickness.", { k: kindLabel[kind] })}
+        <div style={note}>{/* TASKS.csv #4090 — the count and the cautions in view; how the points are placed and the blank defaults behind More */}
+          {tr("{n} pierce point(s), {z} of them holes with no intercept (read as 0).", { n: points.length, z: (zeros || []).length })}
           {mode === "azimuth" && kind !== "downhole" ? " " + tr("Against a typed vertical plane, thickness is measured across that plane, not the true thickness of a dipping lode; the best-fit plane gives that.") : ""}
           {points.noDir > 0 && kind !== "downhole" ? " " + tr("{n} hole(s) have no direction across their intercept (no survey): their downhole thickness is used.", { n: points.noDir }) : ""}
-          {spacing ? " " + tr("Pierce points typically {s} m apart on the section: blank cell = a quarter of that, blank search = 2.5 times it.", { s: Math.round(spacing) }) : ""}
+          <MoreFold>{tr("{n} pierce point(s) on the section ({z} hole(s) assayed with no intercept, read as 0), each at its intercepts' length-weighted mid-point, projected on the vertical plane along {s}°.", { n: points.length, z: (zeros || []).length, s: Math.round(frame.strikeAz) })}
+            {" "}{tr("Thickness: {k}; GT is the grade times that thickness.", { k: kindLabel[kind] })}
+            {spacing ? " " + tr("Pierce points typically {s} m apart on the section: blank cell = a quarter of that, blank search = 2.5 times it.", { s: Math.round(spacing) }) : ""}</MoreFold>
         </div>
       )}
       {msg && <div role="status" style={note}>{msg}</div>}
@@ -125,7 +127,7 @@ export default function LongSectionGT({ holes, zeros, symbol, shownGrade, gtLabe
             <button type="button" onClick={toLayout} className="gs-btn gs-btn--sm">{tr("Add to Layout")}</button>
             <button type="button" onClick={saveCsv} className="gs-btn gs-btn--sm">{tr("Export the pierce points (CSV)")}</button>
           </div>
-          <div style={note}><b>{tr("Not a resource estimate.")}</b>{" "}{fig.ok ? tr("Ordinary kriging of the pierce points' thickness and GT on the section (a variogram fitted to each), grade as GT over thickness; no declustering or classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and an assayed hole with no intercept counts as 0.") : tr("Inverse-distance interpolation of the pierce points' thickness and GT on the section, grade as GT over thickness; no declustering, variogram or classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and an assayed hole with no intercept counts as 0.")}{/* #3122 */}</div>
+          <div style={note}><b>{tr("Not a resource estimate.")}</b>{/* #4090: the caveat in view, the method behind More */}<MoreFold>{fig.ok ? tr("Ordinary kriging of the pierce points' thickness and GT on the section (a variogram fitted to each), grade as GT over thickness; no declustering or classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and an assayed hole with no intercept counts as 0.") : tr("Inverse-distance interpolation of the pierce points' thickness and GT on the section, grade as GT over thickness; no declustering, variogram or classification. Between pierce points the numbers are the method's; the panels stop at the outline of the pierce points (dashed), and an assayed hole with no intercept counts as 0.")}</MoreFold>{/* #3122 */}</div>
         </>
       )}
     </>

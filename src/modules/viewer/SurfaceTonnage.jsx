@@ -12,6 +12,7 @@ import { useStore } from "../../lib/store.jsx";
 import { sgInsideSolid } from "../../lib/sgInSolid.js";
 import { sgMethodsText } from "../../lib/sgMethodsText.js"; // TASKS.csv #3595
 import NumberInput from "../../components/NumberInput.jsx"; // TASKS.csv #3926
+import MoreFold from "../../components/MoreFold.jsx"; // TASKS.csv #4090
 
 // TASKS.csv #2068 (review #2013, Woodjam) — sgSummary's min / max are the raw logged values (1.766666666666667): two decimals here
 const r2 = (v) => String(+Number(v).toFixed(2));
@@ -49,14 +50,15 @@ export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, 
           {/* TASKS.csv #269 — permanent, beside the figure, not buried in helper text. */}
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginTop: 5, lineHeight: 1.45 }}>
             <strong>{tr("Exploration target volume only — not a Mineral Resource.")}</strong>{" "}{tr("Public disclosure of a tonnage requires an estimate prepared by a Qualified Person.")}
-            {" "}{from
+            {/* TASKS.csv #4090 — the caution in view; what the tonnes include behind More */}
+            <MoreFold>{from
               ? tr("In-situ, dry, undiluted tonnes. No mining dilution, mining recovery, metallurgical recovery or moisture is applied. The density is one mean for the whole body: a real estimate models measured SG by domain.")
-              : tr("In-situ, dry, undiluted tonnes at the density you entered, with no mining dilution or recovery, metallurgical recovery or moisture applied. That density is one assumed value, not measured; a real estimate uses measured SG by domain.")}</div>
+              : tr("In-situ, dry, undiluted tonnes at the density you entered, with no mining dilution or recovery, metallurgical recovery or moisture applied. That density is one assumed value, not measured; a real estimate uses measured SG by domain.")}</MoreFold></div>
         </>
       ) : (
         <div style={muted}>{whole
-          ? tr("Enter a bulk density, or use the measured SG above, to compute tonnage. There is no default: tonnage is only as real as its density.")
-          : tr("Enter a bulk density to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.")}</div>
+          ? tr("Enter a density, or use the SG above. There is no default.")
+          : tr("Enter a density for the tonnage. There is no default.")}</div>
       )}
     </>
   );

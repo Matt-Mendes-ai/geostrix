@@ -64,6 +64,6 @@ test("wiring: the method, the sd panel, the mask and the labels in the long-sect
   assert.match(c, /const maskM = maskKind === "distance" \? \(Number\(maskText\) > 0 \? Number\(maskText\) : radiusM \|\| 0\) : 0;/);
   assert.match(c, /\{fig\.ok \? tr\("Ordinary kriging of the pierce points/);
   assert.match(c, /fig\.grid\.maskM > 0 \? tr\("\{n\} of \{t\} nodes estimated, within \{m\} m of a pierce point\./);
-  const keys = ["{n} of {t} nodes estimated, within {m} m of a pierce point. Intervals: thickness {a} m, grade {b} {gu}, GT {c} {tu}.", "Section estimation method", "Add a panel of the GT kriging standard deviation", "Panels stop at", "Where the panels stop", "the outline of the pierce points", "a distance from the nearest pierce point", "Distance (m)", "Mask distance (m)", "Label the pierce points with their hole ids"];
+  const keys = ["{n} of {t} nodes estimated, within {m} m of a pierce point. Intervals: thickness {a} m, grade {b} {gu}, GT {c} {tu}.", "Section estimation method", "Add a panel of the GT kriging standard deviation", "Panels stop at", "Where the panels stop", "the outline of the pierce points", "a distance from the nearest pierce point", "Distance (m)", "Mask distance (m)", "Label with hole ids" /* #4090: shorter */];
   for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8")); for (const k of keys) assert.ok(d[k], `${l}: ${k}`); assert.ok(Object.keys(d).some((k) => k.startsWith("Ordinary kriging of the pierce points")), l); }
 });
