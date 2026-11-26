@@ -12,7 +12,7 @@ import Papa from "papaparse";
 import { woodjamIpLine } from "./sampleWoodjam.js";
 import { parseStationFile } from "./dcipStations.js";
 import { electrodeLines } from "./dcipElectrodes.js";
-import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth, lineFromTwoPoints } from "./dcip.js";
+import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth, lineFromTwoPoints, lineGeometry, pseudoPositions } from "./dcip.js";
 import { readDownholeEm, matchEmHoles, emLayerRows, defaultChannel, sortComps } from "./downholeEm.js";
 import { guessGeophysColumns, rowsToGeophysPoints } from "./geophysColumns.js";
 import { parseXYZ, guessXyzChannels } from "./geosoft.js";
@@ -98,6 +98,31 @@ export function ipTableLines(which, spec, text) {
   });
 }
 
+// ---- the saved IP lines are read in Geophysics > IP / Resistivity (a section is drawn once a line is inverted), so nothing of them showed in the 3D View or under Point survey.
+// The apparent values are also kept as the two point surveys the app itself offers for a pseudo-section (methods ip_app and res_app: "points at depth, apparent values"): each
+// reading at the middle of its electrodes along the placed line, half the dipole centres' distance below the ground (the line's station elevations, else the holes' mean collar level).
+export function ipPseudoSurveys(entries, label, groundZ) {
+  const kinds = [["ip_app", "IP apparent chargeability", (e, i) => e.ip?.[i]], ["res_app", "apparent resistivity", (e, i) => e.rho[i]]];
+  const out = [];
+  for (const [method, title, pick] of kinds) {
+    const name = `${label} · ${title}`, pts = [];
+    for (const e of entries) {
+      if (e.line.x0 === "" || e.line.x1 === "") continue;
+      const g = lineGeometry([Number(e.line.x0), Number(e.line.y0)], [Number(e.line.x1), Number(e.line.y1)], Number(e.line.scale) || 1);
+      if (!g) continue;
+      const zs = (e.line.stations?.list || []).map((q) => q.z).filter(Number.isFinite), ground = zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length : groundZ;
+      pseudoPositions(e.readings).forEach((q, i) => {
+        const v = pick(e, i);
+        if (v == null || !Number.isFinite(v) || !Number.isFinite(ground)) return;
+        const [x, y] = g.at(q.s);
+        pts.push({ x, y, z: +(ground - q.depth).toFixed(2), value: v, line: e.name, _src: name });
+      });
+    }
+    if (pts.length) out.push({ name, points: pts, meta: surveyMetaFor(method, pts.map((p) => p.value)) });
+  }
+  return out;
+}
+
 // ---- point tables → point surveys: [{ name, points, meta }], one per measurement column the picker would offer (the first is the importer's guess; a gradient array's
 // resistivity AND chargeability, a magnetic survey's corrected reading only)
 export function pointSurveys(spec, text, fileName) {
@@ -172,13 +197,13 @@ export async function loadGsqGeophysics(which, readFile, store, ctx = {}) {
   const S = GSQ_GEOPHYSICS[which], notes = [], counts = {};
   if (!S) return { notes, counts };
   const fail = (what, e) => notes.push(errorNotice(`${ctx.label || which} ${what}: ${e?.message || String(e)}`));
-  const projectEpsg = ctx.projectEpsg;
+  const projectEpsg = ctx.projectEpsg, ipEntries = [];
   if (S.ipLines) {
     try {
       let n = 0, placed = 0;
       for (const spec of S.ipLines) {
         const entry = gsqIpLine(which, spec, await (await readFile(spec.dat)).text(), await (await readFile(spec.stn)).text(), projectEpsg);
-        store.saveDcipLine(entry); n++; if (entry.line.stations) placed++;
+        store.saveDcipLine(entry); ipEntries.push(entry); n++; if (entry.line.stations) placed++;
         await tick();
       }
       counts.ipLines = n; counts.ipPlaced = placed;
@@ -188,11 +213,24 @@ export async function loadGsqGeophysics(which, readFile, store, ctx = {}) {
     try {
       let n = 0;
       for (const spec of S.ipTables) {
-        for (const entry of ipTableLines(which, spec, await (await readFile(spec.file)).text())) { store.saveDcipLine(entry); n++; }
+        for (const entry of ipTableLines(which, spec, await (await readFile(spec.file)).text())) { store.saveDcipLine(entry); ipEntries.push(entry); n++; }
         await tick();
       }
       counts.ipLines = (counts.ipLines || 0) + n;
     } catch (e) { fail("IP lines", e); }
+  }
+  if (ipEntries.length) {
+    try {
+      // the ground for the pseudo-depth points: the holes' mean collar level (the sample's own collar table, as the borehole EM matching reads it)
+      const cz = Papa.parse(await (await readFile("collars.csv")).text(), { header: true, skipEmptyLines: true }).data.map((r) => Number(r.z)).filter(Number.isFinite);
+      let n = 0;
+      for (const sv of ipPseudoSurveys(ipEntries, ctx.label || which, cz.length ? cz.reduce((a, b) => a + b, 0) / cz.length : NaN)) {
+        store.setLayers((l) => ({ ...l, geophys_pts: [...(l.geophys_pts || []).filter((r) => (r._src || "(unnamed import)") !== sv.name), ...sv.points] }));
+        if (sv.meta) store.updateGeophysSurvey(sv.name, sv.meta);
+        n++;
+      }
+      counts.ipSurveys = n;
+    } catch (e) { fail("IP points", e); }
   }
   if (S.pointTables) {
     try {
@@ -288,7 +326,7 @@ export async function loadGsqGeophysics(which, readFile, store, ctx = {}) {
   // one short notice
   const parts = [];
   if (counts.ipLines) parts.push(tr("{n} IP lines", { n: counts.ipLines }));
-  if (counts.pointSurveys) parts.push(tr("{n} surveys", { n: counts.pointSurveys }));
+  if (counts.pointSurveys || counts.ipSurveys) parts.push(tr("{n} surveys", { n: (counts.pointSurveys || 0) + (counts.ipSurveys || 0) }));
   if (counts.dhem) parts.push(tr("{n} EM layers", { n: counts.dhem }));
   if (counts.groundEm) parts.push(tr("{n} stations", { n: counts.groundEm }));
   if (counts.plates) parts.push(tr("{n} plates", { n: counts.plates }));

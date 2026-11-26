@@ -64,6 +64,9 @@ test("what loads is where the Geophysics tab looks: IP lines placed with station
     for (const e of got.dcip) { assert.ok(e.line.stations?.list?.length > 1 || (e.line.x0 !== "" && e.line.x1 !== ""), `${id}: IP line ${e.name} is placed from its stations / electrodes`); assert.ok(e.readings.length > 20 && e.rho.length === e.readings.length, `${id}: ${e.name} has readings`); assert.equal(e.sample, id); }
     for (const [name, meta] of Object.entries(got.surveys)) { assert.ok(meta?.method, `${id}: survey ${name} has a method`); assert.ok((got.layers.geophys_pts || []).some((p) => p._src === name), `${id}: survey ${name} has points`); }
     for (const l of got.custom) assert.ok(l.rows.length && l.rows.every((r) => holeIds.includes(r.hole_id)), `${id}: ${l.name} sits on the project's holes`);
+    if (got.dcip.length) { // the IP lines are also drawn: apparent chargeability and resistivity as the pseudo-section point surveys, under the ground
+      for (const k of ["IP apparent chargeability", "apparent resistivity"]) { const name = `${id} · ${k}`, pts = (got.layers.geophys_pts || []).filter((p) => p._src === name); assert.ok(pts.length > 100 && pts.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)), `${id}: ${k} points`); assert.ok(got.surveys[name]?.method === (k.startsWith("IP") ? "ip_app" : "res_app")); }
+    }
     if (GSQ_GEOPHYSICS[id].groundEm) assert.ok(Object.keys(got.surveys).some((k) => /ground EM decay constant/.test(k)), `${id}: ground EM is one survey`);
   }
 });
@@ -81,4 +84,12 @@ test("the sample's open calls the loader for a GSQ sample, after the holes' extr
   assert.match(src, /if \(which\.startsWith\("gsq_"\)\) \{ \/\/ TASKS\.csv #4105/);
   assert.match(src, /loadGsqGeophysics\(which, async \(rel\) => \(await loadSampleFiles\(WA_SAMPLES\[which\]\.dir, \[rel\]\)\)\[0\]/);
   assert.match(src, /importSolid: importSolidFile \}\)/);
+});
+
+test("the main process reads the samples' .tem / .stn / .esf files, and only from the bundled samples (the Browser panel's list is not widened)", () => {
+  const main = fs.readFileSync(new URL("../electron/main.js", import.meta.url), "utf8");
+  assert.match(main, /const SAMPLE_ONLY_EXT = new Set\(\["\.tem", "\.stn", "\.esf"\]\);/);
+  assert.ok(!/const READABLE_EXT = new Set\([^;]*"\.tem"/.test(main), "not in the general list");
+  assert.match(main, /if \(refused && !inSamples\) return/);
+  assert.match(main, /if \(refused && !sampleFile\) return/);
 });

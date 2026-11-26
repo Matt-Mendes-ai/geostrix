@@ -126,6 +126,11 @@ function buildTree(n, bounds) {
       }
     }
     const left = lo - start; // both sides hold at least one: the lowest centroid is below the middle, the highest at or above it
+    if (left === 0 || left === count) { // TASKS.csv #4105 — ...except when the centroids differ by one float step (Edinburgh Park's magnetic points): the middle rounds onto the lowest, nothing is below it, and the same range was built again for ever (a stack overflow). Split at the middle index.
+      const h = count >> 1, ca = buildRange(start, h, cnx, cny, cnz, cxx, cxy, cxz), cb = buildRange(start + h, count - h, cnx, cny, cnz, cxx, cxy, cxz);
+      nodeA[node] = ca; nodeB[node] = cb;
+      return node;
+    }
     const ca = buildRange(start, left, lnx, lny, lnz, lxx, lxy, lxz), cb = buildRange(lo, count - left, rnx, rny, rnz, rxx, rxy, rxz);
     nodeA[node] = ca; nodeB[node] = cb;
     return node;
