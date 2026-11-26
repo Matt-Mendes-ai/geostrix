@@ -1,18 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
-import { X, Download } from "./icons.js";
+import StepDialog from "./StepDialog.jsx";
+import MoreFold from "./MoreFold.jsx";
+import DialogHelpCard from "./DialogHelpCard.jsx";
 import { valueIn, resolvedSegments, histogramWantsLog, gradeUnitLabel, elementOptionLabel } from "../lib/geochem.js"; // elementOptionLabel: #2914 // gradeUnitLabel: #1680 // resolvedSegments: #1099; histogramWantsLog: #1524
 import { useStore } from "../lib/store.jsx";
 import { stampLines, withStamp, ASSAY_READING_RULES, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #1099
 import { version as APP_VERSION } from "../../package.json";
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #136 — univariate grade statistics per domain: a prerequisite step before any estimation
 // work or capping decision (per the Micromine-specialist audit this was logged from), adjacent to but
@@ -123,8 +120,7 @@ function niceBinCount(n) {
 const HOLE_KEY = "__hole", HOLE_LITHO_KEY = "__hole_litho"; // TASKS.csv #2029 — built-in groupings (not a layer key)
 export default function GradeStatistics({ assays: assaysIn, assayElements, layers, surfaceSamples = [], surfaceElements = [], onClose }) {
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
-  useEscapeKey(onClose); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
+  const [at, setAt] = useState(0); // the step
   const elementUnitsBase = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const { project, geochemThresholds = [], setDisplayUnit } = useStore(); // #1099 — the CRS line of the export stamp; geochemThresholds: #3069; setDisplayUnit: #3236
   // TASKS.csv #228 — surface geochemistry has no downhole domain (litho/alt/etc are interval layers
@@ -298,7 +294,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     if (source !== "assays" || !symbol) return [];
     const unit = elementUnits[symbol] || "ppm", out = [];
     const bi = interceptCutoffFor(project?.name, symbol, unit);
-    if (bi != null) out.push({ key: "bi", value: toShown(bi) /* #3236 */, label: tr("Best intercepts {v}", { v: +toShown(bi).toPrecision(4) }), title: tr("The cut-off last set in Best intercepts for {symbol}. Click to add it.", { symbol }) });
+    if (bi != null) out.push({ key: "bi", value: toShown(bi) /* #3236 */, label: tr("Best intercepts {v}", { v: +toShown(bi).toPrecision(4) }), title: tr("Best intercepts' cut-off for {symbol}. Click to add.", { symbol }) });
     // the highest four: #3160. A trailing comment here once swallowed the push, so the loop's body was the return: undefined with no saved
     // threshold (Grade stats closed on cutOffers.length), the first offer never added with one
     for (const o of sortedThresholdOffers(drillThresholdOffers(geochemThresholds, symbol, unit)).slice(0, 4)) out.push({ key: "t:" + o.key, value: toShown(o.value) /* #3236 */, label: `${o.population ? `${o.population.split(": ").pop()} ` : ""}${+Number(toShown(o.value)).toPrecision(4)}`, title: tr("{rule}{pop}, decided {date}. Click to add it.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided }) });
@@ -359,20 +355,16 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     saveFile({ suggestedName: `${String(symLabel).replace(/[^A-Za-z0-9._-]+/g, "_")}_grade_statistics.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rowsOut), stamp) });
   };
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Grade statistics")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Univariate distribution per domain — {v}{v2}", { v: source === "surface" ? tr("{surfaceSamples} surface samples loaded.", { surfaceSamples: surfaceSamples.length }) : tr("{assays} intervals loaded.", { assays: assays.length }), v2: source === "assays" && qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
-            {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
-            </div>
-          </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("grade-statistics")} aria-label={tr("Help: {name}", { name: tr("Grade statistics") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
-        </div>
-
-        <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+  // TASKS.csv #4073 (side 4, Main's list) — a StepDialog: Data (what is measured), Distribution (the plots and the table; Log scale and Length-weight in Fine-tune), Cap (the probability plot),
+  // Cut-offs (the table and the one gold primary, Export). Each step shows the blocks it always had; the long explanations are in the "?" card and the Help page.
+  const noValues = (
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No {symbol} values found in the loaded {v} data.", { symbol: symLabel, v: source === "surface" ? tr("surface sample") : logSrc ? tr("interval layer") : tr("assay") })}</div>
+  );
+  const dataStep = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{source === "surface" ? tr("{surfaceSamples} surface samples loaded.", { surfaceSamples: surfaceSamples.length }) : tr("{assays} intervals loaded.", { assays: assays.length })}{source === "assays" && qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : ""}
+        {pxrfLeft > 0 && <div>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
+      </div>
           {surfaceSamples.length > 0 && (
             <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
               <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Data source")}<select
@@ -393,8 +385,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
             </div>
           )}
           {source === "assays" && qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("Standards, blanks and duplicates (found by hole_id) are left out, so a standard's repeated grade cannot skew a domain's statistics. Tick to include them.")}>
-              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("Standards, blanks and duplicates are left out of the statistics.")}>
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples")}</label>
           )}
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbolRaw(e.target.value); if (!logChoices.some((c) => c.key === e.target.value)) rememberElement("gradestats", e.target.value); setDomainKey((k) => (k.startsWith("numlog:") && k === `numlog:${e.target.value}` ? "" : k)); }} style={{ ...sel, display: "block", marginTop: 4 }}>
@@ -402,15 +394,15 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 {logChoices.length > 0 && <optgroup label={tr("Numeric interval layers (density first)")}>{[...logChoices].sort((a, b) => (a.key === "log:sg" ? -1 : b.key === "log:sg" ? 1 : 0)).map((c) => <option key={c.key} value={c.key}>{c.unit && c.unit !== "as logged" && !String(c.label).includes(`(${c.unitLabel || c.unit})`) ? `${c.label} (${c.unitLabel || c.unit})` : c.label}</option>)}</optgroup>}{/* #3564 */}
               </select>
             </label>
-            {isPlainUnit(storedUnit) && typeof setDisplayUnit === "function" && <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Shows {symbol} in this unit, saved with the project and shared with Best intercepts. Stored values are unchanged; type the cut-offs and cap in this unit.", { symbol })}>{tr("Show in")}
+            {isPlainUnit(storedUnit) && typeof setDisplayUnit === "function" && <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Saved with the project, shared with Best intercepts. Stored values do not change.", { symbol })}>{tr("Show in")}
               <select value={shownUnit || ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={{ ...sel, display: "block", marginTop: 4 }} aria-label={tr("Show in")}>
                 <option value="">{tr("As stored ({unit})", { unit: gradeUnitLabel(symbol, storedUnit) })}</option>
                 {DISPLAY_UNITS.filter((u) => u !== gradeUnitLabel(symbol, storedUnit)).map((u) => <option key={u} value={u}>{u}</option>)}
               </select></label>}{/* TASKS.csv #3236 */}
-            {source === "assays" && symbol && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("n counts the samples with a {symbol} result, each metre once; a sample takes the domain code it overlaps most.", { symbol: symLabel })}</div>}{/* TASKS.csv #2752 */}
+            {source === "assays" && symbol && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("n: samples with a {symbol} result, each metre once.", { symbol: symLabel })}</div>}{/* TASKS.csv #2752 */}
             {source === "assays" ? (
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Domain (optional)")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
-                  <option value="">{tr("— none, all intervals together —")}</option>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Domain")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
+                  <option value="">{tr("None")}</option>
                   <option value={HOLE_KEY}>{tr("Hole")}</option>{/* #2029 */}
                   {(layers.litho || []).length > 0 && <option value={HOLE_LITHO_KEY}>{tr("Hole + lithology")}</option>}
                   {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
@@ -421,28 +413,22 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
             ) : (
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Grouped by sampling medium")}</div>
             )}
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale (histogram and probability plot)")}</label>{/* #2912 */}
-            {/* TASKS.csv #267 */}
-            {source === "assays" && (
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Weight every statistic by each assay interval's length. Unweighted, short intervals (usually the mineralized zone) count as much as long ones and bias the mean.")}>
-                <input type="checkbox" checked={lengthWeighted} onChange={(e) => setLengthWeighted(e.target.checked)} />{" "}{tr("Length-weight")}</label>
-            )}
           </div>
+    </div>
+  );
+  const distStep = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {/* TASKS.csv #267 — the panel now always states which mean it is showing. Capping decisions
               and "average grade" statements get made off this table. */}
           <div style={{ fontSize: "var(--font-size-sm)", color: weightingActive ? "var(--color-text-secondary)" : "var(--color-warn-text)", lineHeight: 1.45 }}>
             {source === "surface"
-              ? tr("Statistics on surface samples — point samples with no interval length, so no weighting applies.")
+              ? tr("Surface samples have no length: no weighting.")
               : weightingActive
-                ? tr("Length-weighted statistics, a repeated or overlapping interval counted once ({v} of sampled core). Compositing to a regular length first is the usual basis for capping.", { v: overallStats ? `${overallStats.totalLength.toFixed(1)} m` : "—" })
-                : tr("Statistics on raw assay intervals — NOT length-weighted{v}. A 0.3 m interval counts as much as a 3 m one. Composite first, or tick \"Length-weight\".", { v: lengthWeighted ? tr(" (some intervals have no usable from/to length, so weighting was skipped)") : "" })}
+                ? tr("Length-weighted, {v} of core.", { v: overallStats ? `${overallStats.totalLength.toFixed(1)} m` : "—" })
+                : tr("NOT length-weighted{v}: a 0.3 m interval counts as much as a 3 m one.", { v: lengthWeighted ? tr(" (an interval has no usable length)") : "" })}
           </div>
-
-          {!overallStats ? (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No {symbol} values found in the loaded {v} data.", { symbol: symLabel, v: source === "surface" ? tr("surface sample") : logSrc ? tr("interval layer") : tr("assay") })}</div>
-          ) : (
-            <>
+      {!overallStats ? noValues : (
+        <>
               <div>
                 <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol: symLabel, v: dispLabel, v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
                 <Histogram data={histogram} unit={dispLabel} logScale={logScale} />{/* #3576 — titled and ticked */}
@@ -452,32 +438,14 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
               <div>
                 <div style={label}>{tr("By domain — {groups} {v}", { groups: groups.length, v: tr(groups.length === 1 ? "group" : "groups") })}</div>
                 <BoxPlots groups={shownGroups} domainLabel={domainLabel} logScale={logScale} unit={dispLabel} />
-                {groups.length > shownMax && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("The {shown} largest of {n} groups are drawn and listed; {more} more are in the CSV export.", { shown: shownMax, n: fmtNum(groups.length), more: fmtNum((groups.length - shownMax)) })}{!drawAll && groups.length > SHOWN_FIRST && <> <button type="button" onClick={() => setDrawAll(true)} data-btn-own="">{tr("Draw {m} groups", { m: fmtNum(Math.min(groups.length, SHOWN_MAX)) })}</button></>}</div>}{/* #2508 */}
-              </div>
-
-              {/* TASKS.csv #1388 */}
-              <div>
-                <div style={label}>{logScale ? tr("Log-probability plot — {symbol} ({v}){v2}", { symbol: symLabel, v: dispLabel /* #2192 */, v2: weightingActive ? tr(", length-weighted") : "" }) : tr("Probability plot — {symbol} ({v}){v2}", { symbol: symLabel, v: dispLabel, v2: weightingActive ? tr(", length-weighted") : "" }) /* #2912 */}</div>
-                <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={dispLabel} />
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
-                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: capText(prob.p975), b: capText(prob.p99), unit: dispLabel })}</span>
-                  {brkAsCap && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }} title={tr("Where the two-line fit finds a second population in the high tail (Sinclair 1976). Check it on the plot before using it as a cap.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: dispLabel })}</button>}{/* #2675 */}
-                  <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<NumberInput allowEmpty min="0" value={capTest} onChange={(v) => setCapTest(v == null ? "" : String(v))} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
-                  {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
-                </div>
-                {/* TASKS.csv #3746 — the metal the top samples carry, where a cap is tested; a cap there says its loss before it is typed */}
-                {capFx && prob.vs.length > 1 && (() => { const sw = sortedWeighted(prob.vs, prob.ws, { coerce: true }); const k = metalShareAbove(sw.v, weightingActive ? sw.w : null, capValue + 1e-12 * Math.max(1, capValue)); return k != null && capFx.above > 0 ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3 }}>{tr("The {above} sample(s) above {cap} {unit} hold {pct} % of the metal; a cap there keeps {kept} % of it.", { above: capFx.above, cap: capText(capValue), unit: dispLabel, pct: k.toFixed(1), kept: (100 - capFx.pctMetalRemoved).toFixed(1) })}</div> : null; })()}
-                {prob.vs.length > 1 && <div style={{ marginTop: 3 }}><MetalAtRiskTable values={sortedWeighted(prob.vs, prob.ws, { coerce: true }).v} weights={weightingActive ? sortedWeighted(prob.vs, prob.ws, { coerce: true }).w : null} unitLabel={dispLabel} onSetCap={(g) => setCapTest(String(+Number(g).toPrecision(4)))} /></div>}
-                {capWarn && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", marginTop: 3, lineHeight: 1.4 }}>{capWarn}</div>}{/* #1676 */}
-                {prob.brk > 0 && !brkAsCap && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3, lineHeight: 1.4 }}>{prob.detStep ? tr("The probability-plot break ({v} {unit}) is not offered as a cap: it sits on the first value above a detection floor ({f} {unit}, {p} % of the samples), not in a high-grade tail.", { v: gradeText(prob.brk), unit: dispLabel, f: gradeText(prob.detStep.floor), p: Math.round(100 * prob.detStep.share) }) /* #3876 (#3758) */ : prob.log ? tr("The probability-plot break ({v} {unit}) lies below the median, so it is not offered as a cap: it separates two populations rather than marking a high-grade tail.", { v: gradeText(prob.brk), unit: dispLabel }) : tr("The probability-plot break ({v} {unit}) is not offered as a cap: these values are not strongly skewed, so a step usually separates two populations, not outliers.", { v: gradeText(prob.brk), unit: dispLabel })}</div>}{/* #2912 */}
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{logScale ? tr("Each population plots as a straight line (log-normal); a bend or step in the high tail marks a second population, the usual place to cap (Sinclair 1976). Zeros count in the cumulative % but are not drawn.") : tr("Arithmetic axes: a normal population plots as a straight line, and a step marks a second population. Tick Log scale for a skewed trace element.") /* #2912 */}</div>
+                {groups.length > shownMax && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("{shown} of {n} groups shown; the CSV has all.", { shown: shownMax, n: fmtNum(groups.length) })}{!drawAll && groups.length > SHOWN_FIRST && <> <button type="button" onClick={() => setDrawAll(true)} data-btn-own="">{tr("Draw {m} groups", { m: fmtNum(Math.min(groups.length, SHOWN_MAX)) })}</button></>}</div>}{/* #2508 */}
               </div>
 
               <div style={{ overflowX: "auto", flexShrink: 0 }}>{/* #1384: in the column body an overflow box shrank to a 25 px header strip */}
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>
-                      <th style={th}>{tr("Domain")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No result is flagged '<': this is the share on the column's lowest value, read as half a substituted limit (a guess).") : tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("On the floor %")}</th>{/* #3243 */}<th style={th} title={weightingActive ? tr("Mean weighted by each sample's length (the Length-weight box)") : tr("Plain mean of the samples")}>{weightingActive ? tr("Mean (length-weighted)") : tr("Mean")}</th>{weightingActive && <th style={th} title={tr("The plain mean: every sample counts once, whatever its length")}>{tr("Mean (unweighted)")}</th>}<th style={th}>{weightingActive ? tr("Median (length-weighted)") : tr("Median")}</th>
+                      <th style={th}>{tr("Domain")}</th><th style={th}>n</th><th style={th} title={floorOnly ? tr("No '<' flags: the share on the column's lowest value (a guess).") : tr("Share below detection (stored at half the limit)")}>{tr("On the floor %")}</th>{/* #3243 */}<th style={th} title={weightingActive ? tr("Mean weighted by each sample's length (the Length-weight box)") : tr("Plain mean of the samples")}>{weightingActive ? tr("Mean (length-weighted)") : tr("Mean")}</th>{weightingActive && <th style={th} title={tr("The plain mean: every sample counts once, whatever its length")}>{tr("Mean (unweighted)")}</th>}<th style={th}>{weightingActive ? tr("Median (length-weighted)") : tr("Median")}</th>
                       <th style={th}>{weightingActive ? tr("Stdev (length-weighted)") : tr("Stdev")}</th><th style={th}>{tr("CV%")}</th><th style={th}>{tr("Min")}</th><th style={th}>Q1</th><th style={th}>Q3</th><th style={th}>{tr("Max")}</th>
                     </tr>
                   </thead>
@@ -486,7 +454,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                       <tr key={g.key}>
                         <td style={td}>{domainLabel(g.key)}</td>
                         <td style={td}>{g.stats.n}</td>
-                        <td style={{ ...td, ...(g.stats.n && g.ltN / g.stats.n > 0.5 ? { color: "var(--color-warn-text)", fontWeight: 600 } : {}) }}>{g.stats.n ? (g.zeroN ? <span title={tr("{n} results are reported as 0 (below detection or not analysed: the file does not say). They count in n and the statistics, at 0.", { n: fmtNum(g.zeroN) })}>{tr("{pct} ({n} at 0)", { pct: Math.round((100 * g.ltN) / g.stats.n), n: fmtNum(g.zeroN) })}</span> : Math.round((100 * g.ltN) / g.stats.n)) : "—"}</td>{/* #2505; zeros: #3083, as Thresholds' '+N at 0' */}
+                        <td style={{ ...td, ...(g.stats.n && g.ltN / g.stats.n > 0.5 ? { color: "var(--color-warn-text)", fontWeight: 600 } : {}) }}>{g.stats.n ? (g.zeroN ? <span title={tr("{n} reported as 0: counted in n and the statistics.", { n: fmtNum(g.zeroN) })}>{tr("{pct} ({n} at 0)", { pct: Math.round((100 * g.ltN) / g.stats.n), n: fmtNum(g.zeroN) })}</span> : Math.round((100 * g.ltN) / g.stats.n)) : "—"}</td>{/* #2505; zeros: #3083, as Thresholds' '+N at 0' */}
                         <td style={td}>{gradeText(g.stats.mean)}</td>
                         {weightingActive && <td style={td}>{gradeText(g.plainMean)}</td>}
                         <td style={td}>{gradeText(g.stats.median)}</td>
@@ -501,14 +469,49 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                   </tbody>
                 </table>
               </div>
-              {(() => { const over = groups.filter((g) => g.stats.n && g.ltN / g.stats.n > 0.5); if (!over.length) return null; const g = over[0]; return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round((100 * g.ltN) / g.stats.n), symbol, pop: domainLabel(g.key) })}{over.length > 1 ? " " + tr("{n} more group(s) are over half below detection.", { n: over.length - 1 }) : ""}{" "}{tr("Its percentiles and caps sit on the limit, not on measured grades.")}</div>; })()}{/* #2505 */}
+              {(() => { const over = groups.filter((g) => g.stats.n && g.ltN / g.stats.n > 0.5); if (!over.length) return null; const g = over[0]; return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection.", { pct: Math.round((100 * g.ltN) / g.stats.n), symbol, pop: domainLabel(g.key) })}{over.length > 1 ? " " + tr("{n} more group(s) are over half below detection.", { n: over.length - 1 }) : ""}</div>; })()}{/* #2505 */}
               {ceil && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4, display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>{/* #3729 */}
-                <span>{tr("{n} results of {symbol} sit on a round maximum, {max} {unit}: probably an upper reporting limit whose '>' was lost. The mean, upper percentiles and caps here are too low.", { n: fmtNum(ceil.n), symbol: symLabel, max: fmtNum(toShown(ceil.ceiling)), unit: dispLabel })}</span>
+                <span>{tr("{n} results of {symbol} sit on a round maximum, {max} {unit}: a lost '>' limit? Means and caps are too low.", { n: fmtNum(ceil.n), symbol: symLabel, max: fmtNum(toShown(ceil.ceiling)), unit: dispLabel })}</span>
                 <button type="button" onClick={markOverLimit} className="gs-btn gs-btn--sm">{tr("Mark them as over the limit ('>')")}</button>
               </div>}
-              {ceilDone && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>{tr("{n} result(s) of {symbol} marked over the limit ('>'), kept at {max}: shown as '>', counted as over range in Data QC. Undo puts them back.", { n: fmtNum(ceilDone.n), symbol: ceilDone.symbol, max: `${fmtNum(ceilDone.max)} ${dispLabel}` })}</div>}
-
-              {/* TASKS.csv #2912 — above each cut-off: what a bulk commodity is read by */}
+              {ceilDone && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>{tr("{n} result(s) of {symbol} marked '>' at {max}. Undo puts them back.", { n: fmtNum(ceilDone.n), symbol: ceilDone.symbol, max: `${fmtNum(ceilDone.max)} ${dispLabel}` })}</div>}
+        </>
+      )}
+      <MoreFold summary={tr("Fine-tune…")} data-fine-tune="grade-stats">
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 6 }}>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale")}</label>{/* #2912 */}
+            {/* TASKS.csv #267 */}
+            {source === "assays" && (
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Weights every statistic by interval length.")}>
+                <input type="checkbox" checked={lengthWeighted} onChange={(e) => setLengthWeighted(e.target.checked)} />{" "}{tr("Length-weight")}</label>
+            )}
+        </div>
+      </MoreFold>
+    </div>
+  );
+  const capStep = () => (!overallStats ? noValues : (
+    <div>
+              <div>
+                <div style={label}>{logScale ? tr("Log-probability plot — {symbol} ({v}){v2}", { symbol: symLabel, v: dispLabel /* #2192 */, v2: weightingActive ? tr(", length-weighted") : "" }) : tr("Probability plot — {symbol} ({v}){v2}", { symbol: symLabel, v: dispLabel, v2: weightingActive ? tr(", length-weighted") : "" }) /* #2912 */}</div>
+                <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={dispLabel} />
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
+                  <span>{tr("P97.5 = {a}, P99 = {b} {unit}", { a: capText(prob.p975), b: capText(prob.p99), unit: dispLabel })}</span>
+                  {brkAsCap && <button type="button" onClick={() => setCapTest(String(+prob.brk.toPrecision(4)))} className="gs-btn gs-btn--sm" style={{ cursor: "pointer" }} title={tr("A second population in the high tail (Sinclair 1976). Check it on the plot.")}>{tr("Test the probability-plot break: {v} {unit}", { v: gradeText(prob.brk), unit: dispLabel })}</button>}{/* #2675 */}
+                  <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<NumberInput allowEmpty min="0" value={capTest} onChange={(v) => setCapTest(v == null ? "" : String(v))} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
+                  {capFx && <span>{weightingActive ? tr("{above} of {n} above it; {pct}% of the metal removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} above it", { above: capFx.above, n: capFx.n })}</span>}
+                </div>
+                {/* TASKS.csv #3746 — the metal the top samples carry, where a cap is tested; a cap there says its loss before it is typed */}
+                {capFx && prob.vs.length > 1 && (() => { const sw = sortedWeighted(prob.vs, prob.ws, { coerce: true }); const k = metalShareAbove(sw.v, weightingActive ? sw.w : null, capValue + 1e-12 * Math.max(1, capValue)); return k != null && capFx.above > 0 ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3 }}>{tr("{above} sample(s) above {cap} {unit} hold {pct} % of the metal; a cap keeps {kept} %.", { above: capFx.above, cap: capText(capValue), unit: dispLabel, pct: k.toFixed(1), kept: (100 - capFx.pctMetalRemoved).toFixed(1) })}</div> : null; })()}
+                {prob.vs.length > 1 && <div style={{ marginTop: 3 }}><MetalAtRiskTable values={sortedWeighted(prob.vs, prob.ws, { coerce: true }).v} weights={weightingActive ? sortedWeighted(prob.vs, prob.ws, { coerce: true }).w : null} unitLabel={dispLabel} onSetCap={(g) => setCapTest(String(+Number(g).toPrecision(4)))} /></div>}
+                {capWarn && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", marginTop: 3, lineHeight: 1.4 }}>{capWarn}</div>}{/* #1676 */}
+                {prob.brk > 0 && !brkAsCap && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 3, lineHeight: 1.4 }}>{prob.detStep ? tr("The break ({v} {unit}) is not a cap: it sits above a detection floor ({f} {unit}, {p} % of samples).", { v: gradeText(prob.brk), unit: dispLabel, f: gradeText(prob.detStep.floor), p: Math.round(100 * prob.detStep.share) }) /* #3876 (#3758) */ : prob.log ? tr("The break ({v} {unit}) is below the median: two populations, not a high tail.", { v: gradeText(prob.brk), unit: dispLabel }) : tr("The break ({v} {unit}) is not a cap: the values are not skewed, so it splits two populations.", { v: gradeText(prob.brk), unit: dispLabel })}</div>}{/* #2912 */}
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{logScale ? tr("A straight line is one population; a bend in the high tail marks a second, the usual place to cap.") : tr("A straight line is one population; a step marks a second. A skewed element needs Log scale.") /* #2912 */}</div>
+              </div>
+    </div>
+  ));
+  // TASKS.csv #2912 — above each cut-off: what a bulk commodity is read by
+  const cutStep = () => (!overallStats ? noValues : (
               <div>
                 <div style={label}>{tr("Above cut-off — {symbol} ({v})", { symbol: symLabel, v: dispLabel })}</div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
@@ -544,20 +547,18 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                     </table>
                   </div>
                 )}
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr(source === "surface" ? "All domains together; means {v}. Until you type cut-offs, they are the median, Q3 and P90 of these samples; an 'Also show' element averages over the same samples." : "All domains together; means {v}. Until you type cut-offs, they are the median, Q3 and P90 of these samples; an 'Also show' element averages over the same core.", { v: weightingActive ? tr("length-weighted") : tr("unweighted") }) /* #3754 (6) — surface samples have no core */}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("All domains together; means {v}. Without typed cut-offs: median, Q3 and P90.", { v: weightingActive ? tr("length-weighted") : tr("unweighted") }) /* #3754 (6) — surface samples have no core */}</div>
               </div>
-
-              <button onClick={exportCSV} className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
-                <Download size={14} />{" "}{tr("Export statistics (CSV)")}</button>
-            </>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
-        </div>
-      </div>
-    </div>
+  ));
+  const steps = [
+    { key: "data", label: tr("Data"), render: dataStep, primary: { label: tr("Next") } },
+    { key: "distribution", label: tr("Distribution"), render: distStep, primary: { label: tr("Next"), disabled: !overallStats } },
+    { key: "cap", label: tr("Cap"), render: capStep, primary: { label: tr("Next"), disabled: !overallStats } },
+    { key: "cutoffs", label: tr("Cut-offs"), render: cutStep, primary: { label: tr("Export statistics (CSV)"), onClick: exportCSV, disabled: !overallStats } },
+  ];
+  return (
+    <StepDialog title={tr("Grade statistics")} onClose={onClose} steps={steps} at={at} onAt={setAt} width="min(820px, 95vw)"
+      help={<DialogHelpCard page="grade-statistics" lines={[tr("One element's distribution, by domain.")]} />} />
   );
 }
 
@@ -634,8 +635,6 @@ function BoxPlots({ groups, domainLabel, logScale, unit, fit = false }) { // fit
   );
 }
 
-const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };

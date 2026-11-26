@@ -7,15 +7,16 @@ import React, { useMemo, useRef, useState } from "react";
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3586 — g/t for Au / Ag / Pt / Pd stored in ppm
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #1523
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
-import { X, Download } from "./icons.js";
+import StepDialog from "./StepDialog.jsx";
+import { StepNumbers } from "./StepPane.jsx";
+import DialogHelpCard from "./DialogHelpCard.jsx";
 import { useStore } from "../lib/store.jsx";
 import { parseLabCertificate, isLabCertificateText } from "../lib/labCertificate.js";
 import { emptySurfaceQc, qcSettings, qcFromCertificates, batchSummary, standardsByCode, blankResults, duplicatePairsSurface, duplicateStats, detectionLimitOf, censoredShares, methodsByElement } from "../lib/surfaceQaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps, sel, th, td, panel, header } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js";
+import { sel, th, td } from "../lib/modalStyles.js";
 import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
@@ -23,7 +24,6 @@ import { surfaceQaqcRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 import { askConfirm } from "../lib/confirmDialog.js"; // TASKS.csv #3957
 
-const TABS = [["batches", "Batches"], ["standards", "Standards"], ["blanks", "Blanks"], ["duplicates", "Duplicates"], ["limits", "Detection & methods"]];
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : v.toPrecision(3));
 const oneIn = (r) => (r == null ? "—" : `1:${Math.round(r)}`);
 
@@ -42,10 +42,9 @@ export default function SurfaceQaqcPanel({ onClose }) {
   }, [surfaceElements, records]);
   const lead = useLeadCommodity();
   const [symbol, setSymbol] = useState(() => preferredElement(elementList, null, lead)); // #1523 — the project's lead commodity, not the first stored (S)
-  const [tab, setTab] = useState("batches");
+  const [at, setAt] = useState(0);
   const [stdCode, setStdCode] = useState(null);
   const [msg, setMsg] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
   const fileRef = useRef(null);
   const setSettings = (patch) => setSurfaceQc((prev) => { const q = prev || emptySurfaceQc(); return { ...q, settings: { ...qcSettings(q), ...patch } }; });
 
@@ -68,7 +67,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
     });
     const joinedN = Object.keys(r.joined).length;
     if (joinedN) setSurfaceSamples((prev) => prev.map((s) => (r.joined[String(s.sample_id || "").trim()] ? { ...s, cert: r.joined[String(s.sample_id || "").trim()] } : s)));
-    setMsg({ warn: r.unclassified.length > 0 && !joinedN, text: tr("Read {n} certificate file(s): {std} standard, {blk} blank and {dup} duplicate results ({fresh} new); {joined} of your samples matched to their certificate; {other} certificate sample(s) are neither your surface samples nor recognisable QC names and were left out.", { n: parsed.length, std: r.counts.standard, blk: r.counts.blank, dup: r.counts.duplicate, fresh: fresh.length, joined: joinedN, other: r.unclassified.length }) + (skipped.length ? " " + tr("Not certificates: {files}.", { files: skipped.join(", ") }) : "") });
+    setMsg({ warn: r.unclassified.length > 0 && !joinedN, text: tr("Read {n} certificate file(s): {std} standard, {blk} blank, {dup} duplicate results ({fresh} new); {joined} samples matched; {other} left out.", { n: parsed.length, std: r.counts.standard, blk: r.counts.blank, dup: r.counts.duplicate, fresh: fresh.length, joined: joinedN, other: r.unclassified.length }) + (skipped.length ? " " + tr("Not certificates: {files}.", { files: skipped.join(", ") }) : "") });
   };
 
   // ---- checks ----
@@ -94,34 +93,29 @@ export default function SurfaceQaqcPanel({ onClose }) {
   const counts = { standard: 0, blank: 0, duplicate: 0 };
   records.forEach((r) => counts[r.kind]++);
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panelBox} role="dialog" aria-modal="true" aria-label={tr("Surface QA/QC")} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Surface QA/QC")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{s} samples · {std} standard, {blk} blank and {dup} duplicate results · {c} certificates", { s: surfaceSamples.length, std: counts.standard, blk: counts.blank, dup: counts.duplicate, c: (qc.certificates || []).length })}</div>
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
-
-        <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <button type="button" className="gs-btn gs-btn--primary" onClick={() => fileRef.current?.click()}>{tr("Add lab certificates…")}</button>
-            <input ref={fileRef} type="file" accept=".csv" multiple style={{ display: "none" }} onChange={(e) => { const f = [...e.target.files]; e.target.value = ""; if (f.length) addCertificates(f); }} />
-            <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
-              {elementList.map((s) => <option key={s} value={s}>{s}{units[s] ? ` (${gradeUnitLabel(s, units[s])})` : ""}</option>)}
-            </select></label>
-            <button type="button" className="gs-btn" onClick={() => setShowSettings((v) => !v)} aria-expanded={showSettings}>{showSettings ? tr("Hide program settings") : tr("Program settings")}</button>
-            <span style={{ flex: 1 }} />
-            <button type="button" className="gs-btn" style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={exportReport} disabled={!records.length}><Download size={14} />{tr("QC report (CSV)")}</button>
-          </div>
+  // TASKS.csv #4073 (side 4, Main's list) — the window is a StepDialog: Data (what QC results the project holds, and the certificates), Rules (the program's own settings), then one step per check;
+  // the report is the last step's gold primary. Each tab's body is unchanged: a step shows the blocks of its own key.
+  const STEPS = [["data", tr("Data")], ["rules", tr("Rules")], ["batches", tr("Batches")], ["standards", tr("Standards")], ["blanks", tr("Blanks")], ["duplicates", tr("Duplicates")], ["limits", tr("Limits")]];
+  const tab = STEPS[Math.min(at, STEPS.length - 1)][0];
+  const elementPick = (
+    <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
+      {elementList.map((s) => <option key={s} value={s}>{s}{units[s] ? ` (${gradeUnitLabel(s, units[s])})` : ""}</option>)}
+    </select></label>
+  );
+  const body = (
+    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          {tab === "data" && (<>
+            <StepNumbers rows={[{ label: tr("Samples"), value: surfaceSamples.length.toLocaleString() }, { label: tr("Standards"), value: counts.standard }, { label: tr("Blanks"), value: counts.blank }, { label: tr("Duplicates"), value: counts.duplicate }, { label: tr("Certificates"), value: (qc.certificates || []).length }]} />
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <button type="button" className="gs-btn" onClick={() => fileRef.current?.click()}>{tr("Add lab certificates…")}</button>
+              <input ref={fileRef} type="file" accept=".csv" multiple style={{ display: "none" }} onChange={(e) => { const f = [...e.target.files]; e.target.value = ""; if (f.length) addCertificates(f); }} />
+            </div>
+          </>)}
+          {["standards", "blanks", "duplicates", "limits"].includes(tab) && elementPick}
           {msg && <div style={{ ...note, color: msg.warn ? "var(--color-warn-text)" : "var(--color-text)" }}>{msg.text}</div>}
-          {!records.length && <div style={note}>{tr("No QC results yet. Add the lab's certificates (its QC certificate holds the lab's blanks, standards and duplicates; your own inserts are found by name), or import a sample file whose sample-type column marks standards, blanks and duplicates.")}</div>}
-
-          {showSettings && (
+          {!records.length && <div style={note}>{tr("No QC results yet: add lab certificates, or import samples with a sample-type column.")}</div>}
+          {tab === "rules" && (
             <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 10, display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)" }}>
-              <div style={note}>{tr("Your program's own rules, saved with the project. Every program is different: set what you planned.")}</div>
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
                 <label style={ctl}>{tr("Batches by")}<select value={settings.batchBy} onChange={(e) => setSettings({ batchBy: e.target.value })} style={{ ...sel, marginLeft: 6 }}>
                   <option value="certificate">{tr("Lab certificate")}</option>
@@ -142,14 +136,9 @@ export default function SurfaceQaqcPanel({ onClose }) {
               </div>
             </div>
           )}
-
-          <div role="tablist" style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--color-border)" }}>
-            {TABS.map(([k, l]) => <button data-btn-own="" key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} style={{ ...tabBtn, borderBottom: tab === k ? "2px solid var(--color-accent)" : "2px solid transparent", color: tab === k ? "var(--color-text)" : "var(--color-text-secondary)" }}>{tr(l)}</button>)}
-          </div>
-
           {tab === "batches" && (
             <>
-              <div style={note}>{tr("Program inserts (yours) and lab checks are counted apart: the lab's own QC shows the lab is in control, not that your samples were taken and prepared well. Red: fewer inserts than your target.")}{batches.some((b) => b.fromCertificate) ? " " + tr("* sample count from the certificate (those samples are not in the project).") : ""}</div>
+              <div style={note}>{tr("Your inserts and the lab's checks are counted apart. Red: fewer than your target.")}{batches.some((b) => b.fromCertificate) ? " " + tr("* sample count from the certificate (those samples are not in the project).") : ""}</div>
               <div style={{ overflowX: "auto" }}><table style={tbl}>
                 <thead><tr><th style={{ ...th, textAlign: "start" }}>{tr("Batch")}</th><th style={th}>{tr("Samples")}</th><th style={th}>{tr("Standards")}</th><th style={th}>{tr("Blanks")}</th><th style={th}>{tr("Duplicates")}</th><th style={th}>{tr("Lab standards")}</th><th style={th}>{tr("Lab blanks")}</th><th style={th}>{tr("Lab duplicates")}</th></tr></thead>
                 <tbody>{batches.map((b) => (
@@ -175,7 +164,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
               <div style={note}>
                 {std.limits?.certified
                   ? tr("Limits from the certified value: {mean} ± {sd} {unit}. Observed mean {obs} ({bias}% bias).", { mean: fmt(std.limits.mean), sd: fmt(std.limits.sd), unit, obs: fmt(std.observed.mean), bias: std.biasPct == null ? "—" : std.biasPct.toFixed(1) })
-                  : tr("No certified value entered: limits from the standard's own repeats ({mean} ± {sd} {unit}), which shows drift and bad batches but not a bias. Enter the certificate's value and SD to check accuracy.", { mean: fmt(std.limits?.mean), sd: fmt(std.limits?.sd), unit })}
+                  : tr("Own repeats ({mean} ± {sd} {unit}); enter the certified value to check accuracy.", { mean: fmt(std.limits?.mean), sd: fmt(std.limits?.sd), unit })}
               </div>
               <ControlChart g={std} unit={unit} />
             </>
@@ -191,10 +180,10 @@ export default function SurfaceQaqcPanel({ onClose }) {
             </>
           ))}
 
-          {tab === "duplicates" && (!pairs.length ? <div style={note}>{tr("No duplicate pairs for {symbol}: a duplicate needs its original, in your samples or in the same certificates.", { symbol })}</div> : (
+          {tab === "duplicates" && (!pairs.length ? <div style={note}>{tr("No duplicate pairs for {symbol}.", { symbol })}</div> : (
             <>
-              <div style={note}>{tr("{w} of {u} counted pairs within their limit; {b} pair(s) near the detection limit shown but not counted. Field duplicates carry the sampling variance and are expected to be much noisier than lab duplicates.", { w: dupStats.within, u: dupStats.used, b: dupStats.n - dupStats.used })} {Object.entries(dupStats.byType).map(([k, v]) => tr("{type}: {w}/{n} within {lim}%", { type: tr(k === "lab" ? "lab" : k === "field" ? "field" : "type not stated"), w: v.within, n: v.n, lim: v.limit })).join(" · ")}</div>
-              {dl.limit && dl.basis !== "lt" && <div style={note}>{tr("No below-detection results in this element, so its lowest value ({dl} {unit}) is not a detection limit: every pair counts.", { dl: fmt(dl.limit), unit })}</div>}{/* #1793 */}
+              <div style={note}>{tr("{w} of {u} counted pairs within their limit; {b} near the detection limit not counted.", { w: dupStats.within, u: dupStats.used, b: dupStats.n - dupStats.used })} {Object.entries(dupStats.byType).map(([k, v]) => tr("{type}: {w}/{n} within {lim}%", { type: tr(k === "lab" ? "lab" : k === "field" ? "field" : "type not stated"), w: v.within, n: v.n, lim: v.limit })).join(" · ")}</div>
+              {dl.limit && dl.basis !== "lt" && <div style={note}>{tr("No below-detection results: every pair counts.", { dl: fmt(dl.limit), unit })}</div>}{/* #1793 */}
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ flex: "1 1 300px", minWidth: 0 }}><DupScatter pairs={pairs} unit={unit} /></div>
                 <div style={{ flex: "1 1 380px", minWidth: 0, overflowX: "auto", maxHeight: 300 }}><table style={tbl}>
@@ -207,24 +196,23 @@ export default function SurfaceQaqcPanel({ onClose }) {
 
           {tab === "limits" && (
             <>
-              <div style={note}>{tr("Below-detection results are stored at half the detection limit (a common convention, not the only one; it biases statistics of heavily censored elements). Elements over 30% below detection are marked. An element reported by more than one method (another digestion, or an ore-grade finish) is listed: different digestions are not directly comparable.")}</div>
+              <div style={note}>{tr("Below detection: stored at half the limit. Over 30% below: marked. More than one method: not comparable.")}</div>
               <div style={{ overflowX: "auto", maxHeight: 360 }}><table style={tbl}>
                 <thead><tr><th style={{ ...th, textAlign: "start" }}>{tr("Element")}</th><th style={th}>n</th><th style={th}>{tr("Below detection")}</th><th style={th}>%</th><th style={th}>{tr("Detection limit")}</th><th style={{ ...th, textAlign: "start" }}>{tr("Methods (certificates)")}</th></tr></thead>
                 <tbody>{censored.map((c) => { const d = detectionLimitOf(surfaceSamples, c.symbol); const m = methods[c.symbol] || []; return (
-                  <tr key={c.symbol}><td style={{ ...td, textAlign: "start" }}>{c.symbol}</td><td style={td}>{c.n}</td><td style={td} title={c.zero ? tr("{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or %", { n: c.zero }) : undefined}>{c.bdl}{c.zero ? <span style={{ color: "var(--color-warn-text)" }}>{` + ${tr("{n} at 0", { n: c.zero })}`}</span> : null}</td><td style={{ ...td, color: c.pct > 30 ? "var(--color-warn-text)" : undefined }}>{c.pct.toFixed(0)}</td><td style={td} title={d.basis === "min" ? tr("No '<' results: the lowest value reported, an upper bound on the limit") : undefined}>{d.limit ? `${d.basis === "min" ? "≤ " : ""}${fmt(d.limit)} ${c.unit}` : "—"}</td><td style={{ ...td, textAlign: "start", color: m.length > 1 ? "var(--color-warn-text)" : undefined }}>{m.join(", ") || "—"}</td></tr>
+                  <tr key={c.symbol}><td style={{ ...td, textAlign: "start" }}>{c.symbol}</td><td style={td}>{c.n}</td><td style={td} title={c.zero ? tr("{n} reported as 0: not in n or %", { n: c.zero }) : undefined}>{c.bdl}{c.zero ? <span style={{ color: "var(--color-warn-text)" }}>{` + ${tr("{n} at 0", { n: c.zero })}`}</span> : null}</td><td style={{ ...td, color: c.pct > 30 ? "var(--color-warn-text)" : undefined }}>{c.pct.toFixed(0)}</td><td style={td} title={d.basis === "min" ? tr("No '<' results: the lowest value reported, an upper bound on the limit") : undefined}>{d.limit ? `${d.basis === "min" ? "≤ " : ""}${fmt(d.limit)} ${c.unit}` : "—"}</td><td style={{ ...td, textAlign: "start", color: m.length > 1 ? "var(--color-warn-text)" : undefined }}>{m.join(", ") || "—"}</td></tr>
                 ); })}</tbody>
               </table></div>
             </>
           )}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          {records.length > 0 && <button type="button" className="gs-btn" onClick={async () => { if (await askConfirm(tr("Remove all {n} QC results and certificates from the project? Your samples are not changed.", { n: records.length }))) setSurfaceQc((prev) => ({ ...emptySurfaceQc(), settings: prev?.settings || emptySurfaceQc().settings })); }}>{tr("Remove QC results")}</button>}
-          <span style={{ flex: 1 }} />
-          <button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button>
-        </div>
-      </div>
     </div>
+  );
+  const toNext = { label: tr("Next") };
+  const steps = STEPS.map(([key, label], i) => ({ key, label, render: () => body, primary: i === STEPS.length - 1 ? { label: tr("QC report (CSV)"), onClick: exportReport, disabled: !records.length } : toNext }));
+  return (
+    <StepDialog title={tr("Surface QA/QC")} onClose={onClose} steps={steps} at={at} onAt={setAt} width="min(1100px, 96vw)"
+      help={<DialogHelpCard page="qaqc" lines={[]} />}
+      extra={records.length > 0 ? <button type="button" className="gs-btn gs-btn--quiet" onClick={async () => { if (await askConfirm(tr("Remove all {n} QC results? Your samples are not changed.", { n: records.length }))) setSurfaceQc((prev) => ({ ...emptySurfaceQc(), settings: prev?.settings || emptySurfaceQc().settings })); }}>{tr("Remove QC results")}</button> : null} />
   );
 }
 
@@ -268,8 +256,6 @@ function DupScatter({ pairs, unit }) {
   );
 }
 
-const panelBox = panel({ width: "min(1100px, 96vw)", maxHeight: "92vh" }); // TASKS.csv #997 — the shared modal chrome
 const ctl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const tbl = { borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" };
-const tabBtn = { background: "none", border: "none", padding: "6px 10px", cursor: "pointer", fontSize: "var(--font-size-base)", fontFamily: "inherit" };

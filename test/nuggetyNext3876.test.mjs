@@ -34,7 +34,7 @@ test("Grade statistics: not offered as a cap, and says why; the Layout table car
   const gs = readFileSync(new URL("../src/components/GradeStatistics.jsx", import.meta.url), "utf8");
   assert.match(gs, /detStep: brk > 0 \? detectionStep\(vs, brk\) : null/);
   assert.match(gs, /prob\.brk > overallStats\.median && !prob\.detStep;/);
-  assert.match(gs, /sits on the first value above a detection floor/);
+  assert.match(gs, /sits above a detection floor/);
   const bi = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.match(bi, /const concCol = results\.some\(\(r\) => r\.concentration\);/);
   assert.match(bi, /\.\.\.\(concCol \? \[tr\("Metal in the two richest samples \(%\)"\)\] : \[\]\)/);

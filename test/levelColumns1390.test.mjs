@@ -5,9 +5,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DOMAIN_ATTR } from "../src/lib/geochemDomains.js";
 
-test("the domain column is left out of the survey columns, with a note", () => {
+test("the domain column is left out of the survey columns (#4073: the note that said so is gone, less text)", () => {
   assert.equal(DOMAIN_ATTR, "Geochemical domain");
   const p = readFileSync(new URL("../src/components/LevellingPanel.jsx", import.meta.url), "utf8");
   assert.ok(p.includes('if (!k.endsWith("_lev_basis") && k !== DOMAIN_ATTR) c.add(k);'));
-  assert.ok(p.includes("{hasDomains && <div style={note}>"));
+  assert.ok(!p.includes("hasDomains"));
 });

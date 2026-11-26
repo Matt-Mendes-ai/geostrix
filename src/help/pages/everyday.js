@@ -195,7 +195,7 @@ export default [
     keys: ["Limit", "RPD %", "Flag"],
     strip: ["Import assays with QC", "Read the counts", "Pick an element", "Enter the limit"],
     summary: "Judges the control samples in the assays: standards on a control chart, blanks against a limit, duplicates by their difference.",
-    more: "Control samples are found by a sample-type column, else by their ids, and are left out of intercepts, compositing, estimation and statistics.",
+    more: "Control samples are found by a sample-type column, else by their ids, and are left out of intercepts, compositing, estimation and statistics. Surface QA/QC adds the lab's certificates: your own inserts and the lab's checks are counted apart (the lab's QC shows the lab is in control, not that your samples were taken well). Below-detection results are stored at half the limit; elements over 30% below detection are marked; different digestions are not directly comparable. Field duplicates are expected to be noisier than lab duplicates.",
     notFor: [
       "It corrects nothing: a failed standard or blank is a question for the lab.",
       "Check-sample links with no results cannot be judged: import them as QC links, the results later.",

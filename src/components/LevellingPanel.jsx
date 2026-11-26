@@ -1,40 +1,39 @@
 // TASKS.csv #1001 — levelling one survey's surface samples to another, written as a new element column that Thresholds and
 // the anomaly maps can use. Tie samples first; quantile matching only as a labelled fallback. Maths and sources in
 // lib/levelling.js.
+// TASKS.csv #4073 (side 4, Main's list) — a StepDialog with the house rules: Surveys (which two), Ties (the evidence, one gold Next), Result (the numbers and
+// the one gold primary, Write). The method choices and the distance are in Fine-tune; the long explanations that sat in the window are in the "?" card.
 import React, { useMemo, useState } from "react";
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #1523
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
-import { X } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { surveysOf, fitLevelling, levellingPreview, writeLevelled, levelledSymbol, MIN_TIES, MIN_STAT, tieScatter } from "../lib/levelling.js"; // tieScatter: #2981
 import TieScatterPlot from "./TieScatterPlot.jsx"; // TASKS.csv #2981
 import { PROJECT_SOURCE } from "../lib/thresholds.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps, sel, th, td, panel, header } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js";
+import { sel } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import { DOMAIN_ATTR } from "../lib/geochemDomains.js"; // TASKS.csv #1390
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import StepDialog from "./StepDialog.jsx";
+import { StepNumbers } from "./StepPane.jsx";
+import MoreFold from "./MoreFold.jsx";
+import DialogHelpCard from "./DialogHelpCard.jsx";
 
-const panelBox = panel({ width: "min(720px, 96vw)", maxHeight: "92vh" });
 const ctl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
 const warn = { ...note, color: "var(--color-danger-fg)" };
 const num = (v) => (Number.isFinite(v) ? +v.toPrecision(4) : "—");
 
 export default function LevellingPanel({ onClose }) {
-  useEscapeKey(onClose);
-  useFocusTrap();
   const { surfaceSamples, surfaceElements, setSurfaceSamples, setSurfaceElements } = useStore();
   const elements = useMemo(() => surfaceElements.filter((e) => !e.symbol.endsWith("_lev")), [surfaceElements]);
   const media = useMemo(() => [...new Set(surfaceSamples.map((s) => s.medium))], [surfaceSamples]);
-  // TASKS.csv #1390 (review #1352, Silvertip) — the Domains tool's column is a population of the samples, not a survey: offered here, one
+  // TASKS.csv #1390 (review #1352, Silvertip) — the Domains tool's column is a population of the samples, not a survey: it is not offered here, one
   // k-means cluster of a soil program was 'levelled' against another (neighbouring samples taken as shared sites). Columns GeoStrix
   // writes itself are left out.
   const columns = useMemo(() => { const c = new Set(["source"]); surfaceSamples.forEach((s) => Object.keys(s.attrs || {}).forEach((k) => { if (!k.endsWith("_lev_basis") && k !== DOMAIN_ATTR) c.add(k); })); return [...c]; }, [surfaceSamples]);
-  const hasDomains = useMemo(() => surfaceSamples.some((s) => s.attrs && DOMAIN_ATTR in s.attrs), [surfaceSamples]);
+  const [at, setAt] = useState(0);
   const [column, setColumn] = useState("source");
   const [medium, setMedium] = useState(media[0] || "");
   const lead = useLeadCommodity();
@@ -55,73 +54,82 @@ export default function LevellingPanel({ onClose }) {
   const method = methodPick === "quantile" && canStat ? "quantile" : methodPick === "huber" && canHuber ? "huber" : canTies ? "ties" : null;
   const preview = useMemo(() => (fit && method ? levellingPreview(surfaceSamples, fit, method, opts) : null), [fit, method, surfaceSamples]);
   const unit = surfaceElements.find((e) => e.symbol === symbol)?.unit || "ppm";
+  const two = surveys.length >= 2;
 
   const write = () => {
     const r = writeLevelled(surfaceSamples, surfaceElements, fit, method, opts);
     setSurfaceSamples(r.samples);
     setSurfaceElements(r.elements);
-    setMsg(tr("\"{col}\" written: {levelled} levelled and {reference} reference samples in {medium}. {symbol} itself is unchanged. It is now an element choice in Thresholds and the anomaly maps.", { col: levelledSymbol(symbol), levelled: r.written.levelled, reference: r.written.reference, medium, symbol }));
+    setMsg(tr("\"{col}\" written: {levelled} levelled and {reference} reference samples in {medium}.", { col: levelledSymbol(symbol), levelled: r.written.levelled, reference: r.written.reference, medium }));
   };
+  const pick = (set) => (e) => { set(e.target.value); setMsg(null); };
+  const sel2 = { ...sel, display: "block", marginTop: 4 };
+  const surveyOption = (s) => <option key={s.key} value={s.key}>{s.key} ({s.count})</option>;
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panelBox} role="dialog" aria-modal="true" aria-label={tr("Level surveys")} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Level surveys")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Bring one survey's values to another's level, as a new column; the source values stay as they are")}</div>
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
-        <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={ctl}>{tr("Sample type")}<select value={medium} onChange={(e) => { setMedium(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>{media.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
-            <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>{elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}</select></label>
-            <label style={ctl}>{tr("Surveys told apart by")}<select value={column} onChange={(e) => { setColumn(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>{columns.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
-          </div>
-          {hasDomains && <div style={note}>{tr("\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.", { col: DOMAIN_ATTR })}</div>}
-          {surveys.length < 2 ? (
-            <div style={note}>{tr("Choose another column, such as year, lab or batch: under this one all the samples are one survey, so there is nothing to level.")}</div>
-          ) : (<>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <label style={ctl}>{tr("Level to (reference)")}<select value={reference} onChange={(e) => { setRefPick(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 280 }}>{surveys.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count})</option>)}</select></label>
-              <label style={ctl}>{tr("Survey to adjust")}<select value={survey} onChange={(e) => { setSurPick(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 280 }}>{surveys.filter((s) => s.key !== reference).map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count})</option>)}</select></label>
-              <label style={ctl}>{tr("Same site within (m)")}<NumberInput min={1} step={5} value={radiusM} onChange={(v) => setRadiusM(v)} style={{ ...sel, marginTop: 4, width: 70 }} wrapStyle={{ display: "flex" }} /></label>
-            </div>
-            {fit && (<>
-              <div style={note}>
-                {fit.ties?.ok
-                  ? tr("{n} sites sampled by both surveys: median ratio x{f}, most pairs between x{lo} and x{hi}. A wide range means the ties disagree: check them first.", { n: fit.ties.n, f: num(fit.ties.factor), lo: num(fit.ties.low), hi: num(fit.ties.high) })
-                  : tr("{n} sites sampled by both surveys within this distance; tie levelling needs {min}. A larger distance finds more pairs, but distant sites can differ for real.", { n: fit.ties?.n || 0, min: MIN_TIES })}
-              </div>
-              {fit.ties?.ok && <TieScatterPlot data={tieScatter(fit, symbol)} reference={reference} survey={survey} unit={unit} />}{/* TASKS.csv #2981 */}
-              {canHuber && ( /* TASKS.csv #2000 — regression levelling on the same ties */
-                <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer" }}>
-                  <input type="checkbox" checked={method === "huber"} onChange={(e) => setMethodPick(e.target.checked ? "huber" : null)} />
-                  <span>{tr("Fit a line through the ties (Huber regression on logs, Main & Champion 2022): log {ref} = {a} + {b} × log value, {d} of {n} tie(s) down-weighted.", { ref: reference, a: num(fit.ties.huber.a), b: num(fit.ties.huber.b), d: fit.ties.huber.downweighted, n: fit.ties.huber.n })}</span>
-                </label>
-              )}
-              <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: canStat ? "pointer" : "default", opacity: canStat ? 1 : 0.6 }}>
-                <input type="checkbox" disabled={!canStat} checked={method === "quantile"} onChange={(e) => setMethodPick(e.target.checked ? "quantile" : null)} />
-                <span>{canStat ? tr("Use quantile matching instead: it assumes both surveys sampled one population, so it can erase or invent real differences. Only without ties, as a guide.") : tr("Statistical quantile matching needs at least {min} measured samples in each survey (here {a} and {b}).", { min: MIN_STAT, a: fit.nReference, b: fit.nSurvey })}</span>
-              </label>
-              {preview && (
-                <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", alignSelf: "flex-start" }}>
-                  <thead><tr><th style={th}>{symbol} ({gradeUnitLabel(symbol, unit)})</th><th style={th}>{tr("Median")}</th><th style={th}>{tr("Maximum")}</th></tr></thead>
-                  <tbody>
-                    <tr><td style={td}>{tr("Reference survey")}</td><td style={td}>{num(preview.reference.median)}</td><td style={td}>{num(preview.reference.max)}</td></tr>
-                    <tr><td style={td}>{tr("Survey before")}</td><td style={td}>{num(preview.before.median)}</td><td style={td}>{num(preview.before.max)}</td></tr>
-                    <tr><td style={td}>{tr("Survey after")}</td><td style={td}>{num(preview.after.median)}</td><td style={td}>{num(preview.after.max)}</td></tr>
-                  </tbody>
-                </table>
-              )}
-              {method === "quantile" && <div style={warn}>{tr("Statistical level: every adjusted sample records this in its basis column.")}</div>}
-              <div><button className="gs-btn" type="button" onClick={write} disabled={!method}>{tr("Write {col}", { col: levelledSymbol(symbol) })}</button></div>
-            </>)}
-          </>)}
-          {msg && <div role="status" style={note}>{msg}</div>}
-        </div>
+  const surveysStep = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <label style={ctl}>{tr("Sample type")}<select value={medium} onChange={pick(setMedium)} style={sel2}>{media.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
+        <label style={ctl}>{tr("Element")}<select value={symbol} onChange={pick(setSymbol)} style={sel2}>{elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}</select></label>
+        <label style={ctl}>{tr("Told apart by")}<select value={column} onChange={pick(setColumn)} style={sel2}>{columns.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
       </div>
+      {two ? (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <label style={ctl}>{tr("Reference")}<select value={reference} onChange={pick(setRefPick)} style={{ ...sel2, maxWidth: 280 }}>{surveys.map(surveyOption)}</select></label>
+          <label style={ctl}>{tr("Adjust")}<select value={survey} onChange={pick(setSurPick)} style={{ ...sel2, maxWidth: 280 }}>{surveys.filter((s) => s.key !== reference).map(surveyOption)}</select></label>
+        </div>
+      ) : <div style={note}>{tr("One survey under this column: choose another, such as year or lab.")}</div>}
     </div>
+  );
+
+  const tiesStep = () => fit && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={note}>
+        {fit.ties?.ok
+          ? tr("{n} shared sites: median x{f}, most between x{lo} and x{hi}.", { n: fit.ties.n, f: num(fit.ties.factor), lo: num(fit.ties.low), hi: num(fit.ties.high) })
+          : tr("{n} shared sites; {min} needed. A larger distance finds more.", { n: fit.ties?.n || 0, min: MIN_TIES })}
+      </div>
+      {fit.ties?.ok && <TieScatterPlot data={tieScatter(fit, symbol)} reference={reference} survey={survey} unit={unit} />}{/* TASKS.csv #2981 */}
+      <MoreFold summary={tr("Fine-tune…")} data-fine-tune="levelling">
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 6 }}>
+          <label style={ctl}>{tr("Same site (m)")}<NumberInput min={1} step={5} value={radiusM} onChange={(v) => setRadiusM(v)} style={{ ...sel, marginTop: 4, width: 70 }} wrapStyle={{ display: "flex" }} /></label>
+          {canHuber && ( /* TASKS.csv #2000 — regression levelling on the same ties */
+            <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer" }}>
+              <input type="checkbox" checked={method === "huber"} onChange={(e) => setMethodPick(e.target.checked ? "huber" : null)} />
+              <span>{tr("Fit a line (Huber)")} <span style={{ color: "var(--color-text-muted)" }}>{tr("log {ref} = {a} + {b} × log value; {d} of {n} down-weighted", { ref: reference, a: num(fit.ties.huber.a), b: num(fit.ties.huber.b), d: fit.ties.huber.downweighted, n: fit.ties.huber.n })}</span></span>
+            </label>
+          )}
+          <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: canStat ? "pointer" : "default", opacity: canStat ? 1 : 0.6 }}
+            title={canStat ? undefined : tr("Needs {min} measured samples in each survey (here {a} and {b}).", { min: MIN_STAT, a: fit.nReference, b: fit.nSurvey })}>
+            <input type="checkbox" disabled={!canStat} checked={method === "quantile"} onChange={(e) => setMethodPick(e.target.checked ? "quantile" : null)} />
+            <span>{tr("Quantile matching")}</span>
+          </label>
+        </div>
+      </MoreFold>
+    </div>
+  );
+
+  const resultStep = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {preview && (
+        <StepNumbers rows={[
+          { label: tr("Reference survey"), value: `${tr("Median")} ${num(preview.reference.median)} · ${tr("Maximum")} ${num(preview.reference.max)}` },
+          { label: tr("Survey before"), value: `${tr("Median")} ${num(preview.before.median)} · ${tr("Maximum")} ${num(preview.before.max)}` },
+          { label: tr("Survey after"), value: `${tr("Median")} ${num(preview.after.median)} · ${tr("Maximum")} ${num(preview.after.max)}` },
+        ]} />
+      )}
+      {method === "quantile" && <div style={warn}>{tr("Estimated, not tied: each sample records it in its basis column.")}</div>}
+      {msg && <div role="status" style={note}>{msg}</div>}
+    </div>
+  );
+
+  const steps = [
+    { key: "surveys", label: tr("Surveys"), render: surveysStep, primary: { label: tr("Next"), disabled: !two || !fit } },
+    { key: "ties", label: tr("Ties"), render: tiesStep, primary: { label: tr("Next"), disabled: !method } },
+    { key: "result", label: tr("Result"), render: resultStep, primary: { label: tr("Write {col}", { col: levelledSymbol(symbol) }), onClick: write, disabled: !method } },
+  ];
+  return (
+    <StepDialog title={tr("Level surveys")} onClose={onClose} steps={steps} at={at} onAt={setAt} width="min(720px, 96vw)"
+      help={<DialogHelpCard lines={[tr("Writes a new column; the source values stay as they are."), tr("Quantile matching assumes one population: it can erase real differences. Use it only without ties.")]} />} />
   );
 }

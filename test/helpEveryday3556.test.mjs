@@ -46,6 +46,7 @@ test("no page picks numbers for the reader or names a backlog row", () => {
 test("wired: a ? in the four Geochem dialogs opens their pages", () => {
   for (const [f, id] of [["CompositingModal", "downhole-compositing"], ["BestIntercepts", "best-intercepts"], ["GradeStatistics", "grade-statistics"], ["QAQCPanel", "qaqc"]]) {
     const s = read(`../src/components/${f}.jsx`);
+    if (f === "GradeStatistics") { assert.ok(s.includes(`<DialogHelpCard page="${id}"`), f); continue; } // #4073 — a StepDialog's "?" card, with its More link to the page
     assert.ok(s.includes(`onClick={() => openHelp("${id}")}`), f); assert.match(s, /import \{ openHelp \} from "\.\.\/lib\/help\.js"/);
   }
 });
