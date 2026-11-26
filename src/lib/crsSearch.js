@@ -23,3 +23,16 @@ export function rankCrs(list, query, pinned = []) {
   });
   return scored.sort((a, b) => b.score - a.score || a.i - b.i).map((x) => x.c);
 }
+
+// TASKS.csv #4100 (#4070's closing audit) — the Project CRS and 'A layer' choosers opened on a 60-row list ("60 of 5,811 shown"), ~400 words
+// before a choice. The pinned codes GeoStrix can build (the current CRS, the choice, the zones at the collars) come first, at most `max`; the full
+// list is one click away. Empty when none of them is known: the chooser then opens on the full list, as before.
+export function crsShortList(list, pinned = [], max = 5) {
+  const byCode = new Map((list || []).map((c) => [c.code, c])), out = [];
+  for (const p of pinned || []) {
+    const c = byCode.get(Number(p));
+    if (c && !out.includes(c)) out.push(c);
+    if (out.length >= max) break;
+  }
+  return out;
+}

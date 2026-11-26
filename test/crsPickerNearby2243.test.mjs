@@ -21,5 +21,5 @@ test("#2243 an empty search puts the project location's zones first", () => {
   assert.ok(near.every((c) => first.includes(c)));
   const src = readFileSync(new URL("../src/components/CrsPicker.jsx", import.meta.url), "utf8");
   assert.match(src, /rankCrs\(all, q, \[crsSet \? projectEpsg : null[^\]]*, value, \.\.\.nearby\]\)/); // crsSet: #2289
-  assert.match(src, /of \{total\} shown: type a name, zone or EPSG code to find the others/);
+  assert.match(src, /of \{total\} shown: type to find the others/); // #4100: said shorter (the search box says what to type), the count kept
 });
