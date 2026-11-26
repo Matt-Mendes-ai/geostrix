@@ -15,7 +15,7 @@ test("no default orientation", () => {
 test("widths, factors and exports only once both are set; a prompt until then", () => {
   assert.match(src, /const twReady = Number\.isFinite\(twDipDir\) && Number\.isFinite\(twDip\) && twDip >= 0 && twDip <= 90;/);
   assert.match(src, /const twEnabled = twOn && twReady;/);
-  assert.match(src, /\{twOn && !twReady && <span[^>]*>\{tr\("Enter the mineralized structure's dip direction and dip/);
+  assert.match(src, /\{twOn && !twReady && <span[^>]*>\{tr\("Enter dip direction and dip/);
   assert.match(src, /tw: tracesByHole \? trueWidthForIntercept\(/); // tracesByHole is built only when twEnabled
   assert.match(src, /if \(!twEnabled \|\| !collars\?\.length\) return null;/);
 });
