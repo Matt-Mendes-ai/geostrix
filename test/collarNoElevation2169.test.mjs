@@ -17,7 +17,7 @@ test("terrain first, then the median of the other collars", () => {
   const groundAt = (x, y) => (x < 500 ? 400 + x / 100 : NaN);
   const out = fillMissingCollarZ(rows, { groundAt });
   assert.deepEqual(out.rows.map((r) => [r.hole_id, r.z, r.zAssumed]), [["A", 410, undefined], ["B", 430, undefined], ["C", 403, "terrain"], ["D", 420, "median"]]);
-  assert.deepEqual(out.counts, { terrain: 1, median: 1, zero: 0, kept: 0 });
+  assert.deepEqual(out.counts, { terrain: 1, fixed: 0, median: 1, zero: 0, kept: 0 }); // fixed: #4085 (an elevation given in the dialog)
 });
 
 test("the project's collars count toward the median; with nothing at all, 0 m", () => {

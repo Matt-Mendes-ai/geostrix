@@ -10544,7 +10544,6 @@
   "{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.": "{fileName}: {noCoords} colar(es) ignorado(s): X ou Y ausente ou não numérico ({v}{v2}). Corrija no arquivo e importe novamente.",
   "{n} on the terrain": "{n} sobre o terreno",
   "{n} at the median collar elevation ({z} m)": "{n} na elevação mediana dos colares ({z} m)",
-  "{n} at 0 m (no terrain and no other elevation)": "{n} a 0 m (sem terreno nem outra elevação)",
   "{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC": "{n} colar(es) não tinham elevação e foram colocados numa elevação PRESUMIDA ({how}), sinalizados no Controle de dados",
   "{n} hole(s) with no elevation in the file kept the one they already had": "{n} furo(s) sem elevação no arquivo mantiveram a que já tinham",
   "on the terrain": "sobre o terreno",
@@ -14766,7 +14765,6 @@
   "Collar elevations from the terrain…": "Elevações das bocas de furo a partir do terreno…",
   "Take collar elevations from the terrain; preview first, Ctrl+Z undoes it.": "Tomar as elevações das bocas de furo do terreno; antes uma pré-visualização, Ctrl+Z desfaz.",
   "From the terrain ({source}), {z} m: a ground height, not a surveyed RL.": "Do terreno ({source}), {z} m: uma altura do solo, não uma cota levantada.",
-  "No terrain yet: holes sit at the median, flagged ASSUMED; GeoStrix offers the terrain when one is added.": "Ainda sem terreno: os furos ficam na mediana, marcados ASSUMED; o GeoStrix oferece usar o terreno quando um for adicionado.",
   "Ground surface ({source})": "Superfície do terreno ({source})",
   "Ground surface": "Superfície do terreno",
   "Regional geology (1:250,000 to 1:1,000,000), not property-scale mapping.": "Geologia regional (1:250.000 a 1:1.000.000), não um mapeamento na escala da propriedade.",
@@ -15877,5 +15875,10 @@
   "Numbering": "Numeração",
   "Plan": "Plano",
   "Streams": "Drenagens",
-  "Wheel: zoom · drag: pan · double-click: fit": "Roda: zoom · arrastar: mover · duplo clique: ajustar"
+  "Wheel: zoom · drag: pan · double-click: fit": "Roda: zoom · arrastar: mover · duplo clique: ajustar",
+  "A fixed elevation (m)": "Uma cota fixa (m)",
+  "The median of the other collars": "A mediana dos outros colares",
+  "{n} at {z} m (given)": "{n} a {z} m (informada)",
+  "Both flagged ASSUMED; the terrain is offered later.": "Ambas marcadas ASSUMED; o terreno é oferecido depois.",
+  "{n} at 0 m (nothing else known)": "{n} a 0 m (nada mais conhecido)"
 }

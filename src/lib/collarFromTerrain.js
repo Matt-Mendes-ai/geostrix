@@ -10,7 +10,7 @@ import { terrainGroundAt } from "./viewer/geomath.js";
 
 const num = Number.isFinite;
 // a collar whose elevation is a guess made at import (the median or 0 m): the ones that wait for a terrain
-export const needsTerrainZ = (c) => !!c && (c.zAssumed === "median" || c.zAssumed === "zero" || !num(c.z));
+export const needsTerrainZ = (c) => !!c && (c.zAssumed === "median" || c.zAssumed === "zero" || c.zAssumed === "fixed" /* #4085 */ || !num(c.z));
 export const assumedForTerrain = (collars) => (collars || []).filter((c) => c && c.hole_id != null && num(c.x) && num(c.y) && needsTerrainZ(c));
 export const terrainSourceWords = (terrain) => `terrain: ${terrain?.name || "DEM"}`; // English: it travels in the project file and the exports
 

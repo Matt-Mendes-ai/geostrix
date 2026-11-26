@@ -695,7 +695,7 @@ export function makeImportPipeline(ctx, h) {
       rows = rows.map(({ _rowEpsg, ...rest }) => rest);
       // TASKS.csv #2169 — collars with no elevation: the terrain at the collar, else the median collar elevation, else 0 m, flagged
       const terrainNow = importStateRef.current.terrain;
-      const zFill = fillMissingCollarZ(rows, { existing: importStateRef.current.collars || [], groundAt: terrainNow && data.zFromTerrain !== false ? (x, y) => terrainGroundAt(terrainNow, x, y) : null }); // zFromTerrain: the dialog's "Elevation" choice, #3955
+      const zFill = fillMissingCollarZ(rows, { existing: importStateRef.current.collars || [], groundAt: terrainNow && data.zFromTerrain !== false ? (x, y) => terrainGroundAt(terrainNow, x, y) : null, fixedZ: data.zFixedOn && data.zFixed != null && data.zFixed !== "" && Number.isFinite(+data.zFixed) ? +data.zFixed : null /* #4085: the dialog's fixed elevation, with no terrain */ }); // zFromTerrain: the dialog's "Elevation" choice, #3955
       rows = zFill.rows;
 
       // TASKS.csv #283 — this used to be a bare last-write-wins merge
@@ -764,9 +764,10 @@ export function makeImportPipeline(ctx, h) {
       { // TASKS.csv #2169 — said in the notice, with how each was placed
         const zc = zFill.counts, how = [];
         if (zc.terrain) how.push(tr("{n} on the terrain", { n: zc.terrain }));
+        if (zc.fixed) how.push(tr("{n} at {z} m (given)", { n: zc.fixed, z: +data.zFixed })); // #4085
         if (zc.median) how.push(tr("{n} at the median collar elevation ({z} m)", { n: zc.median, z: Math.round(zFill.medianZ) }));
-        if (zc.zero) how.push(tr("{n} at 0 m (no terrain and no other elevation)", { n: zc.zero }));
-        if (how.length) parts.push(tr("{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC", { n: zc.terrain + zc.median + zc.zero, how: how.join(", ") }));
+        if (zc.zero) how.push(tr("{n} at 0 m (nothing else known)", { n: zc.zero }));
+        if (how.length) parts.push(tr("{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC", { n: zc.terrain + zc.fixed + zc.median + zc.zero, how: how.join(", ") }));
         if (zc.kept) parts.push(tr("{n} hole(s) with no elevation in the file kept the one they already had", { n: zc.kept }));
       }
       { const up = upwardHoles(rows), list = up.slice(0, 5).join(", "); if (up.length) parts.push(up.length > 5 // #2886

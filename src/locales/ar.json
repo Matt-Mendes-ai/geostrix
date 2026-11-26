@@ -10544,7 +10544,6 @@
   "{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.": "{fileName}: تم تخطي {noCoords} فوهة — X أو Y مفقود أو غير رقمي ({v}{v2}). صحّحها في الملف وأعد الاستيراد.",
   "{n} on the terrain": "{n} على التضاريس",
   "{n} at the median collar elevation ({z} m)": "{n} عند الارتفاع الوسيط للفوهات ({z} م)",
-  "{n} at 0 m (no terrain and no other elevation)": "{n} عند 0 م (لا تضاريس ولا ارتفاع آخر)",
   "{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC": "{n} فوهة بلا ارتفاع وُضعت عند ارتفاع مفترض ({how})، مُعلَّمة في فحص البيانات",
   "{n} hole(s) with no elevation in the file kept the one they already had": "احتفظ {n} ثقب بلا ارتفاع في الملف بالارتفاع الذي كان لديه",
   "on the terrain": "على التضاريس",
@@ -14766,7 +14765,6 @@
   "Collar elevations from the terrain…": "ارتفاعات الفوهات من التضاريس…",
   "Take collar elevations from the terrain; preview first, Ctrl+Z undoes it.": "خذ ارتفاعات الفوهات من التضاريس؛ معاينة أولًا، وCtrl+Z يتراجع.",
   "From the terrain ({source}), {z} m: a ground height, not a surveyed RL.": "من التضاريس ({source})، {z} م: ارتفاع الأرض لا منسوب مقيس.",
-  "No terrain yet: holes sit at the median, flagged ASSUMED; GeoStrix offers the terrain when one is added.": "لا تضاريس بعد: تبقى الثقوب عند الوسيط، موسومة ASSUMED؛ ويعرض GeoStrix التضاريس عند إضافتها.",
   "Ground surface ({source})": "سطح الأرض ({source})",
   "Ground surface": "سطح الأرض",
   "Regional geology (1:250,000 to 1:1,000,000), not property-scale mapping.": "جيولوجيا إقليمية (من 1:250,000 إلى 1:1,000,000)، وليست خرائط بمقياس الملكية.",
@@ -15877,5 +15875,10 @@
   "Numbering": "الترقيم",
   "Plan": "الخطة",
   "Streams": "المجاري",
-  "Wheel: zoom · drag: pan · double-click: fit": "العجلة: تكبير · السحب: تحريك · نقر مزدوج: ملاءمة"
+  "Wheel: zoom · drag: pan · double-click: fit": "العجلة: تكبير · السحب: تحريك · نقر مزدوج: ملاءمة",
+  "A fixed elevation (m)": "ارتفاع ثابت (م)",
+  "The median of the other collars": "وسيط الفوهات الأخرى",
+  "{n} at {z} m (given)": "{n} عند {z} م (مُعطى)",
+  "Both flagged ASSUMED; the terrain is offered later.": "كلاهما مُعلَّم ASSUMED؛ تُعرض التضاريس لاحقًا.",
+  "{n} at 0 m (nothing else known)": "{n} عند 0 م (لا شيء آخر معروف)"
 }
