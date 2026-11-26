@@ -10,8 +10,9 @@
 // A Geophysics icon whose kind is not in GSQ_GEOPHYSICS fails test/gsqGeophysics4105.test.mjs. Pure parts here (testable in Node); the store writes are the last step.
 import Papa from "papaparse";
 import { woodjamIpLine } from "./sampleWoodjam.js";
-import { parseStationFile, fitStationLine } from "./dcipStations.js";
-import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth } from "./dcip.js";
+import { parseStationFile } from "./dcipStations.js";
+import { electrodeLines } from "./dcipElectrodes.js";
+import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth, lineFromTwoPoints } from "./dcip.js";
 import { readDownholeEm, matchEmHoles, emLayerRows, defaultChannel, sortComps } from "./downholeEm.js";
 import { guessGeophysColumns, rowsToGeophysPoints } from "./geophysColumns.js";
 import { parseXYZ, guessXyzChannels } from "./geosoft.js";
@@ -70,7 +71,6 @@ export const gsqKnownFiles = (which) => {
 };
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
-const r1 = (v) => String(+v.toFixed(1));
 
 // ---- IP lines from a .dat and its station file (Woodjam's reader): the line placed from its stations
 export function gsqIpLine(which, spec, datText, stnText, projectEpsg) {
@@ -79,45 +79,23 @@ export function gsqIpLine(which, spec, datText, stnText, projectEpsg) {
   return { ...entry, sample: which };
 }
 
-// ---- IP readings whose electrodes carry map coordinates (Edinburgh's .csv, Cloncurry's .esf): the chainage is the distance along the line from its first electrode;
-// the line is placed from the electrodes. rows: objects with C1X, C1Y, C2X, C2Y, P1X, P1Y, P2X, P2Y (and C1Z…), a resistivity column and a chargeability column.
-export function electrodeLine(which, name, rows, cols, projectEpsg) {
-  const ok = (v) => Number.isFinite(v);
-  const num = (v) => (v === "" || v == null ? NaN : Number(v));
-  const E = ["C1", "C2", "P1", "P2"];
-  const keep = rows.filter((r) => (cols.qc ? String(r[cols.qc]).trim() === "1" : true) && ok(num(r[cols.rho])) && num(r[cols.rho]) > 0);
-  const pts = [];
-  for (const r of keep) for (const e of E) { const x = num(r[`${e}X`]), y = num(r[`${e}Y`]); if (ok(x) && ok(y)) pts.push([x, y, num(r[`${e}Z`])]); }
-  if (!keep.length || !pts.length) throw noReadings(name);
-  // the line's direction: the larger spread of the electrodes, signed from the first to the last along it (a straight line, east-west or north-south in these samples)
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for (const [x, y] of pts) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-  const alongX = x1 - x0 >= y1 - y0, origin = alongX ? [x0, pts.find((p) => p[0] === x0)[1]] : [pts.find((p) => p[1] === y0)[0], y0];
-  const s = (x, y) => +(alongX ? x - x0 : y - y0).toFixed(3);
-  const rowsOut = keep.map((r) => ({ A: s(num(r.C1X), num(r.C1Y)), B: s(num(r.C2X), num(r.C2Y)), M: s(num(r.P1X), num(r.P1Y)), N: s(num(r.P2X), num(r.P2Y)), Res: r[cols.rho], Mx: cols.ip ? r[cols.ip] : "", SD: cols.err ? r[cols.err] : "" }));
-  const p = parseDcipRows(rowsOut, { a: "A", b: "B", m: "M", n: "N", rho: "Res", ...(cols.ip ? { ip: "Mx" } : {}), ...(cols.err ? { err: "SD" } : {}) });
-  if (!p.readings.length) throw noReadings(name);
-  const seen = new Map();
-  for (const [x, y, z] of pts) { const k = s(x, y); if (!seen.has(k)) seen.set(k, { s: k, x, y, z: ok(z) ? z : null }); }
-  const stations = [...seen.values()].sort((a, b) => a.s - b.s);
-  const fit = fitStationLine(stations);
-  const line = { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null, positions: "horizontal" };
-  if (fit) Object.assign(line, { x0: r1(fit.start[0]), y0: r1(fit.start[1]), x1: r1(fit.end[0]), y1: r1(fit.end[1]), stations: { file: name, line: name, list: stations }, fitRmsM: +fit.rmsResidual.toFixed(1) });
-  const half = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
-  return { name, readings: p.readings, rho: p.rho, ip: p.ip, line, opts: { cell: half, depth: String(suggestModelDepth(p.readings, p.span, Number(half))) }, savedAt: new Date().toISOString(), sample: which, _origin: origin };
-}
-
-// the electrode columns of a delimited IP table: Papa for a .csv, the whitespace reader for a TQIPdb .esf (one entry per Line value)
-export function ipTableLines(which, spec, text, projectEpsg) {
+// ---- IP readings whose electrodes carry map coordinates (Edinburgh's .csv, Cloncurry's .esf): the DC / IP pane's own reader (lib/dcipElectrodes.js electrodeLines): the electrodes read
+// as one line, the repeats of an array stacked, the line placed from its electrodes (the pane's placementOf)
+export function ipTableLines(which, spec, text) {
   let headers, rows;
   if (spec.format === "esf") { const w = parseDcipWhitespaceText(text); if (!w) throw noReadings(spec.file); headers = w.headers; rows = w.rows; }
   else { const t = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: false }); headers = t.meta.fields; rows = t.data; }
-  const m = guessDcipColumns(headers);
-  const cols = { rho: m.rho, ip: m.ip, err: m.err, qc: headers.includes("QC") ? "QC" : null };
-  if (!m.rho) throw noReadings(spec.file);
-  const by = new Map(), lineCol = headers.includes("Line") ? "Line" : null;
-  for (const r of rows) { const k = lineCol ? String(r[lineCol]).trim() : spec.line || spec.file; (by.get(k) || by.set(k, []).get(k)).push(r); }
-  return [...by].map(([k, rs]) => electrodeLine(which, (lineCol ? `${k}N` : k).replace(/NN$/, "N"), rs, cols, projectEpsg));
+  const base = spec.file.split("/").pop().replace(/\.[a-z0-9]+$/i, "");
+  const res = electrodeLines(headers, rows, { lineCol: headers.includes("Line") ? "Line" : null, base });
+  if (!res?.lines) throw noReadings(spec.file);
+  return res.lines.map((L) => {
+    const p = parseDcipRows(L.rows, guessDcipColumns(L.headers));
+    if (!p.readings.length) throw noReadings(L.name);
+    const g = L.pts ? lineFromTwoPoints(L.pts) : null, r2 = (x) => String(+x.toFixed(2));
+    const line = g ? { x0: r2(g.x0), y0: r2(g.y0), x1: r2(g.x1), y1: r2(g.y1), ground: "", scale: Math.abs(g.scale - 1) > 0.002 ? String(+g.scale.toFixed(4)) : "", stations: null, pts: L.pts } : { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null };
+    const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
+    return { name: L.name, readings: p.readings, rho: p.rho, ip: p.ip, ipKind: p.ipKind, ...(p.err ? { err: p.err } : {}), line, opts: { cell, depth: p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "" }, savedAt: new Date().toISOString(), sample: which };
+  });
 }
 
 // ---- point tables → point surveys: [{ name, points, meta }], one per measurement column the picker would offer (the first is the importer's guess; a gradient array's
@@ -145,7 +123,7 @@ export function pointSurveys(spec, text, fileName) {
     const name = valueCols.length > 1 ? `${fileName} · ${vc}` : fileName;
     const pts = [];
     if (spec.format === "xyz") {
-      for (const r of rows) { const x = Number(r[cols.x]), y = Number(r[cols.y]), v = Number(r[vc]); if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(v) && v > -9999) pts.push({ x, y, z: null, value: v, line: r._line != null ? String(r._line) : undefined, _src: name }); }
+      for (const r of rows) { const x = Number(r[cols.x]), y = Number(r[cols.y]), v = r[vc] == null || r[vc] === "" ? NaN : Number(r[vc]); /* a blank / null is no reading, not 0 */ if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(v) && v > -9999) pts.push({ x, y, z: null, value: v, line: r._line != null ? String(r._line) : undefined, _src: name }); }
     } else {
       for (const r of rowsToGeophysPoints(rows, { ...cols, value: vc })) if (Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)) pts.push({ ...r, _src: name });
     }
@@ -210,7 +188,7 @@ export async function loadGsqGeophysics(which, readFile, store, ctx = {}) {
     try {
       let n = 0;
       for (const spec of S.ipTables) {
-        for (const entry of ipTableLines(which, spec, await (await readFile(spec.file)).text(), projectEpsg)) { delete entry._origin; store.saveDcipLine(entry); n++; }
+        for (const entry of ipTableLines(which, spec, await (await readFile(spec.file)).text())) { store.saveDcipLine(entry); n++; }
         await tick();
       }
       counts.ipLines = (counts.ipLines || 0) + n;

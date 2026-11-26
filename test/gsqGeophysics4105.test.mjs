@@ -61,11 +61,19 @@ test("each sample's open loads every kind its icons claim, with the counts the f
 test("what loads is where the Geophysics tab looks: IP lines placed with stations, surveys with a method, EM layers on the project's holes, the loop a boundary", async () => {
   for (const id of IDS) {
     const { got, holeIds } = await openSample(id);
-    for (const e of got.dcip) { assert.ok(e.line.stations?.list?.length > 1, `${id}: IP line ${e.name} is placed from its stations / electrodes`); assert.ok(e.readings.length > 20 && e.rho.length === e.readings.length, `${id}: ${e.name} has readings`); assert.equal(e.sample, id); }
+    for (const e of got.dcip) { assert.ok(e.line.stations?.list?.length > 1 || (e.line.x0 !== "" && e.line.x1 !== ""), `${id}: IP line ${e.name} is placed from its stations / electrodes`); assert.ok(e.readings.length > 20 && e.rho.length === e.readings.length, `${id}: ${e.name} has readings`); assert.equal(e.sample, id); }
     for (const [name, meta] of Object.entries(got.surveys)) { assert.ok(meta?.method, `${id}: survey ${name} has a method`); assert.ok((got.layers.geophys_pts || []).some((p) => p._src === name), `${id}: survey ${name} has points`); }
     for (const l of got.custom) assert.ok(l.rows.length && l.rows.every((r) => holeIds.includes(r.hole_id)), `${id}: ${l.name} sits on the project's holes`);
     if (GSQ_GEOPHYSICS[id].groundEm) assert.ok(Object.keys(got.surveys).some((k) => /ground EM decay constant/.test(k)), `${id}: ground EM is one survey`);
   }
+});
+
+test("the counts side 2 verified in the app: Edinburgh's IP arrays read once (1,707), Cloncurry's .esf 422 readings, Black Mountain's corr_nlf magnetics, 38,038 readings (side 2's 85 without a value are in another column)", async () => {
+  const e = await openSample("gsq_edinburgh_park");
+  assert.equal(e.got.dcip.reduce((n, l) => n + l.readings.length, 0), 1707);
+  assert.equal((await openSample("gsq_cloncurry")).got.dcip[0].readings.length, 422);
+  const b = await openSample("gsq_black_mountain");
+  assert.equal((b.got.layers.geophys_pts || []).filter((p) => p._src === "ground_mag_lines.xyz").length, 38038);
 });
 
 test("the sample's open calls the loader for a GSQ sample, after the holes' extras, with the solid import for the plates", () => {
