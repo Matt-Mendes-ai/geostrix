@@ -1,0 +1,24 @@
+holes: 3 (grid MGA94_54 -> EPSG:28354)
+survey: 18 stations, magnetic -> grid by 6.22 to 6.25 degrees (IGRF at each survey date)
+litho.csv: 100 intervals, 0 overlapping
+mineralisation.csv: 4 intervals, 0 overlapping
+struct_zones.csv: 133 intervals, 5 overlapping
+veins.csv: 24 intervals, 1 overlapping
+assays: 109 intervals (0 overlapping), 2 QC standard(s) flagged, 61 elements and the crushing check (Pass2mm %)
+pxrf.csv: 725 readings (17 elements with their errors), sample types Core
+magsus.csv: 731 readings
+density.csv: 244 readings
+IP line 7552000N: 27 stations, nearest to each hole 404 / 402 / 8160 m
+IP line 7552400N: 51 stations, nearest to each hole 22 / 4 / 8548 m
+IP line 49000E: 31 stations, nearest to each hole 7146 / 6804 / 3571 m
+IP line 50000E: 31 stations, nearest to each hole 6261 / 5949 / 3058 m
+IP line 7543300N: 37 stations, nearest to each hole 9103 / 9104 / 803 m
+IP line 7544100N: 62 stations, nearest to each hole 8303 / 8304 / 48 m
+IP line 7551200N: 39 stations, nearest to each hole 1203 / 1202 / 7477 m
+EM OSB018_BField_groundem_mga54.tem: 102 stations (INLOOP), nearest to each hole 1887 / 1048 / 8244 m
+EM OSB057_BField_groundem_mga54.tem: left out (nearest station 11788 m from a hole)
+EM OSB060_BField_groundem_mga54.tem: 27 stations (INLOOP), nearest to each hole 10273 / 10482 / 2205 m
+EM OSB062_BField_groundem_mga54.tem: left out (nearest station 4047 m from a hole)
+EM OSB064_BField_groundem_mga54.tem: 21 stations (INLOOP), nearest to each hole 8203 / 8451 / 320 m
+EM OSB065_BField_groundem_mga54.tem: 25 stations (INLOOP), nearest to each hole 5651 / 6457 / 3156 m
+sample size: 1.81 MB in 31 files
