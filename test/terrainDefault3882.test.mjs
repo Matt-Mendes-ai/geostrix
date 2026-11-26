@@ -61,7 +61,7 @@ test("#3882 a GLO-30 terrain: the credit line ESA's licence asks for, tiles in t
 
 test("#3882 the Help names the default and says AWS is a choice; a saved terrain keeps its source", () => {
   const h = read("../src/help/pages/geophysics.js");
-  assert.match(h, /Copernicus GLO-30 \(~30 m\), the default/);
+  assert.match(h, /Copernicus GLO-30 \(≈ 30 m\), the default/ /* #4104 */);
   assert.match(h, /A terrain already in the project keeps the source it was fetched from\./);
   assert.match(h, /Shown only when AWS Terrain Tiles is the Online source\./);
 });

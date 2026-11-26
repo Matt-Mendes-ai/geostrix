@@ -10,6 +10,6 @@ test("each slip has its own wording now", () => {
   assert.match(g, /model\.id === "geophys_pts" [^\n]*tr\("Generates \{classCount\} classes from this survey's point values/);
   assert.match(g, /pts \? tr\("2–98 % of the points \(\{lo\} to \{hi\}\)"/);
   assert.match(read("src/components/SpatialAnalysis.jsx"), /\+ \(isMetricProjectedEpsg\(project\?\.epsg\) \? " m²" : ""\)/);
-  assert.match(read("src/components/InversionPanel.jsx"), /coverage\.pct >= 99\.95 \? tr\("The terrain covers every station\."\)/);
+  assert.match(read("src/components/InversionPanel.jsx"), /covered\.outside === 0 \? tr\("The terrain covers every station\."\)/ /* #4104: "every" only when none is outside */);
   assert.match(read("src/components/DcipPanel.jsx"), /line\.stations\.line \? tr\("Stations: \{list\} from \{file\} \(line \{line\}\)\{v\}\."[^\n]*: tr\("Stations: \{list\} from \{file\}\{v\}\."/);
 });

@@ -32,7 +32,7 @@ export async function loadPerkRocky(readFile, { addMapLayer, addSurfaceStructure
   // the terrain first, so the map layers drape on it
   try {
     const t = await parseDEMFiles([await readFile(PERK_TERRAIN)], projectEpsg, null, { gridMax: 320 }); // the bundled grid as it is (~30 m, GLO-30's own)
-    addTerrain({ name: tr("Terrain (Copernicus GLO-30, ~30 m)"), bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { service: "Copernicus DEM GLO-30 (bundled with the sample)", sourcePixelM: 30 } });
+    addTerrain({ name: tr("Terrain (Copernicus GLO-30, ≈ 30 m)"), bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { service: "Copernicus DEM GLO-30 (bundled with the sample)", sourcePixelM: 30 } });
   } catch (e) { notes.push(errorNotice(tr("The Perk-Rocky terrain could not be loaded: {message}", { message: e.message }))); }
   const added = [];
   for (const L of PERK_LAYERS) {

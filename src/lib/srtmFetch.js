@@ -386,7 +386,7 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
   const sourcePixelM = (40075016.686 * Math.cos(latMid)) / (TILE * 2 ** zoom);
   const nodeM = Math.max(((lonMax - lonMin) * 111320 * Math.cos(latMid)) / Math.max(1, gridW - 1), ((latMax - latMin) * 110574) / Math.max(1, gridH - 1));
   return {
-    name: `Terrain (AWS Terrain Tiles, ~${Math.round(nodeM)} m grid)`,
+    name: `Terrain (AWS Terrain Tiles, ≈ ${Math.round(nodeM)} m grid)`,
     bbox: out.bbox, gridW: out.gridW, gridH: out.gridH, elevations: out.elevations,
     reprojectedTo: out.reprojectedTo, reprojectNote: out.reprojectNote, tileCount: got, zoom,
     source: { service: "AWS Terrain Tiles (Terrarium): SRTM blended with national DEMs (CDEM in Canada)", zoom, sourcePixelM, nodeM, fetched: new Date().toISOString().slice(0, 10) },

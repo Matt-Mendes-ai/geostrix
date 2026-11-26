@@ -405,7 +405,7 @@ function* validateIntervalLayerSteps(rows, layerLabel, collarIds, holeLengths, {
     }
     const maxDepth = holeLengths.get(r.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(r.to) && r.to > maxDepth + 0.5) {
-      pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Interval to={to}m extends past this hole's own recorded length/survey extent (~{maxDepth}m) — depth may be measured-depth vs true-vertical-depth confusion, or a mis-keyed hole ID.", { to: r.to, maxDepth: maxDepth.toFixed(0) }));
+      pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Interval to={to}m extends past this hole's own recorded length/survey extent (≈ {maxDepth}m) — depth may be measured-depth vs true-vertical-depth confusion, or a mis-keyed hole ID.", { to: r.to, maxDepth: maxDepth.toFixed(0) }));
     }
     if (range && typeof r.value === "number" && Number.isFinite(r.value) && (r.value < range.min || r.value > range.max)) {
       // TASKS.csv #3569 (Fireweed rehearsal) — a density flag with its unit and the sample's grades: 6.31 t/m³ with Zn 0.02 %, Pb 0.05 % is a fair question; the numbers that answer it are held
@@ -470,7 +470,7 @@ function validatePointLayer(rows, layerLabel, collarIds, holeLengths) {
     if (!Number.isFinite(depth) || depth < 0) pushIssue(issues, "error", layerLabel, r.hole_id, tr("Point has an invalid depth ({depth}).", { depth }));
     const maxDepth = holeLengths.get(r.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(depth) && depth > maxDepth + 0.5) {
-      pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Point at {depth}m extends past this hole's own recorded length/survey extent (~{maxDepth}m).", { depth, maxDepth: maxDepth.toFixed(0) }));
+      pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Point at {depth}m extends past this hole's own recorded length/survey extent (≈ {maxDepth}m).", { depth, maxDepth: maxDepth.toFixed(0) }));
     }
   });
   orphans.forEach((n, id) => pushIssue(issues, "error", layerLabel, id, n === 1 ? tr("Point references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} points reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
@@ -523,7 +523,7 @@ function* validateAssaysSteps(assays, collarIds, holeLengths) { // #3136
     }
     const maxDepth = holeLengths.get(a.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(a.to) && a.to > maxDepth + 0.5) {
-      pushIssue(issues, "warning", "Assays", a.hole_id, tr("Assay interval to={to}m extends past this hole's own recorded length/survey extent (~{maxDepth}m).", { to: a.to, maxDepth: maxDepth.toFixed(0) }));
+      pushIssue(issues, "warning", "Assays", a.hole_id, tr("Assay interval to={to}m extends past this hole's own recorded length/survey extent (≈ {maxDepth}m).", { to: a.to, maxDepth: maxDepth.toFixed(0) }));
     }
     const values = a.values || {};
     const symbols = Object.keys(values);
@@ -600,7 +600,7 @@ function checkRingTopology(pts, label, boundaryName, issues) {
   for (let i = 0; i < n; i++) {
     const a = pts[i], b = pts[(i + 1) % n];
     if (Math.hypot(b.x - a.x, b.y - a.y) < 1e-6) {
-      pushIssue(issues, "warning", label, boundaryName, tr("Two consecutive vertices are at (near) the same point (~{x}, {y}) — a zero-length edge.", { x: a.x.toFixed(1), y: a.y.toFixed(1) }));
+      pushIssue(issues, "warning", label, boundaryName, tr("Two consecutive vertices are at (near) the same point (≈ {x}, {y}) — a zero-length edge.", { x: a.x.toFixed(1), y: a.y.toFixed(1) }));
     }
   }
   for (let i = 0; i < n; i++) {
@@ -693,7 +693,7 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
   const med = abs[Math.floor(abs.length / 2)];
   const off = offs.filter((o) => Math.abs(o.dz) > threshold);
   const nodeM = terrainNodeM(terrain); // #3807 — a number, whatever the terrain stored
-  const grid = nodeM ? ` The terrain's nodes are ~${Math.round(nodeM)} m apart, so on steep ground a correct collar can differ from it by tens of metres.` : ""; // #726
+  const grid = nodeM ? ` The terrain's nodes are ≈ ${Math.round(nodeM)} m apart, so on steep ground a correct collar can differ from it by tens of metres.` : ""; // #726
   pushIssue(issues, "info", "Collar vs terrain", null, tr("{offs} collar(s) compared with the terrain \"{v}\": median difference {med} m, {off} over {threshold} m.{grid}{v2}", { offs: offs.length, v: terrain.name || "DEM", med: med.toFixed(1), off: off.length, threshold, grid, v2: off.length && off.every((o) => Math.sign(o.dz) === Math.sign(off[0].dz)) && off.length >= 3 ? tr(" All {off} are {v} the ground — a datum or unit problem (ellipsoidal vs orthometric height, feet vs metres) rather than GPS scatter?", { off: off.length, v: off[0].dz > 0 ? "above" : "below" }) : "" }) + (() => { const sd = collarTerrainSide(offs); return sd?.side ? " " + tr(sd.side === "below" ? "{k} of the {n} collars are {lo} to {hi} m below this terrain (median {m} m): the terrain and the collar elevations differ by a steady offset, not by scatter." : "{k} of the {n} collars are {lo} to {hi} m above this terrain (median {m} m): the terrain and the collar elevations differ by a steady offset, not by scatter.", { k: sd.side === "below" ? sd.below : sd.above, n: sd.n, lo: sd.lo.toFixed(1), hi: sd.hi.toFixed(1), m: sd.med.toFixed(1) }) : ""; })()); // #3807 — which way
   // TASKS.csv #3882 follow-up — a compact cluster of collars far above the ground (mined since they were drilled), named even when the median is moderate
   const cluster = collarClusterAbove(collars, terrain);

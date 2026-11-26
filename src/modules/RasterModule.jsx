@@ -90,8 +90,8 @@ function SpectrumPanel({ spectrum, onSplit }) {
       </svg>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginTop: 4 }}>
         {!fit ? tr("The spectrum does not fall with wavenumber: no depth can be read from it.")
-          : fit.shallow ? tr("Deep sources ~{deep} m (red), shallow ~{shallow} m (blue) below the observation level (the ground, or the sensor if airborne: subtract its height). Ensemble averages, not single bodies.", { /* #2870 */ deep: Math.round(fit.deep.h), shallow: Math.round(fit.shallow.h) })
-          : tr("One straight segment: sources ~{deep} m (red) below the observation level (the ground, or the sensor if airborne: subtract its height).", { /* #2870 */ deep: Math.round(fit.deep.h) })}
+          : fit.shallow ? tr("Deep sources ≈ {deep} m (red), shallow ≈ {shallow} m (blue) below the observation level (the ground, or the sensor if airborne: subtract its height). Ensemble averages, not single bodies.", { /* #2870 */ deep: Math.round(fit.deep.h), shallow: Math.round(fit.shallow.h) })
+          : tr("One straight segment: sources ≈ {deep} m (red) below the observation level (the ground, or the sensor if airborne: subtract its height).", { /* #2870 */ deep: Math.round(fit.deep.h) })}
       </div>
       {fit?.shallow && (
         <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
@@ -245,7 +245,7 @@ export default function RasterModule({ embedded = false } = {}) {
     try {
       const m = matchedFilter({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values: b64ToF32(g.values) }, fit);
       const h = Math.round(fit[which].h);
-      const nr = await (await import("../lib/gridFilterClient.js")).rasterFromGridAsync({ name: `${r.name} — ${which === "deep" ? "deep" : "shallow"} component (~${h} m, matched filter)`, values: m[which], nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
+      const nr = await (await import("../lib/gridFilterClient.js")).rasterFromGridAsync({ name: `${r.name} — ${which === "deep" ? "deep" : "shallow"} component (≈ ${h} m, matched filter)`, values: m[which], nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
         extra: { filter: { kind: `matched-${which}`, label: "Matched filter (Spector & Grant 1970)", params: { deepDepthM: Math.round(fit.deep.h), shallowDepthM: Math.round(fit.shallow.h) }, sourceRaster: r.name, method: "w(k) = sqrt(P_i / (P_deep + P_shallow)) from the two fitted spectrum segments (gridFilters.js matchedFilter)", at: new Date().toISOString() } } });
       if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in
       addRaster({ ...nr, ...placeOf(r, `matched-${which}`) }); // #2560
@@ -800,7 +800,7 @@ export default function RasterModule({ embedded = false } = {}) {
                 )}
                 {/* #4087 — what the filter does and assumes, behind its More */}
                 <MoreFold style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 6, marginBottom: 0, lineHeight: 1.4 }}>
-                  {{ rtp: tr("For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there."),
+                  {{ rtp: tr("For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ≈ 20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there."),
                      rtpa: tr("RTP with amplitude from a steeper inclination (MacLeod, Jones & Dai 1993), stable near the magnetic equator. Same positions and shapes as RTP, lower amplitudes. Assumes induced magnetization."), // #1988
                      rte: tr("Reduction to the equator (Leu 1982), stable at any inclination. Magnetic bodies show as lows elongated along the declination; flip the colour ramp to read highs."),
                      euler: tr("Euler depth and position in sliding windows (Reid et al. 1990) on an RTP or gravity grid. Structural index = source shape; the window should span an anomaly (blank: 10 cells). The first run starts the engine."),
@@ -879,7 +879,7 @@ export default function RasterModule({ embedded = false } = {}) {
                     {Object.entries(SAT_LEVELS).map(([k, l]) => { const same = bbox && levelsAddingNothing(bbox, naip ? NAIP_FINEST_M : undefined).has(k); /* #1766 */ return <option key={k} value={k} disabled={same && k !== satLevel}>{same ? tr("{label} resolution (no finer here: the imagery's own pixels)", { label: l.label }) : tr("{label} resolution", { label: l.label })}</option>; })}
                   </select>
                   {naip && bbox && naipCoverage(bbox) !== "inside" && <span style={{ color: "var(--color-danger-icon-strong)" }}>{naipCoverage(bbox) === "outside" ? tr("Outside the USA: NAIP has no imagery here.") : tr("Part of this area is outside the USA: NAIP covers only the rest.")}</span>}{/* #1474 */}
-                  {p && <span>{tr("~{v} m pixels · image {gridW} × {gridH} px{v3}", { gridW: p.gridW, gridH: p.gridH, v: naip ? (p.pixelM < 10 ? p.pixelM.toFixed(1) : Math.round(p.pixelM)) : Math.round(p.pixelM), v3: p.nativeLimited ? (naip ? tr(" · imagery's finest") : tr(" · imagery's finest (10 m)")) : "" })}</span>}
+                  {p && <span>{tr("≈ {v} m pixels · image {gridW} × {gridH} px{v3}", { gridW: p.gridW, gridH: p.gridH, v: naip ? (p.pixelM < 10 ? p.pixelM.toFixed(1) : Math.round(p.pixelM)) : Math.round(p.pixelM), v3: p.nativeLimited ? (naip ? tr(" · imagery's finest") : tr(" · imagery's finest (10 m)")) : "" })}</span>}
                   {(() => { // #3251 — the pictures and memory, at the most (NAIP planned at 0.3 m); over this computer's share, said
                     const w = bbox ? satWorst(bbox) : null;
                     if (!w || (w.parts <= 1 && fetchFits(w.memoryMB, ramGB))) return null;

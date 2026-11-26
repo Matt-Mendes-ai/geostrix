@@ -54,7 +54,7 @@ export function viewportScaleText(el) {
   if (el.trueScale && el.fixedScale > 0 && el.capturedFixedScale === el.fixedScale) return `1 : ${el.fixedScale.toLocaleString()}`;
   const m = metresPerPagePx(el);
   if (!m) return null;
-  return `${el.trueScale ? "" : "~"}1 : ${Math.round(m / M_PER_PAGE_PX).toLocaleString()}`;
+  return `${el.trueScale ? "" : "≈ "}1 : ${Math.round(m / M_PER_PAGE_PX).toLocaleString()}`;
 }
 
 // TASKS.csv #944 — a cross-section snapshot (an image carrying worldWidthAtCaptureM: the metres its full width shows):
@@ -95,7 +95,7 @@ export function pageScaleText(els) {
     const plan = list.find((e) => e.type === "drillplan" && Number(e.scale) > 0);
     return plan ? `1 : ${Math.round(Number(plan.scale)).toLocaleString()}` : "";
   }
-  const text = v.trueScale && v.capturedFixedScale > 0 ? `1 : ${v.capturedFixedScale.toLocaleString()}` : `${v.trueScale ? "" : "~"}1 : ${Math.round(metresPerPagePx(v) / M_PER_PAGE_PX).toLocaleString()}`;
+  const text = v.trueScale && v.capturedFixedScale > 0 ? `1 : ${v.capturedFixedScale.toLocaleString()}` : `${v.trueScale ? "" : "≈ "}1 : ${Math.round(metresPerPagePx(v) / M_PER_PAGE_PX).toLocaleString()}`;
   const out = obliqueCapture(v) ? tr("{scale} in the view plane (oblique view)", { scale: text }) : text;
   return v.ve > 1 ? tr("{scale}, vertical exaggeration {ve}×", { scale: out, ve: v.ve }) : out; // #2628 — the snapshot is stretched vertically
 }

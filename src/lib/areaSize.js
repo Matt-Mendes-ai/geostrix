@@ -5,5 +5,5 @@ export function areaSizeText(b) {
   if (!b) return "";
   const midLat = ((b[1] + b[3]) / 2) * Math.PI / 180, w = (b[2] - b[0]) * 111.32 * Math.cos(midLat), h = (b[3] - b[1]) * 110.57;
   const f = (km) => (km < 1 ? `${Math.round(km * 1000)} m` : `${km < 10 ? km.toFixed(1) : Math.round(km).toLocaleString()} km`);
-  return `~${f(w)} × ${f(h)}`;
+  return `≈ ${f(w)} × ${f(h)}`;
 }

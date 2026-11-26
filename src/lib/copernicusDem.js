@@ -127,10 +127,10 @@ export async function fetchCopernicusTerrain({ lonMin, latMin, lonMax, latMax, t
   const latMid = ((latMin + latMax) / 2) * (Math.PI / 180);
   const nodeM = Math.max(((lonMax - lonMin) * 111320 * Math.cos(latMid)) / Math.max(1, gridW - 1), ((latMax - latMin) * 110574) / Math.max(1, gridH - 1));
   return {
-    name: `Terrain (Copernicus GLO-30, ~${Math.round(nodeM)} m grid)`,
+    name: `Terrain (Copernicus GLO-30, ≈ ${Math.round(nodeM)} m grid)`,
     bbox: out.bbox, gridW: out.gridW, gridH: out.gridH, elevations: out.elevations,
     reprojectedTo: out.reprojectedTo, reprojectNote: out.reprojectNote, tileCount: r.got,
-    source: { service: "Copernicus DEM GLO-30 (ESA, surface model ~30 m)", zoom: null, sourcePixelM: 30, nodeM, fetched: new Date().toISOString().slice(0, 10) },
+    source: { service: "Copernicus DEM GLO-30 (ESA, surface model ≈ 30 m)", zoom: null, sourcePixelM: 30, nodeM, fetched: new Date().toISOString().slice(0, 10) },
     noDataMask: out.noDataMask, noDataNote: out.noDataNote,
     failedTiles: r.failed.length,
   };

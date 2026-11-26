@@ -93,7 +93,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
         addRaster({ name: `WMS: ${selectedLayer.title || selectedLayer.name}`, bbox: raster.bbox, dataUrl: raster.dataUrl });
         const title = selectedLayer.title || selectedLayer.name;
         const failedNote = raster.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: raster.failedTiles, total: raster.tiles }) : "";
-        setResult({ ok: !raster.failedTiles, warn: !!raster.failedTiles, text: tr("Imported \"{title}\" as a raster drape: {w} × {h} px, ~{m} m pixels ({tiles} map requests).", { title, w: raster.width, h: raster.height, m: fmtM(raster.pixelM), tiles: raster.tiles }) + failedNote });
+        setResult({ ok: !raster.failedTiles, warn: !!raster.failedTiles, text: tr("Imported \"{title}\" as a raster drape: {w} × {h} px, ≈ {m} m pixels ({tiles} map requests).", { title, w: raster.width, h: raster.height, m: fmtM(raster.pixelM), tiles: raster.tiles }) + failedNote });
       } else {
         const clip = clipToArea && defaultBboxLonLat ? defaultBboxLonLat : null;
         const boundary = await fetchWfsFeaturesAsBoundary({ baseUrl: url.trim(), typeName: selectedLayer.name, projectEpsg, clipBboxLonLat: clip, signal: job.signal /* #3963 */ });
@@ -204,7 +204,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
                 title={tr("The longest side of the imported image. Larger ones take several requests, take longer and make a bigger project file.")}>
                 {Object.entries(WMS_DETAIL).map(([k, d]) => <option key={k} value={k}>{tr("{label} ({px} px)", { label: tr(d.label), px: d.longPx.toLocaleString() })}</option>)}
               </select>
-              {wmsPlan && <span style={{ opacity: 0.75 }}>{tr("~{m} m pixels · {w} × {h} px · {n} map requests", { m: fmtM(wmsPlan.m), w: wmsPlan.width, h: wmsPlan.height, n: wmsPlan.requests })}</span>}
+              {wmsPlan && <span style={{ opacity: 0.75 }}>{tr("≈ {m} m pixels · {w} × {h} px · {n} map requests", { m: fmtM(wmsPlan.m), w: wmsPlan.width, h: wmsPlan.height, n: wmsPlan.requests })}</span>}
             </div>
             {/* the permission line stays seen where the image is fetched; why more detail may not help is in the Help card */}
             <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, marginTop: 4, lineHeight: 1.4 }}>{tr("Use services whose terms allow saving their images.")}</div>

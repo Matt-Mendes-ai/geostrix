@@ -352,7 +352,7 @@ export async function fetchSceneTrueColour(scene, bboxLonLat, { targetEpsg = nul
   const { dataUrl, bbox, pixelM } = renderTrueColour(out, r.mapping);
   const cov = r.masked?.cover || { cloud: 0, shadow: 0 };
   return {
-    name: `Sentinel-2 ${scene.date} true colour (${scene.id}, ~${pixelM} m pixels)`,
+    name: `Sentinel-2 ${scene.date} true colour (${scene.id}, ≈ ${pixelM} m pixels)`,
     bbox, dataUrl, gridW: out.width, gridH: out.height, epsg: out.epsg, scene, pixelM: Math.max(out.scaleX, out.scaleY), areaCloud: cov.cloud + cov.shadow,
     note: tr(" Scene {id}, {date}: the red / green / blue surface reflectance of the scene the index was made from, stretched together; snow, cloud and water are shown as they are.", { id: scene.id, date: scene.date }),
   };
@@ -387,7 +387,7 @@ export async function fetchLatestTrueColour(bboxLonLat, { targetEpsg = null, max
   const { out } = r;
   const { dataUrl, bbox, pixelM } = renderTrueColour(out, r.mapping);
   return {
-    name: `Sentinel-2 ${scene.date} natural colour (~${pixelM} m pixels)`,
+    name: `Sentinel-2 ${scene.date} natural colour (≈ ${pixelM} m pixels)`,
     bbox, dataUrl, gridW: out.width, gridH: out.height, epsg: out.epsg, scene, pixelM: Math.max(out.scaleX, out.scaleY), // pixelM: #3251, said on the raster's card
     areaCloud: bad,
     note: tr(" Scene {id}, {date}: {pct}% cloud or shadow over your area (scenes tried, newest first: {tried}). Natural colour (red / green / blue surface reflectance stretched together).", { id: scene.id, date: scene.date, pct: Math.round(100 * bad), tried: tried.join(", ") }),

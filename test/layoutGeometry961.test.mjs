@@ -38,7 +38,7 @@ test("#961: an old request without a height takes the image's aspect, unrounded 
 
 test("#961: a free perspective capture reads ~1:N; image px <-> world round-trips through a rotated plan view", () => {
   const free = { type: "viewport", src: "x", w: 384, h: 192, capW: 384, capH: 192, worldHeightAtTarget: 508, trueScale: false, planView: true };
-  assert.equal(viewportScaleText(free), `~1 : ${(10000).toLocaleString()}`);
+  assert.equal(viewportScaleText(free), `≈ 1 : ${(10000).toLocaleString()}` /* #4104 */);
   const vp = { ...capture(2000, 400, 300, { planView: true }), targetWorld: { x: 500000, y: 6000000 }, cameraAzimuthDeg: 30 };
   const [E, N] = vpToWorld(vp, 120, -80);
   const [u, v] = worldToVp(vp, E, N);

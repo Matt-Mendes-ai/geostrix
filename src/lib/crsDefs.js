@@ -120,7 +120,7 @@ const GRS80_ZERO = "+ellps=GRS80 +towgs84=0,0,0,0,0,0,0";
 // #2458 — the same null shift to WGS 84, tagged so a GDA94 <-> GDA2020 pair takes EPSG:8048 (gdaPair above)
 export const GDA94 = `${GRS80_ZERO} +title=GDA94`, GDA2020 = `${GRS80_ZERO} +title=GDA2020`;
 const SAD69_BRAZIL = "+ellps=aust_SA +towgs84=-66.87,4.37,-38.52,0,0,0,0";
-const SAD69_TAG = "Brazil datum shift, ~5 m";
+const SAD69_TAG = "Brazil datum shift, ≈ 5 m";
 const AGD84_SHIFT = "+ellps=aust_SA +towgs84=-117.763,-51.51,139.061,0.292,0.443,0.277,-0.191"; // #2155 — EPSG:1280 / 1669
 const AGD66_SHIFT = "+ellps=aust_SA +towgs84=-117.808,-51.536,137.784,0.303,0.446,0.234,-0.29"; // #2155 — EPSG:15979
 export const REGISTRY = new Map(); // code -> { def, name }
@@ -175,7 +175,7 @@ export function datumNote(epsg) {
   if (c === 4267 || (c >= 26701 && c <= 26722)) {
     // TASKS.csv #299 — the shift itself. #489 sweep against PROJ: within ~12 m of PROJ's local choice in zones 9-12N, ~31 m in 7-8N, up to ~200 m
     // in zones far from western Canada (the shift is a fit for Alberta/BC only).
-    return tr("NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC, typically within ~10 m there; EPSG's own fits for other regions differ from it by about 5-31 m). Not survey-grade: that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet."); // #973 — figures from the EPSG parameter sets 1172 / 1173 / 1174 against 1179
+    return tr("NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC, typically within ≈ 10 m there; EPSG's own fits for other regions differ from it by about 5-31 m). Not survey-grade: that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet."); // #973 — figures from the EPSG parameter sets 1172 / 1173 / 1174 against 1179
   }
   // #834 — a code from the EPSG registry (not hand-verified): what EPSG says about its datum shift
   const f = !handDef(c) && fullEntry(c);
@@ -323,7 +323,7 @@ const CRS_NAMED = [
   [3154, "NAD83(CSRS) / UTM zone 7N"], [2955, "NAD83(CSRS) / UTM zone 11N"],
   [3005, "NAD83 / BC Albers"], [3979, "NAD83(CSRS) / Canada Atlas Lambert"], [3857, "WGS 84 / Pseudo-Mercator (web maps)"],
   [4326, "WGS 84 (longitude / latitude)"], [4269, "NAD83 (longitude / latitude)"], [4617, "NAD83(CSRS) (longitude / latitude)"],
-  [4267, "NAD27 (longitude / latitude) — ~10 m datum approximation"],
+  [4267, "NAD27 (longitude / latitude) — ≈ 10 m datum approximation"],
 ];
 
 let listCache = null;
@@ -335,7 +335,7 @@ export function listSupportedCrs() {
   Object.entries(NAD83_CSRS_UTM).sort((a, b) => a[1] - b[1]).forEach(([code, z]) => { if (!listed.has(Number(code))) out.push({ code: Number(code), name: `NAD83(CSRS) / UTM zone ${z}N` }); });
   for (const [code, e] of REGISTRY) out.push({ code, name: e.name });
   for (let z = 1; z <= 23; z++) out.push({ code: 26900 + z, name: `NAD83 / UTM zone ${z}N` });
-  for (let z = 1; z <= 22; z++) out.push({ code: 26700 + z, name: `NAD27 / UTM zone ${z}N — ~10 m datum approximation` });
+  for (let z = 1; z <= 22; z++) out.push({ code: 26700 + z, name: `NAD27 / UTM zone ${z}N — ≈ 10 m datum approximation` });
   for (let z = 1; z <= 60; z++) out.push({ code: 32600 + z, name: `WGS 84 / UTM zone ${z}N` });
   for (let z = 1; z <= 60; z++) out.push({ code: 32700 + z, name: `WGS 84 / UTM zone ${z}S` });
   const res = out.map((c) => ({ ...c, geographic: /longitude/.test(c.name) }));

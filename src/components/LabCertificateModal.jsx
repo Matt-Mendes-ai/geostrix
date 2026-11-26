@@ -35,7 +35,7 @@ export default function LabCertificateModal({ review, assays, onChange, onCancel
   const help = (
     <details open>
       <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{tr("Lab certificates")}</summary>
-      <div style={note}>{tr("GeoStrix suggests a type for each sample that is only in the certificates:")}{" "}<b>{tr("blank")}</b>{" "}{tr("when its ore elements sit at the bottom of the drill samples,")}{" "}<b>{tr("standard")}</b>{" "}{tr("when several inserts share one multi-element signature (one group per reference material),")}{" "}<b>{tr("duplicate")}</b>{" "}{tr("when it is within ~30 % of a drill sample just before or after it in the numbering. Check them against the lab's QC list; nothing is classified until you import.")}</div>
+      <div style={note}>{tr("GeoStrix suggests a type for each sample that is only in the certificates:")}{" "}<b>{tr("blank")}</b>{" "}{tr("when its ore elements sit at the bottom of the drill samples,")}{" "}<b>{tr("standard")}</b>{" "}{tr("when several inserts share one multi-element signature (one group per reference material),")}{" "}<b>{tr("duplicate")}</b>{" "}{tr("when it is within ≈ 30 % of a drill sample just before or after it in the numbering. Check them against the lab's QC list; nothing is classified until you import.")}</div>
       <div style={{ ...note, marginTop: 6 }}>{tr("A group's name box renames that reference material for every insert in the group (e.g. the CRM's real name).")}</div>
       <div style={{ ...note, marginTop: 6 }}>{tr("A drill sample without a certificate: a certificate not given, or a sample id written differently.")}</div>
     </details>

@@ -64,6 +64,6 @@ test("the walk keeps no per-candidate objects and sorts only the usable ones; th
   assert.match(m, /Math\.round\(progress \* 100\) \+ "%" \+ timeLeft\(progress\)/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
-    for (const k of [" (about {s} s left)", " (about {m} min left)", "~0.1 GB of memory", "~0.4 GB of memory", "~0.9 GB of memory"]) assert.ok(d[k], `${l}: ${k}`);
+    for (const k of [" (about {s} s left)", " (about {m} min left)", "≈ 0.1 GB of memory", "≈ 0.4 GB of memory", "≈ 0.9 GB of memory" /* #4104 */]) assert.ok(d[k], `${l}: ${k}`);
   }
 });

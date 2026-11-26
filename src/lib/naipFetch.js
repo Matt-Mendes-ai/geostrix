@@ -120,7 +120,7 @@ export async function fetchNaip(bboxLonLat, { targetEpsg = null, maxPx = 2048, f
     const tileLonLat = gridLonLat(grid, dst);
     const part = await paintNaipGrid(grid, tileLonLat, items, dst, () => onProgress?.(++done, steps), signal);
     if (!part) continue;
-    const name = `NAIP ${yearText} natural colour (~${pixel} m pixels)${plan.tiles.length > 1 ? `, part ${k + 1} of ${plan.tiles.length}` : ""}`;
+    const name = `NAIP ${yearText} natural colour (≈ ${pixel} m pixels)${plan.tiles.length > 1 ? `, part ${k + 1} of ${plan.tiles.length}` : ""}`;
     parts.push({ name, bbox: grid.box, dataUrl: part, gridW: grid.width, gridH: grid.height, pixelM: grid.cell });
   }
   if (!parts.length) throw new Error(tr("No NAIP imagery here. NAIP covers the USA only; elsewhere use the Sentinel-2 source."));

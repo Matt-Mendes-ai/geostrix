@@ -227,7 +227,7 @@ def _validate_potential(req):
     xs = [r[0] for r in req["stations"]]; ys = [r[1] for r in req["stations"]]
     n_core = ((max(xs) - min(xs)) / cell + 5) * ((max(ys) - min(ys)) / cell + 5) * (depth / cell + 5)
     if n_core > 3_000_000:
-        raise HTTPException(400, f"That mesh would have ~{int(n_core):,} core cells — use a larger core cell.")
+        raise HTTPException(400, f"That mesh would have ≈ {int(n_core):,} core cells — use a larger core cell.")  # ≈: #4104
     if req["method"] == "mag":
         f = req.get("field") or {}
         for k in ("strength", "inclination", "declination"):
@@ -311,7 +311,7 @@ def _validate_dcip2d(req):
     pos = [v for row in r for v in row if v is not None]
     n_core = ((max(pos) - min(pos)) / cell + 4) * (depth / (cell / 2) + 1)
     if n_core > 200_000:
-        raise HTTPException(400, f"That section would have ~{int(n_core):,} core cells — use a larger cell.")
+        raise HTTPException(400, f"That section would have ≈ {int(n_core):,} core cells — use a larger cell.")  # ≈: #4104
     u = req.get("uncertainty") or {}
     if not ((isinstance(u.get("percent"), (int, float)) and u["percent"] > 0) or (isinstance(u.get("floor"), (int, float)) and u["floor"] > 0)):
         raise HTTPException(400, "uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")

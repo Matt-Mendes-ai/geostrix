@@ -51,6 +51,6 @@ test("(3) cluster buttons name the place; (6) the no-structures notice; the keys
   assert.ok(r.includes("contact points: the orientation comes from the contacts alone."));
   for (const l of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
-    for (const k of ["Group as {name}", "Around E {e}, N {nn}: {n} holes over {s} km", "No structure picks found — estimated a single dip/azimuth (~{dip}°/~{azimuth}°) from the shape of the \"{unitName}\" contact points: the orientation comes from the contacts alone."]) assert.ok(d[k], `${l}: ${k}`);
+    for (const k of ["Group as {name}", "Around E {e}, N {nn}: {n} holes over {s} km", "No structure picks found — estimated a single dip/azimuth (≈ {dip}°/≈ {azimuth}°) from the shape of the \"{unitName}\" contact points: the orientation comes from the contacts alone."]) assert.ok(d[k], `${l}: ${k}`);
   }
 });

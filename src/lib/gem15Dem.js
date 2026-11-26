@@ -119,7 +119,7 @@ export async function fetchGemTerrain({ lonMin, latMin, lonMax, latMax, targetEp
   const nodeM = Math.max(((lonMax - lonMin) * 111320 * Math.cos(latMid)) / Math.max(1, gridW - 1), ((latMax - latMin) * 110574) / Math.max(1, gridH - 1));
   const name = band === "dtm" ? "Terrain (Google GEM-15 bare earth" : "Terrain (Google GEM-15 surface";
   return {
-    name: `${name}${filled ? " + GLO-30 gaps" : ""}, ~${Math.round(nodeM)} m grid)`,
+    name: `${name}${filled ? " + GLO-30 gaps" : ""}, ≈ ${Math.round(nodeM)} m grid)`,
     bbox: fin.bbox, gridW: fin.gridW, gridH: fin.gridH, elevations: fin.elevations,
     reprojectedTo: fin.reprojectedTo, reprojectNote: fin.reprojectNote, tileCount: r.read,
     source: {

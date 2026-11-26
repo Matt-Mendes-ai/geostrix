@@ -45,6 +45,7 @@ import { replaceSurveyPoints } from "../lib/geophysSurveyTools.js"; // TASKS.csv
 import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #1429
 import { inversionLogSources, defaultLogSource, logReadingCounts } from "../lib/inversionLogSources.js"; // TASKS.csv #2950
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import { stationCoverage, coverageCount } from "../lib/stationCoverage.js"; // TASKS.csv #4104 — one station count, the plan's when it has one
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the measured total field in nT (not RTP, not a derivative). Over a larger area, Remove base level > Subtract the IGRF field takes the computed IGRF-14 out first.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -179,12 +180,9 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
   const crsUnset = project?.crsSet === false;
   // TASKS.csv #1589 (review #1497, Lawyers) — how much of the survey the terrain covers, said BEFORE Estimate (the review found out
   // after: '275 station(s) fell outside the terrain'); and a ground surface from the stations' own elevations when there is none
-  const coverage = useMemo(() => {
-    if (!terrain || !rows.length) return null;
-    const step = Math.max(1, Math.floor(rows.length / 2000)); let m = 0, n = 0;
-    for (let i = 0; i < rows.length; i += step) { m++; if (Number.isFinite(terrainElevationAt(terrain, rows[i].x, rows[i].y))) n++; }
-    return { pct: (100 * n) / m };
-  }, [terrain, rows]);
+  // TASKS.csv #4104 — every station counted (it sampled ~2,000 and called 99.95 % "every station"), the plan's count preferred once it has one
+  const coverage = useMemo(() => (terrain && rows.length ? stationCoverage(rows, (x, y) => terrainElevationAt(terrain, x, y)) : null), [terrain, rows]);
+  const covered = coverageCount(coverage, plan);
   const [groundNote, setGroundNote] = useState(null);
   const groundFromStations = () => {
     try {
@@ -637,7 +635,7 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
               {rows.length > 0 && ( // TASKS.csv #1589
                 <div style={{ ...small, marginTop: 6 }}>
                   {terrain
-                    ? (coverage && <span style={{ color: coverage.pct < 90 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{coverage.pct >= 99.95 ? tr("The terrain covers every station.") : tr("The terrain covers {pct}% of the stations; the others would be left out.", { pct: Math.round(coverage.pct) }) /* #2247 — 'the others' only when there are some */}</span>)
+                    ? (covered && <span style={{ color: covered.outside > 0.1 * covered.total ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{covered.outside === 0 ? tr("The terrain covers every station.") : tr("{n} of {total} stations are outside the terrain and would be left out.", { n: covered.outside.toLocaleString(), total: covered.total.toLocaleString() }) /* #2247; #4104: 'every' only when none is outside, and the plan's own count */}</span>)
                     : <span style={{ color: "var(--color-warn-text)" }}>{tr("No terrain yet: an inversion needs one to know which cells are underground.")}</span>}
                   {(!terrain || (coverage && coverage.pct < 90)) && !(runGround && runGround.survey === activeSurvey) && <div><button className="gs-btn gs-btn--block" style={{ marginTop: 4, marginBottom: 0 }} onClick={groundFromStations}>{tr("Ground from the stations' own elevations…")}</button></div>}
                   {runGround && runGround.survey === activeSurvey && ( /* #2638 */
@@ -652,12 +650,12 @@ export default function InversionPanel({ numInput, inPane = false, resultSlot = 
               <button className="gs-btn gs-btn--block" style={{ marginTop: 8, marginBottom: 4 }} onClick={() => doPlan("inversion")} disabled={planBusy || running || methodClash}><Gauge size={14} /> {planBusy ? tr("Estimating…") : tr("Estimate size and memory")}</button>
               {plan && (
                 <div style={{ ...small, marginBottom: 6 }} aria-live="polite">
-                  {tr("{nData} stations × {v}{nActiveEst} underground cells", { nData: plan.nData.toLocaleString(), v: plan.octree ? "" : "~", nActiveEst: plan.nActiveEst.toLocaleString() })}{" "}
+                  {tr("{nData} stations × {v}{nActiveEst} underground cells", { nData: plan.nData.toLocaleString(), v: plan.octree ? "" : "≈ ", nActiveEst: plan.nActiveEst.toLocaleString() })}{" "}
                   {plan.octree
-                    ? <>{tr("(adaptive mesh, cells {v} m; a uniform mesh would need ~{tensorActiveEst} — {v2}× more memory).", { v: plan.octree.cellSizes.map((h) => `${h}`).join(" / "), tensorActiveEst: plan.octree.tensorActiveEst.toLocaleString(), v2: (plan.octree.tensorActiveEst / Math.max(1, plan.nActiveEst)).toFixed(1) })}{" "}</>
+                    ? <>{tr("(adaptive mesh, cells {v} m; a uniform mesh would need ≈ {tensorActiveEst} — {v2}× more memory).", { v: plan.octree.cellSizes.map((h) => `${h}`).join(" / "), tensorActiveEst: plan.octree.tensorActiveEst.toLocaleString(), v2: (plan.octree.tensorActiveEst / Math.max(1, plan.nActiveEst)).toFixed(1) })}{" "}</>
                     : <>{tr("({meshShape} mesh).", { meshShape: plan.meshShape.join(" × ") })}{" "}</>}
                   {plan.kind === "inversion"
-                    ? <>{tr("Sensitivity matrix {v} of the {v2} this machine can spare right now; peak memory ≈ {v3}, ~{v4} s to build it, then a few seconds per iteration.", { v: formatBytes(plan.sensitivityBytes), v2: formatBytes(plan.ramCapBytes), v3: formatBytes(plan.peakRamEstimateBytes), v4: Math.max(1, Math.round(plan.buildSecondsEstimate)) })}</>
+                    ? <>{tr("Sensitivity matrix {v} of the {v2} this machine can spare right now; peak memory ≈ {v3}, ≈ {v4} s to build it, then a few seconds per iteration.", { v: formatBytes(plan.sensitivityBytes), v2: formatBytes(plan.ramCapBytes), v3: formatBytes(plan.peakRamEstimateBytes), v4: Math.max(1, Math.round(plan.buildSecondsEstimate)) })}</>
                     : <>{tr("Forward only — no matrix is stored.")}</>}{" "}
                   {plan.ok ? tr("OK to run.") : ""}
                   {plan.clearance && <div style={{ marginTop: 3 }}>{tr("Sensor clearance above the terrain: median {median} m, 5th percentile {p5} m, lowest {min} m ({n} stations). A steady offset from the survey height means different vertical datums.", { median: plan.clearance.median.toFixed(1), p5: plan.clearance.p5.toFixed(1), min: plan.clearance.min.toFixed(1), n: plan.clearance.n.toLocaleString() })}</div>}

@@ -54,7 +54,7 @@ test("#3503 wired: the middle before, the same transform after, said in the mess
 test("#3504: the fetch-area picker says the node spacing at the chosen detail, with the level's own name", () => {
   const g = read("../src/modules/GeophysicsModule.jsx");
   assert.match(g, /const TERRAIN_DETAIL_NAMES = \{ 200: "Standard", 513: "High", 1025: "Very high", 2049: "Full" \};/);
-  assert.match(g, /tr\("nodes ~\{n\} m apart at \{level\}", \{ n: p\.nodeM < 10 \? p\.nodeM\.toFixed\(1\) : Math\.round\(p\.nodeM\)\.toLocaleString\(\), level: tr\(TERRAIN_DETAIL_NAMES\[terrainDetail\] \|\| "Standard"\) \}\)/);
+  assert.match(g, /tr\("nodes ≈ \{n\} m apart at \{level\}", \{ n: p\.nodeM < 10 \? p\.nodeM\.toFixed\(1\) : Math\.round\(p\.nodeM\)\.toLocaleString\(\), level: tr\(TERRAIN_DETAIL_NAMES\[terrainDetail\] \|\| "Standard"\) \}\)/);
   // 44 km of ground over 200 nodes: 44,000 / 199 = 221 m, the row's own example
   assert.equal(Math.round(44000 / 199), 221);
 });

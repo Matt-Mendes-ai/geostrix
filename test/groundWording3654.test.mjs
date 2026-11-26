@@ -27,7 +27,7 @@ test("(3) the bench check names steep ground first", () => {
 });
 
 test("(5) the budget labels: 5 million about a minute, no window pause promised", () => {
-  assert.equal(gradeShellBudgetNote(5e6), "~1 min, about 0.2 GB more memory"); // #3666
+  assert.equal(gradeShellBudgetNote(5e6), "≈ 1 min, about 0.2 GB more memory"); // #3666; #4104: ≈
   for (const b of [10e6, 20e6, 50e6]) assert.doesNotMatch(gradeShellBudgetNote(b), /window/);
 });
 
@@ -41,7 +41,7 @@ test("(2) and (4): the stack choices, the beyond-drilling spacing; the keys in e
   assert.match(r, /spacingAt: gsSampleSpacing > 0 \? "samples" : "collars"/);
   for (const l of ["es", "pt", "fr", "ar"]) {
     const j = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8"));
-    for (const k of ["Keep the lowest", "Keep the highest", "~1 min, about 0.2 GB more memory", "up to ~3 min, about 0.3 GB more memory"]) assert.ok(j[k], `${l}: ${k}`);
+    for (const k of ["Keep the lowest", "Keep the highest", "≈ 1 min, about 0.2 GB more memory", "up to ≈ 3 min, about 0.3 GB more memory"]) assert.ok(j[k], `${l}: ${k}`);
     assert.ok(Object.keys(j).some((k) => k.includes("(steep ground, benches or a pit?)")), l);
     assert.ok(!Object.keys(j).some((k) => k.includes("(a pit or benches?)")), l);
   }
