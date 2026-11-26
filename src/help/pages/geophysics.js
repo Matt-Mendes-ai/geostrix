@@ -22,7 +22,7 @@ export default [
       { name: "Against element", gist: "paired by hole and depth", what: "The assay element each reading is paired with, by hole and depth.", more: "How to choose: Fe or S for pyrrhotite and magnetite. A reading pairs with the assay interval of its hole that holds its midpoint. Pair on: Each reading, or The log's mean over each sample. The result gives Spearman's rank correlation and Pearson (on log10 values when the axis is logarithmic)." },
     ],
     warnings: [
-      { says: "No downhole log yet: import mag susc, SG, RQD or recovery readings as a drillhole layer (StrixViewer > Add layer), or a custom layer with a numeric column.", do: "Import the log on the StrixViewer tab." },
+      { says: "No downhole log yet: import mag susc, SG, RQD or recovery readings as a drillhole layer (StrixViewer > Add layer).", do: "Import the log on the StrixViewer tab." },
       { says: "No code of Lithology has three or more readings of this log.", do: "Pick another layer, or import the log for more holes." },
       { says: "Fewer than three readings fall inside an assay interval of the same hole.", more: "The log and the assays share no hole and depth.", do: "Check the hole ids match." },
     ],

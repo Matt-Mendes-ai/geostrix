@@ -15,5 +15,5 @@ test("the pane opens such a log linear and counts readings above 100 %", () => {
   const src = readFileSync(new URL("../src/components/DownholeLogsPane.jsx", import.meta.url), "utf8");
   assert.match(src, /const scale = logScaleFor\(source, logValues, source \? scaleBy\?\.\[source\.key\] : null\)/); // #2967 — the rule moved into logScaleFor (downholeLogs.js), tested there
   assert.match(src, /source\?\.unit === "%" \? logValues\.filter\(\(v\) => Number\.isFinite\(v\) && v > 100\)\.length : 0/);
-  assert.match(src, /tr\("\{n\} reading\(s\) are above 100 %, which a percentage cannot be: check them \(Data QC lists them\)\. They are drawn as logged\."/);
+  assert.match(src, /tr\("\{n\} reading\(s\) are above 100 %, which a percentage cannot be: check them \(Data QC lists them\)\."/);
 });
