@@ -33,6 +33,7 @@ export default function LevellingPanel({ onClose }) {
   // k-means cluster of a soil program was 'levelled' against another (neighbouring samples taken as shared sites). Columns GeoStrix
   // writes itself are left out.
   const columns = useMemo(() => { const c = new Set(["source"]); surfaceSamples.forEach((s) => Object.keys(s.attrs || {}).forEach((k) => { if (!k.endsWith("_lev_basis") && k !== DOMAIN_ATTR) c.add(k); })); return [...c]; }, [surfaceSamples]);
+  const hasDomains = useMemo(() => surfaceSamples.some((s) => s.attrs && DOMAIN_ATTR in s.attrs), [surfaceSamples]);
   const [at, setAt] = useState(0);
   const [column, setColumn] = useState("source");
   const [medium, setMedium] = useState(media[0] || "");
@@ -71,7 +72,7 @@ export default function LevellingPanel({ onClose }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
         <label style={ctl}>{tr("Sample type")}<select value={medium} onChange={pick(setMedium)} style={sel2}>{media.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
         <label style={ctl}>{tr("Element")}<select value={symbol} onChange={pick(setSymbol)} style={sel2}>{elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({gradeUnitLabel(e.symbol, e.unit)})</option>)}</select></label>
-        <label style={ctl}>{tr("Told apart by")}<select value={column} onChange={pick(setColumn)} style={sel2}>{columns.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
+        <label style={ctl} title={hasDomains ? tr("\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.", { col: DOMAIN_ATTR }) : undefined}>{tr("Told apart by")}<select value={column} onChange={pick(setColumn)} style={sel2}>{columns.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
       </div>
       {two ? (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -130,6 +131,6 @@ export default function LevellingPanel({ onClose }) {
   ];
   return (
     <StepDialog title={tr("Level surveys")} onClose={onClose} steps={steps} at={at} onAt={setAt} width="min(720px, 96vw)"
-      help={<DialogHelpCard lines={[tr("Writes a new column; the source values stay as they are."), tr("Quantile matching assumes one population: it can erase real differences. Use it only without ties.")]} />} />
+      help={<DialogHelpCard page="level-surveys" lines={[tr("Writes a new column; the source values stay as they are."), tr("Quantile matching assumes one population: it can erase real differences. Use it only without ties.")]} />} />
   );
 }

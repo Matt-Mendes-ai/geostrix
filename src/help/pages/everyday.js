@@ -7,7 +7,7 @@ export default [
     area: "StrixViewer",
     title: "3D view basics",
     // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
-    line: "Move around, colour holes by an assay, read a value, measure, draw a section.",
+    line: "Move, colour holes by an assay, read, measure, draw a section.",
     picture: { drop: ["holes"], alt: "Drill holes in the 3D view." },
     cautions: ["Measure on a plan view: perspective is not a scale."],
     instead: [{ text: "Importing", to: "Import drillhole data", page: "import-drillholes" }],
@@ -52,7 +52,7 @@ export default [
     // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Averages each hole's assays into equal-length composites, length-weighted.",
     picture: { help: "composite", alt: "A hole's samples of uneven length, the same metres as equal composites, with a short end piece and a gap with no sample." },
-    cautions: ["It changes no assay: it makes a composites table."],
+    cautions: ["It changes no assay."],
     keys: ["Composite length (m)", "Min coverage (%)", "Short end piece (and when under (m))"],
     strip: ["Pick Zn", "Read the table", "Set a cap", "Keep as a layer"],
     summary: "Combines each hole's assays into composites of one length: each the length-weighted average of the samples it covers.",
@@ -101,7 +101,7 @@ export default [
     // TASKS.csv #3973 — the card (#3967's plan, section 8); the summary and the rest are in its folds
     line: "Each hole's intersections above a cut-off, length-weighted, with internal dilution.",
     picture: { help: "composite", alt: "A hole's samples of uneven length, the same metres as equal composites, and an intercept with internal dilution." }, // N6: TASKS.csv #3978 (N8, true width, is not drawn yet)
-    cautions: ["A screening tool: check every intercept against the certificates.", "Lengths are downhole, not true widths, until you give the dip.", "A sample with no result is not zero."],
+    cautions: ["Screening only: check against the certificates.", "Lengths are downhole, not true widths.", "No result is not zero."],
     keys: ["Cut-off", "Max internal dilution (m)", "Including at ≥"],
     strip: ["Pick Zn and a cut-off", "Read the table", "Fill Including at ≥"],
     summary: "Lists each hole's intersections above a cut-off, with an internal-dilution allowance; grades length-weighted, lengths downhole.",
@@ -189,11 +189,11 @@ export default [
     area: "Geochem",
     title: "QAQC — lab quality control",
     // TASKS.csv #3979 — the card (#3967's plan, section 8); the summary and the rest are in its folds
-    line: "Judges standards, blanks and duplicates in the assays. It corrects nothing.",
+    line: "Judges standards, blanks and duplicates. It corrects nothing.",
     picture: { help: "control", alt: "A control chart: the certified value, lines at 2 and 3 standard deviations, one standard outside its limit." },
     cautions: ["A failed standard or blank is a question for the lab."],
     keys: ["Limit", "RPD %", "Flag"],
-    strip: ["Import assays with QC", "Read the counts", "Pick an element", "Enter the limit"],
+    strip: ["Import QC assays", "Read the counts", "Pick an element", "Enter the limit"],
     summary: "Judges the control samples in the assays: standards on a control chart, blanks against a limit, duplicates by their difference.",
     more: "Control samples are found by a sample-type column, else by their ids, and are left out of intercepts, compositing, estimation and statistics. Surface QA/QC adds the lab's certificates: your own inserts and the lab's checks are counted apart (the lab's QC shows the lab is in control, not that your samples were taken well). Below-detection results are stored at half the limit; elements over 30% below detection are marked; different digestions are not directly comparable. Field duplicates are expected to be noisier than lab duplicates.",
     notFor: [
@@ -222,6 +222,26 @@ export default [
       ],
     },
     related: ["import-assays", "grade-statistics"],
+  },
+  {
+    // TASKS.csv #4088 — the Level surveys dialog's page; the method's source (Main's keep-back) is in its More fold
+    id: "level-surveys",
+    area: "Geochem",
+    title: "Level surveys",
+    line: "One survey at another's level.",
+    picture: { drop: ["points", "points"], alt: "Two surveys." },
+    cautions: ["Ties are the evidence."],
+    keys: ["Told apart by", "Same site (m)"],
+    summary: "Writes one survey at another's level, using the sites both sampled (ties).",
+    more: "Few ties cannot be levelled: a larger distance finds more, but distant sites can differ for real. The source values stay. Fit a line is a Huber regression on logs through the ties (Main & Champion 2022). Quantile matching assumes both surveys sampled one population: a guide only, without ties, and it can erase real differences. Geochemical domains are not offered as a survey column: they group samples by chemistry, not by survey.",
+    notFor: [],
+    fields: [
+      { name: "Told apart by", gist: "names the surveys", what: "Year, lab or batch.", more: "How to choose: Under one value everything is one survey and there is nothing to level." },
+      { name: "Same site (m)", gist: "one site within", what: "Samples this close are one site.", more: "How to choose: Start small; widen it only when the ties are too few." },
+    ],
+    warnings: [],
+    howto: { sample: "any", steps: ["Open it from Geochem > Level surveys.", "Pick the sample type, element, column and the two surveys.", "Read the ties, then write the levelled column."], folded: true },
+    related: ["grade-statistics"],
   },
   {
     // TASKS.csv #4042 — a user asked for "automated identification of stream sampling locations based on a DEM": it is here

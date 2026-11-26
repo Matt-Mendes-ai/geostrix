@@ -5938,6 +5938,8 @@
   "Orientations from": "الاتجاهات من",
   "no outcrop measurements imported — the contacts' own dips are used": "لم تُستورد قياسات مكاشف — تُستخدم ميول التماسات نفسها",
   "Faults": "الصدوع",
+  "{pct}% of {symbol} in \"{pop}\" is below detection: percentiles sit on the limit.": "{pct}% من {symbol} في «{pop}» دون حد الكشف: المئينات عند الحد.",
+  "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "\"{col}\" غير معروض: فهو يجمع العينات حسب كيميائها، ولا يميّز بين المسوح.",
   "Isocon slope (Mo/M)": "ميل الأيزوكون (Mo/M)",
   "Bulk mass change": "تغيّر الكتلة الكلي",
   "Immobile-set agreement": "اتفاق مجموعة العناصر الثابتة",

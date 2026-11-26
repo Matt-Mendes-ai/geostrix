@@ -5938,6 +5938,8 @@
   "Orientations from": "Orientaciones de",
   "no outcrop measurements imported — the contacts' own dips are used": "no hay mediciones de afloramiento importadas: se usan los buzamientos propios de los contactos",
   "Faults": "Fallas",
+  "{pct}% of {symbol} in \"{pop}\" is below detection: percentiles sit on the limit.": "{pct} % de {symbol} en «{pop}» está bajo detección: los percentiles quedan en el límite.",
+  "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "\"{col}\" no se ofrece: agrupa las muestras por su química, no distingue levantamientos.",
   "Isocon slope (Mo/M)": "Pendiente de la isocona (Mo/M)",
   "Bulk mass change": "Cambio de masa total",
   "Immobile-set agreement": "Concordancia del conjunto inmóvil",
