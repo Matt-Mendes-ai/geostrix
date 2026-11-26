@@ -269,10 +269,10 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     const pt = ptAt(fh), pt1 = ptAt(fh - (d1 - d0) * (pxPerMeter - 1)); // the same log drawn at 1 px/m
     const wide = 700 * (fh / fw) <= 794 - 160; // Layout's 700 px width, not the sheet height, sets its size: many tracks
     const advice = (pt == null || pt >= 6 ? "" : wide
-      ? tr("Sent to Layout. Drag its corner larger on the page, or draw fewer tracks: its labels print at about {pt} pt.", { pt: pt.toFixed(1) })
+      ? tr("Sent to Layout. Drag its corner larger, or draw fewer tracks: labels print at about {pt} pt.", { pt: pt.toFixed(1) })
       : pt1 >= 6
-      ? tr("Sent to Layout. Its labels print at about {pt} pt there: lower the vertical scale (px/m) and send it again for a readable log.", { pt: pt.toFixed(1) })
-      : tr("Sent to Layout. Set a shorter depth range, or use the SVG or PNG: a {m} m log prints its labels at about {pt} pt ({pt1} pt at 1 px/m).", { m: Math.round(d1 - d0), pt: pt.toFixed(1), pt1: pt1.toFixed(1) }));
+      ? tr("Sent to Layout. Labels print at about {pt} pt: lower the vertical scale (px/m) and send it again.", { pt: pt.toFixed(1) })
+      : tr("Sent to Layout. Use a shorter depth range, or the SVG or PNG: labels print at about {pt} pt ({pt1} pt at 1 px/m).", { m: Math.round(d1 - d0), pt: pt.toFixed(1), pt1: pt1.toFixed(1) }));
     // #1641 — the window closes after a send (it stayed open behind Layout and was still there on the next visit to the 3D View); the
     // advice about the printed text size goes with the image to Layout, as a notice there
     onAdvice?.(advice);
@@ -290,7 +290,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     if (!svg || !dims) return;
     const { markup: xml0, width: fw, height: fh } = exportSvgMarkup(svg, { furniture: furniture() });
     const { scale, reduced } = pngScaleFor(fw, fh); // #1048 — under the canvas size limit
-    setPngNote(reduced ? tr("Saved at {s}× instead of 2×, as the log is too tall for a full PNG: use SVG for full detail, or lower the vertical scale.", { s: scale.toFixed(2) }) : "");
+    setPngNote(reduced ? tr("Saved at {s}× instead of 2×: the log is too tall for a full PNG. Use SVG, or lower the vertical scale.", { s: scale.toFixed(2) }) : "");
     embedFigureFont(xml0).catch(() => xml0).then((xml) => { // #2610
     const img = new Image();
     const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
@@ -320,8 +320,8 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             {attrLine.text && <div style={{ fontSize: "var(--font-size-sm)", color: "#65717e", marginTop: 1, maxWidth: 520, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={attrLine.all}>{attrLine.text}</div>}{/* TASKS.csv #3408 — the per-hole values joined onto this hole */}
           </div>
           <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button type="button" onClick={() => setSideBySide(true)} title={tr("Draw this hole's log beside other holes' on one depth scale, from their own 0 m or from their collar elevations.")} className="gs-btn gs-btn--sm">{tr("Side by side…")}</button>{/* TASKS.csv #3560 A1 */}
-            {onOpenFence && <button type="button" onClick={onOpenFence} title={tr("Several holes side by side: the Fence diagram puts the holes of a drill line in columns on one depth scale, with correlation bands.")} className="gs-btn gs-btn--sm">{tr("Several holes: Fence diagram")}</button>}{/* TASKS.csv #3560 A0 */}
+            <button type="button" onClick={() => setSideBySide(true)} title={tr("Draw this log beside other holes' on one depth scale (from 0 m or from collar elevations).")} className="gs-btn gs-btn--sm">{tr("Side by side…")}</button>{/* TASKS.csv #3560 A1 */}
+            {onOpenFence && <button type="button" onClick={onOpenFence} title={tr("Several holes side by side: the Fence diagram, with correlation bands.")} className="gs-btn gs-btn--sm">{tr("Several holes: Fence diagram")}</button>}{/* TASKS.csv #3560 A0 */}
             <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
           </span>
         </div>
@@ -343,7 +343,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             {customChoices.filter((c) => !customTracks.includes(c.key)).map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
           </select>}
           {customTracks.map((k) => { const c = customChoices.find((x) => x.key === k); return c ? <span key={k} style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "inline-flex", alignItems: "center", gap: 3, border: "1px solid #d9dce1", borderRadius: 4, padding: "2px 6px" }}>{c.label}<X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove track {v}", { v: c.label })} size={11} style={{ cursor: "pointer" }} onClick={() => setCustomTracks((p) => p.filter((x) => x !== k))} /></span> : null; })}
-          <label style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.")}>
+          <label style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades and mag susc. Linear is proportional to the value.")}>
             <input type="checkbox" checked={logScale ?? shownSymbols.some((s) => !axisOf(s).linear)} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale")}</label>
           {logScale == null && (() => { const lin = shownSymbols.filter((s) => axisOf(s).linear), lg = shownSymbols.filter((s) => !axisOf(s).linear); return lin.length && lg.length ? <span role="note" style={{ fontSize: "var(--font-size-xs)", color: "#8a6a1f" }}>{tr("Automatic: {lin} on a linear axis (their values span under two decades), {log} on a log axis.", { lin: lin.join(", "), log: lg.join(", ") })}</span> : null; })() /* TASKS.csv #3775 (7) */}
           <label style={{ fontSize: "var(--font-size-sm)", color: "#55606e", display: "flex", alignItems: "center", gap: 4 }} title={tr("Draw only these depths (blank: the whole hole); the exports and Add to Layout follow")}>{tr("Depth (m)")}<NumberInput allowEmpty min={0} value={rangeFrom === "" ? null : rangeFrom} placeholder="0" onChange={(v) => setRangeFrom(v == null ? "" : String(v))} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range from (m)")} />–<NumberInput allowEmpty min={0} value={rangeTo === "" ? null : rangeTo} placeholder={String(+maxDepth.toFixed(1))} onChange={(v) => setRangeTo(v == null ? "" : String(v))} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range to (m)")} /></label>
@@ -357,7 +357,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           <div style={{ flex: 1 }} />
           <button onClick={exportSVG} className="gs-btn" style={{ padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("SVG")}</button>
           <button onClick={exportPNG} className="gs-btn" style={{ padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
-          {onAddToLayout && <button onClick={addToLayout} className="gs-btn" style={{ padding: "6px 10px" }} title={tr("The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend")}>{tr("Add to Layout")}</button>}
+          {onAddToLayout && <button onClick={addToLayout} className="gs-btn" style={{ padding: "6px 10px" }} title={tr("The log as drawn here, on the Layout page, with its colour tracks as a legend")}>{tr("Add to Layout")}</button>}
         </div>
         {patternsOn && litho.length > 0 && ( /* TASKS.csv #1995 — each code's pattern, and a way to change it (saved with the project's legend) */
           <details style={{ padding: "4px 16px", borderBottom: "1px solid #d9dce1", fontSize: "var(--font-size-sm)", color: "#55606e" }}>
@@ -378,7 +378,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 );
               })}
             </div>
-            <div>{tr("FGDC patterns (public domain). Automatic picks one from the code, name or description; a choice here is saved with the project and used by Atlas.")}</div>
+            <div>{tr("FGDC patterns (public domain). Automatic picks one from the code, name or description; a choice here is saved with the project.")}</div>
           </details>
         )}
         {pngNote && <div role="status" style={{ padding: "6px 16px", fontSize: "var(--font-size-sm)", color: "#7a4a1f", background: "#fdf4e6", borderBottom: "1px solid #edd9b7" }}>{pngNote}</div>}

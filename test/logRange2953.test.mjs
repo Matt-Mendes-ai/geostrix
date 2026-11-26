@@ -37,7 +37,7 @@ test("the pane: whiskers at P2-P98 with the count beyond them, the valid range o
   assert.match(p, /const lo = quantileSorted\(s, 0\.02\), hi = quantileSorted\(s, 0\.98\);/);
   assert.match(p, /return \{ \.\.\.g, stats: \{ \.\.\.g\.stats, min: lo, max: hi \} \};/);
   assert.match(p, /<BoxPlots fit groups=\{boxes\.groups\}/);
-  assert.match(p, /tr\("Whiskers run from P2 to P98 of each code, so a stray reading cannot squash the plot; \{k\} reading\(s\) lie beyond them\."/);
+  assert.match(p, /tr\("Whiskers run from P2 to P98 of each code; \{k\} reading\(s\) lie beyond them\."/);
   assert.match(p, /setCustomLayers\(\(p\) => p\.map\(\(c\) => \(c\.id === logLayer\.id \? \{ \.\.\.c, validRange: r \} : c\)\)\)/);
   assert.match(p, /data\?\.outOfRange > 0 &&/);
   assert.match(p, /\{logScale && !vsLogX && <div style=\{note\}>\{tr\("The scatter keeps a linear axis for the log: \{n\} of its readings are zero or negative\."/);

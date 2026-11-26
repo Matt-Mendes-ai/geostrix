@@ -14,7 +14,7 @@ export default [
     keys: ["Left-drag, right-drag, scroll", "Identify", "Colour by an assay"],
     strip: ["Open Macpass", "Turn on Zn", "Filter holes", "Open a strip log"],
     summary: "Move around the 3D view, colour holes by an assay, filter them, read a value, measure, draw a section, open a strip log.",
-    more: "Most of it is a mouse gesture or a button on StrixViewer's ribbon; the status bar's ? > Keyboard shortcuts lists every key.",
+    more: "Most of it is a mouse gesture or a button on StrixViewer's ribbon; the status bar's ? > Keyboard shortcuts lists every key. The Figure button puts the view, as framed, on the Layout page as an image; for a live figure use a Theme with a Viewport. The ground grid can be resized, respaced and coloured, with two wall grids for a reference box. The SQL workspace is also in the Geochem toolbar. Measure and Identify work in the plan and in 3D; Esc stops them.",
     notFor: [
       "It does not import data: see Import drillhole data and Import assays.",
       "Ctrl+= and Ctrl+- change the window's text size, not the view's zoom.",
@@ -105,7 +105,7 @@ export default [
     keys: ["Cut-off", "Max internal dilution (m)", "Including at ≥"],
     strip: ["Pick Zn and a cut-off", "Read the table", "Fill Including at ≥"],
     summary: "Lists each hole's intersections above a cut-off, with an internal-dilution allowance; grades length-weighted, lengths downhole.",
-    more: "An intercept starts at a sample at or above the cut-off; below-cut-off core between two samples at or above the cut-off is still folded into one intercept when it is within the dilution allowance. Ask for a true width with the structure's orientation.",
+    more: "An intercept starts at a sample at or above the cut-off; below-cut-off core between two samples at or above the cut-off is still folded into one intercept when it is within the dilution allowance. Ask for a true width with the structure's orientation. A top cut caps each sample's grade at the value you give, and the cut grade shows beside the uncut one; empty means uncut. Weighting by density uses the Specific gravity layer, and a sample with no density takes the others' mean. Including gives sub-intercepts at a higher cut-off inside their intercept. Dilution is bridged only while the result stays at or above the cut-off, and \"≥\" marks a grade that holds an over-range result. The unit you pick is shown here, in the Layout table and the CSV: type the cut-off in it, and the stored values do not change.",
     notFor: [
       "A screening tool: check every intercept against the certificates before reporting it.",
       "Lengths are downhole, not true widths, until you give the structure's dip and dip direction.",

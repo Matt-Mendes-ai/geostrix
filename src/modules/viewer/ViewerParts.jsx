@@ -85,7 +85,7 @@ export function ViewToolbar({
           loaded on first use). The ids are guided/guidedTools.js's; the labels stay here so the menu costs the startup chunk nothing. */}
       <RibbonGroup label="Model">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Model")} text={tr("Build a model from your logs, step by step: each tool asks one question and answers it from your data.")} suppress={openPopover === "model" /* #3928: the card never covers its own menu */}>
+          <HoverToolInfo title={tr("Model")} text={tr("Build a model from your logs, step by step.")} suppress={openPopover === "model" /* #3928: the card never covers its own menu */}>
             <button data-btn-own="" className={`ge-ribbon-btn ${openPopover === "model" ? "active" : ""}`} aria-expanded={openPopover === "model"} aria-haspopup="menu" onClick={() => toggle("model")}><ModelIcon size={22} color={RIBBON_TONES.model} /><span className="ge-ribbon-label">{tr("Model")}</span></button>
           </HoverToolInfo>
           {openPopover === "model" && (
@@ -98,7 +98,7 @@ export function ViewToolbar({
       </RibbonGroup>
       <RibbonGroup label="View" advanced={!noHoles}>{/* #1707 — all Advanced (3D slice not with no holes, #2778): no empty caption in Simple */}
         <div className="ge-ribbon-cell ge-adv">
-          <HoverToolInfo title={tr("Grid")} text={tr("Show the ground reference grid; resize it, change its spacing or colour, or add two wall grids for a 3D reference box.")} suppress={openPopover === "grid"}>
+          <HoverToolInfo title={tr("Grid")} text={tr("The ground grid: resize it, change its spacing or colour, or add wall grids.")} suppress={openPopover === "grid"}>
             <button data-btn-own="" className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><GridIcon size={22} color={RIBBON_TONES.view} /><span className="ge-ribbon-label">{tr("Grid")}</span></button>
           </HoverToolInfo>
           {openPopover === "grid" && (
@@ -118,16 +118,16 @@ export function ViewToolbar({
                 <NumberInput min={1} step={1} title={tr("Divisions")} aria-label={tr("Divisions")} value={gridOnAuto ? gridAuto.divisions : gridConfig.divisions} onChange={(v) => setGridConfig((g) => ({ ...g, sizeAuto: false, divisions: v }))} style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} wrapStyle={{ width: 0, flex: 1 }} />
                 <input type="color" title={tr("Grid colour")} value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
               </div>
-              {gridAuto && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }} title={tr("Size and centre the grid from the collars' extent, with a round cell; a size you type turns this off")}>{/* #2318 */}
+              {gridAuto && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }} title={tr("Size and centre the grid from the collars; typing a size turns this off.")}>{/* #2318 */}
                 <input type="checkbox" checked={gridOnAuto} onChange={(e) => setGridConfig((g) => (e.target.checked ? { ...g, sizeAuto: true } : { ...g, sizeAuto: false, size: gridAuto.size, divisions: gridAuto.divisions }))} />{tr("Size from the data ({cell} m cells)", { cell: fmtNum((gridAuto.size / gridAuto.divisions)) })}</label>}
               {/* TASKS.csv #311 — the origin axis lines: off by default (debug-looking in a screenshot); colours as the gizmo's (#189) */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 8, cursor: "pointer" }} title={tr("Draw X/Y/Z axis lines at the project origin. Off by default: the corner gizmo already shows orientation.")}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 8, cursor: "pointer" }} title={tr("Draw X/Y/Z axis lines at the project origin. Off by default.")}>
                 <input type="checkbox" checked={!!gridConfig.axes} onChange={(e) => setGridConfig((g) => ({ ...g, axes: e.target.checked }))} />{" "}{tr("Origin axis lines")}</label>
             </div>
           )}
         </div>
         <div className="ge-ribbon-cell ge-adv">
-          <HoverToolInfo title={tr("Figure overlay")} text={tr("Draw a title, a legend of what is on and a scale bar over the view, so a screenshot is report-ready. For a full figure, use the Layout tab.")} suppress={openPopover === "figure"}>
+          <HoverToolInfo title={tr("Figure overlay")} text={tr("A title, legend and scale bar over the view, for a report-ready screenshot.")} suppress={openPopover === "figure"}>
             <button data-btn-own="" className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-expanded={openPopover === "figure"} aria-haspopup="dialog" onClick={() => toggle("figure")}><FigureIcon size={22} color={RIBBON_TONES.view} /><span className="ge-ribbon-label">{tr("Figure")}</span></button>
           </HoverToolInfo>
           {openPopover === "figure" && (
@@ -140,7 +140,7 @@ export function ViewToolbar({
                 <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: figureOverlay.enabled ? "var(--color-text)" : "var(--color-text-faint)" }}>{tr("Show overlay")}</div>
               </div>
               {/* TASKS.csv #2623 — vertical exaggeration of the 3D view; stated on the figure (beside the scale bar) whenever it is above 1x */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8 }} title={tr("Stretches the view vertically about the point you orbit around. Coordinates, picks and measurements stay true; labels and collar markers are not stretched.")}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8 }} title={tr("Stretches the view vertically. Coordinates and measurements stay true.")}>
                 {tr("Vertical exaggeration")}
                 <select aria-label={tr("Vertical exaggeration")} value={veOf(figureOverlay.ve)} onChange={(e) => setFigureOverlay((f) => ({ ...f, ve: Number(e.target.value) }))} style={{ fontSize: "var(--font-size-sm)", padding: "2px 4px" }}>
                   {VE_CHOICES.map((v) => <option key={v} value={v}>{v === 1 ? tr("none (1x)") : `${v}x`}</option>)}
@@ -170,12 +170,12 @@ export function ViewToolbar({
                   on the bar itself, "at view centre") is the whole reason this is a popover: an
                   authoritative-looking bar that is quietly wrong at the depth the reader cares about
                   would be worse than no bar at all. */}
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5 }}>{tr("The scale bar is exact at the")}{" "}<b>{tr("view centre")}</b>{" "}{tr("— the point you orbit around. In this perspective view nearer things read larger, farther ones smaller. For a scale that holds everywhere, add a Viewport on the")}{" "}<b>{tr("Layout")}</b>{" "}{tr("tab and tick")}{" "}<b>{tr("True scale (orthographic)")}</b>{" "}{tr("there.")}<br />{tr("The legend lists what is switched on in this view, not the whole project, and not only what is on screen.")}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5 }}>{tr("The scale bar is exact at the")}{" "}<b>{tr("view centre")}</b>{" "}{tr("— the point you orbit around. In this perspective view nearer things read larger, farther ones smaller. For a scale that holds everywhere, add a Viewport on the")}{" "}<b>{tr("Layout")}</b>{" "}{tr("tab and tick")}{" "}<b>{tr("True scale (orthographic)")}</b>{" "}{tr("there.")}<br />{tr("The legend lists what is on in this view.")}</div>
             </div>
           )}
         </div>
         <div className="ge-ribbon-cell ge-adv">
-          <HoverToolInfo title={tr("Themes")} text={tr("Save this view (layers, filters, grid, camera) as a named theme to reload in one click or bind to a Layout Viewport.")} suppress={openPopover === "themes"}>
+          <HoverToolInfo title={tr("Themes")} text={tr("Save this view as a named theme: reload it in one click, or bind it to a Layout Viewport.")} suppress={openPopover === "themes"}>
             <button data-btn-own="" className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-expanded={openPopover === "themes"} aria-haspopup="dialog" onClick={() => toggle("themes")}><ThemesIcon size={22} color={RIBBON_TONES.view} /><span className="ge-ribbon-label">{tr("Themes")}</span></button>
           </HoverToolInfo>
           {openPopover === "themes" && (
@@ -191,12 +191,12 @@ export function ViewToolbar({
                 <button
                   onClick={() => { if (themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
                   disabled={!themeNameDraft.trim()}
-                  title={tr("Save the current view (layers, filters, grid, camera, and which generated surfaces are shown) as a named theme")}
+                  title={tr("Save the current view as a named theme")}
                   className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "6px 9px", opacity: themeNameDraft.trim() ? 1 : 0.5, cursor: themeNameDraft.trim() ? "pointer" : "default" }}
                 ><BookmarkPlus size={14} /></button>
               </div>
               {themes.length === 0 && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Save the current view as a theme to reload it later, or bind it to a Viewport element on the Layout page.")}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Save this view as a theme, to reload or bind to a Layout Viewport.")}</div>
               )}
               <div style={{ maxHeight: 220, overflowY: "auto" }}>
                 {themes.map((t) => (
@@ -209,7 +209,7 @@ export function ViewToolbar({
                         style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid #3a4658", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}
                       />
                     ) : (
-                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => applyTheme(t)} title={tr("Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with")} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => applyTheme(t)} title={tr("Apply this theme to the view")} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                         <Bookmark size={14} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
                       </div>
@@ -226,13 +226,13 @@ export function ViewToolbar({
       </RibbonGroup>
       <RibbonGroup label="Sections">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Draw cross-section")} text={sectionMode ? tr("Active: click 2 points on the plan view to draw the section, or click again to cancel. It opens in its own window with every visible layer.") : tr("Click two points on the plan view to cut a vertical section along that line; it opens in its own window with every visible layer within the buffer.")}>
+          <HoverToolInfo title={tr("Draw cross-section")} text={sectionMode ? tr("Active: click 2 points on the plan to cut the section; click again to cancel.") : tr("Click two points on the plan to cut a vertical section; it opens in its own window.")}>
             <button data-btn-own="" className={`ge-ribbon-btn ${sectionMode ? "active" : ""}`} aria-pressed={!!(sectionMode)} onClick={onToggleSection}><DrawSectionIcon size={22} color={RIBBON_TONES.section} /><span className="ge-ribbon-label">{tr("Draw section")}</span></button>
           </HoverToolInfo>
         </div>
         {sectionMode && (
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginLeft: 4 }} title={tr("Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section")}>{tr("Buffer (m)")}<NumberInput min={1} value={sectionCorridor} onChange={(v) => { bufferTyped.current = true; setSectionCorridor(v); }} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
-            {spacing && !bufferTyped.current && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Type a buffer to keep your own. Measured: {n} drill sites (collars within 2 m are one), median {s} m to the nearest site.", { n: fmtNum(spacing.sites), s: Math.round(spacing.spacing * 10) / 10 })}>{spacing.shared ? tr("half the {s} m pad spacing", { s: Math.round(spacing.spacing * 10) / 10 }) /* #3763 — holes fanned from shared pads: the median distance between PADS */ : tr("half the {s} m drill spacing", { s: Math.round(spacing.spacing * 10) / 10 })}</span>}{/* #2517 */}
+            {spacing && !bufferTyped.current && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Type a buffer to keep your own. Measured: {n} drill sites, median {s} m to the nearest.", { n: fmtNum(spacing.sites), s: Math.round(spacing.spacing * 10) / 10 })}>{spacing.shared ? tr("half the {s} m pad spacing", { s: Math.round(spacing.spacing * 10) / 10 }) /* #3763 — holes fanned from shared pads: the median distance between PADS */ : tr("half the {s} m drill spacing", { s: Math.round(spacing.spacing * 10) / 10 })}</span>}{/* #2517 */}
           </label>
         )}
         <RibbonButton advanced icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
@@ -242,33 +242,33 @@ export function ViewToolbar({
       </RibbonGroup>
       <RibbonGroup label="Measure & check">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Identify")} text={tr("Click anything in the 3D view to see which layer it belongs to and its details, including what lies behind it. Esc stops.")}>
+          <HoverToolInfo title={tr("Identify")} text={tr("Click anything to see its layer and details, and what lies behind it. Esc stops.")}>
             <button data-btn-own="" className={`ge-ribbon-btn ${identifyOn ? "active" : ""}`} aria-pressed={identifyOn} onClick={onToggleIdentify}><IdentifyIcon size={22} color={RIBBON_TONES.analyse} /><span className="ge-ribbon-label">{tr("Identify")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Measure")} text={measureMode ? tr("Active: click points on the model to measure, or click again to stop. Distance chains a line (total, straight and last-segment readings); Area closes a polygon (plan area, perimeter).") : tr("Click points on the model (plan or 3D) to measure. Distance chains a line (total, straight, last segment); Area closes a polygon (plan area, perimeter).")}>
+          <HoverToolInfo title={tr("Measure")} text={measureMode ? tr("Active: click points to measure; click again to stop. Distance chains a line; Area closes a polygon.") : tr("Click points to measure. Distance chains a line; Area closes a polygon.")}>
             <button data-btn-own="" className={`ge-ribbon-btn ${measureMode ? "active" : ""}`} aria-pressed={!!(measureMode)} onClick={onToggleMeasure}><MeasureIcon size={22} color={RIBBON_TONES.analyse} /><span className="ge-ribbon-label">{tr("Measure")}</span></button>
           </HoverToolInfo>
         </div>
         {measureMode && <MeasureResults mode={measureMode} pts={measurePts} onClear={clearMeasure} onSwitchMode={onSwitchMeasureMode} />}
         <div className="ge-ribbon-cell ge-adv">{/* TASKS.csv #1152; Advanced since #3914 (a mapping job; the Faults tool opens it when it needs it) */}
-          <HoverToolInfo title={tr("Interpretation lines")} text={tr("Draw faults, contacts and lineaments over a geophysics survey, as a map layer that drapes on the terrain, exports and prints in the Layout legend.")}>
+          <HoverToolInfo title={tr("Interpretation lines")} text={tr("Draw faults, contacts and lineaments over a survey, as a map layer.")}>
             <button data-btn-own="" className={`ge-ribbon-btn ${interpretOpen ? "active" : ""}`} aria-pressed={!!interpretOpen} onClick={onInterpret}><PenTool size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} fill="currentColor" fillOpacity={0.16} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Interpret")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Data table")} text={tr("The assays and each log as a table: sort by a heading, filter under it (>= 6, 6..8, REG). Read only: fix a value in its source file and import it again.")}>
+          <HoverToolInfo title={tr("Data table")} text={tr("The assays and logs as a table: sort and filter. Read only: fix values in the source file.")}>
             <button data-btn-own="" className="ge-ribbon-btn" onClick={() => openDataTable({})}><Rows3 size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} fill="currentColor" fillOpacity={0.16} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data table")}</span></button>{/* TASKS.csv #3563 */}
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell ge-adv">{/* TASKS.csv #3908 — Advanced, so Model keeps the Basic list at nine (ribbonTiers3903) */}
-          <HoverToolInfo title={tr("Run data QC")} text={qcDisabled ? tr("Load some drillhole data (collars, intervals or assays) first. Data QC then lists drilling-data mistakes, such as duplicate ids or overlapping depths, to fix before modelling.") : tr("List drilling-data mistakes to fix before modelling: duplicate hole ids, out-of-order or overlapping depths, survey stations past a hole's length and more.")}>
+          <HoverToolInfo title={tr("Run data QC")} text={qcDisabled ? tr("Load drillhole data first. Data QC then lists mistakes to fix before modelling.") : tr("List drilling-data mistakes to fix before modelling.")}>
             <button data-btn-own="" className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} fill="currentColor" fillOpacity={0.16} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data QC")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell ge-adv">{/* TASKS.csv #3914 — a specialist report: Advanced */}
-          <HoverToolInfo title={tr("Boundary intercepts")} text={boundaryDisabled ? `${boundaryWhy || tr("Load some lithology/alteration interval data first.")} ` + tr("Review every unit boundary as a 3D point down the holes, the control points the modelling tools use: exclude them or mark them soft before running a surface.") : tr("Review every unit boundary as a 3D point down the holes, the control points the modelling tools use: exclude them or mark them soft before running a surface.")}>
+          <HoverToolInfo title={tr("Boundary intercepts")} text={boundaryDisabled ? `${boundaryWhy || tr("Load some lithology/alteration interval data first.")} ` + tr("Review each unit boundary as a 3D point: exclude it or mark it soft before a surface.") : tr("Review each unit boundary as a 3D point: exclude it or mark it soft before a surface.")}>
             <button data-btn-own="" className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} fill="currentColor" fillOpacity={0.16} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Contact picks")}</span></button>{/* #1702 — was "Intercepts" */}
           </HoverToolInfo>
         </div>
@@ -277,30 +277,30 @@ export function ViewToolbar({
       </RibbonGroup>
       <RibbonGroup advanced label="Database">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Connect database")} text={tr("Pull collars, surveys or other tables straight from a PostgreSQL database, with no CSV round trip.")}>
+          <HoverToolInfo title={tr("Connect database")} text={tr("Pull tables straight from a PostgreSQL database, with no CSV.")}>
             <button data-btn-own="" className="ge-ribbon-btn" onClick={onDbConnect}><Database size={22} strokeWidth={1.7} color={RIBBON_TONES.data} fill="currentColor" fillOpacity={0.16} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Database")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">{/* TASKS.csv #1963 — Matt: "a reload data button. That way I don't have to search for the schema in the database and load it again" */}
-          <HoverToolInfo title={tr("Reload from database")} text={reloadDbCount ? tr("Pull this project's database tables again through the same connection and choices, replacing those layers' rows. {n} table(s): {list}", { n: reloadDbCount, list: reloadDbTitle.split("\n").join("; ") }) : tr("Nothing to reload yet: import a table from the Browser panel or Database first, and it is remembered here.")}>
+          <HoverToolInfo title={tr("Reload from database")} text={reloadDbCount ? tr("Pull this project's database tables again, replacing their rows. {n} table(s): {list}", { n: reloadDbCount, list: reloadDbTitle.split("\n").join("; ") }) : tr("Nothing to reload yet: import a table from the Browser panel or Database first.")}>
             <button data-btn-own="" className={`ge-ribbon-btn${reloadDbCount ? "" : " is-disabled"}`} onClick={reloadDbCount ? onReloadDb : undefined} aria-disabled={!reloadDbCount || undefined} title={reloadDbTitle || undefined}><RefreshCw size={22} strokeWidth={1.7} color={RIBBON_TONES.data} fill="currentColor" fillOpacity={0.16} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Reload data")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("SQL workspace")} text={sqlDisabled ? tr("Load some data first. Then run SQL queries on what is loaded (collars, survey, layers, assays, boundaries), with no Postgres connection.") : tr("Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar.")}>
+          <HoverToolInfo title={tr("SQL workspace")} text={sqlDisabled ? tr("Load data first. Then run SQL queries on it, with no Postgres connection.") : tr("SQL queries on what is loaded, with no Postgres connection.")}>
             <button data-btn-own="" className={`ge-ribbon-btn${sqlDisabled ? " is-disabled" : ""}`} onClick={sqlDisabled ? undefined : onSqlWorkspace} aria-disabled={sqlDisabled || undefined}><TerminalSquare size={22} strokeWidth={1.7} color={RIBBON_TONES.data} fill="currentColor" fillOpacity={0.16} aria-hidden="true" /><span className="ge-ribbon-label">{tr("SQL")}</span></button>
           </HoverToolInfo>
         </div>
       </RibbonGroup>
       <RibbonGroup label="Output">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Snapshot to Layout")} text={snapshotDisabled ? tr("Load some data first. Then this drops the 3D view, as framed now, onto the Layout page as a fixed image. For a live figure, use a Theme + Viewport.") : tr("Drop the 3D view, as framed now, onto the Layout page as a fixed image. For a figure that stays live, use a Theme + Viewport.")}>
+          <HoverToolInfo title={tr("Snapshot to Layout")} text={snapshotDisabled ? tr("Load data first. Then this view, as framed, goes on the Layout page as an image.") : tr("Put this view, as framed, on the Layout page as an image.")}>
             <button data-btn-own="" className={`ge-ribbon-btn${snapshotDisabled ? " is-disabled" : ""}`} onClick={snapshotDisabled ? undefined : onSnapshot} aria-disabled={snapshotDisabled || undefined}><SnapshotIcon size={22} color={RIBBON_TONES.output} /><span className="ge-ribbon-label">{tr("Snapshot")}</span></button>
           </HoverToolInfo>
         </div>
         {/* TASKS.csv #1085 — the drillhole exports, which lived only on right-click of the import buttons */}
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Export drillholes")} text={exportDisabled ? tr("No drillholes to export: load collars first.") : tr("Export collars as points and traces as 3D lines (Shapefile, GeoPackage, DXF), or every drillhole table as CSV. Traces come from the survey or the collar attitude.")}>
+          <HoverToolInfo title={tr("Export drillholes")} text={exportDisabled ? tr("No drillholes to export: load collars first.") : tr("Collars as points and traces as 3D lines (Shapefile, GeoPackage, DXF), or the tables as CSV.")}>
             <button data-btn-own="" className={`ge-ribbon-btn${exportDisabled ? " is-disabled" : ""}`} onClick={exportDisabled ? undefined : onExportHoles} aria-disabled={exportDisabled || undefined} aria-haspopup="menu"><Download size={22} strokeWidth={1.7} color={RIBBON_TONES.output} fill="currentColor" fillOpacity={0.16} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Export")}</span></button>
           </HoverToolInfo>
         </div>
@@ -359,7 +359,7 @@ export function OrphanHoles({ layers, assays, collars, onOpenStripLog }) {
   if (!ids.length) return null;
   return (
     <>
-      <div className="ge-section-label" style={{ marginTop: 16 }} title={tr("Holes in the logs or assays with no collar: not drawn in 3D, but their strip logs open from their depths")}>{tr("Holes without collars ({n})", { n: ids.length })}</div>
+      <div className="ge-section-label" style={{ marginTop: 16 }} title={tr("Holes in the logs or assays with no collar: not drawn in 3D; their strip logs still open")}>{tr("Holes without collars ({n})", { n: ids.length })}</div>
       {ids.map((id) => (
         <div key={id} role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onOpenStripLog(id)} title={tr("Strip log — {hole_id}", { hole_id: id })}
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
@@ -631,16 +631,16 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
       </div>
       {sameCells.length > 0 && ( // TASKS.csv #1808 (review #1646, Kodiak) — two inversions on one mesh drew a mosaic of two palettes
         <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.35 }}>
-          {tr("Drawn in the same cells as {names}: the two colour each other's blocks. Show one at a time to read it.", { names: sameCells.map((m) => `"${m.name}${m.property ? ` (${m.property})` : ""}"`).join(", ") })}{" "}
+          {tr("Drawn in the same cells as {names}: show one at a time.", { names: sameCells.map((m) => `"${m.name}${m.property ? ` (${m.property})` : ""}"`).join(", ") })}{" "}
           <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: false })} style={{ cursor: "pointer", color: "var(--color-info)", textDecoration: "underline" }}>{tr("Hide this one")}</span>
         </div>
       )}
       {onShell && isFiltered && visibleCount > 0 && ( // TASKS.csv #1780 — the band as a closed solid for targeting and sections
         <>
-        <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Keep only the biggest connected body of this range; smaller, separate bodies are left out of the solid.")}>
+        <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Keep only the biggest connected body of this range.")}>
           <input type="checkbox" checked={largestOnly} onChange={(e) => setLargestOnly(e.target.checked)} />{tr("Largest body only (in the shell)")}{/* #2457 (6) — it acts when the shell is made */}
         </label>
-        <button data-btn-own="" type="button" onClick={() => onShell(model, { largestOnly })} style={{ ...miniBtn, marginTop: 5, width: "100%", justifyContent: "center" }} title={tr("A closed solid around the cells in this range (marching cubes), added to the generated surfaces: a grade shell or geophysical high or low to section, query and target.")} /* #2585 (4) — not only geophysics */>{tr("Shell at this range → generated surfaces")}</button>
+        <button data-btn-own="" type="button" onClick={() => onShell(model, { largestOnly })} style={{ ...miniBtn, marginTop: 5, width: "100%", justifyContent: "center" }} title={tr("A closed solid around the cells in this range, added to the surfaces: a grade shell, or a geophysical high or low.")} /* #2585 (4) — not only geophysics */>{tr("Shell at this range → generated surfaces")}</button>
         </>
       )}
     </div>

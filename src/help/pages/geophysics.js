@@ -11,7 +11,7 @@ export default [
     keys: ["Log", "By code of", "Against element"],
     related: ["point-survey", "block-models"],
     summary: "Compares a downhole log between the logged codes (a box plot) and against an assay element (a scatter).",
-    more: "Petrophysics from the drillholes: mag susc, SG, RQD, recovery or a custom layer's numeric column, scored with Spearman's rank correlation. Magnetite destruction in a phyllic or argillic zone shows as a low mag-susc class; pyrrhotite as mag susc rising with Fe or S.",
+    more: "Petrophysics from the drillholes: mag susc, SG, RQD, recovery or a custom layer's numeric column, scored with Spearman's rank correlation. Magnetite destruction in a phyllic or argillic zone shows as a low mag-susc class; pyrrhotite as mag susc rising with Fe or S. Readings outside the valid range, and spikes removed by despiking, are left out here and in Estimation and Grade shell. The whiskers run from P2 to P98 of each code so a stray reading cannot squash the plot. To compare a log with a block model, evaluate the model onto the holes first (Block models, the drillhole icon).",
     notFor: [
       "It does not grid the log: use Estimation or Grade shell.",
     ],
@@ -22,7 +22,7 @@ export default [
       { name: "Against element", gist: "paired by hole and depth", what: "The assay element each reading is paired with, by hole and depth.", more: "How to choose: Fe or S for pyrrhotite and magnetite. A reading pairs with the assay interval of its hole that holds its midpoint. Pair on: Each reading, or The log's mean over each sample. The result gives Spearman's rank correlation and Pearson (on log10 values when the axis is logarithmic)." },
     ],
     warnings: [
-      { says: "No downhole log yet: import mag susc, SG, RQD or recovery readings as a drillhole layer (StrixViewer > Add layer), or a custom layer with a numeric column.", do: "Import the log on the StrixViewer tab." },
+      { says: "No downhole log yet: import mag susc, SG, RQD or recovery readings as a drillhole layer (StrixViewer > Add layer).", do: "Import the log on the StrixViewer tab." },
       { says: "No code of Lithology has three or more readings of this log.", do: "Pick another layer, or import the log for more holes." },
       { says: "Fewer than three readings fall inside an assay interval of the same hole.", more: "The log and the assays share no hole and depth.", do: "Check the hole ids match." },
     ],

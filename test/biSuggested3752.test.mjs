@@ -18,6 +18,6 @@ test("wired: the box is one significant figure of the weighted figure, and the n
   const b = fs.readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.match(b, /weightedPercentile\(rows\.map/);
   assert.match(b, /const quantileOf = \(sym, q, sig = 1\)/);
-  assert.match(b, /Suggested: the 90th percentile \(\{v\}, length-weighted\) rounded to one significant figure/);
+  assert.match(b, /Suggested: P90 \(\{v\}, length-weighted\), rounded/);
   assert.match(b, /quantileOf\(symbol, 0\.5, 2\), q3 = quantileOf\(symbol, 0\.75, 2\)/);
 });

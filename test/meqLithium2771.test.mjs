@@ -23,5 +23,5 @@ test("a Li + Ta equivalent with LCE per tonne, and the formula says so", () => {
 test("wired: the tick box and its tooltip", () => {
   const b = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.match(b, /\$\/\$\{TRADED_OXIDE\[s\]\.per \|\| "lb"\} \$\{TRADED_OXIDE\[s\]\.oxide\}/);
-  assert.match(b, /TRADED_OXIDE\[s\]\.per === "t" \? tr\("\{oxide\} is how \{s\} is sold: the price is per tonne/);
+  assert.match(b, /TRADED_OXIDE\[s\]\.per === "t" \? tr\("\{oxide\} is how \{s\} is sold: the price per tonne/);
 });

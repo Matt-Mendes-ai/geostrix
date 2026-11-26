@@ -263,10 +263,10 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
   const noDensitySamples = ranked.reduce((t, r) => t + (r.noDensityN || 0), 0), noDensityMetres = ranked.reduce((t, r) => t + (r.noDensityM || 0), 0);
   const weightedOn = !!densityAt && weightedRows > 0;
   const byDens = tr("by length × density");
-  const weightNote = weightedOn ? (noDensitySamples > 0 ? tr("Grades are weighted by length × density (the project's Specific gravity layer). {n} assayed sample(s), {m} m, have no density and took the intercept's mean density.", { n: noDensitySamples.toLocaleString(), m: noDensityMetres.toFixed(2) }) : tr("Grades are weighted by length × density (the project's Specific gravity layer).")) : tr("Grades are weighted by length.");
+  const weightNote = weightedOn ? (noDensitySamples > 0 ? tr("Weighted by length × density. {n} sample(s), {m} m, have no density: the intercept's mean is used.", { n: noDensitySamples.toLocaleString(), m: noDensityMetres.toFixed(2) }) : tr("Grades are weighted by length × density (the project's Specific gravity layer).")) : tr("Grades are weighted by length.");
   // TASKS.csv #3747 — a table of grades says whether they are cut: uncut (the default) or the top cut applied, in the dialog, the Layout note and the CSV
   const cutNote = topCutStored != null
-    ? tr("The first grade column is uncut; the cut column caps each sample at {cut} {unit}. The CSV gives the number of samples cut.", { cut: +shownBox(topCutStored).toPrecision(6), unit: dispUnit })
+    ? tr("Grade is uncut; the cut column caps each sample at {cut} {unit}.", { cut: +shownBox(topCutStored).toPrecision(6), unit: dispUnit })
     : tr("Grades are uncut: no top cut has been applied.");
   const concentrated = ranked.filter((r) => r.concentration && r.concentration.top2 >= 0.5).length; // #3747 — intercepts that are mostly one or two samples
   // TASKS.csv #3579 — the below-detection sentence only for a project that has a below-detection result in the elements shown
@@ -335,10 +335,10 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
       results.some((r) => r.overRange) ? tr("≥: contains an over-range result counted at its ceiling; the true grade is at least this.") : "",
       weightNote, // #3562 — which weighting the grades have
       cutNote, // #3747 — uncut, or cut to a stated value
-      concCol ? tr("Metal in the two richest samples: their share of the intercept's grade × length, from four samples up (—: fewer).") : "", // #3876 (#3758)
+      concCol ? tr("Metal in the two richest samples: their share of grade × length (—: under four samples).") : "", // #3876 (#3758)
       hasBelowDet ? tr("Below-detection results are taken at half the detection limit.") : "", // #3579 — only where there are some
-      results.slice(0, printed).some((r) => r.unsampledM > 0.05) ? tr("Where a length shows its sampled metres, the rest of the interval has no result: the grade and grade × length are over the samples only.") : "", // #2475
-      open.some((o) => o.top || o.bottom) ? tr("+: the intercept reaches the hole's first or last sample, so the mineralization may continue: the length is a minimum.") : "", // #2608
+      results.slice(0, printed).some((r) => r.unsampledM > 0.05) ? tr("Where a length shows sampled metres, the rest has no result: grade is over the samples only.") : "", // #2475
+      open.some((o) => o.top || o.bottom) ? tr("+: reaches the hole's first or last sample: the length is a minimum.") : "", // #2608
       twEnabled ? tr("True width to a structure dipping {dip}° towards {dipDir}°.", { dip: twDip, dipDir: twDipDir }) : tr("Lengths are downhole, not true widths."),
       tr("Screening tool: verify any intercept against the raw assay certificates before reporting it."),
     ].filter(Boolean).join(" ");
@@ -413,7 +413,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Best intercepts")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays} intervals loaded.{v}", { assays: assays.length, v: qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
-            <div style={{ fontSize: "var(--font-size-sm)", color: topCutStored != null ? "var(--color-text-muted)" : "var(--color-warn-text)", marginTop: 2 }}>{cutNote}{" "}{tr("Lengths are downhole, along the hole.")}{concentrated > 0 ? " " + tr("{n} intercept(s) have half or more of their metal in two samples (the last column): a few samples carry the grade there.", { n: concentrated.toLocaleString() }) : ""}</div>{/* #3747 */}
+            <div style={{ fontSize: "var(--font-size-sm)", color: topCutStored != null ? "var(--color-text-muted)" : "var(--color-warn-text)", marginTop: 2 }}>{cutNote}{" "}{tr("Lengths are downhole, along the hole.")}{concentrated > 0 ? " " + tr("{n} intercept(s) have half their metal in two samples (last column).", { n: concentrated.toLocaleString() }) : ""}</div>{/* #3747 */}
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
@@ -426,7 +426,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                 {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
               </select>
             </label>
-            {isPlainUnit(unit) && <label style={fieldLabel} title={tr("The unit {symbol} is shown in, here, in the Layout table and an extra CSV column; type the cut-off and 'Including at' in it. Stored values are unchanged.", { symbol })}>{tr("Show in")}
+            {isPlainUnit(unit) && <label style={fieldLabel} title={tr("Unit for {symbol}: here, in Layout and the CSV. Type the cut-off in it; stored values do not change.", { symbol })}>{tr("Show in")}
               <select value={shownUnit || ""} onChange={(e) => setDisplayUnit(symbol, e.target.value || null)} style={inp} aria-label={tr("Show in")}>
                 <option value="">{tr("As stored ({unit})", { unit: unitL })}</option>
                 {DISPLAY_UNITS.filter((u) => u !== unitL).map((u) => <option key={u} value={u}>{u}</option>)}
@@ -435,7 +435,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             </label>
             {suggested != null && cutoff === suggested && (() => { const med = quantileOf(symbol, 0.5, 2), q3 = quantileOf(symbol, 0.75, 2), p90Exact = quantileRaw(symbol, 0.9); return ( /* TASKS.csv #3223 — said beside the box, not only in its tooltip */
               <div role="status" style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>
-                <span>{p90Exact != null ? tr("Suggested: the 90th percentile ({v}, length-weighted) rounded to one significant figure. Set the cut-off you report at, or try:", { v: +shownBox(p90Exact).toPrecision(3) }) : tr("Suggested: the 90th percentile. Set the cut-off you report at, or try:")}</span>
+                <span>{p90Exact != null ? tr("Suggested: P90 ({v}, length-weighted), rounded. Or try:", { v: +shownBox(p90Exact).toPrecision(3) }) : tr("Suggested: the 90th percentile. Set the cut-off you report at, or try:")}</span>
                 {[[tr("median"), med], [tr("Q3"), q3]].filter(([, v]) => v != null && v !== cutoff).map(([name, v]) => <button className="gs-btn gs-btn--sm" key={name} type="button" onClick={() => { setCutoff(v); setSuggested(null); setCutoffNote(null); }}>{`${name} ${+shownBox(v).toPrecision(4)}`}</button>)}
               </div>); })()}
             {cutoffNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{/* TASKS.csv #2513 */}{cutoffNote.kind === "kept" ? tr("Cut-off {v} kept from {from} (the same unit).", { v: cutoffNote.value, from: cutoffNote.from }) : cutoffNote.kind === "restored" ? tr("Cut-off back to {v}, the one last used for {to}.", { v: cutoffNote.value, to: cutoffNote.to }) : tr("Cut-off reset to the suggestion for {to} ({v}): {to} is not in {from}'s unit.", { v: cutoffNote.value, to: cutoffNote.to, from: cutoffNote.from })}</div>}
@@ -449,27 +449,27 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
               </select>}
               {offers.length <= 4 && offers.map((o) => <button className="gs-btn gs-btn--sm" key={o.key} type="button" onClick={() => { setCutoff(o.value); setSuggested(null); }} title={tr("{rule}{pop}, decided {date}. Click to use it as the cutoff.", { rule: o.rule, pop: o.population ? ` (${o.population})` : "", date: o.decided })}>{o.population ? `${o.population.split(": ").pop()} ` : ""}{+shownBox(Number(o.value)).toPrecision(4)}</button>)}
             </div> : null; })()}
-            <label style={fieldLabel} title={tr("How much below-cutoff ('waste') core between two above-cutoff samples is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.")}>{tr("Max internal dilution (m)")}<NumberInput min="0" value={maxInternalDilution} onChange={(v) => setMaxInternalDilution(Math.max(0, v ?? 0))} style={inp} />
+            <label style={fieldLabel} title={tr("Below-cutoff core between two above-cutoff samples still folded into one intercept, diluting its grade.")}>{tr("Max internal dilution (m)")}<NumberInput min="0" value={maxInternalDilution} onChange={(v) => setMaxInternalDilution(Math.max(0, v ?? 0))} style={inp} />
             </label>
             <label style={fieldLabel}>{tr("Min length (m)")}<NumberInput min="0" value={minLength} onChange={(v) => setMinLength(Math.max(0, v ?? 0))} style={inp} />
             </label>
-            {maxInternalDilution === 2 && minLength === 0 && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", alignSelf: "center" }}>{tr("Max internal dilution 2 m and min length 0 are the tool's starting values: set the ones your report uses.")}</span>}{/* #3579 */}
+            {maxInternalDilution === 2 && minLength === 0 && <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", alignSelf: "center" }}>{tr("Starting values: set the ones your report uses.")}</span>}{/* #3579 */}
           </div>
           {/* TASKS.csv #4070 part 5 — the rarer settings (the higher cut-off, the top cut, the weighting, the metal equivalent, the extra elements, the true width, the host unit, the QC samples) behind one closed fold: the dialog opens on the element, the cut-off, the dilution and the length */}
           <MoreFold summary={tr("Fine-tune…")} data-fine-tune="best-intercepts">
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("Include the QC samples (standards, blanks, duplicates, found by hole_id). Left out by default so they can't show as a false best intercept.")}>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("Include standards, blanks and duplicates. Left out by default so they cannot show as a false best intercept.")}>
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={fieldLabel} title={tr("'Including' sub-intercepts at this higher cutoff, same rules, reported inside their intercept (e.g. 42 m @ 1.2, including 6 m @ 5.1). Empty: none.")}>{tr("Including at ≥")}<NumberInput allowEmpty min="0" value={includeCutoff === "" ? null : shownBox(Number(includeCutoff))} placeholder={tr("off")} onChange={(v) => setIncludeCutoff(v == null ? "" : String(toStored(v)))} style={inp} aria-label={tr("Including cutoff")} />
+            <label style={fieldLabel} title={tr("'Including' sub-intercepts at this higher cutoff, inside their intercept (42 m @ 1.2, including 6 m @ 5.1).")}>{tr("Including at ≥")}<NumberInput allowEmpty min="0" value={includeCutoff === "" ? null : shownBox(Number(includeCutoff))} placeholder={tr("off")} onChange={(v) => setIncludeCutoff(v == null ? "" : String(toStored(v)))} style={inp} aria-label={tr("Including cutoff")} />
             </label>
-            <label style={fieldLabel} title={tr("A top cut: inside an intercept each sample's grade is capped at this value, and the cut grade shows beside the uncut one. Empty: uncut (the default).")}>{tr("Top cut ≤")}<NumberInput allowEmpty min="0" value={topCutKept === "" ? null : shownBox(Number(topCutKept))} placeholder={tr("uncut")} onChange={(v) => setTopCut(v == null ? "" : String(toStored(v)))} style={inp} aria-label={tr("Top cut")} />{/* #3747 */}
+            <label style={fieldLabel} title={tr("A top cut: each sample's grade is capped at this value; the cut grade shows beside the uncut one.")}>{tr("Top cut ≤")}<NumberInput allowEmpty min="0" value={topCutKept === "" ? null : shownBox(Number(topCutKept))} placeholder={tr("uncut")} onChange={(v) => setTopCut(v == null ? "" : String(toStored(v)))} style={inp} aria-label={tr("Top cut")} />{/* #3747 */}
             </label>
-            <label style={fieldLabel} title={tr("Screen out intercepts below this grade × length (e.g. gram-metres for Au in g/t) — leave at 0 to show every intercept meeting the length/cutoff criteria above.")}>{tr("Min grade × length")}<NumberInput min="0" value={minGradeLen} onChange={(v) => setMinGradeLen(Math.max(0, v ?? 0))} style={inp} />
+            <label style={fieldLabel} title={tr("Hide intercepts below this grade × length (e.g. gram-metres). 0 shows all.")}>{tr("Min grade × length")}<NumberInput min="0" value={minGradeLen} onChange={(v) => setMinGradeLen(Math.max(0, v ?? 0))} style={inp} />
             </label>
-            {density && <label style={fieldLabel} title={tr("Average intercept, 'Also show' and composite grades by metres, or by metres × each sample's density (Specific gravity layer), as for massive sulphide. A sample with no density takes the others' mean.")}>{tr("Weight grades by")}
+            {density && <label style={fieldLabel} title={tr("Weight grades by metres, or by metres × each sample's density (Specific gravity layer). No density: the others' mean.")}>{tr("Weight grades by")}
               <select value={weightBy} onChange={(e) => setWeightBy(e.target.value)} style={inp} aria-label={tr("Weight grades by")}>
                 <option value="length">{tr("Length")}</option>
                 <option value="density">{tr("Length × density")}</option>
@@ -477,7 +477,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             </label>}
           </div>
           {/* TASKS.csv #402 — metal equivalent from the element + the 'Also show' elements below. */}
-          {alsoSymbols.length > 1 && bulkLead && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("No metal equivalent for {symbol}: it is sold per tonne at a reference-grade price with penalties, not as a sum of payable metals.", { symbol })}</div>}{/* #2923 */}
+          {alsoSymbols.length > 1 && bulkLead && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("No metal equivalent for {symbol}: it is sold per tonne at a reference-grade price, not as payable metals.", { symbol })}</div>}{/* #2923 */}
           {alsoSymbols.length > 1 && !bulkLead && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
@@ -486,14 +486,14 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                 <div style={{ marginTop: 6, marginLeft: 22, display: "flex", flexDirection: "column", gap: 4 }}>
                   {meqSymbols.filter((s) => !PENALTY_ELEMENTS.has(s) || s === symbol).map((s) => ( /* #2924 — no LOI row; #3754 (7) — no price row for a penalty element (As, Sb, Bi, Hg): nobody is paid for it */
                     <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ minWidth: 34 }}>{elementOptionLabel(s, elementUnits[s]) /* #2923 */}</span>{tr("price")}{" "}<NumberInput allowEmpty min="0" value={meqInputs[s]?.price ?? ""} onChange={(v) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: v == null ? "" : String(v) } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {TRADED_OXIDE[s] ? <label style={{ display: "inline-flex", alignItems: "center", gap: 3 }} title={TRADED_OXIDE[s].per === "t" ? tr("{oxide} is how {s} is sold: the price is per tonne of {oxide}, turned into one per tonne of {s} by its share of the carbonate ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor }) /* #2771 */ : tr("{oxide} is how {s} is sold: the price is per pound of {oxide}, turned into one per pound of {s} by its share of the oxide ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor })}><input type="checkbox" checked={meqInputs[s]?.oxide !== false} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], oxide: e.target.checked } }))} />{`$/${TRADED_OXIDE[s].per || "lb"} ${TRADED_OXIDE[s].oxide}` /* per t: #2771 */}</label> : null}{tr("{v}recovery", { v: TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false ? " " : (PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb") + " " /* #2923 — '$/lbrecovery' */ })}{/* oxide: #2731 */}{" "}<NumberInput allowEmpty min="1" max="100" value={meqInputs[s]?.recovery ?? ""} onChange={(v) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: v == null ? "" : String(v) } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
+                      <span style={{ minWidth: 34 }}>{elementOptionLabel(s, elementUnits[s]) /* #2923 */}</span>{tr("price")}{" "}<NumberInput allowEmpty min="0" value={meqInputs[s]?.price ?? ""} onChange={(v) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: v == null ? "" : String(v) } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {TRADED_OXIDE[s] ? <label style={{ display: "inline-flex", alignItems: "center", gap: 3 }} title={TRADED_OXIDE[s].per === "t" ? tr("{oxide} is how {s} is sold: the price per tonne of {oxide} becomes one per tonne of {s} ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor }) /* #2771 */ : tr("{oxide} is how {s} is sold: the price per pound of {oxide} becomes one per pound of {s} ({f}).", { oxide: TRADED_OXIDE[s].oxide, s, f: TRADED_OXIDE[s].factor })}><input type="checkbox" checked={meqInputs[s]?.oxide !== false} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], oxide: e.target.checked } }))} />{`$/${TRADED_OXIDE[s].per || "lb"} ${TRADED_OXIDE[s].oxide}` /* per t: #2771 */}</label> : null}{tr("{v}recovery", { v: TRADED_OXIDE[s] && meqInputs[s]?.oxide !== false ? " " : (PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb") + " " /* #2923 — '$/lbrecovery' */ })}{/* oxide: #2731 */}{" "}<NumberInput allowEmpty min="1" max="100" value={meqInputs[s]?.recovery ?? ""} onChange={(v) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: v == null ? "" : String(v) } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
                     </div>
                   ))}
                   <div style={{ color: meqReady ? "var(--color-text-muted)" : "var(--color-danger-icon-strong)" }}>
-                    {extraSymbols.length === 0 ? tr("Pick at least one other element under \"Also show\".") : meqReady ? metalEquivalentFormula(meqMetals) : tr("Enter a price and recovery for every element — no equivalent is shown until all are entered.")}
+                    {extraSymbols.length === 0 ? tr("Pick at least one other element under \"Also show\".") : meqReady ? metalEquivalentFormula(meqMetals) : tr("Enter a price and recovery for every element: no equivalent until all are set.")}
                   </div>
                   {meqReady && ( // TASKS.csv #1387
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("The equivalent is computed per sample and the intercepts are built on it, with the same rules. A sample missing any metal is left out, as an unassayed one is.")}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("The equivalent is computed per sample and intercepts are built on it. A sample missing a metal is left out.")}>
                       <input type="checkbox" checked={cutOnEq} onChange={(e) => setCutOnEq(e.target.checked)} />{tr("Cut the intercepts on {symbol}Eq, not on {symbol} alone", { symbol })}
                     </label>
                   )}
@@ -502,7 +502,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             </div>
           )}
           {alsoSymbols.length > 1 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title={tr("Extra elements' length-weighted average over each already-composited interval — the intercept itself is still only built/cut off against the primary Element above.")}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title={tr("Extra elements: length-weighted average over each interval; intercepts are still built on the primary element.")}>
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Also show:")}</span>
               {/* TASKS.csv #2356 (review #2325) — a 63-element suite filled half the dialog with tick boxes: above ALSO_MAX elements only the
                   ticked ones are shown (click to remove), the others are in an 'Add an element' list */}
@@ -536,7 +536,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             )}
             {!collars?.length && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Import collars to enable.")}</span>}
             {twEnabled && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Width × |cos θ| to the structure's pole — a factor near 1 means a well-oriented hole.")}</span>}
-            {twOn && !twReady && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon-strong)" }}>{tr("Enter the mineralized structure's dip direction and dip (0-90°): no true width is shown until both are set.")}</span>}
+            {twOn && !twReady && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon-strong)" }}>{tr("Enter dip direction and dip (0-90°): no true width until both are set.")}</span>}
           </div>
           {/* TASKS.csv #230 — host domain/lithology per intercept. */}
           {(domainLayerOptions.length > 0 || extraDomains.length > 0) && (
@@ -553,7 +553,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
 
           {ranked.length > 0 && <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>{tr("Hole contains")}<input type="search" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ ...inp, width: 150 }} aria-label={tr("Show only the holes whose name contains")} placeholder={tr("hole name")} />{holeFilter.trim() && <span>{tr("{n} of {total} intercepts", { n: results.length.toLocaleString(), total: ranked.length.toLocaleString() })}</span>}<span style={{ color: "var(--color-text-muted)" }}>{tr("Click a column heading to sort; the CSV and the Layout table follow this order.")}</span></label>}{/* #3565 */}
           {results.length > 0 && (() => { const c = interceptCount(results); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{/* TASKS.csv #2200 — how many, with the filters above */}{c.n === 1 ? tr("1 intercept, in 1 hole") : c.holes === 1 ? tr("{n} intercepts, in 1 hole", { n: c.n.toLocaleString() }) : tr("{n} intercepts, in {holes} holes", { n: c.n.toLocaleString(), holes: c.holes.toLocaleString() })}</div>; })()}
-          {results.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Each hole's intercepts summed: downhole length (not true thickness), grade × length and each 'Also show' mean. To map it in 2D: 3D Modelling › Estimation › Grade × thickness in plan.")}><input type="checkbox" checked={perHole} onChange={(e) => setPerHole(e.target.checked)} />{tr("Total per hole")}</label>}{/* #2419 */}
+          {results.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Each hole's intercepts summed: downhole length, grade × length and 'Also show' means. For a 2D map: 3D Modelling › Estimation › Grade × thickness in plan.")}><input type="checkbox" checked={perHole} onChange={(e) => setPerHole(e.target.checked)} />{tr("Total per hole")}</label>}{/* #2419 */}
           {perHole && results.length > 0 && (() => { const hs = holeRows; return (
             <div ref={hv.scrollRef} onScroll={hv.onScroll} style={{ overflow: "auto", maxHeight: 380, minHeight: 120, flexShrink: 0 }}>{/* windowed: #3160 */}
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
@@ -575,7 +575,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                     {sortTh("to", tr("To"))}
                     {sortTh("length", tr("Length (m, downhole)") /* #3747 */)}
                     {twEnabled && <th style={th} title={tr("Downhole length corrected to a true thickness perpendicular to the stated structure.")}>{tr("True width (m)")}</th>}
-                    {twEnabled && <th style={th} title={tr("|cos θ| between the hole and the structure's pole: 1.0 = perpendicular (ideal); near 0 = a grazing cut, its downhole width badly inflated.")}>{tr("Factor")}</th>}
+                    {twEnabled && <th style={th} title={tr("|cos θ| between hole and structure pole: 1 = perpendicular (ideal); near 0 = a grazing cut, its width inflated.")}>{tr("Factor")}</th>}
                     {domainLayer && <th style={th} title={tr("Logged unit(s) hosting this intercept. Percentages shown when it straddles a contact.")}>{tr("Host")}</th>}
                     {sortTh("grade", weightedOn ? tr("Avg {symbol} ({unit}, by length × density)", { symbol: gradeSym, unit: dispUnit }) : tr("Avg {symbol} ({unit})", { symbol: gradeSym, unit: dispUnit }))}
                     {topCutStored != null && <th style={th} title={tr("Each sample limited to the top cut inside the intercept; the grade column before it is uncut.")}>{tr("{symbol} cut to {cut} ({unit})", { symbol: gradeSym, cut: +shownBox(topCutStored).toPrecision(6), unit: dispUnit })}</th>}{/* #3747 */}
@@ -585,7 +585,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                       : <th key={c} style={th} title={metalEquivalentFormula(meqMetals)}>{tr("{symbol}Eq ({unit})", { symbol, unit: dispUnit /* #3221 */ })}</th>))}
                     {shownExtras.map((s) => <React.Fragment key={s}>{sortTh(`extra:${s}`, weightedOn ? tr("Avg {s} ({v}, by length × density)", { s, v: s === symbol && pct ? dispUnit : gradeUnitLabel(s, elementUnits[s] || "ppm") }) : tr("Avg {s} ({v})", { s, v: s === symbol && pct ? dispUnit : gradeUnitLabel(s, elementUnits[s] || "ppm") /* #3221; #3236 — the unit shown; #3579 — one unit per metal (g/t, as the Element list says) */ }))}</React.Fragment>)}
                     {sortTh("samples", tr("Samples ≥ cutoff"), tr("The assay intervals in the intercept at or above the cutoff"))}{/* #1393 — it counts those only */}
-                    <th style={th} title={tr("The share of the intercept's grade × length in its two richest samples (four samples up): high means a few samples carry the grade.")}>{tr("Metal in top 2 samples")}</th>{/* #3747 */}
+                    <th style={th} title={tr("Share of grade × length in the two richest samples (from four samples): high means a few carry the grade.")}>{tr("Metal in top 2 samples")}</th>{/* #3747 */}
                   </tr>
                 </thead>
                 <tbody>
@@ -606,7 +606,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                         // rather than letting the row look simply wrong.
                         const notes = [
                           partial ? tr("Only {v}% of this intercept has a logged unit — the remainder is unlogged.", { v: Math.round(d.covered * 100) }) : null,
-                          d?.overlapping ? tr("Fix the OVERLAPPING intervals in this hole's source log: the same metre is logged as more than one unit, so these percentages sum above 100%.") : null,
+                          d?.overlapping ? tr("Fix the overlapping intervals in this hole's log: a metre logged as more than one unit sums above 100%.") : null,
                         ].filter(Boolean);
                         return (
                           <td style={{ ...td, color: d?.overlapping ? "#b06a1f" : undefined }} title={notes.length ? notes.join(" ") : undefined}>
@@ -617,7 +617,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                       <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}
                         title={[
                           r.overRange ? tr("Contains an over-range ('>') result, counted at its detection ceiling — the true grade is at least this.") : null,
-                          r.unsampledM > 1e-6 ? tr("{unsampledM} m inside this intercept has no {symbol} result (unsampled or not assayed): it is left out of the grade, which is over the assayed metres only.", { unsampledM: r.unsampledM.toFixed(2), symbol: gradeSym }) : null,
+                          r.unsampledM > 1e-6 ? tr("{unsampledM} m of this intercept has no {symbol} result: left out of the grade, which is over assayed metres only.", { unsampledM: r.unsampledM.toFixed(2), symbol: gradeSym }) : null,
                           r.overlapM > 1e-6 ? tr("{overlapM} m is covered by overlapping assay rows with different results; their average is used.", { overlapM: r.overlapM.toFixed(2) }) : null,
                           r.weighting === "density" ? tr("Weighted by length × density: {byLength} by length alone; mean density {rho} t/m³.", { byLength: gradeCol(dg(r.avgGradeByLength)), rho: +r.meanDensity.toPrecision(4) }) : r.weighting === "length" ? tr("No density in this intercept: its grade is by length.") : null,
                           r.noDensityM > 1e-6 ? tr("{m} m of assayed samples here have no density and took the mean of the rest.", { m: r.noDensityM.toFixed(2) }) : null,
@@ -654,19 +654,19 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                   results.stats.overlappingRows > 0 ? tr("{overlappingRows} row(s) overlap another in the same hole: each metre counts once, differing {symbol} results are averaged (⚠ in the table)", { overlappingRows: results.stats.overlappingRows, symbol }) : null,
                   results.stats.negativeValues > 0 ? tr("{negativeValues} negative {symbol} value(s) treated as not assayed (negative numbers are detection-limit or no-data codes, not grades)", { negativeValues: results.stats.negativeValues, symbol }) : null,
                 ].filter(Boolean).join(". ") })}</div>
-            )}{tr("Intercepts never average below the cutoff: dilution is bridged only while the result stays at or above it. \"≥\": the grade holds an over-range result.")}{" "}{sortKey === "gl" && sortDesc ? tr("Sorted by grade × length (best intercepts first).") : tr("In the order of the column heading clicked.")}{" "}{weightNote}{hasBelowDet ? ` ${tr("Below-detection assay values are already substituted at half the detection limit (same convention as the plots).")}` : ""}{" "}{tr("This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.")}{/* #3562 weighting named; #3579 below-detection only where there is some */}</div>
+            )}{tr("Intercepts never average below the cutoff. \"≥\": the grade holds an over-range result.")}{" "}{sortKey === "gl" && sortDesc ? tr("Sorted by grade × length (best intercepts first).") : tr("In the order of the column heading clicked.")}{" "}{weightNote}{hasBelowDet ? ` ${tr("Below-detection assay values are already substituted at half the detection limit (same convention as the plots).")}` : ""}{" "}{tr("This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.")}{/* #3562 weighting named; #3579 below-detection only where there is some */}</div>
 
-          <button className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start" }} onClick={exportCSV} disabled={results.length === 0}>
-            <Download size={14} />{" "}{perHole ? tr("Export totals per hole (CSV)") : tr("Export report (CSV)")}</button>{/* TASKS.csv #3699 — the button says which table it writes */}
-          <CsvStampToggle />{/* TASKS.csv #3614 */}
-          <button className="gs-btn" style={{ alignSelf: "flex-start" }} onClick={toLayout} disabled={results.length === 0} title={tr("Put the best of these intercepts on the current Layout page as a table, as many as fit a free spot (the CSV has them all)")}>
-            <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}
-          <label style={{ display: "flex", alignItems: "center", gap: 5, alignSelf: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }} title={tr("The intercepts that do not fit the sheet go on new Layout pages, as the collar table's continuation does, instead of a closing count row")}>
-            <input type="checkbox" checked={continuePages} onChange={(e) => setContinuePages(e.target.checked)} />{tr("Continue on new pages")}</label>{/* TASKS.csv #2708 */}
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)", alignItems: "center", flexWrap: "wrap" }}>{/* TASKS.csv #4086 — the gold Export sits in the bar beside Close: in view at 1366x768 without scrolling the table */}
           <button className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{tr("Close")}</button>
+          <label style={{ display: "flex", alignItems: "center", gap: 5, alignSelf: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }} title={tr("Intercepts that do not fit go on new Layout pages instead of a closing count row")}>
+            <input type="checkbox" checked={continuePages} onChange={(e) => setContinuePages(e.target.checked)} />{tr("Continue on new pages")}</label>{/* TASKS.csv #2708 */}
+          <CsvStampToggle />{/* TASKS.csv #3614 */}
+          <button className="gs-btn" onClick={toLayout} disabled={results.length === 0} title={tr("Put the best intercepts on the Layout page as a table (the CSV has them all)")}>
+            <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}
+          <button className="gs-btn gs-btn--primary" style={{ flex: 2, justifyContent: "center" }} onClick={exportCSV} disabled={results.length === 0}>
+            <Download size={14} />{" "}{perHole ? tr("Export totals per hole (CSV)") : tr("Export report (CSV)")}</button>{/* TASKS.csv #3699 — the button says which table it writes */}
         </div>
       </div>
     </div>
