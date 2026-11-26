@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 test("#2197 the guard, the no-immobile warning and the ribbon's reason", () => {
   const t = readFileSync(new URL("../src/components/IsoconTool.jsx", import.meta.url), "utf8");
   assert.match(t, /if \(concSymbols\.length < 2\) \{/);
-  assert.match(t, /there is nothing to calculate/);
-  assert.match(t, /None of Al, Ti, Zr, Nb or Y is in this project's assays/);
+  assert.match(t, /Isocon needs an immobile element \(Al, Ti, Zr, Nb or Y\)\. This project's assays have \{list\} only\./);
+  assert.match(t, /None of Al, Ti, Zr, Nb or Y is in the assays/);
   // the early return comes after every hook (the rules of hooks)
   const ret = t.indexOf("if (concSymbols.length < 2) {"), lastHook = Math.max(t.lastIndexOf("useMemo("), t.lastIndexOf("useState("), t.lastIndexOf("useEffect("));
   assert.ok(lastHook < ret, "no hook after the early return");

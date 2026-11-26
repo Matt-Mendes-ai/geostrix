@@ -39,6 +39,35 @@ test("Grade statistics: Data, Distribution, Cap and Cut-offs, Export as the one 
   assert.doesNotMatch(stats, /role="dialog"/, "StepDialog owns the dialog role, Escape and the focus trap");
 });
 
+// TASKS.csv #4088 — the rest of the row: QAQC, the per-hole grid and Isocon
+const qc = read("../src/components/QAQCPanel.jsx");
+const hv = read("../src/components/HoleValueGridPanel.jsx");
+const iso = read("../src/components/IsoconTool.jsx");
+
+test("QAQC: Data, then a step per check (Standards, Blanks, Duplicates, Method pairs, pXRF vs lab, Totals), Export as each check's one primary, every control still there", () => {
+  assert.match(qc, /<StepDialog title=\{tr\("QAQC — lab quality control"\)\}/);
+  assert.match(qc, /const stepKeys = \["data", \.\.\.tabs\];/);
+  assert.match(qc, /label: tr\("Export current view \(CSV\)"\), onClick: exportCSV, disabled: !exportCount/);
+  assert.deepEqual(missing(qc, ["setSymbol(", "setDetectionLimit(", "setBlankMult(", "setBlankThreshold(", "setPerMethod(", "setMethodLimit(", "setDupMin(", "setRepeatedAsDup(", "setSelectedStdId(",
+    "setReviewOpen(true)", "<MethodPairsTab", "<OxideTotalsTab", "<QcPairReview", "<CertInputs", "<ControlChart", 'aria-label={tr("Detection limit")}', 'aria-label={tr("Minimum pair mean")}']), []);
+  assert.doesNotMatch(qc, /role="dialog"/);
+});
+
+test("Grid a per-hole value: What, Where, How on a StepPane, Grid to raster the one action, the result in numbers", () => {
+  assert.match(hv, /<StepPane id="maps-hole-value"/);
+  for (const k of ['key: "what"', 'key: "where"', 'key: "how"']) assert.ok(hv.includes(k), k);
+  assert.match(hv, /action=\{\{ label: tr\("Grid to raster"\), onClick: run/);
+  assert.deepEqual(missing(hv, ["setSourceId(", "setCodes(", "setStat(", "setThreshold(", "setPlaceAtChoice(", "setDepthAs(", "setMethod(", "setCell(", "setBlank(", "setLogChoice(", "<StepNumbers"]), []);
+});
+
+test("Isocon: Groups, Immobile and Result, Export as the result's primary, 'only samples with every immobile element' in Fine-tune", () => {
+  assert.match(iso, /<StepDialog title=\{tr\("Isocon \/ mass-change calculator"\)\}/);
+  for (const k of ['key: "groups"', 'key: "immobile"', 'key: "result"']) assert.ok(iso.includes(k), k);
+  assert.match(iso, /<MoreFold summary=\{tr\("Fine-tune…"\)\} data-fine-tune="isocon">/);
+  assert.match(iso, /label: tr\("Export mass-balance table \(CSV\)"\), onClick: exportCSV/);
+  assert.deepEqual(missing(iso, ["setFlt(", "addMatches(setPrecursorIds)", "addMatches(setAlteredIds)", "setPrecursorIds(new Set())", "setAlteredIds(new Set())", "setFilterText(", "toggle(immobile, setImmobile, s)", "setCommonOnly(", "<IntervalList"]), []);
+});
+
 test("the new labels are in every language", () => {
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(read(`../src/locales/${lang}.json`));

@@ -23,7 +23,7 @@ test("an LOI over 60 % is counted in the totals' LOI line", () => {
 test("wiring: Isocon's lists and note, the metal equivalent's rows, the Totals tab's line", () => {
   const i = readFileSync(new URL("../src/components/IsoconTool.jsx", import.meta.url), "utf8");
   assert.match(i, /assayElements\.filter\(\(e\) => !e\.calculated && !isLoiHeader\(e\.symbol\)\)/);
-  assert.match(i, /Left out of the mass balance: \{list\} \(loss on ignition is a property of the sample, not an element\)\./);
+  assert.match(i, /Left out: \{list\} \(loss on ignition\)\./);
   const b = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.match(b, /const meqSymbols = useMemo\(\(\) => \[symbol, \.\.\.extraSymbols\]\.filter\(\(s\) => !isLoiHeader\(s\)\)/);
   const t = readFileSync(new URL("../src/components/OxideTotalsTab.jsx", import.meta.url), "utf8");

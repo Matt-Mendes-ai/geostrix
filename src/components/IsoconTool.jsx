@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { isBelowDetection } from "../lib/assayFlags.js"; // TASKS.csv #2505
 import { useVirtualRows } from "../lib/useVirtualRows.js"; // TASKS.csv #1186, #1278
-import { X, Download } from "./icons.js";
+import StepDialog from "./StepDialog.jsx";
+import { StepNumbers } from "./StepPane.jsx";
+import MoreFold from "./MoreFold.jsx";
+import DialogHelpCard from "./DialogHelpCard.jsx";
 import { valueIn, elementOptionLabel, isLoiHeader } from "../lib/geochem.js"; // elementOptionLabel: #2914; isLoiHeader: #2924
 import { saveFile } from "../lib/desktop.js";
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1521 — the logs, for "add by filter"
@@ -38,8 +37,6 @@ const USUAL_IMMOBILE = ["Al", "Ti", "Zr", "Nb", "Y", "Hf", "Th"]; // #2197 — t
 const sig3 = (v) => (!Number.isFinite(v) ? "—" : v === 0 ? "0" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : String(+v.toPrecision(3)));
 export default function IsoconTool({ assays: assaysIn, assayElements, onClose }) {
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #2348 — as Correlation / Grade stats
-  useEscapeKey(onClose); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   // TASKS.csv #1521 (review #1497, Lawyers) — a calculated element (an alteration index, a metal equivalent) is not a concentration: it
@@ -143,34 +140,17 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
   // TASKS.csv #2197 (review #2174, WA gold) — with gold the only element the dialog opened normally, listed every interval and offered Au as
   // 'immobile', and only said it could not run once both groups were filled. Isocon needs a suite with an immobile element: said at once.
   const immobileKnown = concSymbols.filter((s) => USUAL_IMMOBILE.includes(s));
+  // TASKS.csv #4088 (side 4, Main's list) — a StepDialog: Groups (the precursor and the altered intervals), Immobile (the elements that stayed put; 'only samples with every one' in Fine-tune),
+  // Result (the slope, the bulk mass change and the agreement in numbers, then the table; Export is the one gold primary). The method's citation and advice are in the "?" card.
+  const [at, setAt] = useState(0);
+  const helpCard = <DialogHelpCard lines={[tr("Grant (1986), closed form via immobile-element ratios (MacLean & Barrett 1993)."), tr("Al, Ti and Zr are common first choices: check with an immobile-element plot, e.g. Zr/TiO₂ vs Nb/Y.")]} />;
   if (concSymbols.length < 2) {
-    return (
-      <div style={overlay} {...backdropProps(onClose)}>
-        <div style={{ ...panel, width: 460 }} role="dialog" aria-modal="true" aria-label={tr("Isocon / mass-change calculator")} onClick={(e) => e.stopPropagation()}>
-          <div style={header}>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Isocon / mass-change calculator")}</div>
-            <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-          </div>
-          <div role="note" style={{ padding: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Isocon compares an altered rock with its precursor, anchored on an element that stayed put (Al, Ti, Zr, Nb or Y). This project's assays have {list} only, so there is nothing to calculate.", { list: concSymbols.join(", ") || "—" })}</div>
-        </div>
-      </div>
-    );
+    return <StepDialog title={tr("Isocon / mass-change calculator")} onClose={onClose} width="min(460px, 94vw)" at={0} onAt={() => {}} cancelLabel={tr("Close")}
+      steps={[{ key: "none", label: tr("Groups"), render: () => <div role="note" style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Isocon needs an immobile element (Al, Ti, Zr, Nb or Y). This project's assays have {list} only.", { list: concSymbols.join(", ") || "—" })}</div>, primary: { label: tr("Close"), onClick: onClose } }]} />;
   }
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Isocon / mass-change calculator")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Grant (1986) isocon method, closed-form via immobile-element ratios (MacLean & Barrett 1993).")}</div>
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
-        </div>
-
-        <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          {!immobileKnown.length && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("None of Al, Ti, Zr, Nb or Y is in this project's assays. Pick an element you know was immobile here: Isocon rests on it, or the result means little.")}</div>}{/* #2197 */}
-          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Check intervals into a")}{" "}<b style={{ color: "var(--color-success-fg)" }}>{tr("precursor")}</b>{" "}{tr("group (least-altered equivalent of the protolith) and an")}{" "}<b style={{ color: "var(--color-danger-fg)" }}>{tr("altered")}</b>{" "}{tr("group (the rock you want the mass change of). Each group is averaged in ppm. Pick the elements that were immobile during alteration: Al, Ti and Zr are reasonable first choices in many hydrothermal systems, but if unsure, check first with an immobile-element plot (e.g. Zr/TiO₂ vs Nb/Y).")}</div>
-
+  const groupsStep = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Check intervals into a")}{" "}<b style={{ color: "var(--color-success-fg)" }}>{tr("precursor")}</b>{" "}{tr("group (the least-altered rock) and an")}{" "}<b style={{ color: "var(--color-danger-fg)" }}>{tr("altered")}</b>{" "}{tr("group. Each is averaged in ppm.")}</div>
           <input
             placeholder={tr("Filter by hole ID…")}
             value={filterText}
@@ -211,7 +191,11 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
             <IntervalList title={tr("Precursor")} color="#8fd9ab" rows={filtered} idSet={precursorIds} onToggle={(id) => toggle(precursorIds, setPrecursorIds, id)} n={precursor?.n} />
             <IntervalList title={tr("Altered")} color="#e08a8a" rows={filtered} idSet={alteredIds} onToggle={(id) => toggle(alteredIds, setAlteredIds, id)} n={altered?.n} />
           </div>
-
+    </div>
+  );
+  const immobileStep = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {!immobileKnown.length && <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("None of Al, Ti, Zr, Nb or Y is in the assays: pick an element you know was immobile.")}</div>}{/* #2197 */}
           <div>
             <div style={label}>{tr("Immobile elements ({size} selected)", { size: immobile.size })}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -223,27 +207,25 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
               ))}
             </div>
           </div>
-
+      <MoreFold summary={tr("Fine-tune…")} data-fine-tune="isocon">
+        <label style={{ display: "flex", gap: 5, alignItems: "center", fontSize: "var(--font-size-sm)", paddingTop: 6 }}><input type="checkbox" checked={commonOnly} onChange={(e) => setCommonOnly(e.target.checked)} />{tr("Only samples with every immobile element")}</label>
+      </MoreFold>
+    </div>
+  );
+  const resultStep = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {result?.error && (
             <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: "var(--font-size-base)", color: "#d8c080" }}>{result.error}</div>
           )}
-
-          {result && !result.error && (
-            <>
-              <div style={{ display: "flex", gap: 16, padding: "10px 14px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: "var(--font-size-base)" }}>
-                <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Isocon slope (Mo/M):")}</span> <b style={{ color: "var(--color-text)" }}>{result.slope.toFixed(3)}</b></div>
-                <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Bulk mass change:")}</span> <b style={{ color: result.bulkMassChangePct >= 0 ? "var(--color-success-fg)" : "var(--color-danger-fg)" }}>{result.bulkMassChangePct >= 0 ? "+" : ""}{result.bulkMassChangePct.toFixed(1)}%</b></div>
-                <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Immobile-set agreement:")}</span> <b style={{ color: result.spread < 0.1 ? "var(--color-success-fg)" : "#d8c080" }}>{tr("±{v}% CV", { v: (result.spread * 100).toFixed(0) })}</b></div>
-              </div>
+      {result && !result.error && (
+        <>
+          <StepNumbers rows={[{ label: tr("Isocon slope (Mo/M)"), value: result.slope.toFixed(3) }, { label: tr("Bulk mass change"), value: `${result.bulkMassChangePct >= 0 ? "+" : ""}${result.bulkMassChangePct.toFixed(1)}%` }, { label: tr("Immobile-set agreement"), value: tr("±{v}% CV", { v: (result.spread * 100).toFixed(0) }), level: result.spread >= 0.1 ? "some" : undefined }]} />
               {result.spread >= 0.1 && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "#8a6a3a" }}>{tr("Treat the numbers below with caution: the immobile elements you picked disagree (ratio spread ≥10%). One may not be immobile in this system, or the two groups are not a real precursor/altered pair.")}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "#8a6a3a" }}>{tr("Caution: the immobile elements disagree (spread ≥10%): one may not be immobile, or the groups are not a true pair.")}</div>
               )}
-
-              {/* TASKS.csv #2348 — which samples the means come from */}
               {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft.toLocaleString() })}</div>}
-              <label style={{ display: "flex", gap: 5, alignItems: "center", fontSize: "var(--font-size-sm)" }}><input type="checkbox" checked={commonOnly} onChange={(e) => setCommonOnly(e.target.checked)} />{tr("Only samples with every immobile element")}</label>
-              {precursor.restricted && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Means over the samples that carry {list}: {a} of {b} precursor and {c} of {d} altered samples. Each mean shows its n; under {m} it is greyed.", { list: imm.shared.join(", "), a: precursor.used.toLocaleString(), b: precursor.n.toLocaleString(), c: altered.used.toLocaleString(), d: altered.n.toLocaleString(), m: MIN_GROUP_N })}</div>}
-              {commonOnly && imm.shared.length > 0 && !precursor.restricted && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No sample of a group carries every immobile element: each element is averaged over the samples that have it (see each n).")}</div>}
+              {precursor.restricted && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Means over samples with {list}: {a} of {b} precursor, {c} of {d} altered. Under n = {m}: greyed.", { list: imm.shared.join(", "), a: precursor.used.toLocaleString(), b: precursor.n.toLocaleString(), c: altered.used.toLocaleString(), d: altered.n.toLocaleString(), m: MIN_GROUP_N })}</div>}
+              {commonOnly && imm.shared.length > 0 && !precursor.restricted && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("No sample carries every immobile element: each is averaged over its own samples.")}</div>}
               {imm.missing.map((m) => <div key={m.symbol} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{m.group === "both" ? tr("{s}: no value in either group, left out of the immobile set.", { s: m.symbol }) : m.group === "precursor" ? tr("{s}: no value in the precursor group, left out of the immobile set.", { s: m.symbol }) : tr("{s}: no value in the altered group, left out of the immobile set.", { s: m.symbol })}</div>)}
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
@@ -263,21 +245,18 @@ export default function IsoconTool({ assays: assaysIn, assayElements, onClose })
                   ))}
                 </tbody>
               </table>
-              {loiSymbols.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Left out of the mass balance: {list} (loss on ignition is a property of the sample, not an element).", { list: loiSymbols.join(", ") })}</div>}{/* #2924 */}
-              {calcSymbols.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}", { list: calcSymbols.join(", ") })}</div>}{/* #1521 */}
-
-              <button onClick={exportCSV} className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
-                <Download size={14} />{" "}{tr("Export mass-balance table (CSV)")}</button>
-            </>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
-        </div>
-      </div>
+              {loiSymbols.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Left out: {list} (loss on ignition).", { list: loiSymbols.join(", ") })}</div>}{/* #2924 */}
+              {calcSymbols.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Left out: {list} (calculated, not concentrations).", { list: calcSymbols.join(", ") })}</div>}{/* #1521 */}
+        </>
+      )}
     </div>
   );
+  const steps = [
+    { key: "groups", label: tr("Groups"), render: groupsStep, primary: { label: tr("Next"), disabled: !precursorIds.size || !alteredIds.size } },
+    { key: "immobile", label: tr("Immobile"), render: immobileStep, primary: { label: tr("Next"), disabled: !immobile.size } },
+    { key: "result", label: tr("Result"), render: resultStep, primary: { label: tr("Export mass-balance table (CSV)"), onClick: exportCSV, disabled: !result || !!result.error } },
+  ];
+  return <StepDialog title={tr("Isocon / mass-change calculator")} onClose={onClose} steps={steps} at={at} onAt={setAt} width="min(760px, 94vw)" help={helpCard} />;
 }
 
 // TASKS.csv #1186, #1278 — every interval twice as a real checkbox was 7,582 of them on Woodjam: 554 ms to open, 100 ms per tick
@@ -302,8 +281,6 @@ function IntervalList({ title, color, rows, idSet, onToggle, n }) {
   );
 }
 
-const panel = { width: "min(760px, 94vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const th = { padding: "4px 8px", fontWeight: 500 };
