@@ -16,5 +16,5 @@ test("the importer takes every model with the mesh, named after each model file"
   assert.ok(src.includes("const modelFiles = files.filter((f) => !meshFiles.includes(f));")); // #3806: every mesh chosen
   assert.ok(src.includes("for (const modelFile of modelFiles) {"));
   assert.ok(src.includes("addVoxelModel({ name: modelName, source: \"ubc\","));
-  assert.ok(src.includes('accept=".msh,.mod,.con,.den,.sus,.res,.chg,.sen,.txt"'));
+  assert.ok(src.includes('accept=".msh,.mesh,.mod,.con,.den,.sus,.res,.chg,.sen,.inv,.txt"')); // .mesh / .inv: #4078
 });
