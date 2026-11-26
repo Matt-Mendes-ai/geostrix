@@ -10560,7 +10560,6 @@
   "No GOCAD TSurf with triangles in this file{v}.": "لا يوجد TSurf من GOCAD بمثلثات في هذا الملف{v}.",
   " (it holds {list})": " (يحتوي على {list})",
   "no GOCAD PLine with segments in it": "لا يحتوي على أي PLine من GOCAD بقطع مستقيمة",
-  "Imported \"{name}\" as {n} boundary layer(s) ({lines} line(s)) with their own elevations — edit or remove them under Geophysics → Boundaries. GOCAD coordinates are assumed to already be in the project's coordinate system{v}.": "استُورد «{name}» كـ {n} طبقة حدود ({lines} خط) بارتفاعاتها الخاصة — حرّرها أو احذفها في الجيوفيزياء ← الحدود. يُفترض أن إحداثيات GOCAD في نظام إحداثيات المشروع بالفعل{v}.",
   " (the file names \"{crs}\")": " (يذكر الملف «{crs}»)",
   "{name}: couldn't read GOCAD ({message}).": "{name}: تعذّرت قراءة GOCAD ({message}).",
   "{names}: GOCAD point sets are read as point surveys: drop them on the Geophysics tab, or use Geophysics > Point survey > Import survey.": "{names}: تُقرأ مجموعات نقاط GOCAD كمسوحات نقطية: أفلتها في تبويب الجيوفيزياء، أو استخدم الجيوفيزياء > مسح نقطي > استيراد مسح.",
@@ -15807,7 +15806,6 @@
   "Ticked first: the elements with a value on 90 % of the samples and few below detection or on the detection floor.": "المؤشَّر عليها في البداية: العناصر ذات القيمة في 90 % من العينات وقليلة تحت الكشف أو على أرضية الكشف.",
   "Values in {unit}; click a column to pick its rule.": "القيم بوحدة {unit}؛ انقر عمودًا لاختيار قاعدته.",
   "{n} {medium} sites; background {bg} {unit} ({how}); anomalous from {thr} {unit} ({rule}).": "{n} موقعًا من {medium}؛ الخلفية {bg} {unit} ({how})؛ شاذ ابتداءً من {thr} {unit} ({rule}).",
-  "\"{name}\" is a SMARTem IP (TIP) file: electrode positions, apparent resistivity and chargeability, not a TEM survey. Open it in the DC / IP line pane.": "\"{name}\" ملف SMARTem للاستقطاب المحرَّض (TIP): مواضع الأقطاب والمقاومية الظاهرية والشحنية، وليس مسحاً TEM. افتحه في لوحة خط DC / IP.",
   "This is a TQIPdb plot-point table of a {array} survey: only pole-dipole plot points can be turned back into electrode positions.": "هذا جدول نقاط رسم TQIPdb لمسح من نوع {array}: لا يمكن إعادة نقاط الرسم إلى مواضع الأقطاب إلا في مسح القطب-ثنائي القطب.",
   "TQIPdb plot-point table: {n} readings, pole-dipole with a {a} m dipole{v}. The table gives plot points and n-levels, not electrodes: the current pole is taken at the {side} end of each array. If the survey ran the other way the readings are mirrored; the raw dump of the line gives the electrode positions.": "جدول نقاط رسم TQIPdb: {n} قراءة، قطب-ثنائي القطب بثنائي قطب {a} م{v}. يعطي الجدول نقاط الرسم والمستويات n لا الأقطاب: يُؤخذ قطب التيار عند طرف {side} من كل ترتيب. إذا جرى المسح في الاتجاه المعاكس تنعكس القراءات؛ والملف الخام للخط يعطي مواضع الأقطاب.",
   " (the array is not stated: read as pole-dipole)": " (الترتيب غير مذكور: قُرئ كقطب-ثنائي القطب)",
@@ -15854,5 +15852,9 @@
   "Every cell is no-data.": "كل الخلايا بلا بيانات.",
   "Read as {p} from the file name.": "قُرئ كـ {p} من اسم الملف.",
   " Log colours: {min} to {max}.": " ألوان لوغاريتمية: {min} إلى {max}.",
-  "Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv، آخر {n} نماذج محفوظة: {list}؛ الأعماق من قمة عند 0 م، بعمق {m} م.{swap}"
+  "Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv، آخر {n} نماذج محفوظة: {list}؛ الأعماق من قمة عند 0 م، بعمق {m} م.{swap}",
+  "Imported \"{name}\": {n} boundary layer(s), {lines} line(s), under Geophysics → Boundaries. Coordinates taken as the project's{v}.{w}": "تم استيراد \"{name}\": {n} طبقة حدود، {lines} خط، ضمن الجيوفيزياء ← الحدود. الإحداثيات مأخوذة كإحداثيات المشروع{v}.{w}",
+  "no Surpac lines": "لا توجد خطوط Surpac",
+  "{n} single point(s) skipped.": "تم تخطي {n} نقطة منفردة.",
+  "\"{name}\" is a SMARTem IP (TIP) file, not TEM: open it in the DC / IP line pane.": "\"{name}\" ملف IP من SMARTem (TIP) وليس TEM: افتحه في لوحة خطوط DC / IP."
 }

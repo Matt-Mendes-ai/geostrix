@@ -32,6 +32,7 @@ export function sl3ToTable(text) {
   const from = rows.every((r) => r[1] === "" || r[1] == null) ? 2 : 1; // 'D', an empty field, then the values
   // #4067 — the names and units sit where their values do (the label of H1001 over the hole id): the comma files, and (TASKS.csv #4083) the tab files whose D rows start their values in the second
   // field ('D', the hole id, ...: NZP&M's DH_Collar, SARIG's DrillCollars), where the names begin too ('H1000', 'HOLEID', ...): slice(2) dropped the hole-id column from their names
+  // TASKS.csv #4081 — Victoria's tab files (GSV) too: 'H1000 Hole_id From …' over 'D DH-1 0 …', no label and no empty field (from = 1).
   const cells = (f) => f.slice(from);
   const filled = (a) => a.filter((x) => x !== "").length;
   // the names: the column-name record with the most names that read as names
@@ -49,7 +50,11 @@ export function sl3ToTable(text) {
   // the units: a record labelled Units, else a first D row that is mostly units ('ppm', '%', 'g/cc')
   let units = null;
   const unitRec = heads.find((h) => h.num !== best.num && /^\(?units?( of measure)?\)?$/i.test(String(h.f[1] || "").trim()) && filled(cells(h.f)) >= 1);
-  if (unitRec) units = cells(unitRec.f).concat(Array(width).fill("")).slice(0, width).map((x) => x.trim());
+  // #4081 — Victoria's units are an unlabelled record after the names: 'H1001 NA metres metres ppm'
+  // (metres count here, but a name keeps no '(metres)': the coordinates and depths stay 'MGA_E', 'From', as the labelled units record leaves them)
+  const unitish = (x) => UNIT.test(x) || /^(na|n\/a|met(?:re|er)s?)$/i.test(x) || /^(dd|mm|yy|yyyy)([/.-](dd|mm|yy|yyyy)){2}$/i.test(x); // a date column's 'dd/mm/yyyy'
+  const unitRow = unitRec ? null : heads.find((h) => h.num > best.num && h.num >= 1000 && (() => { const v = cells(h.f).slice(0, width).map((x) => x.trim()).filter(Boolean); return v.length >= 2 && v.every(unitish) && v.some((x) => UNIT.test(x)); })());
+  if (unitRec || unitRow) units = cells((unitRec || unitRow).f).concat(Array(width).fill("")).slice(0, width).map((x) => x.trim());
   else if (data.length) {
     const r = data[0], u = r.filter((x) => x !== "" && UNIT.test(x)).length;
     if (u >= 3 && u >= 0.7 * (filled(r) - 1)) { units = r.map((x) => (UNIT.test(x) ? x : "")); data.shift(); }
@@ -68,7 +73,7 @@ export function sl3ToTable(text) {
     }
   }
   // the notes: what the header says about the coordinates, how many standards
-  const note = [tr("SL3 table: {n} rows, {m} columns{u}.", { n: data.length.toLocaleString(), m: names.length, u: unitRec || units ? tr(", with units") : "" })];
+  const note = [tr("SL3 table: {n} rows, {m} columns{u}.", { n: data.length.toLocaleString(), m: names.length, u: units ? tr(", with units") : "" })];
   const val = (re) => { const h = heads.find((x) => re.test(String(x.f[1] || "").trim())); return h ? h.f.slice(2).find((x) => x !== "")?.replace(/^"|"$/g, "") || "" : ""; }; // #4067 — the value after the record's code and label, in either flavour
   const datum = val(/^geodetic_?datum$/i), zone = val(/^projection_?zone$/i);
   if (datum || zone) note.push(tr("Coordinates: {v}.", { v: [datum, zone ? tr("zone {z}", { z: zone }) : ""].filter(Boolean).join(", ") }));

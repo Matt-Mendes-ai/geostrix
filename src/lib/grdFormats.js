@@ -59,10 +59,17 @@ async function geosoft(b, dv, compressed, inflate) {
     for (let i = 0; i < nb; i++) offs.push(Number(dv.getBigInt64(528 + 8 * i, true)));
     for (let i = 0; i < nb; i++) sizes.push(dv.getInt32(528 + 8 * nb + 4 * i, true));
     const out = new Uint8Array(total * size);
+    const vpb = dv.getInt32(524, true); // vectors per block
     let at = 0;
     for (let i = 0; i < nb; i++) {
       const o = offs[i], s = sizes[i];
-      if (!(o >= 0 && s > 16 && o + s <= b.length)) throw new Error(`Compressed block ${i + 1} of ${nb} points outside the file.`);
+      if (!(o >= 0 && s > 0 && o + s <= b.length)) throw new Error(`Compressed block ${i + 1} of ${nb} points outside the file.`);
+      // TASKS.csv #4081 — a block that would not shrink is STORED as it is: no 16-byte block header (signature 0x0F 0x0E 0xFF 0xFE), exactly its
+      // vectors' bytes. Read as zlib it gave "incorrect header check" / "unknown compression method" (15 of the round-2 harvest's 78 grids).
+      const vecs = vpb > 0 ? Math.min(vpb, nv - i * vpb) : nv, rawLen = vecs * ne * size;
+      const signed = s > 16 && dv.getUint32(o, true) === 0xfeff0e0f;
+      if (!signed && s === rawLen) { out.set(b.subarray(o, o + s).subarray(0, Math.min(s, out.length - at)), at); at += s; continue; }
+      if (!(s > 16)) throw new Error(`Compressed block ${i + 1} of ${nb} is too short.`);
       const part = await inflate(b.subarray(o + 16, o + s));
       out.set(part.subarray(0, Math.min(part.length, out.length - at)), at);
       at += part.length;

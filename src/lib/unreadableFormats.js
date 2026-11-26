@@ -7,6 +7,11 @@ const ADVICE = [
   { re: /\.geosoft_voxel$/i, what: "a Geosoft voxel (a closed format)", how: "export it as a UBC mesh + model or a block-model CSV" },
   { re: /\.dwg$/i, what: "an AutoCAD drawing (.dwg, a closed format)", how: "save or export it as .dxf from AutoCAD, DWG TrueView or any CAD program, then drop that" },
   { re: /\.(mdb|accdb)$/i, what: "a Microsoft Access database", how: "export the collar, survey and interval tables to CSV (in Access: External Data > Text File), then drop those" },
+  // TASKS.csv #4081 — the round-2 harvest: an Esri File Geodatabase's tables (a .gdb FOLDER of .gdbtable / .gdbtablx / .gdbindexes files, USGS),
+  // Intrepid's metadata beside a database or grid (.isi, SARIG), and a ground TEM survey's transmitter-loop file (.tx: the loop's corners, GSV)
+  { re: /\.(gdbtable|gdbtablx|gdbindexes|freelist)$/i, what: "part of an Esri File Geodatabase (a .gdb folder)", how: "open the folder in QGIS or ArcGIS, export its layers as a GeoPackage or shapefile, then drop that" },
+  { re: /\.isi$/i, what: "Intrepid metadata (it describes the database or grid beside it)", how: "open that grid itself (.ers or .grd), or export the database's channels to CSV" },
+  { re: /\.tx$/i, what: "a transmitter-loop file (the loop's corners, no readings)", how: "each .tem of the survey lists the same corners: open the .tem files in Geophysics > TEM" },
   // TASKS.csv #1345 — 108 of these in the ARIS Sample Data folder (2004-2005 reports): the Excel 97-2003 binary format
   // TASKS.csv #1667 (review #1646, Kodiak) — dropped on the Geophysics tab, these did nothing at all
   { re: /\.(vtk|vtu|vtr|vts)$/i, what: "a VTK model", how: "import the same model as a UBC mesh + model, or as its XYZ / block-model CSV, under Geophysics > Block models (contractors deliver both)" },

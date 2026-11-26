@@ -10560,7 +10560,6 @@
   "No GOCAD TSurf with triangles in this file{v}.": "Aucun TSurf GOCAD avec des triangles dans ce fichier{v}.",
   " (it holds {list})": " (il contient {list})",
   "no GOCAD PLine with segments in it": "il ne contient aucune PLine GOCAD avec des segments",
-  "Imported \"{name}\" as {n} boundary layer(s) ({lines} line(s)) with their own elevations — edit or remove them under Geophysics → Boundaries. GOCAD coordinates are assumed to already be in the project's coordinate system{v}.": "« {name} » importé comme {n} couche(s) de limites ({lines} ligne(s)) avec leurs propres altitudes — modifiez-les ou supprimez-les sous Géophysique → Limites. Les coordonnées GOCAD sont supposées déjà dans le système de coordonnées du projet{v}.",
   " (the file names \"{crs}\")": " (le fichier indique « {crs} »)",
   "{name}: couldn't read GOCAD ({message}).": "{name} : impossible de lire le GOCAD ({message}).",
   "{names}: GOCAD point sets are read as point surveys: drop them on the Geophysics tab, or use Geophysics > Point survey > Import survey.": "{names} : les ensembles de points GOCAD se lisent comme des levés ponctuels : déposez-les dans l'onglet Géophysique, ou utilisez Géophysique > Levé ponctuel > Importer un levé.",
@@ -15807,7 +15806,6 @@
   "Ticked first: the elements with a value on 90 % of the samples and few below detection or on the detection floor.": "Cochés au départ : les éléments qui ont une valeur sur 90 % des échantillons et peu sous la détection ou sur le plancher de détection.",
   "Values in {unit}; click a column to pick its rule.": "Valeurs en {unit} ; cliquez sur une colonne pour choisir sa règle.",
   "{n} {medium} sites; background {bg} {unit} ({how}); anomalous from {thr} {unit} ({rule}).": "{n} sites de {medium} ; fond {bg} {unit} ({how}) ; anomal à partir de {thr} {unit} ({rule}).",
-  "\"{name}\" is a SMARTem IP (TIP) file: electrode positions, apparent resistivity and chargeability, not a TEM survey. Open it in the DC / IP line pane.": "« {name} » est un fichier SMARTem de PP (TIP) : positions des électrodes, résistivité apparente et chargeabilité, et non un levé TEM. Ouvrez-le dans le volet Ligne DC / PP.",
   "This is a TQIPdb plot-point table of a {array} survey: only pole-dipole plot points can be turned back into electrode positions.": "Il s'agit d'une table de points de tracé TQIPdb d'un levé {array} : seuls les points de tracé pôle-dipôle peuvent être reconvertis en positions d'électrodes.",
   "TQIPdb plot-point table: {n} readings, pole-dipole with a {a} m dipole{v}. The table gives plot points and n-levels, not electrodes: the current pole is taken at the {side} end of each array. If the survey ran the other way the readings are mirrored; the raw dump of the line gives the electrode positions.": "Table de points de tracé TQIPdb : {n} lectures, pôle-dipôle avec un dipôle de {a} m{v}. La table donne des points de tracé et des niveaux n, pas des électrodes : le pôle d'injection est pris à l'extrémité de {side} de chaque dispositif. Si le levé a été fait dans l'autre sens, les lectures sont en miroir ; le fichier brut de la ligne donne les positions des électrodes.",
   " (the array is not stated: read as pole-dipole)": " (le dispositif n'est pas indiqué : lu comme pôle-dipôle)",
@@ -15854,5 +15852,9 @@
   "Every cell is no-data.": "Toutes les cellules sont sans donnée.",
   "Read as {p} from the file name.": "Lu comme {p} d'après le nom du fichier.",
   " Log colours: {min} to {max}.": " Couleurs logarithmiques : {min} à {max}.",
-  "Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv, le dernier de {n} modèles enregistrés : {list} ; profondeurs depuis un sommet à 0 m, {m} m de profondeur.{swap}"
+  "Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv, le dernier de {n} modèles enregistrés : {list} ; profondeurs depuis un sommet à 0 m, {m} m de profondeur.{swap}",
+  "Imported \"{name}\": {n} boundary layer(s), {lines} line(s), under Geophysics → Boundaries. Coordinates taken as the project's{v}.{w}": "« {name} » importé : {n} couche(s) de limites, {lines} ligne(s), sous Géophysique → Limites. Coordonnées prises comme celles du projet{v}.{w}",
+  "no Surpac lines": "aucune ligne Surpac",
+  "{n} single point(s) skipped.": "{n} point(s) isolé(s) ignoré(s).",
+  "\"{name}\" is a SMARTem IP (TIP) file, not TEM: open it in the DC / IP line pane.": "« {name} » est un fichier IP SMARTem (TIP), pas TEM : ouvrez-le dans le volet des lignes DC / IP."
 }
