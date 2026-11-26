@@ -208,7 +208,15 @@ export function makeImportPipeline(ctx, h) {
     live.addMapLayer({ ...layer, drapeMode: "terrain" }); // #1606 — flat until a terrain exists, then draped (was 'flat' for good when imported before one)
     setNotices((p) => [...p, notice("{name}: {features} added to Map layers (left panel; remove or hide it there), {crsNote}{v2}. Lines and polygons are map data, not drillhole tables.", { name: file.name, features: featureCountText(layer.features.length, layer.geomType) /* #1116 */, crsNote: layer.crsNote, v2: live.terrain ? tr(", draped on the terrain") : "" })]);
   };
+  // one wording for a file the parser could not read (#4097: three places, one string)
+  const unreadNotice = (file, err) => notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") });
   const isMapGeometry = (meta) => meta?.vector && meta.vector.geomType && meta.vector.geomType !== "point";
+  // TASKS.csv #4097 — a point map file with no hole column (a survey's station shapefile, found live in #4056): its dialog offered Geophysics >
+  // Point survey, which reads no shapefile, so nothing happened. It goes to Map layers as points, as Geological Mapping imports it.
+  const importAsMapLayer = (file) => parseVectorFile(file, (data, err, meta) => {
+    if (meta?.vector) { sendToMapLayers(file, meta.vector); return; }
+    setNotices((p) => [...p, unreadNotice(file, err)]);
+  });
   // TASKS.csv #2019 — files dropped on the Maps tab that need this import (points, tables, layer pickers), with what Maps already did
 
   const openImportModal = (file, forceTarget, chosenLayer = null) => {
@@ -216,7 +224,7 @@ export function makeImportPipeline(ctx, h) {
       // TASKS.csv #288 — a multi-layer .zip/.gpkg reports its layers instead of importing the first
       // one; put the picker up and come back through this same function with the chosen layer name.
       if (meta?.layerOptions) { setLayerPicker({ file, forceTarget, options: meta.layerOptions }); return; }
-      if (err || !data || !data.length) { setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); return; }
+      if (err || !data || !data.length) { setNotices((p) => [...p, unreadNotice(file, err)]); return; }
       if (isMapGeometry(meta) && forceTarget !== "custom") { sendToMapLayers(file, meta.vector); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (!forceTarget && (looksLikeAssay(headers, file.name, data) || looksLikeSurfaceSamples(headers, data))) { // file.name: #1105; data: #2185; soils: #2268
@@ -1209,7 +1217,7 @@ export function makeImportPipeline(ctx, h) {
       // commitImport/cancel -> processImportQueue), so the queue can't advance past an unanswered
       // question or double-import the same file.
       if (meta?.layerOptions) { logQueue(file.name, "asked"); setLayerPicker({ file, options: meta.layerOptions }); return; } // logQueue: #3071
-      if (err || !data || !data.length) { logQueue(file.name, "unread"); setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); processImportQueue(); return; }
+      if (err || !data || !data.length) { logQueue(file.name, "unread"); setNotices((p) => [...p, unreadNotice(file, err)]); processImportQueue(); return; }
       if (isMapGeometry(meta)) { logQueue(file.name, "map"); sendToMapLayers(file, meta.vector).then(() => processImportQueue()); return; } // #609; the queue goes on when this one is done (#3957)
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
@@ -1603,5 +1611,5 @@ export function makeImportPipeline(ctx, h) {
   };
 
   // cancelImport (#2660) is the hook's own: it reads the hook's drop-origin ref
-  return { commitImport, handleDrop, importBrowserFile, importOverlap, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports };
+  return { commitImport, handleDrop, importAsMapLayer, importBrowserFile, importOverlap, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports };
 }

@@ -48,6 +48,7 @@ export function useImportPipeline(ctx) {
     if (extra.length) setNotices((q) => [...q, ...extra]);
     if (p?.files?.length) run((x) => x.handleDrop({ preventDefault() {}, dataTransfer: { files: p.files } }));
   });
+  useModuleAction(["import-as-map-layer"], (_a, p) => { if (p?.file) run((x) => x.importAsMapLayer(p.file)); }); // TASKS.csv #4097 — the dialog's point map file
   const processImportQueue = useCallback(() => run((p) => p.processImportQueue()), []); // run reads env.current: the latest values
   const call = (name) => (...args) => run((p) => p[name](...args));
   // TASKS.csv #2660 (#2591 (3)) — a table dropped on the Maps plan opens this dialog on the 3D View; Cancel left the user there. Cancel on the last
@@ -60,5 +61,5 @@ export function useImportPipeline(ctx) {
     if (back) { dropOriginRef.current = null; goToModule(back); }
   };
   const importOverlap = (m) => (m ? layerOverlapOf(importStateRef.current.layers, m.target, m.mapping, m.allRows || [], m.fileName) : null); // #1649
-  return { cancelImport, commitImport: call("commitImport"), handleDrop, importBrowserFile: call("importBrowserFile"), importOverlap, layerPicker, loadSampleProject: call("loadSampleProject"), openImportFromRows: call("openImportFromRows"), openImportModal: call("openImportModal"), processImportQueue, sampleLoading, setLayerPicker, reloadDbImports: call("reloadDbImports") };
+  return { cancelImport, commitImport: call("commitImport"), handleDrop, importAsMapLayer: call("importAsMapLayer") /* #4097 */, importBrowserFile: call("importBrowserFile"), importOverlap, layerPicker, loadSampleProject: call("loadSampleProject"), openImportFromRows: call("openImportFromRows"), openImportModal: call("openImportModal"), processImportQueue, sampleLoading, setLayerPicker, reloadDbImports: call("reloadDbImports") };
 }
