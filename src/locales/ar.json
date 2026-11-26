@@ -15819,7 +15819,6 @@
   "{name}: a UBC model. Drop it with its mesh (.msh).": "{name}: نموذج UBC. أفلته مع شبكته (.msh).",
   "a Geosoft map-control file, not a model": "ملف تحكم بخريطة Geosoft، وليس نموذجًا",
   "One cell thick: DC / IP reads it as a section too.": "سماكتها خلية واحدة: يقرؤها DC / IP مقطعًا أيضًا.",
-  "Res3DInv, iteration {n}: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv، التكرار {n}: {list}؛ الأعماق من قمة عند 0 م، بعمق {m} م.{swap}",
   " X and Y swapped (X held the northing).": " بُدّل X وY (كان X يحمل الإحداثي الشمالي).",
   "its layers' blocks differ in plan: not read yet": "تختلف كتل طبقاته في المسقط: لا تُقرأ بعد",
   " {fx} × {fy} × {fz} blocks averaged into one (cell budget).": " دُمجت {fx} × {fy} × {fz} كتلة في واحدة (ميزانية الخلايا).",
@@ -15831,5 +15830,6 @@
   "No inverted model in this file: open the .inv saved after the inversion.": "لا نموذج معكوسًا في هذا الملف: افتح ملف .inv المحفوظ بعد الانعكاس.",
   "Every cell is no-data.": "كل الخلايا بلا بيانات.",
   "Read as {p} from the file name.": "قُرئ كـ {p} من اسم الملف.",
-  " Log colours: {min} to {max}.": " ألوان لوغاريتمية: {min} إلى {max}."
+  " Log colours: {min} to {max}.": " ألوان لوغاريتمية: {min} إلى {max}.",
+  "Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv، آخر {n} نماذج محفوظة: {list}؛ الأعماق من قمة عند 0 م، بعمق {m} م.{swap}"
 }

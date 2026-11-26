@@ -2024,7 +2024,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       made.push(tr("\"{name}\" ({unit}, {cells} blocks){coarse}", { name, unit: key === "res" ? "ohm·m" : parsed.ipUnit || tr("unit not stated"), cells: cells.length.toLocaleString(), coarse }));
       if (made.length === 1) made.push(farNote(cells).trim());
     }
-    return tr("Res3DInv, iteration {n}: {list}; depths from a 0 m top, {m} m deep.{swap}", { n: parsed.iterations, list: made.filter(Boolean).join("; "), m: Math.round(t.depth).toLocaleString(), swap: t.swapped ? tr(" X and Y swapped (X held the northing).") : "" });
+    return tr("Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}", { n: parsed.iterations, list: made.filter(Boolean).join("; "), m: Math.round(t.depth).toLocaleString(), swap: t.swapped ? tr(" X and Y swapped (X held the northing).") : "" });
   };
   const importUBC = async (fileList) => {
     const files = Array.from(fileList || []);

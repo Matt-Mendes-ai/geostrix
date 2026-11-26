@@ -131,7 +131,7 @@ test("#4078 its words are in every language", () => {
     "a Geosoft map-control file, not a model", "One cell thick: DC / IP reads it as a section too.",
     "{name}: a 2D UBC mesh. Open it with its model in DC / IP.",
     "{names}: a Res3DInv inversion, opened in Geophysics › Block models.",
-    "Res3DInv, iteration {n}: {list}; depths from a 0 m top, {m} m deep.{swap}",
+    "Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}",
     " X and Y swapped (X held the northing).", "its layers' blocks differ in plan: not read yet",
     "Choose the mesh (.msh, .mesh or mesh.txt) and its model files together."];
   for (const l of ["es", "pt", "fr", "ar"]) {

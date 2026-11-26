@@ -15819,7 +15819,6 @@
   "{name}: a UBC model. Drop it with its mesh (.msh).": "{name}: um modelo UBC. Solte-o com sua malha (.msh).",
   "a Geosoft map-control file, not a model": "um arquivo de controle de mapa do Geosoft, não um modelo",
   "One cell thick: DC / IP reads it as a section too.": "Uma célula de espessura: DC / IP também a lê como seção.",
-  "Res3DInv, iteration {n}: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv, iteração {n}: {list}; profundidades a partir de um topo a 0 m, {m} m de profundidade.{swap}",
   " X and Y swapped (X held the northing).": " X e Y trocados (X tinha o norte).",
   "its layers' blocks differ in plan: not read yet": "os blocos das camadas diferem em planta: ainda não lidos",
   " {fx} × {fy} × {fz} blocks averaged into one (cell budget).": " {fx} × {fy} × {fz} blocos promediados em um (orçamento de células).",
@@ -15831,5 +15830,6 @@
   "No inverted model in this file: open the .inv saved after the inversion.": "Este arquivo não tem modelo invertido: abra o .inv salvo após a inversão.",
   "Every cell is no-data.": "Todas as células são sem dado.",
   "Read as {p} from the file name.": "Lido como {p} pelo nome do arquivo.",
-  " Log colours: {min} to {max}.": " Cores logarítmicas: {min} a {max}."
+  " Log colours: {min} to {max}.": " Cores logarítmicas: {min} a {max}.",
+  "Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv, o último de {n} modelos salvos: {list}; profundidades a partir de um topo a 0 m, {m} m de profundidade.{swap}"
 }
