@@ -7,6 +7,7 @@ import React from "react";
 import { Hand, Undo2, Check, X as XIcon } from "./icons.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4090
 
 const num = (v, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
 
@@ -76,10 +77,12 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
           />
 
           {info && (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 6 }}>
-              {tr("{vertices} of {totalVertices} vertices under the brush ({triangles} triangles). Falloff is smooth to zero at the rim, so the patch bends rather than spiking. Brush built in {buildMs} ms.", { vertices: info.vertices.toLocaleString(), totalVertices: info.totalVertices.toLocaleString(), triangles: info.triangles.toLocaleString(), buildMs: info.buildMs })}<div style={{ marginTop: 3 }}>{tr("Live volume change:")}{" "}<strong style={{ color: info.dV === 0 ? "var(--color-text-secondary)" : "var(--color-text)" }}>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 6 }}>{/* TASKS.csv #4090 — the numbers in view, how they are made in the tooltips */}
+              <span>{tr("{vertices} vertices under the brush.", { vertices: info.vertices.toLocaleString() })}</span>
+              <div style={{ marginTop: 3 }}>{tr("Live volume change:")}{" "}<strong style={{ color: info.dV === 0 ? "var(--color-text-secondary)" : "var(--color-text)" }}>
                   {info.dV >= 0 ? "+" : ""}{num(info.dV, 0)} m³
-                </strong>{" "}{tr("(exact, not an estimate — computed over the affected triangles only)")}</div>
+                </strong></div>
+              <MoreFold>{tr("{vertices} of {totalVertices} vertices under the brush ({triangles} triangles). Falloff is smooth to zero at the rim, so the patch bends rather than spiking. Brush built in {buildMs} ms.", { vertices: info.vertices.toLocaleString(), totalVertices: info.totalVertices.toLocaleString(), triangles: info.triangles.toLocaleString(), buildMs: info.buildMs })}{" "}{tr("(exact, not an estimate — computed over the affected triangles only)")}</MoreFold>
             </div>
           )}
           {info && info.flipped > 0 && (
@@ -98,7 +101,7 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
               title={tr("Leave sculpt mode")}><XIcon size={12} /></button>
           </div>
 
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 6, lineHeight: 1.45 }}>{tr("Moving vertices keeps a watertight shell watertight and an open surface as open as it was. Undo lasts this session only: once saved, an edit is permanent (coordinates round to 1 cm). Deleting and pinning vertices or triangles is not available yet.")}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 6, lineHeight: 1.45 }}>{tr("Undo lasts this session only: once saved, an edit is permanent.")}<MoreFold>{tr("Moving vertices keeps a watertight shell watertight and an open surface as open as it was. Undo lasts this session only: once saved, an edit is permanent (coordinates round to 1 cm). Deleting and pinning vertices or triangles is not available yet.")}</MoreFold></div>
         </div>
       )}
     </div>
