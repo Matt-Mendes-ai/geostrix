@@ -108,6 +108,9 @@ export default defineConfig({
           if (id.includes("three")) return "vendor-three";
           if (/geotiff[\/]dist-[a-z]+[\/]compression[\/]/.test(id)) return undefined; // #439 — per-codec, loaded on demand
           if (id.includes("geotiff")) return "vendor-geotiff";
+          // TASKS.csv #4084 — proj4 with its WKT parser and MGRS (~131 kB): the coordinate maths (lib/reproject.js) load on use, and the catch-all 'vendor' chunk below is imported by the entry,
+          // so left there they were in the startup bundle. Their own chunk: only the chunks that import reproject.js load it.
+          if (/node_modules[\/](proj4|wkt-parser|mgrs)[\/]/.test(id)) return "vendor-proj4";
           if (id.includes("papaparse")) return "vendor-papaparse";
           if (id.includes("lucide-react")) return "vendor-lucide";
           if (id.includes("react-dom") || id.includes("/react/") || id.includes("scheduler")) return "vendor-react";

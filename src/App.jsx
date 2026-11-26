@@ -17,7 +17,8 @@ import { shouldShowStart, startOptedOut, LAUNCH_SETTLE_MS } from "./lib/startFlo
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
 import { onTableSubsetRequest } from "./lib/tableSubsetRequest.js"; // TASKS.csv #2177
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass, Pickaxe, Globe } from "./components/icons.js"; // Compass: #820; Globe: #3068
-import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricProjectedEpsg, reprojectXY } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry; #1148; reprojectXY: #2808
+import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricProjectedEpsg } from "./lib/crsDefs.js"; // TASKS.csv #485; #834 registry; #1148; #4084 — the definitions, not the proj4 maths
+import { reprojectModule, useReprojectReady } from "./lib/reprojectLazy.js"; // TASKS.csv #2808 (the cursor's lat / lon); #4084 — the maths (reproject.js) arrive after the first paint, not in the startup bundle
 import { rlOffsetOf, gridRlOf } from "./lib/localGridDatum.js"; // TASKS.csv #2809 — the grid RL beside Z
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
@@ -828,6 +829,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
 
 function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, worldCursor = true }) {
   const [textSizeNow, setTextSizeNow] = useTextSize(); // TASKS.csv #3900
+  useReprojectReady(); // TASKS.csv #4084 — the cursor's lat / lon below waits for the coordinate maths (a few tens of ms after the first paint), then draws
   // TASKS.csv #3190 — while AI App Access is on, the bar says so (and which AI app is connected); a click opens the window with its Stop button
   const [ai, setAi] = useState(null);
   useEffect(() => { let live = true; mcpStatus().then((s) => { if (live) setAi(s); }); const off = onMcpStatus((s) => live && setAi(s)); return () => { live = false; off(); }; }, []);
@@ -862,7 +864,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
       <span>Z <span className="val">{fmt(cursor.z)}</span></span>
       {(() => { const off = rlOffsetOf(project), rl = gridRlOf(cursor.z, off); return rl == null ? null : <span title={tr("Grid RL: the elevation plus the project's RL datum ({off} m, set under Project coordinate system)", { off: fmtNum(off) })}>RL <span className="val">{fmt(rl)}</span></span>; })()}{/* TASKS.csv #2809 */}
       {/* TASKS.csv #2808 (split from #2526) — latitude / longitude (WGS 84) beside E / N when the project has a real CRS (not a local or unset one) */}
-      {(() => { const ll = worldCursor /* TASKS.csv #3229 — not on Layout, whose cursor is a page position */ && cursor.x != null && cursor.y != null && project.crsSet !== false && project.epsg && isMetricProjectedEpsg(project.epsg) && getProj4DefSync(project.epsg) ? reprojectXY(cursor.x, cursor.y, project.epsg, 4326) : null;
+      {(() => { const ll = worldCursor /* TASKS.csv #3229 — not on Layout, whose cursor is a page position */ && cursor.x != null && cursor.y != null && project.crsSet !== false && project.epsg && isMetricProjectedEpsg(project.epsg) && getProj4DefSync(project.epsg) ? (reprojectModule()?.reprojectXY(cursor.x, cursor.y, project.epsg, 4326) ?? null) : null;
         return ll && Number.isFinite(ll.x) && Number.isFinite(ll.y) ? <span title={tr("Latitude, longitude (WGS 84) of the cursor")}><span className="val">{fmtNum(ll.y, LAT_LON_FMT)}{fmtNum(0.5).includes(",") ? "; " : ", "}{fmtNum(ll.x, LAT_LON_FMT)}</span></span> : null; })()}{/* TASKS.csv #3875 (#3724 g) - the interface language's decimal mark, as E / N beside them print it (a French view read 'E 441 873,1' and '49.12345'); ; between two decimal-comma numbers */}
       {/* TASKS.csv #249 (colorblind-safety review) — state was previously color-only-at-a-glance (the
           dot's hue), with the actual word only in a hover title; now a short suffix is always visible

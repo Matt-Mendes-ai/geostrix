@@ -41,7 +41,8 @@ const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx"
 const LocatorMap = lazyPart(() => import("../components/LocatorMap.jsx")); // startup size: shown on request
 const BasemapView = lazyModal(() => import("../components/BasemapView.jsx"));  // TASKS.csv #301
 const PromptModal = lazyPart(() => import("../components/PromptModal.jsx")); // TASKS.csv #3961: lazy (drawn only while a question is open)
-import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
+import { isMetricProjectedEpsg } from "../lib/crsDefs.js"; // TASKS.csv #4084 — the definitions; the proj4 maths are not in the startup bundle
+import { toLonLat } from "../lib/reprojectLazy.js"; // (loaded on first use: the same toLonLat)
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
 import { customLayerSync, detachCustomGroups, arrangeLikeStore } from "./viewer/customLayerSync.js"; // #2361; #4018
 import { layerWith, layerRowCount } from "../lib/tableFields.js"; // #3424

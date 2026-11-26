@@ -44,7 +44,7 @@ test("#2774 a map layer names its CRS (and the project's)", () => {
 });
 
 test("#2808 the status bar gives latitude / longitude where the project has a real CRS", () => {
-  assert.match(read("../src/App.jsx"), /project\.crsSet !== false && project\.epsg && isMetricProjectedEpsg\(project\.epsg\) && getProj4DefSync\(project\.epsg\) \? reprojectXY\(cursor\.x, cursor\.y, project\.epsg, 4326\)/);
+  assert.match(read("../src/App.jsx"), /project\.crsSet !== false && project\.epsg && isMetricProjectedEpsg\(project\.epsg\) && getProj4DefSync\(project\.epsg\) \? \(reprojectModule\(\)\?\.reprojectXY\(cursor\.x, cursor\.y, project\.epsg, 4326\) \?\? null\)/); // #4084: the maths arrive after the first paint
 });
 
 test("#3229 the latitude / longitude only where the cursor is a world position (not Layout's page)", () => {

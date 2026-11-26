@@ -13,7 +13,8 @@ import path from "node:path";
 // on a computer more than twice as slow. History: 1,548 kB +5 % (2026-09-26, #476); 1,627 / 1,628 kB (2026-11-03, #1369, #1403, #1373).
 // TASKS.csv #4075 — the step panes / dialogs of #4069-#4074 had taken it to 1,987.7 kB (1,971 at v0.2.10): the step pane shell, the hole filter bar, the Rasters & terrain section, the AI app's
 // actions, the vector-export builder and the interpretation snap now load on use (1,950.7 kB). Lowered to hold the 37 kB: 1,970 kB leaves about 19 kB for what is added next.
-const EAGER_BUDGET_KB = 1970;
+// TASKS.csv #4084 — proj4, wkt-parser and mgrs (131 kB) left the startup bundle (lib/crsDefs.js is the part of reproject.js the first screen uses; the maths arrive after the first paint): 1,817.3 kB. Lowered to hold it: 1,840 kB leaves about 23 kB.
+const EAGER_BUDGET_KB = 1840;
 
 const dist = path.resolve(process.argv[2] || "dist");
 const html = readFileSync(path.join(dist, "index.html"), "utf8");
