@@ -13654,9 +13654,7 @@
   "showed the {symbol} grades along the holes": "أظهر محتوى {symbol} على طول الثقوب",
   "showed {layers}": "أظهر {layers}",
   "hid {layers}": "أخفى {layers}",
-  "opened the section '{name}'": "فتح المقطع '{name}'",
   "zoomed to {hole}": "قرّب العرض إلى {hole}",
-  "fitted the view to the data": "ضبط العرض على البيانات",
   "turned the view to the top": "أدار العرض إلى الأعلى (مسقط أفقي)",
   "turned the view to the bottom": "أدار العرض إلى الأسفل",
   "Changes made by AI apps": "التغييرات التي أجرتها تطبيقات الذكاء الاصطناعي",
@@ -15902,5 +15900,8 @@
   "{n} pierce point(s), {z} of them holes with no intercept (read as 0).": "{n} نقطة اختراق، منها {z} ثقوب بلا تقاطع (تُقرأ 0).",
   "{vertices} vertices under the brush.": "{vertices} رأسًا تحت الفرشاة.",
   "saved {symbol}'s {rule} threshold": "حفظ عتبة {rule} للعنصر {symbol}",
-  "showed the {layer} log": "أظهر سجل {layer}"
+  "showed the {layer} log": "أظهر سجل {layer}",
+  "added the raster '{name}'": "أضاف الشبكة النقطية '{name}'",
+  "fitted the view": "ضبط العرض",
+  "opened section '{name}'": "فتح المقطع '{name}'"
 }

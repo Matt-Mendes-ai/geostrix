@@ -57,6 +57,8 @@ function standInPanes(s) {
   const on = (e) => {
     const { action, payload: p } = e.detail;
     if (action === "mcp-make-sheet") p.reply({ ok: true, name: "Plan map", ids: ["pm"] });
+    else if (action === "mcp-filter-raster") p.reply({ ok: true, changed: "raster", name: "Mag TMI - First vertical derivative (1VD)", ids: ["rf"], filter: "vd1", units: "nT/m" });
+    else if (action === "mcp-grid-run") p.reply({ ok: true, changed: "raster", name: "mag.csv min. curvature 25 m", ids: ["rg"], survey: "mag.csv", method: "mincurv", cells: "120 x 80" });
     else if (action === "mcp-view") p.reply(viewAction({ ...v, sections: s.sections }, p));
     else if (action === "mcp-fetch-satellite") p.reply({ ok: true, name: "Sentinel-2 test scene", ids: ["r1"], pictures: 1, over: "holes", area_cloud_percent: 0 });
     else if (action === "mcp-fetch-terrain") p.reply({ ok: true, name: "Copernicus DEM GLO-30", id: "t1", grid: "10 x 10" });
@@ -89,6 +91,8 @@ const CALLS = [ // each change tool with arguments its schema accepts
   ["build_fault", { name: "Shear", evidence: ["pick", "logged"], extent: "finite", margin_m: 150 }], // #4053 batch 4
   ["model_from_map", { relation: "Conformable", faults: "auto" }],
   ["set_threshold", { element: "Cu", rule: "p95" }], // #4093 batch 5
+  ["filter_raster", { raster: "raster_1", filter: "vd1" }],
+  ["grid_survey", { survey: "mag.csv", method: "mincurv", cell_m: 25 }],
 ];
 
 test("#3932 through the PowerShell relay, as Claude Desktop starts it: every change tool refused with the switch off (the window never sees one), then each done with it on", { skip: !win32 && "PowerShell bridge: Windows only" }, async () => {

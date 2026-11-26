@@ -42,6 +42,7 @@ export default function MapsModule() {
   useModuleAction(["maps-terrain"], () => setPane("terrain"));
   // TASKS.csv #3932 — an AI app's fetch_terrain / fetch_satellite_image: the pane that fetches comes forward and is asked (it answers the app through the payload's reply)
   useModuleAction(["mcp-fetch-terrain"], (_a, p) => { setPane("terrain"); requestModuleAction("mcp-terrain-run", p); });
+  useModuleAction(["mcp-filter-raster"], (_a, p) => { setPane("raster"); requestModuleAction("mcp-filter-run", p); }); // TASKS.csv #4093 (batch 5) — filter_raster runs the Raster pane's own filter
   useModuleAction(["mcp-fetch-satellite"], (_a, p) => { setPane("raster"); requestModuleAction("mcp-satellite-run", p); }); // TASKS.csv #1429 — the inversion pane's 'Go to Maps › Terrain'
   // TASKS.csv #1994 — a lidar file dropped on the 3D View or the Geophysics tab: the Terrain pane, which opens it
   useModuleAction(["maps-lidar"], (_a, p) => { setPane("terrain"); requestModuleAction("open-lidar", p); });

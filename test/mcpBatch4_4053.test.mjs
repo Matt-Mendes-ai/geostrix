@@ -199,7 +199,7 @@ test("#4053 the three tools in the schemas: the changes say 'Makes a change in G
   assert.ok(CHANGE_TOOL_NAMES().includes("build_fault") && CHANGE_TOOL_NAMES().includes("model_from_map"));
   assert.deepEqual(CHANGE_TOOL_NAMES().sort(), proto.TOOLS.filter(proto.isChangeTool).map((t) => t.name).sort(), "every change tool has its action");
   assert.deepEqual(Object.keys(ACTIONS).filter((n) => /^(build_fault|model_from_map)$/.test(n)).length, 2);
-  assert.equal(proto.TOOLS.length, 40); // #4093 piece A: list_rasters_surveys, suggest_thresholds, set_threshold
+  assert.equal(proto.TOOLS.length, 42); // #4093 piece A: list_rasters_surveys, suggest_thresholds, set_threshold; piece B: filter_raster, grid_survey
 });
 
 test("#4053 wiring: the pane's own build and run are what the tools call; the pane says its refusals in the same words; the snapshot carries what the guide reads; the sites and the policy list the tools", () => {

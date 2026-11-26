@@ -50,6 +50,7 @@ import { mineSourceOf, isMineSource } from "../lib/mineGrid.js"; // TASKS.csv #2
 import { fetchAreaChoices, fetchAreaOptions, optionForBox, boxToLonLat } from "../lib/fetchAreas.js"; // TASKS.csv #3954 — the areas every online fetch offers
 import { projectTargetEpsg } from "../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
 import { rasterLevelM, filteredLevelM, placeEulerSolutions, filteredPlacement } from "../lib/eulerPlace.js"; // TASKS.csv #2553; filteredPlacement: #2560
+import { pickRaster, filterPlan } from "../lib/mcpFilter.js"; // TASKS.csv #4093 (batch 5) — filter_raster
 import { rasterMethodOf, filterBlockedBy, ternaryChoices, fieldFilterNeedsMethod, rasterUnitOf } from "../lib/rasterMethod.js"; // TASKS.csv #2557; fieldFilterNeedsMethod: #2835; rasterUnitOf: #2837
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #2557 — the method's label
 import MiddleName from "../components/MiddleName.jsx"; // TASKS.csv #2852
@@ -141,9 +142,15 @@ export default function RasterModule({ embedded = false } = {}) {
   };
   // TASKS.csv #2560 — a filter's product is drawn as its parent is (lib/eulerPlace.js filteredPlacement)
   const placeOf = (r, kind, params = {}) => { const { drapeMode, elevation } = filteredPlacement(r, kind, params); return { drapeMode, elevation }; };
-  const runFilter = async (r) => {
+  // TASKS.csv #4093 (batch 5, Matt: the panes' own run functions) — an AI app's filter_raster runs THIS function with its own settings (ov.filt; the pane's filter state is not touched) and reads
+  // back what the pane said (ov.out: the new raster's id and name, its units, or the pane's own refusal); the pane shows the result as when a person ran it
+  const filtState = filt, doneState = done, setErrorState = (e) => setError(e); // setError is declared further down: asked for when the run happens, not here
+  const runFilter = async (r, ov = null) => {
+    const filt = ov ? ov.filt : filtState;
+    const setError = ov ? (e) => { ov.out = { ...(ov.out || {}), error: typeof e === "string" ? e : e?.text }; setErrorState(e); } : setErrorState;
+    const done = ov ? (text, info = true) => { ov.out = { ...(ov.out || {}), note: text }; doneState(text, info); } : doneState;
     if (filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys))) return; // #2557 — the button is disabled too
-    if (unknownNeedsTick(r)) return; // #2835 — an imported grid of unknown method: the method or the tick first
+    if (!ov && unknownNeedsTick(r)) return; // #2835 — an imported grid of unknown method: the method or the tick first (the AI app's call is checked by filterPlan)
     const { FILTERS, tiltDepth, radialSpectrum, fitSpectrumDepths, worms, filterOutputUnits } = await import("../lib/gridFilters.js"); // loaded on first use; worms: #1988; filterOutputUnits: #2837
     const g = r.grid;
     const params = {};
@@ -223,7 +230,8 @@ export default function RasterModule({ embedded = false } = {}) {
         extra: { levelM: filteredLevelM(r, filt.kind, params) /* #2553 */, surveyMethod: rasterMethodOf(r, geophysSurveys) || undefined, units: ou.units /* #2557, #2837 */, filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
       if (!(await landed(job))) return; // TASKS.csv #3953
       const place = filteredPlacement(r, filt.kind, params);
-      addRaster({ ...nr, drapeMode: place.drapeMode, elevation: place.elevation }); // drawn as its parent, an upward continuation h higher: #2560
+      const newId = addRaster({ ...nr, drapeMode: place.drapeMode, elevation: place.elevation });
+      if (ov) ov.out = { ...(ov.out || {}), id: newId, name: nr.name, units: ou.units, filter: filt.kind, warning: out.warning || null }; // #4093 // drawn as its parent, an upward continuation h higher: #2560
       done(tr("Added \"{name}\" (colours span the 2nd–98th percentile: {v}).{v2}", { name: nr.name, v: nr.colourRange.map((v) => v.toPrecision(3)).join(" to "), v2: out.warning ? " " + out.warning : "" }) + (place.raisedM ? " " + tr("It is drawn flat at {z} m, {h} m above the grid it was continued from.", { z: Math.round(place.elevation).toLocaleString(), h: place.raisedM }) : ""), !out.warning);
     } catch (err) {
       setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) });
@@ -280,6 +288,33 @@ export default function RasterModule({ embedded = false } = {}) {
   });
   // TASKS.csv #3932 — an AI app's fetch_satellite_image (the download was already asked for and allowed in GeoStrix's main process): the latest clear Sentinel-2
   // scene over the terrain when one is loaded (Matt: 'a sat image matching the current terrain'), else around the drillholes, as the picker's own areas
+  // TASKS.csv #4093 (batch 5) — filter_raster: one of the pane's grid filters on a grid the call names, with the field from the call (or IGRF-14 for a survey date, as 'Compute from IGRF-14' does)
+  useModuleAction(["mcp-filter-run"], async (_a, p) => {
+    const reply = (r) => { try { p?.reply?.(r); } catch { /* gone */ } };
+    const picked = pickRaster(rasters, p?.raster);
+    if (picked.error) return reply({ ok: false, error: picked.error });
+    const r = picked.raster, plan = filterPlan(r, geophysSurveys, { filter: p.filter, height: p.height, inclination: p.inclination, declination: p.declination, date: p.date });
+    if (!plan.ok) return reply(plan);
+    if (filtering) return reply({ ok: false, error: "A grid filter is already running in GeoStrix: one at a time." });
+    const filt = plan.filt;
+    let igrf = null;
+    if (plan.needsField) {
+      if (project?.crsSet === false && !tieOf(project)) return reply({ ok: false, error: "IGRF needs the survey's real-world location, and the project CRS isn't set: set it in the status bar first, or give 'inclination' and 'declination'." });
+      try {
+        const { igrfField, decimalYear } = await import("../lib/igrf.js");
+        const yr = decimalYear(filt.date), g = r.grid, cx = g.x0 + (g.dx * (g.nx - 1)) / 2, cy = g.yTop - (g.dy * (g.ny - 1)) / 2, ll = await lonLatOf(cx, cy);
+        if (!Number.isFinite(yr) || !ll) return reply({ ok: false, error: "IGRF could not be computed for that date and place: give 'inclination' and 'declination'." });
+        const f = igrfField(ll.lon ?? ll[0], ll.lat ?? ll[1], (rasterLevelM(r) ?? (Number(r.elevation) || 0)) / 1000, yr);
+        filt.inclination = f.inclination.toFixed(2); filt.declination = f.declination.toFixed(2);
+        igrf = { inclination: +f.inclination.toFixed(2), declination: +f.declination.toFixed(2), source: "IGRF-14 for " + filt.date + " at the grid centre", note: "Check them against your survey report: the contractor's values win." };
+      } catch (e) { return reply({ ok: false, error: "IGRF could not be computed: " + String(e?.message || e).slice(0, 120) }); }
+    }
+    const ov = { filt, out: null };
+    await runFilter(r, ov);
+    const o = ov.out || {};
+    if (!o.id) return reply({ ok: false, error: o.error || "The filter did not make a raster." });
+    reply({ ok: true, changed: "raster", name: o.name, ids: [o.id], filter: o.filter, units: o.units || null, ...(o.warning ? { warning: String(o.warning).slice(0, 200) } : {}), ...(igrf ? { field: igrf } : {}) });
+  });
   useModuleAction(["mcp-satellite-run"], async (_a, p) => {
     const reply = (r) => { try { p?.reply?.(r); } catch { /* gone */ } };
     if ((project?.crsSet === false || !project?.epsg) && !tieOf(project)) return reply({ ok: false, error: "The project has no coordinate system yet: set it in GeoStrix (Maps › Coordinate system) first." });

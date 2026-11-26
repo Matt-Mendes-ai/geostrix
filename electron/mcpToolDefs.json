@@ -850,5 +850,110 @@
       "idempotentHint": false,
       "openWorldHint": false
     }
+  },
+  {
+    "name": "filter_raster",
+    "description": "Makes a change in GeoStrix: runs one of the Raster pane's grid filters on a grid and adds the result as a new raster: first vertical derivative (vd1), analytic signal (as), tilt derivative (tilt), upward continuation (upward, with a height), or a reduction to the pole or equator (rtp; rtpa for low latitudes; rte) with the survey's inclination and declination, or the survey date for GeoStrix to compute them from IGRF-14 (the answer says so: check them against the survey report). The pane's own checks apply: a gravity grid is not reduced to the pole, and a grid whose survey method is not set is refused until it is. It runs in GeoStrix with no network use and can take seconds on a big grid (after about 20 seconds the answer is 'started' with a job_id; check it with job_status). It adds a raster and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "raster": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "The grid's id or name (list_rasters_surveys gives them)."
+        },
+        "filter": {
+          "type": "string",
+          "enum": [
+            "vd1",
+            "as",
+            "tilt",
+            "upward",
+            "rtp",
+            "rtpa",
+            "rte"
+          ],
+          "description": "Which filter."
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Upward continuation only: metres to continue upward."
+        },
+        "inclination": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "description": "rtp / rtpa / rte: the field's inclination in degrees, from the survey report. Give it with declination."
+        },
+        "declination": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "description": "rtp / rtpa / rte: the field's declination in degrees to true north."
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 10,
+          "description": "rtp / rtpa / rte, instead of inclination and declination: the survey date as YYYY-MM-DD, for IGRF-14 at the grid's centre."
+        }
+      },
+      "required": [
+        "raster",
+        "filter"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "geostrix/long": true
+    }
+  },
+  {
+    "name": "grid_survey",
+    "description": "Makes a change in GeoStrix: grids one point survey (magnetics, gravity, radiometrics, an EM channel...) to a raster with the Point survey pane's own Grid step, as a person would: inverse distance or minimum curvature, the pane's cell size from the station spacing and its blanking beyond the data unless one is given. A run the pane would not start (the points lie on one line, too few points, a cell too small) is refused with the pane's own words. It runs in GeoStrix with no network use and can take tens of seconds on a large survey (after about 20 seconds the answer is 'started' with a job_id; check it with job_status; Cancel is in the pane). It adds a raster and replaces nothing; the toast's Undo in GeoStrix removes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "survey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "The point survey's name (list_rasters_surveys gives them)."
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "idw",
+            "mincurv"
+          ],
+          "description": "idw (inverse distance) or mincurv (minimum curvature, the usual gridder for gravity and magnetics). Without it the pane's current choice."
+        },
+        "cell_m": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The cell size in metres. Without it the pane's own, from the station spacing."
+        }
+      },
+      "required": [
+        "survey"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "geostrix/long": true
+    }
   }
 ]

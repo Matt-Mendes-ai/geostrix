@@ -13654,9 +13654,7 @@
   "showed the {symbol} grades along the holes": "a affiché les teneurs en {symbol} le long des sondages",
   "showed {layers}": "a affiché {layers}",
   "hid {layers}": "a masqué {layers}",
-  "opened the section '{name}'": "a ouvert la coupe « {name} »",
   "zoomed to {hole}": "a zoomé sur {hole}",
-  "fitted the view to the data": "a ajusté la vue aux données",
   "turned the view to the top": "a tourné la vue vers le dessus (plan)",
   "turned the view to the bottom": "a tourné la vue vers le dessous",
   "Changes made by AI apps": "Modifications faites par des applications d'IA",
@@ -15902,5 +15900,8 @@
   "{n} pierce point(s), {z} of them holes with no intercept (read as 0).": "{n} point(s) de percée, dont {z} sondages sans intersection (lus comme 0).",
   "{vertices} vertices under the brush.": "{vertices} sommets sous le pinceau.",
   "saved {symbol}'s {rule} threshold": "a enregistré le seuil {rule} pour {symbol}",
-  "showed the {layer} log": "a affiché le log {layer}"
+  "showed the {layer} log": "a affiché le log {layer}",
+  "added the raster '{name}'": "a ajouté le raster « {name} »",
+  "fitted the view": "a ajusté la vue",
+  "opened section '{name}'": "a ouvert la coupe « {name} »"
 }
