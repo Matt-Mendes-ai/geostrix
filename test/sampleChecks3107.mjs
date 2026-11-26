@@ -73,6 +73,6 @@ export function checkOffered(id, { licence, who, name, inFootnote }) {
   const card = sampleCardsFor("viewer").find((c) => c.id === id);
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
-    assert.ok(d[card.label] && d[card.title], `${id}: card not translated in ${lang}`);
+    assert.ok(d[card.title], `${id}: card not translated in ${lang}`);
   }
 }

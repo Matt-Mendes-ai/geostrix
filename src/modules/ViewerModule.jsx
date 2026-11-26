@@ -58,8 +58,8 @@ import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.j
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
 import { sampleLithOnly } from "../lib/sampleLithOnly.js"; // TASKS.csv #4039
-import SampleButtons from "./viewer/SampleButtons.jsx"; // TASKS.csv #3541
-import { sampleCardsFor, sampleFootnote, askSampleDownload, emptyCardSamples } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133; emptyCardSamples: #3948
+import SampleList from "./viewer/SampleList.jsx"; // TASKS.csv #4094 — the samples as one table (replaces #3541's buttons)
+import { sampleListFor, askSampleDownload } from "../lib/sampleCards.js"; // TASKS.csv #1346; askSampleDownload: #3133; emptyCardSamples: #3948
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
 import { sectionFromCentre, sectionThroughHole, fenceExtentPoints } from "../lib/sectionDefs.js"; // fenceLinesWithData (#2040): through lib/fenceBox.js (#3971), loaded with the series
 import { TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
@@ -4870,7 +4870,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #637 — Harry or Woodjam. Woodjam's assays, ZTEM block model and IP lines are not drillhole tables, so they
   // are loaded here (lib/sampleWoodjam.js, lazily) once its tables are queued.
   // TASKS.csv #1120 — the three bundled samples, the one that suits this tab first (the empty card's filled button)
-  const sampleCards = sampleCardsFor(mode); // TASKS.csv #1346 — lib/sampleCards.js
+  const sampleList = sampleListFor(mode); // TASKS.csv #1346 — lib/sampleCards.js; #4094: the rows of the empty card's table and the tab's first pick
   // TASKS.csv #1120 — File > Open sample project: the store opened a new tab (or kept an empty one) and left the request
   useEffect(() => {
     const req = store.sampleRequest;
@@ -7014,8 +7014,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onClose={() => setEmptyCardClosed(true)}
             headline={mode === "surface" ? tr("Geology maps in 3D") : mode === "modelling" ? tr("Load drill holes or a geology map to model") : mode === "targeting" ? tr("Load drill holes first to plan targets") : tr("Drill holes in 3D")} /* #567 */
             // TASKS.csv #3948 — Macpass (filled) and Mount Raymond in view, each with its description (#3541); the rest under a closed "More samples"
-            secondary={<SampleButtons {...emptyCardSamples(sampleCards)} onLoad={loadSample} loading={sampleLoading} />}
-            footnote={sampleFootnote()}
+            wide
+            secondary={<SampleList key={mode} rows={sampleList.rows} first={sampleList.first} onLoad={loadSample} loading={sampleLoading} />}
           >
             <EmptyViewerBody mode={mode} />{/* #1448 */}
           </EmptyState>
