@@ -10,8 +10,9 @@ import { quantileSorted } from "./arrayStats.js";
 
 // rows: collar rows after reprojection (project CRS); existing: the project's collars; groundAt(x, y) -> elevation or NaN.
 // -> { rows, counts: { terrain, median, zero, kept }, medianZ }
-export function fillMissingCollarZ(rows, { existing = [], groundAt = null } = {}) {
-  const counts = { terrain: 0, median: 0, zero: 0, kept: 0 };
+// fixedZ (TASKS.csv #4085): the elevation the import dialog was given for a file with none, when there is no terrain (or it was not chosen): before the median
+export function fillMissingCollarZ(rows, { existing = [], groundAt = null, fixedZ = null } = {}) {
+  const counts = { terrain: 0, fixed: 0, median: 0, zero: 0, kept: 0 };
   const known = new Map();
   for (const c of existing || []) if (Number.isFinite(c?.z)) known.set(c.hole_id, c.z);
   const zs = [...(rows || []).map((r) => r.z), ...known.values()].filter(Number.isFinite).sort((a, b) => a - b);
@@ -21,6 +22,7 @@ export function fillMissingCollarZ(rows, { existing = [], groundAt = null } = {}
     if (known.has(r.hole_id)) { counts.kept++; return r; }
     const g = groundAt ? groundAt(r.x, r.y) : NaN;
     if (Number.isFinite(g)) { counts.terrain++; return { ...r, z: g, zAssumed: "terrain" }; }
+    if (Number.isFinite(fixedZ)) { counts.fixed++; return { ...r, z: fixedZ, zAssumed: "fixed" }; } // #4085
     if (medianZ != null) { counts.median++; return { ...r, z: medianZ, zAssumed: "median" }; }
     counts.zero++;
     return { ...r, z: 0, zAssumed: "zero" };

@@ -8,7 +8,7 @@ import { onCollarZRequest } from "../lib/collarTerrainRequests.js";
 const Panel = React.lazy(() => import("./CollarZFromTerrain.jsx"));
 const terrainKey = (t) => (t ? `${t.name || ""}|${(t.bbox || []).join(",")}|${t.gridW || ""}x${t.gridH || ""}` : "");
 // the collars whose elevation is a guess made at import (the median or 0 m): the same rule as lib/collarFromTerrain.js needsTerrainZ, counted here without loading it
-const assumedCount = (collars) => { let n = 0; for (const c of collars || []) if (c && c.hole_id != null && Number.isFinite(c.x) && Number.isFinite(c.y) && (c.zAssumed === "median" || c.zAssumed === "zero" || !Number.isFinite(c.z))) n++; return n; };
+const assumedCount = (collars) => { let n = 0; for (const c of collars || []) if (c && c.hole_id != null && Number.isFinite(c.x) && Number.isFinite(c.y) && (c.zAssumed === "median" || c.zAssumed === "zero" || !Number.isFinite(c.z) || c.zAssumed === "fixed" /* #4085 */)) n++; return n; };
 
 export default function CollarZGate() {
   const { collars, terrain, projectLoading } = useStore();

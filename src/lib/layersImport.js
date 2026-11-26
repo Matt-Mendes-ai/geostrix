@@ -47,7 +47,7 @@ export const TARGET_SCHEMAS = {
     { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z", "rl_m", "height", "altitude", "alt_ahd", "alt_msl"] }, // rl_m / height: #4067 ('Rl m', 'Height (MSL)'); altitude / alt_ahd / alt_msl: #4083 (SARIG's 'Alt_AHD')
     { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azim_grid", "azi", "az", "brg", "bearing", "collar_az", "hole_az"] }, // collar_az / hole_az: #1655 (acQuire's Collar_Az_D; 'az' alone matches a whole header only) // az / brg / bearing: #546; azim_grid: GeoStrix's own collar export (#577) — exact, so it beats azim_true
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip", "inclination", "incl"] }, // #605: inclination (MX-style collar sheets)
-    { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "td", "depth"] }, // td: #2151 (WAMEX); #600: "Actual depth" before a planned "Target depth"
+    { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "maximum_depth" /* #4085 (GSV) */, "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "td", "depth"] }, // td: #2151 (WAMEX); #600: "Actual depth" before a planned "Target depth"
   ], dipConvention: true },
   survey: { label: "Survey", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "siteid", "site_id"] },
@@ -334,6 +334,26 @@ export function holeIdColumn(headers) {
   if (g) return g;
   return (headers || []).find((h) => HOLE_WORDS.test(normHeader(h)) && !HOLE_ID_VETO.test(normHeader(h))) || ""; // not Hole_Type, Hole_Depth ... (the veto of guessMapping)
 }
+// TASKS.csv #4085 — a collar table's depth columns name the hole's length (GSV's Maximum_Depth, EOH, Total_Depth, Final_Depth, TD): no downhole depth that a survey station has.
+// True when every depth-like column is one of those, or there is none.
+const HOLE_LENGTH = /^(max(imum)?|total|final|actual|end_of_hole|hole)_?depth(_m)?$|^depth_?(max|total|final|eoh)$|^eoh(_depth)?$|^td$|^(hole_)?length$/;
+function depthsAreHoleLength(headers) {
+  return (headers || []).map(normHeader).filter((h) => /depth|^at$|^md$|^dist(ance)?$|^station$/.test(h)).every((h) => HOLE_LENGTH.test(h));
+}
+// TASKS.csv #4085 — the rows decide a plain Depth: one row per hole (each hole id once) is a collar table, a survey has several stations per hole
+function onePerHole(headers, rows) {
+  const id = holeIdColumn(headers);
+  if (!id || !rows || rows.length < 2) return false;
+  const seen = new Set();
+  for (let i = 0; i < rows.length && i < 500; i++) { const v = String(rows[i]?.[id] ?? "").trim(); if (!v) continue; if (seen.has(v)) return false; seen.add(v); }
+  return seen.size >= 2;
+}
+// a hole id, an east and a north column, no elevation and no from / to: the shape of a collar table without its RL
+function collarNoElevation(headers) {
+  const m = guessMapping("collars", headers);
+  const has = (s) => headers.some((h) => normHeader(h).includes(s) || String(h).toLowerCase().includes(s));
+  return !!(holeIdColumn(headers) && m.x && m.y && !m.z && !has("from"));
+}
 export function guessTarget(headers) {
   // #600 (40958Z): the normalised forms too ("Mag Avg" -> mag_avg, "Specific Gravity" -> specific_gravity)
   const lower = [...new Set(headers.flatMap((h) => [h.toLowerCase(), normHeader(h)]))];
@@ -362,6 +382,10 @@ export function guessTarget(headers) {
   if (!has("from") && hole && hasEast && hasNorth && hasElev) return "collars";
   // TASKS.csv #2151 — MGA_East / MGA_North / MGA_RL, GDA94_E / GDA94_N, GBMG_East / GBMG_North + Orig_RL: a grid pair and an elevation
   if (hole && !has("from") && !has("depth_from") && gridCoordinateColumns(headers).length && (hasElev || gridElevation(headers))) return "collars"; // #4080: a hole id too
+  // TASKS.csv #4085 — a collar table with no elevation (GSV's NCT_Collars: Hole_id, Easting, Northing, Dip, Azimuth, Maximum_Depth) went to the survey rule below by its azimuth and
+  // depth. A hole id, an east / north pair, no from / to, and depths that are the hole's length only: collars, placed on the terrain or at an asked elevation (CollarElevationChoice).
+  // A plain Depth stays with the rules below; guessTargetFor reads the rows for it (one row per hole is a collar table)
+  if (hole && hasEast && hasNorth && !hasElev && !has("from") && depthsAreHoleLength(headers)) return "collars";
   // Structure picks checked before survey: real bug found here — a structure CSV with columns
   // like depth_m/inferred_dip_deg/assumed_dip_azimuth satisfies the survey check below (it has
   // "azimuth", "depth", and no "from"), AND guessColumn's substring matching resolves survey's
@@ -508,6 +532,8 @@ export function pointDensityFile(headers, name, rows) {
 }
 export function guessTargetFor(headers, name, rows = null) {
   const t = guessTargetForRaw(headers, name, rows);
+  // TASKS.csv #4085 — a table guessed survey (or structure / custom) by a plain Depth with an azimuth, whose rows hold each hole once with its east / north and no elevation, is collars
+  if ((t === "survey" || t === "structure" || t === "custom") && collarNoElevation(headers) && onePerHole(headers, rows) && !CUSTOM_LOG_NAMES.test(String(name || ""))) return "collars";
   return valueColumnIsWords(t, headers, rows) ? "custom" : t; // #3210
 }
 function guessTargetForRaw(headers, name, rows) {
@@ -528,6 +554,7 @@ function guessTargetForRaw(headers, name, rows) {
   if (hint) {
     const m = guessMapping(hint, headers);
     if (schemaSatisfied(hint, m)) return hint;
+    if (hint === "collars" && schemaSatisfied(hint, { ...m, z: m.z || "(terrain)" })) return hint; // #4085 — a collar file with no elevation column: placed on the terrain or asked (#3955)
     // TASKS.csv #1502 — the name is the stronger hint: a file shaped like the named layer (its hole and depth columns found) whose value
     // column has a name GeoStrix does not know keeps that layer, and the dialog asks for the column (never committed unseen: the value
     // is missing). Mineralization.csv with only a Description column went to Lithology, whose aliases include "description".

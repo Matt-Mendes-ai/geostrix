@@ -10501,7 +10501,6 @@
   "{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X or Y ({v}{v2}). Fix them in the file and re-import.": "{fileName} : {noCoords} collet(s) ignoré(s) — X ou Y manquant ou non numérique ({v}{v2}). Corrigez-les dans le fichier et réimportez.",
   "{n} on the terrain": "{n} sur le terrain",
   "{n} at the median collar elevation ({z} m)": "{n} à l'altitude médiane des collets ({z} m)",
-  "{n} at 0 m (no terrain and no other elevation)": "{n} à 0 m (ni terrain ni autre altitude)",
   "{n} collar(s) had no elevation and were placed at an ASSUMED one ({how}), flagged in Data QC": "{n} collet(s) sans altitude ont été placés à une altitude SUPPOSÉE ({how}), signalés dans le Contrôle des données",
   "{n} hole(s) with no elevation in the file kept the one they already had": "{n} sondage(s) sans altitude dans le fichier ont gardé celle qu'ils avaient",
   "on the terrain": "sur le terrain",
@@ -14755,7 +14754,6 @@
   "Collar elevations from the terrain…": "Élévations des collets à partir du terrain…",
   "Take collar elevations from the terrain; preview first, Ctrl+Z undoes it.": "Prendre les élévations des collets sur le terrain ; aperçu d'abord, Ctrl+Z l'annule.",
   "From the terrain ({source}), {z} m: a ground height, not a surveyed RL.": "Du terrain ({source}), {z} m : une hauteur du sol, pas une cote levée.",
-  "No terrain yet: holes sit at the median, flagged ASSUMED; GeoStrix offers the terrain when one is added.": "Pas encore de terrain : les sondages restent à la médiane, marqués ASSUMED ; GeoStrix propose le terrain dès qu'un est ajouté.",
   "Ground surface ({source})": "Surface du sol ({source})",
   "Ground surface": "Surface du sol",
   "Regional geology (1:250,000 to 1:1,000,000), not property-scale mapping.": "Géologie régionale (1/250 000 à 1/1 000 000), pas une cartographie à l'échelle de la propriété.",
@@ -15851,5 +15849,10 @@
   "Every cell is no-data.": "Toutes les cellules sont sans donnée.",
   "Read as {p} from the file name.": "Lu comme {p} d'après le nom du fichier.",
   " Log colours: {min} to {max}.": " Couleurs logarithmiques : {min} à {max}.",
-  "Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv, le dernier de {n} modèles enregistrés : {list} ; profondeurs depuis un sommet à 0 m, {m} m de profondeur.{swap}"
+  "Res3DInv, the last of {n} saved models: {list}; depths from a 0 m top, {m} m deep.{swap}": "Res3DInv, le dernier de {n} modèles enregistrés : {list} ; profondeurs depuis un sommet à 0 m, {m} m de profondeur.{swap}",
+  "A fixed elevation (m)": "Une altitude fixe (m)",
+  "The median of the other collars": "La médiane des autres collets",
+  "{n} at {z} m (given)": "{n} à {z} m (donnée)",
+  "Both flagged ASSUMED; the terrain is offered later.": "Les deux marquées ASSUMED ; le terrain est proposé ensuite.",
+  "{n} at 0 m (nothing else known)": "{n} à 0 m (rien d'autre de connu)"
 }
