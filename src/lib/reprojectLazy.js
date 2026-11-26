@@ -3,6 +3,7 @@
 // things the first screen draws: the cursor's latitude / longitude in the status bar (blank for the few tens of milliseconds the module takes to arrive) and the async toLonLat.
 import { useEffect, useState } from "react";
 
+const START_DELAY_MS = 400, IDLE_TIMEOUT_MS = 1000, HIDDEN_FALLBACK_MS = 4000; // the fixed delay where there is no requestIdleCallback; the longest wait for an idle moment; a window that runs no animation frames
 let mod = null, loading = null;
 const listeners = new Set();
 
@@ -20,8 +21,15 @@ export function useReprojectReady() {
     if (mod) return undefined;
     const f = () => bump((n) => n + 1);
     listeners.add(f);
-    loadReproject().catch(() => {});
-    return () => listeners.delete(f);
+    // not in the first commit's effects: the module's evaluation (~12 ms) there ran before the first paint (first contentful paint measured ~20 ms later than without it). Started once the first frame is on screen
+    // (two animation frames: the first one's callback runs before its paint), then when the main thread is idle (requestIdleCallback, at most ~1 s later; a fixed delay where there is none). A window that is
+    // hidden runs no frames, so a timer starts it anyway. The readout is blank for that long, which is nothing (the mouse is not over the view yet), and a chunk that loads on use brings the maths with it.
+    let started = false, raf = 0, idle = 0;
+    const go = () => { if (started) return; started = true; loadReproject().catch(() => {}); };
+    const idleStart = () => { if (typeof requestIdleCallback === "function") idle = requestIdleCallback(go, { timeout: IDLE_TIMEOUT_MS }); else setTimeout(go, START_DELAY_MS); };
+    if (typeof requestAnimationFrame === "function") raf = requestAnimationFrame(() => { raf = requestAnimationFrame(idleStart); }); else idleStart();
+    const fallback = setTimeout(go, HIDDEN_FALLBACK_MS);
+    return () => { cancelAnimationFrame?.(raf); if (idle && typeof cancelIdleCallback === "function") cancelIdleCallback(idle); clearTimeout(fallback); listeners.delete(f); };
   }, []);
   return !!mod;
 }
