@@ -40,10 +40,48 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
+      actions: read # TASKS.csv #4098 — read the Build and Sidecar tests runs (read-only, like the rest of this job: #472)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false # #472 — no token in .git/config for install scripts to find
+          fetch-depth: 0 # #4098 — the previous release tag and the history since it
+      # TASKS.csv #4098 (Matt: faster releases, if it creates no issues) — the sidecar's own tests took 20 of v0.2.12's ~37 minutes and run only
+      # when the engine changed since the PREVIOUS release tag (python-sidecar/**, its requirements and constraints, or sidecar.yml). Otherwise
+      # sidecar.yml must have passed on the newest master run that holds the last commit touching those paths; with no such green run, the
+      # tests run here after all. The frozen engine's smoke test below always runs. Said in the log either way.
+      - name: Decide what this release must test
+        id: decide
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $paths = @('python-sidecar', '.github/workflows/sidecar.yml')
+          $prev = (git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD~1 2>$null)
+          if (-not $prev) { Write-Host "No earlier release tag: the sidecar tests run."; "sidecar=run" >> $env:GITHUB_OUTPUT; exit 0 }
+          git diff --quiet $prev HEAD -- @paths
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "The Python engine changed since $prev ($(git diff --name-only $prev HEAD -- @paths | Measure-Object -Line | ForEach-Object Lines) file(s)): the sidecar tests run."
+            "sidecar=run" >> $env:GITHUB_OUTPUT; exit 0
+          }
+          $last = (git log -1 --format=%H -- @paths)
+          $runs = (gh api "repos/$env:GH_REPO/actions/workflows/sidecar.yml/runs?branch=master&per_page=50" | ConvertFrom-Json).workflow_runs
+          $hit = $null
+          foreach ($r in $runs) { # newest first: the newest finished run whose commit holds $last
+            if ($r.status -ne 'completed') { continue }
+            git merge-base --is-ancestor $last $r.head_sha 2>$null
+            if ($LASTEXITCODE -eq 0) { $hit = $r; break }
+          }
+          if ($hit -and $hit.conclusion -eq 'success') {
+            Write-Host "The Python engine is unchanged since $prev. Sidecar tests SKIPPED here: sidecar.yml passed on $($hit.head_sha.Substring(0, 8)) ($($hit.html_url)), which holds the last engine change $($last.Substring(0, 8))."
+            "sidecar=skip" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "The Python engine is unchanged since $prev, but sidecar.yml has no green run holding its last change $($last.Substring(0, 8)) ($(if ($hit) { $hit.conclusion } else { 'none found' })): the sidecar tests run here."
+            "sidecar=run" >> $env:GITHUB_OUTPUT
+          }
+          exit 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
@@ -66,16 +104,16 @@ jobs:
         env:
           PYINSTALLER_COMPILE_BOOTLOADER: "1"
         run: venv\Scripts\python.exe -m pip install --no-binary pyinstaller pyinstaller -c constraints.txt
-      # TASKS.csv #443 — never ship a build whose maths tests fail: JS logic tests, then the SimPEG
-      # potential-field acceptance tests against the exact venv that gets frozen.
-      - name: JS logic tests
-        run: npm test
+      # TASKS.csv #443 — never ship a build whose maths tests fail: the SimPEG potential-field acceptance tests against the exact venv that gets
+      # frozen. The JS logic tests are Build's (required below, #4098); these two steps run when the engine changed (the decide step).
       - name: Sidecar physics tests
+        if: steps.decide.outputs.sidecar == 'run'
         working-directory: python-sidecar
         run: venv\Scripts\python.exe tests/test_potential.py
       # TASKS.csv #557 — the release gate used to run only the potential-field tests; the GemPy fault / onlap
       # and DC/IP tests ran only in sidecar.yml (path-filtered), so a release could ship them untested.
       - name: Sidecar fault, onlap and DC/IP tests
+        if: steps.decide.outputs.sidecar == 'run'
         working-directory: python-sidecar
         run: |
           venv\Scripts\python.exe tests/test_implicit_faults.py
@@ -133,6 +171,29 @@ jobs:
         # electron-builder still writes latest.yml with --publish never (updateInfoBuilder runs whether
         # or not it uploads). No GH_TOKEN in this job.
         run: npx electron-builder --publish never --win
+
+      # TASKS.csv #4098 — the JS logic tests are not run again here: the Build workflow ran them (with lint, the bundle budget and the packaged
+      # Windows smoke test) on this same commit, and it must have PASSED. Waits while it is still running (a tag pushed right after the merge);
+      # fails when it is red, or missing after five minutes (a commit Build never saw: run Build on it by hand, Actions > Build > Run workflow).
+      - name: Require a green Build of this commit
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $sha = (git rev-parse HEAD); $start = Get-Date
+          while ($true) {
+            $runs = @((gh api "repos/$env:GH_REPO/actions/workflows/build.yml/runs?head_sha=$sha&per_page=20" | ConvertFrom-Json).workflow_runs)
+            $green = $runs | Where-Object { $_.conclusion -eq 'success' } | Select-Object -First 1
+            if ($green) { Write-Host "Build passed on $($sha.Substring(0, 8)): $($green.html_url) - its JS tests stand for this release."; exit 0 }
+            $open = $runs | Where-Object { $_.status -ne 'completed' }
+            if ($runs.Count -and -not $open) { Write-Error "Build is red on $($sha.Substring(0, 8)) ($(($runs | ForEach-Object { $_.conclusion }) -join ', ')): not releasing it. $($runs[0].html_url)"; exit 1 }
+            if (-not $runs.Count -and ((Get-Date) - $start).TotalMinutes -gt 5) { Write-Error "No Build run for ${sha}: Build never tested this commit. Run it (Actions > Build > Run workflow, on this tag) and re-run this release."; exit 1 }
+            if (((Get-Date) - $start).TotalMinutes -gt 60) { Write-Error "Build on $($sha.Substring(0, 8)) did not finish within an hour."; exit 1 }
+            Write-Host "Waiting for Build on $($sha.Substring(0, 8)) ($(if ($runs.Count) { 'running' } else { 'not started yet' }))..."
+            Start-Sleep -Seconds 30
+          }
 
       - name: Collect the release files and their SHA-256 checksums
         # The asset names electron-builder used when it uploaded itself: spaces become dashes, which is

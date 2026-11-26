@@ -41,8 +41,12 @@ function Probe([scriptblock]$cmd) {
   $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
   try { $out = & $cmd 2>$null; return @{ ok = ($LASTEXITCODE -eq 0); out = $out } } finally { $ErrorActionPreference = $old }
 }
-function Fail($msg) { Write-Host ""; Write-Host "STOPPED: $msg" -ForegroundColor Red; exit 1 }
-function Step($msg) { Write-Host ""; Write-Host "== $msg" -ForegroundColor Cyan }
+# TASKS.csv #4098 — each step says when it started and how long the one before took, and the end the total, so a slow release shows which step
+$script:runStart = Get-Date; $script:stepName = $null; $script:stepAt = $null
+function Step-Took { if ($script:stepName) { Write-Host ("   ({0}: {1:hh\:mm\:ss})" -f $script:stepName, ((Get-Date) - $script:stepAt)) -ForegroundColor DarkGray } }
+function Total-Took { Step-Took; Write-Host ("   (total {0:hh\:mm\:ss}, from {1:HH:mm:ss})" -f ((Get-Date) - $script:runStart), $script:runStart) -ForegroundColor DarkGray }
+function Fail($msg) { Total-Took; Write-Host ""; Write-Host "STOPPED: $msg" -ForegroundColor Red; exit 1 }
+function Step($msg) { Step-Took; $script:stepName = $msg; $script:stepAt = Get-Date; Write-Host ""; Write-Host ("== {0}  [{1:HH:mm:ss}]" -f $msg, $script:stepAt) -ForegroundColor Cyan }
 
 # ---- version and tag: the installer's version comes from THIS checkout's package.json, so it must be the tag's
 $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
@@ -276,5 +280,6 @@ if ($LASTEXITCODE -ne 0) { Fail "Could not publish the draft." }
 $check = gh release view $Tag --repo $repo --json isDraft,assets | ConvertFrom-Json
 $attached = ($check.assets | Where-Object { $_.name -eq $installer.Name }).size
 if ($check.isDraft -or $attached -ne $installer.Length -or -not ($check.assets | Where-Object { $_.name -eq "latest.yml" })) { Fail "The published release does not look complete - check https://github.com/$repo/releases/tag/$Tag" }
+Total-Took # #4098
 Write-Host ""
 Write-Host "Published https://github.com/$repo/releases/tag/$Tag (signed)." -ForegroundColor Green

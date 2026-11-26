@@ -5,6 +5,9 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  # TASKS.csv #4098 — by hand on any branch or tag: release.yml requires a green Build of the tag's commit, and a commit that never reached
+  # master (a test tag) has no Build run until one is started here
+  workflow_dispatch:
 
 # TASKS.csv #249 (security-specialist review) — this smoke-test build never needed write access to
 # anything; a public repo's default GITHUB_TOKEN permissions for a pull_request run from a fork are
@@ -54,6 +57,9 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      # TASKS.csv #4098 — the JS logic tests on Windows too: the release no longer runs them (it requires this workflow green on its commit), and
+      # Windows and Linux have disagreed (v0.2.12's commit was red on Linux, green on Windows; #4066's path test the other way)
+      - run: npm test
       - run: npm run build:web
       # the Python engine is not built here (release.yml does that); an empty folder satisfies extraResources
       - run: New-Item -ItemType Directory -Force python-sidecar\dist\geostrix-sidecar | Out-Null
