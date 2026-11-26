@@ -52,7 +52,7 @@ test("depth to the top (the cover) and to the base; the RL of the top", () => {
 test("wired: the panel offers the codes and the coded statistics", () => {
   const p = readFileSync(new URL("../src/components/HoleValueGridPanel.jsx", import.meta.url), "utf8");
   assert.match(p, /perHoleCoded\(source\.rows, codesOn, codedBase\)/);
-  assert.match(p, /<option value="topRL">\{tr\("The RL of their top"\)\}<\/option>/);
+  assert.match(p, /<option value="topRL">\{tr\("RL of their top"\)\}<\/option>/);
   assert.match(p, /aria-label=\{tr\("Codes of the layer"\)\}/);
 });
 

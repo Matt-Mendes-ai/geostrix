@@ -50,6 +50,6 @@ test("wiring: the choice is null until the user picks; both notes are said", () 
   const m = readFileSync(new URL("../src/components/HoleValueGridPanel.jsx", import.meta.url), "utf8");
   assert.match(m, /useState\(null\); \/\/ TASKS\.csv #3826/);
   assert.match(m, /const placeAt = placeAtChoice \|\| \(advice\?\.intercept \? "intercept" : "collar"\)/);
-  assert.match(m, /share \{k\} collar points: their values are combined there/);
-  assert.match(m, /so each is placed at its intercept\. Choose the collar/);
+  assert.match(m, /share \{k\} collar points: combined, one cell for each pad/);
+  assert.match(m, /so they are placed at their intercepts\./);
 });
