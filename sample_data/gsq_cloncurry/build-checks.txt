@@ -1,0 +1,23 @@
+holes: 5 (RC, RC-DDHT), EPSG:28354; 3 distinct collar positions
+survey: 66 gyro stations, true -> grid by -0.15 to -0.15 degrees (grid convergence)
+litho.csv: 60 intervals, 0 overlapping
+magsus.csv: 747 intervals, 0 overlapping
+assays: 525 intervals (0 overlapping), 16 QC rows flagged, 36 elements, 1 over-range Cu from the ore-grade assay
+sg.csv: 34 intervals, 0 overlapping
+  (3 reference-mass QC rows left out of sg.csv)
+structure.csv: 28 oriented measurements (alpha / beta)
+rocks.csv: 28 samples, 51 elements
+soils.csv: 468 samples, 36 elements
+downhole EM: 3 holes (.tem), 4 loop files
+EM inloop 7564400.tem: 32 stations, nearest to each hole 858 / 858 / 858 / 45 / 511 m
+EM inloop 7564800.tem: 32 stations, nearest to each hole 1258 / 1258 / 1258 / 403 / 910 m
+EM inloop 7565200.tem: 32 stations, nearest to each hole 1658 / 1658 / 1658 / 801 / 1310 m
+EM fixedloop 7563300.00.tem: 17 stations, nearest to each hole 242 / 242 / 242 / 1357 / 591 m
+EM fixedloop 7563400.00.tem: 17 stations, nearest to each hole 142 / 142 / 142 / 1278 / 491 m
+EM fixedloop 7563500.00.tem: 17 stations, nearest to each hole 43 / 43 / 43 / 1201 / 391 m
+EM fixedloop 7563600.00.tem: 17 stations, nearest to each hole 59 / 59 / 59 / 1128 / 291 m
+EM fixedloop 7563700.00.tem: 18 stations, nearest to each hole 158 / 158 / 158 / 1059 / 191 m
+EM fixedloop 7563800.00.tem: 17 stations, nearest to each hole 258 / 258 / 258 / 996 / 91 m
+EM fixedloop 7563900.00.tem: 17 stations, nearest to each hole 358 / 358 / 358 / 939 / 12 m
+IP: 1 line (.esf), the 2D model as 2901 points, nearest to each hole 58 / 58 / 58 / 859 / 291 m
+sample size: 4.88 MB in 40 files

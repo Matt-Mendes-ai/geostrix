@@ -1,0 +1,19 @@
+hole_id,depth,azimuth_grid,dip,azimuth_magnetic,method,reliability
+OS13D01,0,273.72,-61.8,267.5,Rig Setup,Medium Reliability
+OS13D01,72,273.72,-61.8,267.5,Ranger Digital Tool,High Reliability
+OS13D01,123,277.12,-60,270.9,Ranger Digital Tool,High Reliability
+OS13D01,170,278.92,-58,272.7,Ranger Digital Tool,High Reliability
+OS13D01,220,280.02,-55.9,273.8,Ranger Digital Tool,High Reliability
+OS13D01,270,282.82,-53.5,276.6,Ranger Digital Tool,High Reliability
+OS13D01,330,284.32,-49.4,278.1,Ranger Digital Tool,High Reliability
+OS13D02,0,269.02,-62.5,262.8,Rig Setup,Medium Reliability
+OS13D02,66,269.02,-62.5,262.8,Ranger Digital Tool,High Reliability
+OS13D02,130,271.42,-61.8,265.2,Ranger Digital Tool,High Reliability
+OS13D02,180,269.92,-59.2,263.7,Ranger Digital Tool,High Reliability
+OS13D02,230,268.92,-56.3,262.7,Ranger Digital Tool,High Reliability
+OS13D02,290,268.12,-52.2,261.9,Ranger Digital Tool,High Reliability
+OS13D03,0,268.75,-62.6,262.5,Rig Setup,Medium Reliability
+OS13D03,100,268.75,-62.6,262.5,Ranger Digital Tool,High Reliability
+OS13D03,150,271.45,-61.4,265.2,Ranger Digital Tool,High Reliability
+OS13D03,200,271.75,-59.5,265.5,Ranger Digital Tool,High Reliability
+OS13D03,250,271.15,-58.1,264.9,Ranger Digital Tool,High Reliability

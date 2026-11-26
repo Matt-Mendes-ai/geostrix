@@ -1,0 +1,20 @@
+holes: 23 (FishCk, MtDillon, Molongle), Grid_ID MGA55 -> EPSG:28355
+survey: 26 stations (23 collars, 6 downhole in 3 holes)
+litho.csv: 272 intervals, 1 overlapping
+alt.csv: 162 intervals, 1 overlapping
+veins.csv: 110 intervals, 0 overlapping
+sulphides.csv: 196 intervals, 0 overlapping
+magsus.csv: 1760 intervals (GMS2, 10^-5 SI read, given as 10^-3 SI), 0 overlapping
+assays: 832 intervals (0 overlapping), 28 duplicates and 28 standards marked QC, 20 elements
+streams.csv: 273 samples, 0 standards, 0 duplicates, 20 elements
+rocks.csv: 174 samples, 0 standards, 0 duplicates, 21 elements
+soils.csv: 1071 samples, 43 standards, 76 duplicates, 20 elements
+IP line L7784600: 1001 readings (45 not flagged accepted), nearest electrode to a hole 50 m
+IP line L7783800: 1221 readings (117 not flagged accepted), nearest electrode to a hole 21 m
+IP line L7785400: 895 readings (52 not flagged accepted), nearest electrode to a hole 186 m
+IP line L563200: 1073 readings (135 not flagged accepted), nearest electrode to a hole 38 m
+IP line L563600: 1108 readings (51 not flagged accepted), nearest electrode to a hole 10 m
+IP line L564000: 1699 readings (403 not flagged accepted), nearest electrode to a hole 28 m
+  IP rows with no electrode positions left out: 2142
+ground magnetics: 21366 readings on 30 lines, nearest to a hole 20 m
+sample size: 2.17 MB in 20 files

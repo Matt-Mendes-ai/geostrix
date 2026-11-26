@@ -1,0 +1,61 @@
+hole_id,from,to,lithology,lithology_pct,texture,lithology2,zone,grain_size,colour,mineral,mineral_pct,mineral2,mineral2_pct,comments
+LSD0003,0,2,WTH,,,,REG,,LT; BN,,,,,Regolith; oxidised and weathered clays hosting various lithologies.
+LSD0003,2,60,SCH,,,PEG,MSD,,IM; PK,,,,,Starcross Fm. Psammites and schists becoming less weathered with depth. Interstitial pegmatites also. No Sulphides. Pk/Gy
+LSD0003,60,69,AMP,,,,AMP,,IM; BK,,,,,Foliated amphibolite; black. Crystalline. No visible sulphides.
+LSD0003,69,87,PSM,,,SCH,MSD,,IM; PK,PY,,,,Starcross psammites and schists; grey/pink micaceous. Py specks @ 87
+LSD0003,87,149,PEG,,,SCH,PEG,,IM; PK,,,,,Pegmatite with interstitial layers of starcross sediments. No visible Sulphides.
+LSD0003,149,149.5,LOS,100,,,LOS,,,,,,,Drillers did not put a sample  bag on the pad. Spoken with and told them that it was not acceptable
+LSD0003,149.5,153.1,PEG,100,MAS,,PEG,,PK,,,,,"Pegmatite megacrystic in places, perthitic K feld. Musc/Bt/qtz/feld"
+LSD0003,153.1,154,PSM,90,BED; FOL,,MSD,,IM; GY,,,,,"PSammite; medium - fine grained,  bedded. Weakly Red feldspar altered. Small felsic granitic sweats"
+LSD0003,154,155.5,PEG,100,MAS,,PEG,IPEG,LT; PK,,,,,porphyritic megacrystic pegmatite; Crystals >100mm in diameter in places Perthitic K feldspar. felsic. pink
+LSD0003,155.5,155.9,PSM,,BED,,MSD,,IM; PK,,,,,Psammite as prior; pervasive Red feldspar alteration. Bedded.
+LSD0003,155.9,162.1,PEG,100,POR; MAS,,PEG,,IM; PK,,,,,"Pegmatite; felsic,  porphyritic. Pink. Qtz/Bt/Musc/Kfeld"
+LSD0003,162.1,164.8,PSM,50,,GRA,PSM,,IM; PK,PY,3,,,Psammite + Granitic sweats; PV RF Alt in PSM. pretty much a Migmatite. interstitial Sulphides Py 1% and Cpy 0.5%. Concentrated sulphide band @ 162.5-162.6 60% Py.
+LSD0003,164.8,172.6,PEG,90,POR; MAS,PSM,PEG,,IM; PK,,,,,Pegmatite; as Prior
+LSD0003,172.6,173.7,PSM,100,BED,,MSD,SMGR,IM; GY,,,,,Psammite; Grey medium grained. semi-massive. Trace sulphides
+LSD0003,173.7,174.7,CMP,,,BRX,MSD,,IM; BK,,,,,"Brecciated deformed CMP and MSD's; Graphite clasts,  and matrix has been silicified/altered"
+LSD0003,174.7,186.4,PSM,100,BED,,MSD,SMGR,IM; GY,,,,,Psammite; Grey medium grained. semi-massive. Trace sulphides
+LSD0003,186.4,200.9,PSM,90,BED,PEG,MSD,,IM; PK,CP,1,PY,0.5,Psammites and Psuedopegmatites; Pervastive intense RF alteration. CPY - 0.5% in little aggregates.
+LSD0003,200.9,201.3,MAS,80,VEN,,VEN,,IM; YB,CP,30,PY,20,Vein of sulphides. 50% sulphides matrix of qtz. 80% is Cpy and 20% Py >1%Cu
+LSD0003,201.3,202.1,PSM,90,BED,PEG,MSD,,IM; PK,CP,1,PY,0.5,Psammites and Psuedopegmatites; Pervastive intense RF alteration. CPY - 0.5% in little aggregates.
+LSD0003,202.1,202.25,QZVN,,,,VEN,,IM; WH,CP,1,PY,1,Qt vein; pyrite - 1% Cpy 1%
+LSD0003,202.25,202.4,PSM,90,BED,PEG,MSD,,IM; PK,CP,1,PY,0.5,Psammites and Psuedopegmatites; Pervastive intense RF alteration. CPY - 0.5% in little aggregates.
+LSD0003,202.4,203,SHR,100,FRX,,FLT,,DK; GY,,,,,Late fault; post mineralisation. soft gouge. Clays. no Cu
+LSD0003,203,265.7,PSM,80,BED,PEG,MSD,,DK; GY,,,,,PSammites and pseudopegmatic melts. Occasional sulphides equal Py and Cpy -0.5% collectively. bedded psammite. In places it is migmatic
+LSD0003,265.7,266.5,PEG,100,,,PEG,IPEG,IM; PK,,,,,Porphyritic pegmatite.
+LSD0003,266.5,273.9,PSM,75,BED; FOL,SCH,MSD,,DK; GY,,,,,Psammites and schists... more pelitic layers also have garnets with small peg/granite sweats. some sulphides (PY only - 0.5%) present upon reactivaed bedding surfaces.
+LSD0003,273.9,278.7,PEG,100,MAS,,PEG,IPEG,IM; PK,,,,,Pegmatite porphyritic
+LSD0003,278.7,287.1,PSM,75,BED; FOL,SCH,MSD,,DK; GY,,,,,Psammites and schists... more pelitic layers also have garnets with small peg/granite sweats. some sulphides (PY only - 0.5%) present upon reactivaed bedding surfaces.
+LSD0003,287.1,291,PEG,100,MAS,,PEG,IPEG,IM; PK,,,,,Porphyriic pegmatites
+LSD0003,291,306.3,PSM,75,BED; FOL,SCH,MSD,,DK; GY,,,,,Psammites and schists... more pelitic layers also have garnets with small peg/granite sweats. some sulphides (PY only - 0.5%) present upon reactivaed bedding surfaces.
+LSD0005,0,4,SAP,,,PSM,WTH,,IM; WH,,,,,Saprolite after metasediments; White  kaolinitic Extremely weathered.
+LSD0005,4,20,PSM,,,PEL,MSD,,DK; BN,,,,,Psammite and finer micaceous sediments. Fe-Ox rich. Brown grey. Extremely weathered
+LSD0005,20,62,PSM,,,SCH,MSD,,IM; BN,,,,,Interstital psm and schist layers moderate -slightly weathered. Grey/Brown becoming fresh with depth
+LSD0005,62,81,PEL,,,SLT,MSD,,IM; GY,PY,1,,,Fresh silicified Metapelite/siltstone. Semi-carbonaceous/graphitic @ 63m. Pyrite is present  1%. Green/Grey
+LSD0005,81,107,BAS,,,,AMP,,DK; BK,PY,0.5,,,Amphibolite; Strange because there is no expression at the surface of this unit Fine grained (Meta-basalt?) and foliated. Disseminated Py  1%.
+LSD0005,107,132,PEL,,,SLT,MSD,,IM; GY,PY,1,CP,0.3,Silicified Pelites/siltstones. Albite/quartz veining Py  1% and minor Cpy in some chips up to 0.3%.
+LSD0005,132,132.8,LOS,100,,,LOS,,,,,,,Driller Lost this core.
+LSD0005,132.8,162.3,SCH,75,FOL; MIC,PSM,MSD,,DK; GY,,,,,Psammite and schists; silicified and bedded. micaceous in pelitic layers. Foliated in places. Sulphide is either disseminated or hosted by Qtz viens. Cpy is present but crystals are <0.5microns in diameter.
+LSD0005,162.3,178.5,PSM,50,STW; BXD,PEL,SHR,,IM; GY,,,,,Psammites and pelites; as before however fracture abundace has increased. weakly graphitic in places. Quartz carbonate fracture fill. Some Py and neg Cpy. sulpjides are disseminated and also vein hosted.
+LSD0005,178.5,185,PSM,25,BED; FOL,PEL,MSD,,IM; GY,,,,,Micaceous pelites/schists and psammites; Coherant. Py on joint surfaces. No visible Cpy.
+LSD0005,185,185.9,PSM,20,BXD,PEL,BRX,,IM; GG,,,,,Crackle breccia; Psm and Sch silicic  q/carbonate fracture fill. no Cpy. Minor ninor Py
+LSD0005,185.9,214.9,PSM,75,BED; FOL,PEL,MSD,,IM; GY,PY,0.5,,,Micaceous pelites/schists and psammites; Coherant. Py on joint/reactivated surfaces. No visible Cpy.
+LSD0005,214.9,224.9,BAS,100,FOL; MAS,,AMP,,DK; BK,PY,,,,Amphibolite; Negligble sulphides. massive
+LSD0005,224.9,229.7,PSM,75,BED; FOL,PEL,MSD,,IM; GY,PY,2,CP,0.5,Psammites 75%  and pelites 25%. Sulphides on reactivated bedding surfaces and JT's. foliated. Mostly PY and Pyhorrtite - 2% (not magnetic). Minor Cpy accompanying 0.2%
+LSD0005,229.7,231.3,BAS,100,FOL,,AMP,,DK; BK,PY,0.5,,,Amphibolite; fine grained (Basalt?) Neg sulphides - Py and Pyhor (0.5%)
+LSD0005,231.3,232.9,PSM,75,,PEL,MSD,,IM; GG,PY,1,,,Psammites and pelites. mostly psammitic not as many sulphides as previous seds Py + pyh - 1%max. Garnets in more pelitic layers -232m immediately after the AMP?
+LSD0005,232.9,237.1,BAS,,FOL; MAS,,AMP,,DK; BK,PY,1,CP,0.1,Amphibolite; Py on joint surfaces - 1% minor Cpy 0.1%.
+LSD0005,237.1,246.5,PSM,75,BED; FOL,PEL,SHR,,DK; BK,,,,,Damage Zone; Psammites 75%  and Pelites 25%; Pyrite+Pyhortite 2-3% on reactivated surfaces. Minor Cpy 0.3% and Possible Galea @ 238.8 and 240m 0.1%
+LSD0005,246.5,246.6,FLT,100,FLT,,FLT,,DK; BK,,,,,Fault Gouge; Clays. Soft
+LSD0005,246.6,247.6,PSM,75,BED,,MSD,,IM; GY,PY,1,,,Psammites and pelites; mostly psammitic. younging up hole to east. Pyrite and Pyhortite - 1% Cpy in Trace abundance.
+LSD0005,247.6,247.7,QZVN,100,VEN,,VEN,,,,,,,Quartz vien
+LSD0005,247.7,294.9,PEL,75,BED; FOL,PSM,MSD,,IM; GG,PY,0.3,,,Pelites 75% (mica rich and peg sweats) with minor psammite layers. Younging west? very minor Py 0.3%.
+LSD0005,294.9,297.5,,,,,AMP,,,,,,,
+LSR0004,0,3,MSD,,,SCH,MSD,,IM; WH,,,,,Extremely weathered siliceous metasediment. Siltstone White/grey in color.
+LSR0004,3,15,PSM,,,SCH,MSD,,IM; BN,,,,,Oxidised Psammite and finer metasediments. Micaceous in places. Orange/Brown. Distinctly weathered.
+LSR0004,15,23,PSM,,,SCH,MSD,,IM; WH,,,,,Slightly weathered grey/white metasediments. Psammite and schists.
+LSR0004,23,41,PEG,,,,PEG,,IM; PK,,,,,Pegmatite; Pink perthitic alkali feldspar  muscovite and quartz phenocrysts.
+LSR0004,41,65,SCH,,,PSM,MSD,,IM; BN,,,,,"Oxidised brown metasediments, Still starcross schists and psammites. Micaceous. Small weathered shear zone at 52-54m. Garnets in places."
+LSR0004,65,110,AMP,,,,AMP,,IM; BK,PY,0.05,,,Amphibolite; foliated. Interstitial zones of extremely fine disseminated Pyrite. Specks of Cpy in places. Conductor?
+LSR0004,110,113,AMP,,,,AMP,,IM; BK,PY,1,,,Amphibolite; foliated. Interstitial fine disseminated Pyrite. Specks of Cpy in places. Albite veining with minor Py.
+LSR0004,113,144,SCH,,,PSM,MSD,,IM; PK,PY,,,,Psammites and schists of starcross.  Micaceous and feldspar rich. Magmatic in places. Pink/dark grey. 138m .25%Cu in pXRF barren <200ppm after that.

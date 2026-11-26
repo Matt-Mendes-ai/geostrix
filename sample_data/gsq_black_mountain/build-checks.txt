@@ -1,0 +1,13 @@
+collars: 10 of 2006 (AGD66), 14 of 2007 converted from AGD84 to AGD66 (moved 1.6 m at most)
+holes: 24 (10 of 2006 in AGD66 / AMG55 EPSG:20255, 14 of 2007 in AGD84 / AMG55 EPSG:20355), collar azimuth / dip only; 1 collar id corrected (BMRC02-11 -> BMRC06-11)
+litho.csv: 218 intervals, 0 overlapping
+assays.csv: 660 intervals (227 1 m re-splits, 158 4 m composites, 275 of 2007), 0 overlapping; left out: 57 composites under a re-split, 5 check assays, 1 Mo / W re-assay (0 used over a capped value); 16 elements
+IP gradient array: 666 readings
+IP line 4500N: 78 readings, 5 station control points, nearest to the holes 30 m
+IP line 4550N: 84 readings, 6 station control points, nearest to the holes 14 m
+IP line 4600N: 78 readings, 6 station control points, nearest to the holes 7 m
+IP line 4650N: 84 readings, 6 station control points, nearest to the holes 8 m
+IP line 5000N: 162 readings, 6 station control points, nearest to the holes 8 m
+IP line 5200N: 126 readings, 6 station control points, nearest to the holes 14 m
+ground magnetics: 38038 of 151974 readings (every 4th along each line)
+sample size: 3.23 MB in 20 files

@@ -1,0 +1,219 @@
+hole_id,from,to,lithology
+BMRC06-01,0,2,clay-ironstone
+BMRC06-01,2,6,psammitic gneiss
+BMRC06-01,6,7,quartz vein
+BMRC06-01,7,8,psammitic gneiss
+BMRC06-01,8,9,quartz vein
+BMRC06-01,9,18,psammitic gneiss
+BMRC06-01,18,24,gneiss
+BMRC06-01,24,28,psammitic gneiss
+BMRC06-01,28,31,gneiss
+BMRC06-01,31,39,hornfels psammitic gneiss
+BMRC06-01,39,92,greisen
+BMRC06-02,0,3,ironstone
+BMRC06-02,3,16,gneiss
+BMRC06-02,16,18,psammitic gneiss
+BMRC06-02,18,21,gneiss
+BMRC06-02,21,25,psammitic gneiss
+BMRC06-02,25,35,gneiss
+BMRC06-02,35,43,hornfels psammitic gneiss
+BMRC06-02,43,45,quartz-muscovite rock
+BMRC06-02,45,50,greisen
+BMRC06-02,50,53,hornfels psammitic gneiss
+BMRC06-02,53,77,greisen
+BMRC06-02,77,100,granite greisen
+BMRC06-03,0,3,scree-float
+BMRC06-03,3,10,gneiss
+BMRC06-03,10,13,psammitic gneiss
+BMRC06-03,13,15,gneiss
+BMRC06-03,15,31,granite greisen
+BMRC06-03,31,33,quartz-muscovite rock
+BMRC06-03,33,55,granite greisen
+BMRC06-03,55,100,granite
+BMRC06-04,0,3,clay
+BMRC06-04,3,9,gneiss
+BMRC06-04,9,10,quartz vein
+BMRC06-04,10,18,gneiss
+BMRC06-04,18,19,quartz vein
+BMRC06-04,19,24,gneiss
+BMRC06-04,24,25,leuco gneiss
+BMRC06-04,25,26,gneiss
+BMRC06-04,26,28,psammitic gneiss
+BMRC06-04,28,30,gneiss
+BMRC06-04,30,38,hornfels psammitic gneiss
+BMRC06-04,38,40,leuco gneiss
+BMRC06-04,40,54,hornfels psammitic gneiss
+BMRC06-04,54,64,greisen
+BMRC06-04,64,91,granite greisen
+BMRC06-05,0,4,ironstone-clay
+BMRC06-05,4,16,psammitic gneiss
+BMRC06-05,16,17,leuco gneiss
+BMRC06-05,17,26,psammitic gneiss
+BMRC06-05,26,29,hornfels psammitic gneiss
+BMRC06-05,29,34,granite greisen
+BMRC06-05,34,35,hornfels psammitic gneiss
+BMRC06-05,35,44,greisen
+BMRC06-05,44,45,quartz vein
+BMRC06-05,45,50,greisen
+BMRC06-05,50,55,quartz-muscovite rock
+BMRC06-05,55,70,granite greisen
+BMRC06-06,0,5,gneiss
+BMRC06-06,5,20,psammitic gneiss
+BMRC06-06,20,23,hornfels psammitic gneiss
+BMRC06-06,23,28,psammitic gneiss
+BMRC06-06,28,34,greisen
+BMRC06-06,34,35,psammitic gneiss
+BMRC06-06,35,52,greisen
+BMRC06-06,52,53,granite greisen
+BMRC06-06,53,58,granite
+BMRC06-06,58,60,granite greisen
+BMRC06-06,60,62,granite
+BMRC06-06,62,63,granite greisen
+BMRC06-06,63,65,granite
+BMRC06-06,65,72,granite greisen
+BMRC06-06,72,80,granite
+BMRC06-06,80,88,granite greisen
+BMRC06-06,88,90,granite
+BMRC06-06,90,93,granite greisen
+BMRC06-06,93,96,granite
+BMRC06-06,96,98,granite greisen
+BMRC06-06,98,100,granite
+BMRC06-08,0,3,psammitic gneiss
+BMRC06-08,3,5,hornfels psammitic gneiss
+BMRC06-08,5,11,greisen
+BMRC06-08,11,14,quartz vein
+BMRC06-08,14,55,greisen
+BMRC06-08,55,84,granite greisen
+BMRC06-09,0,3,psammitic gneiss
+BMRC06-09,3,13,greisen
+BMRC06-09,13,14,quartz-muscovite rock
+BMRC06-09,14,58,greisen
+BMRC06-09,58,78,granite greisen
+BMRC06-09,78,90,granite
+BMRC06-10,0,3,clay
+BMRC06-10,3,14,psammitic gneiss
+BMRC06-10,14,21,clay
+BMRC06-10,21,22,psammitic gneiss
+BMRC06-10,22,38,hornfels psammitic gneiss
+BMRC06-10,38,43,greisen
+BMRC06-11,0,3,clay
+BMRC06-11,3,4,no return
+BMRC06-11,4,22,psammitic gneiss
+BMRC06-11,22,24,hornfels psammitic gneiss
+BMRC06-11,24,26,psammitic gneiss
+BMRC06-11,26,27,leuco gneiss
+BMRC06-11,27,31,hornfels psammitic gneiss
+BMRC06-11,31,39,greisen
+BMRC06-11,39,41,quartz-muscovite rock
+BMRC06-11,41,42,greisen
+BMRC06-11,42,43,quartz-muscovite rock
+BMRC06-11,43,44,greisen
+BMRC06-11,44,45,quartz-muscovite rock
+BMRC06-11,45,46,greisen
+BMRC06-11,46,48,quartz-muscovite rock
+BMRC06-11,48,54,greisen
+BMRC06-11,54,55,quartz feldspar vein
+BMRC06-11,55,68,greisen
+BMRC06-11,68,76,granite greisen
+BMRC07-12,0,15,psammitic gneiss
+BMRC07-12,15,16,felsic intrusive
+BMRC07-12,16,23,psammitic gneiss
+BMRC07-12,23,25,felsic intrusive
+BMRC07-12,25,46,psammitic gneiss
+BMRC07-12,46,47,mafic intrusive
+BMRC07-12,47,48,psammitic gneiss
+BMRC07-12,48,49,greisen
+BMRC07-12,49,51,psammitic gneiss
+BMRC07-12,51,52,greisen
+BMRC07-12,52,61,psammitic gneiss
+BMRC07-12,61,83,hornfelsed psammitic gneiss
+BMRC07-12,83,85,greisen
+BMRC07-12,85,87,qtz-mu vein
+BMRC07-12,87,91,qtz-mu vein grading to greisen
+BMRC07-12,91,102,greisen (chlorite alteration)
+BMRC07-12,102,103,psammitic gneiss (highly chlorite altered)
+BMRC07-13,0,35,greisen
+BMRC07-13,35,41,granite
+BMRC07-13,41,44,greisen
+BMRC07-13,44,60,granite
+BMRC07-14,0,41,greisen
+BMRC07-14,41,52,granite
+BMRC07-15,0,29,psammitic gneiss
+BMRC07-15,29,31,greisen
+BMRC07-15,31,56,psammitic gneiss (hornfelsed)
+BMRC07-15,67,70,qtz-mu-chl +/- mo vein
+BMRC07-15,70,73,greisen
+BMRC07-15,73,75,qtz-mu-chl vein
+BMRC07-15,75,90,greisen
+BMRC07-15,90,96,granite
+BMRC07-16,0,7,clay + weathered greisen
+BMRC07-16,7,12,weathered greisen
+BMRC07-16,12,42,granite greisen
+BMRC07-16,42,46,greisen
+BMRC07-16,46,50,qtz-mu-chl rock
+BMRC07-16,50,63,granite greisen
+BMRC07-16,63,68,granite
+BMRC07-17,0,1,clay
+BMRC07-17,1,4,psammitic gneiss
+BMRC07-17,4,5,felsic intrusive
+BMRC07-17,5,14,psammitic gneiss
+BMRC07-17,14,24,gneiss
+BMRC07-17,24,25,granitic gneiss
+BMRC07-17,25,29,qtz-rich gneiss to qtzite
+BMRC07-17,29,32,vfg qtz-rich gneiss (hornfels)
+BMRC07-17,32,52,granite
+BMRC07-18,0,1,clay
+BMRC07-18,1,3,psammitic gneiss
+BMRC07-18,3,72,gneiss
+BMRC07-19,0,2,clay
+BMRC07-19,2,39,gneiss
+BMRC07-19,39,40,?mafic
+BMRC07-19,40,52,gneiss
+BMRC07-19,52,73,granite
+BMRC07-20,0,3,clay
+BMRC07-20,3,7,psammitic gneiss
+BMRC07-20,7,8,clay + qtz vein
+BMRC07-20,8,10,psammitic gneiss
+BMRC07-20,10,11,clay + psammitic gneiss
+BMRC07-20,11,42,psammitic gneiss
+BMRC07-20,42,45,gneiss
+BMRC07-20,45,50,psammitic gneiss to quartzite
+BMRC07-20,50,51,leuco gneiss
+BMRC07-20,51,66,psammitic gneiss to quartzite (hornfels)
+BMRC07-20,66,100,granite greisen
+BMRC07-21,0,1,clay + alluvial gravel
+BMRC07-21,1,64,granite
+BMRC07-22,0,2,soil
+BMRC07-22,2,6,clay + psammitic gneiss
+BMRC07-22,6,10,psammitic gneiss
+BMRC07-22,10,13,leuco gneiss
+BMRC07-22,13,14,psammitic gneiss
+BMRC07-22,14,15,clay
+BMRC07-22,15,17,psammitic gneiss
+BMRC07-22,17,25,clay
+BMRC07-22,25,28,psammitic gneiss
+BMRC07-22,28,29,clay
+BMRC07-22,29,47,psammitic gneiss
+BMRC07-22,47,100,granite greisen
+BMRC07-23,0,2,clay
+BMRC07-23,2,15,gneiss
+BMRC07-23,15,75,granite greisen
+BMRC07-23,75,83,granite
+BMRC07-24,0,1,clay
+BMRC07-24,1,50,granite greisen
+BMRC07-24,50,60,granite
+BMRC07-25,0,7,psammitic gneiss
+BMRC07-25,7,9,psammite
+BMRC07-25,9,11,psammitic gneiss
+BMRC07-25,11,12,psammite
+BMRC07-25,12,13,psammitic gneiss
+BMRC07-25,13,14,psammite
+BMRC07-25,14,18,psammitic gneiss
+BMRC07-25,18,21,psammite
+BMRC07-25,21,29,psammitic gneiss
+BMRC07-25,29,32,psammitic gneiss to quartzite
+BMRC07-25,32,33,psammitic gneiss
+BMRC07-25,33,40,psammitic gneiss to quartzite
+BMRC07-25,40,45,psammitic gneiss
+BMRC07-25,45,88,psammitic gneiss to quartzite (hornfels)
+BMRC07-25,88,112,greisen

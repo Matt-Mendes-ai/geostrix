@@ -1,0 +1,273 @@
+hole_id,from,to,lithology,qualifier,texture,minerals,colour,weathering,oxidation,comments
+FCRC01,0,7,RHYL,,,Fd; Sil,L; B,HW,5,
+FCRC01,7,11,ANDS,MA,mv,Fd; Sil; Mt,G,SW,1,
+FCRC01,11,30,RHYL,MS,mv,Fd; Qtz,B,FL,0,
+FCRC01,30,44,ANDS,MA,mv,Chl; Mt; Qtz,G,FR,0,
+FCRC01,44,49,ANDS,MS,mv,Mt; Qtz; Hem,G,FR,0,minor hematite veins
+FCRC01,49,56,ANDS,MS,mv,Fd; Mt; Chl,G,FL,0,
+FCRC01,56,60,BRXX,FX,mv,Fd; Mt; Qtz,L; F,FL,0,minor hematite veins
+FCRC01,60,82,ANDS,MS,mv,Kfl; Mt; Qtz,L; G,FR,0,
+FCRC01,82,128,ANDS,MS,mv,Chl; Mt; Qtz,G,FR,0,
+FCRC01,128,129,RHYL,MS,mv,Fd; Qtz; Sil,F,FR,0,
+FCRC01,129,130,ANDS,MS,mv,Fd; Qtz; Sil,F,FR,0,Thin andesite dyke
+FCRC01,130,144,RHYL,MS,mv,Chl; Qtz; Sil,B,FR,0,
+FCRC02,0,1,CLAY,,,Cla,B,EW,5,
+FCRC02,1,11,ANDS,,mv,Fd; Qtz; Cla,F,HW,4,About 200m NE of FCRC01 on flats at SE of Pyramid Hill. FCRC02 was
+FCRC02,11,17,ANDS,,mv,Fd; Qtz; Cla,D; B,MW,3,drilled into a geochemical and High Charge IP anomlay.
+FCRC02,17,24,ANDS,MA,eq,Fd; Qtz; Mt,D; G,FL,2,
+FCRC02,24,51,ANDS,MA,eq,Fd; Qtz; Mt,D; G,FR,0,
+FCRC02,51,64,ANDS,MS,eq,Fd; Qtz; Mt,,FR,0,
+FCRC02,64,74,ANDS,MS,eq,,G,FR,0,
+FCRC02,74,81,ANDS,MA,eq,,G,FR,0,
+FCRC02,81,100,ANDS,MA,eq,,G,FR,0,
+FCRC02,100,107,ANDS,MA,eq,,G,FR,0,
+FCRC02,107,133,ANDS,MA,eq,,G,FR,0,
+FCRC02,133,167,ANDS,MS,eq,,,FR,0,
+FCRC02,167,168,CARB,MA,eq,,G,FR,0,
+FCRC02,168,177,ANDS,MS,eq,,G,FR,0,
+FCRC02,177,180,CARB,MS,eq,,W,FR,0,
+FCRC02,180,182,ANDS,MS,eq,,L; G,FR,0,
+FCRC03,0,7,RHYL,MS,eq,Cla; Qtz; Fd,G,MW,4,
+FCRC03,7,17,ANDS,MS,eq,,G,MW,2,
+FCRC03,17,26,ANDS,MS,eq,Fd; Qtz; Hem,G,FL,1,
+FCRC03,26,29,ANDS,MS,eq,,L; G,FL,0,
+FCRC03,29,38,ANDS,MS,eq,Sil; Chl; Sm,L; G,FR,0,
+FCRC03,38,39,ANDS,MS,eq,Fd; Qtz; Sm,L; G,FR,0,
+FCRC03,39,63,ANDS,MS,eq,Chl; Qtz; Sm,L; G,FR,0,
+FCRC03,63,76,ANDS,MS,mv,Sm; Qtz; Chl,L; G,FR,0,Porphyritic feldspars
+FCRC03,76,83,ANDS,MS,eq,Fd; Qtz; Chl,L; G,FR,0,
+FCRC03,83,100,ANDS,MS,eq,Fd; Qtz; Chl,G,FR,0,
+FCRC03,100,141,ANDS,MS,eq,Chl; Qtz; Sil,D; G,FR,0,
+FCRC03,141,146,RHYL,MS,eq,Sm; Qtz; Chl,G,FR,0,
+FCRC03,146,148,RHYL,MS,eq,Sm; Qtz; Chl,L; G,FR,0,
+FCRC03,148,152,ANDS,MS,eq,Ll; Qtz; Chl,D; G,FR,0,
+FCRC03,152,157,QZIT,FX,eq,Ll; Qtz; Ll,G,FR,0,
+FCRC03,157,168,ANDS,MS,eq,Ll; Qtz; Sil,D; G,FR,0,
+FCRC04,0,6,RHYL,BN,eq,Cla; Qtz; Fd,L; B,MW,3,FCRC04 in SW of Fish Creek; surface 1g/t Au area by road
+FCRC04,6,8,ANDS,MS,eq,,G,MW,3,6-8 m porphyritic feldspars
+FCRC04,8,18,RHYL,BN,eq,Sil,L; B,MW,3,
+FCRC04,18,52,ANDS,MS,eq,Sm; Sil,D; G,FL,1,18-25 m porphyritic feldspars
+FCRC04,29,52,ANDS,MS,eq,Sm; Sil,D; G,FR,0,
+FCRC04,52,55,RHYL,MS,eq,,B,FR,0,until another compressor truck obtained
+FCRC04,55,62,ANDS,MS,eq,,D; G,FR,0,
+FCRC04,62,65,RHYL,MS,eq,,B,FR,0,
+FCRC04,65,70,ANDS,MS,eq,,G,FR,0,
+FCRC04,70,80,RHYL,MS,eq,,B,FR,0,
+FCRC04,80,94,ANDS,MS,eq,,D; G,FR,0,
+FCRC04,94,108,RHYL,MS,eq,Ll,D; B,FR,0,
+FCRC04,108,158,ANDS,MS,eq,,G,FR,0,
+FCRC04,158,168,ANDS,MS,eq,Qtz; Ll; Hem,D; G,FR,0,
+FCRC06,0,3,RHYL,FB,eq,Cla; Lim,L; B,HW,4,
+FCRC06,3,10,ANDS,MS,c,Cla; MnOx; Lim,D; B,MW,3,
+FCRC06,10,16,ANDS,MS,eq,Sm,D; G,SW,2,
+FCRC06,16,17,BRXX,FX,eq,Sm,G,FL,1,
+FCRC06,17,20,ANDS,MS,eq,Sm,D; G,FL,1,
+FCRC06,20,27,RHYL,FB,eq,Sm,G,FL,1,
+FCRC06,27,30,ANDS,MS,c,Sm,G,FL,1,27-35 m = feldspar porphyritic; Groundwater Level 28 m
+FCRC06,30,35,ANDS,MS,c,Sm,G,FR,0,
+FCRC06,35,43,RHYL,MS,eq,Sm,G,FR,0,
+FCRC06,43,52,ANDS,MS,eq,Sm; Hem,D; G,FR,0,
+FCRC06,52,70,ANDS,MS,eq,,D; G,FR,0,
+FCRC06,70,73,BRXX,FX,eq,,D; G,FR,0,
+FCRC06,73,98,ANDS,MS,eq,Ll; Sil,D; G,FR,0,
+FCRC06,98,103,RHYL,MS,eq,Ll,G,FR,0,
+FCRC06,103,132,ANDS,MS,eq,Chl; Sil; Ep,D; G,FR,0,
+FCRC15,0,5,ANDS,MS,eq,Cla; Hem,B,MW,3,
+FCRC15,5,6,QZVN,MS,eq,Cla,L; B,MW,2,
+FCRC15,6,12,ANDS,MS,eq,Cla,L; G,MW,1,
+FCRC15,12,35,ANDS,MS,eq,Cla,D; G,FR,0,
+FCRC15,35,39,ANDS,MS,eq,Kfl; Zeol,L; G,FR,0,
+FCRC15,39,43,QZVN,FX,eq,Ll; Zeol,G,FR,0,
+FCRC15,43,54,ANDS,MS,eq,Chl; Ll,G,FR,0,
+FCRC15,54,56,QZVN,BX,eq,Chl; Ll,W,FR,0,
+FCRC15,56,58,ANDS,MS,eq,Chl; Ll,G,FR,0,
+FCRC15,58,60,QZVN,BX,eq,Chl; Ll,W,FR,0,
+FCRC15,60,62,ANDS,MS,eq,Chl; Ll,G,FR,0,
+FCRC15,62,66,QZVN,FX,eq,Chl; Ll,L; G,FR,0,Base of oxidation; ephemeral groundwater level?
+FCRC15,66,78,ANDS,MS,eq,Chl; Ll; Kfl,D; G,FR,0,
+FCRC16,0,17,RHYL,MS,eq,Sm,L; B,MW,3,N end of Silica Flats
+FCRC16,17,26,ANDS,MS,eq,Sm,L; B,FL,3,
+FCRC16,26,78,ANDS,MS,eq,Chl; Ll,G,FR,0,
+FCRC17,0,2,SOIL,,,Cla; Lim,L; B,HW,5,
+FCRC17,2,3,QZVN,MS,eq,Lim,L; B,HW,4,
+FCRC17,3,4,ANDS,MS,eq,Chl; Hem,L; G,HW,4,
+FCRC17,4,20,ANDS,MA,eq,Chl; Ll; Mt,G,FL,3,
+FCRC17,20,30,ANDS,MA,eq,Chl; Mt; Ll,G,FL,3,
+FCRC17,30,40,RHYL,MS,eq,Chl; Sm,G,FR,0,
+FCRC17,40,52,ANDS,MS,eq,Chl; Mt,L; B,FR,0,
+FCRC17,52,61,ANDS,MA,eq,Chl; Sil; Kfl,D; G,FR,0,
+FCRC17,61,66,QZVN,FZ,eq,Ll; Sil; Chl,L; G,FR,0,
+FCRC18,0,20,ANDS,MS,eq,Cla; Hem; Ser,L; B,MW,4,very sparse calcite (calcrete?) coatings on joints
+FCRC18,20,33,ANDS,SF,eq,Chl; Ll; Ser,L; G,FR,0,
+FCRC18,33,35,ANDS,MA,eq,Chl; Ser; Ll,L; G,FR,0,
+FCRC18,35,44,ANDS,SF,eq,Chl; Ser; Ll,L; G,FR,0,quartz and calcite veins rare and <1mm wide
+FCRC18,44,51,QZIT,FZ,eq,Chl; Ser; Ll,L; G,FR,0,
+FCRC18,51,69,ANDS,MS,eq,Chl; Sil; Ll,L; G,FR,0,quartz and pyrite veins both rare and <1mm wide
+FCRC18,69,71,ANDS,MA,eq,Chl; Sil; Kfl,D; G,FR,0,
+FCRC18,71,78,ANDS,SF,eq,Chl; Sil; Kfl,D; G,FR,0,
+FCRC19,0,1,SOIL,,,Cla,,EW,5,Rig got puncture; do not carry any spare
+FCRC19,1,18,ANDS,MS,eq,Cla,,MW,3,
+FCRC19,18,28,ANDS,MS,eq,Cla; Sm,,FL,2,
+FCRC19,28,49,ANDS,SF,eq,Sil; Sm; Chl,,FR,0,
+FCRC19,49,54,ANDS,MS,eq,Ll; Ser,,FR,0,
+FCRC19,54,60,ANDS,MS,eq,Chl; Ll; Ser,,FR,0,K'spar at 54-55m
+MDRC01,0,4,OVER,,,Cla; Mt; Ca,L; B,EW,5,
+MDRC01,4,9,GRAN,MA,mv,Cla; Mt; Hem,D; B,MW,2,
+MDRC01,9,21,GRAN,MA,mv,Ser; Mt; Hem,G,FR,0,
+MDRC01,21,30,GRAN,MA,mv,Ser; Mt; Hem,G,FR,0,
+MDRC01,30,50,GRAN,MA,mv,Ser; Mt; Hem,G,FR,0,
+MDRC01,50,55,GRAN,MA,mv,Ser; Mt; Chl,G,FR,0,
+MDRC01,55,89,GRAN,MA,mv,Ser; Mt; Ll,G,FR,0,
+MDRC01,89,100,RHYL,MS,eq,Chl; Ll; Sil,G,FR,0,
+MDRC01,100,105,RHYL,MS,eq,Ser; Ll; Sil,G,FR,0,
+MDRC01,105,120,RHYL,MS,eq,Chl; Ll; Lim,G,FR,0,
+MDRC01,120,122,SFRK,FZ,eq,Chl; Lim,L; G,FR,0,
+MDRC01,122,126,RHYL,MS,eq,Chl; Sil,L; G,FR,0,
+MDRC01,126,128,GRAN,MS,eq,Chl; Sil,D; G,FR,0,
+MDRC01,128,131,RHYL,MS,eq,Chl; Sil,D; G,FR,0,
+MDRC01,131,132,GRAN,MS,eq,Chl; Hb; Sil,D; G,FR,0,
+MDRC02,0,3,SOIL,,,Cla; MnOx,L; B,EW,5,
+MDRC02,3,8,RHYL,MS,eq,Cla; MnOx,L; B,MW,4,
+MDRC02,8,20,RHYL,MS,eq,Cla; Ka; MnOx,L; B,MW,1,
+MDRC02,20,25,RHYL,MS,eq,Cla; Ka; MnOx,L; B,MW,0,
+MDRC02,25,26,CLAY,FX,eq,Ka; MnOx,G,HW,0,
+MDRC02,26,29,RHYL,MS,eq,Ka; MnOx,G,HW,0,
+MDRC02,29,30,CLAY,FX,eq,Sm; Ka; MnOx,C,HW,0,
+MDRC02,30,32,QZVN,FX,eq,Ser; MnOx,F,HW,0,
+MDRC02,32,33,RHYL,MS,eq,Ser; MnOx,L; F,HW,0,
+MDRC02,33,34,CLAY,FX,eq,Ser,L; G,HW,0,
+MDRC02,34,35,QZVN,FX,eq,Ser; MnOx,L; F,HW,0,
+MDRC02,35,36,CLAY,FX,eq,,L; F,HW,0,
+MDRC02,36,38,RHYL,MS,eq,MnOx,L; F,HW,0,
+MDRC02,38,40,ANDS,MS,eq,Sil; MnOx,G,MW,0,
+MDRC02,40,44,RHYL,MS,eq,Sil; MnOx,L; G,SW,0,
+MDRC02,44,55,ANDS,MS,eq,Chl; Ser; Ll,G,FR,0,
+MDRC02,55,56,SFRK,FX,eq,Chl; Ser; Ll,L; G,FR,0,
+MDRC02,56,57,ANDS,MS,eq,Chl; Ser; Ll,G,FR,0,
+MDRC02,57,59,BRXX,FX,eq,Chl; Ser; Sil,G,FR,0,Fault breccia? 57-59 m
+MDRC02,59,68,ANDS,MS,eq,Chl; Ll; Sil,L; G,FR,0,also calcite veins
+MDRC02,68,80,GRAN,MS,mv,Chl; Ll; Ser,L; G,FR,0,
+MDRC02,80,83,ANDS,MS,eq,Chl; Ll; Ser,L; G,FL,1,
+MDRC02,83,93,GRAN,MS,mv,Chl; Ll; Ser,L; G,FR,0,also sparse thin <1mm veins of pyrite and hematite
+MDRC02,93,97,GRAN,MS,mv,Ll; Ser,L; G,FL,1,
+MDRC02,97,100,ANDS,MS,eq,Chl; Ll; Ser,D; G,FR,0,
+MDRC02,100,102,GRAN,MS,mv,Chl; Ll; Ser,D; G,FR,0,
+MDRC02,102,109,ANDS,,eq,Ll; Ser,D; G,FR,0,
+MDRC02,109,113,GRAN,MS,mv,Ll; Ser,L; G,FR,0,
+MDRC02,113,114,ANDS,MS,eq,Ll; Ser,L; G,FR,0,
+MDRC02,114,121,GRAN,MS,mv,Chl; Ll; Ser,L; U,FR,0,
+MDRC02,121,126,SFRK,FZ,eq,Chl; Ll; Sil,L; G,FR,0,
+MDRC02,126,135,GRAN,MS,mv,Chl; Ep; Kfl,G,FR,0,"sparse veins of calcite, epidote, quartz and rhodochrosite"
+MDRC02,135,155,GRAN,MS,mv,Chl; Ser; Kfl,G,FR,0,
+MDRC02,155,158,ANDS,MS,eq,Chl; Ser; Sil,L; G,FR,0,
+MDRC02,158,159,SFRK,MS,eq,Chl; Sil,L; G,FR,0,
+MDRC02,159,162,GRAN,MS,mv,Chl; Kfl; Sil,L; G,FR,0,
+MDRC02,162,175,ANDS,MS,eq,Chl; Kfl; Sil,G,FR,0,Contains 4 x 1m Qtz vein zones to 1% and Mag Sus <30
+MDRC02,175,201,GRAN,MS,mv,Chl; Hem; Sil,L; B,FR,0,
+MDRC02,201,202,ANDS,MS,eq,Chl; Sil,G,FR,0,
+MDRC02,202,204,GRAN,MS,mv,Chl; Sil; Hem,D; G,FR,0,
+MDRC03,0,3,CLAY,,,,F,EW,5,
+MDRC03,3,4,RHYL,,eq,Lim,L; B,EW,4,
+MDRC03,4,8,SFRK,FZ,eq,Lim,L; G,MW,3,
+MDRC03,8,22,RHYL,MS,eq,Lim; Ka,L; B,MW,3,
+MDRC03,22,28,SFRK,FZ,eq,,F,MW,3,
+MDRC03,28,34,ANDS,MS,eq,Ser; Sil,G,FR,0,
+MDRC03,34,50,SFRK,FZ,eq,Sil; Ka,L; G,FR,0,
+MDRC03,50,52,ANDS,MS,eq,Sil; Ab,G,FR,0,
+MDRC03,52,56,GRAN,MS,mv,Sil; Ab,L; G,FR,0,
+MDRC03,56,67,ANDS,MS,eq,Ep; Sil; Ab,G,FR,0,
+MDRC03,67,72,GRAN,MS,mv,Ep,G,FR,0,specular hematite
+MDRC03,72,78,ANDS,MS,eq,Sil,G,FR,0,
+MDRC04,0,6,ANDS,MS,eq,Cla; Chl; Kfl,D; B,MW,3,
+MDRC04,6,16,ANDS,MA,eq,Chl; Kfl,L; G,MW,3,
+MDRC04,16,19,ANDS,MS,eq,Sil; Kfl,L; G,MW,3,
+MDRC04,19,39,ANDS,MA,eq,Sil; Lim; Kfl,G,FL,1,0 -16 m = feldspar porphyritic andesite
+MDRC04,39,48,ANDS,MA,eq,Hem; Kfl,L; G,FL,1,
+MDRC04,48,55,ANDS,MS,eq,Sil; Hem; Kfl,G,FR,0,
+MDRC04,55,90,ANDS,MS,eq,Sil; Ll; Kfl,G,FR,0,
+MDRC05,0,8,CLAY,MS,eq,,D; B,EW,5,
+MDRC05,8,13,CALC,MS,eq,,L; F,FL,5,
+MDRC05,13,14,DIOR,DY,eq,,D; G,FL,1,
+MDRC05,14,15,GRAN,MS,mv,,D; B,FL,1,
+MDRC05,15,16,DIOR,DY,eq,,D; G,FL,1,
+MDRC05,16,22,GRDR,MA,mv,Chl,D; G,FR,0,
+MDRC05,22,51,GRDR,MA,mv,Ser; Chl,G,FR,0,
+MDRC05,51,69,GRDR,MA,mv,Ser; Chl,G,FR,0,rare calcite veins <1mm wide
+MDRC05,69,71,GRDR,MA,mv,Sil; Ser; Chl,G,FR,0,
+MDRC05,71,90,GRDR,MA,mv,Ser; Chl,G,FR,0,
+MDRC05,90,104,GRDR,MA,mv,Hb; Ep,D; G,FR,0,
+PDH001,0,20,RHYL,,,,,,,"siliceous clay altered pyroclastics; dark brown, purple, light brown, yellow and white"
+PDH001,20,22,RHYL,,,,,,,quartz veins
+PDH001,22,30,RHYL,,,,,,,
+PDH001,30,32,RHYL,,,,,,,"quartz veins; silica flooded, base of oxidation colour change yellow brown to grey"
+PDH001,32,44,RHYL,,,,,,,silica flooded pyritc pyroclastics
+PDH001,44,50,RHYL,,,,,,,mm-scale quartz veins holding epidote & pyrite; propylitic mesothermal
+PDH001,50,58,RHYL,,,,,,,
+PDH001,58,66,RHYL,,,,,,,
+PDH001,66,78,GRAN,,,,,,,pink coarse grained granite from 67 m
+PDH001,78,80,GRAN,,,,,,,EOH  80 m   epidote rich; propylitic mesothermal?
+PDH002,0,2,SOIL,,,,,,,"soil, floats contamination"
+PDH002,2,4,RHYL,,,,,,,
+PDH002,4,18,RHYL,,,,,,,
+PDH002,18,20,RHYL,,,,,,,colour changes; yellow brown to grey and yellow brown again
+PDH002,20,38,RHYL,,,,,,,
+PDH002,38,44,ANDS,,,,,,,"dark grey mod magnetic dyke, pyritic quartz veins to 3mm; Host rock has feldspar"
+PDH002,44,46,RHYL,,,,,,,
+PDH002,46,48,ANDS,,,,,,,"dark grey, moderately magnetic dyke"
+PDH002,48,58,RHYL,,,,,,,
+PDH002,58,76,GRAN,,,,,,,gradational contact over 57-66m to epidote rich pink feldspar granite
+PDH002,76,80,ANDS,,,,,,,EOH 80 m
+PDH003,0,18,RHYL,,,,,,,
+PDH003,18,20,ANDS,,,,,,,5-10% pyrite over ~1 m; dark grey dyke 17-22 m; weakly magnetic
+PDH003,20,26,RHYL,,,,,,,
+PDH003,26,30,RHYL,,,,,,,epidote rich 26-28 m; mesothermal alteration?
+PDH003,30,36,RHYL,,,,,,,
+PDH003,36,38,ANDS,,,,,,,magnetic dyke 36-39 m
+PDH003,38,42,RHYL,,,,,,,
+PDH003,42,44,RHYL,,,,,,,magnetic dyke 43-44 m
+PDH003,44,56,RHYL,,,,,,,
+PDH003,56,58,ANDS,,,,,,,magnetic dyke
+PDH003,58,60,ANDS,,,,,,,EOH    still in andesitic-dacitic? dyke; magnetic
+PDH004,0,4,RHYL,,,,,,,
+PDH004,4,10,RHYL,,,,,,,quartz veins 40-50% of recovered rock
+PDH004,10,12,RHYL,,,,,,,clay rich zone of 2 m
+PDH004,12,26,RHYL,,,,,,,
+PDH004,26,28,RHYL,,,,,,,colour change brown to grey; base of oxidation?
+PDH004,28,30,RHYL,,,,,,,fine grained quartz veins
+PDH004,30,36,RHYL,,,,,,,
+PDH004,36,38,RHYL,,,,,,,
+PDH004,38,58,RHYL,,,,,,,
+PDH004,58,60,BRXX,SF,,,,,,"breccia, strongly silicified; pyritic"
+PDH004,60,62,GRAN,,,,,,,quartz veins common
+PDH004,62,72,GRAN,,,,,,,grey granite; 5-10% pyrite   EOH 72 m
+PDH005,0,2,RHYL,,,,,,,brown to grey colour change; oxidation boundary?
+PDH005,2,8,RHYL,,,,,,,
+PDH005,8,10,BRXX,VL,,,,,,purple volcanic fragments common
+PDH005,10,28,RHYL,,,,,,,base of oxidation at 12 m
+PDH005,28,30,RHYL,,,,,,,clay layer; possible erosion surface?
+PDH005,30,38,RHYL,,,,,,,
+PDH005,38,40,RHYL,,,,,,,chlorite alteration
+PDH005,40,44,RHYL,,,,,,,clay zone; possible fault
+PDH005,44,46,RHYL,,,,,,,quartz veins common
+PDH005,46,50,RHYL,,,,,,,EOH 50 m     very slow drilling in clay horizon
+PDH006,0,2,RHYL,,,,,,,clay rich pyroclastics
+PDH006,2,4,ANDS,,,,,,,clay rich pyroclastics
+PDH006,4,16,RHYL,,,,,,,
+PDH006,16,18,ANDS,,,,,,,
+PDH006,18,26,RHYL,,,,,,,
+PDH006,26,42,GRAN,,,,,,,EOH 42 m
+PDH007,0,2,RHYL,,,,,,,"siliceous, pyritic and clay rich"
+PDH007,2,14,RHYL,,,,,,,
+PDH007,14,22,RHYL,,,,,,,many quartz veins and silicifed rock
+PDH007,22,44,RHYL,,,,,,,"23-25 m, clay layer; colour change yellow brown to grey; base of oxidation?"
+PDH007,44,46,ANDS,,,,,,,volcanic dyke
+PDH007,46,52,RHYL,,,,,,,
+PDH007,52,54,RHYL,,,,,,,"52-53 m, quartz veins"
+PDH007,54,60,RHYL,,,,,,,EOH 60 m
+PDH008,0,2,SOIL,,,,,,,contaminated by bulldozing
+PDH008,2,4,RHYL,,,,,,,silicifed and clays abundant; pyritised pyroclastics
+PDH008,4,22,RHYL,,,,,,,
+PDH008,22,24,RHYL,,,,,,,crystalline carbonate common
+PDH008,24,26,RHYL,,,,,,,
+PDH008,26,32,RHYL,,,,,,,
+PDH008,32,47,GRAN,,,,,,,EOH 47 m

@@ -1,0 +1,25 @@
+hole_id,from,to,vein_type,vein_mineral1,vein_mineral2,vein_mineral3,comments
+OS13D01,56.9,62.5,Quartz; Biotite,Quartz,Biotite,,
+OS13D01,142,142.1,Quartz; Actinolite,Quartz,Actinolite,,
+OS13D01,247.4,247.7,Quartz; Calcite,Quartz,Calcite,,
+OS13D01,339,339.5,Quartz; Pyrrhotite; Chalcopyrite,Quartz,Pyrrhotite,Chalcopyrite,
+OS13D02,133.5,133.7,Hematite - red rock; Quartz; Hematite - specular,Hematite - red rock,Quartz,Hematite - specular,
+OS13D02,136.2,136.85,Hematite - red rock; Quartz; Mica,Hematite - red rock,Quartz,Mica,
+OS13D02,147.75,148.09,Quartz; Hematite - red rock,Quartz,Hematite - red rock,,
+OS13D02,156,156.01,Quartz; Hematite - red rock,Quartz,Hematite - red rock,,
+OS13D02,157.7,157.71,Hematite - red rock; Quartz,Hematite - red rock,Quartz,,8mm veinlet
+OS13D02,173.3,173.31,Quartz; Chalcopyrite; Amphibole,Quartz,Chalcopyrite,Amphibole,1-2mm veinlet
+OS13D02,174.95,174.96,Quartz; Pyrite,Quartz,Pyrite,,1cm quartz vein
+OS13D02,188,188.01,Quartz; Chalcopyrite,Quartz,Chalcopyrite,,Nition reading 2.9% Cpy blebs
+OS13D02,192.3,192.31,Quartz; Chalcopyrite,Quartz,Chalcopyrite,,1cm quartz vein with cpy blebs
+OS13D02,200.2,200.21,Quartz; Chalcopyrite,Quartz,Chalcopyrite,,1cm quartz vein
+OS13D02,201.29,201.3,Quartz; Chalcopyrite,Quartz,Chalcopyrite,,1cm quartz vein with cpy blebs
+OS13D02,203,203.01,Quartz; Chalcopyrite,Quartz,Chalcopyrite,,1cm quartz vein with cpy blebs
+OS13D02,210,212,Chlorite; Graphite,Chlorite,Graphite,,Chlorite and graphite along cleavage and as slickensides
+OS13D02,210.55,210.8,Quartz; Chalcopyrite,Quartz,Chalcopyrite,,
+OS13D02,213,213.3,Graphite; Chert; Pyrite,Graphite,Chert,Pyrite,Brecciated fault zone
+OS13D02,214.1,214.25,Quartz; Chalcopyrite; Pyrite,Quartz,Chalcopyrite,Pyrite,Quartz vein cpy+py
+OS13D02,246.35,246.37,Quartz; Amphibole,Quartz,Amphibole,,1-1.5cm quartz vein trace sulphides
+OS13D02,276.35,276.37,Quartz; Hematite - red rock,Quartz,Hematite - red rock,,5mm to 1.5cm quartz hematite vein
+OS13D03,185.4,185.72,Quartz; Chalcopyrite; Pyrite,Quartz,Chalcopyrite,Pyrite,
+OS13D03,209,210.4,Quartz; Hematite - red rock,Quartz,Hematite - red rock,,Thin quartz+hematite veinlets 3mm to 1cm
