@@ -44,7 +44,7 @@ export const TARGET_SCHEMAS = {
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no", "hole_name", "siteid", "site_id"] },
     { key: "x", label: "Easting (X)", required: true, aliases: ["x", "easting", "east", "utm_e", "utme", "collar_me", "collar_e", "collar_x"] },
     { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north", "utm_n", "utmn", "collar_mn", "collar_n", "collar_y"] },
-    { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z", "rl_m", "height"] }, // rl_m / height: #4067 ('Rl m', 'Height (MSL)')
+    { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z", "rl_m", "height", "altitude", "alt_ahd", "alt_msl"] }, // rl_m / height: #4067 ('Rl m', 'Height (MSL)'); altitude / alt_ahd / alt_msl: #4083 (SARIG's 'Alt_AHD')
     { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azim_grid", "azi", "az", "brg", "bearing", "collar_az", "hole_az"] }, // collar_az / hole_az: #1655 (acQuire's Collar_Az_D; 'az' alone matches a whole header only) // az / brg / bearing: #546; azim_grid: GeoStrix's own collar export (#577) — exact, so it beats azim_true
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip", "inclination", "incl"] }, // #605: inclination (MX-style collar sheets)
     { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "td", "depth"] }, // td: #2151 (WAMEX); #600: "Actual depth" before a planned "Target depth"
@@ -354,7 +354,7 @@ export function guessTarget(headers) {
   // coordinate trio, so the trio itself is the discriminator. UTM_E/UTM_N/RL headers count too.
   const hasEast = has("easting") || hasCol("x") || hasCol("utm_e") || hasCol("utme") || hasCol("east");
   const hasNorth = has("northing") || hasCol("y") || hasCol("utm_n") || hasCol("utmn") || hasCol("north");
-  const hasElev = has("elevation") || hasCol("z") || hasCol("rl") || hasCol("elev") || hasCol("utm_z") || lower.some((h) => /^(rl|elev|height)[\s_]*(\(?m(sl)?\)?)?$/.test(h.trim())); // #4067 — 'Rl m', 'Height (MSL)'
+  const hasElev = has("elevation") || hasCol("z") || hasCol("rl") || hasCol("elev") || hasCol("utm_z") || lower.some((h) => /^(rl|elev|height)[\s_]*(\(?m(sl)?\)?)?$|^altitude$|^alt_(ahd|msl|asl)$/.test(h.trim())); // #4067 — 'Rl m', 'Height (MSL)'; #4083 — 'Alt_AHD' (SARIG), 'Altitude'
   // TASKS.csv #4080 — and a column that names the HOLE: an east / north / elevation trio alone is also an IP line's coordinates, an inversion model's cells, a topography
   // profile, a soil or geochem sample's position (side 1's harvest: 43 of 44 tables read as collars had no hole id). Such a table goes on down this list (a custom layer, which asks);
   // choosing Collars by hand in the import dialog still works. The name hints (a file called collars / coordinates) do not come through here.
