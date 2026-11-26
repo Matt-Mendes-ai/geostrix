@@ -26,7 +26,7 @@ test("#4098 the sidecar tests run only when the engine changed, or when sidecar.
   const d = step("Decide what this release must test");
   assert.match(d, /id: decide/);
   assert.ok(at("Decide what this release must test") < steps.findIndex((s) => s.startsWith("run: npm ci")), "decided before anything is installed");
-  assert.match(d, /git describe --tags --abbrev=0 --match 'v\[0-9\]\*' HEAD~1/);
+  assert.match(d, /git describe --tags --abbrev=0 --match 'v\[0-9\]\*' --exclude 'v\*-\*' HEAD~1/); // the CI test: a hyphenated test tag was taken as the previous release
   assert.match(d, /\$paths = @\('python-sidecar', '\.github\/workflows\/sidecar\.yml'\)/);
   assert.match(d, /git diff --quiet \$prev HEAD -- @paths/);
   assert.match(d, /actions\/workflows\/sidecar\.yml\/runs\?branch=master/);

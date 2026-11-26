@@ -59,7 +59,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Continue'
           $paths = @('python-sidecar', '.github/workflows/sidecar.yml')
-          $prev = (git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD~1 2>$null)
+          $prev = (git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude 'v*-*' HEAD~1 2>$null) # a test or pre-release tag (v0.0.0-ci-test) is not a release
           if (-not $prev) { Write-Host "No earlier release tag: the sidecar tests run."; "sidecar=run" >> $env:GITHUB_OUTPUT; exit 0 }
           git diff --quiet $prev HEAD -- @paths
           if ($LASTEXITCODE -ne 0) {
