@@ -13,6 +13,7 @@ import { ipFitOf, ipFitStored } from "../lib/inversion.js";
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4089 — the intro and the filled-in settings behind folds
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const minutes = (s) => (s < 90 ? tr("{s} s", { s: Math.round(s) }) : s < 5400 ? tr("{m} min", { m: Math.round(s / 60) }) : tr("{h} h", { h: (s / 3600).toFixed(1) }));
@@ -137,7 +138,7 @@ export default function Dcip3dPanel({ numInput }) {
   return (
     <div style={{ marginTop: 14 }}>
       <div className="ge-section-label">{tr("True 3D inversion")}</div>
-      <div style={small}>{tr("Inverts every reading of the chosen lines, cross lines included, in one 3D model. Far heavier than 2D: check the estimate.")}</div>
+      <MoreFold style={{ ...small, marginBottom: 0 }}>{tr("Inverts every reading of the chosen lines, cross lines included, in one 3D model. Far heavier than 2D: check the estimate.")}</MoreFold>{/* #4089 */}
       <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
         {placed.map(({ e, l }) => (
           <label key={e.id} style={{ fontSize: "var(--font-size-xs)", color: l.ok ? "var(--color-text-secondary)" : "var(--color-text-faint)" }} title={l.ok ? "" : tr(REASONS[l.reason] || l.reason)}>
@@ -151,18 +152,21 @@ export default function Dcip3dPanel({ numInput }) {
       <div style={row} title={tr("Every 2nd current position halves the readings and about halves the time; the model is coarser in what it resolves.")}><span style={lbl}>{tr("Current positions")}</span>
         <select value={o.step} onChange={(e) => set("step", Number(e.target.value))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Current positions")}><option value={1}>{tr("All")}</option><option value={2}>{tr("Every 2nd (faster)")}</option></select>
       </div>
-      <div style={row}><span style={lbl}>{tr("Uncertainty")}</span><NumberInput allowEmpty min={0} value={o.pct} placeholder={first.pct ? String(first.pct) : "%"} onChange={(v) => set("pct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty (%)")} /><span style={small}>%</span><NumberInput allowEmpty min={0} value={o.floor} placeholder={first.floor ? String(first.floor) : tr("floor")} onChange={(v) => set("floor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty floor (ohm·m)")} /></div>
-      {withIp && <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><NumberInput allowEmpty min={0} value={o.ipPct} placeholder={first.ipPct ? String(first.ipPct) : "%"} onChange={(v) => set("ipPct", (v == null ? "" : String(v)))} style={inp} aria-label={phaseIp ? tr("IP phase uncertainty (%)") : tr("Chargeability uncertainty (%)")} /><span style={small}>%</span><NumberInput allowEmpty min={0} value={o.ipFloor} placeholder={first.ipFloor ? String(first.ipFloor) : phaseIp ? "mrad" : "mV/V"} onChange={(v) => set("ipFloor", (v == null ? "" : String(v)))} style={inp} aria-label={phaseIp ? tr("Phase floor (mrad)") : tr("Chargeability uncertainty floor (mV/V)")} /></div>}
-      {(errLines("rhoPct").length > 0 || (withIp && errLines("ipMvV").length > 0)) && <div style={{ ...small, marginTop: 4 }}>{tr("Each reading's floor is also at least its own error, from the error column of: {lines}.", { lines: [errLines("rhoPct").length ? tr("{names} (resistivity, %)", { names: errLines("rhoPct").join(", ") }) : "", withIp && errLines("ipMvV").length ? (phaseIp ? tr("{names} (IP phase, mrad)", { names: errLines("ipMvV").join(", ") }) : tr("{names} (chargeability, mV/V)", { names: errLines("ipMvV").join(", ") })) : ""].filter(Boolean).join("; ") })}</div>}
       {mixedIp && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("IP left out: the lines mix phase (mrad) and chargeability (mV/V).")}</div>}{/* #4059 */}
       {ipLeftOut && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("Chargeability is left out: {names} lack it for some readings. Leave them out to invert IP in 3D.", { names: noIp.join(", ") })}</div>}
-      <div style={row} title={tr("Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.001} value={o.cutoff} onChange={(v) => setO((p) => ({ ...p, cutoff: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Support cutoff")} /></div>
-      <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
         <button className="gs-btn" style={{ flex: 1 }} onClick={estimate} disabled={running}><Box size={14} />{" "}{tr("Estimate")}</button>
         <button className="gs-btn" style={{ flex: 1 }} onClick={run} disabled={running || !plan?.ok} title={plan ? "" : tr("Estimate first")}><Play size={14} />{" "}{tr("Invert in 3D")}</button>
         {running && job?.meta?.dcip3d && <button className="gs-btn" onClick={() => cancelInversionJob()}>{tr("Cancel")}</button>}
       </div>
+      {/* TASKS.csv #4089 — the settings with a filled-in answer, behind Fine-tune… below the run buttons */}
+      <MoreFold summary={tr("Fine-tune…")} data-fine-tune="dcip3d" style={{ marginTop: 6, marginBottom: 0 }}>
+        <div style={row}><span style={lbl}>{tr("Uncertainty")}</span><NumberInput allowEmpty min={0} value={o.pct} placeholder={first.pct ? String(first.pct) : "%"} onChange={(v) => set("pct", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty (%)")} /><span style={small}>%</span><NumberInput allowEmpty min={0} value={o.floor} placeholder={first.floor ? String(first.floor) : tr("floor")} onChange={(v) => set("floor", (v == null ? "" : String(v)))} style={inp} aria-label={tr("Resistivity uncertainty floor (ohm·m)")} /></div>
+        {withIp && <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><NumberInput allowEmpty min={0} value={o.ipPct} placeholder={first.ipPct ? String(first.ipPct) : "%"} onChange={(v) => set("ipPct", (v == null ? "" : String(v)))} style={inp} aria-label={phaseIp ? tr("IP phase uncertainty (%)") : tr("Chargeability uncertainty (%)")} /><span style={small}>%</span><NumberInput allowEmpty min={0} value={o.ipFloor} placeholder={first.ipFloor ? String(first.ipFloor) : phaseIp ? "mrad" : "mV/V"} onChange={(v) => set("ipFloor", (v == null ? "" : String(v)))} style={inp} aria-label={phaseIp ? tr("Phase floor (mrad)") : tr("Chargeability uncertainty floor (mV/V)")} /></div>}
+        {(errLines("rhoPct").length > 0 || (withIp && errLines("ipMvV").length > 0)) && <div style={{ ...small, marginTop: 4 }}>{tr("Each reading's floor is also at least its own error, from the error column of: {lines}.", { lines: [errLines("rhoPct").length ? tr("{names} (resistivity, %)", { names: errLines("rhoPct").join(", ") }) : "", withIp && errLines("ipMvV").length ? (phaseIp ? tr("{names} (IP phase, mrad)", { names: errLines("ipMvV").join(", ") }) : tr("{names} (chargeability, mV/V)", { names: errLines("ipMvV").join(", ") })) : ""].filter(Boolean).join("; ") })}</div>}
+        <div style={row} title={tr("Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.001} value={o.cutoff} onChange={(v) => setO((p) => ({ ...p, cutoff: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Support cutoff")} /></div>
+        <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
+      </MoreFold>
       {plan && (
         <div style={{ ...small, marginTop: 6, color: plan.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>
           {tr("{readings} readings, {electrodes} electrodes; mesh {cells} cells ({active} below ground). Memory about {ram} GB; time about {t} on a typical laptop.", {

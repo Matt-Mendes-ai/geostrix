@@ -14,6 +14,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js";
 import { loopEquivalentRadius } from "../lib/cronePem.js"; // TASKS.csv #4079 — a fixed loop in the file sets the ground loop's radius
 import { t as tr } from "../lib/i18n.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 G4 — '0,05' and '0.05' both read
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4089 — the settings with a filled-in answer
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const rowS = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginBottom: 6 };
@@ -268,24 +269,6 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
         {st.geom !== "loop" ? <><span>{tr("Receiver offset (m)")}</span><NumberInput allowEmpty min={0.1} value={st.r} onChange={(v) => set({ r: (v == null ? "" : String(v)) })} style={num} aria-label={tr("Receiver offset (m)")} /></>
           : <><span>{tr("Loop radius (m)")}</span><NumberInput allowEmpty min={0.1} value={st.a} onChange={(v) => set({ a: (v == null ? "" : String(v)) })} style={num} aria-label={tr("Loop radius (m)")} /></>}
       </div>
-      {st.geom !== "loop" && <div style={rowS}><span>{tr("Receiver above the transmitter (m)")}</span>
-        <span style={{ display: "flex", gap: 4 }}>
-          {rxc && st.heightsCol && <select value={st.rzCol} onChange={(e) => set({ rzCol: e.target.value })} style={{ ...smallSel, maxWidth: 120 }} aria-label={tr("Where the receiver's height comes from")}>
-            <option value="">{tr("one value")}</option>
-            <option value={rxc}>{tr("{c} less the height", { c: rxc })}</option>
-          </select>}
-          {!(rxc && st.heightsCol && st.rzCol) && <NumberInput allowEmpty min={-20} max={20} value={st.rz} onChange={(v) => set({ rz: (v == null ? "" : String(v)) })} style={num} aria-label={tr("Receiver above the transmitter (m)")} />}
-        </span>
-      </div>}
-      {st.geom !== "loop" && (tiltc.pitch || tiltc.roll) && <label style={{ ...rowS, justifyContent: "flex-start", gap: 4, fontSize: "var(--font-size-xs)" }}>
-        <input type="checkbox" checked={!!st.useTilt} onChange={(e) => set({ useTilt: e.target.checked })} />{tr("Use the frame's tilt ({c}): each reading scaled by the cosines of pitch and roll; without a receiver height column, the receiver's height from the pitch", { c: [tiltc.pitch, tiltc.roll].filter(Boolean).join(", ") })}
-      </label>}
-      <div style={rowS}><span>{tr("Receiver low-pass filters (kHz)")}</span>
-        <input type="text" value={st.filters} placeholder={tr("none")} onChange={(e) => set({ filters: e.target.value })} style={{ ...num, width: 90 }} aria-label={tr("Receiver low-pass filters (kHz)")} />
-      </div>
-      {parsedFilters?.length > 0 && <label style={{ ...rowS, justifyContent: "flex-start", gap: 4, fontSize: "var(--font-size-xs)" }}>
-        <input type="checkbox" checked={st.coil2 !== false} onChange={(e) => set({ coil2: e.target.checked })} />{tr("The first filter is the receiver coil's: second order (a coil is a resonant circuit)")}
-      </label>}
       <div style={rowS}><span>{tr("Height above ground")}</span>
         <span style={{ display: "flex", gap: 4 }}>
           <select value={st.heightsCol} onChange={(e) => set({ heightsCol: e.target.value })} style={{ ...smallSel, maxWidth: 120 }} aria-label={tr("Column of the height above ground")}>
@@ -322,55 +305,7 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
           </details>
         </div>
       ))}
-      <div style={{ ...note, marginBottom: 6 }}>{tr("The presets are approximate: check the on-time and the ramp-off against the survey report (they move the early gates).")} {tr("For a fit to the noise, take the waveform table, base frequency, filters, loop and receiver position from the survey report.")}</div>
       {sysErr && <div role="alert" style={{ ...note, color: "var(--color-warn-text)", marginBottom: 6 }}>{tr(sysErr)}</div>}
-      <div style={rowS}><span>{tr("Gate times start at")}</span>
-        <select value={st.timeZero} onChange={(e) => set({ timeZero: e.target.value })} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("When the gate times start")}>
-          <option value="rampEnd">{tr("the end of the turn-off")}</option>
-          <option value="rampStart">{tr("the start of the ramp-down")}</option>
-        </select>
-      </div>
-      <div style={{ ...note, marginBottom: 6 }}>{tr("Guess: {v}", { v: tr(tz.reason) })}</div>
-      <div style={rowS}><span>{tr("Data unit")}</span>
-        <select value={st.unit} onChange={(e) => set({ unit: e.target.value })} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Unit of the readings")}>
-          <option value="SI">{tr("V/(A·m⁴) (SI)")}</option><option value="pV">{tr("pV/(A·m⁴)")}</option>
-        </select>
-      </div>
-      <div style={{ ...note, marginBottom: 6 }}>{tr("Guess: {v}", { v: tr(ug.reason, { v: sci(ug.early) }) })}</div>
-      <div style={rowS}>
-        {noiseMats.every(Boolean) ? <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.useStd} onChange={(e) => set({ useStd: e.target.checked })} />{tr("Weigh by the file's STD columns")}</label>
-          : <span>{tr("Uncertainty (%)")}</span>}
-        {(!st.useStd || !noiseMats.every(Boolean)) && <NumberInput allowEmpty min={0.1} max={100} value={st.errRel} onChange={(v) => set({ errRel: (v == null ? "" : String(v)) })} style={num} aria-label={tr("Uncertainty of every reading (%)")} />}
-      </div>
-      <div style={rowS}><span>{tr("Layers")}</span>
-        <span style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)" }}>
-          <NumberInput allowEmpty min={2} max={40} step={1} value={st.layers.n} onChange={(v) => set({ layers: { ...st.layers, n: (v == null ? "" : String(v)) } })} style={{ ...num, width: 44 }} aria-label={tr("Number of layers")} />
-          {tr("first (m)")}<NumberInput allowEmpty min={0.5} value={st.layers.first} onChange={(v) => set({ layers: { ...st.layers, first: (v == null ? "" : String(v)) } })} style={{ ...num, width: 44 }} aria-label={tr("First layer's thickness (m)")} />
-          {tr("to (m)")}<NumberInput allowEmpty min={10} value={st.layers.bottom} onChange={(v) => set({ layers: { ...st.layers, bottom: (v == null ? "" : String(v)) } })} style={{ ...num, width: 52 }} aria-label={tr("Depth of the last layer's top (m)")} />
-        </span>
-      </div>
-      <div style={rowS}><span>{tr("Tie to the neighbouring soundings")}</span>
-        <select value={st.lateral ?? 0} onChange={(e) => set({ lateral: Number(e.target.value) })} style={smallSel} aria-label={tr("Tie to the neighbouring soundings")}>
-          {TIES.map((t) => <option key={t.v} value={t.v}>{tr(t.label)}</option>)}
-        </select>
-      </div>
-      {Number(st.lateral) > 0 && <div style={{ ...note, marginBottom: 6 }}>{tr("Ties each sounding to neighbours up to three stations (500 m) away, smoothing the section. About twice as long, and it can worsen the fit.")}</div>}
-      <details open={!!(st.priorText || st.freeH || st.freeRz)} style={{ marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
-        <summary style={{ cursor: "pointer" }}>{tr("Reference model and geometry (priors)")}</summary>
-        <div style={{ ...note, margin: "4px 0" }}>{tr("A reference model, a line per depth: from (m), resistivity (ohm m), uncertainty in decades (0.3 = factor 2). Layers are pulled toward it. Empty: none.")}</div>
-        <textarea value={st.priorText || ""} onChange={(e) => set({ priorText: e.target.value })} rows={3} spellCheck={false} style={{ ...smallSel, width: "100%", fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-xs)", boxSizing: "border-box" }}
-          aria-label={tr("Reference model: depth, resistivity, uncertainty")} placeholder={tr("depth (m), resistivity (ohm m), uncertainty (decades)")} />
-        <div role={priorParsed.error ? "alert" : undefined} style={{ ...note, color: priorParsed.error ? "var(--color-warn-text)" : note.color }}>{priorParsed.error ? tr(priorParsed.error) : priorParsed.rows.length ? (priorParsed.rows.length === 1 ? tr("One row read.") : tr("{n} rows read.", { n: priorParsed.rows.length })) : ""}</div>
-        <div style={{ ...rowS, marginTop: 4 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.freeH} onChange={(e) => set({ freeH: e.target.checked })} />{tr("Solve for the height")}</label>
-          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", whiteSpace: "nowrap", flexShrink: 0 }}>{tr("± (m)")}<NumberInput allowEmpty min={0.01} max={50} value={st.hSd ?? 1} disabled={!st.freeH} onChange={(v) => set({ hSd: (v == null ? "" : String(v)) })} style={{ ...num, width: 52 }} aria-label={tr("Uncertainty of the file's height (m)")} /></span>
-        </div>
-        {st.geom !== "loop" && <div style={rowS}>
-          <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.freeRz} onChange={(e) => set({ freeRz: e.target.checked })} />{tr("Solve for the receiver's height above the loop")}</label>
-          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", whiteSpace: "nowrap", flexShrink: 0 }}>{tr("± (m)")}<NumberInput allowEmpty min={0.01} max={50} value={st.rzSd ?? 0.5} disabled={!st.freeRz} onChange={(v) => set({ rzSd: (v == null ? "" : String(v)) })} style={{ ...num, width: 52 }} aria-label={tr("Uncertainty of the receiver's height above the loop (m)")} /></span>
-        </div>}
-        <div style={note}>{tr("Starts from the file's height, held by your uncertainty; each one solved adds 40 % run time. Trades off with shallow conductivity: default ±1 m.")}</div>
-      </details>
       <div style={rowS}><span>{tr("Stations")}</span>
         <select value={st.every} onChange={(e) => set({ every: Number(e.target.value) })} style={smallSel} aria-label={tr("Every Nth station")}>
           {EVERY.map((k) => <option key={k} value={k}>{k === 1 ? tr("every station") : tr("every {k}th station (a first look)", { k })}</option>)}
@@ -384,6 +319,75 @@ export default function TemInvertPanel({ data, groups, timesOf, line, setLayers,
       ) : (
         <button className="gs-btn gs-btn--primary gs-btn--block" /* #4070: the Inversion step's gold primary */ style={{ justifyContent: "center" }} type="button" disabled={!ready} onClick={run} title={ready ? undefined : tr("Type the gate times first")}>{tr("Invert the stations (Python engine)")}</button>
       )}
+      {/* TASKS.csv #4089 — every other setting has its answer filled in from the file or the system: behind Fine-tune…, below the gold button */}
+      <MoreFold summary={tr("Fine-tune…")} data-fine-tune="tem-invert" style={{ marginTop: 6, fontSize: "var(--font-size-sm)" }}>
+        {st.geom !== "loop" && <div style={rowS}><span>{tr("Receiver above the transmitter (m)")}</span>
+          <span style={{ display: "flex", gap: 4 }}>
+            {rxc && st.heightsCol && <select value={st.rzCol} onChange={(e) => set({ rzCol: e.target.value })} style={{ ...smallSel, maxWidth: 120 }} aria-label={tr("Where the receiver's height comes from")}>
+              <option value="">{tr("one value")}</option>
+              <option value={rxc}>{tr("{c} less the height", { c: rxc })}</option>
+            </select>}
+            {!(rxc && st.heightsCol && st.rzCol) && <NumberInput allowEmpty min={-20} max={20} value={st.rz} onChange={(v) => set({ rz: (v == null ? "" : String(v)) })} style={num} aria-label={tr("Receiver above the transmitter (m)")} />}
+          </span>
+        </div>}
+        {st.geom !== "loop" && (tiltc.pitch || tiltc.roll) && <label style={{ ...rowS, justifyContent: "flex-start", gap: 4, fontSize: "var(--font-size-xs)" }}>
+          <input type="checkbox" checked={!!st.useTilt} onChange={(e) => set({ useTilt: e.target.checked })} />{tr("Use the frame's tilt ({c}): each reading scaled by the cosines of pitch and roll; without a receiver height column, the receiver's height from the pitch", { c: [tiltc.pitch, tiltc.roll].filter(Boolean).join(", ") })}
+        </label>}
+        <div style={rowS}><span>{tr("Receiver low-pass filters (kHz)")}</span>
+          <input type="text" value={st.filters} placeholder={tr("none")} onChange={(e) => set({ filters: e.target.value })} style={{ ...num, width: 90 }} aria-label={tr("Receiver low-pass filters (kHz)")} />
+        </div>
+        {parsedFilters?.length > 0 && <label style={{ ...rowS, justifyContent: "flex-start", gap: 4, fontSize: "var(--font-size-xs)" }}>
+          <input type="checkbox" checked={st.coil2 !== false} onChange={(e) => set({ coil2: e.target.checked })} />{tr("The first filter is the receiver coil's: second order (a coil is a resonant circuit)")}
+        </label>}
+        <div style={{ ...note, marginBottom: 6 }}>{tr("The presets are approximate: check the on-time and the ramp-off against the survey report (they move the early gates).")} {tr("For a fit to the noise, take the waveform table, base frequency, filters, loop and receiver position from the survey report.")}</div>
+        <div style={rowS}><span>{tr("Gate times start at")}</span>
+          <select value={st.timeZero} onChange={(e) => set({ timeZero: e.target.value })} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("When the gate times start")}>
+            <option value="rampEnd">{tr("the end of the turn-off")}</option>
+            <option value="rampStart">{tr("the start of the ramp-down")}</option>
+          </select>
+        </div>
+        <div style={{ ...note, marginBottom: 6 }}>{tr("Guess: {v}", { v: tr(tz.reason) })}</div>
+        <div style={rowS}><span>{tr("Data unit")}</span>
+          <select value={st.unit} onChange={(e) => set({ unit: e.target.value })} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Unit of the readings")}>
+            <option value="SI">{tr("V/(A·m⁴) (SI)")}</option><option value="pV">{tr("pV/(A·m⁴)")}</option>
+          </select>
+        </div>
+        <div style={{ ...note, marginBottom: 6 }}>{tr("Guess: {v}", { v: tr(ug.reason, { v: sci(ug.early) }) })}</div>
+        <div style={rowS}>
+          {noiseMats.every(Boolean) ? <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.useStd} onChange={(e) => set({ useStd: e.target.checked })} />{tr("Weigh by the file's STD columns")}</label>
+            : <span>{tr("Uncertainty (%)")}</span>}
+          {(!st.useStd || !noiseMats.every(Boolean)) && <NumberInput allowEmpty min={0.1} max={100} value={st.errRel} onChange={(v) => set({ errRel: (v == null ? "" : String(v)) })} style={num} aria-label={tr("Uncertainty of every reading (%)")} />}
+        </div>
+        <div style={rowS}><span>{tr("Layers")}</span>
+          <span style={{ display: "flex", gap: 4, alignItems: "center", fontSize: "var(--font-size-xs)" }}>
+            <NumberInput allowEmpty min={2} max={40} step={1} value={st.layers.n} onChange={(v) => set({ layers: { ...st.layers, n: (v == null ? "" : String(v)) } })} style={{ ...num, width: 44 }} aria-label={tr("Number of layers")} />
+            {tr("first (m)")}<NumberInput allowEmpty min={0.5} value={st.layers.first} onChange={(v) => set({ layers: { ...st.layers, first: (v == null ? "" : String(v)) } })} style={{ ...num, width: 44 }} aria-label={tr("First layer's thickness (m)")} />
+            {tr("to (m)")}<NumberInput allowEmpty min={10} value={st.layers.bottom} onChange={(v) => set({ layers: { ...st.layers, bottom: (v == null ? "" : String(v)) } })} style={{ ...num, width: 52 }} aria-label={tr("Depth of the last layer's top (m)")} />
+          </span>
+        </div>
+        <div style={rowS}><span>{tr("Tie to the neighbouring soundings")}</span>
+          <select value={st.lateral ?? 0} onChange={(e) => set({ lateral: Number(e.target.value) })} style={smallSel} aria-label={tr("Tie to the neighbouring soundings")}>
+            {TIES.map((t) => <option key={t.v} value={t.v}>{tr(t.label)}</option>)}
+          </select>
+        </div>
+        {Number(st.lateral) > 0 && <div style={{ ...note, marginBottom: 6 }}>{tr("Ties each sounding to neighbours up to three stations (500 m) away, smoothing the section. About twice as long, and it can worsen the fit.")}</div>}
+        <details open={!!(st.priorText || st.freeH || st.freeRz)} style={{ marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
+          <summary style={{ cursor: "pointer" }}>{tr("Reference model and geometry (priors)")}</summary>
+          <div style={{ ...note, margin: "4px 0" }}>{tr("A reference model, a line per depth: from (m), resistivity (ohm m), uncertainty in decades (0.3 = factor 2). Layers are pulled toward it. Empty: none.")}</div>
+          <textarea value={st.priorText || ""} onChange={(e) => set({ priorText: e.target.value })} rows={3} spellCheck={false} style={{ ...smallSel, width: "100%", fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-xs)", boxSizing: "border-box" }}
+            aria-label={tr("Reference model: depth, resistivity, uncertainty")} placeholder={tr("depth (m), resistivity (ohm m), uncertainty (decades)")} />
+          <div role={priorParsed.error ? "alert" : undefined} style={{ ...note, color: priorParsed.error ? "var(--color-warn-text)" : note.color }}>{priorParsed.error ? tr(priorParsed.error) : priorParsed.rows.length ? (priorParsed.rows.length === 1 ? tr("One row read.") : tr("{n} rows read.", { n: priorParsed.rows.length })) : ""}</div>
+          <div style={{ ...rowS, marginTop: 4 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.freeH} onChange={(e) => set({ freeH: e.target.checked })} />{tr("Solve for the height")}</label>
+            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", whiteSpace: "nowrap", flexShrink: 0 }}>{tr("± (m)")}<NumberInput allowEmpty min={0.01} max={50} value={st.hSd ?? 1} disabled={!st.freeH} onChange={(v) => set({ hSd: (v == null ? "" : String(v)) })} style={{ ...num, width: 52 }} aria-label={tr("Uncertainty of the file's height (m)")} /></span>
+          </div>
+          {st.geom !== "loop" && <div style={rowS}>
+            <label style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={!!st.freeRz} onChange={(e) => set({ freeRz: e.target.checked })} />{tr("Solve for the receiver's height above the loop")}</label>
+            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", whiteSpace: "nowrap", flexShrink: 0 }}>{tr("± (m)")}<NumberInput allowEmpty min={0.01} max={50} value={st.rzSd ?? 0.5} disabled={!st.freeRz} onChange={(v) => set({ rzSd: (v == null ? "" : String(v)) })} style={{ ...num, width: 52 }} aria-label={tr("Uncertainty of the receiver's height above the loop (m)")} /></span>
+          </div>}
+          <div style={note}>{tr("Starts from the file's height, held by your uncertainty; each one solved adds 40 % run time. Trades off with shallow conductivity: default ±1 m.")}</div>
+        </details>
+      </MoreFold>
       {msg && <div role={msg.info ? "status" : "alert"} style={{ ...note, color: msg.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", margin: "4px 0 8px" }}>{msg.text}</div>}
       {R && lineStations.length > 0 && (<>
         <Section stations={lineStations} result={R} bottom={bottomDraw} sel={sel} onPick={(j) => set({ sel: j })} fadeSd={R.sdLog ? Number(st.fadeSd) || 0 : 0} />
