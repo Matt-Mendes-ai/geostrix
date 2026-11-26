@@ -2793,7 +2793,6 @@
   "; skipped {bad} row(s) missing x/y or a value": "; {bad} linha(s) sem x/y ou sem valor ignorada(s)",
   "Could not parse {name}: {message}": "Não foi possível ler {name}: {message}",
   "Importing {name}…": "Importando {name}…",
-  "{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)": "{msg} (Dica: as importações de raster agora têm sua própria aba \"Raster\" — soltar aqui também continua funcionando.)",
   "Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.": "Substituir o terreno atual (\"{name}\") por \"{name2}\"? Só uma superfície de terreno é aceita por vez.",
   "Imported \"{name}\" as a {gridW}×{gridH} terrain mesh (source {srcWidth}×{srcHeight}px, {v}×{v2} world units){v3}.": "\"{name}\" importado como malha de terreno de {gridW}×{gridH} (origem {srcWidth}×{srcHeight}px, {v}×{v2} unidades de mundo){v3}.",
   " from {tileCount} merged tiles": " a partir de {tileCount} blocos unidos",
@@ -5911,6 +5910,7 @@
   "Orientations from": "Orientações de",
   "no outcrop measurements imported — the contacts' own dips are used": "nenhuma medida de afloramento importada: usam-se os mergulhos dos próprios contatos",
   "Faults": "Falhas",
+  "{n} map layers": "{n} camadas de mapa",
   "— pick a layer —": "— escolha uma camada —",
   "By interval…": "Por intervalo…",
   "{n} checked": "{n} verificados",
@@ -11012,7 +11012,6 @@
   "{name}: the line is in degrees: set the project's CRS and import it again.": "{name}: a linha está em graus: defina o CRS do projeto e importe-a de novo.",
   "line altitudes": "altitudes da linha",
   "line altitudes, terrain": "altitudes da linha, terreno",
-  "terrain": "terreno",
   "Near-straight trace: any plane fits, so the dip is unknown.": "Traço quase reto: qualquer plano serve, então a inclinação é desconhecida.",
   "Level ground: the plane is the ground, not a fault.": "Terreno plano: o plano é o terreno, não uma falha.",
   "Little relief: the dip is known only to ± {err}°.": "Pouco relevo: a inclinação só é conhecida com ± {err}°.",
@@ -15979,5 +15978,8 @@
   " — the trend \"{name}\" was NOT applied: add-on {v} predates trends": " — a tendência \"{name}\" NÃO foi aplicada: o complemento {v} é anterior às tendências",
   "{c} contacts need {n} inducing points, more than add-on {v} holds: update it, merge thin codes or choose fewer holes.": "{c} contatos exigem {n} pontos indutores, mais do que o complemento {v} mantém: atualize-o, mescle os códigos finos ou escolha menos furos.",
   "Training skipped: same as the last run.": "Treinamento pulado: igual à execução anterior.",
-  "Trained again: the add-on had been freed.": "Treinado de novo: o complemento tinha sido liberado."
+  "Trained again: the add-on had been freed.": "Treinado de novo: o complemento tinha sido liberado.",
+  "{n} surveys": "{n} levantamentos",
+  "{n} EM layers": "{n} camadas EM",
+  "{n} plates": "{n} placas"
 }

@@ -695,7 +695,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (!(await landed(job))) { setRasterError(null); return; } // TASKS.csv #3963 — into the project it started in (its message went with it)
       const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name, stations: layers?.geophys_pts /* #2868 */ }); // #1856; #1505
       addRaster({ ...raster, elevation: drape.z });
-      setRasterError({ info: true, text: tr("{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)", { msg: `${msg} ${drapeElevationNote(drape)}` }) });
+      setRasterError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` }); // TASKS.csv #4105 (words offset): the tip about the Raster tab is gone
     } catch (err) {
       if (job.gone) { setRasterError(null); return; } // #3963 — its project is gone and the banner said so
       setRasterError({ info: false, text: err.message });

@@ -2793,7 +2793,6 @@
   "; skipped {bad} row(s) missing x/y or a value": "؛ تُخطي {bad} صف ينقصه x/y أو قيمة",
   "Could not parse {name}: {message}": "تعذر تحليل {name}: {message}",
   "Importing {name}…": "جارٍ استيراد {name}…",
-  "{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)": "{msg} (تلميح: لعمليات استيراد النقطيات تبويب «Raster» خاص الآن — ولا يزال الإفلات هنا يعمل.)",
   "Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.": "استبدال التضاريس الحالية («{name}») بـ«{name2}»؟ تُدعم سطح تضاريس واحد فقط في كل مرة.",
   "Imported \"{name}\" as a {gridW}×{gridH} terrain mesh (source {srcWidth}×{srcHeight}px, {v}×{v2} world units){v3}.": "استُورد «{name}» كشبكة تضاريس {gridW}×{gridH} (المصدر {srcWidth}×{srcHeight} بكسل، {v}×{v2} وحدة عالمية){v3}.",
   " from {tileCount} merged tiles": " من {tileCount} بلاطة مدمجة",
@@ -5911,6 +5910,7 @@
   "Orientations from": "الاتجاهات من",
   "no outcrop measurements imported — the contacts' own dips are used": "لم تُستورد قياسات مكاشف — تُستخدم ميول التماسات نفسها",
   "Faults": "الصدوع",
+  "{n} map layers": "{n} طبقات خريطة",
   "— pick a layer —": "— اختر طبقة —",
   "By interval…": "حسب الفترة…",
   "{n} checked": "{n} تمت مراجعتها",
@@ -11012,7 +11012,6 @@
   "{name}: the line is in degrees: set the project's CRS and import it again.": "{name}: الخط بالدرجات: عيّن نظام إحداثيات المشروع وأعد استيراده.",
   "line altitudes": "ارتفاعات الخط",
   "line altitudes, terrain": "ارتفاعات الخط، التضاريس",
-  "terrain": "التضاريس",
   "Near-straight trace: any plane fits, so the dip is unknown.": "مسار شبه مستقيم: يصلح أي مستوى، فالميل مجهول.",
   "Level ground: the plane is the ground, not a fault.": "أرض مستوية: المستوى هو الأرض وليس صدعًا.",
   "Little relief: the dip is known only to ± {err}°.": "تضرس قليل: الميل معروف بدقة ± {err}° فقط.",
@@ -15979,5 +15978,8 @@
   " — the trend \"{name}\" was NOT applied: add-on {v} predates trends": " — لم يُطبق الاتجاه «{name}»: الإضافة {v} أقدم من الاتجاهات",
   "{c} contacts need {n} inducing points, more than add-on {v} holds: update it, merge thin codes or choose fewer holes.": "يتطلب {c} تماسًا {n} نقطة استقراء، أكثر مما تحتفظ به الإضافة {v}: حدّثها أو ادمج الرموز الرقيقة أو اختر ثقوبًا أقل.",
   "Training skipped: same as the last run.": "تُخطّي التدريب: مطابق للتشغيل السابق.",
-  "Trained again: the add-on had been freed.": "أُعيد التدريب: كانت الإضافة قد حُرّرت."
+  "Trained again: the add-on had been freed.": "أُعيد التدريب: كانت الإضافة قد حُرّرت.",
+  "{n} surveys": "{n} مسوح",
+  "{n} EM layers": "{n} طبقات EM",
+  "{n} plates": "{n} صفائح"
 }
