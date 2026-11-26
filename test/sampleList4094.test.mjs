@@ -18,7 +18,7 @@ test("no filter shows every sample; each sample holds at least one icon; the ico
 });
 
 test("several icons narrow (AND): Holes + Geophysics is the drilled samples with a survey, grid or downhole log; Mapping + Terrain the mapped ones with a terrain", () => {
-  assert.deepEqual(ids(filterSampleRows(rows, new Set(["holes", "geophysics"]), "")), ["qld_century", "silvertip", "wa_iron", "wa_uranium", "woodjam"].filter((id) => rows.some((r) => r.id === id)).sort());
+  assert.deepEqual(ids(filterSampleRows(rows, new Set(["holes", "geophysics"]), "")), ["gsq_altia_south", "gsq_black_mountain", "gsq_carbo_creek", "gsq_cloncurry", "gsq_edinburgh_park", "qld_century", "silvertip", "wa_iron", "wa_uranium", "woodjam"].filter((id) => rows.some((r) => r.id === id)).sort());
   const mt = ids(filterSampleRows(rows, new Set(["mapping", "terrain"]), ""));
   assert.deepEqual(mt, ["mount_raymond", "perk", "qc_rouyn_noranda"]);
   assert.deepEqual(filterSampleRows(rows, new Set(["geophysics", "mapping", "terrain", "holes", "assays", "surface"]), ""), [], "no sample holds all six");

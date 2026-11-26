@@ -8,10 +8,8 @@ import { SAMPLE_RANK, sampleCardsFor, sampleFootnote } from "../src/lib/sampleCa
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 test("the card and the footnote name the Macpass project and the 32,498 densities, not 'a prospect' and 'their bulk density'", () => {
-  const card = sampleCardsFor("drillhole").find((c) => c.id === "yk_macpass");
-  assert.match(card.title, /drilling of the Macpass project in east Yukon \(1952-2023\): 559 holes with down-hole surveys, 32,546 sampled intervals \(Ag, Pb, Zn\) and 32,498 bulk densities/);
   assert.match(sampleFootnote(), /559 holes drilled 1952-2023 on the Macpass project, with down-hole surveys, 32,546 sampled intervals \(Ag, Pb, Zn\) and 32,498 bulk densities/);
-  for (const t of [card.title, sampleFootnote()]) { assert.doesNotMatch(t, /zinc-lead-silver prospect/); assert.doesNotMatch(t, /their bulk density/); }
+  for (const t of [sampleFootnote()]) { assert.doesNotMatch(t, /zinc-lead-silver prospect/); assert.doesNotMatch(t, /their bulk density/); }
 });
 
 test("the File > Open Sample Project menu lists the samples in the cards' order (SAMPLE_RANK)", () => {

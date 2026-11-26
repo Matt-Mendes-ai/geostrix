@@ -85,7 +85,7 @@ export const TARGET_SCHEMAS = {
   // TASKS.csv #605 — mag sus is often logged as POINT readings (depth + value, an MX-style "Mag Susc" sheet), so a
   // Depth column is an alternative to From / To (oneOf below; the reading is placed at that depth).
   magsusc: { label: "Mag. susceptibility (numeric)", oneOf: [["from", "to"], ["depth"]], fields: [
-    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "mag_reading", "ms_reading" /* #3204 */, "magsus1", "magsus", "mag_si", "mag_sus", "mag_avg", "mag", "value"], null, true) // mag_reading: #1345
+    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "mag_reading", "ms_reading" /* #3204 */, "magsus1", "magsus", "magsus_si_e3" /* #4094: the GSQ samples' column */, "mag_si", "mag_sus", "mag_avg", "mag", "value"], null, true) // mag_reading: #1345
       .map((f) => (f.key === "from" || f.key === "to" ? { ...f, required: false, label: `${f.label} (or Depth below)` } : f)),
     { key: "depth", label: "Depth (point readings, instead of From / To)", required: false, aliases: ["depth", "depth_m", "md", "at"] },
   ] },

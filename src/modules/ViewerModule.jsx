@@ -4921,7 +4921,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return;
     }
     const ok = await loadSampleProject(which);
-    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_") || which.startsWith("yk_" /* #3496 */) || which === "geomet" /* #2006 */)) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
+    if (ok && which !== "wa_uranium" && (which.startsWith("wa_") || which.startsWith("qld_") || which.startsWith("yk_" /* #3496 */) || which.startsWith("gsq_" /* #4056 */) || which === "geomet" /* #2006 */)) { // TASKS.csv #3107 — assays, surface samples, downhole logs and a grid: lib/sampleWa.js
       try {
         const { loadWaSampleExtras, WA_SAMPLES } = await import("../lib/sampleWa.js");
         if (WA_SAMPLES[which].showFirst) showOnLoad.current = WA_SAMPLES[which].showFirst; // #3588 (1) — before the load: the element is switched on when its assays land

@@ -32,6 +32,12 @@ export const WA_SAMPLES = {
   // TASKS.csv #3496 — Fireweed Metals' Macpass drilling, used with their permission: Ag in ppm, Pb and Zn in %; the credit is kept with the project (Layout prints it)
   yk_macpass: { dir: "yk_macpass", epsg: 26909, label: "Macpass", assays: "assays.csv", credit: MACPASS_CREDIT, showFirst: "Zn" /* #3588 (1) */ },
   // Century (Geological Survey of Queensland, CC BY 4.0): the same parts as a WA sample, from Queensland's database
+  // TASKS.csv #4056 / #4094 — the Geoscience Queensland samples (CC BY 4.0): their geophysics and mapping files stay in the folder for the user to open. Black Mountain writes below detection as 0 (README): read as "<" at half the column's smallest reading
+  gsq_cloncurry: { dir: "gsq_cloncurry", epsg: 28354, label: "Cloncurry", assays: "assays.csv", surface: [["soils.csv", "soil"], ["rocks.csv", "rock chip"]] },
+  gsq_carbo_creek: { dir: "gsq_carbo_creek", epsg: 28354, label: "Carbo Creek", assays: "assays.csv" },
+  gsq_altia_south: { dir: "gsq_altia_south", epsg: 28354, label: "Altia South", assays: "assays.csv", surface: [["rocks.csv", "rock chip"]] },
+  gsq_black_mountain: { dir: "gsq_black_mountain", epsg: 20255, label: "Black Mountain", assays: "assays.csv", zeroBdl: true },
+  gsq_edinburgh_park: { dir: "gsq_edinburgh_park", epsg: 28355, label: "Edinburgh Park", assays: "assays.csv", surface: [["soils.csv", "soil"], ["rocks.csv", "rock chip"], ["streams.csv", "stream sediment"]] },
   qld_century: {
     dir: "qld_century", epsg: 7854, label: "Century", assays: "assays.csv", surface: [["soils.csv", "soil"]],
     grid: { file: "tmi_80m.tif", name: "Total magnetic intensity (Geoscience Australia, 80 m)", method: "mag", units: "nT", source: "Geoscience Australia, Total Magnetic Intensity Grid of Australia 2019, seventh edition, 80 m" },
@@ -45,10 +51,11 @@ const FIXED = new Set(["hole_id", "from", "to", "sample_id", "x", "y", "z", "med
 function elementsOf(fields, data) {
   return pickElementColumns(fields.filter((f) => !FIXED.has(f)), data).map((e) => ({ symbol: e.symbol, header: e.header, unit: importStoreUnit(e), checked: true }));
 }
-function valuesOf(r, elements) {
+function valuesOf(r, elements, zl = null) {
   const values = {}, qualifiers = {};
   for (const e of elements) {
-    const c = cellOf(e, r[e.header]);
+    const L = zl?.get(e.header);
+    const c = L > 0 && e.symbol !== LOI && String(r[e.header] ?? "").trim() !== "" && Number(r[e.header]) === 0 ? readAssayCell(`<${L}`) : cellOf(e, r[e.header]); // zl: a 0 is below detection
     if (c.value == null || !Number.isFinite(c.value)) continue;
     values[e.symbol] = c.value;
     if (c.qualifier) qualifiers[e.symbol] = c.qualifier;
@@ -59,12 +66,12 @@ const withValues = (elements, rows) => elements.filter((e) => rows.some((r) => r
 
 // assays.csv (hole_id, from, to, sample_id, <El>_ppm | <El>_pct | <Oxide>_pct | LOI_pct ...) -> Geochem rows + element list
 // TASKS.csv #3649 — the rows of a parsed table are built by assayRowsOf, which waAssays does in one go and waAssaysSliced in slices.
-function assayRowsOf(data, elements, srcFile, rows, a, b) {
+function assayRowsOf(data, elements, srcFile, rows, a, b, zl = null) {
   for (let i = a; i < b; i++) {
     const r = data[i];
     const from = Number(r.from), to = Number(r.to), hole = String(r.hole_id || "").trim();
     if (!hole || !Number.isFinite(from) || !Number.isFinite(to) || !(to > from)) continue;
-    const { values, qualifiers } = valuesOf(r, elements);
+    const { values, qualifiers } = valuesOf(r, elements, zl);
     rows.push({ hole_id: hole, from, to, values, source: "assay", srcFile, ...(Object.keys(qualifiers).length ? { qualifiers } : {}), ...(r.sample_id ? { sample_id: String(r.sample_id).trim() } : {}) });
   }
 }
@@ -79,7 +86,9 @@ export function waAssays(text, srcFile = "assays.csv") {
 // and resumed after a task break) and the rows are built ROW_SLICE at a time, so the sample load's longest main-thread task is a slice, not the
 // whole ~1 MB table (~280 ms measured on Macpass). yieldTask() is the break (a setTimeout 0 by default).
 export const PARSE_CHUNK = 128 * 1024, ROW_SLICE = 1500;
-export async function waAssaysSliced(text, srcFile = "assays.csv", yieldTask = nextTask) {
+// a column's smallest positive reading: the detection limit given to its zeros when a sample writes "below detection" as 0 (zeroBdl)
+const zeroLimits = (data, elements) => new Map(elements.map((e) => { let L = Infinity; for (const r of data) { const x = Number(String(r[e.header] ?? "").trim() === "" ? NaN : r[e.header]); if (x > 0 && x < L) L = x; } return [e.header, L]; }).filter(([, L]) => Number.isFinite(L)));
+export async function waAssaysSliced(text, srcFile = "assays.csv", yieldTask = nextTask, { zeroBdl = false } = {}) {
   const data = []; let fields = null;
   await new Promise((resolve, reject) => {
     Papa.parse(text, {
@@ -95,10 +104,11 @@ export async function waAssaysSliced(text, srcFile = "assays.csv", yieldTask = n
     });
   });
   const elements = elementsOf(fields || [], data);
+  const zl = zeroBdl ? zeroLimits(data, elements) : null;
   await yieldTask();
   const rows = [];
   for (let a = 0; a < data.length; a += ROW_SLICE) {
-    assayRowsOf(data, elements, srcFile, rows, a, Math.min(data.length, a + ROW_SLICE));
+    assayRowsOf(data, elements, srcFile, rows, a, Math.min(data.length, a + ROW_SLICE), zl);
     await yieldTask();
   }
   return { rows, elements: withValues(elements, rows) };
@@ -111,7 +121,7 @@ export function waSurface(text, medium) {
   const samples = [];
   for (const r of t.data) {
     const x = Number(r.x), y = Number(r.y), zs = String(r.z ?? "").trim(), z = zs === "" ? null : Number(zs);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || String(r.x ?? "").trim() === "" || String(r.y ?? "").trim() === "") continue; // a blank coordinate is not 0 (#4094: Edinburgh Park's 43 standards have none and landed at 0, 0, millions of metres away)
     const { values, qualifiers } = valuesOf(r, elements);
     const bdl = Object.keys(qualifiers).filter((s) => qualifiers[s] === "<");
     samples.push({ sample_id: String(r.sample_id || "").trim(), x, y, z: Number.isFinite(z) ? z : null, medium: String(r.medium || medium), values, ...(bdl.length ? { bdl } : {}) });
@@ -146,7 +156,7 @@ export async function loadWaSampleExtras(which, readFile, store, { existingEleme
     try {
       const text = await (await readFile(S.assays)).text();
       showBusy(store.setTaskProgress, label); // #3539 — again: the queue's label may have replaced it
-      const raw = await waAssaysSliced(text, S.assays); // #3649 — in slices
+      const raw = S.zeroBdl ? await waAssaysSliced(text, S.assays, nextTask, { zeroBdl: true }) : await waAssaysSliced(text, S.assays); // #3649 — in slices; zeroBdl: #4094
       const { rows, elements, converted } = alignAssayUnits(raw.rows, raw.elements, existingElements);
       await nextTask(); // #3539
       store.setAssays((prev) => mergeAssayRows(prev || [], rows).rows);

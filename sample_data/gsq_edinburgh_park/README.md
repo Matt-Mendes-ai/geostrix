@@ -33,7 +33,7 @@ the PDF reports left out.
   original) and the standards (`sample_type` Standard, `standard_id` the OREAS reference) are marked; the rest are Sample. In the soils, the standards and the
   duplicates (with the sample they repeat) likewise, in `qc_type` (the column name the surface-sample import reads as QC). Negative values are the lab's below-detection values, kept.
 - **Overlaps.** None in the kept assays or the susceptibility; one lithology and one alteration interval overlap the one before (kept).
-- **Surveys.** Every hole has its collar's grid azimuth and dip; three have two downhole camera stations each (grid azimuths, `azimuth_grid`, the magnetic kept beside, `azimuth_magnetic`).
+- **Surveys.** Every hole has its collar's grid azimuth and dip (the table writes three holes' dips positive down: written negative here, as GeoStrix reads them); three have two downhole camera stations each (grid azimuths, `azimuth_grid`, the magnetic kept beside, `azimuth_magnetic`).
 - **IP.** The east-west lines (named by their northing, L7783800 …) gave their electrodes' eastings less 500,000, the north-south lines (named by their
   easting, L563200 …) their northings less 7,700,000: both are restored, so each line file places itself. The contractor's QC flag is kept (`QC` = 1
   accepted; 45 to 403 readings a line are not flagged). Each electrode set was read about four times (895 to 1,699 rows a line); GeoStrix reads each set once (222 to 325 a line). Three more east-west lines in the second IP table carry no electrode positions at all (2,142

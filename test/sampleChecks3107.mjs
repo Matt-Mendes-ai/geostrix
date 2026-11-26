@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import Papa from "papaparse";
 import { fromArrayBuffer } from "geotiff";
-import { sampleCardsFor, sampleFootnote } from "../src/lib/sampleCards.js";
+import { sampleCardsFor, sampleFootnote, sampleSource } from "../src/lib/sampleCards.js";
 import { sampleProjectName } from "../src/lib/sampleProjectName.js";
 import { bundledData } from "../scripts/third-party-licenses.mjs";
 
@@ -70,9 +70,9 @@ export function checkOffered(id, { licence, who, name, inFootnote }) {
   const item = new RegExp(`L\\("([^"]+)"\\), click: \\(\\) => mainWindow\\?\\.webContents\\.send\\("menu", "sample:${id}"\\)`).exec(menu);
   assert.ok(item, `${id}: no File > Open Sample Project entry`);
   assert.equal(menu.split(`${JSON.stringify(item[1])}: `).length - 1, 4, `${id}: the menu label is translated in four languages`);
-  const card = sampleCardsFor("viewer").find((c) => c.id === id);
+  const line = sampleSource(id); // #4094 — a row's tooltip is its name; the source line under the table is the sample's own text
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const d = JSON.parse(fs.readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
-    assert.ok(d[card.title], `${id}: card not translated in ${lang}`);
+    assert.ok(d[line], `${id}: source line not translated in ${lang}`);
   }
 }

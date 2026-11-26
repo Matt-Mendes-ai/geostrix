@@ -27,7 +27,10 @@ function detect(dir) {
   const found = new Set();
   if (f.has("collars.csv")) found.add("holes");
   if (f.has("assays.csv") || f.has("assay_wide.csv")) found.add("assays");
-  if (has(/^tmi.*\.tif$/) || has(/\.grd$/) || has(/\.omf$/) || f.has("osborne_magnetic.csv") || f.has("gamma.csv") || f.has("logs.csv") || f.has("magsusc.csv")) found.add("geophysics");
+  const full = (d) => { const p = path.join(dir, d); return fs.existsSync(p) && fs.statSync(p).isDirectory() && fs.readdirSync(p).length > 0; };
+  if (full("geophysics")) found.add("geophysics");
+  if (full("mapping")) found.add("mapping");
+  if (f.has("magsus.csv") || has(/^tmi.*\.tif$/) || has(/\.grd$/) || has(/\.omf$/) || f.has("osborne_magnetic.csv") || f.has("gamma.csv") || f.has("logs.csv") || f.has("magsusc.csv")) found.add("geophysics");
   if (has(/^map_units\.shp$/) || f.has("geology.zip") || f.has("bedrock_units.zip")) found.add("mapping");
   if (has(/^(soils|streams|rocks)\.csv$/)) found.add("surface");
   if (has(/^terrain_.*\.tif$/)) found.add("terrain");
@@ -67,7 +70,8 @@ for (const [id, d] of Object.entries(SAMPLE_CONTENTS)) {
     if (n("stations") != null) assert.equal(n("stations"), r("stations.csv"));
     if (n("readings") != null) assert.equal(n("readings"), r("osborne_magnetic.csv"));
     if (n("structures") != null) assert.equal(n("structures"), id === "qc_rouyn_noranda" ? r("structures.csv") : r("bedding.csv"));
-    const bytes = fs.readdirSync(dir).reduce((t, f) => { const s = fs.statSync(path.join(dir, f)); return t + (s.isFile() ? s.size : 0); }, 0) / 1048576;
+    const total = (d) => fs.readdirSync(d, { withFileTypes: true }).reduce((t, e) => t + (e.isDirectory() ? total(path.join(d, e.name)) : fs.statSync(path.join(d, e.name)).size), 0);
+    const bytes = total(dir) / 1048576; // the whole folder, subfolders included (the GSQ samples keep nearly all their bytes there)
     if (!BC.has(d.dir)) assert.ok(Math.abs(d.mb - bytes) <= Math.max(0.3, 0.2 * bytes), `${id}: the list says ${d.mb} MB, the folder is ${bytes.toFixed(2)} MB`);
   });
 }

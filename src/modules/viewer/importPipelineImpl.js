@@ -35,6 +35,7 @@ import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASK
 import { recoveryColumns, recoveryPct } from "../../lib/recoveryCalc.js"; // TASKS.csv #2891
 import { logChannelsFor, defaultLogBin, logChannelRows, unitFromHeader, channelNoData, noDataText, logBinEstimate, needsBinning, logReadings, logRange, rangeText, assayIntervals } from "../../lib/downholeLogChannels.js"; // logRange: #3041; assayIntervals: #3039 // logReadings: #3038
 import { logTableFits } from "../../lib/logOnRead.js"; // TASKS.csv #3038 // TASKS.csv #2160; no-data: #2332; logBinEstimate: #2885
+import { sampleSource } from "../../lib/sampleCards.js"; // TASKS.csv #4094 — the GSQ samples' notice is their source line
 import { loadSampleFiles, readSiblingFiles, sampleStatus } from "../../lib/desktop.js"; // sampleStatus: TASKS.csv #3100
 import { sampleLithOnly, hasLithology } from "../../lib/sampleLithOnly.js"; // TASKS.csv #4039 — a sample with a lithology log opens showing Lithology only
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
@@ -86,6 +87,7 @@ import { askConfirm } from "../../lib/confirmDialog.js"; // TASKS.csv #3957
 // TASKS.csv #3496 — the sample files whose dip sign the sample itself states (negative = down, with real up-holes: positive dips), by File object: the queue
 // goes in unseen on them although a dip is above 0 (#335 asks otherwise). Nothing a user drops is in it.
 const STATED_DIPS = new WeakSet();
+const STATED_AZ = new WeakSet(); // TASKS.csv #4094 — a sample survey whose azimuth_grid is the stated north: the other north columns beside it are kept, not asked about
 
 // TASKS.csv #3692 — a survey or an interval log whose deepest depth per hole is about 3.28 times the collar length: probably feet (the dialog says so above Units)
 const depthUnitOf = (target, mapping, rows, collars) => {
@@ -1243,7 +1245,8 @@ export function makeImportPipeline(ctx, h) {
       const dipCol = schema.dipConvention || target === "survey" ? mapping.dip : null;
       const dipsAgree = !dipCol || STATED_DIPS.has(file) /* #3496 */ || data.every((r) => { const d = Number(r[dipCol]); return r[dipCol] == null || r[dipCol] === "" || !Number.isFinite(d) || d <= 0; });
       // #1647 — a stated north: true is converted unseen; magnetic (needs a date) or a mix of norths opens the dialog
-      const azDetected = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, data) : null;
+      const azSeen = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, data) : null;
+      const azDetected = azSeen?.also && STATED_AZ.has(file) && azSeen.ref === "grid" ? { ...azSeen, also: undefined } : azSeen; // #4094 — a sample's stated grid north: the other north columns are kept, not asked about
       const azOk = !azDetected || (!azDetected.mixed && azDetected.ref !== "magnetic" && !azDetected.hint && !azDetected.also); // hint (#2015): gyros only, no corrected column: asked; also (#2154): two azimuth columns, asked
       const guarded = guardGuess(target, mapping, headers, data, file.name); // #1649 — never unseen into another file's log
       // TASKS.csv #2893 — never unseen into a code layer whose codes this file shares none of (another code system: the dialog says so)
@@ -1525,6 +1528,12 @@ export function makeImportPipeline(ctx, h) {
       files: ["collars.csv", "survey.csv", "litho.csv"],
       notice: "Century (Geological Survey of Queensland, CC BY 4.0): 37 holes from 1992 on a shale-hosted zinc-lead-silver deposit, with lithology and assays, 730 soil samples and Geoscience Australia's magnetic grid — nothing synthesized.",
     },
+    // TASKS.csv #4056 / #4094 — the five Geoscience Queensland open-file samples (CC BY 4.0); their assays and surface samples are loaded by the caller (lib/sampleWa.js)
+    gsq_cloncurry: { dir: "gsq_cloncurry", azStated: ["survey.csv"], epsg: 28354, crs: "GDA94 / MGA zone 54", files: ["collars.csv", "survey.csv", "litho.csv", "magsus.csv", "sg.csv", "structure.csv"], notice: sampleSource("gsq_cloncurry") },
+    gsq_carbo_creek: { dir: "gsq_carbo_creek", azStated: ["survey.csv"], epsg: 28354, crs: "GDA94 / MGA zone 54", files: ["collars.csv", "survey.csv", "litho.csv", "weath.csv", "veins.csv", "mineralisation.csv", "struct_zones.csv", "magsus.csv"], notice: sampleSource("gsq_carbo_creek") },
+    gsq_altia_south: { dir: "gsq_altia_south", azStated: ["survey.csv"], epsg: 28354, crs: "GDA94 / MGA zone 54", files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "veins.csv", "sulphides.csv", "magsus.csv"], notice: sampleSource("gsq_altia_south") },
+    gsq_black_mountain: { dir: "gsq_black_mountain", epsg: 20255, crs: "AGD66 / AMG zone 55", files: ["collars.csv", "survey.csv", "litho.csv"], notice: sampleSource("gsq_black_mountain") },
+    gsq_edinburgh_park: { dir: "gsq_edinburgh_park", azStated: ["survey.csv"], epsg: 28355, crs: "GDA94 / MGA zone 55", files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "veins.csv", "magsus.csv"], notice: sampleSource("gsq_edinburgh_park") },
   };
   const loadSampleProject = async (which = "harry") => {
     if (sampleLoading || importActiveRef.current) return false;
@@ -1532,7 +1541,7 @@ export function makeImportPipeline(ctx, h) {
     setSampleLoading(true);
     try {
       const files = await loadSampleFiles(S.dir, S.files, { optional: S.optional || [] }); // optional: #3100
-      for (const f of files) if (S.dipsStated?.includes(f.name)) STATED_DIPS.add(f); // #3496
+      for (const f of files) { if (S.dipsStated?.includes(f.name)) STATED_DIPS.add(f); /* #3496 */ if (S.azStated?.includes(f.name)) STATED_AZ.add(f); /* #4094 */ }
       if (hasLithology(files.map((f) => f.name))) sampleLithOnly.begin(); // TASKS.csv #4039 — a sample with a lithology log opens showing Lithology only; the other layers load hidden (ended with its queue)
       const downloaded = S.noticeDownloaded && (await sampleStatus())[which] === "downloaded"; // #3100
       // TASKS.csv #617 — the sample's CRS is known: set it when the project's CRS was never chosen, instead of

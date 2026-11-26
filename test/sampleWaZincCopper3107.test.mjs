@@ -87,6 +87,6 @@ test("the holes sit where the State puts them, not 210 m south-west on the old A
   const src = (f) => fs.readFileSync(new URL(f, import.meta.url), "utf8");
   assert.match(src("../scripts/samples/build-wa-zinc-copper.mjs"), /x: m\.e, y: m\.n, z: num\(r\.RL\)/); // MGAE / MGAN from the profile, the RL untouched
   const note = "The company's collar RLs (stated as AHD) sit about 15-25 m below the public terrain; the source does not say why.";
-  assert.ok(src("../src/modules/viewer/importPipelineImpl.js").includes(`heightNote: "${note}"`) && src("../src/lib/sampleCards.js").includes(`(report A77713). ${note}")`));
+  assert.ok(src("../src/modules/viewer/importPipelineImpl.js").includes(`heightNote: "${note}"`));
   assert.match(read(dir, "README.md").toString("utf8"), /sit about 15-25 m below the public terrain, and the source does not say why/);
 });
