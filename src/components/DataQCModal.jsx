@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ShieldAlert, AlertTriangle, Info, Download } from "./icons.js";
 import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap, #238)
 import { useStore } from "../lib/store.jsx";
-import { runDataQCSliced, collarTerrainOffsets, qcIssueRows, qcSorted, DOGLEG_ERROR_DEFAULT, terrainNodeM } from "../lib/dataQC.js"; // qcIssueRows: #1111; Sliced: #3136
+import { runDataQCSliced, collarTerrainOffsets, qcIssueRows, qcSorted, groupByCheck, DOGLEG_ERROR_DEFAULT, terrainNodeM } from "../lib/dataQC.js"; // qcIssueRows: #1111; Sliced: #3136
 import { saveFile } from "../lib/desktop.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #3528
 import { openDataTable } from "../lib/dataTableRequests.js"; // TASKS.csv #3569
@@ -86,11 +86,11 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
   const checked = useMemo(() => new Set(project?.qcChecked || []), [project?.qcChecked]); // TASKS.csv #3587 (store grant) — kept in the project file, so the marks travel with it
   const [hideChecked, setHideChecked] = useState(false);
   const toggleChecked = (issue) => { const n = new Set(checked), k = qcKey(issue); if (n.has(k)) n.delete(k); else n.add(k); setProjectQcChecked?.([...n]); };
-  const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const categories = useMemo(() => Array.from(result.byCategory.keys()).sort(), [result]);
   // TASKS.csv #3526 — worst first: errors, then warnings, then notes, and within each the ordinary rows before the survey bends (flagged minor, a row per hole); the order they came in otherwise
-  const shown = useMemo(() => qcSorted(result.issues.filter((i) => filter.has(i.severity) && (categoryFilter === "all" || i.category === categoryFilter) && !(hideChecked && checked.has(qcKey(i))))), [result, filter, categoryFilter, hideChecked, checked]);
+  const shown = useMemo(() => qcSorted(result.issues.filter((i) => filter.has(i.severity) && !(hideChecked && checked.has(qcKey(i))))), [result, filter, hideChecked, checked]);
+  // TASKS.csv #4102 — one line per check (category) with its count and a Show fold, not a line per bad interval: the worst checks first; the rows of a check open on Show
+  const groups = useMemo(() => groupByCheck(shown), [shown]);
   const checkedHere = useMemo(() => result.issues.reduce((n, i) => n + (checked.has(qcKey(i)) ? 1 : 0), 0), [result, checked]);
 
   // TASKS.csv #1111 — every issue (not just the filtered view) as a CSV, stamped with the project, CRS, desurvey method,
@@ -105,7 +105,6 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
     saveFile({ suggestedName: `${name}_data_qc.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(qcIssueRows(result.issues)), stamp) });
   };
   const toggleSeverity = (sev) => setFilter((p) => { const n = new Set(p); if (n.has(sev)) n.delete(sev); else n.add(sev); return n; });
-  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(shown.length, ISSUE_ROW_H);
 
   // TASKS.csv #4073 (Matt: "similar for all pop up windows"; "too wordy … cut, don't just cap") — a StepDialog of two steps: Issues (the result, its
   // filters, each row's Table / Find / Checked, the terrain fixes and the export) and Limits (the density range, the dogleg and the collar-vs-terrain
@@ -147,12 +146,6 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
             );
           })}
         </div>
-        {categories.length > 0 && (
-          <select aria-label={tr("Filter by category")} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>
-            <option value="all">{tr("All categories ({n})", { n: result.issues.length })}</option>
-            {categories.map((c) => <option key={c} value={c}>{tr(c)} ({result.byCategory.get(c).length})</option>)}
-          </select>
-        )}
         {checkedHere > 0 && <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 10, cursor: "pointer" }}><input type="checkbox" checked={hideChecked} onChange={(e) => setHideChecked(e.target.checked)} />{tr("Hide the {n} rows marked as checked", { n: checkedHere })}</label> /* TASKS.csv #3569 */}
 
         {!ran ? null /* #3532 — nothing is said (not "No issues found") until a result exists */ : result.issues.length === 0 ? (
@@ -160,28 +153,8 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
         ) : shown.length === 0 ? (
           <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>{tr("No issues match the current filters.")}</div>
         ) : (
-          <div ref={scrollRef} onScroll={onScroll} style={{ height: "min(44vh, 400px)", overflowY: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: 6 }}>
-            <div style={{ height: topPad }} />
-            {shown.slice(startIndex, endIndex).map((issue, i) => {
-              const meta = SEVERITY_META[issue.severity];
-              const Icon = meta.icon;
-              return (
-                <div key={startIndex + i} style={{ display: "flex", gap: 8, padding: "7px 8px", borderBottom: "1px solid var(--color-border-subtle)", height: ISSUE_ROW_H, boxSizing: "border-box", opacity: checked.has(qcKey(issue)) ? 0.5 : 1 }}>
-                  <Icon size={14} color={meta.color} style={{ flexShrink: 0, marginTop: 2 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{issue.message}</div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 1 }}>{issue.category}{issue.holeId ? ` — ${issue.holeId}` : ""}{checked.has(qcKey(issue)) ? ` · ${tr("checked")}` : ""}</div>
-                  </div>
-                  {/* TASKS.csv #3569 — a row can be acted on: its interval in the table, its hole in 3D, marked as checked (undone by the same button) */}
-                  <div style={{ display: "flex", gap: 4, flexShrink: 0, alignItems: "center" }}>{/* #4070 part 5: the three buttons in one line, so the row fits */}
-                      {qcTableRequest(issue) && <button className="gs-btn gs-btn--sm" type="button" onClick={() => openDataTable(qcTableRequest(issue))} title={tr("Open the table at this row")}>{tr("Table")}</button>}
-                      {onZoomHole && issue.holeId && <button className="gs-btn gs-btn--sm" type="button" onClick={() => onZoomHole(issue.holeId)} title={tr("Find the hole in the 3D view")}>{tr("Find")}</button>}
-                    <button className="gs-btn gs-btn--sm" type="button" onClick={() => toggleChecked(issue)} aria-pressed={checked.has(qcKey(issue))} title={tr("Mark as checked and kept (kept with the project; click again to undo)")}>{checked.has(qcKey(issue)) ? tr("Unmark") : tr("Checked")}</button>
-                  </div>
-                </div>
-              );
-            })}
-            <div style={{ height: bottomPad }} />
+          <div style={{ border: "1px solid var(--color-border-subtle)", borderRadius: 6 }}>{/* #4102 — no scroller of its own: an opened check scrolls its rows, the closed ones are lines */}
+            {groups.map((g) => <QcCheck key={g.category} g={g} checked={checked} toggleChecked={toggleChecked} onZoomHole={onZoomHole} />)}
           </div>
         )}
         {/* the export and the fixes: on the result they act on; the thresholds are on Limits */}
@@ -214,6 +187,52 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
   ];
 
   return <StepDialog title={heading} onClose={onCancel} steps={steps} at={at} onAt={setAt} help={help} cancelLabel={tr("Close")} width="min(640px, 92vw)" overlayProps={backdropProps(onCancel)} />;
+}
+
+// TASKS.csv #4102 — one check: its worst severity, its name and its count on one line; Show opens its rows (the interval, Table / Find / Checked), windowed as the one long list was (#222)
+function QcCheck({ g, checked, toggleChecked, onZoomHole }) {
+  const [open, setOpen] = useState(false);
+  const meta = SEVERITY_META[g.sev], Icon = meta.icon;
+  const nChecked = g.issues.reduce((n, i) => n + (checked.has(qcKey(i)) ? 1 : 0), 0);
+  return (
+    <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
+      <summary style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", cursor: "pointer", listStyle: "none" }}>
+        <Icon size={14} color={meta.color} style={{ flexShrink: 0 }} />
+        <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr(g.category)}</span>
+        <span style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", fontWeight: 600 }}>{g.issues.length.toLocaleString()}</span>
+        {nChecked > 0 && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("{n} checked", { n: nChecked })}</span>}
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-info)", minWidth: 34, textAlign: "end" }}>{open ? tr("Hide") : tr("Show")}</span>
+      </summary>
+      {open && <QcRows issues={g.issues} checked={checked} toggleChecked={toggleChecked} onZoomHole={onZoomHole} />}
+    </details>
+  );
+}
+function QcRows({ issues, checked, toggleChecked, onZoomHole }) {
+  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(issues.length, ISSUE_ROW_H, { containerHeight: Math.min(300, issues.length * ISSUE_ROW_H) });
+  return (
+    <div ref={scrollRef} onScroll={onScroll} style={{ height: Math.min(300, issues.length * ISSUE_ROW_H), overflowY: "auto" }}>
+      <div style={{ height: topPad }} />
+      {issues.slice(startIndex, endIndex).map((issue, i) => {
+        const meta = SEVERITY_META[issue.severity], Icon = meta.icon;
+        return (
+          <div key={startIndex + i} style={{ display: "flex", gap: 8, padding: "7px 8px", borderTop: "1px solid var(--color-border-subtle)", height: ISSUE_ROW_H, boxSizing: "border-box", opacity: checked.has(qcKey(issue)) ? 0.5 : 1 }}>
+            <Icon size={14} color={meta.color} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{issue.message}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 1 }}>{issue.holeId || ""}{checked.has(qcKey(issue)) ? `${issue.holeId ? " · " : ""}${tr("checked")}` : ""}</div>
+            </div>
+            {/* TASKS.csv #3569 — a row can be acted on: its interval in the table, its hole in 3D, marked as checked (undone by the same button) */}
+            <div style={{ display: "flex", gap: 4, flexShrink: 0, alignItems: "center" }}>
+              {qcTableRequest(issue) && <button className="gs-btn gs-btn--sm" type="button" onClick={() => openDataTable(qcTableRequest(issue))} title={tr("Open the table at this row")}>{tr("Table")}</button>}
+              {onZoomHole && issue.holeId && <button className="gs-btn gs-btn--sm" type="button" onClick={() => onZoomHole(issue.holeId)} title={tr("Find the hole in the 3D view")}>{tr("Find")}</button>}
+              <button className="gs-btn gs-btn--sm" type="button" onClick={() => toggleChecked(issue)} aria-pressed={checked.has(qcKey(issue))} title={tr("Mark as checked and kept (kept with the project; click again to undo)")}>{checked.has(qcKey(issue)) ? tr("Unmark") : tr("Checked")}</button>
+            </div>
+          </div>
+        );
+      })}
+      <div style={{ height: bottomPad }} />
+    </div>
+  );
 }
 
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };

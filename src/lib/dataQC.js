@@ -812,6 +812,13 @@ export function qcSorted(issues) {
   const key = (i) => (SEVERITY_ORDER[i.severity] ?? 3) * 2 + (i.minor ? 1 : 0);
   return (issues || []).map((i, n) => ({ i, n })).sort((a, b) => key(a.i) - key(b.i) || a.n - b.n).map(({ i }) => i);
 }
+// TASKS.csv #4102 — the issues as one entry per check (category): its issues in the order given, its worst severity and its count; the worst checks first, then the longest
+export function groupByCheck(issues) {
+  const m = new Map(), rank = { error: 0, warning: 1, info: 2 };
+  for (const i of issues || []) (m.get(i.category) || m.set(i.category, []).get(i.category)).push(i);
+  return [...m].map(([category, list]) => ({ category, issues: list, sev: list.reduce((w, i) => ((rank[i.severity] ?? 3) < (rank[w] ?? 3) ? i.severity : w), list[0].severity) }))
+    .sort((a, b) => (rank[a.sev] ?? 3) - (rank[b.sev] ?? 3) || b.issues.length - a.issues.length);
+}
 export function qcIssueRows(issues) {
   return qcSorted(issues)
     .map((i) => ({ severity: i.severity, category: i.category, hole_id: i.holeId || "", message: i.message }));
