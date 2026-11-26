@@ -1,6 +1,6 @@
 // TASKS.csv #1622 — Geochem > Surface samples > Grid to raster: one element of one medium as an IDW raster (lib/sampleGrid.js),
 // log10 by default for ppm / ppb, blanked away from the samples, coloured with the log stretch so the legend reads in the unit.
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { gradeUnitLabel } from "../lib/geochemColumns.js"; // TASKS.csv #3749 — g/t for a precious metal stored in ppm, in the labels
 import { useStore } from "../lib/store.jsx";
 import { landed, noJob } from "../lib/projectJobs.js"; // TASKS.csv #3953 — the grid lands only in the project it was made for
@@ -12,9 +12,13 @@ import { runPfieldsJob } from "../lib/desktop.js";
 import { defaultDrapeElevation } from "../lib/drapeElevation.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 import StepPane, { StepNumbers } from "./StepPane.jsx"; // TASKS.csv #4070 part 4
+import { useMcpSampleGrid } from "./useMcpValueGrid.js"; // TASKS.csv #4093 (batch 5): grid_hole_values (source: surface)
 
-export default function SampleGridPanel({ setNotices }) {
-  const { surfaceSamples, surfaceElements, addRaster, collars, voxelModels, startProjectJob /* #3953 */ } = useStore();
+export default function SampleGridPanel({ setNotices: setNoticesOf }) {
+  const { surfaceSamples, surfaceElements, addRaster, rasters = [], collars, voxelModels, startProjectJob /* #3953 */ } = useStore();
+  // TASKS.csv #4093: what the pane says last is kept for an AI app's grid_hole_values (the pane's own refusal comes back in its words); the notice goes to the Geochem tab as before
+  const lastNote = useRef("");
+  const setNotices = (fn) => { try { const next = typeof fn === "function" ? fn([]) : fn; const last = Array.isArray(next) ? next[next.length - 1] : null; if (last) lastNote.current = typeof last === "string" ? last : String(last?.message ?? last?.text ?? ""); } catch { /* the updater needs the list */ } setNoticesOf(fn); };
   const [open, setOpen] = useState(false);
   const [symbol, setSymbol] = useState("");
   const [medium, setMedium] = useState("");
@@ -30,6 +34,7 @@ export default function SampleGridPanel({ setNotices }) {
   const media = useMemo(() => [...new Set(surfaceSamples.map((s) => s.medium).filter(Boolean))].sort(), [surfaceSamples]);
   const log = logChoice ?? logByDefault(el?.unit);
   const suggestion = useMemo(() => (open && el ? suggestSampleGrid(samplePoints(surfaceSamples, el.symbol, { medium, log: false }).points) : null), [open, el, surfaceSamples, medium]);
+  useMcpSampleGrid(() => ({ surfaceSamples, surfaceElements, open, setOpen, symbol: el?.symbol, setSymbol, medium, setMedium, media, setLogChoice, method, setMethod, setCell, setBlank, busy, rasters, done, lastNote: lastNote.current, clearNote: () => { lastNote.current = ""; } }));
   if (!surfaceSamples.length || !surfaceElements.length) return null;
   const inp = { width: "100%", boxSizing: "border-box", fontSize: "var(--font-size-sm)", padding: "3px 5px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" };
   const lbl = { display: "flex", flexDirection: "column", gap: 2, flex: 1, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
@@ -113,7 +118,7 @@ export default function SampleGridPanel({ setNotices }) {
         <div style={{ marginTop: 6, padding: 8, border: "1px solid var(--color-border)", borderRadius: 6 }}>
           <StepPane id="geochem-grid" helpPage="import-assays" label={tr("Grid to raster")}
             steps={[{ key: "what", label: tr("What"), body: whatStep }, { key: "how", label: tr("How"), body: howStep }]}
-            action={{ label: busy ? tr("Working…") : tr("Grid to raster"), onClick: run, disabled: !!busy, attrs: { "data-grid-run": "" } }}
+            action={{ label: busy ? tr("Working…") : tr("Grid to raster"), onClick: run, disabled: !!busy, attrs: { "data-grid-run": "", "data-mcp": "sample-grid-run" } }}
             result={{ key: done?.key ?? null, body: done ? <StepNumbers rows={done.rows} /> : null }} />
         </div>
       )}

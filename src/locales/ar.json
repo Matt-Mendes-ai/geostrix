@@ -13627,7 +13627,6 @@
   "{client}: {what}": "{client}: {what}",
   "added section '{name}'": "أضاف المقطع '{name}'",
   "added the Layout page '{name}'": "أضاف صفحة التخطيط '{name}'",
-  "added a Best intercepts page ({n} intercepts of {symbol})": "أضاف صفحة أفضل التقاطعات ({n} تقاطعات لـ {symbol})",
   "QC samples (standards, blanks, duplicates) are excluded.": "تُستبعد عينات ضبط الجودة (المعايير والفراغات والمكررات).",
   "added the satellite image '{name}'": "أضاف صورة القمر الصناعي '{name}'",
   "added the terrain '{name}'": "أضاف التضاريس '{name}'",
@@ -14853,7 +14852,6 @@
   "Drag the line to move the section.": "اسحب الخط لتحريك المقطع.",
   "built the surface '{name}'": "أنشأ السطح '{name}'",
   "built the {symbol} grade shell": "أنشأ غلاف المحتوى لعنصر {symbol}",
-  "added the model's blocks as the block model '{name}'": "أضاف كتل النموذج كنموذج الكتل '{name}'",
   "Selected mesh": "الشبكة المحددة",
   "{n} meshes selected": "{n} شبكات محددة",
   "Delete": "حذف",
@@ -15044,8 +15042,6 @@
   "Only {n} holes log {v}: a halo needs three or more.": "{n} ثقوب فقط تسجل {v}: تحتاج الهالة إلى ثلاثة أو أكثر.",
   "Every alteration interval logged is {v}: with no other alteration logged, nothing closes the halo between the holes.": "كل فترات التحول المسجلة هي {v}: بلا تحول آخر مسجل، لا شيء يغلق الهالة بين الثقوب.",
   "{v} is logged in {n} holes; the other alteration logged closes the halo between them.": "{v} مسجل في {n} ثقب؛ التحول الآخر المسجل يغلق الهالة بينها.",
-  "estimated {symbol} into the block model '{name}'": "قدّر {symbol} في النموذج الكتلي '{name}'",
-  "added the grade shell's cells as the block model '{name}'": "أضاف خلايا غلاف المحتوى كالنموذج الكتلي '{name}'",
   "built the vein '{name}'": "بنى العرق '{name}'",
   "built the alteration halo '{name}'": "بنى هالة التحول '{name}'",
   "A bar beside the trace, its length following the value": "شريط بجانب المسار، يتبع طوله القيمة",
@@ -15937,5 +15933,10 @@
   "Open {name}": "افتح {name}",
   "Search…": "بحث…",
   "Search samples": "ابحث في العينات",
-  "Sample projects": "مشاريع العينات"
+  "Sample projects": "مشاريع العينات",
+  "added the score column '{name}'": "أضاف عمود الدرجة '{name}'",
+  "added the model's blocks as block model '{name}'": "أضاف كتل النموذج كنموذج كتل '{name}'",
+  "estimated {symbol} into block model '{name}'": "قدّر {symbol} في نموذج الكتل '{name}'",
+  "added the grade shell's cells as block model '{name}'": "أضاف خلايا غلاف المحتوى كنموذج كتل '{name}'",
+  "added a Best intercepts page ({n} of {symbol})": "أضاف صفحة أفضل التقاطعات ({n} من {symbol})"
 }

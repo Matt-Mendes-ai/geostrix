@@ -13627,7 +13627,6 @@
   "{client}: {what}": "{client} : {what}",
   "added section '{name}'": "a ajouté la coupe « {name} »",
   "added the Layout page '{name}'": "a ajouté la page de mise en page « {name} »",
-  "added a Best intercepts page ({n} intercepts of {symbol})": "a ajouté une page de meilleures intersections ({n} intersections en {symbol})",
   "QC samples (standards, blanks, duplicates) are excluded.": "Les échantillons de contrôle (étalons, blancs, doublons) sont exclus.",
   "added the satellite image '{name}'": "a ajouté l'image satellite « {name} »",
   "added the terrain '{name}'": "a ajouté le terrain « {name} »",
@@ -14853,7 +14852,6 @@
   "Drag the line to move the section.": "Faites glisser la ligne pour déplacer la coupe.",
   "built the surface '{name}'": "a construit la surface « {name} »",
   "built the {symbol} grade shell": "a construit l'enveloppe de teneur en {symbol}",
-  "added the model's blocks as the block model '{name}'": "a ajouté les blocs du modèle comme le modèle de blocs « {name} »",
   "Selected mesh": "Maillage sélectionné",
   "{n} meshes selected": "{n} maillages sélectionnés",
   "Delete": "Supprimer",
@@ -15044,8 +15042,6 @@
   "Only {n} holes log {v}: a halo needs three or more.": "Seuls {n} sondages décrivent {v} : un halo en demande trois ou plus.",
   "Every alteration interval logged is {v}: with no other alteration logged, nothing closes the halo between the holes.": "Tous les intervalles d'altération décrits sont {v} : sans autre altération décrite, rien ne ferme le halo entre les sondages.",
   "{v} is logged in {n} holes; the other alteration logged closes the halo between them.": "{v} est décrit dans {n} sondages ; l'autre altération décrite ferme le halo entre eux.",
-  "estimated {symbol} into the block model '{name}'": "a estimé {symbol} dans le modèle de blocs « {name} »",
-  "added the grade shell's cells as the block model '{name}'": "a ajouté les cellules de l'enveloppe de teneur comme modèle de blocs « {name} »",
   "built the vein '{name}'": "a construit le filon « {name} »",
   "built the alteration halo '{name}'": "a construit le halo d'altération « {name} »",
   "A bar beside the trace, its length following the value": "Une barre à côté de la trace, sa longueur suivant la valeur",
@@ -15937,5 +15933,10 @@
   "Open {name}": "Ouvrir {name}",
   "Search…": "Rechercher…",
   "Search samples": "Rechercher des exemples",
-  "Sample projects": "Projets exemples"
+  "Sample projects": "Projets exemples",
+  "added the score column '{name}'": "a ajouté la colonne de score « {name} »",
+  "added the model's blocks as block model '{name}'": "a ajouté les blocs du modèle comme modèle de blocs « {name} »",
+  "estimated {symbol} into block model '{name}'": "a estimé {symbol} dans le modèle de blocs « {name} »",
+  "added the grade shell's cells as block model '{name}'": "a ajouté les cellules de l'enveloppe de teneur comme modèle de blocs « {name} »",
+  "added a Best intercepts page ({n} of {symbol})": "a ajouté une page de meilleures intersections ({n} en {symbol})"
 }

@@ -15,6 +15,7 @@ import { f32ToB64 } from "../lib/inversion.js";
 import { defaultDrapeElevation } from "../lib/drapeElevation.js";
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 import StepPane, { StepNumbers } from "./StepPane.jsx"; // TASKS.csv #4088
+import { useMcpHoleGrid } from "./useMcpValueGrid.js"; // TASKS.csv #4093 (batch 5): grid_hole_values
 
 const KEY = "value";
 
@@ -26,7 +27,7 @@ function codedMeta(layer, codes, st, vertical) {
 }
 
 export default function HoleValueGridPanel() {
-  const { collars = [], assays = [], assayElements = [], layers = {}, customLayers = [], addRaster, voxelModels, surfaceSamples, survey = [], desurveyMethod, project } = useStore(); // survey, desurveyMethod: #2745; project: #3116
+  const { collars = [], assays = [], assayElements = [], layers = {}, customLayers = [], addRaster, rasters = [], voxelModels, surfaceSamples, survey = [], desurveyMethod, project } = useStore(); // survey, desurveyMethod: #2745; project: #3116
   const [open, setOpen] = useState(false);
   const [sourceId, setSourceId] = useState("");
   const [stat, setStat] = useState("max");
@@ -70,6 +71,8 @@ export default function HoleValueGridPanel() {
   const samples = placed.samples;
   const log = st === "firstOver" || coded ? false : logChoice ?? logByDefault(source?.unit);
   const suggestion = useMemo(() => (samples.length >= 3 ? suggestSampleGrid(samplePoints(samples, KEY).points) : null), [samples]);
+  // TASKS.csv #4093 (batch 5): grid_hole_values runs the pane's own Grid to raster, driven as a person would (components/useMcpValueGrid.js)
+  useMcpHoleGrid(() => ({ collars, open, setOpen, sources, source, setSourceId, setLogChoice, setCodes, stat: st, setStat, setThreshold, setPlaceAtChoice, setDepthAs, method, setMethod, setCell, setBlank, msg, setMsg, rasters, done, busy: false }));
   if (!collars.length) return null;
   const inp = { width: "100%", boxSizing: "border-box", fontSize: "var(--font-size-sm)", padding: "2px 4px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)" };
   const lbl = { display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
@@ -164,7 +167,7 @@ export default function HoleValueGridPanel() {
         <div style={{ marginTop: 6, padding: 8, border: "1px solid var(--color-border)", borderRadius: 6 }}>
           <StepPane id="maps-hole-value" helpPage="import-assays" label={tr("Grid a per-hole value")}
             steps={[{ key: "what", label: tr("What"), body: whatStep() }, { key: "where", label: tr("Where"), body: whereStep() }, { key: "how", label: tr("How"), body: howStep() }]}
-            action={{ label: tr("Grid to raster"), onClick: run, disabled: samples.length < 3, attrs: { "data-grid-run": "" } }}
+            action={{ label: tr("Grid to raster"), onClick: run, disabled: samples.length < 3, attrs: { "data-grid-run": "", "data-mcp": "hole-grid-run" } }}
             message={msg ? { text: msg.text, level: msg.err ? "error" : "info" } : null}
             result={{ key: done?.key ?? null, body: done ? <StepNumbers rows={done.rows} /> : null }} />
         </div>

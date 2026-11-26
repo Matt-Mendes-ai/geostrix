@@ -71,6 +71,27 @@ export const ACTIONS = {
     const { ok, ids: _ids, ...rest } = r;
     return { ok: true, tracked: false, data: { ...rest, id: ids[0] || null }, say: rasterSay(r.name), revert: rasterRevert(ids) };
   },
+  // TASKS.csv #4093 (batch 5, piece C) — a value per drillhole (Maps plan, 'Grid a per-hole value') or a surface-sample element (Geochem, 'Grid an element to a raster') as a raster, by the pane's own Grid to raster,
+  // driven as a person would (components/useMcpValueGrid.js); no network. The toast's Undo takes out exactly the raster added.
+  async grid_hole_values(a, s) {
+    const surface = a.source === "surface";
+    const p = { value: a.value, statistic: a.statistic, threshold: a.threshold, codes: a.codes, placed_at: a.placed_at, depth_as: a.depth_as, medium: a.medium, method: a.method, cell_m: a.cell_m, blank_m: a.blank_m, log: a.log };
+    const r = await viaModule(s, surface ? "geochem" : "maps", surface ? "mcp-sample-grid-run" : "mcp-grid-holes", p, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const ids = r.ids || [];
+    const { ok, ids: _ids, ...rest } = r;
+    return { ok: true, tracked: false, data: { ...rest, id: ids[0] || null }, say: rasterSay(r.name), revert: rasterRevert(ids) };
+  },
+  // TASKS.csv #4093 (batch 5, piece C) — the Multivariate anomaly score dialog's own Score and Write the score (robust Mahalanobis distance on log ratios), as ONE new calculated element on the drill assays or the surface
+  // samples; the dialog's defaults for the elements unless named; no network. It never replaces a column. The surface columns are in the undo history (Ctrl+Z too); the assays are not: the toast's Undo takes the column out.
+  async anomaly_score(a, s) {
+    const r = await viaModule(s, "geochem", "mcp-anomaly-score", { source: a.source, medium: a.medium, elements: a.elements, name: a.name }, MODEL_WAIT_MS);
+    if (!r.ok) return r;
+    const { ok, ...rest } = r, name = r.name, surface = r.source === "surface";
+    const strip = (rows) => (rows || []).map((x) => { if (!x?.values || !(name in x.values)) return x; const { [name]: _gone, ...values } = x.values; return { ...x, values }; });
+    return { ok: true, tracked: surface, data: rest, say: tr("added the score column '{name}'", { name }),
+      revert: (st) => { if (surface) { st.setSurfaceSamples((p) => strip(p)); st.setSurfaceElements((p) => (p || []).filter((e) => e.symbol !== name)); } else { st.setAssays((p) => strip(p)); st.setAssayElements((p) => (p || []).filter((e) => e.symbol !== name)); } } };
+  },
   // TASKS.csv #4093 (batch 5, piece A) — saves one of suggest_thresholds' rules as an element's anomaly threshold (the Thresholds pane's own record); refuses to replace a saved one
   async set_threshold(a, s) { return (await import("./mcpGeo.js")).setThreshold(a, s); },
   // a new section: two points in the project's coordinates, or through a hole in its own plane (as the hole's 'Section through' does); never replaces one
@@ -132,7 +153,7 @@ export const ACTIONS = {
     const ids = addPagesOnPaper(s.addLayoutPages, s.setLayoutPageFormat, [{ name: tr("Best intercepts"), elements: [table] }], fmt);
     s.goToModule?.("layout");
     return { ok: true, tracked: true, data: { changed: "layout page", name: tr("Best intercepts"), id: ids[0] || null, intercepts: d.total, on_the_page: shown.length }, // tracked: see make_sheet
-      say: tr("added a Best intercepts page ({n} intercepts of {symbol})", { n: d.total, symbol: d.element }), revert: (st) => { const have = new Set((st?.layoutPages || []).map((p) => p.id)); const gone = ids.filter((x) => have.has(x)); if (gone.length) st.deleteLayoutPage(gone); } };
+      say: tr("added a Best intercepts page ({n} of {symbol})", { n: d.total, symbol: d.element }), revert: (st) => { const have = new Set((st?.layoutPages || []).map((p) => p.id)); const gone = ids.filter((x) => have.has(x)); if (gone.length) st.deleteLayoutPage(gone); } };
   },
   // the view tools: StrixViewer's own setters and camera (modules/viewer/useMcpViewActions.js); the view is not in the undo history, so the toast's Undo puts it back
   async colour_holes(a, s) {
@@ -185,7 +206,7 @@ export const ACTIONS = {
     const r = await viaModule(s, "viewer", "mcp-model", { op: "block_model" }, MODEL_WAIT_MS);
     if (!r.ok) return r;
     const { ok, revert, ...rest } = r;
-    return { ok: true, tracked: false, data: rest, say: tr("added the model's blocks as the block model '{name}'", { name: r.name }), revert };
+    return { ok: true, tracked: false, data: rest, say: tr("added the model's blocks as block model '{name}'", { name: r.name }), revert };
   },
   async build_grade_shell(a, s) {
     const r = await viaModule(s, "viewer", "mcp-model", { op: "grade_shell", element: a.element }, MODEL_WAIT_MS);
@@ -200,14 +221,14 @@ export const ACTIONS = {
     const r = await viaModule(s, "viewer", "mcp-estimate-open", { element: a.element }, MODEL_WAIT_MS);
     if (!r.ok) return r;
     const { ok, revert, ...rest } = r;
-    return { ok: true, tracked: false, data: rest, say: tr("estimated {symbol} into the block model '{name}'", { symbol: r.element || a.element, name: r.name }), revert };
+    return { ok: true, tracked: false, data: rest, say: tr("estimated {symbol} into block model '{name}'", { symbol: r.element || a.element, name: r.name }), revert };
   },
   // the last grade shell's own cells as a block model (lib/lastShellCells.js)
   async add_grade_shell_blocks(_a, s) {
     const r = await viaModule(s, "viewer", "mcp-model", { op: "shell_blocks" }, MODEL_WAIT_MS);
     if (!r.ok) return r;
     const { ok, revert, ...rest } = r;
-    return { ok: true, tracked: false, data: rest, say: tr("added the grade shell's cells as the block model '{name}'", { name: r.name }), revert };
+    return { ok: true, tracked: false, data: rest, say: tr("added the grade shell's cells as block model '{name}'", { name: r.name }), revert };
   },
   // TASKS.csv #4053 (batch 4) — the Faults pane's own build (sheeted planes, modules/viewer/mcpFaultRun.js): from the logged fault picks / intervals, with the pane's verdicts; instant (no solver)
   async build_fault(a, s) {

@@ -13,6 +13,7 @@ import { runMcdScores } from "../lib/mcdClient.js"; // TASKS.csv #3030 — in a 
 import { classifyQAQCRow, isPxrfRow } from "../lib/qaqc.js";
 import { notice } from "../lib/notices.js";
 import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4073 — the shared step shell (Escape and the focus trap)
+import { useMcpAnomaly } from "./useMcpAnomaly.js"; // TASKS.csv #4093 (batch 5): anomaly_score
 
 const ALL = "\u0000all";
 export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples, surfaceElements, setAssays, setAssayElements, setSurfaceSamples, setSurfaceElements, onNotice, onClose }) {
@@ -59,6 +60,8 @@ export default function McdAnomalyPanel({ assays, assayElements, surfaceSamples,
   };
   const top = res ? pool.map((r, i) => [r, res.scores[i]]).filter(([, v]) => v != null).sort((a, b) => b[1] - a[1]).slice(0, 8) : [];
   const where = (r) => (r.hole_id != null && r.from != null ? `${r.hole_id} ${r.from}–${r.to} m` : r.sample_id || r.id || "");
+  // TASKS.csv #4093 (batch 5): anomaly_score runs this dialog's own Score and Write the score, with the choices the call names (components/useMcpAnomaly.js)
+  useMcpAnomaly(() => ({ source, setSource, setPicked, reset, media, ALL, medium, setMedium, elements, chosen, pool, name, setName, run, write, res, err, busy, validName, top, where, hasAssays: assays.length > 0, hasSurface: surfaceSamples.length > 0 }));
   const lbl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
   const sel = { background: "var(--color-bg)", color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 6px", fontSize: "var(--font-size-sm)", fontFamily: "inherit" };
 
