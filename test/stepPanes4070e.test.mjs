@@ -43,7 +43,7 @@ test("Recent messages: a long notice is two lines, its full text in the tooltip 
   assert.match(n, /LONG_NOTICE = 140/);
   assert.match(n, /WebkitLineClamp: 2/);
   assert.match(n, /title: open \? undefined : String\(text\)/);
-  assert.match(v, /<NoticeLine key=\{i\} text=\{noticeText\(n\)\} error=\{noticeLevel\(n\) === "error"\} \/>/);
+  assert.match(v, /<NoticeLine key=\{i\} text=\{noticeText\(n\)\} error=\{noticeLevel\(n\) === "error"\}( more=\{n\?\.more\})? \/>/);
   assert.ok(v.includes("copyText(notices.map(noticeText).join"), "Copy still takes the whole text");
 });
 

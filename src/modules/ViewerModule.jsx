@@ -6963,7 +6963,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {notices.length > 0 && (
           <div role="region" aria-label={tr("Recent messages")} style={{ marginTop: 14, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: allNotices ? 360 : 140, overflowY: "auto" }}>
             {notices.length > 6 && <div style={{ display: "flex", gap: 10, marginBottom: 4 }}><span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllNotices((a) => !a)} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{allNotices ? tr("Show the last 6") : tr("Show all {n}", { n: notices.length })}</span><span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => copyText(notices.map(noticeText).join("\n"))} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{tr("Copy")}</span></div>}{/* #1542 */}
-            {notices.slice(allNotices ? -500 : -6).map((n, i) => <NoticeLine key={i} text={noticeText(n)} error={noticeLevel(n) === "error"} />)}{/* #4070 part 5 — a long one as two lines, the rest on a click */}
+            {notices.slice(allNotices ? -500 : -6).map((n, i) => <NoticeLine key={i} text={noticeText(n)} error={noticeLevel(n) === "error"} more={n?.more} />)}{/* #4070 part 5 — a long one as two lines, the rest on a click */}
           </div>
         )}
       </div>

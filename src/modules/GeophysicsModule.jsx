@@ -2426,6 +2426,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
                     {meta.positionsOnly ? tr("{count} points{v}, {withZ} with elevation · positions only, no measured value", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString() }) /* TASKS.csv #3447 */ : tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? rangeText(sv.min, sv.max) /* #2402 — 57,392 to 57,571, not 5.739e+4 */ : "—", v3: meta.units ? ` ${meta.units}` : "" })}
                   </div>
+                  {/* TASKS.csv #1152 — interpretation lines over this survey, drawn in the 3D view */}
+                  <button className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0 }} type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
+                  <MoreFold summary={!noValue && !meta.method ? tr("Fine-tune: method not set…") : tr("Fine-tune…")} data-fine-tune="survey" style={{ marginTop: 5, marginBottom: 0 }}>{/* TASKS.csv #4102 — the method, units, z meaning, equivalent sources, gravity reduction and heights: one fold on the card */}
                   {!noValue && <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
                     <select value={meta.method || ""} aria-label={tr("Method of \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
                       onChange={(e) => updateGeophysSurvey(sv.key, { method: e.target.value, unitsGuessed: false /* #3739 — the geologist chose */, ...unitsForMethod(meta, e.target.value) })}>
@@ -2449,8 +2452,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   {(["grav", "grav_fa"].includes(meta.method) || (Number.isFinite(sv.min) && sv.min > 900000)) && <button className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0 }} type="button" onClick={() => setGravFor(gravFor === sv.key ? null : sv.key)} title={tr("Free-air anomaly (observed less normal gravity) and Bouguer anomaly (less the Bouguer plate or the terrain's gravity), in the Python engine")}><Scale size={14} />{tr("Gravity reductions…")}</button>}
                   {gravFor === sv.key && <Suspense fallback={null}><GravityReductionBox survey={sv.key} method={meta.method || null} /* #2841 */ rows={rows} epsg={project?.epsg} terrain={terrain} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} numInput={numInput} /></Suspense>}
                   </>}
-                  {/* TASKS.csv #1152 — interpretation lines over this survey, drawn in the 3D view */}
-                  <button className="gs-btn gs-btn--block" style={{ marginTop: 5, marginBottom: 0 }} type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
                   {(meta.zMeaning === "agl") && (
                     <button className="gs-btn gs-btn--block" style={{ marginTop: 5 }} type="button" disabled={!terrain} onClick={() => convertAgl(sv.key)}
                       title={terrain ? tr("elevation = terrain + the height in z (the heights are kept, so this can be redone after loading a better terrain)") : tr("Load a terrain first")}>
@@ -2460,6 +2461,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   {meta.zMeaning === "agl" && !terrain && ( /* TASKS.csv #2244 — the disabled button said why only on hover */
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3 }}>{tr("Needs a terrain: load or build one under Maps > Terrain (a DEM, a fetch, or the project's own collars).")}</div>
                   )}
+                  </MoreFold>
                 </div>
               );
             })}
