@@ -28,6 +28,6 @@ test("#3222 the next value above the floor; a gap past twice the floor makes it 
   const s2 = suggestDetectionLimit(sub, "Pt");
   assert.equal(s2.limit, 0.002); assert.equal(s2.gap, false); assert.equal(s2.next, 0.002);
   const p = readFileSync(new URL("../src/components/QAQCPanel.jsx", import.meta.url), "utf8");
-  assert.match(p, /the file states no limit\./);
+  assert.match(p, /read as half a limit; next value/); assert.match(p, /the next, \{next\}, is over twice it\./); // #4088 — the shorter notes
   assert.doesNotMatch(p, /twice the \{floor\} floor that/);
 });

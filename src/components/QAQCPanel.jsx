@@ -1,27 +1,25 @@
 import React, { useMemo, useState } from "react";
-import { openHelp } from "../lib/help.js"; // TASKS.csv #3578
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // TASKS.csv #2351
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #2351
 import QcPairReview from "./QcPairReview.jsx"; // TASKS.csv #3549
 import OxideTotalsTab from "./OxideTotalsTab.jsx"; // TASKS.csv #2506
 import MethodPairsTab from "./MethodPairsTab.jsx"; // TASKS.csv #2629
 import { majorOxides, MIN_MAJORS } from "../lib/oxideTotals.js"; // TASKS.csv #2506
-import { X, Download } from "./icons.js";
+import StepDialog from "./StepDialog.jsx";
+import { StepNumbers } from "./StepPane.jsx";
+import DialogHelpCard from "./DialogHelpCard.jsx";
 import { saveFile } from "../lib/desktop.js";
 import { methodPairs, labAssays } from "../lib/qaqc.js"; // TASKS.csv #2629; labAssays: #2354
 import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, methodDetectionLimits /* #2732 */, methodBlankLimits /* #2772 */, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js"; import { formatLimit, limitLooksConverted } from "../lib/qaqc.js";
 import { stampLines, withStamp, stampEpsg } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
 import { version as APP_VERSION } from "../../package.json";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #400 — certified values live in the project
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #134 — lab QAQC dashboard (standards/blanks/duplicates), distinct from dataQC.js's
 // geometric QC. See qaqc.js's header comment for the identification approach (hole_id naming
 // convention, no external CRM certificate database) and its accepted first-pass limitations.
 const TABS = ["standards", "blanks", "duplicates"];
+const STEP_LABEL = { data: () => tr("Data"), standards: () => tr("Standards"), blanks: () => tr("Blanks"), duplicates: () => tr("Duplicates"), methods: () => tr("Method pairs"), pxrf: () => tr("pXRF vs lab"), totals: () => tr("Totals") };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr, fmtNum } from "../lib/i18n.js"; // TASKS.csv #786
@@ -33,12 +31,10 @@ import { pxrfVsLab, sampleTypesSeen } from "../lib/pxrfVsLab.js"; // TASKS.csv #
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
-  useEscapeKey(onClose); // TASKS.csv #238
-  useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const lead = useLeadCommodity(); // TASKS.csv #2351 — open on the lead commodity, not the first element in import order (Co on a uranium project)
   const [symbol, setSymbol] = useState(() => preferredElement(assayElements.map((e) => e.symbol), null, lead));
-  const [tab, setTab] = useState("standards");
+  const [at, setAt] = useState(0);
   const [blankThreshold, setBlankThreshold] = useState(null); // TASKS.csv #2733 — no 0.1 pre-fill: a number in no unit that read as a rule; blanks are listed, not judged, until one is set
   const [selectedStdId, setSelectedStdId] = useState(null);
   const { crmCertificates = {}, setCrmCertificate, setAssayElements, project, setAssays } = useStore() || {}; // #400; setAssays: #2506
@@ -93,6 +89,8 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const hasMethodValues = useMemo(() => assays.some((a) => a.methodValues), [assays]); // #2629 — a file with an element by two methods
   const methods = useMemo(() => (hasMethodValues ? methodPairs(assays, symbol) : []), [assays, symbol, hasMethodValues]);
   const tabs = [...TABS, ...(hasMethodValues ? ["methods"] : []), ...(pxrf.readings ? ["pxrf"] : []), ...(majors.length >= MIN_MAJORS ? ["totals"] : [])]; // totals: #2506; methods: #2629
+  const stepKeys = ["data", ...tabs];
+  const tab = stepKeys[Math.min(at, stepKeys.length - 1)];
   const exportCount = tab === "totals" ? 0 : tab === "methods" ? methods.reduce((t, m) => t + m.n, 0) : tab === "pxrf" ? pxrf.rows.length : tab === "standards" ? (activeGroup ? series.points.length : 0) : tab === "blanks" ? blanks.length : dups.length; // #617
   const exportCSV = () => {
     let rows, name;
@@ -124,79 +122,70 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
     saveFile({ suggestedName: name, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rows), stamp) });
   };
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("QAQC — lab quality control")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Detected: {s} standard(s), {b} blank(s), {d} duplicate(s) of {n} intervals (by a sample-type column, else the ID; a hole in the collars is never QC).", { s: counts.standard, b: counts.blank, d: counts.duplicate, n: assays.length })}{/* #1119 — one sentence (it was glued from fragments, wrong word order in French / Arabic) */}{/* TASKS.csv #400 — exactly which ids are left out of the reports, and why */}
-              {typesSeen.length > 0 && <div style={{ marginTop: 2 }}>{tr("Sample types in the file: {list}.", { list: typesSeen.map(([t, n]) => `${t} ${n.toLocaleString()}`).join(", ") })}</div>}{/* #1675 — 'no QC here' told from 'QC not recognised' */}
-              {(counts.standard + counts.blank + counts.duplicate) > 0 && (
-                <details style={{ marginTop: 4 }}>
-                  <summary style={{ cursor: "pointer" }}>{tr("Excluded from intercepts, compositing, estimation and statistics — list the ids")}</summary>
-                  {["standard", "blank", "duplicate"].map((c) => excludedIds[c].length > 0 && (
-                    <div key={c} style={{ marginTop: 3 }}><b>{c}s:</b> {excludedIds[c].map((e) => `${e.id} (${e.rows}${e.why === "name" ? ", by name" : ""})`).join(", ")}</div>
-                  ))}
-                  <div style={{ marginTop: 3 }}>{tr("If a real hole is listed \"by name\", import its collar: holes in the collar table are never treated as QC.")}</div>
-                </details>
-              )}
-            </div>
-          </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("qaqc")} aria-label={tr("Help: {name}", { name: tr("QAQC — lab quality control") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
-        </div>
-
-        <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+  // TASKS.csv #4088 (side 4, Main's list) — a StepDialog: Data (what was found, the element and its detection limit), then one step per check (Standards, Blanks, Duplicates, and
+  // Method pairs / pXRF vs lab / Totals when the file has them); each check's step has Export as its one gold primary. Each step shows the blocks of its own key, as the tabs did.
+  const elementPick = (
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                 {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{elementOptionLabel(e.symbol, e.unit) /* #2914 */}</option>)}
               </select>
             </label>
+  );
+  const body = (
+    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          {tab === "data" && (<>
+            <StepNumbers rows={[{ label: tr("Intervals"), value: assays.length.toLocaleString() }, { label: tr("Standards"), value: counts.standard }, { label: tr("Blanks"), value: counts.blank }, { label: tr("Duplicates"), value: counts.duplicate }]} />
+              {typesSeen.length > 0 && <div style={{ marginTop: 2 }}>{tr("Sample types in the file: {list}.", { list: typesSeen.map(([t, n]) => `${t} ${n.toLocaleString()}`).join(", ") })}</div>}{/* #1675 — 'no QC here' told from 'QC not recognised' */}
+              {(counts.standard + counts.blank + counts.duplicate) > 0 && (
+                <details style={{ marginTop: 4 }}>
+                  <summary style={{ cursor: "pointer" }}>{tr("Left out of the grade tools: list the ids")}</summary>
+                  {["standard", "blank", "duplicate"].map((c) => excludedIds[c].length > 0 && (
+                    <div key={c} style={{ marginTop: 3 }}><b>{c}s:</b> {excludedIds[c].map((e) => `${e.id} (${e.rows}${e.why === "name" ? ", by name" : ""})`).join(", ")}</div>
+                  ))}
+                  <div style={{ marginTop: 3 }}>{tr("A hole in the collars is never QC.")}</div>
+                </details>
+              )}
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+              {elementPick}
             {/* TASKS.csv #534 — the element's detection limit, saved with the project */}
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Lab lower detection limit for this element: blanks are judged against a multiple of it, duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit ({unit})", { unit: unitL })}<NumberInput allowEmpty min={0} onChange={(v) => setDetectionLimit(v ?? 0)} value={dl ?? null} placeholder={tr("not set")} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The lab's lower limit; saved with the project.")}>{tr("Detection limit ({unit})", { unit: unitL })}<NumberInput allowEmpty min={0} onChange={(v) => setDetectionLimit(v ?? 0)} value={dl ?? null} placeholder={tr("not set")} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
             </label>
             {dlSuggestion.limit != null && dlSuggestion.limit !== dl && (
               <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} className="gs-btn gs-btn--sm" style={{ alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) /* #2503 */ ? tr("{n} result(s) are '<' at {limit}, converted at import (from another unit or an oxide); the lab's limit is the round figure in the source file", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) }) : tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: formatLimit(dlSuggestion.limit) })) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
-                {dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) ? tr("Use <{limit} (the '<' results, converted at import)", { limit: formatLimit(dlSuggestion.limit) }) : tr("Use the lab's <{limit}", { limit: formatLimit(dlSuggestion.limit) })) : dlSuggestion.basis === "floor" ? (dlSuggestion.gap /* #3222 — a reading of the data, not a fact of the file */ ? tr("Use {limit}: the file states no limit. {pct} % of the results sit on {floor}, the lowest value, and the next value is {next}, more than twice it: the limit is read as that next value.", { limit: formatLimit(dlSuggestion.limit), floor: formatLimit(dlSuggestion.floor), next: formatLimit(dlSuggestion.next), pct: Math.round(dlSuggestion.share * 100) }) : tr("Use {limit}: the file states no limit. {pct} % of the results sit on {floor}, the lowest value, read as half a limit substituted before import; the next value is {next}.", { limit: formatLimit(dlSuggestion.limit), floor: formatLimit(dlSuggestion.floor), next: dlSuggestion.next == null ? "—" : formatLimit(dlSuggestion.next), pct: Math.round(dlSuggestion.share * 100) })) : tr("Use the lowest value {limit}", { limit: formatLimit(dlSuggestion.limit) })}
+                {dlSuggestion.basis === "lt" ? (limitLooksConverted(dlSuggestion.limit) ? tr("Use <{limit} (the '<' results, converted at import)", { limit: formatLimit(dlSuggestion.limit) }) : tr("Use the lab's <{limit}", { limit: formatLimit(dlSuggestion.limit) })) : dlSuggestion.basis === "floor" ? (dlSuggestion.gap /* #3222 — a reading of the data, not a fact of the file */ ? tr("Use {limit}: {pct} % sit on {floor}, the lowest value; the next, {next}, is over twice it.", { limit: formatLimit(dlSuggestion.limit), floor: formatLimit(dlSuggestion.floor), next: formatLimit(dlSuggestion.next), pct: Math.round(dlSuggestion.share * 100) }) : tr("Use {limit}: {pct} % sit on {floor}, the lowest value, read as half a limit; next value {next}.", { limit: formatLimit(dlSuggestion.limit), floor: formatLimit(dlSuggestion.floor), next: dlSuggestion.next == null ? "—" : formatLimit(dlSuggestion.next), pct: Math.round(dlSuggestion.share * 100) })) : tr("Use the lowest value {limit}", { limit: formatLimit(dlSuggestion.limit) })}
               </button>
             )}
+            </div>
             {(dlSuggestion.basis === "step" || dlSuggestion.basis === "low") && ( /* TASKS.csv #2913 */
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, maxWidth: 420, alignSelf: "flex-end" }}>
                 {dlSuggestion.basis === "step"
-                  ? tr("{symbol} is reported to {step} {unit}, with {n} results of 0 below it: that is the reporting step, and the file states no detection limit. None is suggested.", { symbol, step: formatLimit(dlSuggestion.step), unit: unitL, n: dlSuggestion.zeros.toLocaleString() })
-                  : tr("The lowest {symbol} result, {min} {unit}, is far above the {step} the values are reported to: a low sample, not a detection limit. None is suggested.", { symbol, min: formatLimit(dlSuggestion.min), unit: unitL, step: formatLimit(dlSuggestion.step) })}
+                  ? tr("{symbol} is reported to {step} {unit}, {n} zeros below it: a reporting step, not a limit.", { symbol, step: formatLimit(dlSuggestion.step), unit: unitL, n: dlSuggestion.zeros.toLocaleString() })
+                  : tr("The lowest {symbol}, {min} {unit}, is far above the {step} reporting step: a low sample, not a limit.", { symbol, min: formatLimit(dlSuggestion.min), unit: unitL, step: formatLimit(dlSuggestion.step) })}
               </div>
             )}
             {methodLimits.length > 1 && new Set(methodLimits.map((m) => m.limit)).size > 1 && ( /* TASKS.csv #2732 */
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, maxWidth: 520 }}>
-                {tr("{symbol} was joined from {n} method columns whose detection limits differ: {list}. One limit for all of them judges some samples against another method's.", { symbol, n: methodLimits.length, list: methodLimits.map((m) => `${m.method ?? tr("main column")} (${m.n.toLocaleString()}): ${m.limit == null ? "—" : formatLimit(m.limit)}`).join("; ") })}
+                {tr("{symbol} joins {n} method columns with different limits: {list}.", { symbol, n: methodLimits.length, list: methodLimits.map((m) => `${m.method ?? tr("main column")} (${m.n.toLocaleString()}): ${m.limit == null ? "—" : formatLimit(m.limit)}`).join("; ") })}
               </div>
             )}
-            <div style={{ display: "flex", gap: 4 }}>
-              {tabs.map((t) => (
-                <button data-btn-own="" key={t} onClick={() => setTab(t)} style={t === tab ? tabBtnActive : tabBtn}>
-                  {t === "totals" ? tr("Totals") : t === "methods" ? tr("Method pairs ({n})", { n: methods.reduce((a, m) => a + m.n, 0) }) : t === "pxrf" ? tr("pXRF vs lab ({n})", { n: pxrf.pairs }) : t === "standards" ? !groups.length && !counts.standard ? tr("Standards ({groups})", { groups: 0 }) : tr(groups.length === 1 ? "Standards ({n} in 1 CRM)" : "Standards ({n} in {groups} CRMs)", { n: counts.standard, groups: groups.length }) /* #2033 — insertions, as the other tabs count samples */ : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
-                </button>
-              ))}
-            </div>
-          </div>
-
+          <MoreFold summary={tr("How QC samples are found")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>{tr("QC samples are read from a sample-type column (standards grouped by a CRM / standard-name column if present), else from the hole_id (\"std\"/\"crm\"/\"oreas\"…, \"blank\"/\"blk\", \"dup\"); a collar-table hole is never QC. Duplicates pair by parent sample id, else hole and interval, else name. Certified limits are those you enter from each CRM's certificate.")}</MoreFold>{/* #3939 — the rules, behind their heading */}
+          </>)}
+          {["standards", "blanks", "duplicates", "methods"].includes(tab) && elementPick}
           {tab === "methods" && <MethodPairsTab methods={methods} symbol={symbol} unit={unitL} assays={assays} setAssays={setAssays || null} />}{/* #2629; swap: #2687 */}
           {tab === "totals" && <OxideTotalsTab assays={assays} majors={majors} setAssays={setAssays || null} sel={sel} tabBtn={tabBtn} />}{/* #2506 */}
           {tab === "pxrf" && ( /* TASKS.csv #1675 */
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-              <div style={{ marginBottom: 6 }}>{tr("{p} of {n} pXRF reading(s) fall inside a lab interval of their hole and are paired. Rank r near 1: pXRF ranks the element as the lab does (fit for mapping); a median ratio away from 1: a bias to correct before mixing. pXRF stays out of the grade tools.", { p: pxrf.pairs, n: pxrf.readings })} {tr("Each lab interval counts once: the readings inside it are averaged first. Readings below the instrument's detection limit are counted apart, not compared.")}</div>{/* #2355 */}
+              <div style={{ marginBottom: 6 }}>{tr("{p} of {n} pXRF reading(s) fall in a lab interval of their hole and are paired.", { p: pxrf.pairs, n: pxrf.readings })} {tr("Each lab interval counts once; readings below the detection limit are counted apart.")}</div>{/* #2355 */}
               {pxrf.rows.length ? (
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
                   <thead><tr>{[tr("Element"), tr("Lab intervals"), tr("Readings"), tr("Below LOD"), tr("Spearman rank r"), tr("Pearson r"), tr("Median pXRF / lab"), tr("Mean pXRF"), tr("Mean lab")].map((h) => <th key={h} style={{ textAlign: "right", padding: "3px 8px", borderBottom: "1px solid var(--color-border)" }}>{h}</th>)}</tr></thead>
                   <tbody>{pxrf.rows.map((r) => <tr key={r.symbol}>{[`${r.symbol} (${gradeUnitLabel(r.symbol, r.unit)})`, r.n, r.readings, r.belowLod, r.rho == null ? "—" : r.rho.toFixed(2), r.r == null ? "—" : r.r.toFixed(2), r.medianRatio == null ? "—" : r.medianRatio.toFixed(2), +r.meanPxrf.toPrecision(3), +r.meanLab.toPrecision(3)].map((v, i) => <td key={i} style={{ textAlign: "right", padding: "2px 8px", color: i === 4 /* the rank r, after the #2355 columns */ && r.rho != null && r.rho < 0.5 ? "var(--color-warn-text-strong)" : undefined }}>{v}</td>)}</tr>)}</tbody>
                 </table>
-              ) : <div>{tr("No element has 10 or more pairs with a value on both sides.")}</div>}
+              ) : <div>{tr("No element has 10 pairs with both values.")}</div>}
             </div>
           )}
           {tab === "standards" && (
             groups.length === 0 ? (
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No standard is inserted more than once, so none can be compared. Standards are found by a hole_id containing \"std\", \"crm\", \"oreas\", etc.")}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No standard is inserted more than once.")}</div>
             ) : (
               <>
                 <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr(groups.length === 1 ? "Standard (1 CRM)" : "Standard ({groups} CRMs)", { groups: groups.length }) /* #2033 */}<select value={activeGroup?.id || ""} onChange={(e) => setSelectedStdId(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
@@ -207,12 +196,12 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                   <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No {symbol} values found for this standard.", { symbol })}</div>
                 ) : (
                   <>
-                    <div style={label}>{tr("Control chart — {symbol} ({v}), {v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]) /* #3586 */, v2: series.limits.certified ? tr("CERTIFIED mean ± 2SD/3SD (from the certificate)") : tr("self-referencing mean ± 2SD/3SD (enter the certificate values below for certified limits)") })}
+                    <div style={label}>{tr("Control chart — {symbol} ({v}), {v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]) /* #3586 */, v2: series.limits.certified ? tr("certified mean ± 2SD/3SD") : tr("own mean ± 2SD/3SD") })}
                     </div>
                     {/* TASKS.csv #400 — certificate values, saved with the project */}
                     <CertInputs key={`${activeGroup.id}|${symbol}`} cert={cert} unit={unitL} onSave={(c) => setCrmCertificate?.(activeGroup.id, symbol, c)} />
                     <ControlChart points={series.points} limits={series.limits} />
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Plotted in {v}.", { v: ordered.bySampleId ? tr("sample-id order") : tr("the order the rows were imported (no sample ids: re-imports and merges can reorder them)") })}</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Plotted in {v}.", { v: ordered.bySampleId ? tr("sample-id order") : tr("import order") })}</div>
                     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                       {series.limits.certified
                         ? <>{tr("Certified {mean} ± {sd} · observed mean {mean2} (SD {sd2}, n={n}) ·", { mean: series.limits.mean, sd: series.limits.sd, mean2: series.observed.mean.toFixed(3), sd2: series.observed.sd.toFixed(3), n: series.observed.n })}{" "}<b style={{ color: Math.abs(series.biasPct) > 5 ? "var(--color-danger-fg)" : "inherit" }}>{tr("bias {v}{biasPct}%", { v: series.biasPct >= 0 ? "+" : "", biasPct: series.biasPct.toFixed(1) })}</b>{Math.abs(series.biasPct) > 5 ? tr(" (over ±5%)") : ""}</>
@@ -233,7 +222,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                   </span>
                 </label>
               ) : (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)", { unit: unitL })}<NumberInput allowEmpty value={blankThreshold ?? null} placeholder={tr("none")} onChange={(v) => setBlankThreshold(v)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit})", { unit: unitL })}<NumberInput allowEmpty value={blankThreshold ?? null} placeholder={tr("none")} onChange={(v) => setBlankThreshold(v)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
                 </label>
               )}
               {methodsDiffer && ( /* TASKS.csv #2772 */
@@ -253,9 +242,9 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                   ))}
                 </div>
               )}
-              {!dl && blankThreshold == null && !blankByMethod && blanks.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "6px 0" }}>{tr("No threshold set, so the {n} blank(s) are listed but not judged. Enter a threshold in {unit}, or set {symbol}'s detection limit to judge them against a multiple of it.", { n: blanks.length, unit: unitL, symbol })}</div>}{/* #2733 */}
+              {!dl && blankThreshold == null && !blankByMethod && blanks.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "6px 0" }}>{tr("No threshold: {n} blank(s) listed, not judged.", { n: blanks.length, unit: unitL, symbol })}</div>}{/* #2733 */}
               {blanks.length === 0 ? (
-                <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No blanks found (hole_id containing \"blank\"/\"blk\"), or none have a {symbol} value.", { symbol })}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No blanks with a {symbol} value.", { symbol })}</div>
               ) : (
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead><tr><th style={th}>{tr("Hole ID")}</th><th style={th}>{tr("From")}</th><th style={th}>{tr("To")}</th><th style={th}>{symbol}</th>{blankByMethod && <th style={th}>{tr("Method")}</th>}{blankByMethod && <th style={th}>{tr("Limit")}</th>}<th style={th}>{tr("Flag")}</th></tr></thead>
@@ -277,14 +266,14 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           {/* TASKS.csv #579 */}
           {tab === "duplicates" && (
             <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}
-              title={tr("Tick to measure repeated rows of one hole and interval as duplicate pairs (common in ARIS and older exports): the first row is the original; identical rows are skipped.")}>
+              title={tr("The first row is the original; identical rows are skipped.")}>
               <input type="checkbox" checked={repeatedAsDup} onChange={(e) => setRepeatedAsDup(e.target.checked)} style={{ marginTop: 2 }} />
-              <span>{!repeatedAsDup && dups.repeatedRows > 0 ? tr("{n} repeated same-interval row(s): tick to read them as duplicate pairs (the lower sample id, else the first row, is the original)", { n: dups.repeatedRows.toLocaleString() }) /* #3230 */ : tr("Treat repeated same-interval rows as duplicate pairs (1st = original, 2nd = duplicate){v}", { v: repeatedAsDup ? tr(" — {n} pair(s) found{v}", { n: dups.filter((p) => p.how === "repeated interval").length, v: dups.identicalRepeats ? tr(", {identicalRepeats} identical repeat(s) skipped as double imports", { identicalRepeats: dups.identicalRepeats }) : "" }) : "" })}</span>
+              <span>{!repeatedAsDup && dups.repeatedRows > 0 ? tr("{n} repeated same-interval row(s): tick to read them as duplicate pairs", { n: dups.repeatedRows.toLocaleString() }) /* #3230 */ : tr("Repeated same-interval rows as duplicate pairs{v}", { v: repeatedAsDup ? tr(" — {n} pair(s) found{v}", { n: dups.filter((p) => p.how === "repeated interval").length, v: dups.identicalRepeats ? tr(", {identicalRepeats} identical repeat(s) skipped as double imports", { identicalRepeats: dups.identicalRepeats }) : "" }) : "" })}</span>
             </label>
           )}
           {tab === "duplicates" && dups.repeatedRows > 0 && ( /* TASKS.csv #3549 — QC links step 2: the repeated intervals of assays with no sample ids, suggested as duplicate pairs and marked only as the user confirms them */
             <div style={{ margin: "4px 0" }}>
-              {!reviewOpen && <button type="button" className="gs-btn gs-btn--sm" onClick={() => setReviewOpen(true)} title={tr("Mark which repeated rows are duplicates: only a sample type and a parent sample id are written, on the second row of each pair you tick.")}>{tr("Review {n} repeated interval(s) and mark duplicates…", { n: fmtNum(dups.repeatedRows) })}</button>}
+              {!reviewOpen && <button type="button" className="gs-btn gs-btn--sm" onClick={() => setReviewOpen(true)} title={tr("Writes a sample type and a parent id on the second row of each pair you tick.")}>{tr("Review {n} repeated interval(s) and mark duplicates…", { n: fmtNum(dups.repeatedRows) })}</button>}
               {reviewOpen && <QcPairReview assays={assays} symbol={symbol} unit={unit} elementUnits={elementUnits} unitLabel={unitL} onClose={() => setReviewOpen(false)}
                 onApply={(rows, marked) => { setAssays?.(rows); setReviewNote(tr("{n} pair(s) marked: the second row of each is now a field duplicate of the first.", { n: fmtNum(marked) })); setReviewOpen(false); }} />}
               {reviewNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-success-text)", marginTop: 4 }}>{reviewNote}</div>}
@@ -292,11 +281,11 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           )}
           {tab === "duplicates" && (
             dups.length === 0 ? (
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No duplicate pairs found — a duplicate row (hole_id containing \"dup\") needs a matching original row at the exact same hole_id/from/to (see info).")}</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No duplicate pairs: a duplicate needs an original at the same hole and interval.")}</div>
             ) : (
               <>
                 <div style={label}>{tr("Relative % difference (RPD) — {symbol}, {dups} {v}", { symbol, dups: dups.length, v: tr(dups.length === 1 ? "pair" : "pairs") })}</div>
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.")}>{tr("Ignore pairs with a mean below ({unit}){v}", { unit: unitL, v: dl ? tr(" — default 10 × DL = {v}", { v: Number((10 * dl).toPrecision(4)) }) : tr(", e.g. 10× detection limit") })}
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.")}>{tr("Ignore pairs below ({unit}){v}", { unit: unitL, v: dl ? tr(" — default 10 × DL = {v}", { v: Number((10 * dl).toPrecision(4)) }) : tr(", e.g. 10× detection limit") })}
                   <NumberInput allowEmpty min={0} value={dupMin} placeholder={dl ? String(Number((10 * dl).toPrecision(4))) : "0"} onChange={(v) => setDupMin(v == null ? "" : String(v))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Minimum pair mean")} />
                 </label>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
@@ -316,24 +305,15 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                     ))}
                   </tbody>
                 </table>
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Flagged above the usual precision limit for its sample type: field {field}%, coarse reject {coarse}%, pulp {pulp}% ({unknown}% if not stated). Industry rules of thumb, not certified or regulatory limits.", { field: DUP_RPD_LIMITS.field, coarse: DUP_RPD_LIMITS.coarse, pulp: DUP_RPD_LIMITS.pulp, unknown: DUP_RPD_LIMITS.unknown })}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Limits: field {field}%, coarse reject {coarse}%, pulp {pulp}% ({unknown}% if not stated).", { field: DUP_RPD_LIMITS.field, coarse: DUP_RPD_LIMITS.coarse, pulp: DUP_RPD_LIMITS.pulp, unknown: DUP_RPD_LIMITS.unknown })}</div>
               </>
             )
           )}
-
-          <MoreFold summary={tr("How QC samples are found")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>{tr("QC samples are read from a sample-type column (standards grouped by a CRM / standard-name column if present), else from the hole_id (\"std\"/\"crm\"/\"oreas\"…, \"blank\"/\"blk\", \"dup\"); a collar-table hole is never QC. Duplicates pair by parent sample id, else hole and interval, else name. Certified limits are those you enter from each CRM's certificate.")}</MoreFold>{/* #3939 — the rules, behind their heading */}
-
-          {/* TASKS.csv #617 — with nothing in the current view, Export used to do nothing at all when clicked */}
-          <button onClick={exportCSV} disabled={!exportCount} title={exportCount ? tr("Export the {exportCount} row(s) in this view", { exportCount }) : tr("Nothing to export: this view has no {v}", { v: tab === "standards" ? tr("standard results") : tab })} className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: exportCount ? 1 : 0.5, cursor: exportCount ? "pointer" : "not-allowed" }}>
-            <Download size={14} />{" "}{tr("Export current view (CSV)")}</button>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} className="gs-btn" style={{ flex: 1 }}>{tr("Close")}</button>
-        </div>
-      </div>
     </div>
   );
+  const steps = stepKeys.map((key, i) => ({ key, label: STEP_LABEL[key](), render: () => body,
+    primary: i === 0 ? { label: tr("Next") } : { label: tr("Export current view (CSV)"), onClick: exportCSV, disabled: !exportCount } }));
+  return <StepDialog title={tr("QAQC — lab quality control")} onClose={onClose} steps={steps} at={at} onAt={setAt} width="min(900px, 96vw)" help={<DialogHelpCard page="qaqc" lines={[]} />} />;
 }
 
 // TASKS.csv #400 — the certificate's mean and 1 SD for this standard + element
@@ -380,11 +360,8 @@ function ControlChart({ points, limits }) {
   );
 }
 
-const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const tabBtn = { padding: "6px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text-secondary)" };
-const tabBtnActive = { ...tabBtn, background: "var(--color-text)", color: "var(--color-bg)", border: "1px solid var(--color-text)" };
 const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "right", fontFamily: "'Exo 2', system-ui, sans-serif" };

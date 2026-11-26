@@ -7,7 +7,7 @@ test("the diagram filter and Grade stats say what they count", () => {
   const g = readFileSync(new URL("../src/modules/GeochemModule.jsx", import.meta.url), "utf8");
   assert.match(g, /tr\("Counts every sample of the chosen source, with or without the plotted elements; a sample takes the code it overlaps most\."\)/);
   const s = readFileSync(new URL("../src/components/GradeStatistics.jsx", import.meta.url), "utf8");
-  assert.match(s, /tr\("n counts the samples with a \{symbol\} result, each metre once; a sample takes the domain code it overlaps most\.", \{ symbol: symLabel \}\)/);
+  assert.match(s, /tr\("n: samples with a \{symbol\} result, each metre once\.", \{ symbol: symLabel \}\)/);
   const t = readFileSync(new URL("../src/components/ThresholdToolkit.jsx", import.meta.url), "utf8");
   assert.match(t, /Each assay counts by its length/, "Thresholds already says it");
 });

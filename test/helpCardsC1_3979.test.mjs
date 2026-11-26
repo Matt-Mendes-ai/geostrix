@@ -49,7 +49,7 @@ test("a step strip only where the walk-through was in view (not folded) in the p
   assert.deepEqual(strip("view-basics"), ["Open Macpass", "Turn on Zn", "Filter holes", "Open a strip log"]);
   assert.deepEqual(strip("downhole-compositing"), ["Pick Zn", "Read the table", "Set a cap", "Keep as a layer"]);
   assert.deepEqual(strip("grade-statistics"), ["Pick Zn", "Tick Log scale", "Set a cut-off"]);
-  assert.deepEqual(strip("qaqc"), ["Import assays with QC", "Read the counts", "Pick an element", "Enter the limit"]);
+  assert.deepEqual(strip("qaqc"), ["Import QC assays", "Read the counts", "Pick an element", "Enter the limit"]);
   for (const id of ["import-drillholes", "import-assays", "import-density", "data-qc", "export-formats", "save-recovery", "help-start"]) assert.equal(strip(id), undefined, `${id}: its walk-through stays folded`);
   for (const id of ["first-project", "view-basics", "downhole-compositing", "grade-statistics", "qaqc"]) assert.ok(pageById(id).strip.length >= 3 && pageById(id).strip.length <= pageById(id).howto.steps.length, `${id}: a short strip of its walk-through`);
 });

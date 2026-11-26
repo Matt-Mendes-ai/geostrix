@@ -21,5 +21,5 @@ test("a calculated element is left out of the immobile list and the mass-balance
   assert.match(src, /useState\(new Set\(concSymbols\.filter\(\(s\) => DEFAULT_IMMOBILE\.includes\(s\)\)\)\)/);
   assert.match(src, /const table = concSymbols/);
   assert.match(src, /\{concSymbols\.map\(\(s\) => \(/);
-  assert.match(src, /Left out of the mass balance \(calculated indices and equivalents, not concentrations\): \{list\}/);
+  assert.match(src, /Left out: \{list\} \(calculated, not concentrations\)\./);
 });
