@@ -123,14 +123,15 @@ test("#4103 the fit in words: a straight trace warns and offers the map / defaul
   const straight = { id: "t", name: "Straight", part: Array.from({ length: 30 }, (_, i) => [1000 + i * 20, 2000 + i * 20]), feature: { attributes: {}, parts: [] }, lengthM: 800 };
   const bad = tracedEvidence(straight, { ground: (x, y) => 100 + 0.1 * x + 0.05 * y });
   const html0 = un(renderToStaticMarkup(h(Block, { id: "t", name: "Straight", fit: bad.fit, sel: { order: 1 }, hasZ: false, setSel: () => {}, onRemove: () => {} })));
-  assert.ok(html0.includes("A near-straight trace: any plane fits it, so its dip is unknown."));
-  assert.ok(html0.includes("Dip 60° towards") || /Dip \d+° towards/.test(html0), "the default dip is said");
+  assert.ok(html0.includes("Near-straight trace: any plane fits, so the dip is unknown."));
+  assert.ok(/Dip \d+° → \d+°, the default \(not measured\)\./.test(html0), "the default dip is said in one line");
   assert.ok(/<details data-more-fold="" data-more-surface=""/.test(html0) && !/<details[^>]*open=/.test(html0), "closed at the plane");
   assert.ok(!html0.includes("Use the map or default dip"), "no 'instead' button when the map dip is already used");
   const good = tracedEvidence(lineOf(planeTrace()), { ground: valley });
   const html1 = un(renderToStaticMarkup(h(Block, { id: "g", name: "Falha 1", fit: good.fit, sel: { order: 1 }, hasZ: true, setSel: () => {}, onRemove: () => {} })));
-  assert.ok(/Fitted: strike 3\d°, dip 5[45]° towards 12\d° \(± \d+°\), misfit [\d.]+ m, \d+ points\./.test(html1), html1.slice(0, 400));
-  assert.ok(html1.includes("Heights: the terrain's.") && html1.includes("The line's altitudes"), "the heights source, and the choice when the line has its own");
+  assert.ok(/Dip 5[45]° → 12\d° ± \d+°, RMS [\d.]+ m, \d+ points \(terrain\)\./.test(html1), html1.slice(0, 400));
+  assert.ok(html1.includes("(terrain)") && html1.includes("The line's altitudes"), "the heights source in the line, and the choice when the line has its own");
+  assert.ok(!/Details[^]*Fitted/.test(html1) && !html1.includes("Heights:"), "no second line for the heights");
   const o2 = tracedEvidence(lineOf(planeTrace({ dy: 20 })), { ground: valley, order: 2 });
   const html2 = un(renderToStaticMarkup(h(Block, { id: "g", name: "Falha 1", fit: o2.fit, sel: { order: 2 }, hasZ: false, setSel: () => {}, onRemove: () => {} })));
   assert.ok(/<details data-more-fold="" open="" data-more-surface=""/.test(html2) && html2.includes("Residuals:") && html2.includes("A higher order bends where there are no points"));
@@ -141,7 +142,8 @@ test("#4103 the fit in words: a straight trace warns and offers the map / defaul
   const lr = tracedEvidence(lineOf(gp), { ground: gentle });
   if (lr.fit.problems.includes("little-relief")) {
     const hl = un(renderToStaticMarkup(h(Block, { id: "l", name: "L", fit: lr.fit, sel: { order: 1 }, hasZ: false, setSel: () => {}, onRemove: () => {} })));
-    assert.ok(/Little relief along the trace: the dip is known to ± \d+° only\./.test(hl) && hl.includes("Use the map or default dip"));
+    assert.ok(/Little relief: the dip is known only to ± \d+°\./.test(hl) && hl.includes("Use the map or default dip"));
+    assert.equal((hl.match(/class="[^"]*"|style="[^"]*color:var\(--color-warn-text\)/g) || []).filter((x) => /warn-text/.test(x)).length >= 1, true);
   }
 });
 
@@ -153,7 +155,8 @@ test("#4103 wiring: the Faults builder lists every imported line and adds the ch
   for (const k of ['data-vein-line=""', "traceLines(props.mapLayers)", "tracedEvidence(chosen", "buildVeinFromLine({", 'tr("Build the vein surface")', "<TraceFitBlock", "runVeinModel(veinTarget)", "setVeinTarget(e.target.value); setLineSel((p) => ({ ...p, id: \"\" }))"]) assert.ok(vp.includes(k), `Vein pane: ${k}`);
   assert.match(mp, /<VeinPane \{\.\.\.\{[^}]*vein_units, props \}\} \/>/);
   // the Faults pane builds its planes through addWorldMeshSurface: it must reach ModellingPanes (commit fdb819c1d, #4028, had dropped it from the mount's props, and Build made nothing, silently)
-  assert.match(read("src/modules/ViewerModule.jsx"), /<ModellingPanes \{\.\.\.\{ addWorldMeshSurface, /);
+  assert.match(read("src/modules/ViewerModule.jsx"), /<ModellingPanes \{\.\.\.\{ setStackUnits,[\s\S]*?, addWorldMeshSurface \/\* TASKS\.csv #4103/);
+  assert.ok(mp.includes("props: { ...props, addWorldMeshSurface }"), "ModellingPanes reads it and hands it to the Faults pane");
   assert.ok(fb.includes("addWorldMeshSurface") && fb.includes("addSurface: addWorldMeshSurface"));
   const fr = read("src/modules/viewer/faultRun.js");
   assert.ok(fr.includes("fitTraceSurface(f.spec.points, order") && fr.includes("polynomialSurfaceMesh({") && fr.includes('shape: "polynomial"'));

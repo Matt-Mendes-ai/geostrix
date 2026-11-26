@@ -3,7 +3,8 @@
 // crosses the valley.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { traceLines, drapeTrace, fitTracePlane, fitTraceSurface, orientationsAlong, tracedEvidence } from "../src/lib/traceFit.js";
+import fs from "node:fs";
+import { traceLines, drapeTrace, fitTracePlane, fitTraceSurface, orientationsAlong, tracedEvidence, looksLikeDegrees, MAX_DIP_ERROR_DEG } from "../src/lib/traceFit.js";
 import { FAULT_TEXT, mappedFaultFeatures } from "../src/lib/faultInventory.js";
 
 const rad = (d) => (d * Math.PI) / 180;
@@ -184,4 +185,53 @@ test("#4103 order 2 / 3 on points along ONE trace (what a line gives) keep the p
     for (const o of ori) { assert.ok(Math.abs(o.dip - 55) < 4, `order ${order}: dip ${o.dip}`); assert.ok(angleDiff(o.azimuth, 120) < 6, `order ${order}: dip direction ${o.azimuth}`); }
     assert.ok(s.rms < 0.5);
   }
+});
+
+test("#4103 the KML arrives in EPSG:4326: the REAL import path (parse, map layer, reprojection into the project CRS) gives metres, and the plane is fitted in them, not in degrees", async () => {
+  const { createRequire } = await import("node:module");
+  const proj4 = createRequire(import.meta.url)("proj4");
+  const { parseKML, kmlToMapLayers } = await import("../src/lib/kml.js");
+  const { buildLayer } = await import("../src/lib/mapLayerBuild.js");
+  const UTM = "+proj=utm +zone=33 +datum=WGS84 +units=m +no_defs";
+  const part = planeTrace({ strike: 30, dip: 55, x0: 500000, y0: 5001500, from: 5000600, to: 5002400 }).map(([x, y]) => [x, y]);
+  const ground = (x, y) => 300 + 0.25 * Math.sqrt((y - 5001500) ** 2 + 400);
+  // planeTrace's valley is centred on y = 2000: shift it to the UTM valley used here by building the trace on this ground
+  const dd = rad(120), t = Math.tan(rad(55)), z0 = ground(0, 5001500), utm = [];
+  for (let y = 5000600; y <= 5002400; y += 30) utm.push([500000 + (z0 - ground(0, y) - t * (y - 5001500) * Math.cos(dd)) / (t * Math.sin(dd)), y]);
+  const kml = `<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><name>Falha 1</name><LineString><altitudeMode>clampToGround</altitudeMode><coordinates>${utm.map((p) => proj4(UTM, "EPSG:4326", p).map((v) => v.toFixed(8)).join(",")).join(" ")}</coordinates></LineString></Placemark></Document></kml>`;
+  const parsed = kmlToMapLayers(parseKML(kml).features).find((l) => l.geomType === "polyline");
+  assert.equal(parsed.epsg, 4326);
+  assert.ok(Math.abs(parsed.features[0].parts[0][0][0]) < 180, "as written: degrees");
+  const built = buildLayer(parsed, { sourceName: "valley.kml", projectEpsg: 32633 });
+  assert.match(built.crsNote, /EPSG:4326.*EPSG:32633/);
+  const first = built.features[0].parts[0][0];
+  assert.ok(Math.abs(first[0] - utm[0][0]) < 0.5 && Math.abs(first[1] - utm[0][1]) < 0.5, `reprojected: ${first}`);
+  const lines = traceLines([{ ...built, id: "k" }]);
+  assert.equal(lines.length, 1); assert.equal(lines[0].name, "Falha 1");
+  const r = tracedEvidence(lines[0], { ground });
+  assert.ok(r.ok && Math.abs(r.fit.dip - 55) < 1, `dip ${r.fit?.dip}`);
+  assert.ok(angleDiff(r.fit.dipDir, 120) < 2);
+  // the same line left in degrees (a project whose CRS could not take it): said, never fitted
+  const onTerrain = (x, y) => (x > 1000 ? ground(x, y) : NaN); // a real terrain answers NaN off its box: a line in degrees is nowhere on it
+  const left = tracedEvidence({ id: "d", name: "Falha 1", part: parsed.features[0].parts[0], feature: parsed.features[0], lengthM: 1000 }, { ground: onTerrain });
+  assert.equal(left.ok, false); assert.equal(left.why, "degrees");
+  assert.ok(looksLikeDegrees(parsed.features[0].parts[0]) && !looksLikeDegrees(utm));
+  // a small local grid (metres) is not degrees: with no terrain under it the message is the height one
+  const local = [[10, 20], [60, 80], [120, 90]];
+  assert.equal(looksLikeDegrees(local), false);
+  assert.equal(tracedEvidence({ id: "l", name: "L", part: local, feature: { attributes: {}, parts: [local] }, lengthM: 200 }, { ground: () => NaN }).why, "no-height");
+});
+
+test("#4103 the poorly-constrained threshold is a named, commented constant that decides; a looser one trusts the same trace", () => {
+  const src = fs.readFileSync(new URL("../src/lib/traceFit.js", import.meta.url), "utf8");
+  assert.match(src, /POORLY CONSTRAINED: the dip's standard error[\s\S]{0,400}export const MAX_DIP_ERROR_DEG = 10;/);
+  assert.equal(MAX_DIP_ERROR_DEG, 10);
+  const gentle = (x, y) => 250 + 0.05 * Math.abs(y - 2000); // a 300 m trace over gentle relief: the dip is known to about 15 degrees
+  const dd = rad(120), t = Math.tan(rad(55)), z0 = gentle(500, 2000);
+  const part = Array.from({ length: 50 }, (_, i) => { const y = 1850 + i * (300 / 49), g = gentle(0, y); return { x: 500 + (z0 - g - t * (y - 2000) * Math.cos(dd)) / (t * Math.sin(dd)), y, z: g }; });
+  const strict = fitTracePlane(part, { vertices: 50, maxErrorDeg: 1 }), loose = fitTracePlane(part, { vertices: 50, maxErrorDeg: 90 });
+  assert.ok(strict.ok && loose.ok);
+  assert.ok(!strict.wellConstrained && strict.problems.includes("little-relief"));
+  assert.ok(!loose.problems.includes("little-relief"), "the same trace under a looser threshold is not flagged");
+  assert.equal(strict.dipErrorDeg, loose.dipErrorDeg);
 });

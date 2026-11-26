@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { Layers3, Waves } from "../../../components/icons.js";
 import { traceLines, tracedEvidence } from "../../../lib/traceFit.js"; // TASKS.csv #4103 — a vein or dyke from any imported line
 import { terrainGroundAt } from "../../../lib/viewer/geomath.js";
-import TraceFitBlock from "../TraceFitBlock.jsx";
+import TraceFitBlock, { traceFailureWord } from "../TraceFitBlock.jsx";
 import { buildVeinFromLine } from "../veinLine.js";
 import MoreFold from "../../../components/MoreFold.jsx";
 import StepPane, { StepNumbers } from "../../../components/StepPane.jsx";
@@ -50,14 +50,15 @@ export default function VeinPane({ implicitSurfaces, miniField, paneHeader, runV
               {lines.map((l) => <option key={l.id} value={l.id}>{tr("{name} — {layer}, {km} km", { name: l.name, layer: l.layerName, km: (l.lengthM / 1000).toFixed(1) })}</option>)}
             </select>
             {chosen && traced?.ok && <TraceFitBlock id={chosen.id} name={chosen.name} fit={traced.fit} sel={lineSel} hasZ={chosen.hasZ} setSel={(patch) => setLineSel((p) => ({ ...p, ...patch }))} onRemove={() => pickLine("")} />}
-            {chosen && traced && !traced.ok && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4 }}>{traced.why === "few" ? tr("{name}: fewer than three points to fit.", { name: chosen.name }) : tr("{name}: no height: no altitudes on the line and no terrain.", { name: chosen.name })}</div>}
+            {chosen && traced && !traced.ok && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4 }}>{traceFailureWord(traced.why, chosen.name)}</div>}
             {chosen && traced?.ok && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("A line has no thickness: only the vein's surface is built.")}</div>}
             {lineMsg && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4 }}>{lineMsg}</div>}
           </div>
         )}
                 </>) },
               ]}
-              action={{ label: chosen ? tr("Build the vein surface") : veinBusy ? tr("Building the vein pair…") : tr("Build vein"), onClick: () => (chosen ? buildLine() : runVeinModel(veinTarget)), disabled: chosen ? !traced?.ok : !veinTarget || veinBusy, icon: <Layers3 size={14} />,
+              action={chosen ? { label: tr("Build the vein surface"), onClick: buildLine, disabled: !traced?.ok, icon: <Layers3 size={14} /> /* TASKS.csv #4103 — a line has no logged intervals: its own action */ }
+                : { label: veinBusy ? tr("Building the vein pair…") : tr("Build vein"), onClick: () => runVeinModel(veinTarget), disabled: !veinTarget || veinBusy, icon: <Layers3 size={14} />,
                 title: tr("Build paired hangingwall/footwall surfaces (and a closed solid when they do not cross) from the logged vein intervals (runs in-app)") }}
               result={{ key: vr?.key ?? null, body: vr && (vr.line ? <StepNumbers rows={[{ /* TASKS.csv #4103 — a surface from a traced line: no intercepts and no thickness */ label: tr("Points used"), value: Number(vr.line.points).toLocaleString(), title: vr.target },
                 { label: tr("Dip / dip direction"), value: `${Math.round(vr.dip)}° / ${Math.round(vr.dipDir)}°`, title: vr.source },

@@ -13,7 +13,7 @@ import StepPane from "../../components/StepPane.jsx"; // TASKS.csv #4070 — the
 import { faultSpec } from "../../lib/faultEvidence.js";
 import { traceLines, tracedEvidence } from "../../lib/traceFit.js"; // TASKS.csv #4103 — a line traced over the relief, any imported line
 import { terrainGroundAt } from "../../lib/viewer/geomath.js";
-import TraceFitBlock from "./TraceFitBlock.jsx";
+import TraceFitBlock, { traceFailureWord } from "./TraceFitBlock.jsx";
 import { gatherFaultEvidence, keepInsideWorld, downDipReach } from "./faultGather.js";
 import { planeOf, buildFaultPlanes, FAULT_CHECK_M } from "./faultRun.js"; // TASKS.csv #4053 — the sheeted-planes build, shared with an AI app's build_fault
 import { buildMeshQuery, closestPointOnMesh } from "../../lib/meshQuery.js";
@@ -139,7 +139,7 @@ export default function FaultBuilder(props) {
       </select>
       {traceFailures.map((t) => (
         <div key={t.line.id} style={{ ...warn, display: "flex", gap: 6, alignItems: "center" }}>
-          <span style={{ flex: 1 }}>{t.res.why === "few" ? tr("{name}: fewer than three points to fit.", { name: t.line.name }) : tr("{name}: no height: no altitudes on the line and no terrain.", { name: t.line.name })}</span>
+          <span style={{ flex: 1 }}>{traceFailureWord(t.res.why, t.line.name)}</span>
           <button type="button" className="gs-btn gs-btn--sm" onClick={() => dropLine(t.line.id)}>{tr("Remove the line")}</button>
         </div>
       ))}

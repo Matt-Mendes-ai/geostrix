@@ -9,6 +9,7 @@
 // Pure: no React, no store; the caller gives the ground (x, y) -> z (NaN off the terrain). A plane through points that lie along a line is not defined: that is said, never guessed.
 import { fitPlane, thinLine, mappedFaultAttitude } from "./faultEvidence.js";
 import { lineLength } from "./faultPick.js";
+import { arrMax, arrMin } from "./arrayStats.js";
 
 const finite = (...v) => v.every(Number.isFinite);
 const deg = (r) => (r * 180) / Math.PI;
@@ -17,10 +18,14 @@ const norm360 = (a) => ((a % 360) + 360) % 360;
 const r1 = (v) => Math.round(v * 10) / 10;
 const r2 = (v) => Math.round(v * 100) / 100;
 
+// ---- THE KNOBS (tune here, once Matt or the user has tried it on real traces; each is read in one place and pinned by test/traceFit4103.test.mjs)
 export const TRACE_STEP_M = 50; // the trace is read every 50 m (or a quarter of a short line), the relief the plane is fitted to
-export const HEIGHT_SIGMA_M = 5; // what a terrain height and a hand-placed vertex are good to: the floor of the misfit the dip's error is judged by
-export const MAX_DIP_ERROR_DEG = 10; // a dip known to worse than this is "poorly constrained"
+export const HEIGHT_SIGMA_M = 5; // what a terrain height and a hand-placed vertex are good to: the floor of the misfit the dip's error is judged by. Raise it for a coarse DEM
+// POORLY CONSTRAINED: the dip's standard error (degrees) over which a fitted dip is warned about and the map / default dip offered. 10 is a first guess: with a 5 m height uncertainty it
+// means a trace whose points leave the plane by less than a few metres over some 500 m is flagged. Lower it to warn more, raise it to trust short or gentle traces.
+export const MAX_DIP_ERROR_DEG = 10;
 export const LEVEL_DIP_DEG = 5; // a fitted dip under this is the ground itself (a trace on level ground), not a fault
+export const DEGREES_BOX = 5; // a line whose every vertex lies within +-180 / +-90 and spans under this many "units" is read as longitude / latitude left unprojected
 
 // the lines of the map layers (and the interpretation lines), to choose from: [{ id, name, layerName, layerId, feature, part, hasZ, lengthM, vertices }]
 export function traceLines(mapLayers) {
@@ -38,6 +43,14 @@ export function traceLines(mapLayers) {
     }));
   });
   return out;
+}
+
+// longitude / latitude left in degrees (a KML whose CRS could not be brought into the project's): the plane would be fitted in degrees, nonsense. Said, not fitted.
+export function looksLikeDegrees(part) {
+  const v = (part || []).filter((p) => finite(p[0], p[1]));
+  if (v.length < 2) return false;
+  const xs = v.map((p) => p[0]), ys = v.map((p) => p[1]);
+  return Math.max(...xs.map(Math.abs)) <= 180 && Math.max(...ys.map(Math.abs)) <= 90 && arrMax(xs) - arrMin(xs) < DEGREES_BOX && arrMax(ys) - arrMin(ys) < DEGREES_BOX;
 }
 
 // the 3D points of a line. heights: "auto" (the vertices' own altitudes where the file has them, the terrain elsewhere), "terrain" (always the terrain), "line" (only the file's altitudes).
@@ -114,7 +127,7 @@ export function fitTraceSurface(points, order = 2, { vertices = null } = {}) {
   if (P.length < Math.max(3, T) || f.flat || !f.centroid) return { ok: false, why: P.length < Math.max(3, T) ? "few" : "straight", order: k, terms: T, n: P.length };
   const c = f.centroid, { u, v, n } = frameOf(f);
   const local = P.map((p) => { const d = [p.x - c.x, p.y - c.y, p.z - c.z]; return { pu: dot(d, u), pv: dot(d, v), pw: dot(d, n) }; });
-  const su = Math.max(1e-9, ...local.map((q) => Math.abs(q.pu))), sv = Math.max(1e-9, ...local.map((q) => Math.abs(q.pv)));
+  const su = Math.max(1e-9, arrMax(local.map((q) => Math.abs(q.pu)))), sv = Math.max(1e-9, arrMax(local.map((q) => Math.abs(q.pv))));
   const exps = [];
   for (let i = 0; i <= k; i++) for (let j = 0; i + j <= k; j++) exps.push([i, j]);
   const basis = (x, y) => exps.map(([i, j]) => x ** i * y ** j);
@@ -150,7 +163,7 @@ export function fitTraceSurface(points, order = 2, { vertices = null } = {}) {
   }
   // the surface in the plane's own coordinates (a, b metres along strike and down dip from the centre): the world point at (a, b), its height over the plane held to a few times what the points span
   // (a cubic runs away past the points), and where a world point falls
-  const wLimit = Math.max(50, 3 * Math.max(...local.map((q) => Math.abs(q.pw))) + 0.25 * Math.max(su, sv));
+  const wLimit = Math.max(50, 3 * arrMax(local.map((q) => Math.abs(q.pw))) + 0.25 * Math.max(su, sv));
   const localOf = (p) => { const d = [p.x - c.x, p.y - c.y, p.z - c.z]; return [dot(d, u), dot(d, v)]; };
   const pointAt = (a, b) => { const w = Math.max(-wLimit, Math.min(wLimit, wAt(a / su, b / sv))); return { x: c.x + a * u[0] + b * v[0] + w * n[0], y: c.y + a * u[1] + b * v[1] + w * n[1], z: c.z + a * u[2] + b * v[2] + w * n[2] }; };
   return { ok: true, order: k, terms: T, n: P.length, rms, worst, worstAt, residuals, caution, centre: c, frame: { u, v, n }, localOf, pointAt, evaluate: (px, py, pz) => { const d = [px - c.x, py - c.y, pz - c.z]; return wAt(dot(d, u) / su, dot(d, v) / sv); }, normalAt };
@@ -167,7 +180,7 @@ export function orientationsAlong(points, surface, count = 6) {
 // -> { ok, why?, item, fit } with fit = { source, dropped, points, vertices, plane, surface, order, usedMapDip, dip, dipDir, strike, problems, wellConstrained }
 export function tracedEvidence(line, { ground = () => NaN, order = 1, heights = "auto", mapDip = false, stepM = TRACE_STEP_M } = {}) {
   const dr = drapeTrace(line.part, { ground, stepM, heights });
-  if (dr.points.length < 3) return { ok: false, why: dr.points.length ? "few" : "no-height", drape: dr };
+  if (dr.points.length < 3) return { ok: false, why: dr.points.length ? "few" : looksLikeDegrees(line.part) ? "degrees" : "no-height", drape: dr };
   const plane = fitTracePlane(dr.points, { vertices: dr.vertices });
   const surface = order > 1 ? fitTraceSurface(dr.points, order, { vertices: dr.vertices }) : null;
   const base = { source: dr.source, dropped: dr.dropped, points: dr.points.length, vertices: dr.vertices, order, plane, surface: surface?.ok ? surface : null, problems: plane.problems || [] };
