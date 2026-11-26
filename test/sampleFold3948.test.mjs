@@ -4,47 +4,37 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { sampleCardsFor, emptyCardSamples, SAMPLES_IN_VIEW, SAMPLE_RANK } from "../src/lib/sampleCards.js";
+import { sampleCardsFor, sampleListFor, SAMPLES_IN_VIEW, SAMPLE_RANK } from "../src/lib/sampleCards.js";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const ids = (cs) => cs.map((c) => c.id);
 
-test("Macpass then Mount Raymond in view, on every tab; the rest folded, in the list's order; no sample dropped", () => {
+test("Macpass is the 3D View's first pick, on every tab but Surface Geology, which leads with its mapping samples (#1120); every offered sample is a row, in the list's order", () => {
   assert.deepEqual(SAMPLES_IN_VIEW, ["yk_macpass", "mount_raymond"]);
   for (const mode of ["viewer", "surface", "modelling", "targeting"]) {
-    const cards = sampleCardsFor(mode), { shown, more } = emptyCardSamples(cards);
-    assert.deepEqual(ids(shown), ["yk_macpass", "mount_raymond"], mode);
-    assert.deepEqual(ids(more), ids(cards).filter((id) => !SAMPLES_IN_VIEW.includes(id)), mode);
-    assert.equal(shown.length + more.length, cards.length, mode);
+    const cards = sampleCardsFor(mode), { rows, first } = sampleListFor(mode);
+    assert.deepEqual(ids(rows), ids(cards).filter((id) => ids(rows).includes(id)), mode); // the list's own order
+    assert.equal(rows.length, cards.length, mode + ": no sample dropped");
+    assert.equal(first, mode === "surface" ? "qc_rouyn_noranda" : "yk_macpass", mode);
   }
-  // the File menu and the footnote keep the rank (#3192)
+  // the File menu keeps the rank (#3192)
   assert.deepEqual(ids(sampleCardsFor("viewer")), SAMPLE_RANK.filter((id) => ids(sampleCardsFor("viewer")).includes(id)));
-  // a list with neither: its first card is shown, the rest folded
-  const other = [{ id: "a" }, { id: "b" }, { id: "c" }];
-  assert.deepEqual(ids(emptyCardSamples(other).shown), ["a"]); assert.deepEqual(ids(emptyCardSamples(other).more), ["b", "c"]);
-  assert.deepEqual(emptyCardSamples(null), { shown: [], more: [] });
-  // one of the two missing: the other alone
-  assert.deepEqual(ids(emptyCardSamples([{ id: "x" }, { id: "mount_raymond" }]).shown), ["mount_raymond"]);
 });
 
-test("the card: the samples in view as buttons with their description, the first filled; the rest in a closed More samples fold", () => {
-  const b = read("../src/modules/viewer/SampleButtons.jsx");
-  assert.match(b, /export default function SampleButtons\(\{ shown = \[\], more = \[\], onLoad, loading \}\)/);
-  assert.match(b, /\{buttons\(shown, onLoad, loading, true\)\}/);
-  assert.match(b, /<MoreFold data-more-samples="" summary=\{tr\("More samples"\)\} style=\{\{ flexBasis: "100%", marginBottom: 0 \}\}>/);
-  assert.match(b, /\{buttons\(more, onLoad, loading, false\)\}/);
-  assert.doesNotMatch(b, /<details[^>]*\bopen\b/); // closed until asked for (MoreFold has no open)
-  assert.doesNotMatch(read("../src/components/MoreFold.jsx"), /\bopen[=\s}]/);
+test("the card (#4094): the samples are one table with one gold button, every row opens through loadSample (a BC sample asks first, #3133)", () => {
+  const b = read("../src/modules/viewer/SampleList.jsx");
+  assert.match(b, /export default function SampleList\(\{ rows = \[\], first = null, onLoad, loading = false \}\)/);
+  assert.match(b, /className="gs-btn gs-btn--primary" data-sample-open=""/);
+  assert.equal((b.match(/gs-btn--primary/g) || []).length, 1, "one gold button");
+  assert.match(b, /onDoubleClick=\{\(\) => open\(r\)\}/); assert.match(b, /e\.key === "Enter"/);
+  assert.match(b, /const open = \(r\) => \{ if \(r && !loading\) onLoad\(r\.id\); \};/);
   const v = read("../src/modules/ViewerModule.jsx");
   const card = v.slice(v.indexOf("<EmptyState\n            onClose={() => setEmptyCardClosed(true)}"), v.indexOf("</EmptyState>", v.indexOf("onClose={() => setEmptyCardClosed(true)}")));
   assert.ok(card.length > 100);
-  assert.doesNotMatch(card, /actionLabel=|onAction=/, "no separate filled button: the first sample is SampleButtons' filled one");
-  assert.match(card, /secondary=\{<SampleButtons \{\.\.\.emptyCardSamples\(sampleCards\)\} onLoad=\{loadSample\} loading=\{sampleLoading\} \/>\}/);
-  // a sample that needs a download still asks first (#3133): every button goes through loadSample
-  assert.match(b, /onClick=\{\(\) => onLoad\(c\.id\)\}/);
+  assert.doesNotMatch(card, /actionLabel=|onAction=/, "no separate filled button: the table's own is the one");
+  assert.match(card, /secondary=\{<SampleList key=\{mode\} rows=\{sampleList\.rows\} first=\{sampleList\.first\} onLoad=\{loadSample\} loading=\{sampleLoading\} \/>\}/);
   for (const lang of ["es", "pt", "fr", "ar"]) {
     const loc = JSON.parse(readFileSync(new URL(`../src/locales/${lang}.json`, import.meta.url), "utf8"));
-    assert.ok(loc["More samples"], `${lang}: More samples`);
     assert.equal(loc["Loading sample project…"], undefined, `${lang}: the old button text is gone`);
   }
 });

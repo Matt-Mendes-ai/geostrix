@@ -31,12 +31,12 @@ test("#3956 tokens only: colours and shadows; no words in the SVG; app.css and t
     assert.match(theme, new RegExp(`${k}: "${v.replace(/[()]/g, "\\$&")}"`), `theme.js shadows.${k}`);
   }
   assert.match(read("../src/components/DropDiagram.jsx"), /boxShadow: "var\(--shadow-lift\)"/);
-  assert.match(read("../src/components/EmptyState.jsx"), /<div className="ge-card" style=\{\{ \.\.\.card, position: "relative" \}\}>/, "the empty cards use the shared card class");
+  assert.match(read("../src/components/EmptyState.jsx"), /<div className="ge-card" style=\{\{ \.\.\.card, position: "relative", \.\.\.\(wide \? wideCard : null\) \}\}>/, "the empty cards use the shared card class (#4094: the wide one adds its layout)");
   assert.match(read("../src/styles/app.css"), /\.ge-card \{ background: var\(--color-bg\); border: 1px solid var\(--color-border\); border-radius: 12px; box-shadow: var\(--shadow-card\); \}/);
 });
 
 test("#3956 (part 2) the other first-screen cards share the style: the Start dialog and its card, Layout's sheets, Macrostrat, the samples, the tool info card", () => {
-  const sd = read("../src/components/StartDialogs.jsx"), lay = read("../src/components/LayoutStartCard.jsx"), mac = read("../src/components/MacrostratModal.jsx"), smp = read("../src/modules/viewer/SampleButtons.jsx"), tip = read("../src/components/HoverToolInfo.jsx");
+  const sd = read("../src/components/StartDialogs.jsx"), lay = read("../src/components/LayoutStartCard.jsx"), mac = read("../src/components/MacrostratModal.jsx"), smp = read("../src/modules/viewer/SampleList.jsx"), tip = read("../src/components/HoverToolInfo.jsx");
   // TASKS.csv #4073 — the wizard is on the shared step shell (StepDialog, as every pop-up); the 'Your project is in' card keeps the card style
   assert.equal((sd.match(/className="ge-card"/g) || []).length, 1, "the 'Your project is in' card");
   assert.equal((sd.match(/className="ge-card-head"/g) || []).length, 1);
@@ -46,7 +46,7 @@ test("#3956 (part 2) the other first-screen cards share the style: the Start dia
   assert.match(lay, /<DropPicture picture=\{s\.kind === "intercepts" \? "table" : s\.kind\}/, "each sheet's picture is the block");
   // TASKS.csv #4073 — Macrostrat is on the shared step shell too (StepDialog, as the Start dialog above): one family of pop-ups, its card hook kept on the body
   assert.match(mac, /return \(\n\s*<>\n[^\n]*\n\s*<StepDialog title=\{heading\}/); assert.match(mac, /<div data-macrostrat-card=""/);
-  assert.match(smp, /borderRadius: 10, boxShadow: "var\(--shadow-chip\)"/);
+  assert.match(smp, /className="gs-btn gs-btn--primary" data-sample-open=""/); // #4094: the table's one gold button (the role classes carry the card style)
   assert.match(tip, /className="ge-tool-info ge-card"/); assert.match(tip, /boxShadow: "var\(--shadow-pop\)"/); assert.match(tip, /<div className="ge-card-head"/);
   for (const [f, s] of [["MacrostratModal", mac], ["HoverToolInfo", tip], ["LayoutStartCard", lay]]) assert.doesNotMatch(s, /rgba?\(/, `${f}: shadows are tokens`);
 });

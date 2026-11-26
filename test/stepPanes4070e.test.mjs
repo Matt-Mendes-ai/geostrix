@@ -58,8 +58,8 @@ test("the layer menu: the six exports are one closed Export group, Inspect / edi
 });
 
 test("the empty card: the first sample and the shared empty-state button are the gold primary, the other samples the white secondary; no own blue", () => {
-  const s = read("src/modules/viewer/SampleButtons.jsx"), e = read("src/components/EmptyState.jsx");
-  assert.match(s, /className=\{firstFilled && i === 0 \? "gs-btn gs-btn--primary" : "gs-btn"\}/);
+  const s = read("src/modules/viewer/SampleList.jsx"), e = read("src/components/EmptyState.jsx"); // #4094: the table's one gold button opens the selected sample
+  assert.match(s, /className="gs-btn gs-btn--primary" data-sample-open=""/);
   assert.doesNotMatch(s + e, /2f6f9f|2a6291/);
   assert.match(e, /<button className="gs-btn gs-btn--primary" onClick=\{onAction\}/);
 });
