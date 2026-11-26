@@ -153,7 +153,7 @@ export default function DataQCModal({ onCancel, onZoomHole = null /* TASKS.csv #
         ) : shown.length === 0 ? (
           <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>{tr("No issues match the current filters.")}</div>
         ) : (
-          <div style={{ maxHeight: "min(44vh, 400px)", overflowY: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: 6 }}>
+          <div style={{ border: "1px solid var(--color-border-subtle)", borderRadius: 6 }}>{/* #4102 — no scroller of its own: an opened check scrolls its rows, the closed ones are lines */}
             {groups.map((g) => <QcCheck key={g.category} g={g} checked={checked} toggleChecked={toggleChecked} onZoomHole={onZoomHole} />)}
           </div>
         )}

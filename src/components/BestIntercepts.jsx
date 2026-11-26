@@ -418,7 +418,6 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
             {qaqcExcludedCount > 0 && !includeQAQC && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }).trim()}</div>}
             {(topCutStored != null || concentrated > 0) && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{topCutStored != null ? cutNote : ""}{concentrated > 0 ? (topCutStored != null ? " " : "") + tr("{n} intercept(s) have half their metal in two samples (last column).", { n: concentrated.toLocaleString() }) : ""}</div>}{/* #3747 */}
             {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
-            </div>
           </div>
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}>{/* TASKS.csv #3578 — the help page of this dialog */}<button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("best-intercepts")} aria-label={tr("Help: {name}", { name: tr("Best intercepts") })} title={tr("Help for this tool (F1, works offline)")}>?</button><X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
         </div>
@@ -659,7 +658,7 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                   results.stats.overlappingRows > 0 ? tr("{overlappingRows} row(s) overlap another in the same hole: each metre counts once, differing {symbol} results are averaged (⚠ in the table)", { overlappingRows: results.stats.overlappingRows, symbol }) : null,
                   results.stats.negativeValues > 0 ? tr("{negativeValues} negative {symbol} value(s) treated as not assayed (negative numbers are detection-limit or no-data codes, not grades)", { negativeValues: results.stats.negativeValues, symbol }) : null,
                 ].filter(Boolean).join(". ") })}</div>
-            )}{weightedOn && noDensitySamples > 0 ? weightNote : null}{/* #3562 weighting: only where a sample has no density; the rest (never below the cutoff, the sort order, below detection, screening only) is in the "?" card: #4102 */}
+            )}{weightedOn && noDensitySamples > 0 ? weightNote : null}{/* #3562 weighting: only where a sample has no density; the rest (never below the cutoff, the sort order, below detection, screening only) is in the "?" card: #4102 */}</div>
 
         </div>
 
