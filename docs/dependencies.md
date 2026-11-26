@@ -72,18 +72,37 @@ its own Python 3.11 (TensorFlow).
 
 | Tool | Pinned | Latest (2026-11-23) | GeoStrix relies on it for | Assumptions the code makes | Guarded by | Checked |
 |---|---|---|---|---|---|---|
-| geoML | commit 4eb7121c (0.9.3) | v0.10.15 (142 commits ahead) | Gaussian-process domain (rock) and grade models with uncertainty | the add-on reads the fields geoML writes by name (`UNIT/Target/probability`, `indicator_predicted` contoured at 0, `prediction`, `dispersion`, `simulations`) and sets GPOptions (jitter 1e-6, training batch 500); later releases change what `CategoricalGaussianIndicator.predict` reports (0.10.0), turn XLA on by default (0.9.11) and move numbers (0.9.4, 0.9.13, 0.10.6, 0.10.8) | addons/geoml/tests/test_api.py; test_reference_geoml (by hand) | 2026-11-23 |
-| tensorflow, tensorflow-probability, tf-keras | 2.21.0, 0.25.0, 2.21.0 | 2.21.0, 0.25.0, 2.21.0 | geoML's engine | — | as geoML | 2026-11-23 |
+| geoML | v0.10.15 (commit 36c33a24), since TASKS.csv #4046; 0.9.3 (4eb7121c) before | v0.10.15 | Gaussian-process domain (rock) and grade models with uncertainty | the add-on reads the fields geoML writes by name (`UNIT/Target/probability`, `indicator_predicted` contoured at 0, `prediction`, `dispersion`, `simulations`) and sets GPOptions (jitter 1e-6, training batch 500, `full_variance` off: on, 0.9.4's default, doubles a run and widens P10 / P90); the rock model's class prior is on the likelihood (`CategoricalGaussianIndicator(2, bias=True)`, since GP nodes lost their constant in 0.9.4); `predict` reports a real probability since 0.10.0 | addons/geoml/tests/test_api.py; test_reference_geoml (by hand) | 2026-11-24 |
+| tensorflow, tensorflow-probability, tf-keras | 2.21.0, 0.25.0, 2.21.0 | 2.21.0, 0.25.0, 2.21.0 | geoML's engine | — | as geoML | 2026-11-24 |
 
 An update of the add-on is a new add-on release: about a 550 MB download for each user.
 
-The add-on has no constraints file: `addons/geoml/requirements.txt` pins its six direct requirements and the rest of the tree resolves
-at install time. A source environment for the reference test is built with
-`python -m venv <folder>` and `<folder>\Scripts\python -m pip install -r addons/geoml/requirements.txt` (Python 3.11; about
-2.6 GB installed, outside OneDrive). The grade model was not reproducible from run to run in add-on 0.1.5 and earlier: `run_grade`
-called geoML's `from_kmeans` without a seed (geoML keeps that seed apart from `set_seed`), so the inducing points changed. The
-add-on passes the run's seed since TASKS.csv #4044 (it reaches users with the next add-on build); the reference test also passes it,
-so it stays valid against an older add-on.
+The add-on's whole tree is pinned in `addons/geoml/constraints.txt` (TASKS.csv #4046; #4043 found none, so a build took whatever PyPI had on the
+day), and the add-on workflow installs with it. A source environment for the reference test is built with `python -m venv <folder>` and
+`<folder>\Scripts\python -m pip install -r addons/geoml/requirements.txt -c addons/geoml/constraints.txt` (Python 3.11; about 2.6 GB
+installed, outside OneDrive). The grade model was not reproducible from run to run in add-on 0.1.5 and earlier: `run_grade` called
+geoML's `from_kmeans` without a seed (geoML keeps that seed apart from `set_seed`), so the inducing points changed; the add-on passes
+the run's seed since TASKS.csv #4044.
+
+**geoML 0.9.3 to 0.10.15 (#4046), what moved on the reference:** the grade, P10 and P90 within 0.1 % of the mean grade (with
+`full_variance` on they move 6.4 % and 15 %); the unit's probability up to 0.05, from 0.10.0's fix of `CategoricalGaussianIndicator.predict`
+(the other categories' term from the normal probability instead of its density), the fit on the training points unchanged. The stored
+reference keeps the 0.9.3 result and these moves under `earlier`. Speed on a Fast run of a real project (about 90,000 rock blocks, 64,000
+grade blocks, this 4-core / 8-thread laptop): rock 72 s against 0.9.3's 60 s, grade 34 s against 37 s, TensorFlow's import 16-28 s on
+the first run of a session; on a 4-core budget (4 logical processors, 2 threads) rock 77 s against 73 s, grade 41 s against 48 s.
+Built here with PyInstaller, add-on 0.1.6 is a 553.2 MB zip and 1,759.0 MB installed, against 0.1.5's 553.8 MB and 1,760.4 MB
+(geoML's own package grew from 7.3 to 8.1 MB; the rest of the tree is the same), and its API test passes.
+
+**Speed (#4055).** TensorFlow Probability's import is most of the 15-30 s a session's first model used to wait (geoML's own import
+24 s here, 13 s of it TensorFlow Probability with TensorFlow and tf_keras): the add-on cannot shorten it, so the panel has the add-on
+load it when it opens on a project it can model (`POST /v1/warm`; 27 s here, while the codes are picked). The worker keeps the last
+trained model of each kind: a run whose training inputs are unchanged (a new block size, model box, simulations or cut-off) re-predicts
+without training, the same blocks to the bit (a real Fast run: rock 72 s, then 16-18 s; grade 35 s, then 5-8 s). geoML's early stop
+(`training_tolerance`) stays off: at its suggested 0.01 the reference models stopped 11 % of the mean grade and 0.058 in probability
+away from where their full count ends.
+
+A user who does not update keeps the add-on they have: GeoStrix runs an older installed add-on when release.json names a newer one,
+and offers the update once release.json's download is that version's (#4046).
 
 ## Desktop packages (package.json at the package-lock.json version)
 

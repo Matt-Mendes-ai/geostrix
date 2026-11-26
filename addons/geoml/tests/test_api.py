@@ -4,7 +4,8 @@ engine; not collected by pytest: it needs a server). Start one with a token and 
     python tests/test_api.py 8791 testtoken123
 Checks: the identity proof (HMAC of a nonce, #667), the token and Host guards, the request kinds, 404 for an unknown job
 or result (a 404, not a 500: the app reads 404 as "the add-on restarted"), the 409 busy guard naming the running job,
-cancel, and a job with unusable input ending as an error with a message instead of taking the server down.
+cancel, and a job with unusable input ending as an error with its own message instead of taking the server down — started at once
+after the cancel, so the killed worker's end is not blamed on it (#4057).
 Standard library only, so it runs without the add-on's own dependencies."""
 import hashlib
 import hmac
@@ -80,6 +81,18 @@ def main():
     st, b = call("POST", "/v1/jobs/doesnotexist/cancel", {})
     print("cancel unknown ->", st, b); assert st == 200 and b == {"cancelled": False}
 
+    # TASKS.csv #4055 — the warm-up: needs the token, starts the worker with no job; health says when TensorFlow and geoML are loaded
+    if "warm" in (h.get("features") or []):
+        if TOKEN:
+            st, _ = call("POST", "/v1/warm", {}, token="")
+            print("warm without token ->", st); assert st == 401
+        st, w = call("POST", "/v1/warm", {})
+        print("warm:", st, w); assert st == 200 and w.get("warm") is True
+        t0 = time.time()
+        while not call("GET", "/health", token="")[1].get("ready") and time.time() - t0 < 180:
+            time.sleep(1)
+        print(f"ready after {time.time() - t0:.0f} s"); assert call("GET", "/health", token="")[1].get("ready")
+
     # one job at a time: a second start while the first runs is 409 and names the running job; cancel ends it
     st, j = call("POST", "/v1/jobs", {"kind": "grade", "params": {}})
     print("start:", st, j.get("id"), j.get("state")); assert st == 200 and j["state"] == "running"
@@ -98,7 +111,9 @@ def main():
     st, b = call("GET", f"/v1/jobs/{j['id']}/result")
     assert st == 404, "no result for a job that did not finish"
 
-    # a job with unusable input ends as an error with a message; the server keeps answering
+    # a job with unusable input ends as an error with a message; the server keeps answering. TASKS.csv #4057 — it starts at once after the
+    # cancel, so it runs on a fresh worker while the killed one's pump is still watching: its error must be its own, not the killed
+    # worker's "stopped unexpectedly" (which every run of this test showed before)
     st, j = call("POST", "/v1/jobs", {"kind": "grade", "params": {}})
     assert st == 200, (st, j)
     t0 = time.time()
@@ -109,6 +124,7 @@ def main():
         time.sleep(1)
     print("unusable input:", s["state"], "-", (s.get("error") or "")[:120])
     assert s["state"] == "error" and s.get("error"), s
+    assert "stopped unexpectedly" not in s["error"], f"the cancelled worker's end was blamed on the next job (#4057): {s['error'][:160]}"
     st, _ = call("GET", "/health", token="")
     assert st == 200
     print("ALL PASSED")

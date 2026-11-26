@@ -3,7 +3,8 @@ Run with the add-on's own Python (geoML and TensorFlow installed from addons/geo
     set GEOSTRIX_GEOML_PYTHON=<that venv>\\Scripts\\python.exe
     python tests/test_reference_geoml.py              (re-runs itself with GEOSTRIX_GEOML_PYTHON; ~1-2 min)
     python tests/test_reference_geoml.py --measure    the run-to-run spread and a parameter nudge, which the tolerances are set from
-    python tests/test_reference_geoml.py --store      rewrite python-sidecar/tests/reference/geoml_grade_rock.json (deliberately)
+    python tests/test_reference_geoml.py --store '<tolerance json>' '<why it moved>'   rewrite python-sidecar/tests/reference/geoml_grade_rock.json
+                                                      (deliberately; the reference it replaces is kept under "earlier", with its moves)
 Without geoML (no GEOSTRIX_GEOML_PYTHON, and none in this Python) it says SKIPPED and exits 0. Not in CI: CI does not install
 geoML (the add-on's workflow only builds and publishes it).
 
@@ -66,26 +67,9 @@ def quiet(_f, _t):
     pass
 
 
-def seeded_kmeans():
-    """The add-on calls geoml.data.inducing.from_kmeans(points, n) without a seed, and geoML keeps that seed apart from set_seed: the
-    k-means inducing points, and so the grade model, change from run to run (measured here: up to 25 % of the mean grade between two
-    identical runs, the size of a real change). For a reference that can notice a change, this test passes the add-on's seed to it;
-    the add-on's own code is unchanged."""
-    import geoml.data.inducing as ind
-    if getattr(ind.from_kmeans, "_seeded", False):
-        return
-    orig = ind.from_kmeans
-
-    def from_kmeans(data, n, seed=None):
-        return orig(data, n, seed=1234 if seed is None else seed)
-    from_kmeans._seeded = True
-    ind.from_kmeans = from_kmeans
-
-
 def run(nudge_grade=None, nudge_domain=None):
     import time
     from geostrix_geoml.models import run_grade, run_domain
-    seeded_kmeans()
     t0 = time.time()
     g = run_grade(grade_params(**(nudge_grade or {})), quiet)
     t1 = time.time()
@@ -160,15 +144,22 @@ def measure():
     print("iterations 150 -> 120 (both):", moves(a, run({"iterations": 120}, {"iterations": 120})))
 
 
-def store(tol):
+def store(tol, why=None):
+    """rewrite the reference; the one it replaces moves into "earlier" (its versions, its result, how far the new one moved from it and
+    why: TASKS.csv #4046), so an update's moves stay on record next to the numbers that replaced them"""
     res = run()
+    earlier = []
+    if os.path.exists(REF):
+        old = load()
+        earlier = old.get("earlier") or []
+        earlier.insert(0, dict(versions=old["versions"], result=old["result"], moved=moves(old["result"], res), why=why))
     ref = dict(note="TASKS.csv #4043 — geoML reference models (addons/geoml/tests/test_reference_geoml.py). Synthetic: 12 vertical holes.",
                data="synthetic", holes=[h for h, _, _ in HOLES], versions=versions(), bounds=BOUNDS, grade_settings=FAST_GRADE,
-               rock_settings=FAST_DOMAIN, tolerance=tol, result=res)
+               rock_settings=FAST_DOMAIN, tolerance=tol, result=res, earlier=earlier)
     with open(REF, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(ref, fh, indent=1)
         fh.write("\n")
-    print("stored", REF, ref["versions"])
+    print("stored", REF, ref["versions"], "moved from the last one:", earlier[0]["moved"] if earlier else None)
 
 
 def have_geoml():
@@ -189,7 +180,8 @@ if __name__ == "__main__":
     if "--measure" in sys.argv:
         measure()
     elif "--store" in sys.argv:
-        store(json.loads(sys.argv[sys.argv.index("--store") + 1]))
+        i = sys.argv.index("--store")
+        store(json.loads(sys.argv[i + 1]), sys.argv[i + 2] if len(sys.argv) > i + 2 else None)
     else:
         test_matches_reference()
         test_reference_is_synthetic_and_stated()

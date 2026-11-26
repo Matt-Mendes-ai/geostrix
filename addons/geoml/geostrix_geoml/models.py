@@ -17,6 +17,37 @@ import numpy as np
 import pandas as pd
 
 MAX_BLOCKS_OUT = 100_000  # GeoStrix's 3D-view cell budget
+# TASKS.csv #4046 — geoML 0.9.4's full_variance (on by default for a new model) draws every realization with the variance the inducing
+# points leave out, by random features, and the prediction integrates it. Measured on a Fast run (about 90,000 blocks): the rock model's
+# job 146 s instead of 63 (its blocks 72 s instead of 16) with the same probabilities, the grade model's 75 s instead of 38, its
+# P10 / P90 15 % of the mean grade wider on #4043's reference. Off, 0.10.15 gives 0.9.3's grade model (within 0.1 %) at 0.9.3's speed; whether the wider
+# spread is worth twice the time is a separate decision (TASKS.csv #4055).
+FULL_VARIANCE = False
+# TASKS.csv #4055 — geoML's early stop (GPOptions.training_tolerance: the smoothed bound's gain over 20 iterations against the gain since
+# the start) is off: the bound flattens while the model still moves. At geoML's suggested 0.01 the reference grade model stopped at 183
+# of 300 iterations 11 % of the mean grade away (P10 18 %), the rock model at 376 of 600 0.058 in probability, and a real Fast gold run
+# at 130 of 150 moved its richest blocks by several times the mean grade: far outside #4043's tolerances. A request may still set one.
+TRAINING_TOLERANCE = None
+# TASKS.csv #4055 — the last trained model of each kind, kept by the worker for the session (the worker itself exits after 10 idle
+# minutes): a run whose training inputs are unchanged — only the block size, the model box, the simulations or the check points differ —
+# re-predicts without training. One per kind, replaced by the next training.
+_TRAINED = {}
+_PREDICT_ONLY = {
+    "domain": {"block_size", "max_blocks", "bounds", "pad", "pad_z", "surface_block", "refine_levels", "check_points", "held_out"},
+    "grade": {"block_size", "max_blocks", "bounds", "pad", "simulations"},
+}
+
+
+def _training_key(kind, p):
+    import hashlib
+    import json
+    keep = {k: v for k, v in p.items() if k not in _PREDICT_ONLY[kind]}
+    return hashlib.sha256(json.dumps(keep, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+def _tolerance(p):
+    t = p.get("training_tolerance", TRAINING_TOLERANCE)
+    return float(t) if t else None
 
 
 def _holes(geoml, p):
@@ -120,14 +151,21 @@ def _probabilities_at(geoml, model, points):
         return None
 
 
-def _train(model, iterations, progress, lo, hi, label):
-    """train_full in chunks so progress can be reported (and a cancel lands between chunks)."""
-    done, chunk = 0, max(10, iterations // 20)
-    while done < iterations:
-        step = min(chunk, iterations - done)
-        model.train_full(max_iter=step)
-        done += step
-        progress(lo + (hi - lo) * done / iterations, f"{label}: {done} / {iterations} iterations")
+def _train(geoml, model, iterations, progress, lo, hi, label):
+    """TASKS.csv #4055 — one train_full call, its progress from geoML's own per-iteration reports (geoml.progress, since 0.10), where 20
+    calls used to give the bar its steps; it may stop early (GPOptions.training_tolerance). The iterations it ran."""
+    before, last = len(model.training_log), [0.0]
+
+    def report(ev):
+        if ev.task != "train" or ev.within or not ev.total:
+            return
+        now = time.time()
+        if now - last[0] >= 0.5 or ev.done == ev.total:
+            last[0] = now
+            progress(lo + (hi - lo) * ev.done / ev.total, f"{label}: {ev.done} / {ev.total} iterations")
+    with geoml.progress(report):
+        model.train_full(max_iter=iterations)
+    return len(model.training_log) - before
 
 
 def _focused_points(dense, n_other):
@@ -178,9 +216,14 @@ def _domain_train(geoml, p, holes, progress):
         field = geoml.latent.BasicGP(walked, size=1, isotropic=True)
     else:
         field = geoml.latent.BasicGP(inp, size=1)
-    model = geoml.models.VGPNetwork(dense, "UNIT", geoml.likelihood.CategoricalGaussianIndicator(2), geoml.latent.Linear(field, size=2),
-                                    options=geoml.models.GPOptions(jitter=1e-6, training_batch_size=500, verbose=False))
+    # TASKS.csv #4046 — geoML 0.9.4 dropped the GP nodes' trained constant (bias=False): away from the holes the field returns to zero,
+    # where both categories sit on the contour, so far blocks drift to a probability of 0.5 — the level the app closes bodies at. The
+    # class prior moves to the likelihood, as geoML's own manual builds categorical models since then.
+    model = geoml.models.VGPNetwork(dense, "UNIT", geoml.likelihood.CategoricalGaussianIndicator(2, bias=True), geoml.latent.Linear(field, size=2),
+                                    options=geoml.models.GPOptions(jitter=1e-6, training_batch_size=500, verbose=False, full_variance=FULL_VARIANCE,
+                                                                   training_tolerance=_tolerance(p)))
     iterations = int(p.get("iterations", 300))
+    ran = iterations
     progress(0.08, f"Training ({dense.n_data} points, {n_contacts} contacts)")
     if deep:
         model.set_learning_rate(5e-2)
@@ -188,11 +231,13 @@ def _domain_train(geoml, p, holes, progress):
         for e in range(epochs):
             model.train_svi(1)
             progress(0.08 + 0.5 * (e + 1) / epochs, f"Training (deep): epoch {e + 1} / {epochs}")
+        iterations = ran = epochs
     else:
         model.set_learning_rate(2e-2)
-        _train(model, iterations, progress, 0.08, 0.58, "Training")
+        ran = _train(geoml, model, iterations, progress, 0.08, 0.58, "Training")
 
-    return {"model": model, "dense": dense, "sparse": sparse, "n_contacts": n_contacts, "tr": tr, "rng": rng, "deep": deep}
+    return {"model": model, "dense": dense, "sparse": sparse, "n_contacts": n_contacts, "tr": tr, "rng": rng, "deep": deep,
+            "iterations": {"cap": iterations, "run": ran}}
 
 
 def _only_holes(p, keep):
@@ -239,12 +284,21 @@ def run_domain(p, progress):
     outer = progress
     if p.get("held_out"):  # the second training takes as long as the first: half the bar each
         progress = lambda f, text: outer(f * 0.5, text)
-    geoml.set_seed(int(p.get("seed", 1234)))
-    progress(0.02, "Reading the drillholes")
-    holes = _holes(geoml, p)
-    t = _domain_train(geoml, p, holes, progress)
+    key, kept = _training_key("domain", p), _TRAINED.get("domain")
+    reused = bool(kept and kept[0] == key)
+    if reused:  # #4055 — the same holes and settings as the last run: its trained model, re-predicted
+        t = kept[1]
+        progress(0.58, "Training skipped: the same holes and settings as the last run")
+    else:
+        _TRAINED.pop("domain", None)  # the last one's memory back before training another
+        geoml.set_seed(int(p.get("seed", 1234)))
+        progress(0.02, "Reading the drillholes")
+        holes = _holes(geoml, p)
+        t = _domain_train(geoml, p, holes, progress)
+        t["fit"] = _fit_check(geoml, t["model"], t["dense"])
+        _TRAINED["domain"] = (key, t)
     model, dense, sparse, n_contacts, tr, rng, deep = t["model"], t["dense"], t["sparse"], t["n_contacts"], t["tr"], t["rng"], t["deep"]
-    fit = _fit_check(geoml, model, dense)
+    fit = t["fit"]
     check_probability = _probabilities_at(geoml, model, p.get("check_points"))
     c = np.asarray(dense.coordinates)
     pad = np.array([float(p.get("pad", 100.0))] * 2 + [float(p.get("pad_z", 50.0))])
@@ -286,6 +340,7 @@ def run_domain(p, progress):
         "blocks": {"cell": cell, "n": [int(v) for v in n], "x": xyz[:, 0].round(2).tolist(), "y": xyz[:, 1].round(2).tolist(), "z": xyz[:, 2].round(2).tolist(),
                    "probability": prob.round(4).tolist(), "uncertainty": unc.round(4).tolist()},
         "elbo": [float(v) for v in list(getattr(model, "training_log", []))[-50:]],
+        "iterations": t["iterations"], "reused_training": reused,  # #4055
     }
     if p.get("held_out"):  # TASKS.csv #1312 — the blocks are safe in `result`: free the model before training another
         del model, bs, grid, t
@@ -294,13 +349,11 @@ def run_domain(p, progress):
     return result
 
 
-def run_grade(p, progress):
-    import geoml
-    t0 = time.time()
+def _grade_train(geoml, p, name, progress):
+    """The samples to a trained grade model (#4055: kept for the session by run_grade)."""
     geoml.set_seed(int(p.get("seed", 1234)))
     progress(0.02, "Reading the drillholes and assays")
     holes = _holes(geoml, p)
-    name = str(p.get("element", "grade"))
     a = pd.DataFrame(p["samples"])  # hole_id, from, to, value
     a["hole_id"] = a["hole_id"].astype(str)
     a = a[np.isfinite(a["value"].astype(float)) & (a["value"].astype(float) >= 0)].copy()
@@ -326,9 +379,28 @@ def run_grade(p, progress):
     positive = vals[vals > 0]
     shift = float(np.nanmin(positive)) / 2 if positive.size else 1.0  # Box-Cox needs > 0; half the smallest grade
     lik = geoml.likelihood.Gaussian(geoml.warping.ChainedWarping(geoml.warping.BoxCox(1, shift=shift), geoml.warping.ZScore(1)))
-    model = geoml.models.VGPNetwork(pts, name, lik, gp, options=geoml.models.GPOptions(verbose=False))
+    model = geoml.models.VGPNetwork(pts, name, lik, gp, options=geoml.models.GPOptions(verbose=False, full_variance=FULL_VARIANCE,
+                                                                                       training_tolerance=_tolerance(p)))
     progress(0.08, f"Training ({pts.n_data} composites)")
-    _train(model, int(p.get("iterations", 300)), progress, 0.08, 0.75, "Training")
+    cap = int(p.get("iterations", 300))
+    ran = _train(geoml, model, cap, progress, 0.08, 0.75, "Training")
+    return {"pts": pts, "n_ind": n_ind, "tr": tr, "rng": rng, "model": model, "data_warnings": data_warnings, "iterations": {"cap": cap, "run": ran}}
+
+
+def run_grade(p, progress):
+    import geoml
+    t0 = time.time()
+    name = str(p.get("element", "grade"))
+    key, kept = _training_key("grade", p), _TRAINED.get("grade")
+    reused = bool(kept and kept[0] == key)
+    if reused:  # #4055 — the same samples and settings as the last run: its trained model, re-predicted
+        g = kept[1]
+        progress(0.75, "Training skipped: the same samples and settings as the last run")
+    else:
+        _TRAINED.pop("grade", None)  # the last one's memory back before training another
+        g = _grade_train(geoml, p, name, progress)
+        _TRAINED["grade"] = (key, g)
+    pts, n_ind, tr, rng, model, data_warnings = g["pts"], g["n_ind"], g["tr"], g["rng"], g["model"], g["data_warnings"]
 
     c = np.asarray(pts.coordinates)
     pad = np.array([float(p.get("pad", 50.0))] * 3)
@@ -338,6 +410,9 @@ def run_grade(p, progress):
     progress(0.8, "Predicting the block model")
     n, cell = _grid(lo, hi, float(p.get("block_size", 20.0)), int(p.get("max_blocks", MAX_BLOCKS_OUT)))
     grid = geoml.data.BlockSet3D(start=list(lo + cell / 2), n=list(n), step=[cell] * 3, discretization=(2, 2, 2), max_levels=1)
+    # #4055 — the simulations' draws start from the same seed whether the model was just trained or kept from the last run, so a kept
+    # model re-predicted gives what training it again would
+    geoml.set_seed(int(p.get("seed", 1234)) + 1)
     model.predict(grid, n_sim=int(p.get("simulations", 20)))
     xyz = np.asarray(grid.coordinates)
 
@@ -355,7 +430,8 @@ def run_grade(p, progress):
         blocks["p10"] = np.percentile(sims, 10, axis=1).round(5).tolist()
         blocks["p90"] = np.percentile(sims, 90, axis=1).round(5).tolist()
     out = {"kind": "grade", "element": name, "seconds": round(time.time() - t0, 1), "composites": int(pts.n_data), "inducing_points": n_ind, "blocks": blocks,
-           "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")), "data_warnings": data_warnings}  # #673 / #692
+           "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")), "data_warnings": data_warnings,  # #673 / #692
+           "iterations": g["iterations"], "reused_training": reused}  # #4055
     progress(1.0, "Done")
     return out
 

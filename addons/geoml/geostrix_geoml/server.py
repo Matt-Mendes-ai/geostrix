@@ -21,10 +21,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-ADDON_VERSION = "0.1.5"
+ADDON_VERSION = "0.1.6"
 # TASKS.csv #692 — what this add-on can do, so GeoStrix asks instead of guessing from the version string
 API_VERSION = 2
-FEATURES = ["trend", "trained_range", "identity_proof", "data_warnings", "idle_exit", "max_inducing", "focus_sampling", "held_out_check", "intercept_check"]
+FEATURES = ["trend", "trained_range", "identity_proof", "data_warnings", "idle_exit", "max_inducing", "focus_sampling", "held_out_check", "intercept_check",
+            "warm", "kept_model"]  # #4055
 IDLE_EXIT_S = 600  # #698 — the warm worker (TensorFlow, ~600 MB) exits after 10 idle minutes
 _TOKEN = os.environ.get("GEOSTRIX_ADDON_TOKEN") or None
 MAX_BODY_BYTES = 60 * 1024 * 1024
@@ -84,10 +85,18 @@ def _worker(inbox, outbox):
         except queue.Empty:  # #698 — idle: give the memory back; the next job starts a fresh worker
             os._exit(0)
         try:
+            if kind == WARM:  # #4055 — load TensorFlow and geoML now, before the first job asks for them
+                if models is None:
+                    from geostrix_geoml import models as _m
+                    import geoml  # noqa: F401 — the import is the point
+                    models = _m
+                outbox.put((None, "warm"))
+                continue
             if models is None:
                 outbox.put((jid, "progress", 0.01, "Starting TensorFlow and geoML (first model of the session)"))
                 from geostrix_geoml import models as _m
                 models = _m
+                outbox.put((None, "warm"))  # #4055 — loaded, as a warm-up would have
             result = models.JOBS[kind](params, lambda f, text, jid=jid: outbox.put((jid, "progress", float(f), str(text))))
             outbox.put((jid, "done", result))
         except Exception as e:  # noqa: BLE001 — every failure goes back to GeoStrix with its message
@@ -96,10 +105,14 @@ def _worker(inbox, outbox):
             outbox.put((jid, "error", msg, traceback.format_exc()[-4000:]))
 
 
+WARM = "__warm__"  # #4055 — not a job: the worker loads its libraries
+
+
 class Jobs:
     def __init__(self):
         self.jobs, self.lock = {}, threading.Lock()
         self.proc = self.inbox = self.outbox = None
+        self.warmed = None  # #4055 — the worker that has TensorFlow and geoML loaded
         self.ctx = mp.get_context("spawn")
 
     def running(self):
@@ -113,11 +126,23 @@ class Jobs:
         self.proc.start()
         threading.Thread(target=self._pump, args=(self.proc, self.outbox), daemon=True).start()
 
+    def warm(self):
+        """#4055 — the worker started and loading TensorFlow + geoML, with no job: the panel asks when it opens, so the first model of the
+        session does not spend its first 15-30 s on the import. A job sent meanwhile waits in the worker's queue behind it."""
+        with self.lock:
+            self._ensure_worker()
+            if getattr(self.proc, "_warm_sent", False) is False:
+                self.proc._warm_sent = True
+                self.inbox.put((None, WARM, {}))
+        return {"warm": True, "ready": self.warmed is not None and self.warmed is self.proc}
+
     def start(self, kind, params):
         with self.lock:
             self._ensure_worker()
             jid = uuid.uuid4().hex[:12]
-            job = {"id": jid, "kind": kind, "state": "running", "progress": 0.0, "message": "Queued", "started": time.time(), "result": None, "error": None}
+            # TASKS.csv #4057 — "worker": the process this job runs in (never sent: _public lists what is)
+            job = {"id": jid, "kind": kind, "state": "running", "progress": 0.0, "message": "Queued", "started": time.time(), "result": None, "error": None,
+                   "worker": self.proc}
             self.jobs[jid] = job
             self.inbox.put((jid, kind, params))
         return job
@@ -128,12 +153,17 @@ class Jobs:
                 msg = outbox.get(timeout=1)
             except queue.Empty:
                 if not proc.is_alive():
+                    # TASKS.csv #4057 — only this worker's jobs: after a cancel kills a worker, the next job may already be running on a
+                    # fresh one, and this pump used to fail it ("stopped unexpectedly", exit code -15) a second later
                     for j in self.jobs.values():
-                        if j["state"] == "running":
+                        if j["state"] == "running" and j.get("worker") is proc:
                             # #689 — say what is known: the exit code, and the two usual causes (on a budget laptop a CPU
                             # without AVX kills TensorFlow at import, which "out of memory?" used to misdiagnose)
                             j.update(state="error", error=f"The modelling process stopped unexpectedly (exit code {proc.exitcode}). Usual causes: not enough free memory, or a processor without AVX, which TensorFlow needs (some budget Celeron / Pentium chips). The add-on's log has the details.")
                     return
+                continue
+            if msg[1] == "warm":  # #4055 — not a job's message
+                self.warmed = proc
                 continue
             job = self.jobs.get(msg[0])
             if not job or job["state"] != "running":
@@ -171,7 +201,15 @@ def health(nonce: str | None = None):
     # the port never receives either (the earlier check sent the token first and accepted anything but a 401).
     proof = hmac.new(_TOKEN.encode(), nonce.encode(), hashlib.sha256).hexdigest() if (_TOKEN and nonce and len(nonce) <= 128) else None
     return {"ok": True, "addon": "geoml", "version": ADDON_VERSION, "api_version": API_VERSION, "features": FEATURES, "geoml": _version("geoml"),
-            "busy": manager.running() is not None, "warm": manager.proc is not None and manager.proc.is_alive(), **({"proof": proof} if proof else {})}
+            "busy": manager.running() is not None, "warm": manager.proc is not None and manager.proc.is_alive(),
+            "ready": manager.proc is not None and manager.proc.is_alive() and manager.warmed is manager.proc,  # #4055 — TensorFlow + geoML loaded
+            **({"proof": proof} if proof else {})}
+
+
+# TASKS.csv #4055 — load TensorFlow and geoML now (the panel asks when it opens); no job, no project data
+@app.post("/v1/warm")
+def warm():
+    return manager.warm()
 
 
 @app.post("/v1/jobs")
