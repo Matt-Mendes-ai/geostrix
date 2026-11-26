@@ -656,17 +656,17 @@ export default function BestIntercepts({ assays: assaysTable, assayElements: ele
                 ].filter(Boolean).join(". ") })}</div>
             )}{tr("Intercepts never average below the cutoff. \"≥\": the grade holds an over-range result.")}{" "}{sortKey === "gl" && sortDesc ? tr("Sorted by grade × length (best intercepts first).") : tr("In the order of the column heading clicked.")}{" "}{weightNote}{hasBelowDet ? ` ${tr("Below-detection assay values are already substituted at half the detection limit (same convention as the plots).")}` : ""}{" "}{tr("This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.")}{/* #3562 weighting named; #3579 below-detection only where there is some */}</div>
 
-          <button className="gs-btn gs-btn--primary" style={{ alignSelf: "flex-start" }} onClick={exportCSV} disabled={results.length === 0}>
-            <Download size={14} />{" "}{perHole ? tr("Export totals per hole (CSV)") : tr("Export report (CSV)")}</button>{/* TASKS.csv #3699 — the button says which table it writes */}
-          <CsvStampToggle />{/* TASKS.csv #3614 */}
-          <button className="gs-btn" style={{ alignSelf: "flex-start" }} onClick={toLayout} disabled={results.length === 0} title={tr("Put the best intercepts on the Layout page as a table (the CSV has them all)")}>
-            <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}
-          <label style={{ display: "flex", alignItems: "center", gap: 5, alignSelf: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }} title={tr("Intercepts that do not fit go on new Layout pages instead of a closing count row")}>
-            <input type="checkbox" checked={continuePages} onChange={(e) => setContinuePages(e.target.checked)} />{tr("Continue on new pages")}</label>{/* TASKS.csv #2708 */}
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)", alignItems: "center", flexWrap: "wrap" }}>{/* TASKS.csv #4086 — the gold Export sits in the bar beside Close: in view at 1366x768 without scrolling the table */}
           <button className="gs-btn" style={{ flex: 1 }} onClick={onClose}>{tr("Close")}</button>
+          <label style={{ display: "flex", alignItems: "center", gap: 5, alignSelf: "center", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }} title={tr("Intercepts that do not fit go on new Layout pages instead of a closing count row")}>
+            <input type="checkbox" checked={continuePages} onChange={(e) => setContinuePages(e.target.checked)} />{tr("Continue on new pages")}</label>{/* TASKS.csv #2708 */}
+          <CsvStampToggle />{/* TASKS.csv #3614 */}
+          <button className="gs-btn" onClick={toLayout} disabled={results.length === 0} title={tr("Put the best intercepts on the Layout page as a table (the CSV has them all)")}>
+            <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}
+          <button className="gs-btn gs-btn--primary" style={{ flex: 2, justifyContent: "center" }} onClick={exportCSV} disabled={results.length === 0}>
+            <Download size={14} />{" "}{perHole ? tr("Export totals per hole (CSV)") : tr("Export report (CSV)")}</button>{/* TASKS.csv #3699 — the button says which table it writes */}
         </div>
       </div>
     </div>
