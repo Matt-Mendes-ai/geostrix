@@ -26,10 +26,10 @@ const T = TEXT[LANG.slice(0, 2)] || TEXT.en;
   } catch { /* keep the fallback link */ }
 })();
 
-// Download count: every GeoStrix installer and portable zip ever downloaded from GitHub Releases, all versions.
+// Download count: every GeoStrix installer and portable zip (older releases shipped one; TASKS.csv #4099 stopped it) ever downloaded from GitHub Releases, all versions.
 // Counts only the app itself (not latest.yml, blockmaps, checksums or the geoML add-on). GitHub counts each
 // download of the installer, so updates installed from inside GeoStrix are included. Shown twice: the badge above the
-// headline (number + "downloads", linked to the releases so anyone can check it) and the full sentence by the Download
+// headline (number + "downloads", plain text: not linked, #4099) and the full sentence by the Download
 // button, which says updates are included. Both stay hidden if GitHub can't be reached.
 (async () => {
   try {

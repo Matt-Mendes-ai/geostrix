@@ -48,7 +48,7 @@ which runs on a GitHub-hosted Windows runner when a version tag (`v*`) is pushed
    `constraints.txt`) and freezes the Python engine with PyInstaller, compiling PyInstaller's bootloader
    from source rather than using the prebuilt one,
 3. installs Node dependencies from `package-lock.json` and builds the web bundle,
-4. packages the Electron app with `electron-builder` (NSIS installer and a portable zip),
+4. packages the Electron app with `electron-builder` (the NSIS installer: releases up to v0.2.13 also had a portable zip, TASKS.csv #4099),
 5. uploads the packaged application (unsigned) as a workflow artifact kept for 7 days.
 
 The workflow does not publish anything by itself. The maintainer then runs

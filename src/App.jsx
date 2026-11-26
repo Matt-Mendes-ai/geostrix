@@ -21,6 +21,7 @@ import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricPro
 import { reprojectModule, useReprojectReady } from "./lib/reprojectLazy.js"; // TASKS.csv #2808 (the cursor's lat / lon); #4084 — the maths (reproject.js) arrive after the first paint, not in the startup bundle
 import { rlOffsetOf, gridRlOf } from "./lib/localGridDatum.js"; // TASKS.csv #2809 — the grid RL beside Z
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
+import { installerUrl } from "./lib/updateLinks.js"; // TASKS.csv #4099 — a portable (zip) copy is pointed at the installer
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import ExportToast from "./components/ExportToast.jsx"; // TASKS.csv #1042 — every export says whether it was saved, and where
 const UpdatePrompt = React.lazy(() => import("./components/UpdatePrompt.jsx")); // TASKS.csv #915 — loaded only when an update exists
@@ -932,8 +933,8 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython, onAiAccess, wo
       )}
       {updater.event === "available" && (
         <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>{tr("Update available (v{v})", { v: updater.version })}
-          {updater.portable ? ( /* TASKS.csv #473 — a zip copy updates by downloading the new zip, never the installer */
-            <a href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest" target="_blank" rel="noreferrer" title={tr("This is the portable (zip) copy: download the new zip and replace this folder")} style={{ color: "var(--color-success-fg)", border: "1px solid var(--color-success-border-soft)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", textDecoration: "none" }}>{tr("Get the new zip")}</a>
+          {updater.portable ? ( /* TASKS.csv #473 — a zip copy cannot update itself; #4099: the zip is no longer published, so it is pointed at the installer */
+            <a href={installerUrl(updater.version)} target="_blank" rel="noreferrer" title={tr("The portable zip is no longer published: download the installer and run it")} style={{ color: "var(--color-success-fg)", border: "1px solid var(--color-success-border-soft)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", textDecoration: "none" }}>{tr("Get the installer")}</a>
           ) : (
           <button className="gs-btn gs-btn--sm" onClick={() => downloadUpdate()}>{tr("Download")}</button>
           )}

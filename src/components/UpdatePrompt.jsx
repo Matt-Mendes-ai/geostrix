@@ -12,7 +12,7 @@ import { downloadUpdate, installUpdate } from "../lib/desktop.js";
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
 
-const RELEASES = "https://github.com/Matt-Mendes-ai/geostrix/releases";
+import { RELEASES, installerUrl } from "../lib/updateLinks.js"; // TASKS.csv #4099
 
 export default function UpdatePrompt({ updater, onLater }) {
   useEscapeKey(onLater);
@@ -35,7 +35,7 @@ export default function UpdatePrompt({ updater, onLater }) {
             <a href={notes} target="_blank" rel="noreferrer">{tr("What's new")}</a>
           </div>
           {event === "available" && updater.portable && (
-            <div style={small}>{tr("This is the portable (zip) copy: download the new zip and replace this folder with it. Your projects are separate files and are not touched.")}</div>
+            <div style={small}>{tr("The portable zip is no longer published: download the installer and run it (“Only for me” needs no administrator rights). Your projects are untouched.")}</div>
           )}
           {event === "available" && !updater.portable && (
             <div style={small}>{tr("It downloads in the background as you work; when it is ready, GeoStrix asks you to restart and install it (unsaved work is checked first).")}</div>
@@ -54,7 +54,7 @@ export default function UpdatePrompt({ updater, onLater }) {
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button className="gs-btn" onClick={onLater}>{tr("Later")}</button>
             {event === "available" && (updater.portable
-              ? <a href={`${RELEASES}/latest`} target="_blank" rel="noreferrer" onClick={onLater} style={{ ...btn(true), padding: "7px 14px", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}><Download size={14} />{" "}{tr("Download the new zip")}</a>
+              ? <a href={installerUrl(version)} target="_blank" rel="noreferrer" onClick={onLater} style={{ ...btn(true), padding: "7px 14px", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}><Download size={14} />{" "}{tr("Download the installer")}</a>
               : <button className="gs-btn gs-btn--primary" onClick={() => downloadUpdate()}><Download size={14} />{" "}{tr("Download and install")}</button>)}
             {event === "downloaded" && <button className="gs-btn gs-btn--primary" /* gs-primary-alt: the downloaded update replaces the download button */ onClick={() => installUpdate()}><RefreshCw size={14} />{" "}{tr("Restart and install")}</button>}
           </div>

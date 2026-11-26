@@ -7,7 +7,7 @@ SimplySign Desktop connected:
   1. waits for that run and downloads the unpacked app (curl, resuming after every stall or drop - #812; if even
      that cannot finish, it shows the browser link and waits for the zip in Downloads),
   2. signs GeoStrix.exe and the Python engine's executables,
-  3. packages the installer and zip from that same app (electron-builder --prepackaged) and signs the
+  3. packages the installer from that same app (TASKS.csv #4099: no portable zip any more) (electron-builder --prepackaged) and signs the
      installer, its uninstaller and its elevation helper (scripts/sign-win.cjs),
   4. checks every signature, writes SHA256SUMS.txt (latest.yml is written by electron-builder from the
      SIGNED installer, so the auto-updater's checksum matches what users download),
@@ -219,18 +219,18 @@ foreach ($f in $engine) { Sign-File $f.FullName }
 if (-not (Test-Path (Join-Path $app "resources\mcp-bridge.ps1"))) { Fail "The app has no resources\mcp-bridge.ps1." }
 Sign-File (Join-Path $app "resources\mcp-bridge.ps1")
 
-Step "Packaging and signing the installer and zip"
+Step "Packaging and signing the installer"
 $out = Join-Path $work "out"
-npx electron-builder --prepackaged $app --win nsis zip --publish never "-c.win.signtoolOptions.sign=./scripts/sign-win.cjs" "-c.directories.output=$out"
+npx electron-builder --prepackaged $app --win nsis --publish never "-c.win.signtoolOptions.sign=./scripts/sign-win.cjs" "-c.directories.output=$out"
 if ($LASTEXITCODE -ne 0) { Fail "electron-builder failed." }
 
 Step "Checking signatures and collecting the release files"
 $files = Join-Path $work "release-files"
 New-Item -ItemType Directory -Force $files | Out-Null
-Get-ChildItem $out -File | Where-Object { ($_.Name -like "GeoStrix*" -and $_.Name -match "\.(exe|zip|blockmap)$") -or $_.Name -eq "latest.yml" } | ForEach-Object { Copy-Item $_.FullName (Join-Path $files ($_.Name -replace " ", "-")) }
+Get-ChildItem $out -File | Where-Object { ($_.Name -like "GeoStrix*" -and $_.Name -match "\.(exe|blockmap)$") -or $_.Name -eq "latest.yml" } | ForEach-Object { Copy-Item $_.FullName (Join-Path $files ($_.Name -replace " ", "-")) }
 $installer = Get-ChildItem $files -Filter "GeoStrix-Setup-$version.exe" | Select-Object -First 1
 if (-not $installer) { Fail "No installer was built." }
-foreach ($required in @("GeoStrix-Setup-$version.exe.blockmap", "latest.yml", "GeoStrix-$version-win.zip")) {
+foreach ($required in @("GeoStrix-Setup-$version.exe.blockmap", "latest.yml")) {
   if (-not (Test-Path (Join-Path $files $required))) { Fail "Missing $required." }
 }
 Assert-Signed $exe
@@ -240,7 +240,7 @@ $latest = Get-Content (Join-Path $files "latest.yml") -Raw
 $declared = [regex]::Match($latest, "size:\s*(\d+)").Groups[1].Value
 $sha = [Convert]::ToBase64String([Security.Cryptography.SHA512]::Create().ComputeHash([IO.File]::ReadAllBytes($installer.FullName)))
 if ($declared -ne [string]$installer.Length -or $latest -notmatch [regex]::Escape($sha)) { Fail "latest.yml does not describe the signed installer - the auto-updater would reject it." }
-$sums = Get-ChildItem $files -File | Where-Object { $_.Name -match "\.(exe|zip)$" } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
+$sums = Get-ChildItem $files -File | Where-Object { $_.Name -match "\.exe$" } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
 $sums | Set-Content -Path (Join-Path $files "SHA256SUMS.txt") -Encoding ascii
 Get-ChildItem $files | ForEach-Object { Write-Host ("  {0,12:N0}  {1}" -f $_.Length, $_.Name) }
 Write-Host "All signatures valid and timestamped; latest.yml matches the signed installer."
@@ -258,7 +258,7 @@ if ($Yes) {
 # TASKS.csv #3916 — the separators arrived on GitHub as "Â·": Windows PowerShell 5.1 reads this BOM-less script as ANSI, and a command-line
 # argument is re-encoded again. The dot is built from its code point (the source stays ASCII here), and gh reads the notes from a UTF-8 file.
 $dot = [char]0x00B7
-$notes = "Download **GeoStrix-Setup-$version.exe** below (Windows 10 / 11, 64-bit), or the portable **GeoStrix-$version-win.zip**. Signed by Open Source Developer Matheus Mendes de Albuquerque (Certum). Checksums: SHA256SUMS.txt.`n`n[Code signing policy](https://github.com/$repo/blob/master/CODE_SIGNING.md) $dot [Privacy policy](https://geostrix.com/privacy) $dot [geostrix.com](https://geostrix.com)"
+$notes = "Download **GeoStrix-Setup-$version.exe** below (Windows 10 / 11, 64-bit). No administrator rights? Choose 'Only for me' when installing. Signed by Open Source Developer Matheus Mendes de Albuquerque (Certum). Checksums: SHA256SUMS.txt.`n`n[Code signing policy](https://github.com/$repo/blob/master/CODE_SIGNING.md) $dot [Privacy policy](https://geostrix.com/privacy) $dot [geostrix.com](https://geostrix.com)"
 if (-not (Probe { gh release view $Tag --repo $repo }).ok) {
   $notesFile = Join-Path $work "release-notes.md"
   [System.IO.File]::WriteAllText($notesFile, $notes, (New-Object System.Text.UTF8Encoding $false))  # UTF-8 without a BOM

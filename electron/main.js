@@ -339,7 +339,7 @@ ipcMain.handle("updater-check", async () => {
   }
 });
 ipcMain.handle("updater-download", async () => {
-  if (IS_PORTABLE) return { ok: false, portable: true, message: "Portable copy: download the new zip from GitHub Releases." }; // #473
+  if (IS_PORTABLE) return { ok: false, portable: true, message: "Portable copy: download the installer from GitHub Releases." }; // #473; #4099 — the zip is no longer published
   try {
     await autoUpdater.downloadUpdate();
     return { ok: true };

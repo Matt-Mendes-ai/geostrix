@@ -18,8 +18,8 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
     none). English fragments inside Arabic text get `dir="ltr"` / `<bdi>` so their arrows and order stay right.
 - `download.js` — points the download buttons at the newest `GeoStrix-Setup-*.exe` on GitHub Releases
   (falls back to the latest-release page without JavaScript or if GitHub's API is unreachable), and shows the
-  total GitHub download count of the installer + portable zip: as a badge above the home page's headline (linked
-  to the releases, space reserved so nothing jumps) and as a full sentence by the Download button. Its text, and `gallery.js`'s button labels,
+  total GitHub download count of the installer (+ the portable zip older releases shipped): as a plain-text badge above the home page's headline (no link, no arrow, #4099:
+  space reserved so nothing jumps) and as a full sentence by the Download button. Its text, and `gallery.js`'s button labels,
   follow the page's `<html lang>`
 - `img/` — screenshots from the bundled Harry sample project (ARIS report 37584), WebP; the hero,
   `hero-woodjam-3d.webp`, is a GeoStrix screenshot of the Woodjam sample (ARIS 41597): drillholes over its 3D geophysics; `og-woodjam-3d.jpg` is the
