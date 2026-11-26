@@ -651,3 +651,19 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
 export const miniBtn = { width: 60, padding: "5px 0", borderRadius: 6, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border-light)", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" };
 export const iconBtn = { width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", cursor: "pointer" };
 export const miniField = { flex: 1, display: "flex", flexDirection: "column", gap: 3, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
+
+// TASKS.csv #4101 — the 3D View sidebar's "More display options": the hole labels, the collar size, the drawing style and the assay element picker in one fold, after the
+// layer rows (which stay first). Folded, not hidden: one click opens it. It starts open while no assay element is chosen (the chips are how the first one is picked);
+// whether the user left it open or closed is remembered per computer (localStorage, as the sidebar width is), never saved in the project.
+export const MORE_DISPLAY_KEY = "geostrix.viewer.moreDisplayOpen";
+const rememberedMoreDisplay = () => { try { const v = localStorage.getItem(MORE_DISPLAY_KEY); return v === "1" ? true : v === "0" ? false : null; } catch { return null; } };
+export function MoreDisplayFold({ children, openFirst = false }) {
+  const [open, setOpen] = useState(() => rememberedMoreDisplay() ?? !!openFirst);
+  return (
+    <details data-more-fold="" data-more-display="" open={open} style={{ marginTop: 12, marginBottom: 8 }}
+      onToggle={(e) => { const o = e.currentTarget.open; if (o === open) return; setOpen(o); try { localStorage.setItem(MORE_DISPLAY_KEY, o ? "1" : "0"); } catch { /* private window: it just is not remembered */ } }}>
+      <summary style={{ cursor: "pointer", color: "var(--color-info)", fontSize: "var(--font-size-sm)" }}>{tr("More display options")}</summary>
+      <div style={{ marginTop: 6 }}>{children}</div>
+    </details>
+  );
+}

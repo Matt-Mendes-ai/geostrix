@@ -5330,7 +5330,6 @@
   "Show assay elements": "Mostrar elementos de ensaye",
   "Hide {symbol} — right-click for more": "Ocultar {symbol} — clic derecho para más",
   "Show {symbol}": "Mostrar {symbol}",
-  "{assays} intervals loaded via Geochem module": "{assays} intervalos cargados mediante el módulo Geoquímica",
   "Map layers{v}": "Capas de mapa{v}",
   "Show": "Mostrar",
   "Section images{v}": "Imágenes de secciones{v}",
@@ -5911,6 +5910,7 @@
   "Orientations from": "Orientaciones de",
   "no outcrop measurements imported — the contacts' own dips are used": "no hay mediciones de afloramiento importadas: se usan los buzamientos propios de los contactos",
   "Faults": "Fallas",
+  "More display options": "Más opciones de visualización",
   "Design lines for drifts, tunnels, ramps and declines: straights and curves, each at its own grade. No ventilation or geotechnical check.": "Líneas de diseño para galerías, túneles, rampas y declinas: rectas y curvas, cada una con su pendiente. Sin verificación de ventilación ni geotécnica.",
   "Enter the start elevation (Z): the project has no terrain or collars. Clicks are taken on that level.": "Ingrese la elevación de inicio (Z): el proyecto no tiene terreno ni collares. Los clics se toman en ese nivel.",
   "Z {z} is the median collar elevation, used for clicks until the start is placed; it then takes the ground under it.": "Z {z} es la elevación mediana de collares, usada para los clics hasta fijar el inicio; luego toma el terreno bajo él.",
@@ -15932,5 +15932,6 @@
   "Epithermal Au-Ag": "Au-Ag epitermal",
   "Mount Raymond (Geological Survey of Canada, Canadian Geoscience Map 71, northern Yukon): 1:50 000 bedrock mapping only — map units, faults, folds and 119 planar measurements on a terrain — nothing synthesized.": "Mount Raymond (Servicio Geológico de Canadá, Canadian Geoscience Map 71, norte del Yukón): solo cartografía del basamento a 1:50 000 (unidades de mapa, fallas, pliegues y 119 mediciones planares sobre un terreno); nada sintetizado.",
   "WA zinc-copper (WAMEX report A77713): 32 holes from 2007 on sulphide prospects in felsic volcanic rocks, with logs and assays, and 157 soil and 46 stream-sediment samples — nothing synthesized.": "Zinc-cobre de Australia Occidental (informe WAMEX A77713): 32 sondajes de 2007 en prospectos de sulfuros en rocas volcánicas félsicas, con registros y ensayes, y 157 muestras de suelo y 46 de sedimentos de corriente; nada sintetizado.",
-  "WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit, with lithology, weathering, assays and specific gravity — nothing synthesized.": "Plomo-plata-zinc de Australia Occidental (informe WAMEX A91581): 99 sondajes someros de 2010 en un depósito alojado en carbonatos, con litología, meteorización, ensayes y gravedad específica; nada sintetizado."
+  "WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit, with lithology, weathering, assays and specific gravity — nothing synthesized.": "Plomo-plata-zinc de Australia Occidental (informe WAMEX A91581): 99 sondajes someros de 2010 en un depósito alojado en carbonatos, con litología, meteorización, ensayes y gravedad específica; nada sintetizado.",
+  "{assays} intervals loaded": "{assays} intervalos cargados"
 }

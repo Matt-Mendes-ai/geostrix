@@ -208,7 +208,7 @@ const SurfaceTonnage = lazyModal(() => import("./viewer/SurfaceTonnage.jsx")); /
 // symbology editor load the first time they are shown
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
 const PlannedHoleAddForm = plannedPart("PlannedHoleAddForm"), PlannedHoleRow = plannedPart("PlannedHoleRow"), PlannedHoleChecks = plannedPart("PlannedHoleChecks");
-import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, LayerRow, LayerQuickPanel, VoxelRangeRow, miniBtn, iconBtn, miniField, typedSectionInput } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1084 — moved out at the size cap
+import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRowList, OrphanHoles, LayerRow, LayerQuickPanel, VoxelRangeRow, MoreDisplayFold /* #4101 */, miniBtn, iconBtn, miniField, typedSectionInput } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1084 — moved out at the size cap
 import { plannedTrace } from "../lib/plannedTrace.js"; // TASKS.csv #119 - shared target math; plannedTrace: #524; #3159
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
@@ -5892,27 +5892,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </div>
         <input ref={setInputRef("survey")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
 
-        {/* TASKS.csv #131 — hole labels (a fixed set of contents, see holeLabelMode), once there are holes; #2823 — the collar markers' switch */}
-        {collars.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" /* #2941 */ }}>
-            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0 }}>{tr("Hole labels")}</span>
-            <select aria-label={tr("Hole labels")}
-              value={holeLabelMode}
-              onChange={(e) => setHoleLabelMode(e.target.value)}
-              style={{ flex: "1 0 auto", minWidth: 0, /* #2941 — not narrower than 'Hole ID + total depth'; the Collars tick wraps */ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}
-            >
-              <option value="none">{tr("Off")}</option>
-              <option value="hole_id">{tr("Hole ID")}</option>
-              <option value="hole_id_z">{tr("Hole ID + elevation")}</option>
-              <option value="hole_id_depth">{tr("Hole ID + total depth")}</option>
-              <option value="hole_id_toe">{tr("Hole ID at the toe")}</option><option value="hole_id_both">{tr("Hole ID at both ends")}</option>
-            </select>
-            <label style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0, cursor: "pointer" }} title={tr("Show or hide the collar markers. The holes, their labels and picking on them stay.")}>
-              <input type="checkbox" checked={!figureOverlay.collarsOff} onChange={(e) => setFigureOverlay((f) => ({ ...f, collarsOff: !e.target.checked }))} />{tr("Collars")}</label>
-          </div>
-        )}
-        {collars.length > 0 && !figureOverlay.collarsOff && <CollarSizeControl figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} label={tr("Collar size")} />}
-        {collars.length > 0 && <LightDrawingControl onChange={() => setRebuildSeq((n) => n + 1)} />}{/* #3620 */}
 
         {/* TASKS.csv #155 — Connect database / Run data QC / Boundary intercepts moved to the toolbar
             above (they're tools/dialogs, not data) — see the ge-subtoolbar block near the top of this
@@ -6110,7 +6089,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px 4px" }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? tr("Hide all assay elements") : tr("Show assay elements")} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
               <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
-                {assayDisplayElements.length === 0 ? tr("No elements selected") : !assayVisible ? tr("{n} chosen, all hidden (the eye)", { n: assayDisplayElements.length }) /* #2941 */ : tr(assayDisplayElements.length > 1 ? "{n} elements shown" : "{n} element shown", { n: assayDisplayElements.length })}
+                {assayDisplayElements.length === 0 ? tr("No elements selected") : !assayVisible ? tr("{n} chosen, all hidden (the eye)", { n: assayDisplayElements.length }) /* #2941 */ : tr(assayDisplayElements.length > 1 ? "{n} elements shown" : "{n} element shown", { n: assayDisplayElements.length })}{assayVisible && assayDisplayElements.length > 0 && <span style={{ color: "var(--color-text-muted)" }}> · {assayDisplayElements.slice(0, 6).join(", ")}{assayDisplayElements.length > 6 ? "…" : ""}</span> /* #4101 — which, with the picker folded */}
               </div>
               {assayDisplayElements.length > 0 && (
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Clear")}</span>
@@ -6126,6 +6105,37 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 </select>
               </div>
             )}
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, padding: "0 10px" }}>{tr("{assays} intervals loaded", { assays: assays.length })}</div>
+          </>
+        )}
+
+        {/* TASKS.csv #4101 — the 3D View's Layers sidebar was 3.1 screens on wa_uranium: the hole labels, the collar size, the drawing style and the assay element picker are one fold, "More display options",
+            after the layer rows (which stay first, in view). Folded, not hidden: one click opens it, and it opens by itself while no assay element is chosen. Open or closed is remembered per computer. */}
+        {(collars.length > 0 || assayElements.length > 0) && (
+          <MoreDisplayFold key={assayElements.length > 0 ? "assays" : "none"} openFirst={assayElements.length > 0 && assayDisplayElements.length === 0}>
+        {/* TASKS.csv #131 — hole labels (a fixed set of contents, see holeLabelMode), once there are holes; #2823 — the collar markers' switch */}
+        {collars.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" /* #2941 */ }}>
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0 }}>{tr("Hole labels")}</span>
+            <select aria-label={tr("Hole labels")}
+              value={holeLabelMode}
+              onChange={(e) => setHoleLabelMode(e.target.value)}
+              style={{ flex: "1 0 auto", minWidth: 0, /* #2941 — not narrower than 'Hole ID + total depth'; the Collars tick wraps */ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}
+            >
+              <option value="none">{tr("Off")}</option>
+              <option value="hole_id">{tr("Hole ID")}</option>
+              <option value="hole_id_z">{tr("Hole ID + elevation")}</option>
+              <option value="hole_id_depth">{tr("Hole ID + total depth")}</option>
+              <option value="hole_id_toe">{tr("Hole ID at the toe")}</option><option value="hole_id_both">{tr("Hole ID at both ends")}</option>
+            </select>
+            <label style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0, cursor: "pointer" }} title={tr("Show or hide the collar markers. The holes, their labels and picking on them stay.")}>
+              <input type="checkbox" checked={!figureOverlay.collarsOff} onChange={(e) => setFigureOverlay((f) => ({ ...f, collarsOff: !e.target.checked }))} />{tr("Collars")}</label>
+          </div>
+        )}
+        {collars.length > 0 && !figureOverlay.collarsOff && <CollarSizeControl figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} label={tr("Collar size")} />}
+        {collars.length > 0 && <LightDrawingControl onChange={() => setRebuildSeq((n) => n + 1)} />}{/* #3620 */}
+            {assayElements.length > 0 && (
+              <>
             {/* User request: several elements at once, each toggled by its chip; the swatch is its marker colour (the chips are the legend);
                 the gear opens the style editor (colour, size, classes, cutoff). #2785: a filter past 20 elements */}
             {assayElements.length > CHIP_FILTER_MIN && <input type="search" value={chipQ} onChange={(e) => setChipQ(e.target.value)} placeholder={tr("Filter elements")} aria-label={tr("Filter elements")} style={{ margin: "0 10px 6px", width: "calc(100% - 20px)", fontSize: "var(--font-size-sm)", padding: "3px 6px" }} />}
@@ -6175,8 +6185,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 );
               })}
             </div>
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, padding: "0 10px" }}>{tr("{assays} intervals loaded via Geochem module", { assays: assays.length })}</div>
-          </>
+              </>
+            )}
+          </MoreDisplayFold>
         )}
 
         {(!basicTools || customLayers.length > 0) && (<>{/* TASKS.csv #3906 — with Basic tools, an empty section waits for All tools */}
