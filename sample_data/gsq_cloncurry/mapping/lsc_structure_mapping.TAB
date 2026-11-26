@@ -1,0 +1,25 @@
+!table
+!version 1000
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 8
+    East Float ;
+    North Float ;
+    Lith Char (36) ;
+    Code Float Index 1 ;
+    DipDir Float ;
+    Dip Float ;
+    Desc Char (254) ;
+    F8 Char (18) ;
+begin_metadata
+"\IsReadOnly" = "FALSE"
+"\MapInfo" = ""
+"\MapInfo\TableID" = "68ecb136-2bbc-4fd8-85c0-a7a9c01ba1bc"
+"\MapInfo\ParentTableID" = "a1674683-9e77-493d-95d0-515d79b58e9a"
+"\Discover" = ""
+"\Discover\Version" = "17.00"
+"\Discover\Module" = "Struct"
+"\Discover\Date" = "31/10/2017"
+end_metadata
