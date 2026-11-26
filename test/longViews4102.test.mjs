@@ -107,3 +107,13 @@ test("#4102 SQL workspace: the table names stay in view, the columns are behind 
   assert.ok(s.includes(names) && s.indexOf(names) < at, "the names stay above the fold");
   assert.ok(s.includes('import MoreFold from "./MoreFold.jsx"'));
 });
+
+test("#4102 a notice's own More reaches the sidebar's Recent messages (it was dropped there): NoticeLine shows it behind a closed More", async () => {
+  const n = read("src/modules/viewer/NoticeLine.jsx"), v = read("src/modules/ViewerModule.jsx");
+  assert.ok(n.includes("more = null") && n.includes('{more && <details data-more-fold=""'), "NoticeLine takes `more`");
+  assert.ok(v.includes('<NoticeLine key={i} text={noticeText(n)} error={noticeLevel(n) === "error"} more={n?.more} />'), "the list passes it");
+  const { default: NL } = await import(bundle("src/modules/viewer/NoticeLine.jsx", "nl.mjs"));
+  const withMore = renderToStaticMarkup(h(NL, { text: "Loaded the sample.", more: "See README.md for the source and the licence." }));
+  assert.ok(withMore.includes("<details") && withMore.includes(">More<") && withMore.includes("See README.md for the source and the licence."));
+  assert.ok(!renderToStaticMarkup(h(NL, { text: "Loaded the sample." })).includes("<details"), "no fold without details");
+});

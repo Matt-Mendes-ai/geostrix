@@ -3,11 +3,12 @@
 import React, { useState } from "react";
 import { AlertTriangle } from "../../components/icons.js";
 import { activateOnKey } from "../../lib/a11y.js";
+import { t as tr } from "../../lib/i18n.js";
 
 const clamp = { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" };
 export const LONG_NOTICE = 140; // characters
 
-export default function NoticeLine({ text, error = false }) {
+export default function NoticeLine({ text, error = false, more = null }) { // TASKS.csv #4102 — more: a notice's own details (#3986), behind a closed More
   const [open, setOpen] = useState(false);
   const long = String(text).length > LONG_NOTICE;
   const toggle = long ? { role: "button", tabIndex: 0, onKeyDown: activateOnKey, onClick: () => setOpen((o) => !o), "aria-expanded": open, style: { cursor: "pointer", ...(open ? null : clamp) }, title: open ? undefined : String(text) } : null;
@@ -15,6 +16,7 @@ export default function NoticeLine({ text, error = false }) {
     <div style={{ marginBottom: 4, ...(error ? { color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start" } : null) }}>
       {error && <AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />}
       <span {...(toggle || {})}>{text}</span>
+      {more && <details data-more-fold="" style={{ marginTop: 2 }}><summary style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("More")}</summary><div>{more}</div></details>}
     </div>
   );
 }
