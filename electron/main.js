@@ -1360,6 +1360,8 @@ const READABLE_EXT = new Set([".csv", ".txt", ".tsv", ".xyz", ".dat", ".zip", ".
   ".ers", // TASKS.csv #4066 — an ER Mapper header (text); its data file is allowed below (ersSides), as named by it
   ".str", // TASKS.csv #4081 — Surpac string file (text)
   ".vo", ".pl"]); // TASKS.csv #2725 — GOCAD Voxet header, GOCAD PLine (both text)
+// TASKS.csv #4105 — the geophysics text files of the bundled GSQ samples (a Maxwell / SMARTem .tem, a Zonge station file .stn, a TQIPdb .esf): read only from the samples (below), so the Browser panel's list is not widened
+const SAMPLE_ONLY_EXT = new Set([".tem", ".stn", ".esf"]);
 // TASKS.csv #2725 — a Voxet's side files (PROP_FILE, often extension-less), allowed only as named by a .vo read below: voxetSideFiles.js
 const voxetSides = require("./voxetSideFiles.js").createVoxetSideRegistry();
 const ersSides = require("./voxetSideFiles.js").createErsSideRegistry(); // TASKS.csv #4066 — an ER Mapper header's data file (no extension): allowed only as that .ers names it, same rules
@@ -1388,13 +1390,16 @@ ipcMain.handle("fs-read-range", async (_e, { filePath, offset, length }) => {
 ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   try {
     const ext = path.extname(String(filePath || "")).toLowerCase();
-    if (!READABLE_EXT.has(ext) && !voxetSides.has(filePath) && !ersSides.has(filePath)) return { ok: false, error: `GeoStrix doesn't import ${ext || "extension-less"} files.` }; // voxetSides: #2725
+    const refused = !READABLE_EXT.has(ext) && !voxetSides.has(filePath) && !ersSides.has(filePath); // voxetSides: #2725
+    if (refused && !SAMPLE_ONLY_EXT.has(ext)) return { ok: false, error: `GeoStrix doesn't import ${ext || "extension-less"} files.` };
     const full = dirKey(filePath); // #746 — its folder listed this session, or the bundled samples
     const inSamples = [...sampleRoots].some((r) => full.startsWith(r + path.sep));
+    if (refused && !inSamples) return { ok: false, error: `GeoStrix doesn't import ${ext} files.` }; // #4105 — a sample-only type outside the samples
     if (!inSamples && !listedDirs.has(path.dirname(full))) return { ok: false, error: "Open the file's folder in the Browser panel first." };
     // TASKS.csv #1344 — an installed copy keeps its samples in %LOCALAPPDATA%\Programs\GeoStrix\resources, which #1266 protects, so from
     // v0.1.87 no sample opened. GeoStrix's own sample files are read; only when the real path is in the samples too, so a link cannot pass for one.
     const sampleFile = inSamples && (await realPathInSamples(filePath));
+    if (refused && !sampleFile) return { ok: false, error: `GeoStrix doesn't import ${ext} files.` }; // #4105 — and only when the real path is in the samples too
     if (!sampleFile && (isNamespacedPath(filePath) || (await inProtectedFolder(filePath)))) return { ok: false, error: "GeoStrix does not read files from this location." }; // #1076
     if (!(await allowNetworkPath(filePath))) return { ok: false, error: "Network location not opened." };
     const st = await fs.promises.stat(filePath);

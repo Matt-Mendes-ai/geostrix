@@ -4928,6 +4928,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const notes = await loadWaSampleExtras(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements, addCustomLayer: (l) => { if (sampleLithOnly.led()) sampleLithOnly.hideCustom(l.id); /* #4039 */ setStoreCustomLayers((p) => [...(p || []), l]); }, addRaster: store.addRaster, setProjectDataCredit: store.setProjectDataCredit /* #3496 */, setTaskProgress /* #3539 */ },
           { existingElements: assayElements, existingSurfaceElements: surfaceElements, project: importStateRef.current?.project || store.project });
         setNotices((p) => [...p, ...notes]);
+        if (which.startsWith("gsq_")) { // TASKS.csv #4105 — after the holes and their assays: the sample's geophysics and mapping, no dialog (lib/sampleGsqGeophysics.js)
+          const { loadGsqGeophysics } = await import("../lib/sampleGsqGeophysics.js");
+          const g = await loadGsqGeophysics(which, async (rel) => (await loadSampleFiles(WA_SAMPLES[which].dir, [rel]))[0], { saveDcipLine, setLayers, updateGeophysSurvey: store.updateGeophysSurvey, addBoundary: store.addBoundary, addMapLayer: store.addMapLayer, addSurfaceStructureSet: store.addSurfaceStructureSet, addCustomLayer: (l) => { if (sampleLithOnly.led()) sampleLithOnly.hideCustom(l.id); setStoreCustomLayers((q) => [...(q || []), l]); } },
+            { projectEpsg: importStateRef.current?.project?.epsg || store.project?.epsg || WA_SAMPLES[which].epsg, label: WA_SAMPLES[which].label, importSolid: importSolidFile });
+          setNotices((p) => [...p, ...g.notes]);
+        }
       } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
       return;
     }

@@ -2793,7 +2793,6 @@
   "; skipped {bad} row(s) missing x/y or a value": " ; {bad} ligne(s) ignorée(s) sans x/y ou sans valeur",
   "Could not parse {name}: {message}": "Impossible d'analyser {name} : {message}",
   "Importing {name}…": "Import de {name}…",
-  "{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)": "{msg} (Astuce : les imports raster ont maintenant leur propre onglet « Raster » — ce dépôt fonctionne aussi ici.)",
   "Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.": "Remplacer le terrain actuel (« {name} ») par « {name2} » ? Une seule surface de terrain est prise en charge à la fois.",
   "Imported \"{name}\" as a {gridW}×{gridH} terrain mesh (source {srcWidth}×{srcHeight}px, {v}×{v2} world units){v3}.": "« {name} » importé comme maillage de terrain {gridW}×{gridH} (source {srcWidth}×{srcHeight} px, {v}×{v2} unités monde){v3}.",
   " from {tileCount} merged tiles": " à partir de {tileCount} tuiles fusionnées",
@@ -5911,6 +5910,7 @@
   "Orientations from": "Orientations issues de",
   "no outcrop measurements imported — the contacts' own dips are used": "aucune mesure d'affleurement importée — les pendages propres des contacts sont utilisés",
   "Faults": "Failles",
+  "{n} map layers": "{n} couches de carte",
   "— pick a layer —": "— choisir une couche —",
   "By interval…": "Par intervalle…",
   "{n} checked": "{n} vérifiés",
@@ -11012,7 +11012,6 @@
   "{name}: the line is in degrees: set the project's CRS and import it again.": "{name} : la ligne est en degrés : définissez le SCR du projet et importez-la de nouveau.",
   "line altitudes": "altitudes de la ligne",
   "line altitudes, terrain": "altitudes de la ligne, terrain",
-  "terrain": "terrain",
   "Near-straight trace: any plane fits, so the dip is unknown.": "Tracé presque droit : tout plan convient, le pendage est donc inconnu.",
   "Level ground: the plane is the ground, not a fault.": "Terrain plat : le plan est le terrain, pas une faille.",
   "Little relief: the dip is known only to ± {err}°.": "Peu de relief : le pendage n'est connu qu'à ± {err}° près.",
@@ -15979,5 +15978,8 @@
   " — the trend \"{name}\" was NOT applied: add-on {v} predates trends": " — la tendance « {name} » n'a PAS été appliquée : l'extension {v} est antérieure aux tendances",
   "{c} contacts need {n} inducing points, more than add-on {v} holds: update it, merge thin codes or choose fewer holes.": "{c} contacts demandent {n} points inducteurs, plus que l'extension {v} n'en garde : mettez-la à jour, fusionnez les codes minces ou choisissez moins de sondages.",
   "Training skipped: same as the last run.": "Entraînement sauté : identique à l'exécution précédente.",
-  "Trained again: the add-on had been freed.": "Réentraîné : l'extension avait été libérée."
+  "Trained again: the add-on had been freed.": "Réentraîné : l'extension avait été libérée.",
+  "{n} surveys": "{n} levés",
+  "{n} EM layers": "{n} couches EM",
+  "{n} plates": "{n} plaques"
 }
