@@ -48,7 +48,7 @@ export default function SampleList({ rows = [], first = null, onLoad, loading = 
     else if (e.key === "Enter") { e.preventDefault(); open(r); }
   };
   const size = (r) => (r.download != null ? <span style={{ fontSize: "var(--font-size-xs)", padding: "0 5px", borderRadius: 8, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)" }}>{tr("Download {n} MB", { n: r.download })}</span> : r.mb != null ? tr("{n} MB", { n: r.mb }) : "");
-  const cta = !cur ? tr("Open a sample") : cur.download != null ? tr("Download and open {name} ({n} MB)", { name: cur.name, n: cur.download }) : tr("Open {name}", { name: cur.name });
+  const cta = !cur ? tr("Open") : cur.download != null ? tr("Download and open {name} ({n} MB)", { name: cur.name, n: cur.download }) : tr("Open {name}", { name: cur.name });
   return (
     <div data-sample-list="" style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 100%", minHeight: 0, minWidth: 0 }}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
@@ -63,9 +63,9 @@ export default function SampleList({ rows = [], first = null, onLoad, loading = 
         <table role="grid" aria-label={tr("Samples")} style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              <th style={th}>{tr("Sample")}</th><th style={th}>{tr("Deposit style")}</th>
+              <th style={th}>{tr("Sample")}</th><th style={th}>{tr("Style")}</th>
               {SAMPLE_ICONS.map((k) => <th key={k} style={{ ...th, textAlign: "center", padding: "3px 4px" }} title={L[k]}><Icon k={k} label={L[k]} /></th>)}
-              <th style={th}>{tr("What it has")}</th><th style={th}>{tr("Size")}</th>
+              <th style={th}>{tr("Contents")}</th><th style={th}>{tr("Size")}</th>
             </tr>
           </thead>
           <tbody>

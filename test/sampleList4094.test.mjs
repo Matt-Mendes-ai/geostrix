@@ -56,7 +56,7 @@ test("the component: a static table, every icon named, rows selectable and opena
 test("the layout: the card never scrolls, the table scrolls inside it, the gold button is the last item below it (in view at 1366x768)", () => {
   const e = read("../src/components/EmptyState.jsx"), c = read("../src/modules/viewer/SampleList.jsx");
   assert.match(e, /const wideCard = \{ maxWidth: 900, width: "100%", display: "flex", flexDirection: "column" \};/); // the card scrolls only when the own-data fold is opened
-  assert.match(e, /\{wide && children && <MoreFold summary=\{tr\("Start with your own data"\)\}/); // the drop area and its steps: folded under the table, one click away
+  assert.match(e, /\{wide && children && <MoreFold summary=\{tr\("Your data"\)\}/); // the drop area and its steps: folded under the table, one click away
   assert.match(e, /const wideActions = \{ display: "flex", flexDirection: "column", gap: 8, flex: "1 1 auto", minHeight: 0 \};/);
   assert.match(c, /overflow: "auto", minHeight: 96, flex: "1 1 auto"/); // the table's own scroller
   const tableAt = c.indexOf("<table"), btnAt = c.indexOf('className="gs-btn gs-btn--primary"');

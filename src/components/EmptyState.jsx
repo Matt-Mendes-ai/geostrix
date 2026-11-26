@@ -54,7 +54,7 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
             {secondary}
           </div>
         )}
-        {wide && children && <MoreFold summary={tr("Start with your own data")} style={{ marginTop: 8, marginBottom: 0, flex: "none" }}>{children}</MoreFold>}{/* TASKS.csv #4094 — the card's own-data steps stay one click away, folded under the table so the sample table and its gold button fit at 1366x768 */}
+        {wide && children && <MoreFold summary={tr("Your data")} style={{ marginTop: 8, marginBottom: 0, flex: "none" }}>{children}</MoreFold>}{/* TASKS.csv #4094 — the card's own-data steps stay one click away, folded under the table so the sample table and its gold button fit at 1366x768 */}
         {footnote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 7, whiteSpace: "pre-line" /* #3541 — a footnote of several lines keeps them */ }}>{trText(footnote)}</div>}
       </div>
     </div>
