@@ -156,7 +156,7 @@ test("#4103 wiring: the Faults builder lists every imported line and adds the ch
   assert.match(mp, /<VeinPane \{\.\.\.\{[^}]*vein_units, props \}\} \/>/);
   // the Faults pane builds its planes through addWorldMeshSurface: it must reach ModellingPanes (commit fdb819c1d, #4028, had dropped it from the mount's props, and Build made nothing, silently)
   assert.match(read("src/modules/ViewerModule.jsx"), /<ModellingPanes \{\.\.\.\{ setStackUnits,[\s\S]*?, addWorldMeshSurface \/\* TASKS\.csv #4103/);
-  assert.ok(mp.includes("props: { ...props, addWorldMeshSurface }"), "ModellingPanes reads it and hands it to the Faults pane");
+  assert.ok(mp.includes("addWorldMeshSurface: _addWorldMeshSurface"), "ModellingPanes names it (test #991), and the Faults pane gets the whole props");
   assert.ok(fb.includes("addWorldMeshSurface") && fb.includes("addSurface: addWorldMeshSurface"));
   const fr = read("src/modules/viewer/faultRun.js");
   assert.ok(fr.includes("fitTraceSurface(f.spec.points, order") && fr.includes("polynomialSurfaceMesh({") && fr.includes('shape: "polynomial"'));

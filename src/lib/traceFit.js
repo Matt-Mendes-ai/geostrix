@@ -50,7 +50,7 @@ export function looksLikeDegrees(part) {
   const v = (part || []).filter((p) => finite(p[0], p[1]));
   if (v.length < 2) return false;
   const xs = v.map((p) => p[0]), ys = v.map((p) => p[1]);
-  return Math.max(...xs.map(Math.abs)) <= 180 && Math.max(...ys.map(Math.abs)) <= 90 && arrMax(xs) - arrMin(xs) < DEGREES_BOX && arrMax(ys) - arrMin(ys) < DEGREES_BOX;
+  return arrMax(xs.map(Math.abs)) <= 180 && arrMax(ys.map(Math.abs)) <= 90 && arrMax(xs) - arrMin(xs) < DEGREES_BOX && arrMax(ys) - arrMin(ys) < DEGREES_BOX;
 }
 
 // the 3D points of a line. heights: "auto" (the vertices' own altitudes where the file has them, the terrain elsewhere), "terrain" (always the terrain), "line" (only the file's altitudes).
