@@ -179,6 +179,12 @@ export function bundledData() {
   { const p = path.join(ROOT, "sample_data", "qld_century", "README.md");
     if (existsSync(p)) out.push({ name: "Century zinc-lead-silver sample (Whole of Queensland Geochemistry databases, Geological Survey of Queensland, State of Queensland; Total Magnetic Intensity Grid of Australia 2019, Geoscience Australia)", version: "2024", license: "CC-BY-4.0",
       url: "https://geoscience.data.qld.gov.au/dataset/whole-of-queensland-geochemistry-databases", text: readFileSync(p, "utf8").trim() }); }
+  // TASKS.csv #4056 / #4094 — the five Geoscience Queensland samples: each README carries the attribution and says what was done
+  for (const [dir, name] of [["gsq_carbo_creek", "Carbo Creek"], ["gsq_cloncurry", "Cloncurry"], ["gsq_altia_south", "Altia South"], ["gsq_black_mountain", "Black Mountain"], ["gsq_edinburgh_park", "Edinburgh Park"]]) {
+    const p = path.join(ROOT, "sample_data", dir, "README.md");
+    if (existsSync(p)) out.push({ name: `${name} sample (Geological Survey of Queensland open-file report, State of Queensland)`, version: "2026-11", license: "CC-BY-4.0",
+      url: "https://creativecommons.org/licenses/by/4.0/", text: readFileSync(p, "utf8").trim() });
+  }
   // TASKS.csv #3100 — Perk-Rocky's terrain (Copernicus DEM) is still shipped; the report's mapping layers are not (BC's terms: downloaded on request)
   if (existsSync(path.join(ROOT, "sample_data", "perk_rocky", "terrain_copernicus_glo30.tif"))) out.push({ name: "Perk-Rocky sample terrain (Copernicus DEM GLO-30)", version: "2026-11", license: "Copernicus DEM licence",
     url: "https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model",

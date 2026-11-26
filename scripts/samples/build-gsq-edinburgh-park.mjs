@@ -46,8 +46,10 @@ const holes = new Set(collars.map((c) => c.hole_id));
 checks.push(`holes: ${collars.length} (${[...new Set(collars.map((c) => c.prospect))].join(", ")}), Grid_ID MGA55 -> EPSG:${EPSG}`);
 
 // survey: the collar's grid azimuth and dip for every hole, and the downhole stations where the table has them (grid azimuths, the magnetic kept)
-const sv = plain(23, "HOLE_ID").map((r) => ({ hole_id: txt(r.HOLE_ID), depth: num(r.DEPTH), azimuth: num(r.GRID_AZI), dip: num(r.DIP), azimuth_magnetic: num(r.MAG_AZI), method: txt(r.METHOD) })).filter((r) => holes.has(r.hole_id) && r.depth != null && r.azimuth != null && r.dip != null);
-const survey = [...collars.filter((c) => c.azimuth != null && c.dip != null && !sv.some((s) => s.hole_id === c.hole_id && s.depth === 0)).map((c) => ({ hole_id: c.hole_id, depth: 0, azimuth: c.azimuth, dip: c.dip, azimuth_magnetic: c.azimuth_magnetic, method: "collar" })), ...sv]
+// the table writes three holes' dips positive down and the rest negative (both mean down: an RC hole 182 m long at +60): GeoStrix reads negative as down, so every dip is written negative (TASKS.csv #4094)
+const down = (v) => (v == null ? v : -Math.abs(v));
+const sv = plain(23, "HOLE_ID").map((r) => ({ hole_id: txt(r.HOLE_ID), depth: num(r.DEPTH), azimuth: num(r.GRID_AZI), dip: down(num(r.DIP)), azimuth_magnetic: num(r.MAG_AZI), method: txt(r.METHOD) })).filter((r) => holes.has(r.hole_id) && r.depth != null && r.azimuth != null && r.dip != null);
+const survey = [...collars.filter((c) => c.azimuth != null && c.dip != null && !sv.some((s) => s.hole_id === c.hole_id && s.depth === 0)).map((c) => ({ hole_id: c.hole_id, depth: 0, azimuth: c.azimuth, dip: down(c.dip), azimuth_magnetic: c.azimuth_magnetic, method: "collar" })), ...sv]
   .sort((a, b) => a.hole_id.localeCompare(b.hole_id) || a.depth - b.depth);
 writeCsv(path.join(out, "survey.csv"), ["hole_id", "depth", "azimuth_grid=azimuth", "dip", "azimuth_magnetic", "method"], survey);
 checks.push(`survey: ${survey.length} stations (${collars.length} collars, ${sv.length} downhole in ${new Set(sv.map((s) => s.hole_id)).size} holes)`);

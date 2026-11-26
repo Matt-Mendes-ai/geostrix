@@ -44,7 +44,7 @@ export async function askSampleDownload(which, statusOf = sampleStatus, dispatch
 //   blake          gravity only, no holes
 //   osborne        airborne magnetics only (a point survey and a grid), no holes: #2006
 //   geomet         118 holes reconstructed from sample positions, local grid, no CRS: #2006
-export const SAMPLE_RANK = ["wa_gold", "yk_macpass", "qld_century", "wa_iron", "wa_zinc_copper", "silvertip", "harry", "woodjam", "qc_rouyn_noranda", "wa_lead_zinc", "wa_uranium", "mount_raymond", "perk", "fi_lapland", "blake", "osborne", "geomet"];
+export const SAMPLE_RANK = ["wa_gold", "yk_macpass", "qld_century", "wa_iron", "wa_zinc_copper", "gsq_edinburgh_park", "gsq_cloncurry", "gsq_altia_south", "gsq_black_mountain", "gsq_carbo_creek", "silvertip", "harry", "woodjam", "qc_rouyn_noranda", "wa_lead_zinc", "wa_uranium", "mount_raymond", "perk", "fi_lapland", "blake", "osborne", "geomet"];
 // Surface Geology: the mapping samples first, best first (bundled with a terrain and structures, then the downloads)
 export const SURFACE_LEAD = ["qc_rouyn_noranda", "mount_raymond", "perk", "silvertip"];
 // TASKS.csv #3948 (Matt, 2026-11-21: "fold the samples ... Show Macpass and Mount Raymond"), then #4094 (2026-11-25: "the list"): the 3D View's first pick is Macpass
@@ -52,29 +52,37 @@ export const SURFACE_LEAD = ["qc_rouyn_noranda", "mount_raymond", "perk", "silve
 export const SAMPLES_IN_VIEW = ["yk_macpass", "mount_raymond"];
 export function sampleCardsFor(mode) {
   const cards = [
-    { id: "harry", title: tr("Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers") },
-    { id: "woodjam", title: tr("Load the bundled Woodjam sample project — 19 diamond drillholes (2023) with real logs, surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion, from BC's public assessment report 41597") },
-    { id: "perk", title: tr("Load the bundled Perk-Rocky sample — 2024 surface mapping (geological map, structure lines and 147 outcrop measurements as MapInfo files, on a Copernicus terrain), no drillholes: try 3D Modelling > Model from map") },
+    { id: "harry" },
+    { id: "woodjam" },
+    { id: "perk" },
   ];
-  cards.push({ id: "silvertip", title: tr("Load the bundled Silvertip sample project — 9 deep diamond drillholes (2024) with real logs, surveys, oriented structures and assays, and 606 rock, soil and stream-sediment samples, from BC's public assessment report 42807") }); // TASKS.csv #1346
+  cards.push({ id: "silvertip" }); // TASKS.csv #1346
   // TASKS.csv #2168 — a fifth sample from another jurisdiction and deposit style: shallow aircore through a lignite-bearing palaeochannel, graded by gamma log (#2324: first labelled calcrete, wrongly)
-  cards.push({ id: "wa_uranium", title: tr("Load the bundled Western Australian palaeochannel-uranium sample — 430 aircore and diamond drillholes (2009-2010) with their lithology and alteration logs, multi-element assays and a downhole gamma / eU3O8 log, from the State's open-file WAMEX drillhole database (report A87304)") });
+  cards.push({ id: "wa_uranium" });
   // TASKS.csv #2829 — a sixth sample, the first with no drillholes and no mapping: public gravity (a published grid and its stations)
-  cards.push({ id: "blake", title: tr("Load the bundled Blake River gravity sample — the Geological Survey of Canada's Bouguer anomaly grid of the Blake River area (Abitibi, Quebec) and its 7,810 gravity stations, no drillholes: try Maps for the grid and Geophysics > Point survey for the stations") });
+  cards.push({ id: "blake" });
   // TASKS.csv #2006 — an airborne magnetic survey and grid (Geoscience Australia P1029, via Fatiando a Terra Data, CC BY 4.0), and a research dataset's drillhole samples (GeoMet, CC BY 4.0)
-  cards.push({ id: "osborne", title: tr("Load the bundled Osborne magnetics sample — Geoscience Australia's airborne magnetic survey P1029 over the Osborne mine area (Mt Isa Inlier, Queensland), as processed by Leonardo Uieda: 24,927 flight-line readings and the 50 m Lightning Creek anomaly grid, no drillholes: try Geophysics > Point survey and Maps") });
-  cards.push({ id: "geomet", title: tr("Load the bundled GeoMet sample — 118 inclined drillholes with 1,999 assays of 18 elements from a published research dataset (IMPA, UFMG, Vale S.A.). The source has no collars or surveys: the traces are rebuilt from the sample positions, on a local grid with no coordinate system") });
-  cards.push({ id: "mount_raymond", title: tr("Load the bundled Mount Raymond sample — a Geological Survey of Canada 1:50 000 bedrock map of the northern Yukon (map units, faults, folds and 119 planar measurements, on a Canadian Digital Elevation Model terrain), no drillholes: try 3D Modelling > Model from map") }); // TASKS.csv #3107
-  cards.push({ id: "wa_iron", title: tr("Load the bundled Western Australian bedded-iron sample — 147 reverse-circulation and diamond drillholes (2018) on one block of a flat-lying iron deposit under cover, with strand logs, XRF assays, downhole density, gamma and magnetic-susceptibility logs and the national magnetic grid, from the State's open-file WAMEX drillhole database (report A119232) and Geoscience Australia") }); // TASKS.csv #3107
-  cards.push({ id: "wa_lead_zinc", title: tr("Load the bundled Western Australian lead-silver-zinc sample — 99 reverse-circulation and diamond drillholes (2010) on a shallow carbonate-hosted deposit in the east Kimberley, with lithology and weathering logs, assays and specific gravity, from the State's open-file WAMEX drillhole database (report A91581)") }); // TASKS.csv #3107
-  cards.push({ id: "wa_zinc_copper", title: tr("Load the bundled Western Australian zinc-copper sample — 32 reverse-circulation drillholes (2007) on sulphide prospects in felsic volcanic rocks of the east Pilbara, with lithology, alteration and sulphide logs and assays, and 157 soil and 46 stream-sediment samples, from the State's open-file WAMEX database (report A77713). The company's collar RLs (stated as AHD) sit about 15-25 m below the public terrain; the source does not say why.") }); // TASKS.csv #3107; the height note: #3884
-  cards.push({ id: "wa_gold", title: tr("Load the bundled Western Australian lode-gold sample — 66 inclined reverse-circulation and diamond drillholes (2018-2019) on a gold prospect east of Kalgoorlie, with lithology, alteration, veining and oriented-structure logs and 14,664 gold assays, from the State's open-file WAMEX drillhole database (report A122506)") }); // TASKS.csv #3107
+  cards.push({ id: "osborne" });
+  cards.push({ id: "geomet" });
+  cards.push({ id: "mount_raymond" }); // TASKS.csv #3107
+  cards.push({ id: "wa_iron" }); // TASKS.csv #3107
+  cards.push({ id: "wa_lead_zinc" }); // TASKS.csv #3107
+  cards.push({ id: "wa_zinc_copper" }); // TASKS.csv #3107; the height note: #3884
+  cards.push({ id: "wa_gold" }); // TASKS.csv #3107
   // TASKS.csv #3496 — Fireweed Metals Corp.'s Macpass drilling, used with their permission: the credit they chose follows the card's text, untranslated
-  cards.push({ id: "yk_macpass", title: tr("Load the bundled Macpass sample — Fireweed Metals Corp.'s drilling of the Macpass project in east Yukon (1952-2023): 559 holes with down-hole surveys, 32,546 sampled intervals (Ag, Pb, Zn) and 32,498 bulk densities, nothing synthesized.") + " " + MACPASS_CREDIT });
-  cards.push({ id: "fi_lapland", title: tr("Load the bundled Central Lapland sample — the Geological Survey of Finland's 1:1 000 000 bedrock units and faults over a 100 km window of the greenstone belt, and 121 whole-rock samples with their major oxides and trace elements, no drillholes: try Geochem for the rock diagrams") }); // TASKS.csv #3107
-  cards.push({ id: "qc_rouyn_noranda", title: tr("Load the bundled Rouyn-Noranda sample — a 7 km block of the Abitibi from Quebec's SIGEOM: regional geology, 299 outcrop structural measurements and 280 historical diamond drillhole traces (collar, direction and depth, no logs or assays) on a Canadian Digital Elevation Model terrain, inside the Blake River gravity sample") }); // TASKS.csv #3107
-  cards.push({ id: "qld_century", title: tr("Load the bundled Century sample — the 1992 drilling of a shale-hosted zinc-lead-silver deposit in north-west Queensland, from the Geological Survey of Queensland's open drillhole and geochemistry database: 37 holes with surveys, lithology and assays, 730 soil samples, and Geoscience Australia's magnetic grid over them") }); // TASKS.csv #3107
+  cards.push({ id: "yk_macpass" });
+  cards.push({ id: "fi_lapland" }); // TASKS.csv #3107
+  cards.push({ id: "qc_rouyn_noranda" }); // TASKS.csv #3107
+  cards.push({ id: "qld_century" }); // TASKS.csv #3107
+  // TASKS.csv #4094 — the five Geoscience Queensland samples (#4056): a row's tooltip is just its name; the source line below the table says the rest
+  cards.push({ id: "gsq_edinburgh_park" });
+  cards.push({ id: "gsq_cloncurry" });
+  cards.push({ id: "gsq_altia_south" });
+  cards.push({ id: "gsq_black_mountain" });
+  cards.push({ id: "gsq_carbo_creek" });
   // #3100 — a BC sample not on this computer says it downloads first (its title: from where, how big); Woodjam is not offered then
+  // TASKS.csv #4094 — a row's tooltip is its name: what the long titles said (what the sample holds, where it is from, what to try) is the table's own columns and the source line below it
+  for (const c of cards) c.title = tr("Open {name}", { name: SAMPLE_CONTENTS[c.id]?.name || c.id });
   for (const c of cards) { const info = BC_SAMPLE_INFO[c.id]; if (info && missing(c.id)) { c.title = tr("Not included in the installer (BC's terms): downloads report {report}'s data from BC's public servers ({size} MB) after asking, converts it on this computer and keeps it.", { report: info.report, size: Math.round(info.bytes / 1048576) }); } } // the dialog's sizes (MB of 2^20 bytes)
   // TASKS.csv #3192 — ranked from the most useful to the least (SAMPLE_RANK); the mapping samples lead on Surface Geology (#3107), by id,
   // so a sample added later is not dropped from either list (an id not ranked goes last)
@@ -105,13 +113,18 @@ const SOURCE_LINE = {
   fi_lapland: () => tr("Central Lapland (Geological Survey of Finland, CC BY 4.0): the 1:1 000 000 bedrock map of a 100 km window of the greenstone belt and 121 whole-rock samples with full analyses, no drillholes — nothing synthesized."),
   blake: () => tr("Blake River gravity (a Geological Survey of Canada compilation, Abitibi, Quebec): the published Bouguer anomaly grid and the 7,810 stations behind it, no drillholes — nothing synthesized."),
   osborne: () => tr("Osborne magnetics (Geoscience Australia survey P1029, via Fatiando a Terra Data, CC BY 4.0): 24,927 airborne magnetic readings of the Osborne mine area and the 50 m Lightning Creek anomaly grid, no drillholes — nothing synthesized."),
+  gsq_edinburgh_park: () => tr("Edinburgh Park (Geological Survey of Queensland report cr058516, CC BY 4.0): 23 holes from 2006-2009 with logs, assays, soils, streams, rock chips, IP and magnetics — nothing synthesized."),
+  gsq_cloncurry: () => tr("Cloncurry (Geological Survey of Queensland report cr103990, CC BY 4.0): 5 holes from 2016-2017 with logs, assays, soils, rock chips, mapping, EM and IP — nothing synthesized."),
+  gsq_altia_south: () => tr("Altia South (Geological Survey of Queensland report cr105798, CC BY 4.0): 9 holes from 2017 with logs, assays, pXRF, downhole EM and ground EM — nothing synthesized."),
+  gsq_black_mountain: () => tr("Black Mountain (Geological Survey of Queensland report cr046541, CC BY 4.0): 24 holes from 2006-2007 with lithology, assays, IP and ground magnetics — nothing synthesized."),
+  gsq_carbo_creek: () => tr("Carbo Creek (Geological Survey of Queensland reports cr107430 and cr078224, CC BY 4.0): 3 diamond holes from 2013-2014 with logs and assays, under IP lines and ground EM — nothing synthesized."),
   geomet: () => tr("GeoMet (IMPA, UFMG and Vale S.A., CC BY 4.0): 118 inclined holes and 1,999 assays of 18 elements, real analyses; the holes are reconstructed from the sample positions (the source has no surveys) on a local grid with no coordinate system."),
 };
 SOURCE_LINE.harry = SOURCE_LINE.perk = SOURCE_LINE.silvertip;
 SOURCE_LINE.woodjam = () => tr("Woodjam (BC assessment report 41597): 19 diamond holes from 2023, six IP lines and the ZTEM 3D inversion — nothing synthesized.");
 export const sampleSource = (id) => (SOURCE_LINE[id] ? SOURCE_LINE[id]() : "");
 // the whole list at once (the order of the old footnote), for the tests and the licence page
-export const sampleFootnote = () => [tr("No data of your own yet? Try a sample project."), ...["wa_gold", "yk_macpass", "qld_century", "wa_iron", "wa_zinc_copper", "silvertip", "qc_rouyn_noranda", "wa_lead_zinc", "wa_uranium", "mount_raymond", "fi_lapland", "blake", "osborne", "geomet"].map(sampleSource)].join("\n");
+export const sampleFootnote = () => [tr("No data of your own yet? Try a sample project."), ...["wa_gold", "yk_macpass", "qld_century", "wa_iron", "wa_zinc_copper", "gsq_edinburgh_park", "gsq_cloncurry", "gsq_altia_south", "gsq_black_mountain", "gsq_carbo_creek", "silvertip", "qc_rouyn_noranda", "wa_lead_zinc", "wa_uranium", "mount_raymond", "fi_lapland", "blake", "osborne", "geomet"].map(sampleSource)].join("\n");
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 // TASKS.csv #4094 (Matt, 2026-11-25: "better organize them", chose "the list") — what each sample really holds, for the empty 3D View's table. The six icons are

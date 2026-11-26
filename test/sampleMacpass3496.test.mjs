@@ -81,7 +81,7 @@ test("the sample is the second card, with the credit on it, in the footnote and 
   assert.equal(SAMPLE_RANK[0], "wa_gold"); assert.equal(SAMPLE_RANK[1], "yk_macpass");
   const cards = sampleCardsFor("viewer"), i = cards.findIndex((c) => c.id === "yk_macpass");
   assert.equal(i, 1, "second on the 3D View");
-  assert.ok(cards[i].title.endsWith(CREDIT) && cards[i].title.includes("Macpass"));
+  assert.equal(cards[i].title, "Open Macpass", "its tooltip is its name (#4094): the credit follows its source line");
   const foot = sampleFootnote();
   assert.ok(foot.includes(CREDIT));
   assert.ok(foot.indexOf("Macpass") > foot.indexOf("WA lode gold") && foot.indexOf("Macpass") < foot.indexOf("Century"), "footnote order = rank order");

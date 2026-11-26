@@ -15,10 +15,11 @@ export function medianSpacing(pts) { // exported for geoprocessing.paddedBounds 
   const cell = Math.max(1e-6, Math.hypot(x1 - x0, y1 - y0) / Math.sqrt(n)), grid = new Map(), key = (i, j) => i * 1e7 + j;
   pts.forEach((p, k) => { const kk = key(Math.floor((p[0] - x0) / cell), Math.floor((p[1] - y0) / cell)); (grid.get(kk) || grid.set(kk, []).get(kk)).push(k); });
   const step = Math.max(1, Math.floor(n / 3000)), d = [];
+  const rMax = Math.min(1e4, Math.ceil(Math.max(x1 - x0, y1 - y0) / cell) + 1);
   for (let k = 0; k < n; k += step) {
     const [x, y] = pts[k], ci = Math.floor((x - x0) / cell), cj = Math.floor((y - y0) / cell);
     let best = Infinity;
-    for (let r = 1; r < 1e4; r++) { // rings of cells until one can no longer hold anything nearer
+    for (let r = 1; r <= rMax; r++) { // rings of cells until one can no longer hold anything nearer, or the rings have left the grid (a point whose only neighbours sit on the very same spot never finds one: TASKS.csv #4094, a soil table with its standards and duplicates at one place hung the 3D View)
       for (let i = ci - r; i <= ci + r; i++) for (let j = cj - r; j <= cj + r; j++) {
         for (const q of grid.get(key(i, j)) || []) { if (q === k) continue; const dd = Math.hypot(pts[q][0] - x, pts[q][1] - y); if (dd > 0 && dd < best) best = dd; }
       }
