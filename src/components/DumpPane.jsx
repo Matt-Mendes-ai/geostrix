@@ -16,6 +16,8 @@ import DumpRunList from "../modules/viewer/DumpRunList.jsx"; // TASKS.csv #2285
 import { confirmDestructive } from "../lib/confirmDestructive.js";
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
+import StepPane, { StepNumbers } from "./StepPane.jsx"; // TASKS.csv #4091
+import MoreFold from "./MoreFold.jsx";
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
 
@@ -79,46 +81,60 @@ export default function DumpPane({ surfaces = [], onAdd, onToggle, onRemove, onC
     } catch (e) { setMsg(e.message || String(e)); }
     finally { busy.current = false; }
   };
-  const line = (label, val) => <div style={row}><span>{label}</span><b>{val}</b></div>;
   const field = (k, label, extra = {}) => <label style={row}>{label}<NumberInput allowEmpty value={f[k]} onChange={asEvent(set(k))} style={num} {...extra} /></label>;
+
+  // TASKS.csv #4091 (side 4, Main's list) — on a StepPane like the Pit shell's: Shape (the footprint, crest and angle of repose: the inputs that have no default), Make the dump as the one gold primary, the numbers in
+  // Result; the density, swell and the pit to compare with (all optional) in Fine-tune. The long intro and the ground notes are cut to what changes a reading.
+  const shapeStep = (
+    <>
+      <label style={row}>{tr("Footprint")}<select value={footprint?.id || ""} onChange={set("stringId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Footprint string")}>{footprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+      {ug?.underground && <div style={note}>{tr("The collars look like underground drill positions: they are not used as the ground. Load a terrain (Maps > Terrain) for the real surface.")}</div>}{/* #2276 */}
+      {centre && <div style={note}>{tr("{a} ha; the ground at its centre is {g} m ({src}).", { a: (centre.area / 10000).toFixed(2), g: Math.round(centre.ground), src: groundSource === "terrain" ? tr("the terrain") : groundSource === "collars" ? tr("interpolated between the collars") : tr("no terrain or collars: the footprint's own elevation, flat") })}</div>}
+      {centre && groundSource === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
+      {field("crestZ", tr("Crest elevation (m)"), { placeholder: centre ? String(Math.round(centre.ground)) : "" })}
+      {field("repose", tr("Angle of repose (°)"), { min: 1, max: 89 })}
+      {reposeBad && <div style={warn}>{tr("The angle of repose must be between 1 and 89°.")}</div>}
+      {swellBad && <div style={warn}>{tr("The swell factor is 1 or more: broken rock takes more room than in place, never less.")}</div>}{/* #1940 */}
+      {missing && !reposeBad && <div style={note}>{tr("Enter the crest elevation and the angle of repose: neither has a default.")}</div>}
+    </>
+  );
+  const resultBody = res && (
+    <>
+      <StepNumbers rows={[
+        { label: tr("Capacity (loose)"), value: `${big(res.volume)} m³` },
+        res.tonnes != null ? { label: tr("Tonnes it holds"), value: `${big(res.tonnes)} t` } : null,
+        { label: tr("Footprint / with slopes"), value: `${((res.stringArea ?? res.footprintArea) / 10000).toFixed(2)} / ${(res.dumpArea / 10000).toFixed(2)} ha` }, // the string's own area, the slopes' from the grid: #1939
+        { label: tr("Highest face"), value: `${res.maxHeight.toFixed(1)} m` },
+        { label: tr("Toe reach"), value: `${res.toeReach.toFixed(1)} m` },
+        res.pitWaste != null && res.tonnes != null ? { label: tr("Holds of the pit's waste"), value: res.tonnes / res.pitWaste >= 10 ? tr("{x} times the {t} t", { x: Math.round(res.tonnes / res.pitWaste).toLocaleString(), t: big(res.pitWaste) }) : tr("{p} % of {t} t", { p: Math.round((res.tonnes / res.pitWaste) * 100).toLocaleString(), t: big(res.pitWaste) }) } : null, // #1941
+        { label: tr("Built in"), value: `${res.seconds} s`, level: "muted" },
+      ]} />
+      {res.pitWaste != null && res.tonnes == null && <div style={note}>{tr("Enter a density to compare the tonnes with the pit's {t} t of waste.", { t: big(res.pitWaste) })}</div>}
+      {res.aboveCrestShare > 0 && <div style={warn}>{tr("{p} % of the footprint stands above the crest: no dump there.", { p: Math.round(res.aboveCrestShare * 100) })}</div>}
+      {res.coarsened && <div style={warn}>{tr("The grid was made coarser to stay within the limit.")}</div>}
+      <div style={{ ...note, marginTop: 4 }}>{tr("\"{name}\" is in the generated surfaces. Capacity: the space between the shape and today's ground.", { name: res.name })}</div>
+    </>
+  );
 
   return (
     <div>
       <TaskPaneHeader title="Dump / stockpile" icon={Mountain} tone="model" onClose={onClose} />
-      <div style={note}>{tr("A closed design string is the footprint: a flat platform at the crest elevation whose sides fall at the angle of repose until they meet the ground. The solid between holds the capacity in loose cubic metres, and tonnes at an in-situ density over a swell factor, set against a pit shell's waste. A conceptual shape: no stability, lift, drainage or foundation check.")}</div>
+      <div style={note}>{tr("A closed string is the footprint; the sides fall at the angle of repose to the ground. A conceptual shape: no stability, lift, drainage or foundation check.")}</div>
       {!footprints.length && <div style={warn}>{tr("It needs a closed design string as the footprint: draw one with the Strings tool first.")}</div>}
-      {footprints.length > 0 && (<>
-        <label style={row}>{tr("Footprint")}<select value={footprint?.id || ""} onChange={set("stringId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Footprint string")}>{footprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-        {ug?.underground && <div style={note}>{tr("The collars look like underground drill positions ({upward} hole(s) drilled upward, {stacked} pair(s) of collars stacked over each other): they are not used as the ground. Load a terrain (Maps > Terrain) for the real surface.", { upward: ug.upward, stacked: ug.stacked })}</div>}{/* #2276 */}
-        {centre && <div style={note}>{tr("{a} ha; the ground at its centre is {g} m ({src}).", { a: (centre.area / 10000).toFixed(2), g: Math.round(centre.ground), src: groundSource === "terrain" ? tr("the terrain") : groundSource === "collars" ? tr("interpolated between the collars") : tr("no terrain or collars: the footprint's own elevation, flat") })}</div>}
-        {centre && groundSource === "collars" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
-        {field("crestZ", tr("Crest elevation (m)"), { placeholder: centre ? String(Math.round(centre.ground)) : "" })}
-        {field("repose", tr("Angle of repose (°)"), { min: 1, max: 89 })}
-        {field("density", tr("In-situ density (t/m³)"), { min: 0, placeholder: tr("optional") })}
-        {field("swell", tr("Swell factor"), { min: 1, placeholder: tr("optional"), title: tr("Broken rock takes more room than in place: the dump holds its volume ÷ swell of rock as it lay in place, so tonnes = volume × in-situ density ÷ swell.") })}
-        {pits.length > 0 && <label style={row}>{tr("Compare with pit")}<select value={f.pitId} onChange={set("pitId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell whose waste the dump is compared with")}><option value="">{tr("— none —")}</option>{pits.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}</select></label>}
-        {pit && Number(pit.params?.inputs?.wasteDensity) > 0 && f.density === "" && <div style={note}><button className="gs-btn gs-btn--sm" onClick={() => setF((p) => ({ ...p, density: String(pit.params.inputs.wasteDensity) }))}>{tr("Use the pit's waste density, {v}", { v: pit.params.inputs.wasteDensity })}</button></div>}{/* TASKS.csv #2437 */}
-        <button className="gs-btn gs-btn--block" style={{ marginTop: 8 }} onClick={make} disabled={missing}><Box size={14} /> {tr("Make the dump")}</button>
-        {reposeBad && <div style={warn}>{tr("The angle of repose must be between 1 and 89°.")}</div>}
-        {swellBad && <div style={warn}>{tr("The swell factor is 1 or more: broken rock takes more room than in place, never less.")}</div>}{/* #1940 */}
-        {missing && !reposeBad && <div style={note}>{tr("Enter the crest elevation and the angle of repose: neither has a default.")}</div>}
-      </>)}
-      {msg && <div style={warn}>{msg}</div>}
-      {res && (
-        <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
-          {line(tr("Capacity (loose)"), `${big(res.volume)} m³`)}
-          {res.tonnes != null && line(tr("Tonnes it holds"), `${big(res.tonnes)} t`)}
-          {line(tr("Footprint / with slopes"), `${((res.stringArea ?? res.footprintArea) / 10000).toFixed(2)} / ${(res.dumpArea / 10000).toFixed(2)} ha`)}{/* the string's own area, the slopes' from the grid: #1939 */}
-          {line(tr("Highest face"), `${res.maxHeight.toFixed(1)} m`)}
-          {line(tr("Toe reach"), `${res.toeReach.toFixed(1)} m`)}
-          {res.pitWaste != null && res.tonnes != null && line(tr("Holds of the pit's waste"), res.tonnes / res.pitWaste >= 10 ? tr("{x} times the {t} t", { x: Math.round(res.tonnes / res.pitWaste).toLocaleString(), t: big(res.pitWaste) }) : tr("{p} % of {t} t", { p: Math.round((res.tonnes / res.pitWaste) * 100).toLocaleString(), t: big(res.pitWaste) }))}{/* #1941 */}
-          {res.pitWaste != null && res.tonnes == null && <div style={note}>{tr("Enter a density to compare the tonnes with the pit's {t} t of waste.", { t: big(res.pitWaste) })}</div>}
-          {res.aboveCrestShare > 0 && <div style={warn}>{tr("{p} % of the footprint stands above the crest: no dump there.", { p: Math.round(res.aboveCrestShare * 100) })}</div>}
-          {res.coarsened && <div style={warn}>{tr("The grid was made coarser to stay within the limit.")}</div>}
-          {line(tr("Built in"), `${res.seconds} s`)}
-          <div style={{ ...note, marginTop: 4 }}>{tr("\"{name}\" is in the generated surfaces with these figures. The capacity is the space between the shape and the ground as it is now.", { name: res.name })}</div>
-        </div>
+      {footprints.length > 0 && (
+        <StepPane id="dump" label={tr("Dump / stockpile")}
+          steps={[{ key: "shape", label: tr("Shape"), body: shapeStep }]}
+          action={{ label: tr("Make the dump"), onClick: make, disabled: missing, icon: <Box size={14} />, attrs: { "data-dump-make": "" } }}
+          message={msg ? { text: msg, level: "warn" } : null}
+          result={{ key: res?.name ?? null, body: resultBody }}
+          fineTune={<MoreFold summary={tr("Fine-tune…")} data-fine-tune="dump">
+            {field("density", tr("In-situ density (t/m³)"), { min: 0, placeholder: tr("optional") })}
+            {field("swell", tr("Swell factor"), { min: 1, placeholder: tr("optional"), title: tr("Tonnes = volume × density ÷ swell.") })}
+            {pits.length > 0 && <label style={row}>{tr("Compare with pit")}<select value={f.pitId} onChange={set("pitId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell whose waste the dump is compared with")}><option value="">{tr("— none —")}</option>{pits.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}</select></label>}
+            {pit && Number(pit.params?.inputs?.wasteDensity) > 0 && f.density === "" && <div style={note}><button className="gs-btn gs-btn--sm" onClick={() => setF((p) => ({ ...p, density: String(pit.params.inputs.wasteDensity) }))}>{tr("Use the pit's waste density, {v}", { v: pit.params.inputs.wasteDensity })}</button></div>}{/* TASKS.csv #2437 */}
+          </MoreFold>} />
       )}
+      {!footprints.length && msg && <div style={warn}>{msg}</div>}
       <DumpRunList dumps={dumps} editingId={editingId} onToggle={onToggle} onEdit={editDump} onRemove={onRemove ? removeDump : null} onZoomTo={onZoomTo} />{/* #2285 */}
     </div>
   );

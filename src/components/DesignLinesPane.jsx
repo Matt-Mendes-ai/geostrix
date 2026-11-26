@@ -19,6 +19,7 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import { median } from "../lib/arrayStats.js";
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4091 — the two alternative routes behind their headings
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
@@ -271,7 +272,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
   return (
     <div>
       <TaskPaneHeader title="Drifts and ramps" icon={Spline} tone="model" onClose={onClose} />
-      <div style={note}>{tr("Design lines for drifts, tunnels, ramps and declines: straights and curves, each at its own grade. Each line can carry a profile for clearance checks and be added as a solid of the opening; there is no ventilation or geotechnical check.")}</div>
+      <div style={note}>{tr("Design lines for drifts, tunnels, ramps and declines: straights and curves, each at its own grade. No ventilation or geotechnical check.")}</div>
 
       <div style={label}>{tr("Line")}</div>
       <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
@@ -296,15 +297,15 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
           {[["x", "E"], ["y", "N"], ["z", "Z"]].map(([k, l]) => <label key={k} style={{ ...note, minWidth: 0 }}>{l}<Cell value={line.start?.[k]} width="100%" ariaLabel={tr("Start {axis}", { axis: l })} onCommit={(v) => setStart(k, v)} /></label>)}
           <label style={{ ...note, minWidth: 0 }} title={tr("Which way the line sets off, clockwise from north. Blank: the first straight decides.")}>{tr("Heading °")}<Cell value={line.azimuth} width="100%" ariaLabel={tr("Heading at the start")} onCommit={(v) => update({ azimuth: v })} /></label>
         </div>
-        {!canDraw && <div style={warn}>{groundKnown ? tr("Enter the start elevation (Z): clicks in the view are taken on that level.") : tr("Enter the start elevation (Z): the project has no terrain or collars to take the ground from. Clicks in the view are taken on that level.")}</div>}
-        {line.start?.zAuto && Number.isFinite(line.start?.z) && !started && <div style={note}>{tr("Z {z} is the median collar elevation, only the level clicks are taken on until the start is placed; the start then takes the ground under it.", { z: fmtEN(line.start.z) })}</div>}{/* TASKS.csv #2114 — a number with its source */}
+        {!canDraw && <div style={warn}>{groundKnown ? tr("Enter the start elevation (Z): clicks in the view are taken on that level.") : tr("Enter the start elevation (Z): the project has no terrain or collars. Clicks are taken on that level.")}</div>}
+        {line.start?.zAuto && Number.isFinite(line.start?.z) && !started && <div style={note}>{tr("Z {z} is the median collar elevation, used for clicks until the start is placed; it then takes the ground under it.", { z: fmtEN(line.start.z) })}</div>}{/* TASKS.csv #2114 — a number with its source */}
         {line.start?.zAuto && Number.isFinite(line.start?.z) && started && <div style={note}>{terrain || !collarSurf ? tr("Start Z taken from {src} under the start.", { src: terrain ? tr("the terrain") : tr("the nearest collar") }) : tr("Start Z taken from the ground interpolated between the collars (the nearest collar is {d} m away).", { d: Math.round(collars.reduce((m, c) => (Number.isFinite(c.x) && Number.isFinite(c.y) ? Math.min(m, Math.hypot(c.x - line.start.x, c.y - line.start.y)) : m), Infinity)).toLocaleString() }) /* #3327 */}</div>}
         {startZOdd && <div style={warn}>{tr("Start Z {z} m is far from every elevation this project knows: check it.", { z: fmtEN(line.start.z) })}</div>}
 
         <div style={label}>{tr("Next segment")}</div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <label style={{ ...row, marginTop: 0 }}>{tr("Grade (%)")}<NumberInput allowEmpty value={grade} onChange={asEvent((e) => setGrade(e.target.value))} style={num} aria-label={tr("Grade of the next segment")} title={tr("Rise over run in the direction of travel: 1 climbs, -2 goes down.")} /></label>
-          <label style={{ ...row, marginTop: 0 }}>{tr("Radius (m)")}<NumberInput allowEmpty min={0} value={radius} onChange={asEvent((e) => setRadius(e.target.value))} placeholder={tr("sharp")} style={num} aria-label={tr("Curve radius of the next segment")} title={tr("The turning radius in plan. When drawing, each click curves off the line's heading at this radius, then runs straight to the point. Blank: a sharp corner.")} /></label>
+          <label style={{ ...row, marginTop: 0 }}>{tr("Radius (m)")}<NumberInput allowEmpty min={0} value={radius} onChange={asEvent((e) => setRadius(e.target.value))} placeholder={tr("sharp")} style={num} aria-label={tr("Curve radius of the next segment")} title={tr("The turning radius in plan; each click curves off the heading at it. Blank: a sharp corner.")} /></label>
         </div>
         {gradeRatio(Number(grade)) && <div style={{ ...note, marginTop: 2 }}>{tr("{ratio} {dir}", { ratio: gradeRatio(Number(grade)), dir: Number(grade) > 0 ? tr("up") : tr("down") })}</div>}
         <button data-btn-own="" onClick={() => setDrawing((d) => !d)} disabled={!canDraw} aria-pressed={drawing} style={{ ...pBtn, marginTop: 6, background: drawing ? "var(--color-selected-bg)" : undefined, opacity: canDraw ? 1 : 0.5 }}>
@@ -330,8 +331,9 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
         )}
 
         {started && (<>
+          <MoreFold summary={tr("To a target")} data-fine-tune="lines-target">
           <div style={label}>{tr("To a target")}</div>
-          <div style={note}>{tr("The line goes on to a point at no more than the maximum grade, with curves no tighter than the minimum radius: a curve off its heading and a straight, with whole spiral turns first when that run cannot lose the elevation.")}</div>
+          <div style={note}>{tr("The line goes on to a point within the maximum grade and the minimum radius, with spiral turns first when it must lose elevation.")}</div>
           <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
             <Cell value={num0(tgt.x)} width={66} placeholder="E" ariaLabel={tr("Target easting")} onCommit={(v) => setTgt((t) => ({ ...t, x: v == null ? "" : String(v), holeId: "" }))} />
             <Cell value={num0(tgt.y)} width={70} placeholder="N" ariaLabel={tr("Target northing")} onCommit={(v) => setTgt((t) => ({ ...t, y: v == null ? "" : String(v), holeId: "" }))} />
@@ -347,6 +349,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
           {pickedOn && !pickedOn.miss && !tgt.holeId && <div style={note}>{pickedOn.on ? tr("Picked on {name} at Z {z}: set the Z by hand if that is not the elevation you mean.", { name: pickedOn.on, z: m1(pickedOn.z) }) : tr("Picked on the flat reference plane (nothing drawn under the cursor): set the Z by hand.")}</div>}{/* #1891 */}
           <button onClick={designToTarget} disabled={!targetPoint()} className="gs-btn gs-btn--block" style={{ marginTop: 4, opacity: targetPoint() ? 1 : 0.5 }}><Spline size={14} /> {tr("Design to the target")}</button>
           {toTargetMsg && <div style={note}>{toTargetMsg}</div>}
+          </MoreFold>
         </>)}
         {c && c.segments.length > 0 && (<>
           <div style={label}>{tr("Segments")}</div>
@@ -368,31 +371,33 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
             <div style={row}><span>{tr("End")}</span><b>{`E ${fmtEN(c.end[0])} N ${fmtEN(c.end[1])} Z ${m1(c.end[2])}`}</b></div>{/* #1853 */}
             <div style={row}><span>{tr("Steepest grade")}</span><b>{m1(c.steepest)} %</b></div>
             {c.minRadius != null && !corners.length && <div style={row}><span>{tr("Tightest radius")}</span><b>{m1(c.minRadius)} m</b></div>}
-            {corners.length > 0 && <div style={warn}>{tr("{n} sharp corner(s) (segment {list}): a typed azimuth turned the line without a curve, which no machine can drive. Add a curve or match the heading.", { n: corners.length, list: corners.map((k) => `${k.segment} (${k.turn}°)`).join(", ") })}</div>}{/* #1611 */}
+            {corners.length > 0 && <div style={warn}>{tr("{n} sharp corner(s) (segment {list}): a turn with no curve, which no machine can drive. Add a curve or match the heading.", { n: corners.length, list: corners.map((k) => `${k.segment} (${k.turn}°)`).join(", ") })}</div>}{/* #1611 */}
             {nearLine && <div style={row}><span title={halfW > 0 ? tr("Centreline to centreline: {m} m", { m: m1(nearLine.distance) }) : undefined}>{passLabel(tr("Closest pass to another line"), nearLine)}</span><b>{m1(wallLine)} m ({nearLine.name})</b></div>}{/* #1889 */}
             {nearHole && <div style={row}><span title={halfW > 0 ? tr("Centreline to hole: {m} m", { m: m1(nearHole.distance) }) : undefined}>{passLabel(tr("Closest pass to a drillhole"), nearHole)}</span><b>{m1(wallHole)} m ({nearHole.name})</b></div>}
             {pillarM > 0 && ((wallLine != null && wallLine < pillarM) || (wallHole != null && wallHole < pillarM) || (wallSelf != null && wallSelf < pillarM)) && <div style={warn}>{tr("Less than the {p} m pillar is left somewhere: see the passes above.", { p: pillarM })}</div>}
             {pillarM > 0 && halfW === 0 && <div style={note}>{tr("The passes are centreline figures: set a profile width to measure the rock left wall to wall.")}</div>}
-            {clearance && <div style={row}><span title={tr("The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them. Between stacked turns the profile's height is taken off (back to floor), beside each other its width (wall to wall).")}>{passLabel(tr("Closest pass to itself"), clearance)}</span><b>{m1(wallSelf)} m</b></div>}{/* #1924 */}
+            {clearance && <div style={row}><span title={tr("The nearest the line passes to itself, as between spiral turns: the rock left between them.")}>{passLabel(tr("Closest pass to itself"), clearance)}</span><b>{m1(wallSelf)} m</b></div>}{/* #1924 */}
             {clearance && wallSelf < 10 && <div style={warn}>{tr("The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.", { m: m1(wallSelf), x: m1(clearance.at[0]), y: m1(clearance.at[1]), z: m1(clearance.at[2]) })}</div>}
-            {farFromCollars != null && <div style={note}>{tr("Not checked against the ground: this line runs up to {d} m from the nearest collar, where the ground interpolated between the collars says nothing. Load a terrain (Maps > Terrain) to check it.", { d: Math.round(farFromCollars) })}</div>}{/* #3800 */}
+            {farFromCollars != null && <div style={note}>{tr("Not checked against the ground: this line runs up to {d} m from the nearest collar. Load a terrain (Maps > Terrain) to check it.", { d: Math.round(farFromCollars) })}</div>}{/* #3800 */}
             {above > 0.5 && farFromCollars == null && <div style={warn}>{terrain ? tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) }) : tr("{m} m of this line, in plan, is above the ground interpolated between the collars.", { m: m1(above) })}</div>}
             {!terrain && collarSurface && <div style={note}>{tr("No terrain: the line is checked against the ground interpolated between the collars.")}</div>}{/* #2600 */}
             {!terrain && collarSurface && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
             {!terrain && !collarSurface && <div style={note}>{tr("No terrain: the line is not checked against the ground.")}</div>}
           </div>
+          <MoreFold summary={tr("Profile and clearance")} data-fine-tune="lines-profile">
           <div style={label}>{tr("Profile and clearance")}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
             <label style={{ ...row, marginTop: 0 }}>{tr("Width (m)")}<Cell value={line.profile?.width ?? null} width={52} ariaLabel={tr("Profile width")} onCommit={(v) => update({ profile: { ...(line.profile || { shape: "flat" }), width: v } })} /></label>
             <label style={{ ...row, marginTop: 0 }}>{tr("Height (m)")}<Cell value={line.profile?.height ?? null} width={52} ariaLabel={tr("Profile height")} onCommit={(v) => update({ profile: { ...(line.profile || { shape: "flat" }), height: v } })} /></label>
             <select value={line.profile?.shape || "flat"} onChange={(e) => update({ profile: { ...(line.profile || {}), shape: e.target.value } })} style={{ ...smallSel, width: 72 }} aria-label={tr("Profile shape")}><option value="flat">{tr("flat back")}</option><option value="arched">{tr("arched")}</option></select>
           </div>
-          {line.profile?.width > 0 && line.profile?.height > 0 && onAdd && <div style={{ marginTop: 4 }}><button onClick={addOpening} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 8px" }} title={tr("The swept profile as a closed solid in Generated surfaces: export it, query it against the holes, take it out of a stope.")}>{tr("Add the opening as a solid")}</button></div>}{/* #1954 */}
+          {line.profile?.width > 0 && line.profile?.height > 0 && onAdd && <div style={{ marginTop: 4 }}><button onClick={addOpening} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 8px" }} title={tr("The swept profile as a closed solid in Generated surfaces.")}>{tr("Add the opening as a solid")}</button></div>}{/* #1954 */}
           {line.profile?.width > 0 && line.profile?.height > 0 && <div style={note}>{tr("{a} m² section, {v} m³ along this line{t}. The profile is drawn in the view.", { a: m2(profileArea(line.profile)), v: Math.round(profileArea(line.profile) * c.length).toLocaleString(), t: num0(density) > 0 ? tr(", {t} t at {d} t/m³", { t: Math.round(profileArea(line.profile) * c.length * num0(density)).toLocaleString(), d: num0(density) }) : "" })}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             <label style={{ ...row, marginTop: 0 }}>{tr("Density (t/m³)")}<NumberInput allowEmpty min={0} value={density} onChange={asEvent((e) => setDensity(e.target.value))} style={num} aria-label={tr("Rock density for the excavation tonnes")} /></label>
-            <label style={{ ...row, marginTop: 0 }} title={tr("The rock to keep between this line and any other line or drillhole; a pass closer than it is flagged.")}>{tr("Pillar (m)")}<NumberInput allowEmpty min={0} value={pillar} onChange={asEvent((e) => setPillar(e.target.value))} style={num} aria-label={tr("Pillar to keep")} /></label>
+            <label style={{ ...row, marginTop: 0 }} title={tr("The rock to keep between this line and any other line or hole; a closer pass is flagged.")}>{tr("Pillar (m)")}<NumberInput allowEmpty min={0} value={pillar} onChange={asEvent((e) => setPillar(e.target.value))} style={num} aria-label={tr("Pillar to keep")} /></label>
           </div>
+          </MoreFold>
         </>)}
         {devRows.length > 0 && (
           <div style={{ marginTop: 6 }}>
@@ -401,7 +406,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
               <thead><tr>{[tr("Line"), tr("m"), tr("Level"), tr("Ramp"), tr("m³"), tr("t")].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 3px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
               <tbody>{devRows.map((r) => <tr key={r.line}><td style={{ ...cellStyle, textAlign: "left" }}>{r.line}</td><td style={cellStyle}>{r.length_m.toLocaleString()}</td><td style={cellStyle}>{r.level_m.toLocaleString()}</td><td style={cellStyle}>{r.ramp_m.toLocaleString()}</td><td style={cellStyle}>{r.volume_m3 === "" ? "—" : r.volume_m3.toLocaleString()}</td><td style={cellStyle}>{r.tonnes === "" ? "—" : r.tonnes.toLocaleString()}</td></tr>)}</tbody>
             </table>
-            <div style={note}>{tr("Level: segments within 2 % of flat; ramp: the rest. m³ and t need a profile on the line and a density.")}</div>
+            <div style={note}>{tr("Level: segments within 2 % of flat; ramp: the rest. m³ and t need a profile and a density.")}</div>
             <button onClick={exportDevCsv} className="gs-btn gs-btn--block" style={{ marginTop: 4 }}><Download size={13} /> {tr("Development CSV")}</button>
           </div>
         )}

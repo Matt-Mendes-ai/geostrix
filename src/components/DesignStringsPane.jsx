@@ -24,6 +24,7 @@ import { t as tr } from "../lib/i18n.js";
 import { topCutText } from "../lib/topCutText.js"; // TASKS.csv #3794
 import CollarLevelsNote from "./CollarLevelsNote.jsx"; // TASKS.csv #2584 — the lowest collar used where collars stand on benches
 import StringManager from "./StringManager.jsx"; // TASKS.csv #1968 — many strings at once
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4091 — offset, copy, drape, join and split behind Tools
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926
 // TASKS.csv #3926 — NumberInput hands back a number (null when emptied); the handlers here read e.target.value, so it goes back to them as text
 const asEvent = (fn) => (v) => fn({ target: { value: v == null ? "" : String(v) } });
@@ -328,7 +329,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
   const doLoft = () => {
     const picked = designStrings.filter((s) => solid.loft.includes(s.id) && s.closed && s.vertices.length > 2);
     if (picked.length < 2) return;
-    try { const r = loftStrings(picked); if (!r || r.failed) { setMsg(r?.failed === "same-level" ? tr("Two of the strings are on the same elevation ({levels} m): a loft needs one closed string per level. A body that branches is lofted one branch at a time: give each branch's rings a name of their own and loft them in turn.", { levels: [...new Set((r.levels || []).map((z) => Math.round(z)))].join(", ") }) : tr("The strings could not be lofted.")); return; } finishSolid(tr("Loft of {list}", { list: picked.map((s) => s.name).join(", ") }), r, "loft"); if (r.warnings?.length) setMsg((m) => `${m || ""} ${r.warnings.join(" ")}`); }
+    try { const r = loftStrings(picked); if (!r || r.failed) { setMsg(r?.failed === "same-level" ? tr("Two of the strings are on the same elevation ({levels} m): a loft needs one closed string per level. Loft a branching body one branch at a time.", { levels: [...new Set((r.levels || []).map((z) => Math.round(z)))].join(", ") }) : tr("The strings could not be lofted.")); return; } finishSolid(tr("Loft of {list}", { list: picked.map((s) => s.name).join(", ") }), r, "loft"); if (r.warnings?.length) setMsg((m) => `${m || ""} ${r.warnings.join(" ")}`); }
     catch (e) { setMsg(e.message || String(e)); }
   };
 
@@ -346,7 +347,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
       if (!strings.length) { setMsg(tr("No polylines in {f}.", { f: file.name })); return; }
       strings.forEach((s) => addString({ name: s.name, closed: s.closed, vertices: s.vertices }));
       const skippedN = Object.values(skipped || {}).reduce((a, b) => a + b, 0);
-      const flatText = !flat ? "" : z != null ? tr("; {k} string(s) with no Z put at {z} m (the drawing plane)", { k: flat, z }) : groundAt ? tr("; {k} string(s) with no Z draped on the ground ({src})", { k: flat, src: terrain ? tr("the terrain") : tr("interpolated between the collars") }) : tr("; {k} string(s) with no Z put at 0 m: no terrain, collars or drawing plane to take it from", { k: flat });
+      const flatText = !flat ? "" : z != null ? tr("; {k} string(s) with no Z put at {z} m (the drawing plane)", { k: flat, z }) : groundAt ? tr("; {k} string(s) with no Z draped on the ground ({src})", { k: flat, src: terrain ? tr("the terrain") : tr("interpolated between the collars") }) : tr("; {k} string(s) with no Z put at 0 m: no terrain, collars or plane", { k: flat });
       setMsg(tr("{n} string(s) from {f}, taken as {crs}{z}{sk}.", { n: strings.length, f: file.name, crs: crsCell(project) !== "not set" ? crsCell(project) : tr("the project's coordinates (no CRS set)") /* #2281 — crsCell's 'not set' is truthy */, z: flatText, sk: skippedN ? tr("; {k} other entities skipped", { k: skippedN }) : "" }));
     } catch (e) { setMsg(e.message || String(e)); }
   };
@@ -355,7 +356,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
   return (
     <div>
       <TaskPaneHeader title="Design strings" icon={PenTool} tone="model" onClose={onClose} />
-      <div style={note}>{tr("Free polylines and polygons in 3D: draw them in the view, type them, offset, join and split them, and turn closed ones into solids. DXF in and out.")} {tr("Drawn shapes, not modelled ones: they are not shown in sections or level plans, and a solid is the strings' plan outline between elevations.")}</div>{/* #1913 */}
+      <div style={note}>{tr("Free polylines and polygons in 3D: draw, type, offset, join and split them; closed ones become solids. DXF in and out.")} {tr("Drawn shapes, not modelled ones: not shown in sections or level plans.")}</div>{/* #1913 */}
       <input ref={fileRef} type="file" accept=".dxf" style={{ display: "none" }} onChange={(e) => { importDxf(e.target.files?.[0]); e.target.value = ""; }} />
 
       <div style={label}>{tr("String")}</div>
@@ -368,7 +369,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
         <button onClick={newString} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 8px" }}><Plus size={13} /> {tr("New string")}</button>
       </div>
       <StringManager strings={designStrings} setStrings={setDesignStrings} surfaces={surfaces} activeId={activeId} setActiveId={setActiveId} />{/* #1968 */}
-      {string && !drawing && <div style={note}>{tr("In the view: click a string to select it; drag a vertex of the selected string to move it (on its own level, or on the ground when that is the drawing target).")}</div>}{/* #1907 / #1876 */}
+      {string && !drawing && <div style={note}>{tr("In the view: click a string to select it; drag a vertex of the selected string to move it.")}</div>}{/* #1907 / #1876 */}
       {string && (<>
         <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 4 }}>
           <input key={string.id} defaultValue={string.name} onBlur={(e) => { const n = e.target.value.trim(); if (n && n !== string.name) update({ name: n }); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Name of the string")} />
@@ -383,7 +384,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
         {!terrain && groundAt && target === "ground" && <CollarLevelsNote collars={collars} survey={survey} /* TASKS.csv #3634: #3551's upward / station check too */ />}
         {target === "plane" && <label style={row}>{tr("Plane elevation (m)")}<NumberInput allowEmpty value={planeZ} onChange={asEvent((e) => setPlaneZ(e.target.value))} placeholder={tr("last vertex")} style={num} aria-label={tr("Elevation of the drawing plane")} /></label>}
         <div style={{ ...row, justifyContent: "flex-start", gap: 10 }}>
-          <label style={{ ...note, display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }} title={tr("Within about 12 pixels of another vertex, a collar, the midpoint of another string's segment or a crossing of two strings, the click takes that point. Shift holds the grid directions; Alt squares off the last segment (parallel or perpendicular to it).")}><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to vertices and collars")}</label>
+          <label style={{ ...note, display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }} title={tr("Within about 12 pixels of a vertex, collar, midpoint or crossing, the click takes that point. Shift holds grid directions; Alt squares off the last segment.")}><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to vertices and collars")}</label>
           <label style={{ ...note, display: "flex", alignItems: "center", gap: 3 }}>{tr("Grid (m)")}<NumberInput allowEmpty min={0} value={grid} onChange={asEvent((e) => setGrid(e.target.value))} placeholder={tr("off")} style={{ ...smallSel, width: 52 }} aria-label={tr("Grid the clicks snap to")} /></label>
         </div>
         <button data-btn-own="" onClick={() => setDrawing((d) => !d)} aria-pressed={drawing} style={{ ...pBtn, marginTop: 6, background: drawing ? "var(--color-selected-bg)" : undefined }}>
@@ -413,7 +414,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
               <div key={i} style={{ ...row, gap: 3, marginTop: 2 }}>
                 <span style={{ width: 18, flexShrink: 0, fontSize: "var(--font-size-xs)" }}>{i + 1}</span>
                 {[0, 1, 2].map((k) => <Cell key={k} value={p[k]} width={k === 2 ? 52 : k === 1 ? 84 : 78} ariaLabel={tr("Vertex {n} {axis}", { n: i + 1, axis: ["E", "N", "Z"][k] })} onCommit={(v) => setVertex(i, k, v)} />)}
-                <button data-btn-own="" onClick={() => update({ tieVertex: string.tieVertex === i ? null : i })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "0 4px", fontSize: "var(--font-size-xs)", flexShrink: 0, background: string.tieVertex === i ? "var(--color-accent)" : undefined, color: string.tieVertex === i ? "#fff" : undefined }} aria-pressed={string.tieVertex === i} aria-label={tr("Tie vertex {n}", { n: i + 1 })} title={tr("The tie: a loft pairs this vertex with the other ring's tie, so the solid does not twist between the rings.")}>{tr("tie")}</button>{/* #1956 */}
+                <button data-btn-own="" onClick={() => update({ tieVertex: string.tieVertex === i ? null : i })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "0 4px", fontSize: "var(--font-size-xs)", flexShrink: 0, background: string.tieVertex === i ? "var(--color-accent)" : undefined, color: string.tieVertex === i ? "#fff" : undefined }} aria-pressed={string.tieVertex === i} aria-label={tr("Tie vertex {n}", { n: i + 1 })} title={tr("The tie: a loft pairs this vertex with the other ring's tie, so the solid does not twist.")}>{tr("tie")}</button>{/* #1956 */}
                 <Plus size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => insertAfter(i), tr("Insert a vertex after {n}", { n: i + 1 }))} />
                 <X size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => deleteVertex(i), tr("Remove vertex {n}", { n: i + 1 }))} />
               </div>
@@ -425,6 +426,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
             <div style={row}><span>{tr("Elevation")}</span><b>{m1(stats.box[2])} – {m1(stats.box[5])} m</b></div>
           </div>
 
+          <MoreFold summary={tr("Tools")} data-fine-tune="strings-tools">
           <div style={label}>{tr("Tools")}</div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
             <button onClick={() => update({ vertices: reverseString(string.vertices) })} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 8px" }}>{tr("Reverse")}</button>
@@ -432,7 +434,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
           </div>
           <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
             <Cell value={num0(tool.offset)} width={56} placeholder={tr("m")} ariaLabel={tr("Offset distance")} onCommit={(v) => setTool((t) => ({ ...t, offset: v == null ? "" : String(v) }))} />
-            <button onClick={doOffset} disabled={!num0(tool.offset) || string.vertices.length < 2} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }} title={tr("A parallel copy in plan: to the right of the direction of travel, outward on a closed string; negative goes the other way.")}>{tr("Offset copy")}</button>
+            <button onClick={doOffset} disabled={!num0(tool.offset) || string.vertices.length < 2} className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }} title={tr("A parallel copy in plan: to the right of travel, outward on a closed string; negative goes the other way.")}>{tr("Offset copy")}</button>
           </div>
           <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
             {["dE", "dN", "dZ"].map((k) => <Cell key={k} value={num0(tool[k])} width={50} placeholder={k} ariaLabel={tr("Copy shift {k}", { k })} onCommit={(v) => setTool((t) => ({ ...t, [k]: v == null ? "" : String(v) }))} />)}
@@ -441,7 +443,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
           <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>{/* #1955 */}
             <select value={tool.drapeOn} onChange={(e) => setTool((t) => ({ ...t, drapeOn: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Drape onto")}><option value="ground">{terrain ? tr("the terrain") : tr("the ground (collars)")}</option>{surfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
             <Cell value={num0(tool.drapeOffset)} width={50} placeholder={tr("+ m")} ariaLabel={tr("Height above the surface")} onCommit={(v) => setTool((t) => ({ ...t, drapeOffset: v == null ? "" : String(v) }))} />
-            <button onClick={doDrape} disabled={!string?.vertices.length} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 6px" }} title={tr("Every vertex takes the elevation of the surface under it, plus the height typed; a vertex with nothing under it is left where it is.")}>{tr("Drape")}</button>
+            <button onClick={doDrape} disabled={!string?.vertices.length} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 6px" }} title={tr("Every vertex takes the elevation of the surface under it, plus the height typed.")}>{tr("Drape")}</button>
           </div>
           {designStrings.length > 1 && (
             <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
@@ -455,6 +457,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
               <button onClick={doSplit} disabled={!(string.closed ? num0(tool.splitAt) >= 1 && num0(tool.splitAt) <= string.vertices.length : num0(tool.splitAt) > 1 && num0(tool.splitAt) < string.vertices.length)} /* closed: any vertex, #2112 */ className="gs-btn gs-btn--block" style={{ width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }}>{tr("Split at vertex")}</button>
             </div>
           )}
+          </MoreFold>
         </>)}
       </>)}
 
@@ -470,7 +473,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
             <Cell value={num0(solid.zBottom)} width={60} placeholder={tr("from Z")} ariaLabel={tr("Bottom elevation of the solid")} onCommit={(v) => setSolid((s) => ({ ...s, zBottom: v == null ? "" : String(v) }))} />
             <Cell value={num0(solid.zTop)} width={60} placeholder={tr("to Z")} ariaLabel={tr("Top elevation of the solid")} onCommit={(v) => setSolid((s) => ({ ...s, zTop: v == null ? "" : String(v) }))} />
             <button onClick={doExtrude} disabled={num0(solid.zBottom) == null || num0(solid.zTop) == null || num0(solid.zBottom) === num0(solid.zTop)} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "3px 6px" }}><Box size={13} /> {tr("Make solid")}</button>
-            {(num0(solid.zBottom) == null || num0(solid.zTop) == null || num0(solid.zBottom) === num0(solid.zTop)) && <div style={{ flexBasis: "100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{num0(solid.zBottom) != null && num0(solid.zBottom) === num0(solid.zTop) ? tr("The bottom and top elevations are the same: a solid needs a height.") : tr("Type both elevations (from Z and to Z) and press Tab or click away to commit them: the solid is made from the committed values.")}</div>}{/* #3801 (9) — why it is disabled */}
+            {(num0(solid.zBottom) == null || num0(solid.zTop) == null || num0(solid.zBottom) === num0(solid.zTop)) && <div style={{ flexBasis: "100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{num0(solid.zBottom) != null && num0(solid.zBottom) === num0(solid.zTop) ? tr("The bottom and top elevations are the same: a solid needs a height.") : tr("Type both elevations (from Z and to Z), then press Tab or click away to commit them.")}</div>}{/* #3801 (9) — why it is disabled */}
           </div>
         )}
         {closedStrings.length > 1 && (
@@ -480,7 +483,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
             <button onClick={doLoft} disabled={solid.loft.filter((id) => closedStrings.some((s) => s.id === id)).length < 2} className="gs-btn gs-btn--block" style={{ marginTop: 4 }}><Box size={13} /> {tr("Loft into a solid")}</button>
           </div>
         )}
-        <div style={note}>{tr("A solid joins the generated surfaces (3D Modelling) with its volume and, at a density, its tonnes; a block model gives its mean grade from the blocks whose centre lies inside.")}</div>{/* #1936 */}
+        <div style={note}>{tr("A solid joins the generated surfaces (3D Modelling) with its volume, its tonnes at a density, and a block model's mean grade inside it.")}</div>{/* #1936 */}
       </>)}
 
       {msg && <div style={warn}>{msg}</div>}
