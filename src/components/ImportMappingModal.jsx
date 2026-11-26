@@ -247,6 +247,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   <button type="button" onClick={() => { const file = modal.file; onCancel(); goToModule("geophysics"); requestModuleAction("geophysics-drop", { files: [file] }); }} className="gs-btn gs-btn--sm" style={{ whiteSpace: "nowrap" }}>{tr("Import as survey stations")}</button>
                 </div>
               )}
+          {/* TASKS.csv #4085 — on the Columns step, under the mapping: its gold button imports, so a collar file with no elevation column is asked here (it was on Options, never seen) */}
+          <CollarElevationChoice modal={modal} onChange={onChange} />{/* #3955 */}
           <div style={{ ...label, marginTop: 16 }}>{tr("Preview")}</div>
           {/* User request: highlight the columns currently selected in the mapping above, right in the
               preview table, so it's obvious at a glance which raw CSV columns are actually being used
@@ -305,7 +307,6 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               <span>{rc.loss ? tr("No recovery column: compute Recovery % from {loss} and {run}, as (run − loss) / run × 100.", { loss: rc.loss, run }) : tr("No recovery column: compute Recovery % from {rec} and {run}, as recovered / run × 100.", { rec: rc.recovered, run })}</span>
             </label>); })()}
           <CoordSetsNote modal={modal} project={storeProject} />{/* #2492 */}
-          <CollarElevationChoice modal={modal} onChange={onChange} />{/* #3955 */}
           <LogChannelsBox modal={modal} onChange={onChange} sel={sel} />{/* #2160 */}
           {!logChannelsFor(modal.target, modal.headers, modal.allRows || modal.sampleRows || [], modal.mapping, modal.logChannels) && <MineralPercentBox modal={modal} onChange={onChange} sel={sel} />}{/* #3205 */}
           <RowFilterBox modal={modal} onChange={onChange} sel={sel} />{/* #2330 */}

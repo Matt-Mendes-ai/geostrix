@@ -58,6 +58,9 @@ test("#4085 the dialog asks for a fixed elevation when there is no terrain, and 
   const c = readFileSync(new URL("../src/components/CollarElevationChoice.jsx", import.meta.url), "utf8");
   assert.match(c, /const fixedOn = !terrain && !!modal\.zFixedOn;/);
   assert.match(c, /<NumberInput allowEmpty value=\{modal\.zFixed \?\? null\} onChange=\{\(n\) => onChange\(\{ \.\.\.modal, zFixedOn: true, zFixed: n \}\)\}/);
+  const modal = readFileSync(new URL("../src/components/ImportMappingModal.jsx", import.meta.url), "utf8");
+  const at = modal.indexOf("<CollarElevationChoice modal={modal} onChange={onChange} />");
+  assert.ok(at > modal.indexOf('{ key: "columns"') && at < modal.indexOf('{ key: "options"'), "asked on the Columns step, whose gold button imports");
   const p = readFileSync(new URL("../src/modules/viewer/importPipelineImpl.js", import.meta.url), "utf8");
   assert.match(p, /fixedZ: data\.zFixedOn && data\.zFixed != null && data\.zFixed !== "" && Number\.isFinite\(\+data\.zFixed\) \? \+data\.zFixed : null/);
   assert.match(p, /if \(zc\.fixed\) how\.push\(tr\("\{n\} at \{z\} m \(given\)"/);
