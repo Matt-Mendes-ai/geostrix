@@ -36,6 +36,6 @@ test("the card offers 'This grid is' and the guess; the filter form waits for th
   assert.match(c, /tr\("From its name or unit it looks like \{method\}\."/);
   const m = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
   assert.match(m, /const unknownNeedsTick = \(r\) => !rasterMethodOf\(r, geophysSurveys\) && fieldFilterNeedsMethod\(filt\.kind\) && !assumeField\[r\.id\];/);
-  assert.match(m, /disabled=\{filtering \|\| !!filterBlockedBy\(filt\.kind, rasterMethodOf\(r, geophysSurveys\)\) \|\| unknownNeedsTick\(r\) \/\* #2835 \*\/\}/);
+  assert.match(m, /disabled: filtering \|\| !!filterBlockedBy\(filt\.kind, rasterMethodOf\(fr, geophysSurveys\)\) \|\| unknownNeedsTick\(fr\) \/\* #2835 \*\/ \}/); // #4087 — the Filter step's Compute
   assert.match(m, /if \(unknownNeedsTick\(r\)\) return;/);
 });

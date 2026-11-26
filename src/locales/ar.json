@@ -15865,5 +15865,17 @@
   "Imported \"{name}\": {n} boundary layer(s), {lines} line(s), under Geophysics → Boundaries. Coordinates taken as the project's{v}.{w}": "تم استيراد \"{name}\": {n} طبقة حدود، {lines} خط، ضمن الجيوفيزياء ← الحدود. الإحداثيات مأخوذة كإحداثيات المشروع{v}.{w}",
   "no Surpac lines": "لا توجد خطوط Surpac",
   "{n} single point(s) skipped.": "تم تخطي {n} نقطة منفردة.",
-  "\"{name}\" is a SMARTem IP (TIP) file, not TEM: open it in the DC / IP line pane.": "\"{name}\" ملف IP من SMARTem (TIP) وليس TEM: افتحه في لوحة خطوط DC / IP."
+  "\"{name}\" is a SMARTem IP (TIP) file, not TEM: open it in the DC / IP line pane.": "\"{name}\" ملف IP من SMARTem (TIP) وليس TEM: افتحه في لوحة خطوط DC / IP.",
+  "Choose an area.": "اختر منطقة.",
+  "Filter": "المرشح",
+  "Import a grid…": "استيراد شبكة…",
+  "Next: grid": "التالي: الشبكة",
+  "Next: numbering": "التالي: الترقيم",
+  "Next: plan": "التالي: الخطة",
+  "Next: streams": "التالي: المجاري",
+  "No grid to filter yet.": "لا توجد شبكة للترشيح بعد.",
+  "Numbering": "الترقيم",
+  "Plan": "الخطة",
+  "Streams": "المجاري",
+  "Wheel: zoom · drag: pan · double-click: fit": "العجلة: تكبير · السحب: تحريك · نقر مزدوج: ملاءمة"
 }

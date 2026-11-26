@@ -684,7 +684,7 @@ export default function MapsPlanView() {
       <div style={{ ...chip, right: 10, bottom: 10, fontVariantNumeric: "tabular-nums" }}>
         {lodStatus?.loading ? <span style={{ marginRight: 8 }}>{tr("Reading detail ({n} tiles)…", { n: lodStatus.loading.toLocaleString() })}</span> : null}{/* #3252 */}
         {!lodStatus?.loading && lodStatus?.failed ? <span style={{ marginRight: 8 }} title={lodStatus.lastError || ""}>{tr("{n} detail tile(s) could not be read (offline?): the fetched picture shows there", { n: lodStatus.failed.toLocaleString() })}</span> : null}
-        {cursor ? `E ${Math.round(cursor.x).toLocaleString()}  N ${Math.round(cursor.y).toLocaleString()}${frameText}${lonLatText(toLonLat, cursor)}${cursorValueText(rasters, cursor)}` : tr("Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in StrixViewer")}
+        {cursor ? `E ${Math.round(cursor.x).toLocaleString()}  N ${Math.round(cursor.y).toLocaleString()}${frameText}${lonLatText(toLonLat, cursor)}${cursorValueText(rasters, cursor)}` : tr("Wheel: zoom · drag: pan · double-click: fit")}{/* TASKS.csv #4087 — the plan's status line, shorter */}
       </div>
     </div>
   );

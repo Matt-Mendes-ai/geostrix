@@ -57,7 +57,7 @@ test("wired: Geochem has the panel; a geochemistry raster gets no magnetic filte
   assert.match(p, /geochem: \{ symbol: el\.symbol, unit: el\.unit, log/);
   const r = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
   assert.match(r, /r\.grid && !r\.geochem [^\n]*<SlidersHorizontal/);
-  assert.match(r, /filterFor === r\.id && r\.grid && !r\.geochem && \(/);
+  assert.match(r, /const filterable = rasters\.filter\(\(r\) => r\.grid && !r\.geochem && !r\.terrainDerivative\);/); // #4087 — the Filter step lists only these
 });
 
 test("contours of the grid: a ring round the hot sample, stopping at blank nodes; percentile levels", async () => {

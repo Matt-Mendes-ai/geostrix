@@ -2,7 +2,7 @@
 // terrain, numbered with the program's own QC slots, drawn on the map and exported for the crew (GPX, KML, CSV and a
 // printable field sheet). Maths in lib/surveyPlan.js; stream routing shared with the Catchments panel (#845).
 import React, { useEffect, useMemo, useState } from "react";
-import { X, Download } from "./icons.js";
+import { Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1385
 import { sampleAreas, coverage } from "../lib/sampleAreas.js"; // TASKS.csv #1795
@@ -11,14 +11,12 @@ import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { pointTransform, crsName } from "../lib/reproject.js";
 import { loadIgrf, gridBearingAsTrueMagnetic, bearingPhrase } from "../lib/azimuthRef.js"; // TASKS.csv #1024
 import { exportCrs, exportXY, bearingToWorld } from "../lib/tiedExport.js"; // TASKS.csv #1021; a tied local grid: #2322
-import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps, sel, panel, header } from "../lib/modalStyles.js";
-import { activateOnKey } from "../lib/a11y.js";
+import { backdropProps, sel } from "../lib/modalStyles.js";
 import { openHelp } from "../lib/help.js"; // TASKS.csv #4042
 import { t as tr } from "../lib/i18n.js";
-import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 — detail behind a closed More
+import StepDialog from "./StepDialog.jsx"; // TASKS.csv #4087 — the shared step shell (Escape and the focus trap)
+import { StepChoices } from "./StepPane.jsx";
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { localDate } from "../lib/localDate.js"; // TASKS.csv #2358
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
@@ -28,8 +26,7 @@ const LS = "geostrix.surveyPlanner";
 const loadPrefs = () => { try { return JSON.parse(localStorage.getItem(LS) || "{}"); } catch { return {}; } };
 
 export default function SurveyPlannerPanel({ onClose, initialMode = null }) { // initialMode: TASKS.csv #4042 ("streams" from the terrain)
-  useEscapeKey(onClose);
-  useFocusTrap();
+  const [at, setAt] = useState(0); // TASKS.csv #4087 — the step on screen
   const { boundaries = [], terrain, surfaceSamples = [], project, addBoundary } = useStore();
   const prefs = useMemo(loadPrefs, []);
   const [mode, setMode] = useState(initialMode || prefs.mode || "soil");
@@ -113,21 +110,23 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
     saveFile({ suggestedName: `survey_plan.${ext}`, filters: [{ name: kind, extensions: [ext] }], content: build((x, y) => T(...P(x, y)), epsg, titleFor(b, tie), b) });
   };
 
-  return (
-    <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panelBox} role="dialog" aria-modal="true" aria-label={tr("Survey planner")} onClick={(e) => e.stopPropagation()}>
-        <div style={header}>
-          <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Survey planner")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("A soil grid or stream-sediment sites, numbered with your QC inserts, for the field crew")}</div>
-          </div>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}><button data-btn-own="" type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp("survey-planner")} aria-label={tr("Help: {name}", { name: tr("Survey planner") })} title={tr("Help for this tool (F1, works offline)")}>?</button>{/* TASKS.csv #4042 */}
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} /></span>
-        </div>
-        <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div role="tablist" style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--color-border)" }}>
-            {[["soil", "Soil grid"], ["streams", "Stream sites"]].map(([k, l]) => <button data-btn-own="" key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} style={{ ...tabBtn, borderBottom: mode === k ? "2px solid var(--color-accent)" : "2px solid transparent", color: mode === k ? "var(--color-text)" : "var(--color-text-secondary)" }}>{tr(l)}</button>)}
-          </div>
+  // TASKS.csv #4087 — on the shared step shell (StepDialog, #4073): Area (a soil grid or stream sites, and where), Grid / Streams (the spacing or the stream
+  // sizes), Numbering (the prefix and the QC inserts), Plan (the counts, the files for the crew, and Show on the map, the gold primary). The notes are on the Help card.
+  const help = (
+    <details open>
+      <summary style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{tr("Survey planner")}</summary>
+      <div style={note}>{tr("A soil grid or stream-sediment sites, numbered with your QC inserts, for the field crew")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{mode === "soil"
+        ? tr("Lines usually run across the expected strike; a target should be crossed by at least two or three stations, so set the station spacing from the anomaly width you expect (Rose, Hawkes & Webb 1979).")
+        : tr("One site per tributary, just above its confluence with an equal or larger stream, so it samples that catchment only. Regional programs often use one site per few square kilometres; check access in the field.")}</div>
+      <div style={{ ...note, marginTop: 6 }}>{tr("A soil grid's KML shows the lines (stations in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. The CSV and field sheet list QC inserts in sample order; duplicates are taken at the site of the sample they follow.")}</div>
+      <button data-btn-own="" type="button" onClick={() => openHelp("survey-planner")} style={{ background: "none", border: "none", padding: 0, marginTop: 6, cursor: "pointer", color: "var(--color-accent-dark)", fontSize: "var(--font-size-sm)", textDecoration: "underline" }}>{tr("Help: {name}", { name: tr("Survey planner") })}</button>{/* TASKS.csv #4042 */}
+    </details>
+  );
+  const body = (children) => <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>;
+  const steps = [
+    { key: "area", label: tr("Area"), primary: { label: mode === "soil" ? tr("Next: grid") : tr("Next: streams"), disabled: mode === "soil" && !area }, hint: mode === "soil" && !area ? tr("Choose an area.") : "", render: () => body(<>
+          <StepChoices value={mode} onChange={setMode} label={tr("Survey planner")} columns={2} options={[{ value: "soil", label: tr("Soil grid") }, { value: "streams", label: tr("Stream sites") }]} />
           <div style={rowS}>
             <label style={ctl}>{mode === "soil" ? tr("Area") : tr("Area (optional)")}<select value={areaId} onChange={(e) => pickArea(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 260 }}>
               <option value="">{mode === "soil" ? tr("— choose —") : tr("Whole terrain")}</option>
@@ -136,6 +135,8 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
             {["x0", "y0", "x1", "y1"].map((k) => <label key={k} style={ctl}>{{ x0: tr("West (E)"), y0: tr("South (N)"), x1: tr("East (E)"), y1: tr("North (N)") }[k]}<NumberInput allowEmpty value={rect[k] === "" ? null : rect[k]} onChange={(v) => { setRect((r) => ({ ...r, [k]: v == null ? "" : String(v) })); setAreaId("rect"); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} wrapStyle={{ display: "flex" }} /></label>)}
           </div>
           {areaCover != null && areaCover < 0.25 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Only {pct} % of this area lies within 250 m of a sample: it spans the ground between separate grids. Pick one grid's area, or type the corners.", { pct: Math.round(areaCover * 100) })}</div>}{/* #1795 */}
+    </>) },
+    { key: "spacing", label: mode === "soil" ? tr("Grid") : tr("Streams"), primary: { label: tr("Next: numbering") }, render: () => body(<>
           {mode === "soil" ? (
             <div style={rowS}>
               <label style={ctl}>{tr("Line azimuth (°)")}<NumberInput value={grid.azimuth} onChange={(v) => setGrid((g) => ({ ...g, azimuth: ((v % 360) + 360) % 360 }))} style={inp} wrapStyle={{ display: "flex" }} />{/* #3926 — wrapped to 0-359 as before, not refused */}</label>
@@ -149,7 +150,6 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
                   ? tr("Line bearing: {g}° grid, {t}° true, {m}° magnetic (declination {d}° on {date}, IGRF-14). A crew on a compass walks the magnetic bearing.", { g: bearing.grid, t: bearing.true, m: bearing.magnetic, d: bearing.declination, date: bearing.date })
                   : tr("Line bearing: {g}° grid, {t}° true (no magnetic bearing for this date).", { g: bearing.grid, t: bearing.true }))
                 : tr("The line azimuth is a grid bearing (project CRS). Choose an area to see it as true and magnetic bearings.")}</div>
-              <div style={{ ...note, flexBasis: "100%" }}>{tr("Lines usually run across the expected strike; a target should be crossed by at least two or three stations, so set the station spacing from the anomaly width you expect (Rose, Hawkes & Webb 1979).")}</div>
             </div>
           ) : (
             <div style={rowS}>
@@ -158,10 +158,11 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
               {[1, 2, 3, 4].map((o) => <label key={o} style={{ ...ctl, display: "flex", alignItems: "center", gap: 3 }}><input type="checkbox" checked={streams.orders.includes(o)} onChange={(e) => setStreams((s) => ({ ...s, orders: e.target.checked ? [...s.orders, o].sort() : s.orders.filter((x) => x !== o) }))} />{o}</label>)}
               <label style={ctl}>{tr("Catchment from (km²)")}<NumberInput min={0.01} step={0.1} value={streams.minAreaKm2} onChange={(v) => setStreams((s) => ({ ...s, minAreaKm2: v }))} style={inp} wrapStyle={{ display: "flex" }} /></label>
               <label style={ctl}>{tr("to (km²)")}<NumberInput min={0.1} step={1} value={streams.maxAreaKm2} onChange={(v) => setStreams((s) => ({ ...s, maxAreaKm2: v }))} style={inp} wrapStyle={{ display: "flex" }} /></label>
-              <div style={{ ...note, flexBasis: "100%" }}>{tr("One site per tributary, just above its confluence with an equal or larger stream, so it samples that catchment only. Regional programs often use one site per few square kilometres; check access in the field.")}</div>
             </div>
           )}
-          <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+    </>) },
+    { key: "numbers", label: tr("Numbering"), primary: { label: tr("Next: plan") }, render: () => body(<>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={rowS}>
               <label style={ctl}>{tr("Sample number prefix")}<input value={num.prefix} onChange={(e) => setNum((n) => ({ ...n, prefix: e.target.value }))} placeholder="SL24-" style={{ ...inp, width: 90 }} /></label>
               <label style={ctl}>{tr("First number")}<NumberInput allowEmpty min={0} step={1} value={num.start === "" ? null : num.start} onChange={(v) => setNum((n) => ({ ...n, start: v == null ? "" : String(v) }))} style={inp} wrapStyle={{ display: "flex" }} /></label>
@@ -183,6 +184,8 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
               </select>
             </div>
           </div>
+    </>) },
+    { key: "plan", label: tr("Plan"), primary: { label: tr("Show on the map"), onClick: draw, disabled: !plan?.sites.length }, hint: !plan ? (mode === "soil" ? tr("Choose an area.") : "") : "", render: () => body(<>
           {plan && (
             <>
               <div style={{ ...note, color: "var(--color-text)" }}>
@@ -190,7 +193,6 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
                 {plan.truncated ? " " + tr("Stopped at 50,000 stations: widen the spacing.") : ""}
               </div>
               <div style={rowS}>
-                <button type="button" className="gs-btn gs-btn--primary" onClick={draw} disabled={!plan.sites.length}>{tr("Show on the map")}</button>
                 <button type="button" className="gs-btn" onClick={() => save("gpx", (ll, _e, t) => planGpx(rows, plan.sites, ll, t), "GPX")} disabled={!rows.length}><Download size={14} />GPX</button>
                 <button type="button" className="gs-btn" onClick={() => save("kml", (ll, _e, t) => planKml(rows, plan.sites, ll, t), "KML")} disabled={!rows.length}><Download size={14} />KML</button>
                 <button type="button" className="gs-btn" onClick={() => save("csv", (ll, e, _t, b) => toExportCsv(planCsvRows(rows, plan.sites, ll).map((r) => ({ ...r, crs: `EPSG:${e}` /* #1064 — x / y */, ...(mode === "soil" ? { line_bearing_grid: grid.azimuth, line_bearing_true: b?.true ?? "", line_bearing_magnetic: b?.magnetic ?? "", declination_date: b?.date ?? "" } : {}) }))), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
@@ -198,20 +200,15 @@ export default function SurveyPlannerPanel({ onClose, initialMode = null }) { //
               </div>
               {msg && <div style={note}>{msg}</div>}
               <div style={note}>{tr("GPX and KML are WGS 84, for a handheld GPS or phone.")}</div>
-              <MoreFold style={{ ...note, marginBottom: 0 }}>{tr("A soil grid's KML shows the lines (stations in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. The CSV and field sheet list QC inserts in sample order; duplicates are taken at the site of the sample they follow.")}</MoreFold>{/* #3939 */}
             </>
           )}
-        </div>
-        <div style={{ display: "flex", padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}><span style={{ flex: 1 }} /><button type="button" className="gs-btn" onClick={onClose}>{tr("Close")}</button></div>
-      </div>
-    </div>
-  );
+    </>) },
+  ];
+  return <StepDialog title={tr("Survey planner")} onClose={onClose} steps={steps} at={at} onAt={setAt} help={help} width="min(1000px, 96vw)" overlayProps={backdropProps(onClose)} />;
 }
 
-const panelBox = panel({ width: "min(1000px, 96vw)", maxHeight: "92vh" }); // TASKS.csv #997 — the shared modal chrome
 const ctl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const rowS = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" };
 const inp = { ...sel, display: "block", marginTop: 4, width: 80 };
-const tabBtn = { background: "none", border: "none", padding: "6px 10px", cursor: "pointer", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const linkBtn = { background: "none", border: "none", padding: "0 2px", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: "var(--font-size-base)", fontFamily: "inherit" };

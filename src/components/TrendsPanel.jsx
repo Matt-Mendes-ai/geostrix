@@ -216,8 +216,8 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
 
   return (
     <div>
-      <div style={{ ...small, marginBottom: 3 }}>{tr("A trend is the direction the geology is most continuous in. Each model below can follow one.")}</div>
-      <MoreFold style={{ ...small, marginBottom: 8 }}>{tr("It is a plane (dip, dip azimuth), the line of greatest continuity in it (pitch, from the strike direction, dip azimuth − 90°, towards down dip: 90° = down dip) and how much more continuous it is along that line than across it (ratios).")}</MoreFold>{/* #3939 */}
+      {/* TASKS.csv #4087 — the Trend helper above already says what a trend is: this panel's own intro sits behind its More */}
+      <MoreFold style={{ ...small, marginBottom: 8 }}>{tr("A trend is the direction the geology is most continuous in. Each model below can follow one.")}{" "}{tr("It is a plane (dip, dip azimuth), the line of greatest continuity in it (pitch, from the strike direction, dip azimuth − 90°, towards down dip: 90° = down dip) and how much more continuous it is along that line than across it (ratios).")}</MoreFold>{/* #3939 */}
       {trends.map((t) => {
         const editing = editId === t.id;
         return (
@@ -257,9 +257,9 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
         );
       })}
       <button type="button" onClick={add} className="gs-btn gs-btn--block" style={{ marginBottom: 10 }}><Plus size={14} />{" "}{tr("New trend")}</button>
+      {/* TASKS.csv #4087 — the trend each model follows, one by one: the Trend helper's "What should follow the trend?" sets the usual choice, so the table is folded */}
       {trends.length > 0 && (
-        <>
-          <div style={{ ...small, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Used by")}</div>
+        <MoreFold summary={tr("Used by")} style={{ marginBottom: 4 }} data-trend-users="">
           {TREND_USERS.map(([tool, label]) => (
             <label key={tool} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <span style={{ flex: 1, minWidth: 0 }}>{tr(label)}</span>{/* tr: TASKS.csv #893 */}
@@ -269,7 +269,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
               </select>
             </label>
           ))}
-        </>
+        </MoreFold>
       )}
     </div>
   );
