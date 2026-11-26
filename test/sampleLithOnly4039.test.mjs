@@ -62,6 +62,6 @@ test("the pipeline asks the rule at commit time, not inside a state updater (whi
 test("the viewer starts a lithology-led sample's own custom layers hidden, and ends the rule when the loader is done", () => {
   const v = read("../src/modules/ViewerModule.jsx");
   assert.match(v, /!sampleLithOnly\.takeHiddenCustom\(l\.id\)/);
-  assert.equal((v.match(/if \(sampleLithOnly\.led\(\)\) sampleLithOnly\.hideCustom\(l\.id\);/g) || []).length, 2, "the WA extras and WA uranium's gamma log");
+  assert.equal((v.match(/if \(sampleLithOnly\.led\(\)\) sampleLithOnly\.hideCustom\(l\.id\);/g) || []).length, 3, "the WA extras, WA uranium's gamma log and the GSQ samples' borehole EM layers (#4105)");
   assert.match(v, /loadSample\(req\.which\)\.finally\(\(\) => sampleLithOnly\.finish\(\)\);/);
 });
