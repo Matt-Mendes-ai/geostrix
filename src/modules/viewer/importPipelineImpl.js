@@ -28,7 +28,7 @@ import { tieOf, fileToLocal, bearingToLocal } from "../../lib/localGridTie.js"; 
 import { localGridAzimuthOffset } from "../../lib/localGridNorth.js"; // TASKS.csv #2491
 import { untiedNorthOf, trueToUntiedGrid } from "../../lib/localGridDatum.js"; // TASKS.csv #2661
 import { depthUnitHint } from "../../lib/depthUnitHint.js"; // TASKS.csv #3692
-import { mineGridOf, isMineSource, mineSourceOf, collarsOnMineGrid } from "../../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2811
+import { mineGridOf, isMineSource, mineSourceOf, collarsOnMineGrid, partsBox } from "../../lib/mineGrid.js"; // TASKS.csv #2586; the mine-grid Source CRS: #2811
 import { dipConventionFields, upwardHoles } from "../../lib/dipSign.js"; // TASKS.csv #2886
 import { codeColumnGuess } from "../../lib/valueGuess.js"; // TASKS.csv #2889
 import { codeOverlap, otherCodeSystem } from "../../lib/codeOverlap.js"; // TASKS.csv #2893
@@ -39,7 +39,7 @@ import { loadSampleFiles, readSiblingFiles, sampleStatus } from "../../lib/deskt
 import { sampleLithOnly, hasLithology } from "../../lib/sampleLithOnly.js"; // TASKS.csv #4039 — a sample with a lithology log opens showing Lithology only
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
-import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
+import { askAdoptCrs, metricCrsForExtent } from "../../lib/adoptCrs.js"; // TASKS.csv #607; metricCrsForExtent: #4096
 import { rasterFileSet, ersDataOf, setErsData } from "../../lib/rasterSideFiles.js"; // TASKS.csv #2901 — a world file / .prj / Geosoft .xml dropped with its raster; #4066 — an ER Mapper header's data file
 import { ersDataName } from "../../lib/erMapper.js";
 import { geosoftXmlCrs } from "../../lib/geosoftXml.js"; // TASKS.csv #2901
@@ -72,6 +72,7 @@ import { surveyGapsOfRows } from "../../lib/surveyGaps.js"; // TASKS.csv #3756 (
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochemColumns.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs; #3159: geochemColumns, not geochem.js (the whole geochem library in startup)
 import { rasterDrapeElevation, drapeElevationNote, planElevation } from "../../lib/drapeElevation.js"; // TASKS.csv #1505; planElevation: #2294
 import { projectTargetEpsg } from "../../lib/projectTarget.js"; // TASKS.csv #2287 — no reprojection INTO the placeholder CRS
+import { declaredCollarEpsg } from "../../lib/declaredCollarCrs.js"; // TASKS.csv #4096 — a collar file with several codes in its epsg column
 import { looksLikeUbcMesh } from "../../lib/leapfrogMsh.js"; // TASKS.csv #1991
 import { UBC_MESH_NAME, UBC_MODEL_NAME, ubcLoneAdvice } from "../../lib/ubcFiles.js"; // TASKS.csv #4078
 import { isRes3dinvText } from "../../lib/res3dinv.js"; // TASKS.csv #4078
@@ -159,11 +160,20 @@ export function makeImportPipeline(ctx, h) {
   // drillhole table: it used to fall to the collar guess and open the mapping dialog. It goes to Map layers
   // (the Geophysics tab's panel) through the same builder, draped on the terrain when there is one.
   // TASKS.csv #607 — an empty project may take the file's declared CRS (lib/adoptCrs.js). Returns the CRS to import into.
-  const adoptCrsIfEmpty = async (declared, fileName) => { // async: the question is an in-app dialog now (#3957)
+  const adoptCrsIfEmpty = async (declared, fileName, box = null) => { // async: the question is an in-app dialog now (#3957)
     const live = importStateRef.current;
     // TASKS.csv #2288 — a local-grid project (#2180) keeps its grid: a file's declared CRS is brought in through the tie, never adopted
     // (found live: an MGA collar file silently ended the local grid and set EPSG:28351 as the project CRS)
     if (live.project?.crsSet === false && live.project?.localGrid) return null;
+    // TASKS.csv #4096 — a layer in latitude / longitude (box: its extent, in degrees) gives an unset project the metric CRS of its place, not degrees;
+    // too big for one zone: as before (the declared CRS, and the degrees banner says what to do)
+    const metric = live.project?.crsSet === false && live.setEpsg ? metricCrsForExtent(declared, box) : null;
+    if (metric) {
+      live.setEpsg(metric.code);
+      importStateRef.current = { ...live, project: { ...live.project, epsg: metric.code, crsSet: true }, projectIsEmpty: false };
+      setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{d}) from {fileName}.", { v: metric.name, d: metric.code, fileName })]);
+      return metric.code;
+    }
     // TASKS.csv #615 — a project whose CRS was never chosen simply takes the file's declared one
     if (live.project?.crsSet === false && Number(declared) > 0 && crsName(declared) && live.setEpsg) {
       const d = Number(declared);
@@ -182,7 +192,7 @@ export function makeImportPipeline(ctx, h) {
   };
 
   const sendToMapLayers = async (file, parsed) => { // async: the CRS question may be asked first (#3957)
-    await adoptCrsIfEmpty(guessEpsgFromPrjWkt(parsed.prjWkt), file.name); // #607
+    await adoptCrsIfEmpty(guessEpsgFromPrjWkt(parsed.prjWkt), file.name, partsBox((parsed.features || []).flatMap((f) => (f.parts?.length ? f.parts : [f.geometry || []])))); // #607; the box: #4096
     const live = importStateRef.current;
     const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
     let layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: projectTargetEpsg(live.project), tie: tieOf(live.project) /* #2320 */, mineGrid: mineGridOf(live.project), collars: live.collars /* #2586 */, qml: null, sourceOverride: null });
@@ -622,10 +632,10 @@ export function makeImportPipeline(ctx, h) {
       let reprojectNote = "";
       // #607 — the file's one declared CRS (Source CRS, or a per-row EPSG column with a single value) may become
       // the project CRS when nothing is loaded yet
-      const rowCodes = [...new Set(rows.map((r) => r._rowEpsg).filter(Boolean))];
       // TASKS.csv #2811 — Source CRS 'Local mine grid (no CRS)': not a CRS to adopt or reproject from; the rows go through the mine grid below
       const mineSrc = isMineSource(sourceEpsg), srcEpsg = mineSrc ? "" : sourceEpsg;
-      const declaredEpsg = rowCodes.length === 1 && (!srcEpsg || Number(srcEpsg) === Number(rowCodes[0])) ? rowCodes[0] : (!rowCodes.length ? srcEpsg : null);
+      // TASKS.csv #4096 — several codes in the column: the one most rows use (the others are converted into it below), not none
+      const declaredEpsg = declaredCollarEpsg(rows.map((r) => r._rowEpsg), srcEpsg);
       if (declaredEpsg) await adoptCrsIfEmpty(declaredEpsg, fileName);
       const liveProject = importStateRef.current.project || project; // stale-closure fix, see liveCollars below
       // TASKS.csv #2288 — a local-grid project (#2180): rows that declare a CRS go INTO the grid through its tie; with no tie they stay as
@@ -651,7 +661,8 @@ export function makeImportPipeline(ctx, h) {
           ? " " + tr("On import: {moved} row(s) brought into the local grid through its tie to EPSG:{tie}{v}.", { moved, tie: gridTie.epsg, v: failed ? tr("; {failed} could not be placed and kept their numbers", { failed }) : "" })
           : " " + tr("Tie the mine grid to a CRS (Maps > Project CRS) to convert such files: this one declares a CRS, so its {kept} row(s) kept their numbers.", { kept });
       } else if (liveProject?.epsg && (perRowEpsgCol || (srcEpsg && Number(srcEpsg) !== Number(liveProject.epsg)))) {
-        const toEpsg = liveProject.epsg;
+        // TASKS.csv #4096 — never INTO the placeholder of a project whose CRS is not set (#2287): such rows keep their numbers (said below)
+        const toEpsg = projectTargetEpsg(liveProject);
         const groups = new Map(); // fromEpsg key ("" = fall back to global sourceEpsg) -> rows in that group
         rows.forEach((r) => {
           if (mineSrc && !r._rowEpsg) return; // #2811 — read on the mine grid above
@@ -668,6 +679,7 @@ export function makeImportPipeline(ctx, h) {
           const fromEpsg = rowEpsgKey || srcEpsg;
           if (fromEpsg && Number(fromEpsg) === Number(toEpsg)) { alreadyCount += groupRows.length; continue; } // #3535 — declared, and the project's own
           if (!fromEpsg) { unreprojectedCount += groupRows.length; continue; }
+          if (!toEpsg) { unreprojectedCount += groupRows.length; if (!badEpsgs.includes(fromEpsg)) badEpsgs.push(fromEpsg); continue; } // #4096 — only an unknown code is left unadopted
           let groupFailed = 0;
           const T = gridAz ? pointTransform(fromEpsg, toEpsg) : null;
           groupRows.forEach((r) => {
