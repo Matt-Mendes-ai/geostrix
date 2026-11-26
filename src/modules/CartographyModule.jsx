@@ -260,7 +260,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
             {project.crsSet === false && <React.Suspense fallback={null}><LocalGridPanel /></React.Suspense>}{/* #2180 / #2288 — keep a local mine grid, tie it to a CRS */}
             <StepPane id="crs" label={tr("Project CRS")} steps={[{ key: "crs", label: tr("Project CRS"), question: tr("Which coordinate system?"), body: (<>
             <div style={note}>{tr("Imports are reprojected into it. Current:")}{" "}<b>{project.crsSet === false ? tr("not chosen yet") : nameOf(project.epsg)}</b>.{project.crsSet === false ? tr(" Pick the CRS your coordinates are in — nothing is converted.") : ""}</div>
-            <div style={{ marginTop: 12 }}><CrsPicker label={tr("Change to")} value={newCrs || (project.crsSet === false ? null : project.epsg) /* #2289: the placeholder is not a current choice */} onChange={setNewCrs} /></div>
+            <div style={{ marginTop: 12 }}><CrsPicker label={tr("Change to")} value={newCrs || (project.crsSet === false ? null : project.epsg) /* #2289: the placeholder is not a current choice */} onChange={setNewCrs} candidatesFirst /* #4100 */ /></div>
             {changing && isGeographic(newCrs) && (
               /* TASKS.csv #613 — a geographic CRS (WGS 84 lat/long, NAD83 geographic…) can't be the project CRS: the 3D
                  scene, depths, distances and grids are metres, so collars in degrees put every hole on one point with
@@ -339,7 +339,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
                 </select>
                 {mineGridOf(project) /* #2826 — a project with a mine grid reads a layer on it too */
                   ? <div style={{ marginTop: 10 }}><SourceCrsField label={tr("Its coordinates are really in")} value={objFrom ?? ""} onChange={(c) => setObjFrom(c === "" ? null : isMineSource(c) ? MINE_SOURCE : Number(c))} mineGrid={fileGrid} defaultText={tr("Choose…")} title={tr("The CRS the layer's numbers are really in, or the project's local mine grid.")} /></div>
-                  : <div style={{ marginTop: 10 }}><CrsPicker label={tr("Its coordinates are really in")} value={objFrom} onChange={setObjFrom} height={150} /></div>}
+                  : <div style={{ marginTop: 10 }}><CrsPicker label={tr("Its coordinates are really in")} value={objFrom} onChange={setObjFrom} height={150} candidatesFirst /* #4100 */ /></div>}
                 <button className="gs-btn gs-btn--primary" /* gs-primary-alt: the A layer pane's, shown instead of Project CRS */ disabled={busy || !obj || !objFrom || (!isMineSource(objFrom) && Number(objFrom) === Number(project.epsg))} onClick={moveObject}>
                   {busy ? <Loader2 size={14} className="spin" /> : <Layers size={14} />}{" "}{tr("Reproject into the project CRS")}</button>
               </>
