@@ -583,7 +583,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
           </button>
             <SectionToolbarGroup id="draw" summary={tr("Draw options")}>
-          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("A click within ~12 px of a hole snaps to the unit's logged top (any boundary for faults / strings), else to the trace, at the hole's exact position (square marker)")}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("A click within ≈ 12 px of a hole snaps to the unit's logged top (any boundary for faults / strings), else to the trace, at the hole's exact position (square marker)")}>
             <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} />{" "}{tr("Snap to holes")}</label>
           {snapOn && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "#55606e" }} title={tr("On: points snapped to a hole stay on this section's plane, so the cut follows what you draw. Off: they keep the hole's real position, off the section.")}>
             <input type="checkbox" checked={projectSnaps || outlineOnPlane} disabled={outlineOnPlane} onChange={(e) => setProjectSnaps(e.target.checked)} />{" "}{tr("Keep snaps on the section")}</label>}

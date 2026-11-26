@@ -737,7 +737,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       }
       const srcCell = parsed.srcCellM ?? Math.sqrt(((parsed.bbox[2] - parsed.bbox[0]) * (parsed.bbox[3] - parsed.bbox[1])) / Math.max(1, parsed.readPixels)); // srcCellM: a tied grid's source cell, measured before the tie (#2648)
       if (parsed.cropped) { // #422
-        msg += tr(" Cropped to the drillholes + {v} m: read {readPixels} of {fullPixels} source pixels. Source cell ~{src} m, mesh spacing ~{v2} m{finer}.", { v: Math.max(1000, Number(demCropBuffer) || 2000), readPixels: parsed.readPixels.toLocaleString(), fullPixels: parsed.fullPixels.toLocaleString(), v2: (((parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1))).toFixed(0), src: Math.round(srcCell), finer: srcCell > 1.5 * (parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1) ? tr(" (finer than the source: it interpolates, it adds no detail)") : "" }); // #1249
+        msg += tr(" Cropped to the drillholes + {v} m: read {readPixels} of {fullPixels} source pixels. Source cell ≈ {src} m, mesh spacing ≈ {v2} m{finer}.", { v: Math.max(1000, Number(demCropBuffer) || 2000), readPixels: parsed.readPixels.toLocaleString(), fullPixels: parsed.fullPixels.toLocaleString(), v2: (((parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1))).toFixed(0), src: Math.round(srcCell), finer: srcCell > 1.5 * (parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1) ? tr(" (finer than the source: it interpolates, it adds no detail)") : "" }); // #1249
       } else if (parsed.reprojectNote) {
         msg += tr(" Note: {reprojectNote}", { reprojectNote: parsed.reprojectNote });
       } else if (!tie && parsed.epsgTag && project?.epsg && Number(parsed.epsgTag) !== Number(project.epsg)) {
@@ -775,11 +775,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const replaced = replacedTerrainNote(terrain);
     const built = { name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: sourceFile, points: t.stats.points, nodeM: t.stats.cellM, ...(t.stats.reachM ? { reachM: Math.round(t.stats.reachM) } : {}) } }; // reachM: #3338
     addTerrain(built);
-    let msg = replaced + tr("Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).", { name, what, tri: t.stats.triangles.toLocaleString(), gridW: t.gridW, gridH: t.gridH, cell: t.stats.cellM.toFixed(1) });
+    let msg = replaced + tr("Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ≈ {cell} m apart).", { name, what, tri: t.stats.triangles.toLocaleString(), gridW: t.gridW, gridH: t.gridH, cell: t.stats.cellM.toFixed(1) });
     if (reprojected) msg += " " + tr("The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.", { epsg: project.epsg });
     // TASKS.csv #3036 — the node spacing follows the points' spacing, within the Terrain detail and the finest grid
     if (t.stats.gridFromSpacing) msg += " " + tr("The grid follows the points' spacing (median {s} m to the nearest neighbour): {n} nodes along the long side rather than the {d} of the Terrain detail.", { s: t.stats.spacingM.toFixed(0), n: t.stats.nodes.toLocaleString(), d: terrainDetail.toLocaleString() });
-    if (t.stats.spacingM > 0 && t.stats.cellM > 1.5 * t.stats.spacingM) msg += " " + tr("The points are closer (median {s} m) than the finest grid over their extent shows (~{cell} m): for finer ground, use a smaller area or a DEM.", { s: t.stats.spacingM.toFixed(0), cell: t.stats.cellM.toFixed(0) });
+    if (t.stats.spacingM > 0 && t.stats.cellM > 1.5 * t.stats.spacingM) msg += " " + tr("The points are closer (median {s} m) than the finest grid over their extent shows (≈ {cell} m): for finer ground, use a smaller area or a DEM.", { s: t.stats.spacingM.toFixed(0), cell: t.stats.cellM.toFixed(0) });
     // TASKS.csv #3034 — the nodes beside points on the edge of their area
     if (t.stats.pointNodes) msg += " " + tr("{n} node(s) beside points at the edge of their area (outside every triangle) take the nearby points' elevations, so every point has ground.", { n: t.stats.pointNodes.toLocaleString() });
     if (leftOutNote) msg += " " + leftOutNote; // #2987
@@ -1237,10 +1237,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         ? tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v} × {v2} m for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: Math.round(txmax - txmin).toLocaleString(), v2: Math.round(tymax - tymin).toLocaleString() })
         : tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v}×{v2} world units for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: (txmax - txmin).toFixed(0), v2: (tymax - tymin).toFixed(0) });
       if (parsed.source) msg += parsed.source.zoom != null
-        ? tr(" Source: {service}, zoom {zoom} (its own pixels ~{v} m), resampled to nodes ~{v2} m apart — features smaller than that are smoothed out.", { service: parsed.source.service, zoom: parsed.source.zoom, v: Math.round(parsed.source.sourcePixelM), v2: Math.round(parsed.source.nodeM) }) // #726
+        ? tr(" Source: {service}, zoom {zoom} (its own pixels ≈ {v} m), resampled to nodes ≈ {v2} m apart — features smaller than that are smoothed out.", { service: parsed.source.service, zoom: parsed.source.zoom, v: Math.round(parsed.source.sourcePixelM), v2: Math.round(parsed.source.nodeM) }) // #726
         : parsed.source.bareEarth
-          ? tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a bare-earth terrain model (forest removed).", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }) // #815
-          : tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }); // #814
+          ? tr(" Source: {service}, resampled to nodes ≈ {v2} m apart. It is a bare-earth terrain model (forest removed).", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }) // #815
+          : tr(" Source: {service}, resampled to nodes ≈ {v2} m apart. It is a surface model: in forest it reads some metres above the ground.", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }); // #814
       // TASKS.csv #3882 follow-up — GLO-30 is the default and shows the ground of 2011-2015: ground mined since reads lower, and older collars sit above it
       if (/^Copernicus DEM/.test(String(parsed.source?.service || ""))) msg += " " + tr("Copernicus GLO-30 shows the ground of 2011-2015: ground mined since reads lower than older terrain, and older collars can sit above it.");
       if (parsed.source?.gapNodes > 0) msg += parsed.source.gapFilledNodes > 0 // TASKS.csv #3721 — the nodes GEM-15 masks (water, snow and ice, low texture) and what filled them
@@ -2952,9 +2952,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
                   {outlined && <label style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={clipTerrain} onChange={(e) => setClipTerrain(e.target.checked)} />{tr("Clip to the outline")}</label>}
                   <span title={tr("Nodes {n} m apart; the source's pixels here {s} m (its finest {f} m){tiles}", { n: p.nodeM.toFixed(1), s: p.sourcePixelM.toFixed(1), f: p.nativeM.toFixed(1), tiles: p.tiles ? tr(", {t} tiles, about {mb} MB to download", { t: p.tiles, mb: p.downloadMB }) : "" })}>
-                    {tr("~{m} m ground detail · {mem} MB", { m: p.effectiveM < 10 ? p.effectiveM.toFixed(1) : Math.round(p.effectiveM), mem: p.memoryMB.toLocaleString() })}</span>
+                    {tr("≈ {m} m ground detail · {mem} MB", { m: p.effectiveM < 10 ? p.effectiveM.toFixed(1) : Math.round(p.effectiveM), mem: p.memoryMB.toLocaleString() })}</span>
                   {/* TASKS.csv #3504 — the spacing of the grid's nodes at the chosen Terrain detail, beside the area's size: '~44 km × 23 km, nodes ~220 m apart at Standard' */}
-                  <span>{tr("nodes ~{n} m apart at {level}", { n: p.nodeM < 10 ? p.nodeM.toFixed(1) : Math.round(p.nodeM).toLocaleString(), level: tr(TERRAIN_DETAIL_NAMES[terrainDetail] || "Standard") })}</span>
+                  <span>{tr("nodes ≈ {n} m apart at {level}", { n: p.nodeM < 10 ? p.nodeM.toFixed(1) : Math.round(p.nodeM).toLocaleString(), level: tr(TERRAIN_DETAIL_NAMES[terrainDetail] || "Standard") })}</span>
                   {!fits && <span style={{ color: "var(--color-warn-text)" }}>{tr("over this computer's {max} MB", { max: fetchBudgetMB(ramGB).toLocaleString() })}</span>}
                   {coarse && p.fullSideKm * 1000 < Math.max((bbox[2] - bbox[0]) * 111320 * Math.cos(((bbox[1] + bbox[3]) / 2) * Math.PI / 180), (bbox[3] - bbox[1]) * 110574) && (
                     <button className="gs-btn gs-btn--sm" type="button" onClick={() => setArea(centreBox(bbox, p.fullSideKm * 1000))}
@@ -3139,8 +3139,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flexShrink: 0 }}>{tr("Online source")}</span>
           <select value={terrainSource} onChange={(e) => setTerrainSource(e.target.value)} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Online source")}
-            title={tr("Copernicus GLO-30 (default): global ~30 m, with forest. AWS Terrain Tiles: to ~5 m, checked for cones. NRCan MRDEM-30: bare earth; HRDEM: 1 m lidar.")}>
-            <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>{/* TASKS.csv #3882 — the default, so first */}
+            title={tr("Copernicus GLO-30 (default): global ≈ 30 m, with forest. AWS Terrain Tiles: to ≈ 5 m, checked for cones. NRCan MRDEM-30: bare earth; HRDEM: 1 m lidar.")}>
+            <option value="copernicus">{tr("Copernicus GLO-30 (≈ 30 m)")}</option>{/* TASKS.csv #3882 — the default, so first */}
             <option value="aws">{tr("AWS Terrain Tiles (SRTM / CDEM blend)")}</option>
             <option value="mrdem" disabled={outsideCanada && terrainSource !== "mrdem"}>{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815; disabled outside Canada: #2465 */}
             <option value="hrdem" disabled={outsideCanada && terrainSource !== "hrdem"}>{tr("NRCan HRDEM lidar (Canada, where flown)")}</option>

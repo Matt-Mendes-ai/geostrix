@@ -29,7 +29,7 @@ test("#2314 the area size line", async () => {
   const areaSizeText = new Function(body.replace("export function areaSizeText", "return function areaSizeText"))();
   assert.match(src, /export \{ areaSizeText \};/);
   assert.equal(areaSizeText(null), "");
-  assert.equal(areaSizeText([-129.1, 56.0, -129.0, 56.05]), "~6.2 km × 5.5 km");
-  assert.equal(areaSizeText([-129.1, 56.0, -129.095, 56.004]), "~311 m × 442 m");
-  assert.equal(areaSizeText([-130, 55, -128, 57]), "~124 km × 221 km");
+  assert.equal(areaSizeText([-129.1, 56.0, -129.0, 56.05]), "≈ 6.2 km × 5.5 km" /* #4104 */);
+  assert.equal(areaSizeText([-129.1, 56.0, -129.095, 56.004]), "≈ 311 m × 442 m");
+  assert.equal(areaSizeText([-130, 55, -128, 57]), "≈ 124 km × 221 km");
 });

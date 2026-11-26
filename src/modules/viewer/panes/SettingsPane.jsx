@@ -90,8 +90,8 @@ export default function SettingsPane({ TrendsPanel, activeInterceptSet, activeIn
         </div>
         <select value={surfaceDetail} onChange={(e) => setSurfaceDetail(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }} aria-label={tr("Surface detail")}>
           <option value={4}>{tr("Standard (fastest)")}</option>
-          <option value={5}>{tr("Fine — 4x the triangles, ~2x the time")}</option>
-          <option value={6}>{tr("Very fine — 16x the triangles, ~7x the time")}</option>
+          <option value={5}>{tr("Fine — 4x the triangles, ≈ 2x the time")}</option>
+          <option value={6}>{tr("Very fine — 16x the triangles, ≈ 7x the time")}</option>
         </select>
         {/* TASKS.csv #1171 — the options in metres for the box the last run used: a large box means large cells */}
         {(() => { const ext = implicitSurfaces[implicitSurfaces.length - 1]?.params?.extent; return ext?.length === 6 ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>{tr("Mesh cells on the last model box: about {a} m (Standard), {b} m (Fine), {c} m (Very fine). Each run reports how far the mesh misses its contacts.", { a: Math.round(octreeCellM(ext, 4)), b: Math.round(octreeCellM(ext, 5)), c: Math.round(octreeCellM(ext, 6)) })}</div> : null; })()}

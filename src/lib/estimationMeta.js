@@ -23,7 +23,7 @@ export { MAX_BLOCK_MODEL_BUDGET, MIN_CELL_BUDGET, clampCellBudget, CELL_BUDGET_K
   GRADE_SHELL_SEARCH_DEFAULT, GRADE_SHELL_PAD_DEFAULT, GRADE_SHELL_BLOCK_BUDGET, GRADE_SHELL_MODE_DEFAULT } from "./estimationConsts.js";
 // TASKS.csv #3256 (Galore Creek review) — memory only: the time depends on the search radius and the composites in reach as much as on the
 // blocks ("200,000 blocks (fast)" ran over five minutes at a 500 m search on 14 holes); the run says its own time left as it goes
-export const blockModelBudgetNote = (b) => (b <= 200000 ? "~0.1 GB of memory" : b <= 1000000 ? "~0.4 GB of memory" : "~0.9 GB of memory");
+export const blockModelBudgetNote = (b) => (b <= 200000 ? "≈ 0.1 GB of memory" : b <= 1000000 ? "≈ 0.4 GB of memory" : "≈ 0.9 GB of memory");
 // TASKS.csv #1416 (review #1352) — the grade shell's budget menu in the same form, so the two menus read alike. Its grid is a
 // Float64 value per block plus a 5-byte support code and index (estimateDenseGrid): ~13 MB per million, not the block model's
 // ~0.4 GB. Times from #625: 1.09 million blocks 18 s, 2.7 million 51 s, 5 million ~150 s (radius 50 m; a larger search is slower).
@@ -38,8 +38,8 @@ export const blockModelBudgetNote = (b) => (b <= 200000 ? "~0.1 GB of memory" : 
 // grid than the last (Macpass, the whole property, Ag, 80 m search; the nodes are all the drilled areas' grids): 3.95 million nodes 44 s (+166 MB), 9.35 million 78 s (+289 MB), 18.3 million
 // 200 s (+350 MB), 46.4 million 628 s (+811 MB: the Electron processes' working set above the idle app's 700 MB). Labelled with a margin of 1.5-2 x for the modest laptops this is
 // for: '~1 min', 'up to ~3 min', 'up to ~6 min', 'up to ~20 min'; the memory is the growth measured, and a 50 million run says it needs a computer with 8 GB or more.
-export const gradeShellBudgetNote = (b) => (b <= 200000 ? "fast, ~3 MB of memory" : b <= 1000000 ? "~20 s, ~13 MB of memory" : b <= 2000000 ? "~40 s, ~26 MB of memory" : b <= 5000000 ? "~1 min, about 0.2 GB more memory"
-  : b <= 10000000 ? "up to ~3 min, about 0.3 GB more memory" : b <= 20000000 ? "up to ~6 min, about 0.35 GB more memory" : "up to ~20 min, about 0.8 GB more memory; needs a computer with 8 GB or more");
+export const gradeShellBudgetNote = (b) => (b <= 200000 ? "fast, ≈ 3 MB of memory" : b <= 1000000 ? "≈ 20 s, ≈ 13 MB of memory" : b <= 2000000 ? "≈ 40 s, ≈ 26 MB of memory" : b <= 5000000 ? "≈ 1 min, about 0.2 GB more memory"
+  : b <= 10000000 ? "up to ≈ 3 min, about 0.3 GB more memory" : b <= 20000000 ? "up to ≈ 6 min, about 0.35 GB more memory" : "up to ≈ 20 min, about 0.8 GB more memory; needs a computer with 8 GB or more");
 export const SHELL_BYTES_PER_BLOCK = 24;
 export const gradeShellBudgetMB = (b) => Math.ceil((b * SHELL_BYTES_PER_BLOCK) / 1e6);
 // the budgets offered on a computer: up to 5 million always (as before #3581), the larger ones where fits(MB) says this computer's memory can

@@ -129,7 +129,7 @@ test("#489 new CRS families match PROJ", () => {
     const p = reprojectXY(lon, lat, 4326, code);
     assert.ok(Math.hypot(p.x - x, p.y - y) < 0.01, `EPSG:${code} off by ${Math.hypot(p.x - x, p.y - y).toFixed(3)} m`);
   }
-  assert.equal(crsName(29193), "SAD69 / UTM zone 23S — Brazil datum shift, ~5 m");
+  assert.equal(crsName(29193), "SAD69 / UTM zone 23S — Brazil datum shift, ≈ 5 m" /* #4104 */);
   assert.ok(datumNote(29193) && datumNote(26709) && !datumNote(31983) && !datumNote(3156));
 });
 

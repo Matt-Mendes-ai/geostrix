@@ -190,7 +190,7 @@ export default function VariogramModal({ assays: assaysAll, assayElements, layer
         const { points, domainLabel } = pick;
         if (domainLabel) {
           if (points.length < 20) {
-            setError(tr("Domain \"{domainLabel}\" has only {points} composites — too few for a variogram worth reading (a lag bin needs ~30 pairs to mean anything).", { domainLabel, points: points.length }));
+            setError(tr("Domain \"{domainLabel}\" has only {points} composites — too few for a variogram worth reading (a lag bin needs ≈ 30 pairs to mean anything).", { domainLabel, points: points.length }));
             setRunning(false); done(); return;
           }
         }

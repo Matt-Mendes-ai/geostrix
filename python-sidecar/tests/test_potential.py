@@ -201,6 +201,19 @@ def test_plan_reports_clearance():
            "mesh": {"coreCell": 50, "depth": 300}}
     p = P.plan(req, 4e9)
     assert abs(p["clearance"]["median"] - 30.0) < 1e-6 and abs(p["clearance"]["p5"] - 30.0) < 1e-6
+    assert p["stationsOutside"] == 0  # TASKS.csv #4104 — the count the panel shows
+
+
+def test_plan_counts_stations_outside_4104():
+    # TASKS.csv #4104 — 3 of 84 stations beyond the terrain: the warning and the returned count agree (the panel says this one count)
+    xs, ys = np.meshgrid(np.linspace(0, 400, 9), np.linspace(0, 400, 9))
+    st = np.c_[xs.ravel(), ys.ravel(), np.full(xs.size, 130.0)]
+    st = np.r_[st, [[3000.0, 3000.0, 130.0], [3100.0, 3000.0, 130.0], [-2500.0, 0.0, 130.0]]]
+    tx, ty = np.meshgrid(np.linspace(-800, 1200, 21), np.linspace(-800, 1200, 21))
+    topo = np.c_[tx.ravel(), ty.ravel(), np.full(tx.size, 100.0)]
+    p = P.plan({"method": "grav", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(), "mesh": {"coreCell": 50, "depth": 300}}, 4e9)
+    assert p["stationsOutside"] == 3 and p["nData"] == 84
+    assert any(r.startswith("3 station(s) lie outside the terrain surface") for r in p["reasons"])
 
 
 def test_base_level_removal_modes():

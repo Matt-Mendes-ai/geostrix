@@ -225,7 +225,7 @@ export function suggestQcTypes(unmatched, drillRows, columns, { blankRank = 0.1,
       if (d.p.n < c.p.n && (!before || d.p.n > before.d.p.n)) before = { d, dist }; // the nearest sample BEFORE it
     }
     if (before) best = before; // a field duplicate follows its original: prefer that one when it matches at all
-    if (best) out.set(c.id, { sample_id: c.id, type: "duplicate", parent_id: best.d.id, strong: tol <= strongDuplicateTol, reason: tr("Within ~{v} % of {id} (median over its elements) — a duplicate of that sample", { v: Math.round((10 ** best.dist - 1) * 100), id: best.d.id }) });
+    if (best) out.set(c.id, { sample_id: c.id, type: "duplicate", parent_id: best.d.id, strong: tol <= strongDuplicateTol, reason: tr("Within ≈ {v} % of {id} (median over its elements) — a duplicate of that sample", { v: Math.round((10 ** best.dist - 1) * 100), id: best.d.id }) });
   }
   };
   markDuplicates(strongDuplicateTol); // a close match (~10 %) first; looser ones only after the standards (step 3b)
@@ -287,7 +287,7 @@ export function suggestQcTypes(unmatched, drillRows, columns, { blankRank = 0.1,
         const [type, n] = [...m.entries()].sort((a, b) => b[1] - a[1])[0];
         if (tot < 5 || n / tot < 0.9 || r?.type === type) continue;
         if (type === "duplicate") continue; // a duplicate needs its own original: the pattern cannot supply one
-        const was = r ? tr("its own match was weak ({m})", { m: r.type === "duplicate" ? `~${r.reason.match(/~(\d+) %/)?.[1] ?? "?"} % — ${r.parent_id}` : tr("none") }) : tr("no match of its own"); // #786: every translation of the duplicate reason keeps "~{v} %"
+        const was = r ? tr("its own match was weak ({m})", { m: r.type === "duplicate" ? `≈ ${r.reason.match(/[~≈] ?(\d+) %/)?.[1] /* #4104: "≈ 12 %" now, "~12 %" in a reason saved before */ ?? "?"} % — ${r.parent_id}` : tr("none") }) : tr("no match of its own"); // #786: every translation of the duplicate reason keeps "~{v} %"
         out.set(c.id, { sample_id: c.id, type, ...(type === "standard" ? { qc_code: `Unknown (${c.id})` } : {}), reason: tr("Sits in a {type} slot of the insertion pattern (every {P} numbers: {n} of {tot} inserts in this slot are of type {type}); {was}{v}", { type, P: bestP.P, n, tot, was, v: type === "standard" ? tr(" — a reference material used only here: name it if you know it") : "" }) });
       }
     }

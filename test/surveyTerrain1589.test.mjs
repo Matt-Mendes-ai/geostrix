@@ -35,7 +35,7 @@ test("too few stations, or stations on one line, are refused with a reason", () 
 
 test("the inversion pane says the coverage before Estimate and offers the ground from the stations; Terrain from points reads a GEM .xyz", () => {
   const p = readFileSync(new URL("../src/components/InversionPanel.jsx", import.meta.url), "utf8");
-  assert.match(p, /The terrain covers \{pct\}% of the stations; the others would be left out\./);
+  assert.match(p, /\{n\} of \{total\} stations are outside the terrain and would be left out\./); // #4104: the one count
   assert.match(p, /No terrain yet: an inversion needs one to know which cells are underground\./);
   assert.match(p, /terrainFromSurveyElevations\(rows, \{ sensorHeight: sh \}\)/);
   assert.match(p, /setRunGround\(\{ survey: activeSurvey, t: \{ name, bbox: t\.bbox, gridW: t\.gridW, gridH: t\.gridH, elevations: t\.elevations, noDataMask: t\.noDataMask/ /* the run's own ground since #2638 */);

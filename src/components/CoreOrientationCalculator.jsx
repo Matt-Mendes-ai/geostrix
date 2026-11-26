@@ -223,7 +223,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
                 <div style={{ color: result.alphaDiscrepancyDeg > 5 ? "var(--color-danger-solid)" : "var(--color-text-secondary)" }}>{tr("Alpha check: reference structure's on-core alpha vs. what its known attitude implies — off by {alphaDiscrepancyDeg}°{v}", { alphaDiscrepancyDeg: result.alphaDiscrepancyDeg.toFixed(1), v: result.alphaDiscrepancyDeg > 5 ? tr(" (large — is this really the same structure logged in the field?)") : "" })}
                 </div>
                 {(result.refNearPerpendicular || result.unkNearPerpendicular) && (
-                  <div style={{ color: "#c9962b", marginTop: 4 }}>{tr("One structure is within ~5° of perpendicular to the hole axis — beta (and therefore this result) is only weakly constrained here.")}</div>
+                  <div style={{ color: "#c9962b", marginTop: 4 }}>{tr("One structure is within ≈ 5° of perpendicular to the hole axis — beta (and therefore this result) is only weakly constrained here.")}</div>
                 )}
                 <button onClick={save} disabled={!canSave} className="gs-btn gs-btn--primary" style={{ marginTop: 8, opacity: canSave ? 1 : 0.5, cursor: canSave ? "pointer" : "default" }}
                   title={canSave ? "" : tr("Pick a hole and depth (not manual entry) to save")}>

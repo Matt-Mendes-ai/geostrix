@@ -13,9 +13,9 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786
 // real one). Written from the method; pyGMI's GPL code (rsense/hyperspec.py) was not used.
 
 export const FEATURES = {
-  aloh2200: { label: "Al-OH 2200 nm (white mica, clays)", lo: 2120, hi: 2260, what: "Depth: how much Al-OH clay / white mica. Wavelength: ~2165 kaolinite / alunite, ~2195-2205 muscovite (sericite), 2210-2225 phengitic (Al-poor) mica - a vector toward or away from a porphyry centre." },
-  mgoh2330: { label: "Mg-OH / carbonate 2330 nm (chlorite, epidote, calcite)", lo: 2270, hi: 2390, what: "Depth: propylitic minerals and carbonate. Wavelength: ~2250 + 2330-2340 chlorite / epidote, ~2335-2345 calcite, ~2315-2325 dolomite / talc." },
-  ferric900: { label: "Ferric iron 900 nm (hematite, goethite, jarosite)", lo: 750, hi: 1100, what: "Depth: iron oxides (gossan, oxidised cap). Wavelength: ~860-880 hematite, ~900-930 goethite / jarosite." },
+  aloh2200: { label: "Al-OH 2200 nm (white mica, clays)", lo: 2120, hi: 2260, what: "Depth: how much Al-OH clay / white mica. Wavelength: ≈ 2165 kaolinite / alunite, ≈ 2195-2205 muscovite (sericite), 2210-2225 phengitic (Al-poor) mica - a vector toward or away from a porphyry centre." },
+  mgoh2330: { label: "Mg-OH / carbonate 2330 nm (chlorite, epidote, calcite)", lo: 2270, hi: 2390, what: "Depth: propylitic minerals and carbonate. Wavelength: ≈ 2250 + 2330-2340 chlorite / epidote, ≈ 2335-2345 calcite, ≈ 2315-2325 dolomite / talc." },
+  ferric900: { label: "Ferric iron 900 nm (hematite, goethite, jarosite)", lo: 750, hi: 1100, what: "Depth: iron oxides (gossan, oxidised cap). Wavelength: ≈ 860-880 hematite, ≈ 900-930 goethite / jarosite." },
 };
 
 // Wavelengths in nm from an ENVI header ("wavelength = { 381.0, 388.4, ... }"), or any comma / space separated list.
@@ -68,7 +68,7 @@ function hullAt(x, y) {
 
 // bands: the window's bands (arrays, same order as wl, wavelength ascending); returns { depth, wavelength, valid, noFeature }
 export function featureMap(bands, wl, { isNoData = () => false, minDepth = 0.02 } = {}) {
-  if (bands.length < 5) throw new Error(tr("Only {n} band(s) fall inside this feature's window: a hyperspectral file needs several (EMIT has ~18 around 2200 nm).", { n: bands.length }));
+  if (bands.length < 5) throw new Error(tr("Only {n} band(s) fall inside this feature's window: a hyperspectral file needs several (EMIT has ≈ 18 around 2200 nm).", { n: bands.length }));
   const n = bands[0].length, m = bands.length;
   const depth = new Float32Array(n), wavelength = new Float32Array(n);
   const y = new Float64Array(m);

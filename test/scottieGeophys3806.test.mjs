@@ -30,7 +30,7 @@ test("#3807: the node spacing read from a number or [dx, dy]; the collars' side 
   const collars = Array.from({ length: 5 }, (_, i) => ({ hole_id: `H${i}`, x: 10 + i * 10, y: 50, z: 892 - i, azimuth: 0, dip: 60, length: 100 }));
   const { issues } = runDataQC({ project: {}, collars, survey: [], layers: {}, boundaries: [], assays: [], terrain });
   const line = issues.find((x) => x.category === "Collar vs terrain" && !x.holeId).message;
-  assert.doesNotMatch(line, /NaN/); assert.match(line, /~10 m apart/); assert.match(line, /5 of the 5 collars are 8\.0 to 12\.0 m below this terrain/);
+  assert.doesNotMatch(line, /NaN/); assert.match(line, /≈ 10 m apart/); /* #4104 */ assert.match(line, /5 of the 5 collars are 8\.0 to 12\.0 m below this terrain/);
 });
 test("#3808: AppMx / AppRho are apparent methods at pseudo-depths, labelled so; resistivity's log legend follows", () => {
   assert.equal(guessSurveyMethod("AppMx"), "ip_app"); assert.equal(guessSurveyMethod("AppRho"), "res_app");

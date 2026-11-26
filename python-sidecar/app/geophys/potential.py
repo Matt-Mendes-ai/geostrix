@@ -207,6 +207,7 @@ def plan(req, ram_cap_bytes):
     sens = n_data * n_active * SENS_BYTES * ncomp if kind == "inversion" else 0
     reasons = []
     clearance_stats = None
+    outside = None  # TASKS.csv #4104 — returned, so the panel says the same count as this warning (it said "covers every station" beside "3 ... outside")
     if not len(stations):
         reasons.append("No stations.")
     if kind == "inversion" and topo is None:
@@ -243,7 +244,7 @@ def plan(req, ram_cap_bytes):
         if outside:
             reasons.append(f"{outside} station(s) lie outside the terrain surface. Load terrain that covers the whole survey.")
     if sens > ram_cap_bytes:
-        reasons.append(f"The sensitivity matrix would need ~{sens / 1e9:.2f} GB (data x active cells x 4 bytes); "
+        reasons.append(f"The sensitivity matrix would need ≈ {sens / 1e9:.2f} GB (data x active cells x 4 bytes); "  # ≈: #4104, '~' read as a minus
                        f"the limit is {ram_cap_bytes / 1e9:.2f} GB. Use a larger core cell or thin the stations.")
     # Measured on an i7-1165G7 / 16 GB (#321 performance review): peak RAM ~= 1.2 x matrix + 250-350 MB;
     # building the matrix ~10 s per GB. Reported so the user sees the cost before committing to it.
@@ -253,7 +254,7 @@ def plan(req, ram_cap_bytes):
             "meshType": mesh_type, "octree": octree_info,
             "coreCell": req["mesh"]["coreCell"], "sensitivityBytes": sens, "ramCapBytes": ram_cap_bytes,
             "localOrigin": local.tolist(), "core": spec["core"], "ok": not reasons, "reasons": reasons,
-            "clearance": clearance_stats}
+            "clearance": clearance_stats, "stationsOutside": outside}
 
 
 def _local_origin(stations):

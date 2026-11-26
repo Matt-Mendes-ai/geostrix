@@ -153,7 +153,7 @@ export async function fetchNrcanTerrain({ lonMin, latMin, lonMax, latMax, target
     ? (lidar ? `NRCan HRDEM lidar terrain (1 m) on ${lidarPct.toFixed(0)}% of the area, MRDEM-30 elsewhere` : "NRCan MRDEM-30 terrain (30 m, bare earth): no HRDEM lidar in this area")
     : "NRCan MRDEM-30 terrain (30 m, bare earth)";
   return {
-    name: source === "hrdem" && lidar ? `Terrain (NRCan HRDEM lidar + MRDEM-30, ~${Math.round(g.nodeM)} m grid)` : `Terrain (NRCan MRDEM-30, ~${Math.round(g.nodeM)} m grid)`,
+    name: source === "hrdem" && lidar ? `Terrain (NRCan HRDEM lidar + MRDEM-30, ≈ ${Math.round(g.nodeM)} m grid)` : `Terrain (NRCan MRDEM-30, ≈ ${Math.round(g.nodeM)} m grid)`,
     bbox: fin.bbox, gridW: fin.gridW, gridH: fin.gridH, elevations: fin.elevations,
     reprojectedTo: fin.reprojectedTo, reprojectNote: fin.reprojectNote, tileCount: 1,
     source: { service, zoom: null, sourcePixelM: lidar ? lidarPixelM : mr.pixelM, nodeM: g.nodeM, bareEarth: true, lidarPct, fetched: new Date().toISOString().slice(0, 10) },
