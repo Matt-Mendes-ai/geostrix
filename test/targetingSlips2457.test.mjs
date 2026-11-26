@@ -24,6 +24,6 @@ test("the strings and wiring", () => {
   assert.match(ev, /const nameGrid = `\$\{name\}, \$\{grid\.nx\} × \$\{grid\.ny\} × \$\{Math\.round\(grid\.dx\)\} m`;/);
   const vp = fs.readFileSync("src/modules/viewer/ViewerParts.jsx", "utf8");
   assert.equal((vp.match(/\{valueUnit\(model\) && <span/g) || []).length, 2);
-  assert.ok(vp.includes("a grade shell or geophysical high or low to section, query and target.")); // #3899: shorter
+  assert.ok(vp.includes("a grade shell, or a geophysical high or low.")); // #3899: shorter
   assert.match(fs.readFileSync("src/components/PlannedHoleParts.jsx", "utf8"), /nearestReal\.steady \? tr\(", the same all the way down"\)/);
 });
