@@ -96,12 +96,12 @@ const SOURCE_LINE = {
   yk_macpass: () => tr("Macpass (Fireweed Metals Corp., Yukon): 559 holes drilled 1952-2023 on the Macpass project, with down-hole surveys, 32,546 sampled intervals (Ag, Pb, Zn) and 32,498 bulk densities — nothing synthesized.") + " " + MACPASS_CREDIT,
   qld_century: () => tr("Century (Geological Survey of Queensland, CC BY 4.0): 37 holes from 1992 on a shale-hosted zinc-lead-silver deposit, with lithology and assays, 730 soil samples and Geoscience Australia's magnetic grid — nothing synthesized."),
   wa_iron: () => tr("WA bedded iron (WAMEX report A119232): 147 shallow holes from 2018, with Geoscience Australia's magnetic grid — nothing synthesized."),
-  wa_zinc_copper: () => tr("WA zinc-copper (WAMEX report A77713): 32 holes from 2007 on sulphide prospects in felsic volcanic rocks of the east Pilbara, with logs and assays, and 157 soil and 46 stream-sediment samples — nothing synthesized."),
+  wa_zinc_copper: () => tr("WA zinc-copper (WAMEX report A77713): 32 holes from 2007 on sulphide prospects in felsic volcanic rocks, with logs and assays, and 157 soil and 46 stream-sediment samples — nothing synthesized."),
   silvertip: () => tr("From BC's public assessment reports, downloaded from the Province's servers the first time you open them (BC's terms do not let GeoStrix include them): Silvertip (report #42807): 9 deep holes from 2024 with logs, oriented core and assays, and rock, soil and stream-sediment samples; Harry (report #37584): 37 holes with collars, lithology and assays; Perk-Rocky (report #42317): 2024 surface mapping (the geological map, structures and outcrop measurements as delivered) on a Copernicus terrain, to model from the map."),
   qc_rouyn_noranda: () => tr("Rouyn-Noranda (Quebec's SIGEOM, CC BY 4.0): the geology, 299 structural measurements and 280 historical drillhole traces of a 7 km block of the Abitibi, on a terrain, inside the Blake River gravity sample — nothing synthesized."),
-  wa_lead_zinc: () => tr("WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit in the east Kimberley, with lithology, weathering, assays and specific gravity — nothing synthesized."),
+  wa_lead_zinc: () => tr("WA lead-silver-zinc (WAMEX report A91581): 99 shallow holes from 2010 on a carbonate-hosted deposit, with lithology, weathering, assays and specific gravity — nothing synthesized."),
   wa_uranium: () => tr("WA palaeochannel uranium (WAMEX report A87304, CC BY 4.0): 430 shallow aircore and diamond holes from 2009-2010 through a lignite-bearing palaeochannel, with lithology, alteration, multi-element assays and a downhole gamma / eU3O8 log — nothing synthesized."),
-  mount_raymond: () => tr("Mount Raymond (Geological Survey of Canada, Canadian Geoscience Map 71, northern Yukon): 1:50 000 bedrock mapping only — map units, faults, folds and 119 planar measurements on a terrain — to model from the map, nothing synthesized."),
+  mount_raymond: () => tr("Mount Raymond (Geological Survey of Canada, Canadian Geoscience Map 71, northern Yukon): 1:50 000 bedrock mapping only — map units, faults, folds and 119 planar measurements on a terrain — nothing synthesized."),
   fi_lapland: () => tr("Central Lapland (Geological Survey of Finland, CC BY 4.0): the 1:1 000 000 bedrock map of a 100 km window of the greenstone belt and 121 whole-rock samples with full analyses, no drillholes — nothing synthesized."),
   blake: () => tr("Blake River gravity (a Geological Survey of Canada compilation, Abitibi, Quebec): the published Bouguer anomaly grid and the 7,810 stations behind it, no drillholes — nothing synthesized."),
   osborne: () => tr("Osborne magnetics (Geoscience Australia survey P1029, via Fatiando a Terra Data, CC BY 4.0): 24,927 airborne magnetic readings of the Osborne mine area and the 50 m Lightning Creek anomaly grid, no drillholes — nothing synthesized."),
@@ -156,7 +156,7 @@ export const sampleStyle = (key) => ({
   agpbzn: tr("Ag-Pb-Zn, northern BC"), gold: tr("Gold, BC"), camp: tr("Volcanic-belt camp"), carbonate: tr("Carbonate-hosted Pb-Ag-Zn"), palaeochannel: tr("Palaeochannel uranium"),
   mapSediments: tr("Mapping, Paleozoic sediments"), mapBc: tr("Mapping, central BC"), greenstone: tr("Greenstone belt, rock geochemistry"), voltBelt: tr("Volcanic belt, gravity"),
   sill: tr("Sill complex, magnetics"), research: tr("Research dataset"), ipZtem: tr("IP and ZTEM, central BC"),
-  ipEm: tr("IP and ground EM, Queensland"), cuAuCo: tr("Cu-Au-Co, Mount Isa Inlier"), dhem: tr("Downhole EM, Queensland"), greisen: tr("Greisen molybdenum, Queensland"), epithermal: tr("Epithermal Au-Ag, Queensland"),
+  ipEm: tr("IP and ground EM"), cuAuCo: tr("Cu-Au-Co"), dhem: tr("Downhole EM"), greisen: tr("Greisen molybdenum"), epithermal: tr("Epithermal Au-Ag"),
 }[key] || "");
 // one fact of the "what it has" line
 export const sampleFact = ([k, n]) => ({
