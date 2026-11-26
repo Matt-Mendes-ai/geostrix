@@ -141,6 +141,13 @@ export const SAMPLE_CONTENTS = {
   fi_lapland: { name: "Lapland", style: "greenstone", dir: "fi_lapland", mb: 0.6, has: { mapping: { files: ["bedrock_units.zip", "faults.zip"] }, surface: { files: ["rocks.csv"], n: 121 } }, facts: [["bedrockMap"], ["rocks", 121]] },
   blake: { name: "Blake River", style: "voltBelt", dir: "blake_river", mb: 1.4, has: { geophysics: { files: ["bouguer_100m.grd", "stations.csv"] } }, facts: [["gravityGrid"], ["stations", 7810]] },
   osborne: { name: "Osborne", style: "sill", dir: "osborne", mb: 1.3, has: { geophysics: { files: ["osborne_magnetic.csv", "lightning_creek_magnetic_grid.tif"] } }, facts: [["magnetics"], ["readings", 24927], ["grid50"]] },
+  // the five Geoscience Queensland samples (#4056, side 2): their data keeps geophysics in a geophysics/ folder and mapping in mapping/ (a folder with files proves the icon); the
+  // facts count only what a file's rows give exactly (the README's counts leave out the QC rows the files carry). They get a row when their card and loader land (sampleCardsFor).
+  gsq_carbo_creek: { name: "Carbo Creek", style: "ipEm", dir: "gsq_carbo_creek", mb: 1.7, has: { holes: { files: ["collars.csv"], n: 3 }, assays: { files: ["assays.csv"], n: 111 }, geophysics: { files: ["geophysics"] } }, facts: [["holes", 3], ["assays"], ["ipLines", 7], ["groundEm"]] },
+  gsq_cloncurry: { name: "Cloncurry", style: "cuAuCo", dir: "gsq_cloncurry", mb: 4.7, has: { holes: { files: ["collars.csv"], n: 5 }, assays: { files: ["assays.csv"], n: 541 }, geophysics: { files: ["geophysics"] }, mapping: { files: ["mapping"] }, surface: { files: ["soils.csv", "rocks.csv"], n: 468 } }, facts: [["holes", 5], ["assays"], ["soils", 468], ["dhem"], ["groundEm"], ["ip"]] },
+  gsq_altia_south: { name: "Altia South", style: "dhem", dir: "gsq_altia_south", mb: 4.1, has: { holes: { files: ["collars.csv"], n: 9 }, assays: { files: ["assays.csv"], n: 1199 }, geophysics: { files: ["geophysics"] }, surface: { files: ["rocks.csv"], n: 10 } }, facts: [["holes", 9], ["assays"], ["rocks", 10], ["dhem"], ["groundEm"]] },
+  gsq_black_mountain: { name: "Black Mountain", style: "greisen", dir: "gsq_black_mountain", mb: 3.1, has: { holes: { files: ["collars.csv"], n: 24 }, assays: { files: ["assays.csv"], n: 660 }, geophysics: { files: ["geophysics"] } }, facts: [["holes", 24], ["assays"], ["ip"], ["magnetics"]] },
+  gsq_edinburgh_park: { name: "Edinburgh Park", style: "epithermal", dir: "gsq_edinburgh_park", mb: 2.1, has: { holes: { files: ["collars.csv"], n: 23 }, assays: { files: ["assays.csv"], n: 888 }, geophysics: { files: ["geophysics"] }, surface: { files: ["soils.csv", "rocks.csv", "streams.csv"], n: 1190 } }, facts: [["holes", 23], ["assays"], ["surfaceSamples", 1637], ["ip"], ["magnetics"]] },
   geomet: { name: "GeoMet", style: "research", dir: "geomet", mb: 0.4, has: { holes: { files: ["collars.csv"], n: 118 }, assays: { files: ["assays.csv"], n: 1999 } }, facts: [["holes", 118], ["assays", 1999], ["elements", 18]] },
 };
 // the short deposit-style phrases, whole and translated (the README / card wording; no style is assumed for a sample that does not state one)
@@ -149,6 +156,7 @@ export const sampleStyle = (key) => ({
   agpbzn: tr("Ag-Pb-Zn, northern BC"), gold: tr("Gold, BC"), camp: tr("Volcanic-belt camp"), carbonate: tr("Carbonate-hosted Pb-Ag-Zn"), palaeochannel: tr("Palaeochannel uranium"),
   mapSediments: tr("Mapping, Paleozoic sediments"), mapBc: tr("Mapping, central BC"), greenstone: tr("Greenstone belt, rock geochemistry"), voltBelt: tr("Volcanic belt, gravity"),
   sill: tr("Sill complex, magnetics"), research: tr("Research dataset"), ipZtem: tr("IP and ZTEM, central BC"),
+  ipEm: tr("IP and ground EM, Queensland"), cuAuCo: tr("Cu-Au-Co, Mount Isa Inlier"), dhem: tr("Downhole EM, Queensland"), greisen: tr("Greisen molybdenum, Queensland"), epithermal: tr("Epithermal Au-Ag, Queensland"),
 }[key] || "");
 // one fact of the "what it has" line
 export const sampleFact = ([k, n]) => ({
@@ -157,7 +165,7 @@ export const sampleFact = ([k, n]) => ({
   soils: () => tr("{n} soils", { n }), soilsStreams: () => tr("{n} soils and streams", { n }), surfaceSamples: () => tr("{n} rock, soil, stream samples", { n }), rocks: () => tr("{n} rock samples", { n }),
   magnetics: () => tr("magnetics"), densityGamma: () => tr("density, gamma"), sg: () => tr("specific gravity"), gamma: () => tr("gamma log"), geology: () => tr("geology"), map: () => tr("geological map"),
   terrain: () => tr("terrain"), mapping: () => tr("surface mapping"), outcrop: () => tr("{n} outcrop measurements", { n }), bedrockMap: () => tr("bedrock map"), gravityGrid: () => tr("gravity grid"),
-  ipLines: () => tr("{n} IP lines", { n }), ztem: () => tr("ZTEM inversion"), stations: () => tr("{n} stations", { n: n.toLocaleString() }), readings: () => tr("{n} readings", { n: n.toLocaleString() }), grid50: () => tr("50 m grid"), elements: () => tr("{n} elements", { n }),
+  ipLines: () => tr("{n} IP lines", { n }), ip: () => tr("IP"), dhem: () => tr("downhole EM"), groundEm: () => tr("ground EM"), ztem: () => tr("ZTEM inversion"), stations: () => tr("{n} stations", { n: n.toLocaleString() }), readings: () => tr("{n} readings", { n: n.toLocaleString() }), grid50: () => tr("50 m grid"), elements: () => tr("{n} elements", { n }),
 }[k]?.() || "");
 // the table's rows for a tab: every offered sample (the cards sampleCardsFor offers, in its order) with what it holds; the first pick is the tab's own (#1120):
 // the 3D View leads with Macpass, Surface Geology with the mapping samples. -> { rows, first }
