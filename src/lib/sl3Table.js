@@ -30,7 +30,9 @@ export function sl3ToTable(text) {
   }
   if (!rows.length) return null;
   const from = rows.every((r) => r[1] === "" || r[1] == null) ? 2 : 1; // 'D', an empty field, then the values
-  const cells = (f) => f.slice(comma ? from : 2); // #4067 — the comma files' names and units sit where their values do (the label of H1001 over the hole id)
+  // #4067 — the names and units sit where their values do (the label of H1001 over the hole id): the comma files, and (TASKS.csv #4083) the tab files whose D rows start their values in the second
+  // field ('D', the hole id, ...: NZP&M's DH_Collar, SARIG's DrillCollars), where the names begin too ('H1000', 'HOLEID', ...): slice(2) dropped the hole-id column from their names
+  const cells = (f) => f.slice(from);
   const filled = (a) => a.filter((x) => x !== "").length;
   // the names: the column-name record with the most names that read as names
   const cands = heads.filter((h) => h.num >= 1000).map((h) => ({ ...h, v: cells(h.f) })).filter((h) => filled(h.v) >= 2 && h.v.filter((x) => x !== "" && !isNumber(x)).length >= 0.6 * filled(h.v));
