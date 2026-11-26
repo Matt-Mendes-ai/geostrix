@@ -15856,5 +15856,17 @@
   "Imported \"{name}\": {n} boundary layer(s), {lines} line(s), under Geophysics → Boundaries. Coordinates taken as the project's{v}.{w}": "« {name} » importé : {n} couche(s) de limites, {lines} ligne(s), sous Géophysique → Limites. Coordonnées prises comme celles du projet{v}.{w}",
   "no Surpac lines": "aucune ligne Surpac",
   "{n} single point(s) skipped.": "{n} point(s) isolé(s) ignoré(s).",
-  "\"{name}\" is a SMARTem IP (TIP) file, not TEM: open it in the DC / IP line pane.": "« {name} » est un fichier IP SMARTem (TIP), pas TEM : ouvrez-le dans le volet des lignes DC / IP."
+  "\"{name}\" is a SMARTem IP (TIP) file, not TEM: open it in the DC / IP line pane.": "« {name} » est un fichier IP SMARTem (TIP), pas TEM : ouvrez-le dans le volet des lignes DC / IP.",
+  "Choose an area.": "Choisissez une zone.",
+  "Filter": "Filtre",
+  "Import a grid…": "Importer une grille…",
+  "Next: grid": "Suivant : grille",
+  "Next: numbering": "Suivant : numérotation",
+  "Next: plan": "Suivant : plan",
+  "Next: streams": "Suivant : cours d'eau",
+  "No grid to filter yet.": "Aucune grille à filtrer pour l'instant.",
+  "Numbering": "Numérotation",
+  "Plan": "Plan",
+  "Streams": "Cours d'eau",
+  "Wheel: zoom · drag: pan · double-click: fit": "Molette : zoom · glisser : déplacer · double-clic : ajuster"
 }

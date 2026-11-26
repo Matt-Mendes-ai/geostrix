@@ -48,6 +48,6 @@ test("the gridder refuses a single line and stamps the method; filter products k
   const r = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
   // #2837 / #2843: the unit now comes from filterOutputUnits(kind, rasterUnitOf(r)) (the typed unit too; tilt: degrees; gravity per km)
   assert.match(r, /surveyMethod: rasterMethodOf\(r, geophysSurveys\) \|\| undefined, units: ou\.units/);
-  assert.match(r, /disabled=\{filtering \|\| !!filterBlockedBy\(filt\.kind, rasterMethodOf\(r, geophysSurveys\)\)( \|\| unknownNeedsTick\(r\) \/\* #2835 \*\/)?\}/);
+  assert.match(r, /disabled: filtering \|\| !!filterBlockedBy\(filt\.kind, rasterMethodOf\(fr, geophysSurveys\)\)( \|\| unknownNeedsTick\(fr\) \/\* #2835 \*\/)? \}/); // #4087 — the Filter step's Compute
   assert.match(r, /ternaryChoices\(gridRasters, key,/);
 });

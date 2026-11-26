@@ -13,7 +13,7 @@ test("#2561 IGRF-14 at the review's place and date", () => {
 test("#2561 the filter box: date, button, source line, recorded source; typing clears the source", () => {
   const m = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
   assert.match(m, /aria-label=\{tr\("Survey date \(for IGRF\)"\)\}/);
-  assert.match(m, /onClick=\{\(\) => fillIgrf\(r\)\}/);
+  assert.match(m, /onClick=\{\(\) => fillIgrf\(fr\)\}/); // #4087 — the Filter step's grid
   assert.match(m, /const g = r\.grid, cx = g\.x0 \+ \(g\.dx \* \(g\.nx - 1\)\) \/ 2, cy = g\.yTop - \(g\.dy \* \(g\.ny - 1\)\) \/ 2;/);
   assert.match(m, /zM = rasterLevelM\(r\) \?\? \(Number\(r\.elevation\) \|\| 0\)/);
   assert.match(m, /fieldSource: filt\.igrfSource \|\| "typed by the user"/);

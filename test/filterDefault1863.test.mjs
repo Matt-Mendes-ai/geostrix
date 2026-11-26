@@ -22,5 +22,6 @@ test("with no method, by name", () => {
 
 test("the filter form opens on it", () => {
   const src = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.match(src, /setFilt\(\(f\) => \(\{ \.\.\.f, kind: defaultFilterKind\(r, rasterMethodOf\(r, geophysSurveys\)\) \}\)\)/);
+  // #4087 — the Filter step opens a grid on its usual filter whenever the grid chosen changes (a card's icon or the step's list)
+  assert.match(src, /useEffect\(\(\) => \{ if \(fr\) setFilt\(\(f\) => \(\{ \.\.\.f, kind: defaultFilterKind\(fr, rasterMethodOf\(fr, geophysSurveys\)\) \}\)\); \}, \[fr\?\.id\]\);/);
 });

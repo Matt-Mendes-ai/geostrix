@@ -1,4 +1,4 @@
-import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { Ribbon, RibbonGroup, RibbonButton, firstSentence } from "../components/Ribbon.jsx"; // TASKS.csv #458; firstSentence: #4087
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856; rasterDrapeElevation: #1505
 import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { exportCrs, gridBandsToWorld, imageToWorld, tiedExportNote } from "../lib/tiedExport.js"; // TASKS.csv #1021; a tied local grid: #2322
@@ -21,7 +21,8 @@ const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module u
 import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote, imageToGeoTIFF, pictureExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095; picture: #1860
 import { toLonLat, crsName } from "../lib/reproject.js";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
-import InfoButton from "../components/InfoButton.jsx";
+import StepPane, { requestStep } from "../components/StepPane.jsx"; // TASKS.csv #4087 — the panel as steps
+import MoreFold from "../components/MoreFold.jsx"; // TASKS.csv #4087 — each card's Fine-tune…, each filter's More
 import BasemapView from "../components/BasemapView.jsx";
 import GeoreferencerModal from "../components/GeoreferencerModal.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -109,7 +110,10 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
-  const [filterFor, setFilterFor] = useState(null); // raster id whose filter form is open
+  const [filterFor, setFilterFor] = useState(null); // raster id the Filter step works on (#4087; null: the first that can be filtered)
+  // TASKS.csv #4087 — a run that lands opens the Result step with what it added (StepPane's result.key); other notes stay under the step bar
+  const [ranAt, setRanAt] = useState(null);
+  const done = (text, info = true) => { setError({ info, text, run: true }); setRanAt(Date.now()); };
   // TASKS.csv #2835 / #2842 — a grid of unknown method (an imported one, 'This grid is' not set): the field filters say what they assume and
   // run once the method is set on the card or this is ticked (per raster, this session)
   const [assumeField, setAssumeField] = useState({});
@@ -166,7 +170,7 @@ export default function RasterModule({ embedded = false } = {}) {
       // TASKS.csv #808 — depth estimates
       if (filt.kind === "spectrum") {
         const spec = radialSpectrum({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values });
-        setSpectrum({ rasterId: r.id, spec, fit: fitSpectrumDepths(spec) });
+        setSpectrum({ rasterId: r.id, spec, fit: fitSpectrumDepths(spec) }); setError(null); setRanAt(Date.now()); // #4087 — the Result step shows the spectrum
         return;
       }
       // TASKS.csv #1985 — Euler deconvolution (Harmonica, in the Python engine): the solutions become a point survey coloured by depth
@@ -182,8 +186,7 @@ export default function RasterModule({ embedded = false } = {}) {
         const rows = d.x.map((x, i) => ({ x, y: d.y[i], z: placed.z[i], value: +d.depth[i].toFixed(1), depthSd: +d.depth_sd[i].toFixed(1), _src: src }));
         setLayers((l) => ({ ...l, geophys_pts: [...(l.geophys_pts || []).filter((p) => p._src !== src), ...rows] }));
         updateGeophysSurvey(src, { method: "euler_depth", units: "m" });
-        setError({ info: true, text: d.count ? tr("Added the point survey \"{src}\": {n} solutions from {w} windows, depth {lo} to {hi} m below the grid's level (median {med} m, each good to 15 %){v}. Depths are below the sensor: subtract its height above ground.", { src, n: d.count.toLocaleString(), w: d.windows.toLocaleString(), lo: Math.round(Math.min(...d.depth)), hi: Math.round(Math.max(...d.depth)), med: Math.round([...d.depth].sort((a, b) => a - b)[d.depth.length >> 1]), v: placed.byLevel ? " " + tr("— in 3D at the grid's level ({lv} m) minus each depth ({n} of {all})", { lv: Math.round(levelM), n: placed.byLevel.toLocaleString(), all: d.count.toLocaleString() }) : placed.byTerrain ? " " + tr("— in 3D under the terrain ({n} of {all}; {m} with no ground under them show in plan only)", { n: placed.byTerrain.toLocaleString(), all: d.count.toLocaleString(), m: placed.missing.toLocaleString() }) : tr("; with no terrain they have no elevation and show in plan only") }) /* #2553 */ : tr("No Euler solution passed the checks in \"{name}\": try another structural index or a larger window.", { name: r.name }) });
-        setFilterFor(null);
+        done(d.count ? tr("Added the point survey \"{src}\": {n} solutions from {w} windows, depth {lo} to {hi} m below the grid's level (median {med} m, each good to 15 %){v}. Depths are below the sensor: subtract its height above ground.", { src, n: d.count.toLocaleString(), w: d.windows.toLocaleString(), lo: Math.round(Math.min(...d.depth)), hi: Math.round(Math.max(...d.depth)), med: Math.round([...d.depth].sort((a, b) => a - b)[d.depth.length >> 1]), v: placed.byLevel ? " " + tr("— in 3D at the grid's level ({lv} m) minus each depth ({n} of {all})", { lv: Math.round(levelM), n: placed.byLevel.toLocaleString(), all: d.count.toLocaleString() }) : placed.byTerrain ? " " + tr("— in 3D under the terrain ({n} of {all}; {m} with no ground under them show in plan only)", { n: placed.byTerrain.toLocaleString(), all: d.count.toLocaleString(), m: placed.missing.toLocaleString() }) : tr("; with no terrain they have no elevation and show in plan only") }) /* #2553 */ : tr("No Euler solution passed the checks in \"{name}\": try another structural index or a larger window.", { name: r.name }));
         return;
       }
       // TASKS.csv #1988 — worms: each node holds the greatest continuation height at which it is still an edge
@@ -194,8 +197,7 @@ export default function RasterModule({ embedded = false } = {}) {
           extra: { surveyMethod: "worms_height", units: "m" /* #2639 — heights, not a field: no field filters on it */, filter: { kind: "worms", label: "Worms (Hornby et al. 1999)", params: { heightsM: w.levels.map((l) => l.h), nodesPerHeight: w.levels.map((l) => l.count), integrated: !!filt.integrate }, sourceRaster: r.name, method: "upward continuation to each height, total horizontal gradient, crests by the Blakely & Simpson 1986 test (2 of 4 directions, above the level's median); the node keeps the greatest height (gridFilters.js worms)", at: new Date().toISOString() } } });
         if (!(await landed(job))) return; // TASKS.csv #3953
         addRaster({ ...nr, ...placeOf(r, filt.kind) }); // drawn as its parent: #2560
-        setError({ info: true, text: tr("Added \"{name}\": edges at {n} heights ({heights} m above the grid), {count} nodes. Edges that stay put as the height grows are steep, ones that walk sideways dip that way; deep ones last longest.", { name: nr.name, n: w.levels.length, heights: w.levels.map((l) => l.h.toLocaleString()).join(", "), count: w.count.toLocaleString() }) });
-        setFilterFor(null);
+        done(tr("Added \"{name}\": edges at {n} heights ({heights} m above the grid), {count} nodes. Edges that stay put as the height grows are steep, ones that walk sideways dip that way; deep ones last longest.", { name: nr.name, n: w.levels.length, heights: w.levels.map((l) => l.h.toLocaleString()).join(", "), count: w.count.toLocaleString() }));
         return;
       }
       if (filt.kind === "tiltdepth") {
@@ -205,8 +207,7 @@ export default function RasterModule({ embedded = false } = {}) {
           extra: { surveyMethod: "tiltdepth_depth", units: "m" /* #2639 */, filter: { kind: "tiltdepth", label: "Tilt-depth (Salem et al. 2007)", params: { contactNodes: td.count, medianDepthM: Math.round(td.median) }, sourceRaster: r.name, method: "depth = 1 / |horizontal gradient of the tilt (radians)| at its zero contour, on the kept grid (gridFilters.js tiltDepth)", at: new Date().toISOString() } } });
         if (!(await landed(job))) return; // TASKS.csv #3953
         addRaster({ ...nr, ...placeOf(r, filt.kind) }); // drawn as its parent: #2560
-        setError({ info: true, text: tr("Added \"{name}\": {n} nodes along the tilt's zero contour (the contacts), median depth {median} m below the sensor: subtract its height for depth below ground. Valid for an RTP grid and near-vertical contacts.", { name: nr.name, n: td.count.toLocaleString(), median: Math.round(td.median) }) });
-        setFilterFor(null);
+        done(tr("Added \"{name}\": {n} nodes along the tilt's zero contour (the contacts), median depth {median} m below the sensor: subtract its height for depth below ground. Valid for an RTP grid and near-vertical contacts.", { name: nr.name, n: td.count.toLocaleString(), median: Math.round(td.median) }));
         return;
       }
       // TASKS.csv #2838 / #2850 — the FFTs run in a worker (the same applyGridFilter): the window froze 1–2 s on a 422 x 332 grid, 5–7 s on 945 x 501
@@ -223,8 +224,7 @@ export default function RasterModule({ embedded = false } = {}) {
       if (!(await landed(job))) return; // TASKS.csv #3953
       const place = filteredPlacement(r, filt.kind, params);
       addRaster({ ...nr, drapeMode: place.drapeMode, elevation: place.elevation }); // drawn as its parent, an upward continuation h higher: #2560
-      setError({ info: !out.warning, text: tr("Added \"{name}\" (colours span the 2nd–98th percentile: {v}).{v2}", { name: nr.name, v: nr.colourRange.map((v) => v.toPrecision(3)).join(" to "), v2: out.warning ? " " + out.warning : "" }) + (place.raisedM ? " " + tr("It is drawn flat at {z} m, {h} m above the grid it was continued from.", { z: Math.round(place.elevation).toLocaleString(), h: place.raisedM }) : "") });
-      setFilterFor(null);
+      done(tr("Added \"{name}\" (colours span the 2nd–98th percentile: {v}).{v2}", { name: nr.name, v: nr.colourRange.map((v) => v.toPrecision(3)).join(" to "), v2: out.warning ? " " + out.warning : "" }) + (place.raisedM ? " " + tr("It is drawn flat at {z} m, {h} m above the grid it was continued from.", { z: Math.round(place.elevation).toLocaleString(), h: place.raisedM }) : ""), !out.warning);
     } catch (err) {
       setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) });
     } finally { setFiltering(false); job.end(); } // job: TASKS.csv #3953
@@ -241,7 +241,7 @@ export default function RasterModule({ embedded = false } = {}) {
         extra: { filter: { kind: `matched-${which}`, label: "Matched filter (Spector & Grant 1970)", params: { deepDepthM: Math.round(fit.deep.h), shallowDepthM: Math.round(fit.shallow.h) }, sourceRaster: r.name, method: "w(k) = sqrt(P_i / (P_deep + P_shallow)) from the two fitted spectrum segments (gridFilters.js matchedFilter)", at: new Date().toISOString() } } });
       if (!(await landed(job))) return; // TASKS.csv #3953 — into the project it started in
       addRaster({ ...nr, ...placeOf(r, `matched-${which}`) }); // #2560
-      setError({ info: true, text: tr("Added \"{name}\".", { name: nr.name }) });
+      done(tr("Added \"{name}\".", { name: nr.name }));
     } catch (err) { setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) }); }
     finally { job.end(); } // TASKS.csv #3953
   };
@@ -553,6 +553,7 @@ export default function RasterModule({ embedded = false } = {}) {
       if (sameRaster(raster, rasters) && !await askConfirm(tr("\"{name}\" is already imported over the same area. Import it again?", { name: raster.name }))) { setError({ info: true, text: tr("\"{name}\" was not imported again.", { name: raster.name }) }); return; }
       addRaster({ ...raster, elevation: drape.z });
       setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });
+      requestStep("rasters", "rasters"); // TASKS.csv #4087 — the new raster's card
     } catch (err) {
       if (job.gone) return; // #3963 — its project is gone and the banner said so
       setError({ info: false, text: err.message });
@@ -560,6 +561,29 @@ export default function RasterModule({ embedded = false } = {}) {
       setBusy(false); job.end(); // job: #3963
     }
   };
+
+  // TASKS.csv #4087 — the Filter step's grid: the one chosen (a card's filter icon, or the step's own list), else the first that can be filtered; a grid
+  // chosen opens on its usual filter (#1863: RTP only for magnetics)
+  const filterable = rasters.filter((r) => r.grid && !r.geochem && !r.terrainDerivative);
+  const fr = filterable.find((r) => r.id === filterFor) || filterable[0] || null;
+  useEffect(() => { if (fr) setFilt((f) => ({ ...f, kind: defaultFilterKind(fr, rasterMethodOf(fr, geophysSurveys)) })); }, [fr?.id]);
+  // TASKS.csv #4087 — a long note (an import's runs to ~100 words) as its first sentence, the whole text one click away; an error stays whole
+  const noteOf = (e) => {
+    const first = firstSentence(e.text, 24);
+    if (!e.info) return { text: e.text, level: "error" };
+    if (first === String(e.text || "").trim()) return { text: e.text, level: "info" };
+    return (
+      <details data-step-note="" style={{ padding: "6px 9px", borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>
+        <summary style={{ cursor: "pointer" }}>{first}</summary>
+        <div style={{ marginTop: 4 }}>{e.text}</div>
+      </details>
+    );
+  };
+  // TASKS.csv #2559 — opening the ternary fold fills each empty channel with that channel's grid when exactly one is known (K, eTh, eU from one import)
+  const openTernary = () => setTern((p) => {
+    const pick = (ch) => { if (p[ch]) return p[ch]; const ex = ternaryChoices(gridRasters, ch, (x) => rasterMethodOf(x, geophysSurveys)).filter((c) => c.exact); return ex.length === 1 ? ex[0].raster.id : ""; };
+    return { ...p, k: pick("k"), th: pick("th"), u: pick("u") };
+  });
 
   return (
     <div
@@ -581,18 +605,206 @@ export default function RasterModule({ embedded = false } = {}) {
             <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, or your own band arithmetic on a multiband GeoTIFF." onClick={openSpectral} />
           </RibbonGroup>
         </Ribbon>
-        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Raster drape")}<InfoButton title={tr("Raster drape")} text={tr("Import a georeferenced GeoTIFF, Geosoft .gxf or Geosoft / Surfer .grd grid as a flat plane in 3D, or drape it on a terrain (import one under Maps → Terrain first). If its coordinates are not in the project's EPSG ({v}), set Source CRS below.", { v: project?.crsSet === false ? tr("not chosen yet") : project?.epsg ?? "?" } /* #2289 */)} />
-        </div>
-        {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
-            drag-dropped files too) because it has to be set before the file is read, not after. */}
-        <SourceCrsField
-          value={sourceEpsg} onChange={(c) => setSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
-          defaultText={rasterSourceDefault /* #2289; #2744 */}
-          title={tr("The file's own CRS. Keep its tag for a GeoTIFF; set it for a .gxf (no tag) or a wrong tag. It is reprojected on import.")}
+        {/* TASKS.csv #4087 — the panel as steps (#4070's StepPane, Matt's layout C): Import (the file's CRS and the import), Rasters (a compact card each: shown,
+            drape, elevation, opacity; its colours, contours, statistics and legend under Fine-tune…), Filter (a grid, a filter, its values: Compute) and the Result a
+            run opens. Each filter's explanation is behind its More; the panel's is on Help (the "?" at the end of the step bar). */}
+        <StepPane id="rasters" label={tr("GeoTIFF / GXF")} helpPage="geotiff-gxf" start={rasters.length ? 1 : 0}
+          message={error && !error.run ? noteOf(error) : null}
+          steps={[
+            { key: "import", label: tr("Import"), body: (<>
+              {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
+                  drag-dropped files too) because it has to be set before the file is read, not after. */}
+              <SourceCrsField
+                value={sourceEpsg} onChange={(c) => setSourceEpsg(c === "" ? "" : String(c))} mineGrid={mineSourceOf(project) /* #2684 */}
+                defaultText={rasterSourceDefault /* #2289; #2744 */}
+                title={tr("The file's own CRS. Keep its tag for a GeoTIFF; set it for a .gxf (no tag) or a wrong tag. It is reprojected on import.")}
+              />
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("For drone or contractor orthophotos: keeps 4096 px on the long side, not 2048, at four times the graphics memory and a larger project file. Import again after changing this.")}>
+                <input type="checkbox" checked={keepDetail} onChange={(e) => setKeepDetail(e.target.checked)} />{tr("Keep full detail (up to 4096 px)")}
+              </label>
+              <button type="button" className="gs-btn gs-btn--primary gs-btn--block" style={{ justifyContent: "center" }} disabled={busy} onClick={() => fileInput.current.click()}>{busy ? tr("Reading…") : tr("Import a grid…")}</button>
+            </>) },
+            { key: "rasters", label: tr("Rasters"), body: (<>
+              {rasters.length === 0 && (
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>{tr("No rasters imported yet.")}</div>
+              )}
+              <LodCacheLine hasLod={rasters.some((r) => r.lod)} rasters={rasters} />{/* TASKS.csv #3252 */}
+              {rasters.length > 1 && <div style={{ marginTop: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("The Maps plan draws these in order, the last on top; the arrows on a card move it.")}</div>}{/* #2853 */}
+              {rasters.map((r) => (
+                <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+                      {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </div>
+                    <MiddleName name={r.name} style={{ color: "var(--color-text)" }} />{/* #2852 — the tail kept, the full name on hover */}
+                    {r.pixelM > 0 && <span style={{ flexShrink: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Fetched at {m} m pixels, {w} × {h} px", { m: r.pixelM < 1 ? r.pixelM.toFixed(2) : r.pixelM.toFixed(1), w: r.gridW, h: r.gridH })}>{tr("{m} m px", { m: r.pixelM < 1 ? r.pixelM.toFixed(2) : r.pixelM.toFixed(1) })}</span>}{/* #3251 */}
+                    {/* #4087 — the filter icon opens the Filter step on this grid */}
+                    {r.grid && !r.geochem /* #1622 — no magnetic filters for a geochemistry grid */ && !r.terrainDerivative /* #1626 — nor for a slope / aspect / curvature */ && <SlidersHorizontal role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: fr?.id === r.id ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Filter the values of \"{name}\"", { name: r.name })} title={tr("Grid filters: RTP, first vertical derivative, upward continuation, tilt derivative, analytic signal")} onClick={() => { setFilterFor(r.id); requestStep("rasters", "filter"); }} />}
+                    {r.grid && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} onClick={async () => { const ex = await exportCrs(project); if (!ex) return; /* #1021; #2322 — a tied local grid: through its tie */ const g = r.grid; const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, gridToGeoTIFF({ ...gridBandsToWorld({ nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, bands: [{ values: g.values }] }, ex.tie), epsg: ex.epsg })); if (res?.ok) setError({ info: true, text: rasterExportNote(r) + tiedExportNote(ex.tie) }); /* #1095 — what the file holds */ }} />}{/* TASKS.csv #854 */}
+                    {!r.grid && r.dataUrl && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} onClick={() => exportPicture(r)} />}{/* TASKS.csv #1860 — an RGB plan map, a scan, imagery */}
+                    {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Use the values of \"{name}\" as survey points", { name: r.name })} title={tr("Use as survey points ({nx}×{ny} grid values, {v}) — for the Geophysics inversion", { nx: r.grid.nx, ny: r.grid.ny, v: gridCellText(r.grid) })} onClick={() => gridAsSurvey(r)} />}
+                    {r.bbox && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: r.name })} title={tr("Zoom the plan to \"{name}\"", { name: r.name })} onClick={() => requestPlanZoom(r.bbox)} />}{/* TASKS.csv #2657 */}
+                    {sceneOfRaster(r)?.sentinel && sceneOfRaster(r).areaLonLat && !sceneOfRaster(r).trueColour && <Image role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: sceneColourBusy ? "default" : "pointer", color: "var(--color-text-secondary)", flexShrink: 0, opacity: sceneColourBusy ? 0.4 : 1 }} aria-label={tr("Show the scene of \"{name}\" in true colour", { name: r.name })} title={tr("Show the scene in true colour")} onClick={() => showSceneColour(r)} />}{/* TASKS.csv #4051 */}
+                    {rasters.length > 1 && <ChevronUp role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} title={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, -1)} />}{/* #2853 */}
+                    {rasters.length > 1 && <ChevronDown role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} title={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, 1)} />}
+                    <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
+                  </div>
+                  {r.terrainDerivative && r.terrainDerivative.terrainId != null && terrain?.id !== r.terrainDerivative.terrainId && ( /* TASKS.csv #1626 — made from a terrain since replaced */
+                    <div style={{ marginTop: 5, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Made from the terrain \"{name}\", since replaced: it still shows that old ground. Make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).", { name: r.terrainDerivative.terrainName || "?" })}</div>
+                  )}
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
+                    <input type="checkbox" checked={r.drapeMode === "terrain" || (r.drapeMode === "collars" && !!terrain)} disabled={!terrain}
+                      onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
+                    <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM under Maps → Terrain first)") : "" })}</span>
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: r.drapeMode === "terrain" || r.drapeMode === "collars" ? 0.4 : 1 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Elev.")}</span>
+                    <NumberInput value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain" || r.drapeMode === "collars"} onChange={(v) => updateRaster(r.id, { elevation: v })} style={numInput} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>
+                    <input type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85} onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />
+                  </div>
+                  <MoreFold summary={tr("Fine-tune…")} style={{ marginTop: 6, marginBottom: 0 }} data-fine-tune={`raster-${r.id}`}>
+                    {/* TASKS.csv #2447 — with no terrain, on the collar surface (a score map's default), drawn under the holes */}
+                    {!terrain && collars.length >= 3 && (
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: "pointer" }}>
+                        <input type="checkbox" checked={r.drapeMode === "collars"} onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "collars" : "flat" })} />
+                        <span style={{ color: "var(--color-text-caption)" }}>{tr("On the ground between the collars (no terrain): the holes are drawn over it")}</span>
+                      </label>
+                    )}
+                    {r.grid && !r.ternary && <RasterColourControls raster={r} onUpdate={updateRaster} inputStyle={numInput} />}{/* #1236 */}
+                    {r.grid && <GridContourControls raster={r} inputStyle={numInput} />}{/* #1622 — contours of a geochemistry grid; #2398 — of any raster that keeps its grid (a TMI, an eU grid) */}
+                    {!r.grid && r.dataUrl && ( /* TASKS.csv #1623 - a colour picture's background (white fill) shown transparent */
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", flex: 1, minWidth: 0 }}>
+                          <input type="checkbox" checked={!!r.keyColour} onChange={async (e) => {
+                            if (!e.target.checked) { updateRaster(r.id, { keyColour: null }); return; }
+                            const k = await detectKeyColour(r.dataUrl);
+                            updateRaster(r.id, { keyColour: k?.colour || "#ffffff" });
+                          }} />
+                          <span style={{ color: "var(--color-text-caption)" }}>{tr("Transparent colour")}</span>
+                        </label>
+                        {r.keyColour && <input type="color" value={r.keyColour} onChange={(e) => updateRaster(r.id, { keyColour: e.target.value })} title={tr("This colour (and colours within a few shades of it) is not drawn")} style={{ width: 28, height: 20, padding: 0, border: "1px solid var(--color-border)", background: "none" }} />}
+                      </div>
+                    )}
+                    <RasterScene raster={r} />{/* TASKS.csv #4051 — the scene's date */}
+                    <RasterLegend raster={r} updateRaster={updateRaster} />{/* TASKS.csv #2011 */}
+                    {!r.grid && !r.ternary && !r.legend && r.dataUrl && <RasterPictureLegend raster={r} updateRaster={updateRaster} />}{/* TASKS.csv #1858 */}
+                    {r.grid && <ZonalStatsBox raster={r} boundaries={boundaries} onClip={(b) => clipRasterTo(r, b)} />}{/* TASKS.csv #2002 */}
+                  </MoreFold>
+                </div>
+              ))}
+            </>) },
+            { key: "filter", label: tr("Filter"), body: (<>
+              {!fr ? <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>{tr("No grid to filter yet.")}</div> : (<>
+                <select value={fr.id} onChange={(e) => setFilterFor(e.target.value)} style={{ ...numInput, width: "100%", marginBottom: 6 }} aria-label={tr("Grid")}>
+                  {filterable.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                </select>
+                <select value={filt.kind} onChange={(e) => setFilt((p) => ({ ...p, kind: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0, width: "100%" /* #2865 — inside the panel */ }} aria-label={tr("Grid filter")}>
+                  <option value="rtp">{tr("Reduction to the pole (RTP)")}</option>
+                  <option value="rtpa">{tr("RTP for low latitudes (amplitude-corrected)")}</option>{/* TASKS.csv #1988 */}
+                  <option value="rte">{tr("Reduction to the equator (RTE)")}</option>
+                  <option value="vd1">{tr("First vertical derivative (1VD)")}</option>
+                  <option value="tilt">{tr("Tilt derivative")}</option>
+                  <option value="as">{tr("Analytic signal (3D)")}</option>
+                  <option value="upward">{tr("Upward continuation")}</option>
+                  <option value="tiltdepth">{tr("Tilt-depth (contact depths)")}</option>{/* TASKS.csv #808 */}
+                  <option value="worms">{tr("Worms (edges at several heights)")}</option>{/* TASKS.csv #1988 */}
+                  <option value="euler">{tr("Euler deconvolution (source depths)")}</option>{/* TASKS.csv #1985 */}
+                  <option value="spectrum">{tr("Power spectrum depths + matched filter")}</option>
+                </select>
+                {filt.kind === "rtp" && magneticsFromName(fr, rasterMethodOf(fr, geophysSurveys)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("Opened on RTP: taken as magnetics from its name. Choose another filter above if it is not.")}</div>}{/* #2862 */}
+                {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <NumberInput allowEmpty placeholder={tr("Inclination °")} value={filt.inclination} onChange={(v) => setFilt((p) => ({ ...p, inclination: (v == null ? "" : String(v)), igrfSource: null }))} style={numInput} aria-label={tr("Field inclination")} />
+                    <NumberInput allowEmpty placeholder={tr("Declination ° (true)")} value={filt.declination} onChange={(v) => setFilt((p) => ({ ...p, declination: (v == null ? "" : String(v)), igrfSource: null }))} style={numInput} aria-label={tr("Field declination, true north")} />
+                  </div>
+                )}
+                {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && ( /* TASKS.csv #2561 — I and D from IGRF-14 for the survey date */
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    <input type="date" value={filt.date} onChange={(e) => setFilt((p) => ({ ...p, date: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Survey date (for IGRF)")} />
+                    <button className="gs-btn gs-btn--sm" style={{ flex: "0 0 auto" }} type="button" onClick={() => fillIgrf(fr)}>{tr("Fill from IGRF-14")}</button>
+                    {filt.igrfSource && <div style={{ flexBasis: "100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)" }}>{tr("Source: {source}", { source: filt.igrfSource })}</div>}
+                  </div>
+                )}
+                {filt.kind === "rtpa" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <NumberInput allowEmpty min={0} max={90} placeholder={tr("Amplitude inclination ° (blank: 20° or the field's own if steeper)")} value={filt.amplitudeInclination} onChange={(v) => setFilt((p) => ({ ...p, amplitudeInclination: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Amplitude-correction inclination")} />
+                  </div>
+                )}
+                {filt.kind === "euler" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <select value={filt.si} aria-label={tr("Structural index")} onChange={(e) => setFilt((p) => ({ ...p, si: e.target.value }))} style={{ ...numInput, flex: 2 }}>
+                      <option value="0">{tr("SI 0: magnetic contact")}</option>
+                      <option value="1">{tr("SI 1: magnetic dyke, sill or thin-sheet edge")}</option>
+                      <option value="2">{tr("SI 2: magnetic pipe; gravity sphere")}</option>
+                      <option value="3">{tr("SI 3: magnetic sphere (dipole)")}</option>
+                    </select>
+                    <NumberInput allowEmpty min={0} placeholder={tr("Window (m)")} value={filt.window} onChange={(v) => setFilt((p) => ({ ...p, window: (v == null ? "" : String(v)) }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Euler window size")} />
+                  </div>
+                )}
+                {filt.kind === "worms" && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                    <input type="checkbox" checked={!!filt.integrate} onChange={(e) => setFilt((p) => ({ ...p, integrate: e.target.checked }))} />{tr("Magnetic RTP grid: integrate it first (pseudo-gravity)")}
+                  </label>
+                )}
+                {(filt.kind === "vd1" || filt.kind === "as") && GRAVITY_UNIT_RE.test(String(rasterUnitOf(fr) || "").trim()) && ( /* TASKS.csv #2947 — a gravity derivative's unit */
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>{tr("Derivative in")}
+                    <select value={filt.gravPer || "km"} aria-label={tr("Unit of the gravity derivative")} onChange={(e) => setFilt((p) => ({ ...p, gravPer: e.target.value }))} style={{ ...numInput, flex: 1 }}>
+                      <option value="km">{tr("per kilometre (as published)")}</option>
+                      <option value="m">{tr("per metre")}</option>
+                      <option value="E">{tr("Eötvös")}</option>
+                    </select>
+                  </label>
+                )}
+                {filt.kind === "upward" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <NumberInput allowEmpty min={1} placeholder={tr("Height (m)")} value={filt.height} onChange={(v) => setFilt((p) => ({ ...p, height: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Upward continuation height")} />
+                  </div>
+                )}
+                {/* #4087 — what the filter does and assumes, behind its More */}
+                <MoreFold style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 6, marginBottom: 0, lineHeight: 1.4 }}>
+                  {{ rtp: tr("For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there."),
+                     rtpa: tr("RTP with amplitude from a steeper inclination (MacLeod, Jones & Dai 1993), stable near the magnetic equator. Same positions and shapes as RTP, lower amplitudes. Assumes induced magnetization."), // #1988
+                     rte: tr("Reduction to the equator (Leu 1982), stable at any inclination. Magnetic bodies show as lows elongated along the declination; flip the colour ramp to read highs."),
+                     euler: tr("Euler depth and position in sliding windows (Reid et al. 1990) on an RTP or gravity grid. Structural index = source shape; the window should span an anomaly (blank: 10 cells). The first run starts the engine."),
+                     worms: tr("Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient. Run it on gravity, or on an RTP grid with the box ticked."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tiltdepth: tr("Depth to the top of contacts along the tilt's zero contour, 1 / its horizontal gradient (Salem et al. 2007). For an RTP grid and near-vertical contacts; depth is below the sensor."), spectrum: tr("Radially averaged power spectrum: each straight segment's slope gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; a matched filter splits the grid."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetization direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
+                </MoreFold>
+                {(() => { const m = rasterMethodOf(fr, geophysSurveys), why = filterBlockedBy(filt.kind, m); /* #2557 */ return why ? <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>{why === "magnetic" ? tr("\"{name}\" is {method}: reducing to the pole or equator only suits a magnetic field (gravity is already vertical). Use the derivatives, continuation, worms or Euler.", { name: fr.name, method: tr(SURVEY_METHODS[m].label) }) : tr("\"{name}\" is {method}: these filters assume a magnetic or gravity field (a potential field), which this grid is not.", { name: fr.name, method: tr(SURVEY_METHODS[m].label) })}</div> : null; })()}
+                {!rasterMethodOf(fr, geophysSurveys) && fieldFilterNeedsMethod(filt.kind) && ( /* TASKS.csv #2835 / #2842 */
+                  <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>
+                    {tr("\"{name}\" has no method set. Set 'This grid is' on its card, or tick to run anyway: this filter assumes a magnetic or gravity field, not EM, radiometric or IP.", { name: fr.name })}
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, color: "var(--color-text-secondary)" }}><input type="checkbox" checked={!!assumeField[fr.id]} onChange={(e) => setAssumeField((p) => ({ ...p, [fr.id]: e.target.checked }))} />{tr("It is a magnetic or gravity field")}</label>
+                  </div>
+                )}
+              </>)}
+              {/* TASKS.csv #375 — the radiometric ternary image, from three grids (#2559: opening it fills each channel known from one import) */}
+              {gridRasters.length >= 3 && (
+                <MoreFold summary={tr("Radiometric ternary image (K-eTh-eU)…")} style={{ marginTop: 10, marginBottom: 0 }} onToggle={(e) => { if (e.currentTarget.open) openTernary(); }}>
+                  <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5 }}>
+                    {[["k", "K (red)"], ["th", tr("eTh (green)")], ["u", tr("eU (blue)")]].map(([key, label]) => (
+                      <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                        <span style={{ width: 74, flexShrink: 0, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)" }}>{label}</span>
+                        <select value={tern[key]} onChange={(e) => setTern((p) => ({ ...p, [key]: e.target.value }))} style={{ ...numInput, minWidth: 0 }} aria-label={tr("{label} grid", { label })}>
+                          <option value="">{tr("Choose a grid…")}</option>
+                          {ternaryChoices(gridRasters, key, (x) => rasterMethodOf(x, geophysSurveys)).map(({ raster: g, other }) => <option key={g.id} value={g.id}>{other ? tr("{name} (not radiometric)", { name: g.name }) : g.name}</option>)}{/* #2557 */}
+                        </select>
+                      </div>
+                    ))}
+                    <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} type="button" onClick={makeTernary}>{tr("Build the ternary image")}</button>
+                  </div>
+                </MoreFold>
+              )}
+            </>) },
+          ]}
+          action={fr ? { label: filtering ? tr("Filtering…") : filt.kind === "spectrum" ? tr("Compute the spectrum") : tr("Compute the filtered grid"), onClick: () => runFilter(fr), disabled: filtering || !!filterBlockedBy(filt.kind, rasterMethodOf(fr, geophysSurveys)) || unknownNeedsTick(fr) /* #2835 */ } : null}
+          result={{ key: ranAt, body: (<>
+            {error?.run && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: error.info ? "var(--color-text-secondary)" : "var(--color-warn-text)", lineHeight: 1.45 }}>{error.text}</div>}
+            {/* TASKS.csv #808 — the spectrum, its fitted depths and the matched-filter split */}
+            {filt.kind === "spectrum" && spectrum && <SpectrumPanel spectrum={spectrum} onSplit={(which) => { const src = rasters.find((x) => x.id === spectrum.rasterId); if (src) splitByDepth(src, which); }} />}
+          </>) }}
         />
-        <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("For drone or contractor orthophotos: keeps 4096 px on the long side, not 2048, at four times the graphics memory and a larger project file. Import again after changing this.")}>
-          <input type="checkbox" checked={keepDetail} onChange={(e) => setKeepDetail(e.target.checked)} />{tr("Keep full detail (up to 4096 px)")}
-        </label>
         <input
           ref={fileInput}
           type="file"
@@ -681,190 +893,6 @@ export default function RasterModule({ embedded = false } = {}) {
             }}
           />
         )}
-        {error && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: error.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${error.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: error.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
-            {error.text}
-          </div>
-        )}
-
-        {gridRasters.length >= 3 && (
-          <div style={{ marginTop: 10 }}>
-            <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} type="button" onClick={() => setTern((p) => {
-              // TASKS.csv #2559 — opening it fills each empty channel with that channel's grid when exactly one is known (K, eTh, eU from one import)
-              if (p.open) return { ...p, open: false };
-              const pick = (ch) => { if (p[ch]) return p[ch]; const ex = ternaryChoices(gridRasters, ch, (x) => rasterMethodOf(x, geophysSurveys)).filter((c) => c.exact); return ex.length === 1 ? ex[0].raster.id : ""; };
-              return { ...p, open: true, k: pick("k"), th: pick("th"), u: pick("u") };
-            })} aria-expanded={tern.open}>{tr("Radiometric ternary image (K-eTh-eU)…")}</button>
-            {tern.open && (
-              <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5 }}>
-                {[["k", "K (red)"], ["th", tr("eTh (green)")], ["u", tr("eU (blue)")]].map(([key, label]) => (
-                  <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-                    <span style={{ width: 74, flexShrink: 0, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)" }}>{label}</span>
-                    <select value={tern[key]} onChange={(e) => setTern((p) => ({ ...p, [key]: e.target.value }))} style={{ ...numInput, minWidth: 0 }} aria-label={tr("{label} grid", { label })}>
-                      <option value="">{tr("Choose a grid…")}</option>
-                      {ternaryChoices(gridRasters, key, (x) => rasterMethodOf(x, geophysSurveys)).map(({ raster: r, other }) => <option key={r.id} value={r.id}>{other ? tr("{name} (not radiometric)", { name: r.name }) : r.name}</option>)}{/* #2557 */}
-                    </select>
-                  </div>
-                ))}
-                <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginBottom: 0 }} type="button" onClick={makeTernary}>{tr("Build the ternary image")}</button>
-              </div>
-            )}
-          </div>
-        )}
-        {rasters.length === 0 && (
-          <div style={{ marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>{tr("No rasters imported yet.")}</div>
-        )}
-        <LodCacheLine hasLod={rasters.some((r) => r.lod)} rasters={rasters} />{/* TASKS.csv #3252 */}
-        {rasters.length > 1 && <div style={{ marginTop: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("The Maps plan draws these in order, the last on top; the arrows on a card move it.")}</div>}{/* #2853 */}
-        {rasters.map((r) => (
-          <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
-              </div>
-              <MiddleName name={r.name} style={{ color: "var(--color-text)" }} />{/* #2852 — the tail kept, the full name on hover */}
-              {r.pixelM > 0 && <span style={{ flexShrink: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Fetched at {m} m pixels, {w} × {h} px", { m: r.pixelM < 1 ? r.pixelM.toFixed(2) : r.pixelM.toFixed(1), w: r.gridW, h: r.gridH })}>{tr("{m} m px", { m: r.pixelM < 1 ? r.pixelM.toFixed(2) : r.pixelM.toFixed(1) })}</span>}{/* #3251 */}
-              {r.grid && !r.geochem /* #1622 — no magnetic filters for a geochemistry grid */ && !r.terrainDerivative /* #1626 — nor for a slope / aspect / curvature */ && <SlidersHorizontal role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: filterFor === r.id ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Filter the values of \"{name}\"", { name: r.name })} title={tr("Grid filters: RTP, first vertical derivative, upward continuation, tilt derivative, analytic signal")} onClick={() => { const opening = filterFor !== r.id; setFilterFor(opening ? r.id : null); if (opening) setFilt((f) => ({ ...f, kind: defaultFilterKind(r, rasterMethodOf(r, geophysSurveys)) })); /* #1863 — RTP only for magnetics */ }} />}
-              {r.grid && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the values of \"{name}\" as a GeoTIFF", { name: r.name })} onClick={async () => { const ex = await exportCrs(project); if (!ex) return; /* #1021; #2322 — a tied local grid: through its tie */ const g = r.grid; const res = await saveGeoTIFF(`${safeFileName(r.name)}.tif`, gridToGeoTIFF({ ...gridBandsToWorld({ nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, bands: [{ values: g.values }] }, ex.tie), epsg: ex.epsg })); if (res?.ok) setError({ info: true, text: rasterExportNote(r) + tiedExportNote(ex.tie) }); /* #1095 — what the file holds */ }} />}{/* TASKS.csv #854 */}
-              {!r.grid && r.dataUrl && <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} title={tr("Export the picture \"{name}\" as a GeoTIFF", { name: r.name })} onClick={() => exportPicture(r)} />}{/* TASKS.csv #1860 — an RGB plan map, a scan, imagery */}
-              {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Use the values of \"{name}\" as survey points", { name: r.name })} title={tr("Use as survey points ({nx}×{ny} grid values, {v}) — for the Geophysics inversion", { nx: r.grid.nx, ny: r.grid.ny, v: gridCellText(r.grid) })} onClick={() => gridAsSurvey(r)} />}
-              {r.bbox && <Crosshair role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Zoom the plan to \"{name}\"", { name: r.name })} title={tr("Zoom the plan to \"{name}\"", { name: r.name })} onClick={() => requestPlanZoom(r.bbox)} />}{/* TASKS.csv #2657 */}
-              {sceneOfRaster(r)?.sentinel && sceneOfRaster(r).areaLonLat && !sceneOfRaster(r).trueColour && <Image role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: sceneColourBusy ? "default" : "pointer", color: "var(--color-text-secondary)", flexShrink: 0, opacity: sceneColourBusy ? 0.4 : 1 }} aria-label={tr("Show the scene of \"{name}\" in true colour", { name: r.name })} title={tr("Show the scene in true colour")} onClick={() => showSceneColour(r)} />}{/* TASKS.csv #4051 */}
-              {rasters.length > 1 && <ChevronUp role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} title={tr("Move \"{name}\" up the list (drawn under the next on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, -1)} />}{/* #2853 */}
-              {rasters.length > 1 && <ChevronDown role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} title={tr("Move \"{name}\" down the list (drawn over the one before on the plan)", { name: r.name })} onClick={() => moveRaster(r.id, 1)} />}
-              <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={async () => { if (await askConfirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
-            </div>
-            {r.grid && <ZonalStatsBox raster={r} boundaries={boundaries} onClip={(b) => clipRasterTo(r, b)} />}{/* TASKS.csv #2002 */}
-            {r.terrainDerivative && r.terrainDerivative.terrainId != null && terrain?.id !== r.terrainDerivative.terrainId && ( /* TASKS.csv #1626 — made from a terrain since replaced */
-              <div style={{ marginTop: 5, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("Made from the terrain \"{name}\", since replaced: it still shows that old ground. Make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).", { name: r.terrainDerivative.terrainName || "?" })}</div>
-            )}
-            {filterFor === r.id && r.grid && !r.geochem && (
-              <div style={{ marginTop: 7, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <select value={filt.kind} onChange={(e) => setFilt((p) => ({ ...p, kind: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0, width: "100%" /* #2865 — inside the card */ }} aria-label={tr("Grid filter")}>
-                    <option value="rtp">{tr("Reduction to the pole (RTP)")}</option>
-                    <option value="rtpa">{tr("RTP for low latitudes (amplitude-corrected)")}</option>{/* TASKS.csv #1988 */}
-                    <option value="rte">{tr("Reduction to the equator (RTE)")}</option>
-                    <option value="vd1">{tr("First vertical derivative (1VD)")}</option>
-                    <option value="tilt">{tr("Tilt derivative")}</option>
-                    <option value="as">{tr("Analytic signal (3D)")}</option>
-                    <option value="upward">{tr("Upward continuation")}</option>
-                    <option value="tiltdepth">{tr("Tilt-depth (contact depths)")}</option>{/* TASKS.csv #808 */}
-                    <option value="worms">{tr("Worms (edges at several heights)")}</option>{/* TASKS.csv #1988 */}
-                    <option value="euler">{tr("Euler deconvolution (source depths)")}</option>{/* TASKS.csv #1985 */}
-                    <option value="spectrum">{tr("Power spectrum depths + matched filter")}</option>
-                  </select>
-                </div>
-                {filt.kind === "rtp" && magneticsFromName(r, rasterMethodOf(r, geophysSurveys)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("Opened on RTP: taken as magnetics from its name. Choose another filter above if it is not.")}</div>}{/* #2862 */}
-                {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <NumberInput allowEmpty placeholder={tr("Inclination °")} value={filt.inclination} onChange={(v) => setFilt((p) => ({ ...p, inclination: (v == null ? "" : String(v)), igrfSource: null }))} style={numInput} aria-label={tr("Field inclination")} />
-                    <NumberInput allowEmpty placeholder={tr("Declination ° (true)")} value={filt.declination} onChange={(v) => setFilt((p) => ({ ...p, declination: (v == null ? "" : String(v)), igrfSource: null }))} style={numInput} aria-label={tr("Field declination, true north")} />
-                  </div>
-                )}
-                {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && ( /* TASKS.csv #2561 — I and D from IGRF-14 for the survey date */
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                    <input type="date" value={filt.date} onChange={(e) => setFilt((p) => ({ ...p, date: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Survey date (for IGRF)")} />
-                    <button className="gs-btn gs-btn--sm" style={{ flex: "0 0 auto" }} type="button" onClick={() => fillIgrf(r)}>{tr("Fill from IGRF-14")}</button>
-                    {filt.igrfSource && <div style={{ flexBasis: "100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)" }}>{tr("Source: {source}", { source: filt.igrfSource })}</div>}
-                  </div>
-                )}
-                {filt.kind === "rtpa" && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <NumberInput allowEmpty min={0} max={90} placeholder={tr("Amplitude inclination ° (blank: 20° or the field's own if steeper)")} value={filt.amplitudeInclination} onChange={(v) => setFilt((p) => ({ ...p, amplitudeInclination: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Amplitude-correction inclination")} />
-                  </div>
-                )}
-                {filt.kind === "euler" && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <select value={filt.si} aria-label={tr("Structural index")} onChange={(e) => setFilt((p) => ({ ...p, si: e.target.value }))} style={{ ...numInput, flex: 2 }}>
-                      <option value="0">{tr("SI 0: magnetic contact")}</option>
-                      <option value="1">{tr("SI 1: magnetic dyke, sill or thin-sheet edge")}</option>
-                      <option value="2">{tr("SI 2: magnetic pipe; gravity sphere")}</option>
-                      <option value="3">{tr("SI 3: magnetic sphere (dipole)")}</option>
-                    </select>
-                    <NumberInput allowEmpty min={0} placeholder={tr("Window (m)")} value={filt.window} onChange={(v) => setFilt((p) => ({ ...p, window: (v == null ? "" : String(v)) }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Euler window size")} />
-                  </div>
-                )}
-                {filt.kind === "worms" && (
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                    <input type="checkbox" checked={!!filt.integrate} onChange={(e) => setFilt((p) => ({ ...p, integrate: e.target.checked }))} />{tr("Magnetic RTP grid: integrate it first (pseudo-gravity)")}
-                  </label>
-                )}
-                {(filt.kind === "vd1" || filt.kind === "as") && GRAVITY_UNIT_RE.test(String(rasterUnitOf(r) || "").trim()) && ( /* TASKS.csv #2947 — a gravity derivative's unit */
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>{tr("Derivative in")}
-                    <select value={filt.gravPer || "km"} aria-label={tr("Unit of the gravity derivative")} onChange={(e) => setFilt((p) => ({ ...p, gravPer: e.target.value }))} style={{ ...numInput, flex: 1 }}>
-                      <option value="km">{tr("per kilometre (as published)")}</option>
-                      <option value="m">{tr("per metre")}</option>
-                      <option value="E">{tr("Eötvös")}</option>
-                    </select>
-                  </label>
-                )}
-                {filt.kind === "upward" && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <NumberInput allowEmpty min={1} placeholder={tr("Height (m)")} value={filt.height} onChange={(v) => setFilt((p) => ({ ...p, height: (v == null ? "" : String(v)) }))} style={numInput} aria-label={tr("Upward continuation height")} />
-                  </div>
-                )}
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>
-                  {{ rtp: tr("For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there."),
-                     rtpa: tr("RTP with amplitude from a steeper inclination (MacLeod, Jones & Dai 1993), stable near the magnetic equator. Same positions and shapes as RTP, lower amplitudes. Assumes induced magnetization."), // #1988
-                     rte: tr("Reduction to the equator (Leu 1982), stable at any inclination. Magnetic bodies show as lows elongated along the declination; flip the colour ramp to read highs."),
-                     euler: tr("Euler depth and position in sliding windows (Reid et al. 1990) on an RTP or gravity grid. Structural index = source shape; the window should span an anomaly (blank: 10 cells). The first run starts the engine."),
-                     worms: tr("Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient. Run it on gravity, or on an RTP grid with the box ticked."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tiltdepth: tr("Depth to the top of contacts along the tilt's zero contour, 1 / its horizontal gradient (Salem et al. 2007). For an RTP grid and near-vertical contacts; depth is below the sensor."), spectrum: tr("Radially averaged power spectrum: each straight segment's slope gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; a matched filter splits the grid."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetization direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
-                </div>
-                {(() => { const m = rasterMethodOf(r, geophysSurveys), why = filterBlockedBy(filt.kind, m); /* #2557 */ return why ? <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>{why === "magnetic" ? tr("\"{name}\" is {method}: reducing to the pole or equator only suits a magnetic field (gravity is already vertical). Use the derivatives, continuation, worms or Euler.", { name: r.name, method: tr(SURVEY_METHODS[m].label) }) : tr("\"{name}\" is {method}: these filters assume a magnetic or gravity field (a potential field), which this grid is not.", { name: r.name, method: tr(SURVEY_METHODS[m].label) })}</div> : null; })()}
-                {!rasterMethodOf(r, geophysSurveys) && fieldFilterNeedsMethod(filt.kind) && ( /* TASKS.csv #2835 / #2842 */
-                  <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>
-                    {tr("\"{name}\" has no method set. Set 'This grid is' on its card, or tick to run anyway: this filter assumes a magnetic or gravity field, not EM, radiometric or IP.", { name: r.name })}
-                    <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, color: "var(--color-text-secondary)" }}><input type="checkbox" checked={!!assumeField[r.id]} onChange={(e) => setAssumeField((p) => ({ ...p, [r.id]: e.target.checked }))} />{tr("It is a magnetic or gravity field")}</label>
-                  </div>
-                )}
-                <button className="gs-btn gs-btn--block gs-btn--sm" style={{ marginTop: 6, marginBottom: 0, justifyContent: "center" }} onClick={() => runFilter(r)} disabled={filtering || !!filterBlockedBy(filt.kind, rasterMethodOf(r, geophysSurveys)) || unknownNeedsTick(r) /* #2835 */}>
-                  {filtering ? tr("Filtering…") : filt.kind === "spectrum" ? tr("Compute the spectrum") : tr("Compute the filtered grid")}
-                </button>
-                {/* TASKS.csv #808 — the spectrum, its fitted depths and the matched-filter split */}
-                {filt.kind === "spectrum" && spectrum?.rasterId === r.id && <SpectrumPanel spectrum={spectrum} onSplit={(which) => splitByDepth(r, which)} />}
-              </div>
-            )}
-            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
-              <input type="checkbox" checked={r.drapeMode === "terrain" || (r.drapeMode === "collars" && !!terrain)} disabled={!terrain}
-                onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM under Maps → Terrain first)") : "" })}</span>
-            </label>
-            {/* TASKS.csv #2447 — with no terrain, on the collar surface (a score map's default), drawn under the holes */}
-            {!terrain && collars.length >= 3 && (
-              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: "pointer" }}>
-                <input type="checkbox" checked={r.drapeMode === "collars"} onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "collars" : "flat" })} />
-                <span style={{ color: "var(--color-text-caption)" }}>{tr("On the ground between the collars (no terrain): the holes are drawn over it")}</span>
-              </label>
-            )}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: r.drapeMode === "terrain" || r.drapeMode === "collars" ? 0.4 : 1 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Elev.")}</span>
-              <NumberInput value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain" || r.drapeMode === "collars"} onChange={(v) => updateRaster(r.id, { elevation: v })} style={numInput} />
-            </div>
-            {r.grid && !r.ternary && <RasterColourControls raster={r} onUpdate={updateRaster} inputStyle={numInput} />}{/* #1236 */}
-            {r.grid && <GridContourControls raster={r} inputStyle={numInput} />}{/* #1622 — contours of a geochemistry grid; #2398 — of any raster that keeps its grid (a TMI, an eU grid) */}
-            {!r.grid && r.dataUrl && ( /* TASKS.csv #1623 - a colour picture's background (white fill) shown transparent */
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", flex: 1, minWidth: 0 }}>
-                  <input type="checkbox" checked={!!r.keyColour} onChange={async (e) => {
-                    if (!e.target.checked) { updateRaster(r.id, { keyColour: null }); return; }
-                    const k = await detectKeyColour(r.dataUrl);
-                    updateRaster(r.id, { keyColour: k?.colour || "#ffffff" });
-                  }} />
-                  <span style={{ color: "var(--color-text-caption)" }}>{tr("Transparent colour")}</span>
-                </label>
-                {r.keyColour && <input type="color" value={r.keyColour} onChange={(e) => updateRaster(r.id, { keyColour: e.target.value })} title={tr("This colour (and colours within a few shades of it) is not drawn")} style={{ width: 28, height: 20, padding: 0, border: "1px solid var(--color-border)", background: "none" }} />}
-              </div>
-            )}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>
-              <input type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85} onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />
-            </div>
-            <RasterScene raster={r} />{/* TASKS.csv #4051 — the scene's date */}
-            <RasterLegend raster={r} updateRaster={updateRaster} />{/* TASKS.csv #2011 */}
-            {!r.grid && !r.ternary && !r.legend && r.dataUrl && <RasterPictureLegend raster={r} updateRaster={updateRaster} />}{/* TASKS.csv #1858 */}
-          </div>
-        ))}
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />

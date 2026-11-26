@@ -7,6 +7,7 @@ import { surveyDeviation } from "../lib/surveyDeviation.js"; // TASKS.csv #1733
 import { useStore } from "../lib/store.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import NumberInput from "./NumberInput.jsx"; // TASKS.csv #3926 — '0,05' and '0.05' both read
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4087 — the explanations behind a closed More
 
 // TASKS.csv #119 — the two planning tools #188 did not build, rendered inside an expanded planned-hole
 // row in the Targeting sidebar. Deliberately a SEPARATE component file rather than more code inside
@@ -134,17 +135,17 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
       {tab === "target" && (
         <div>
           <div style={sectionHdr}>{tr("Drill to a target point")}</div>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
+          <MoreFold style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{/* #4087 */}
             {/* The add form above (TASKS.csv #188) can solve a target when a hole is first created, but
                 only then, and it keeps nothing. This does it for a hole that already exists — the target
-                is SAVED on the hole, so the miss readout stays live while you nudge the collar or angles. */}{tr("The 3D point this hole should reach (a modelled contact, a block-model anomaly's centre, a projected intercept). It is saved with the hole, so the miss distance below stays live as you edit. The solved orientation is the shallowest way there.")}</div>
+                is SAVED on the hole, so the miss readout stays live while you nudge the collar or angles. */}{tr("The 3D point this hole should reach (a modelled contact, a block-model anomaly's centre, a projected intercept). It is saved with the hole, so the miss distance below stays live as you edit. The solved orientation is the shallowest way there.")}
+            {" "}{tr("Lift: the hole flattens with depth (+). Drift: its azimuth turns clockwise (+). Use your own holes' surveys for these (diamond holes often run 1–3°/100 m). Both curve the planned hole in 3D too.")}</MoreFold>
           {/* TASKS.csv #524 — expected deviation and a tail past the target */}
           <div style={rowStyle}>
             <TargetField label={tr("Lift °/100 m")} value={hole.lift} onChange={(v) => onUpdate(hole.id, { lift: v })} />
             <TargetField label={tr("Drift °/100 m")} value={hole.drift} onChange={(v) => onUpdate(hole.id, { drift: v })} />
             <TargetField label={tr("Past target (m)")} value={hole.pastTargetM ?? 30} onChange={(v) => onUpdate(hole.id, { pastTargetM: v })} />
           </div>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Lift: the hole flattens with depth (+). Drift: its azimuth turns clockwise (+). Use your own holes' surveys for these (diamond holes often run 1–3°/100 m). Both curve the planned hole in 3D too.")}</div>
           {/* TASKS.csv #1733 — the project's own lift / drift, one click */}
           {ownDev && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.4 }}>
             <span style={{ flex: 1 }}>{tr("This project's surveyed holes: lift {l}, drift {d} °/100 m (median of {n} inclined holes, first to last station).", { l: ownDev.lift.toFixed(2), d: ownDev.drift.toFixed(2), n: ownDev.holes })}</span>
@@ -191,7 +192,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
       {tab === "actual" && (
         <div>
           <div style={sectionHdr}>{tr("Planned vs. as-drilled")}</div>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Once this hole has been drilled and its collar + survey imported, link it here to see how far the real hole wandered from the design.")}</div>
+          <MoreFold style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Once this hole has been drilled and its collar + survey imported, link it here to see how far the real hole wandered from the design.")}</MoreFold>{/* #4087 */}
           {/* TASKS.csv #2104 — sorted with a filter; only holes with a survey or their own azimuth / dip (an assumed vertical trace is not
               an as-drilled path to compare with) */}
           <CollarPicker ids={traceable.ids} value={drilledId} onChange={(id) => onUpdate(hole.id, { asDrilledHoleId: id || null })} first={tr("— not drilled yet —")} ariaLabel={tr("As-drilled hole")} style={{ ...inputStyle, marginBottom: 6, cursor: "pointer" }} />

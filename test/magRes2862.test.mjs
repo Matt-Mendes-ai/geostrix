@@ -10,5 +10,5 @@ test("a magnetic word beats 'res'", () => {
   assert.equal(magneticsFromName({ name: "x_mag_res.grd" }), true);
   assert.equal(magneticsFromName({ name: "x_mag_res.grd" }, "mag"), false, "a method set: not a guess");
   assert.equal(magneticsFromName({ name: "dem.tif" }), false);
-  assert.ok(fs.readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8").includes('filt.kind === "rtp" && magneticsFromName(r, rasterMethodOf(r, geophysSurveys))'));
+  assert.ok(fs.readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8").includes('filt.kind === "rtp" && magneticsFromName(fr, rasterMethodOf(fr, geophysSurveys))')); // #4087 — the Filter step's grid
 });
