@@ -19,10 +19,10 @@ const COLOUR = { holes: "var(--color-info)", assays: "var(--color-warn-text)", g
 // a name for each icon: the chip, the column heading and the tooltip / accessible name of every icon
 const labels = () => ({ holes: tr("Holes"), assays: tr("Assays"), geophysics: tr("Geophysics"), mapping: tr("Mapping"), surface: tr("Surface geochem"), terrain: tr("Terrain") });
 
-function Icon({ k, label, dashed = false, size = 14 }) {
+function Icon({ k, label, dashed = false, size = 14, decorative = false }) { // decorative: a chip already says its name in text, the icon is not read twice
   return (
-    <svg role="img" aria-label={label} width={size} height={size} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dashed ? "2 2" : undefined} style={{ color: COLOUR[k], flexShrink: 0, verticalAlign: "middle" }}>
-      <title>{label}</title>
+    <svg role={decorative ? undefined : "img"} aria-label={decorative ? undefined : label} aria-hidden={decorative || undefined} width={size} height={size} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dashed ? "2 2" : undefined} style={{ color: COLOUR[k], flexShrink: 0, verticalAlign: "middle" }}>
+      {!decorative && <title>{label}</title>}
       {PATHS[k]}
     </svg>
   );
@@ -54,7 +54,7 @@ export default function SampleList({ rows = [], first = null, onLoad, loading = 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
         {SAMPLE_ICONS.map((k) => (
           <button key={k} type="button" data-btn-own="" aria-pressed={on.has(k)} onClick={() => toggle(k)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: on.has(k) ? "3px 9px" : "4px 10px", borderRadius: 14, cursor: "pointer", fontSize: "var(--font-size-sm)", fontFamily: "inherit", background: on.has(k) ? "var(--color-bg-subtle)" : "var(--color-bg)", color: on.has(k) ? "var(--color-text)" : "var(--color-text-secondary)", fontWeight: on.has(k) ? 600 : 400, border: on.has(k) ? "2px solid var(--btn-primary-border)" : "1px solid var(--color-border)" }}>
-            <Icon k={k} label={L[k]} />{L[k]}
+            <Icon k={k} label={L[k]} decorative />{L[k]}
           </button>
         ))}
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search…")} aria-label={tr("Search")} style={{ marginInlineStart: "auto", width: 150, padding: "4px 8px", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", fontFamily: "inherit", background: "var(--color-bg)", color: "var(--color-text)" }} />
@@ -87,7 +87,7 @@ export default function SampleList({ rows = [], first = null, onLoad, loading = 
         </table>
         {!shown.length && <div role="status" style={{ padding: 10, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("No sample has all of those.")}</div>}
       </div>
-      {cur && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, maxHeight: 54, overflow: "auto" }}>{sampleSource(cur.id)}</div>}{/* where its data is from and its licence / credit stay with the selected sample */}
+      {cur && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, maxHeight: 66, overflow: "auto" }}>{sampleSource(cur.id)}</div>}{/* where its data is from and its licence / credit stay with the selected sample */}
       <button type="button" className="gs-btn gs-btn--primary" data-sample-open="" disabled={!cur || loading} onClick={() => open(cur)} style={{ justifyContent: "center", padding: "8px 14px", flex: "none" }}>{cta}</button>
     </div>
   );

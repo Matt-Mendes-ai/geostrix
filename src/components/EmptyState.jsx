@@ -1,5 +1,6 @@
 import React from "react";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #4094
 
 // a string prop is translated here (callers may pass English); an element is shown as given (TASKS.csv #786)
 const trText = (x) => (typeof x === "string" ? tr(x) : x);
@@ -42,7 +43,7 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
           {icon ? <span style={{ display: "flex", color: "var(--color-text-muted)", flexShrink: 0 }}>{icon}</span> : null}
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", fontWeight: 600 }}>{trText(headline)}</div>
         </div>
-        {children}
+        {!wide && children}
         {(actionLabel || secondary) && (
           <div className="ge-empty-actions" style={wide ? wideActions : { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>{/* TASKS.csv #3541 — the buttons share one grid (the css below drops a caller's own left margin) */}
             {actionLabel && (
@@ -53,6 +54,7 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
             {secondary}
           </div>
         )}
+        {wide && children && <MoreFold summary={tr("Start with your own data")} style={{ marginTop: 8, marginBottom: 0, flex: "none" }}>{children}</MoreFold>}{/* TASKS.csv #4094 — the card's own-data steps stay one click away, folded under the table so the sample table and its gold button fit at 1366x768 */}
         {footnote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 7, whiteSpace: "pre-line" /* #3541 — a footnote of several lines keeps them */ }}>{trText(footnote)}</div>}
       </div>
     </div>
@@ -71,7 +73,7 @@ const card = {
   maxHeight: "100%", overflowY: "auto", boxSizing: "border-box",
 };
 // TASKS.csv #4094 — the wide card holds a table that scrolls inside it, with its gold button always in view: the card never scrolls, its action area takes what is left
-const wideCard = { maxWidth: 900, width: "100%", display: "flex", flexDirection: "column", overflow: "hidden" };
+const wideCard = { maxWidth: 900, width: "100%", display: "flex", flexDirection: "column" };
 const wideActions = { display: "flex", flexDirection: "column", gap: 8, flex: "1 1 auto", minHeight: 0 };
 const primaryBtn = {
   padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "inherit", // the colours are the primary role's (#4070 part 5)
