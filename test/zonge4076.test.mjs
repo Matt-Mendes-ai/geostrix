@@ -80,7 +80,7 @@ test("an average named 500N with a station file named 500E: the same line number
   assert.ok(linePlacement("500N", [{ name: "500E.utm.stn", lines: { "500E": st }, epsg: null }], to), "one line with that number");
   assert.equal(linePlacement("500N", [{ name: "grid.stn", lines: { "500E": st, "500W": st }, epsg: null }], to), null, "two lines share it: left for the user");
   assert.equal(linePlacement("500_all", [{ name: "g.stn", lines: { "500E": st }, epsg: null }], to), null, "a name that is not a line (#2020)");
-  assert.match(read("../src/components/DcipPanel.jsx"), /f\.name\.replace\(\/\\\.\(csv\|txt\|dat\|ipg\|avg\)\$\/i, ""\)/);
+  assert.match(read("../src/components/DcipPanel.jsx"), /f\.name\.replace\(\/\\\.\(csv\|txt\|dat\|ipg\|ipd\|ip\|avg\|gdd\)\$\/i, ""\)/);
 });
 
 test("raw, parameter and database files are refused in words, naming the file to open; a file for another pane names that pane", () => {

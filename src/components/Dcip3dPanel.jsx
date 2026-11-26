@@ -82,11 +82,11 @@ export default function Dcip3dPanel({ numInput }) {
   });
   const problems = () => {
     const p = [];
-    if (!(num(val("pct", first.pct)) > 0) && !(num(val("floor", first.floor)) > 0)) p.push(tr("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading."));
+    if (!(num(val("pct", first.pct)) > 0) && !(num(val("floor", first.floor)) > 0)) p.push(tr("Enter the resistivity uncertainty (% and / or a floor): how far you trust each reading."));
     if (withIp && !(num(val("ipPct", first.ipPct)) > 0) && !(num(val("ipFloor", first.ipFloor)) > 0)) p.push(phaseIp ? tr("Enter the IP phase uncertainty (%, floor mrad).") : tr("Enter the chargeability uncertainty (% and / or a floor in mV/V)."));
     if (!(num(val("core", sug.core)) >= 5)) p.push(tr("The cell size must be at least 5 m."));
     if (!voxKinds(o).length) p.push(tr("Tick Observed and / or Extrapolated under 3D voxels: with neither, the run would add no block model.")); // #1978
-    if (gfModes.length > 1) p.push(tr("The chosen lines compute apparent resistivity differently (flat-ground or draped geometric factor, in each line's options). Make them match, or leave one out.")); // #929
+    if (gfModes.length > 1) p.push(tr("The chosen lines compute apparent resistivity differently (flat-ground or draped, in each line's options). Make them match, or leave one out.")); // #929
     return p;
   };
   const estimate = async () => {
@@ -126,7 +126,7 @@ export default function Dcip3dPanel({ numInput }) {
       },
     });
     if (!res.ok) setMsg({ ok: false, text: res.error });
-    else setMsg({ ok: true, text: tr("Inverting {n} readings from {k} lines in 3D…", { n: req.rho.length.toLocaleString(), k: names.length }) + (req.topoSkipped ? " " + tr("{n} terrain samples left out (off the terrain or over its no-data area): the station elevations define the ground there.", { n: req.topoSkipped.toLocaleString() }) : "") });
+    else setMsg({ ok: true, text: tr("Inverting {n} readings from {k} lines in 3D…", { n: req.rho.length.toLocaleString(), k: names.length }) + (req.topoSkipped ? " " + tr("{n} terrain samples left out (off the terrain or no data): the station elevations define the ground.", { n: req.topoSkipped.toLocaleString() }) : "") });
   };
 
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -137,7 +137,7 @@ export default function Dcip3dPanel({ numInput }) {
   return (
     <div style={{ marginTop: 14 }}>
       <div className="ge-section-label">{tr("True 3D inversion")}</div>
-      <div style={small}>{tr("Inverts every reading of the chosen lines, cross lines included, in one 3D model. Far heavier than the 2D lines: check the estimate first.")}</div>
+      <div style={small}>{tr("Inverts every reading of the chosen lines, cross lines included, in one 3D model. Far heavier than 2D: check the estimate.")}</div>
       <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
         {placed.map(({ e, l }) => (
           <label key={e.id} style={{ fontSize: "var(--font-size-xs)", color: l.ok ? "var(--color-text-secondary)" : "var(--color-text-faint)" }} title={l.ok ? "" : tr(REASONS[l.reason] || l.reason)}>
@@ -155,7 +155,7 @@ export default function Dcip3dPanel({ numInput }) {
       {withIp && <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><NumberInput allowEmpty min={0} value={o.ipPct} placeholder={first.ipPct ? String(first.ipPct) : "%"} onChange={(v) => set("ipPct", (v == null ? "" : String(v)))} style={inp} aria-label={phaseIp ? tr("IP phase uncertainty (%)") : tr("Chargeability uncertainty (%)")} /><span style={small}>%</span><NumberInput allowEmpty min={0} value={o.ipFloor} placeholder={first.ipFloor ? String(first.ipFloor) : phaseIp ? "mrad" : "mV/V"} onChange={(v) => set("ipFloor", (v == null ? "" : String(v)))} style={inp} aria-label={phaseIp ? tr("Phase floor (mrad)") : tr("Chargeability uncertainty floor (mV/V)")} /></div>}
       {(errLines("rhoPct").length > 0 || (withIp && errLines("ipMvV").length > 0)) && <div style={{ ...small, marginTop: 4 }}>{tr("Each reading's floor is also at least its own error, from the error column of: {lines}.", { lines: [errLines("rhoPct").length ? tr("{names} (resistivity, %)", { names: errLines("rhoPct").join(", ") }) : "", withIp && errLines("ipMvV").length ? (phaseIp ? tr("{names} (IP phase, mrad)", { names: errLines("ipMvV").join(", ") }) : tr("{names} (chargeability, mV/V)", { names: errLines("ipMvV").join(", ") })) : ""].filter(Boolean).join("; ") })}</div>}
       {mixedIp && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("IP left out: the lines mix phase (mrad) and chargeability (mV/V).")}</div>}{/* #4059 */}
-      {ipLeftOut && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.", { names: noIp.join(", ") })}</div>}
+      {ipLeftOut && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("Chargeability is left out: {names} lack it for some readings. Leave them out to invert IP in 3D.", { names: noIp.join(", ") })}</div>}
       <div style={row} title={tr("Cells below the deepest one whose support (0-1) reaches this are left out of the block models: below it the values are extrapolated, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><NumberInput allowEmpty min={0} max={1} step={0.001} value={o.cutoff} onChange={(v) => setO((p) => ({ ...p, cutoff: (v == null ? "" : String(v)) }))} style={inp} aria-label={tr("Support cutoff")} /></div>
       <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>

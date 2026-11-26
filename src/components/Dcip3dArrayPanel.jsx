@@ -62,7 +62,7 @@ export default function Dcip3dArrayPanel({ numInput }) {
   const problems = () => {
     const p = [];
     if (!sel?.idx.length) p.push(tr("No reading is left to invert."));
-    if (!(num(o.pct) > 0) && !(num(o.floor) > 0)) p.push(tr("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading."));
+    if (!(num(o.pct) > 0) && !(num(o.floor) > 0)) p.push(tr("Enter the resistivity uncertainty (% and / or a floor): how far you trust each reading."));
     if (o.useIp && hasIp && !(num(o.ipPct) > 0) && !(num(o.ipFloor) > 0)) p.push(tr("Enter the chargeability uncertainty (% and / or a floor, in {u}).", { u: ipUnitLabel }));
     if (!(num(o.core !== "" ? o.core : sug.core) >= 5)) p.push(tr("The cell size must be at least 5 m."));
     if (!voxKinds(o).length) p.push(tr("Tick Observed and / or Extrapolated under 3D voxels: with neither, the run would add no block model.")); // #1978
