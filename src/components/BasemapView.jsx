@@ -321,7 +321,7 @@ export default function BasemapView({
           {/* TASKS.csv #2094 (review #2013) — opening this map loads basemap tiles from the internet: said, before anything is fetched for the terrain */}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
             {!online /* TASKS.csv #3461 — the banner below says no tiles are loaded: the header must not say they are */
-              ? (mode === "draw" ? tr("The online basemap ({layer}) is off: no tiles are loaded. Nothing is fetched for the project until you press {confirm}.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard"), confirm: tr(confirmLabel) }) : tr("The online basemap ({layer}) is off: no tiles are loaded.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard") }))
+              ? (mode === "draw" ? tr("No map tiles are loaded, and nothing is fetched for the project until you press {confirm}.", { confirm: tr(confirmLabel) }) /* TASKS.csv #4102 — one sentence for the two notes (header and banner) */ : tr("The online basemap ({layer}) is off: no tiles are loaded.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard") }))
               : mode === "draw"
               ? tr("The map is an online basemap ({layer}): its tiles load from the internet as you look around. Nothing is fetched for the project until you press {confirm}.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard"), confirm: tr(confirmLabel) })
               : tr("The map is an online basemap ({layer}): its tiles load from the internet as you look around.", { layer: tr(getBaseLayer(effectiveLayerId)?.label || "Standard") })}
@@ -360,7 +360,7 @@ export default function BasemapView({
         ))}
         {!online && ( /* #2680 */
           <div style={{ position: "absolute", left: 12, top: 12, right: 60, padding: "8px 10px", background: "rgba(255,255,255,0.92)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", zIndex: 2 }} onMouseDown={(e) => e.stopPropagation()}>
-            <span style={{ flex: 1, minWidth: 200 }}>{tr("No map tiles are loaded until you ask: draw the area over the project's collars and layer outlines, or choose it from the list.")}</span>
+            <span style={{ flex: 1, minWidth: 200 }}>{mode === "draw" ? tr("Draw the area over the project's collars and layer outlines, or choose it from the list.") : tr("No map tiles are loaded until you ask.")}</span>
             <button className="gs-btn gs-btn--sm" type="button" onClick={() => setOnline(true)}>{tr("Show the online map")}</button>
           </div>
         )}

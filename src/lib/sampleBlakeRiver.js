@@ -71,7 +71,8 @@ export const BLAKE = {
     reprojected: (epsg2) => notice("This project is EPSG:{epsg2}, not the sample's EPSG:{epsg} ({crs}): the stations and the grid's picture were reprojected into it, and the grid's values were not kept. Load the sample into a new project to work in its own coordinates.", { epsg: BLAKE_EPSG, crs: BLAKE_CRS_NAME, epsg2 }),
     pointsFailed: (e) => errorNotice(tr("The Blake River stations could not be loaded: {message}", { message: e.message })),
     gridFailed: (e) => errorNotice(tr("The Blake River grid could not be loaded: {message}", { message: e.message })),
-    loaded: (size, n) => notice("Loaded the Blake River gravity sample (Geological Survey of Canada, Abitibi, Quebec; no drillholes): the published Bouguer anomaly grid ({size} nodes at 100 m, mGal) and {n} gravity stations. Open Maps for the grid, its contours and filters, or Geophysics > Point survey to grid the stations yourself and compare. See sample_data/blake_river/README.md for the source and the licence.", { size: size || "767 × 424", n: n.toLocaleString() }),
+    // TASKS.csv #4102 — the long load notice (61 words) says what loaded; where to go next and the source / licence are behind its More (a notice's `more`, #3986)
+    loaded: (size, n) => ({ ...notice("Loaded the Blake River gravity sample (Geological Survey of Canada; no drillholes): the published Bouguer anomaly grid ({size} nodes at 100 m, mGal) and {n} gravity stations.", { size: size || "767 × 424", n: n.toLocaleString() }), more: notice("Open Maps for the grid, its contours and filters, or Geophysics > Point survey to grid the stations yourself and compare. See sample_data/blake_river/README.md for the source and the licence.").text }),
   },
 };
 export const loadBlakeRiver = (readFile, store, project = null) => loadPointGrid(BLAKE, readFile, store, project);

@@ -12,6 +12,7 @@ import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every ex
 import { sqlResultRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 import { defaultQueryFor, sqlColumnLabel } from "../lib/sqlDefaults.js"; // TASKS.csv #2034 / #2360 / #2204
 import { leadFor } from "../lib/useLeadCommodity.js"; // TASKS.csv #2360
+import MoreFold from "./MoreFold.jsx"; // TASKS.csv #3939 / #4102
 
 // TASKS.csv #50 — ad hoc SQL against whatever's currently loaded (collars/survey/assays/layers/
 // boundaries), no Postgres connection needed. sqlWorkspace.js builds the in-memory database and runs
@@ -83,15 +84,20 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
             <div style={label}><Database size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Tables")}</div>
             {state.status === "loading" && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{progress ? tr("Building… {table}: {done} of {total} rows", { table: progress.table, done: progress.done.toLocaleString(), total: progress.total.toLocaleString() }) : tr("Building…")}</div>}
             {state.status === "ready" && state.tables.length === 0 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>{tr("Nothing loaded yet — import collars/assays/layers first.")}</div>}
-            {state.status === "ready" && state.tables.map((t) => (
-              <div key={t.name} style={{ marginBottom: 8, fontSize: "var(--font-size-sm)" }}>
-                <div style={{ fontWeight: 600, color: "var(--color-text)" }}>{t.name}</div>
-                <div style={{ color: "var(--color-text-muted)", lineHeight: 1.5 }}>{t.columns.map(sqlColumnLabel).join(", ")}</div>{/* #2204 — as a query must write them */}
-              </div>
-            ))}
-            {state.status === "ready" && state.tables.some((t) => t.columns.some((c) => sqlColumnLabel(c) !== c)) && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Columns shown in double quotes (\"from\", \"to\") are SQL words or unusual names: write them with the quotes, e.g. SUM(\"to\" - \"from\") for the metres sampled.")}</div>
-            )}
+            {state.status === "ready" && state.tables.length > 0 && (<>{/* TASKS.csv #4102 (side 3's closing audit: the SQL workspace listed every column of every table, 148 words) — the table names stay in view; their columns wait in 'Columns' */}
+              <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--color-text)", lineHeight: 1.5 }}>{state.tables.map((t) => t.name).join(", ")}</div>
+              <MoreFold summary={tr("Columns")} data-more-columns="" style={{ marginTop: 6 }}>
+                {state.tables.map((t) => (
+                  <div key={t.name} style={{ marginBottom: 8, fontSize: "var(--font-size-sm)" }}>
+                    <div style={{ fontWeight: 600, color: "var(--color-text)" }}>{t.name}</div>
+                    <div style={{ color: "var(--color-text-muted)", lineHeight: 1.5 }}>{t.columns.map(sqlColumnLabel).join(", ")}</div>{/* #2204 — as a query must write them */}
+                  </div>
+                ))}
+                {state.tables.some((t) => t.columns.some((c) => sqlColumnLabel(c) !== c)) && (
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Columns shown in double quotes (\"from\", \"to\") are SQL words or unusual names: write them with the quotes, e.g. SUM(\"to\" - \"from\") for the metres sampled.")}</div>
+                )}
+              </MoreFold>
+            </>)}
           </div>
 
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>

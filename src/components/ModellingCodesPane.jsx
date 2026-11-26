@@ -380,7 +380,10 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         </div>
       )}
   </>);
-  const numberSection = (<>
+  // TASKS.csv #4102 (side 3's closing audit: Correlation > Intervals was 174 words / 35 controls on wa_uranium) — past six logged codes the tick boxes wait in a fold, 'Codes to
+  // number (n)', which names the ticked ones once there are some; the optional sheet correlation is a fold too. Folded, not hidden: every tick box, the Auto-number button and the
+  // sheet controls are the same.
+  const codePicker = (
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
         {loggedCodes.map((c) => (
           <label key={c} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}>
@@ -388,6 +391,11 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           </label>
         ))}
       </div>
+  );
+  const numberSection = (<>
+      {loggedCodes.length > 6
+        ? <MoreFold summary={numberCodes.length ? tr("Codes to number: {codes}", { codes: numberCodes.join(", ") }) : tr("Codes to number ({n})", { n: loggedCodes.length })} data-more-number="" style={{ marginTop: 4, marginBottom: 0 }}>{codePicker}</MoreFold>
+        : codePicker}
       <button disabled={!numberCodes.length} onClick={async () => {
         // TASKS.csv #2533 (review #2486) — Auto-number re-coded 3,870 intervals in all 2,248 holes, not the 30 checked ones, and said nothing:
         // it follows the Model area (the holes checked, when it says so) and says what it did
@@ -400,8 +408,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
         setNumberMsg(tr("Numbered {n} interval(s) of {codes} in {h} hole(s){area}.", { n: keys.size.toLocaleString(), codes: numberCodes.join(", "), h: new Set(rows.filter((r) => keys.has(rowKey(r))).map((r) => r.hole_id)).size.toLocaleString(), area: inArea ? tr(" (the holes checked: Model area)") : "" })); // #2533
       }} className="gs-btn gs-btn--block" style={{ marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Auto-number {v}", { v: numberCodes.join(", ") || "…" })}</button>
       {numberMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{numberMsg}</div>}{/* #2533 */}
-      {positionAt && (<>{/* TASKS.csv #2625 / #2635 — a sheet swarm: the runs matched between holes along an attitude, not counted per hole */}
-        <div className="ge-section-label" style={{ marginTop: 10 }}>{tr("Correlate sheets between holes (optional)")}</div>
+      {positionAt && (<MoreFold summary={tr("Correlate sheets between holes (optional)")} data-more-sheets="" style={{ marginTop: 10, marginBottom: 0 }}>{/* TASKS.csv #2625 / #2635 — a sheet swarm: the runs matched between holes along an attitude, not counted per hole; #4102 — behind a fold */}
         <div style={small}>{tr("For parallel sheets (pegmatites, dykes, stacked reefs): runs of the codes ticked above are matched between holes along an attitude and numbered from the top (P → P1, P2…) for the Vein tool. Connect sheets that split or cross by hand.")}</div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
           <select value={sheetAtt.mode} onChange={(e) => setSheetAtt((a) => ({ ...a, mode: e.target.value }))} style={inputStyle} aria-label={tr("Attitude of the sheets")}>
@@ -429,7 +436,7 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           title={tr("Colours each sheet's matched runs on the holes without writing codes: check the matches, and change the gap or attitude, first.")}>{sheetPreview ? tr("Previewing the sheets in 3D (click to stop)") : tr("Preview the sheets in 3D")}</button>}{/* #2722 */}
         {sheetPreview && sheetPreview.length > 0 && <div style={{ ...small, display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>{[...new Map(sheetPreview.map((q) => [`${q.code}${q.sheet}`, q])).values()].map((q) => <span key={`${q.code}${q.sheet}`} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: sheetColour(q.sheet) }} />{`${q.code}${q.sheet}`}</span>)}</div>}
         {sheetMsg && <div role="status" style={{ ...small, marginTop: 3 }}>{sheetMsg}</div>}
-      </>)}
+      </MoreFold>)}
   </>);
   const footer = (
       <div style={{ ...small, marginTop: 10 }}>
@@ -448,12 +455,34 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
     </div>
   );
   const hasBody = !!(onBuildBody && unitBody);
+  // TASKS.csv #4102 (side 3's closing audit of #4070: 62 controls on Harry, 134 on wa_uranium) — the roles are read from the code names, notes and groups, and almost every code is
+  // a layer of the pile ('stratigraphic', which is also what a name nothing recognizes is assumed to be). The codes to look at stay in view: a role other than that (an intrusion,
+  // cross-cutting, overburden, ignored, whoever set it), a code left out, a code made by re-coding, a picked one; the layers wait in 'Stratigraphic, assumed (n)' (a name nothing recognizes is assumed to be one: the fold says so). Up to six codes everything
+  // stays in view. Folded, not hidden: the row is the same (colour, show, role, order, leave out, delete).
+  const needsLook = (c) => c.role !== "stratigraphic" || !!c.leftOut || overrideCount.has(c.name) || pickedCodes.has(c.name);
+  const codeRow = (c, i) => (
+        <div key={c.name} onClick={(e) => clickCodeRow(e, c.name)} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, ...(pickedCodes.has(c.name) ? { background: "var(--color-selected-bg)", borderRadius: 4 } : {}) }}>
+          <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
+          <span style={{ flex: 1, minWidth: 40, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}><span style={c.leftOut ? { textDecoration: "line-through", color: "var(--color-text-muted)" } : undefined}>{c.name}</span> <span style={small}>({counts.get(c.name) || 0})</span></span>
+          <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0 }}><Square size={11} /></button>
+          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={assumedRole(c.name) ? tr("Not recognized: assumed stratigraphic. Check it before modelling.") : coverWhy(c) || meaningWhy(c) || tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 84, flex: "none", ...(assumedRole(c.name) ? { color: "var(--color-text-muted)", fontStyle: "italic" } : {}) }}>{/* #2537 — an assumed role looks assumed */}
+            {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
+          </select>
+          <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0 }}>▲</button>
+          <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0 }}>▼</button>
+          <button data-btn-own="" onClick={() => leaveOut([c.name], !c.leftOut)} aria-pressed={!!c.leftOut} title={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} aria-label={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", ...(c.leftOut ? { background: "var(--color-selected-bg)" } : {}) }}><EyeOff size={11} /></button>
+          {overrideCount.has(c.name) && <button onClick={() => deleteCodesNamed([c.name])} title={tr("Delete the code {name}", { name: c.name })} aria-label={tr("Delete the code {name}", { name: c.name })} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0, color: "var(--color-danger-icon)" }}><X size={11} /></button>}
+        </div>
+  );
+  const indexed = codes.map((c, i) => [c, i]);
+  const lookNow = codes.length <= 6 ? indexed : indexed.filter(([c]) => needsLook(c));
+  const others = codes.length <= 6 ? [] : indexed.filter(([c]) => !needsLook(c));
   return (
     <div style={{ fontSize: "var(--font-size-sm)" }}>
       <StepPane id="mcodes" label={tr("Modelling codes")}
         steps={[
           { key: "codes", label: tr("Codes"), question: tr("Which role does each code play?"),
-            hint: `${tr("Each logged interval has a")} ${tr("modelling code")}${tr(": its logged code (or lithology group) unless you change it. Give alternating flows their own codes (DAC1, AND1, DAC2…). A contact is taken where the code changes down-hole below a younger stratigraphic unit, never at a hole start or below casing, an intrusion or a gap. New codes appear in the Implicit surface and Strat. stack pickers.")} ${tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")} ${tr("Roles are suggested from code names and, when imported, the intervals' notes (dyke, lost core, monzonite ...). An unrecognized code is assumed stratigraphic: check the roles before modelling.")} ${tr("A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.")}` /* #2046; cover: #3147 */, body: (<>
+            hint: `${tr("Each logged interval has a")} ${tr("modelling code")}${tr(": its logged code (or lithology group) unless you change it. Give alternating flows their own codes (DAC1, AND1, DAC2…). A contact is taken where the code changes down-hole below a younger stratigraphic unit, never at a hole start or below casing, an intrusion or a gap. New codes appear in the Implicit surface and Strat. stack pickers.")} ${tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")} ${tr("Roles are suggested from code names and, when imported, the intervals' notes (dyke, lost core, monzonite ...). An unrecognized code is assumed stratigraphic: check the roles before modelling.")}` /* #2046; cover: #3147 */, body: (<>
       {codes.length > 1 && <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>{/* #2926 */}
         <button type="button" onClick={applyHolesOrder} title={tr("In each hole the unit that starts higher is younger, counted pair by pair over the holes that log both (the Strat. stack's check).")} className="gs-btn gs-btn--block" style={{ width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("Use the order from the holes")}</button>
         {holesNote && <span role="status" style={small}>{holesNote}</span>}
@@ -468,20 +497,12 @@ export default function ModellingCodesPane({ focus = null, inArea = null, litho,
           <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { setPickedCodes(new Set()); codeAnchor.current = null; }} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Clear")}</span>
         </div>
       )}
-      {codes.map((c, i) => (
-        <div key={c.name} onClick={(e) => clickCodeRow(e, c.name)} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, ...(pickedCodes.has(c.name) ? { background: "var(--color-selected-bg)", borderRadius: 4 } : {}) }}>
-          <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
-          <span style={{ flex: 1, minWidth: 40, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}><span style={c.leftOut ? { textDecoration: "line-through", color: "var(--color-text-muted)" } : undefined}>{c.name}</span> <span style={small}>({counts.get(c.name) || 0})</span></span>
-          <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0 }}><Square size={11} /></button>
-          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={assumedRole(c.name) ? tr("Not recognized: assumed stratigraphic. Check it before modelling.") : coverWhy(c) || meaningWhy(c) || tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 84, flex: "none", ...(assumedRole(c.name) ? { color: "var(--color-text-muted)", fontStyle: "italic" } : {}) }}>{/* #2537 — an assumed role looks assumed */}
-            {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
-          </select>
-          <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0 }}>▲</button>
-          <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0 }}>▼</button>
-          <button data-btn-own="" onClick={() => leaveOut([c.name], !c.leftOut)} aria-pressed={!!c.leftOut} title={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} aria-label={c.leftOut ? tr("Put back in the model") : tr("Leave out of the model")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 4px", ...(c.leftOut ? { background: "var(--color-selected-bg)" } : {}) }}><EyeOff size={11} /></button>
-          {overrideCount.has(c.name) && <button onClick={() => deleteCodesNamed([c.name])} title={tr("Delete the code {name}", { name: c.name })} aria-label={tr("Delete the code {name}", { name: c.name })} className="gs-btn gs-btn--icon gs-btn--sm" style={{ flexShrink: 0, color: "var(--color-danger-icon)" }}><X size={11} /></button>}
-        </div>
-      ))}
+      {lookNow.map(([c, i]) => codeRow(c, i))}
+      {others.length > 0 && (<>{/* TASKS.csv #4102 — the codes whose role was read from their name wait in a fold; the ones to look at stay in view */}
+        <MoreFold summary={tr("Stratigraphic, assumed ({n})", { n: others.length })} data-more-codes="" style={{ marginTop: 4, marginBottom: 0 }}>
+          {others.map(([c, i]) => codeRow(c, i))}
+        </MoreFold>
+      </>)}
           </>) },
           { key: "recode", label: tr("Re-code"), question: tr("Re-code intervals?"), body: (<>
             {pickSection}

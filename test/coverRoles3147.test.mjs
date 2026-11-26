@@ -61,7 +61,8 @@ test("wiring: the pane says why; the key", () => {
   assert.match(p, /: coverWhy\(c\) \|\| (meaningWhy\(c\) \|\| )?tr\(ROLE_HELP\[c\.role\]\)/);
   const k = "Suggested as overburden: its name reads as cover, and it lies at the top of {pct}% of the holes that log it. Check it before modelling.";
   assert.ok(p.includes(`tr("${k}"`));
+  // TASKS.csv #4102: the pane's intro no longer repeats the cover rule (the row says why, above); the sentence is gone from the pane and from the locales
   const k2 = "A code whose name reads as cover (ALU, CLA, soil ...) and that lies at the top of most of its holes is suggested as overburden.";
-  assert.ok(p.includes(`tr("${k2}")`));
-  for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8")); assert.ok(d[k] && d[k2], l); }
+  assert.ok(!p.includes(k2));
+  for (const l of ["es", "pt", "fr", "ar"]) { const d = JSON.parse(readFileSync(new URL(`../src/locales/${l}.json`, import.meta.url), "utf8")); assert.ok(d[k], l); assert.ok(!(k2 in d), `${l}: the old key is gone`); }
 });
