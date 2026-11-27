@@ -28,6 +28,13 @@ FULL_VARIANCE = False
 # of 300 iterations 11 % of the mean grade away (P10 18 %), the rock model at 376 of 600 0.058 in probability, and a real Fast gold run
 # at 130 of 150 moved its richest blocks by several times the mean grade: far outside #4043's tolerances. A request may still set one.
 TRAINING_TOLERANCE = None
+# TASKS.csv #4106 — the grade model's covariance. geoML's default (Gaussian, the smoothest there is) overshoots between holes, and the
+# Box-Cox back-transform turns a latent overshoot into grades far above any sample: on a real silver model the blocks over a cut-off
+# sat mostly hundreds of metres from any sample over it, some at several times the highest sample, so the shell lay beside the holes
+# and missed their intercepts (the same in add-on 0.1.5 and 0.1.6). The exponential covariance, the rough one grades usually follow,
+# put those blocks by the intercepts, never above the samples, and fitted the composites better. A request may still name another.
+GRADE_KERNELS = {"exponential": "Exponential", "matern32": "Matern32", "spherical": "Spherical", "gaussian": "Gaussian"}
+GRADE_KERNEL = "exponential"
 # TASKS.csv #4055 — the last trained model of each kind, kept by the worker for the session (the worker itself exits after 10 idle
 # minutes): a run whose training inputs are unchanged — only the block size, the model box, the simulations or the check points differ —
 # re-predicts without training. One per kind, replaced by the next training.
@@ -374,7 +381,10 @@ def _grade_train(geoml, p, name, progress):
     rng = float(p.get("range", 150.0))
     tr = _anisotropy(geoml, p, rng)  # #673
     root = geoml.latent.BasicInput(inducing, center=True, transform=tr)
-    gp = geoml.latent.BasicGP(root, size=1)
+    kname = str(p.get("kernel") or GRADE_KERNEL).lower()  # #4106
+    if kname not in GRADE_KERNELS:
+        raise ValueError(f"Unknown grade kernel '{kname}' (one of {', '.join(GRADE_KERNELS)}).")
+    gp = geoml.latent.BasicGP(root, size=1, kernel=getattr(geoml.kernels, GRADE_KERNELS[kname])())
     vals = np.asarray(pts.values(f"{name}/measurements")) if f"{name}/measurements" in str(pts.tree()) else a[name].to_numpy(float)
     positive = vals[vals > 0]
     shift = float(np.nanmin(positive)) / 2 if positive.size else 1.0  # Box-Cox needs > 0; half the smallest grade
@@ -384,7 +394,7 @@ def _grade_train(geoml, p, name, progress):
     progress(0.08, f"Training ({pts.n_data} composites)")
     cap = int(p.get("iterations", 300))
     ran = _train(geoml, model, cap, progress, 0.08, 0.75, "Training")
-    return {"pts": pts, "n_ind": n_ind, "tr": tr, "rng": rng, "model": model, "data_warnings": data_warnings, "iterations": {"cap": cap, "run": ran}}
+    return {"pts": pts, "n_ind": n_ind, "tr": tr, "rng": rng, "model": model, "data_warnings": data_warnings, "iterations": {"cap": cap, "run": ran}, "kernel": kname}
 
 
 def run_grade(p, progress):
@@ -431,7 +441,7 @@ def run_grade(p, progress):
         blocks["p90"] = np.percentile(sims, 90, axis=1).round(5).tolist()
     out = {"kind": "grade", "element": name, "seconds": round(time.time() - t0, 1), "composites": int(pts.n_data), "inducing_points": n_ind, "blocks": blocks,
            "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")), "data_warnings": data_warnings,  # #673 / #692
-           "iterations": g["iterations"], "reused_training": reused}  # #4055
+           "iterations": g["iterations"], "reused_training": reused, "kernel": g.get("kernel")}  # #4055, #4106
     progress(1.0, "Done")
     return out
 
