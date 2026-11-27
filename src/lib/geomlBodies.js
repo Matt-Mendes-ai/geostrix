@@ -15,6 +15,7 @@ import { capFieldAtGround } from "./groundCap.js";
 import { meshVolume } from "./unitVolumes.js";
 import { meshBodies } from "./meshBodies.js";
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "./meshQuery.js";
+import { makeNearData } from "./geomlClip.js"; // TASKS.csv #4106
 
 export const BODY_LEVEL = 0.5;
 export const BODY_MIN_CELLS = 2; // a body smaller than this many blocks is a speck of the field crossing the level, not a body
@@ -171,20 +172,36 @@ export const parseShellCutoffs = (text) => [...new Set(String(text || "").split(
 
 // b: the run's blocks ({ cell, x, y, z, prediction, p10?, p90? }); cutoffs: [number]; bands: also the P10 and P90 shells (when the blocks carry them); dropped / groundAt: as enclosedBodies;
 // samples: [{ x, y, z, value }] to check each shell against (the samples at or above its cut-off that fall inside it)
-// -> [{ kind: "mean" | "p10" | "p90", cutoff, body (enclosedBodies' result, empty when no block reaches it), above, inside }] in cut-off order, the mean shell first
-export function gradeShells(b, { cutoffs, bands = false, dropped = null, groundAt = null, samples = null } = {}) {
+// TASKS.csv #4106 — reach: the mean shell keeps only blocks with a sample at or above its cut-off within SHELL_REACH_BLOCKS blocks (the others are
+// no-data, which it closes against). A smooth model carries a few rich holes' grade across the gaps where drilling is sparse, so the shell grew beside the
+// holes rather than around their intercepts. The P10 / P90 shells (what the grade could be) and a shell without samples to check keep every block.
+// -> [{ kind: "mean" | "p10" | "p90", cutoff, body (enclosedBodies' result, empty when no block reaches it), above, inside, farLeftOut }] in cut-off order, the mean shell
+//    first; farLeftOut: the mean shell's blocks at or above the cut-off left out by the reach
+export const SHELL_REACH_BLOCKS = 2;
+export function gradeShells(b, { cutoffs, bands = false, dropped = null, groundAt = null, samples = null, reachBlocks = SHELL_REACH_BLOCKS } = {}) {
   const kinds = [["mean", "prediction"], ...(bands && b.p10 ? [["p10", "p10"]] : []), ...(bands && b.p90 ? [["p90", "p90"]] : [])];
   const out = [];
   for (const cutoff of cutoffs || []) {
     const above = (samples || []).filter((s) => Number.isFinite(s.value) && s.value >= cutoff);
+    let reachDropped = null, farLeftOut = 0;
+    if (samples && reachBlocks > 0) { // #4106
+      const nearAbove = makeNearData(above.map((s) => [s.x, s.y, s.z]), reachBlocks * b.cell);
+      reachDropped = b.x.map((x, i) => {
+        if (dropped?.[i]) return true;
+        const far = !nearAbove(x, b.y[i], b.z[i]);
+        if (far && b.prediction[i] >= cutoff) farLeftOut++;
+        return far;
+      });
+    }
     for (const [kind, field] of kinds) {
-      const body = enclosedBodies(b, { level: cutoff, dropped, groundAt, field });
+      const mean = kind === "mean";
+      const body = enclosedBodies(b, { level: cutoff, dropped: mean && reachDropped ? reachDropped : dropped, groundAt, field });
       let inside = null;
       if (above.length && body.positions.length && body.closed) {
         const chk = interceptsInsideBodies(body.positions, body.indices, above.map((s) => [s.x, s.y, s.z]), above.map((s, i) => ({ start: i, count: 1 })));
         inside = chk ? { inside: chk.inside, of: chk.points, share: chk.pointShare } : null;
       }
-      out.push({ kind, cutoff, body, above: above.length, inside });
+      out.push({ kind, cutoff, body, above: above.length, inside, farLeftOut: mean ? farLeftOut : 0, reachBlocks: mean && reachDropped ? reachBlocks : null });
     }
   }
   return out;

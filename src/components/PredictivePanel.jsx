@@ -328,13 +328,15 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
         const tag = (k) => (k === "p10" ? " (P10)" : k === "p90" ? " (P90)" : "");
         for (const s of made) {
           const u = unitTxt, sv = { element, cutoff: s.cutoff, unit: u, v: Number(s.body.volumeM3.toPrecision(3)).toLocaleString(), a: s.inside?.inside ?? 0, n: s.inside?.of ?? 0 };
-          if (!(s.body.positions.length && s.body.closed)) { shellParts.push(tr("no block reaches {cutoff}{unit}: no shell", sv) + tag(s.kind)); continue; }
+          const far = s.farLeftOut ? tr("{k} blocks over {cutoff}{unit} left out: no such sample within 2 blocks", { ...sv, k: s.farLeftOut.toLocaleString() }) : ""; // TASKS.csv #4106
+          if (!(s.body.positions.length && s.body.closed)) { shellParts.push(far || tr("no block reaches {cutoff}{unit}: no shell", sv) + tag(s.kind)); continue; }
           R.surface("shells", { name: `geoML — ${element} ≥ ${s.cutoff}${u} shell${tag(s.kind)}`, positions: s.body.positions, indices: s.body.indices, type: "mineralization_envelope", closure: s.body.closingShare > 0 ? "artificial" : "natural",
             color: s.kind === "mean" ? "#c9552a" : s.kind === "p10" ? "#2a7fc9" : "#c9a22a", opacity: 0.5,
-            params: { ...gparams, tool: "geoML grade shell", cutoff: s.cutoff, shellOf: s.kind === "mean" ? "predicted grade" : `${s.kind.toUpperCase()} of ${nsim} simulations`, volumeM3: Math.round(s.body.volumeM3), bodies: s.body.bodies, voids: s.body.voids, closingShare: +s.body.closingShare.toFixed(3), droppedSpecks: s.body.droppedSpecks, cutAtGround: cutAtTopo, samplesAtOrAbove: { n: s.above, inside: s.inside?.inside ?? null, of: s.inside?.of ?? null } } });
+            params: { ...gparams, tool: "geoML grade shell", cutoff: s.cutoff, shellOf: s.kind === "mean" ? "predicted grade" : `${s.kind.toUpperCase()} of ${nsim} simulations`, volumeM3: Math.round(s.body.volumeM3), bodies: s.body.bodies, voids: s.body.voids, closingShare: +s.body.closingShare.toFixed(3), droppedSpecks: s.body.droppedSpecks, cutAtGround: cutAtTopo, reachBlocks: s.reachBlocks, farBlocksLeftOut: s.farLeftOut, samplesAtOrAbove: { n: s.above, inside: s.inside?.inside ?? null, of: s.inside?.of ?? null } } });
           const wall = (s.body.closingShare > 0 ? tr("; part of its boundary is the model's edge") : "") + (cutAtTopo ? "" : tr("; not cut at the ground"));
           shellParts.push(`${tr("shell at {cutoff}{unit}: {v} m³", sv)}${tag(s.kind)}${wall}`);
           if (s.kind === "mean" && s.inside) shellParts.push(s.inside.share >= 0.5 ? tr("{a} of {n} samples above {cutoff}{unit} inside", sv) : tr("WARNING: only {a} of {n} samples above {cutoff}{unit} are inside: check the cut-off", sv));
+          if (far) shellParts.push(far);
         }
       }
       R.line(tr("{n} blocks of {c} m", { n: cells.length.toLocaleString(), c: b.cell }) + `, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt}`); shellParts.forEach((p) => R.line(p)); setResult(R.done()); // TASKS.csv #4028
@@ -358,7 +360,7 @@ export default function PredictivePanel({ lithoGroups = [], modellingCodes = nul
           <div style={{ marginTop: 4 }}><strong>{tr("What it costs:")}</strong>{" "}{tr("a download{v} from GitHub, {v2} (with TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most since 2012).", { v: st.downloadBytes ? tr(" of about {v}", { v: fmtMB(st.downloadBytes) }) : "", v2: st.installedBytes ? tr("{v} on disk", { v: fmtMB(st.installedBytes) }) : tr("a few GB on disk") })}</div>
           <div style={{ marginTop: 4 }}><strong>{tr("Licence:")}</strong>{" "}{tr("free to use; it is GPL-3.0, which only matters if you redistribute it (")}<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">{tr("licence text")}</a>{tr("). GeoStrix itself stays MIT. You can remove it here (3D Modelling › geoML models) at any time.")}</div>
           {cpu?.avx === false && (
-            <div role="alert" style={{ marginTop: 8, padding: 8, borderRadius: 6, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)" }}>{tr("This processor has no AVX instructions, which the add-on's TensorFlow needs, so it would download and then fail to start. GeoStrix's own modelling tools don't need it.")}</div>
+            <div role="alert" style={{ marginTop: 8, padding: 8, borderRadius: 6, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)" }}>{tr("This processor lacks AVX, which the add-on needs. GeoStrix's own modelling tools work without it.")}</div>
           )}
           <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
             {confirmInstall && !inst?.phase ? (
